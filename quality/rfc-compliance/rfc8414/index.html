@@ -128,11 +128,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>16</strong><b>of 31 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 31 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>16</strong><b>of 31 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 31 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 31 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 31 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>22</strong><b>22 of 43 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 31 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>22</strong><b>22 of 43 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -144,9 +144,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 31 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>12</strong><b>of 31 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 31 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 31 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -174,11 +174,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -190,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -198,7 +198,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -279,7 +279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> OAuth 2.0 Authorization Server Metadata (MCP resource server)</p>
-<p><strong>Proof:</strong> 9 of 31 MUST proven</p>
+<p><strong>Test verification:</strong> 9 of 31 MUST proven</p>
 <p><strong>Evidence:</strong> unit 9</p>
 <p><strong>Unmet:</strong> RFC8414-2-13, RFC8414-2.1-1, RFC8414-2.1-2</p>
 
@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -326,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8414:must">Ze proven 9, Proof pending 7, Exclusion unchecked 12, Not built 3</div>
+<div data-ze-rfc-bar="rfc8414:must">Ze verified 9, Tests awaiting verification 7, Exclusion unchecked 12, Not built 3</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8414:overview">Ze MUST proven 9, Proof pending 7, Exclusion unchecked 12, Not assessed 2, Not built 3</div>
+<div data-ze-rfc-bar="rfc8414:overview">Ze MUST verified 9, Tests awaiting verification 7, Exclusion unchecked 12, Not assessed 2, Not built 3</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -348,13 +348,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc8414:must.kept">31</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc8414:must.ze-proven">9</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8414:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc8414:must.proof-pending">7</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -384,7 +384,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc8414:should.total">2</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc8414:should.proven">0</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -405,7 +405,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc8414:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc8414:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -420,7 +420,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -809,14 +809,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc8414-2-1"><code>RFC8414-2-1</code></a></h3>
 <p>issuer REQUIRED. The authorization server&#39;s issuer identifier, which is a URL that uses the &#34;https&#34; scheme and has no query or fragment components. (§2)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Every clause of the §2 issuer definition in both polarities in TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment: + an https issuer with no query or fragment is fetched and its issuer returned; - an http issuer (oauthHTTPSURL scheme check), ?tenant=a and a bare ? (asMetadataURL RawQuery/ForceQuery), and #frag (oauthHTTPSURL) each give zero metadata with no request reaching the AS, each input violating one clause only; a document with no issuer gives zero metadata (fetchASMetadata missing-issuer). The as_metadata_test.go units keep their presence tags. Records are whole-function panic breaks of fetchASMetadata (+) and asMetadataURL (-).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_as_metadata_test.go#L87" title="internal/component/mcp/rfc8414_as_metadata_test.go" target="_blank" rel="noopener"><code>TestFetchASMetadata_MissingIssuer</code></a></td>
@@ -850,17 +850,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Quote is the §3 sentence &#39;This path MUST use the https scheme.&#39; Forbidden: fetching the metadata path over http. TestRFC8414MetadataRequiresHTTPS asserts fetchASMetadata errs and returns zero metadata for an http issuer and for an https-to-http redirect, and plainHits==0; positive decodes metadata from a trusted https server. The §6.1 confidentiality clause the old row text also named is not in this quote (reported as split needed).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L272" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataRequiresHTTPS</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L271" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataRequiresHTTPS</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -870,32 +870,32 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clause 1 (issuer MUST be identical): TestRFC8414MetadataIssuerIdentity asserts slash, dot-path and NFC aliases of the configured issuer return an error and zero metadata, and the identical (JSON-escaped) issuer is accepted; TestNewStreamable_OAuth_RejectsIssuerMismatch-style unit asserts &#39;does not match configured&#39;. Clause 2 (data MUST NOT be used): TestOAuthRejectsIssuerAliases asserts keyRequests==0, so the mismatched document&#39;s jwks_uri is never fetched, and no server is returned.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L161" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_RejectsIssuerMismatch</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L897" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestOAuthRejectsIssuerAliases</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L375" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataIssuerIdentity</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L172" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestNewStreamable_OAuth_AcceptsValidToken</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L374" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataIssuerIdentity</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -917,17 +917,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a jwks_uri that does not use https. TestRFC8414JWKSMetadataSecurity &#39;HTTP keys&#39; subtest serves jwks_uri on http and asserts NewStreamable returns an error, no server, and plainHits==0; &#39;redirect to HTTP&#39; asserts the same for an https jwks_uri redirecting to http. Positive &#39;labeled keys&#39; verifies a token with the key fetched over https.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L936" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestRFC8414JWKSMetadataSecurity</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L935" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestRFC8414JWKSMetadataSecurity</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -937,17 +937,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L938" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestRFC8414JWKSMetadataSecurity</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L937" title="internal/component/mcp/oauth_e2e_test.go" target="_blank" rel="noopener"><code>TestRFC8414JWKSMetadataSecurity</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -993,17 +993,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L155" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataPathNeverAppendedToIssuerPath</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L78" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataRequestIsGETAtWellKnownPath</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1013,17 +1013,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L156" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataPathNeverAppendedToIssuerPath</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L79" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataRequestIsGETAtWellKnownPath</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1033,7 +1033,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L102" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataRequestUsesNoOtherVerbOrPath</code></a></td>
@@ -1053,7 +1053,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L151" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataPathNeverAppendedToIssuerPath</code></a></td>
@@ -1073,17 +1073,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Consumer view of the response envelope. 200: &#39;created&#39; (201) case must return error and zero metadata. application/json: &#39;HTML&#39; and &#39;absent type&#39; cases red if accepted; charset parameter accepted. JSON object: &#39;array&#39; case red if accepted. Positive: 200 application/json object yields issuer and jwks_uri. The &#39;subset of Section 2 values&#39; clause constrains the server; §3.2 says &#39;Other claims MAY also be returned&#39;, so no consumer input violates it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L326" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataHTTPResponse</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L325" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataHTTPResponse</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1097,7 +1097,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Row now quotes the lead-in plus step 1 (remove JSON-applied escaping). Metadata path: TestRFC8414MetadataIssuerUnescapedBeforeCompare + matches a document issuer written with escaped solidi and a u0062 escape against the unescaped configured https://host/ab, which goes red if fetchASMetadata compared JSON text; - refuses a configured issuer holding the literal escape, which goes red if the configured side were also unescaped. That negative&#39;s configured value is not the full raw JSON text (its solidi are unescaped), so on the metadata path the text-compare violation is caught by the positive alone. JWT path: TestRFC8414IssuerCompareUnescapesJSON / TestRFC8414IssuerCompareNotOnJSONText isolate it exactly (expected issuer equal to the raw JSON text is refused with errJWTIssuerMismatch). Steps 2 and 3 stay on 4-2 and 4-3.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_jwt_test.go#L99" title="internal/component/mcp/rfc8414_jwt_test.go" target="_blank" rel="noopener"><code>TestRFC8414IssuerCompareNotOnJSONText</code></a></td>
@@ -1127,7 +1127,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: applying Unicode normalization to either string. TestRFC8414IssuerCompareNoNormalizationRejects asserts errJWTIssuerMismatch for NFC iss vs NFD expected and the reverse; TestRFC8414MetadataIssuerIdentity asserts an NFC metadata issuer against the NFD configured one returns error and zero metadata. Positives: identical NFD strings accepted on both the JWT and metadata paths.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_jwt_test.go#L130" title="internal/component/mcp/rfc8414_jwt_test.go" target="_blank" rel="noopener"><code>TestRFC8414IssuerCompareNoNormalizationRejects</code></a></td>
@@ -1137,7 +1137,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L377" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataIssuerIdentity</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_jwt_test.go#L120" title="internal/component/mcp/rfc8414_jwt_test.go" target="_blank" rel="noopener"><code>TestRFC8414IssuerCompareNoNormalizationAccepts</code></a></td>
@@ -1147,7 +1147,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L376" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataIssuerIdentity</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1157,7 +1157,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_jwt_test.go#L154" title="internal/component/mcp/rfc8414_jwt_test.go" target="_blank" rel="noopener"><code>TestRFC8414IssuerCompareCodePointsDiffer</code></a></td>
@@ -1167,7 +1167,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L379" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataIssuerIdentity</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_jwt_test.go#L145" title="internal/component/mcp/rfc8414_jwt_test.go" target="_blank" rel="noopener"><code>TestRFC8414IssuerCompareCodePointsEqual</code></a></td>
@@ -1177,7 +1177,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L378" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataIssuerIdentity</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1187,7 +1187,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L204" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataFetchNeverDowngradesToCleartext</code></a></td>
@@ -1211,7 +1211,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L244" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataFetchRefusesUntrustedCertificate</code></a></td>
@@ -1231,7 +1231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. §6.1 confidentiality sentence, whole-stack: TestRFC8414MetadataFetchUsesConfidentialIntegritySuite + the fetch negotiates TLS with a suite in tls.CipherSuites and not in tls.InsecureCipherSuites; - a cleartext server behind an https issuer (nil client, the production path of buildAuthForMode) and a TLS 1.2 server offering only TLS_RSA_WITH_RC4_128_SHA each give zero metadata with neither handler reached. The suite refusal is performed by Go&#39;s crypto/tls default client suite list, which Ze keeps by never setting TLSClientConfig in oauthHTTPClient; the RC4 case uses the httptest client (to isolate this from the 6.1-3 certificate check), so a caller passing a custom insecure transport is not exercised. Records are whole-function panic breaks of fetchASMetadata (+) and oauthHTTPClient (-).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L496" title="internal/component/mcp/rfc8414_metadata_request_test.go" target="_blank" rel="noopener"><code>TestRFC8414MetadataFetchUsesConfidentialIntegritySuite</code></a></td>
@@ -1513,7 +1513,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

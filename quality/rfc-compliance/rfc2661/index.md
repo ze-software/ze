@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 64 | of 95 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 28 | of 95 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 64 | of 95 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 28 | of 95 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 95 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 95 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 203 | 203 of 212 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 95 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 203 | 203 of 212 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 95 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 95 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 1 | of 95 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 1 | of 95 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 95 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 95 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 95 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: Layer Two Tunneling Protocol / L2TP (RFC 2661): Ze
 
 **Area:** L2TPv2
 
-**Proof:** 89 of 95 MUST proven
+**Test verification:** 89 of 95 MUST proven
 
 **Evidence:** functional 5, unit 84
 
@@ -108,7 +108,7 @@ Included in automatic checks: Layer Two Tunneling Protocol / L2TP (RFC 2661): Ze
 | Annotated (including scoped evidence) | 31 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 1 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **95** | every mandatory requirement appears in exactly one group above |
@@ -121,8 +121,8 @@ Included in automatic checks: Layer Two Tunneling Protocol / L2TP (RFC 2661): Ze
 
 ## Figures
 
-- **MUST bar**: Ze proven 89, Proof pending 3, OS testing gap 1, Not built 2
-- **Overview bar**: Ze MUST proven 89, SHOULD proven 2, Proof pending 3, OS testing gap 1, Not assessed 6, Not built 2
+- **MUST bar**: Ze verified 89, Tests awaiting verification 3, OS testing gap 1, Not built 2
+- **Overview bar**: Ze MUST verified 89, SHOULD verified 2, Tests awaiting verification 3, OS testing gap 1, Not assessed 6, Not built 2
 
 | Figure | Rows |
 |---|---|
@@ -131,9 +131,9 @@ Included in automatic checks: Layer Two Tunneling Protocol / L2TP (RFC 2661): Ze
 | Mandatory requirements complete | not complete |
 | MUST rows | 95 |
 | MUST rows kept (the MUST bar) | 95 |
-| Ze proven | 89 |
+| Ze verified | 89 |
 | OS verified | 0 |
-| Proof pending | 3 |
+| Tests awaiting verification | 3 |
 | OS testing gap | 1 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -143,19 +143,19 @@ Included in automatic checks: Layer Two Tunneling Protocol / L2TP (RFC 2661): Ze
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 8 |
-| SHOULD proven | 2 |
+| SHOULD verified | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 6 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc2661.json](../../../data/rfc/rfc2661.json).
 
@@ -277,49 +277,49 @@ Source: [data/rfc/rfc2661.json](../../../data/rfc/rfc2661.json).
 | [`RFC2661-6.0-1`](#rfc2661-6.0-1) Any "reserved" or "empty" fields MUST be sent as 0 values to allow for protocol extensibility (§6.0) | no test | no test carries this requirement id; annotated {rollup}: RFC2661-x-1, RFC2661-4.1-1, RFC2661-4.4.6-1; the sentence restates the reserved-field sender obligations those rows carry and asserts nothing of its own |
 | [`RFC2661-9.5-2`](#rfc2661-9.5-2) If the LNS chooses to implement proxy authentication, it MUST be able to be configured off, requiring a new round a PPP authentication initiated by the LNS (which may or may not include a new round of LCP negotiation) (§9.5) | {gap}, no test | no LNS proxy authentication exists to configure off; plan/spec-l2tp-proxy-authentication.md |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC2661-x-1`](#rfc2661-x-1)
 
 All reserved bits MUST be set to 0 on outgoing messages and ignored on incoming messages. (§3.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Send clause: TestRFC2661ReservedHeaderBitsSentZero masks every reserved bit of the control header and of all 16 data-header shapes (red on any reserved bit emitted 1); the .ci reads the SCCRP header off the wire. Receive clause: TestRFC2661ReservedHeaderBitsIgnoredOnReceive sets every reserved bit on a control and a data header and asserts ParseMessageHeader returns the identical struct with no error; ParseMessageHeader is the receive entry and no other receive path re-tests the flag word. The wrong single-polarity marker is gone.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/l2tp/rfc2661-emitted-control-shape.ci moved. Send clause: TestRFC2661ReservedHeaderBitsSentZero masks every reserved bit of the control header and of all 16 data-header shapes (red on any reserved bit emitted 1); the .ci reads the SCCRP header off the wire. Receive clause: TestRFC2661ReservedHeaderBitsIgnoredOnReceive sets every reserved bit on a control and a data header and asserts ParseMessageHeader returns the identical struct with no error; ParseMessageHeader is the receive entry and no other receive path re-tests the flag word. The wrong single-polarity marker is gone.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661ReservedHeaderBitsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L58) | unit/verify | revert, verified |
 | positive | [`TestWriteControlHeader`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_header_test.go#L230) | unit/verify | revert, verified |
 | positive | [`TestRFC2661ReservedHeaderBitsSentZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L26) | unit/verify | revert, verified |
-| positive | [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L27) | functional/verify | revert, verified |
+| positive | [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L27) | functional/verify | mutant, verified |
 
 ### [`RFC2661-4.1-1`](#rfc2661-4.1-1)
 
 Reserved bits MUST be set to 0. An AVP received with a reserved bit set to 1 MUST be treated as an unrecognized AVP. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment after the unparam edit to writeAVPProxyAuthenID (avp_compound.go), which drops the mandatory parameter and always writes the M-bit clear, as RFC 2661 Section 4.4.5 says: "The M-bit for this AVP MUST be set to 0." Every caller passed false, so the emitted bytes are unchanged. TestAVPCatalogRoundTrip changed only by dropping that false argument from its ProxyAuthenID case; it still writes every catalog AVP, reads it back and fails when FlagReserved is set on the written AVP, so the send clause stays pinned. The receive clause is unchanged: TestRFC2661ReservedAVPBitTreatedAsUnrecognized (ICRQ, M=0 ignored, M=1 one CDN) and TestUnrecognizedMandatoryAVPInHelloClearsTunnel (HELLO, M=1 clears the tunnel, M=0 changes nothing). Producer re-read: AVPIterator.Next sets FlagReserved|FlagUnrecognized. Discrimination records are unchanged. No test was run for this source-only rejudgment.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/l2tp/rfc2661-emitted-control-shape.ci moved. Independent rejudgment after the unparam edit to writeAVPProxyAuthenID (avp_compound.go), which drops the mandatory parameter and always writes the M-bit clear, as RFC 2661 Section 4.4.5 says: "The M-bit for this AVP MUST be set to 0." Every caller passed false, so the emitted bytes are unchanged. TestAVPCatalogRoundTrip changed only by dropping that false argument from its ProxyAuthenID case; it still writes every catalog AVP, reads it back and fails when FlagReserved is set on the written AVP, so the send clause stays pinned. The receive clause is unchanged: TestRFC2661ReservedAVPBitTreatedAsUnrecognized (ICRQ, M=0 ignored, M=1 one CDN) and TestUnrecognizedMandatoryAVPInHelloClearsTunnel (HELLO, M=1 clears the tunnel, M=0 changes nothing). Producer re-read: AVPIterator.Next sets FlagReserved|FlagUnrecognized. Discrimination records are unchanged. No test was run for this source-only rejudgment.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestAVPIteratorReservedBits`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_avp_test.go#L107) | unit/verify | revert, verified |
 | negative | [`TestRFC2661ReservedAVPBitTreatedAsUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L100) | unit/verify | revert, verified |
 | positive | [`TestAVPCatalogRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_avp_test.go#L180) | unit/verify | revert, verified |
 | positive | [`TestUnrecognizedMandatoryAVPInHelloClearsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go#L114) | unit/verify | revert, verified |
-| positive | [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L29) | functional/verify | revert, verified |
+| positive | [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L29) | functional/verify | mutant, verified |
 
 ### [`RFC2661-4.1-2`](#rfc2661-4.1-2)
 
 The Message Type AVP MUST be the first AVP in a message, immediately following the control message header (defined in section 3.1). (§4.4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive TestRFC2661EveryEmittedMessageOpensWithMessageType reads the first AVP of all ten body writers plus the HELLO; these are the eleven non-test sites that write a Message Type AVP (SCCRQ, SCCRP, SCCCN, StopCCN, ICRQ, ICRP, ICCN, OCRQ, OCRP, CDN, HELLO). Negative TestReactor_MalformedSCCRQCreatesNoTunnel: an SCCRQ with Host Name first is refused and creates no tunnel. Text duplicates RFC2661-4.4.1-2.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/l2tp/rfc2661-emitted-control-shape.ci moved. Positive TestRFC2661EveryEmittedMessageOpensWithMessageType reads the first AVP of all ten body writers plus the HELLO; these are the eleven non-test sites that write a Message Type AVP (SCCRQ, SCCRP, SCCCN, StopCCN, ICRQ, ICRP, ICCN, OCRQ, OCRP, CDN, HELLO). Negative TestReactor_MalformedSCCRQCreatesNoTunnel: an SCCRQ with Host Name first is refused and creates no tunnel. Text duplicates RFC2661-4.4.1-2.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestReactor_MalformedSCCRQCreatesNoTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_test.go#L256) | unit/verify | revert, verified |
 | positive | [`TestRFC2661EveryEmittedMessageOpensWithMessageType`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L177) | unit/verify | revert, verified |
 | positive | [`TestWriteICRPBody`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L968) | unit/verify | revert, verified |
-| positive | [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L24) | functional/verify | revert, verified |
+| positive | [`rfc2661-emitted-control-shape.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L24) | functional/verify | mutant, verified |
 
 ### [`RFC2661-4.1-3`](#rfc2661-4.1-3)
 
@@ -327,7 +327,7 @@ If the M bit is set on an unrecognized AVP within a message associated with a pa
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (cont 8, D-8 fix). Scope checked against RFC 2661 section 4.1: a message associated with a particular session ends that session, the tunnel only for tunnel-scoped messages (4.1-4). Producer: parseSingleAVPMessage wraps errUnrecognizedMandatoryAVP for IETF and vendor M=1; handleWEN/handleSLI tear down that session with CDN (quote above each). + TestRFC2661UnrecognizedMandatoryAVPInWENOrSLITerminatesSession (WEN, SLI x IETF 200 / vendor 9999: exactly one CDN, session gone; failing-first observed before the fix), + TestRFC2661UnrecognizedMandatoryAVPInEverySessionParserTerminatesSession (OCRQ, ICRP, OCRP, ICCN, OCCN x IETF/vendor: one CDN, 0 sessions), + TestSession_UnknownMandatoryAVP now asserts MsgCDN and 0 sessions (earlier overstatement fixed), + TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession. - TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession: two sessions, M=1 gives one CDN never StopCCN, tunnel established and the sibling session kept (the over-reaction polarity), M=0 sends nothing. Every tagged unit has an observed-red record. CDN not tabled: a received CDN ends the session whatever it carries. Residual supplementary positive at session_fsm_test.go (well-formed ICRQ accepted) has no record.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSession_UnknownMandatoryAVP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L576) | unit/verify | revert, verified |
 | negative | [`TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_session_messages_test.go#L177) | unit/verify | revert, verified |
@@ -344,7 +344,7 @@ If the M bit is set on an unrecognized AVP within a message associated with the 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestUnrecognizedMandatoryAVPInHelloClearsTunnel drives handleMessage with a HELLO on an established tunnel holding one session, for a vendor AVP, an undefined IETF type and a reserved-bit AVP: M=1 sends one StopCCN, clears the session and closes the tunnel; M=0 sends nothing and keeps both. This closes the '(and all sessions within)' clause the earlier verdict found missing. TestTunnelSCCCNUnknownMandatoryAVP_StopCCN keeps the SCCCN case; TestTunnelInitiatorHandshake is the clean-exchange positive. Producer checked: parseHello/handleHello (Error Code 8), parseSCCCN/parseStopCCN/parseSCCRP branch on FlagUnrecognized, handleStopCCN now closes on a malformed StopCCN.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestTunnelSCCCNUnknownMandatoryAVP_StopCCN`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_initiator_test.go#L255) | unit/verify | revert, verified |
 | negative | [`TestUnrecognizedMandatoryAVPInHelloClearsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_unrecognized_mandatory_avp_test.go#L111) | unit/verify | revert, verified |
@@ -357,7 +357,7 @@ Each subsequent retransmission of a message MUST employ an exponential backoff i
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC2661RetransmitBackoffDoubles ticks 1ns before and at 1s, 3s and 7s: a constant 1s interval fires before the 3s deadline and goes red, a missing retransmit goes red. Single-polarity marker accepted.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661RetransmitBackoffDoubles`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L516) | unit/verify | revert, verified |
 | positive | [`TestTickBackoffSchedule`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L374) | unit/verify | revert, verified |
@@ -368,9 +368,9 @@ This cap MUST be no less than 8 seconds per retransmission. (§5.8)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden = a backoff cap under 8 s. reliable_seq_test.go::TestBackoffCapAtLeast8Seconds asserts DefaultRTimeoutCap>=8s and that newTunnel (the reactor's construction path) yields engine rtimeoutCap>=8s; lowering the constant or the default wiring goes red. Row carries single-polarity.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestBackoffCapAtLeast8Seconds`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_seq_test.go#L94) | unit/verify | unproven |
+| positive | [`TestBackoffCapAtLeast8Seconds`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_seq_test.go#L94) | unit/verify | not verified |
 
 ### [`RFC2661-5.8-3`](#rfc2661-5.8-3)
 
@@ -378,7 +378,7 @@ If no peer response is detected after several retransmissions, (a recommended de
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC2661RetransmitExhaustionClearsTunnel drives reactor.handleTick with dead-peer detection off, an unanswered HELLO and one established session: after each of the DefaultMaxRetransmit retransmissions the tunnel stays established with its session, and the tick past the budget leaves the tunnel closed with zero sessions (StopCCN logged). TestTickMaxAttempts proves the engine signal on both sides. The 5.8-3 tag on TestPeerTeardownWithdrawsSubscriberRoute, whose body asserted only OnSessionDown, is gone. Configurability is judged under RFC2661-5.8-8.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestTickMaxAttempts`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L417) | unit/verify | revert, verified |
 | negative | [`TestRFC2661RetransmitExhaustionClearsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L21) | unit/verify | revert, verified |
@@ -391,10 +391,10 @@ The retransmitted message contains the same Ns value, but the Nr value MUST be u
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden = a retransmit carrying the stale Nr, or a new Ns. reliable_test.go::TestTickRetransmit asserts retransmit Nr==1 (updated) and Ns==0 (unchanged); either violation goes red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestTickRetransmit`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L342) | unit/verify | unproven |
-| positive | [`TestTickRetransmit`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L339) | unit/verify | unproven |
+| negative | [`TestTickRetransmit`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L342) | unit/verify | not verified |
+| positive | [`TestTickRetransmit`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L339) | unit/verify | not verified |
 
 ### [`RFC2661-5.8-5`](#rfc2661-5.8-5)
 
@@ -402,10 +402,10 @@ Such a message would be considered a duplicate of a message already received and
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden = a duplicate reprocessed, or a duplicate not acknowledged. reliable_test.go::TestOnReceiveDuplicate asserts Class==ClassDuplicate, Delivered empty (ignored from processing) and NeedsZLB true after the piggyback cleared it (MUST be acknowledged). The piggyback/ZLB alternative is permissive.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOnReceiveDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L148) | unit/verify | unproven |
-| positive | [`TestOnReceiveDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L146) | unit/verify | unproven |
+| negative | [`TestOnReceiveDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L148) | unit/verify | not verified |
+| positive | [`TestOnReceiveDuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L146) | unit/verify | not verified |
 
 ### [`RFC2661-5.8-6`](#rfc2661-5.8-6)
 
@@ -413,7 +413,7 @@ An implementation may support a receive window of only 1 (i.e., by sending out a
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC2661PeerWindowOfFourAccepted goes through newWindow (and so clampPeerRWS) with peer RWS 4: available(0)==4 and available(3)==1 go red on any clamp below 4; available(4)==0 proves the 'before backing off' half of the sentence's parenthetical. The old negative on TestWindowPeerRWSZero proves the neighbouring RWS=0 rule and is not counted.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661PeerWindowOfFourAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L547) | unit/verify | revert, verified |
 | negative | [`TestWindowPeerRWSZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_window_test.go#L112) | unit/verify | revert, verified |
@@ -426,7 +426,7 @@ When a tunnel is being shut down for reasons other than loss of connectivity, th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC2661ClosedTunnelKeptForRetransmissionInterval drives the reactor's reapExpiredLocked on a StopCCN-closed tunnel built with the reactor's ReliableConfig: kept at 31s-1ns, reaped at 31s. TestPostTeardownAckRetention proves the engine still acknowledges a retransmitted StopCCN during retention, so both 'maintained' and 'operated' are asserted.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661ClosedTunnelKeptForRetransmissionInterval`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L572) | unit/verify | revert, verified |
 | negative | [`TestPostTeardownAckRetention`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_integration_test.go#L195) | unit/verify | revert, verified |
@@ -441,7 +441,7 @@ If the H bit is set in any AVP(s) in a given control message, a Random Vector AV
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestWriteICCNBodyHiddenAVP33`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L198) | unit/verify | revert, verified |
 
@@ -451,7 +451,7 @@ The following AVPs MUST be present in the SCCRQ: Message Type AVP Protocol Versi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Sender: TestRFC2661SCCRQCarriesSection61AVPs asserts all five AVPs in writeSCCRQBody with and without the optional AVPs. Receiver: one case per missing AVP answered with StopCCN and no tunnel (unit and .ci), positive with every AVP. The §7.1 clearing now rows as RFC2661-7.1-1.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSCCRQMissingMandatoryAVPIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go#L45) | unit/verify | revert, verified |
 | negative | [`TestSCCRQWithShortFramingCapabilitiesIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go#L149) | unit/verify | revert, verified |
@@ -466,7 +466,7 @@ The following AVPs MUST be present in the SCCRP: Message Type Protocol Version F
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Sender: TestRFC2661SCCRPCarriesSection62AVPs asserts all five AVPs in writeSCCRPBody with and without Challenge/Response. Receiver: TestSCCRPMissingMandatoryAVPTearsTheTunnelDown covers four members, TestRFC2661SCCRPWithoutMessageTypeRefused the fifth with a paired accept. Correction accepted: the state-table 'not acceptable' transition has no sentence.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661SCCRPWithoutMessageTypeRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L269) | unit/verify | revert, verified |
 | negative | [`TestSCCRPMissingMandatoryAVPTearsTheTunnelDown`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_initiator_sccrp_mandatory_avp_test.go#L58) | unit/verify | revert, verified |
@@ -479,7 +479,7 @@ The Call-Disconnect-Notify (CDN) message is an L2TP control message sent by eith
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Cleanup: TestRFC2661CDNCleansUpAndSendsNothing (session removed, one session-down, one kernel teardown for the established case only) and TestRFC2661CDNCleansUpSilently (tags merged from retired 6.12-1). 'does not send back any indication': the send-queue assertion now closes the cwnd-1 confound the earlier verdict named, and TestRFC2661CDNCleansUpSilently asserts nothing but a ZLB goes back. Negative TestSession_CDN_UnknownSessionDropped accepted as the 'specific call' scope.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSession_CDN_UnknownSessionDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L383) | unit/verify | revert, verified |
 | negative | [`TestRFC2661CDNCleansUpSilently`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L704) | unit/verify | revert, verified |
@@ -494,7 +494,7 @@ Stop-Control-Connection-Notification (StopCCN) is a control message sent by eith
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC2661StopCCNClearsSessionsSilently clears an established and a wait-connect session and now asserts sendQueue does not grow beside no datagram and nextSendSeq unchanged, which removes the cwnd-1 confound the earlier verdict named: a CDN handleStopCCN enqueued behind the unacknowledged ICRP now turns it red. Clearing also held by TestSession_StopCCN_CascadeSessions, and TestStopCCNQueuesAllTeardowns is the negative.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestStopCCNQueuesAllTeardowns`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L837) | unit/verify | revert, verified |
 | positive | [`TestRFC2661StopCCNClearsSessionsSilently`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L352) | unit/verify | revert, verified |
@@ -506,7 +506,7 @@ The value of 0 for Session ID and Tunnel ID is special and MUST NOT be used as a
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Tags merged from retired RFC2661-24.10-1 (same sentence, section 5.3). Sender: TestRFC2661LocalIDsNeverZero (tunnel ID across the 0xFFFF wrap, session ID over 2^20 draws). Receiver, tunnel: TestRFC2661PeerZeroTunnelIDRefused, TestSCCRQWithZeroAssignedTunnelIDIsAnswered (StopCCN code 3, no tunnel) against TestSCCRQWithNonZeroAssignedTunnelIDEstablishes, the .ci over the wire both ways, and TestParseSCCRP_Rejects against TestTunnelInitiatorHandshake for the SCCRP half. Receiver, session: TestSession_SIDBoundary_Zero/MaxUint16.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661PeerZeroTunnelIDRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L320) | unit/verify | revert, verified |
 | negative | [`TestSCCRQWithZeroAssignedTunnelIDIsAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_sccrq_zero_tid_test.go#L75) | unit/verify | revert, verified |
@@ -525,7 +525,7 @@ This bit MUST be set to 1 for control messages (§3.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661HeaderFlagWord`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L19) | unit/verify | revert, verified |
 
@@ -535,7 +535,7 @@ The S bit MUST be set to 1 for control messages (§3.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661ControlHeaderWithoutSequenceRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L77) | unit/verify | revert, verified |
 | positive | [`TestRFC2661HeaderFlagWord`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L21) | unit/verify | revert, verified |
@@ -546,7 +546,7 @@ The O bit MUST be set to 0 (zero) for control messages (§3.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661HeaderFlagWord`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L23) | unit/verify | revert, verified |
 
@@ -556,7 +556,7 @@ The P bit MUST be set to 0 for all control messages (§3.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661HeaderFlagWord`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L25) | unit/verify | revert, verified |
 
@@ -566,7 +566,7 @@ Ver MUST be 2, indicating the version of the L2TP data message header described 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661UnknownVersionRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L95) | unit/verify | revert, verified |
 | positive | [`TestRFC2661HeaderFlagWord`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L27) | unit/verify | revert, verified |
@@ -577,7 +577,7 @@ Packets received with an unknown Ver field MUST be discarded (§3.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661KnownVersionAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L114) | unit/verify | revert, verified |
 | positive | [`TestRFC2661UnknownVersionRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L97) | unit/verify | revert, verified |
@@ -596,7 +596,7 @@ If the M bit is not set, an unrecognized AVP MUST be ignored (§4.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661UnrecognizedOptionalAVPIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L641) | unit/verify | revert, verified |
 | positive | [`TestRFC2661UnrecognizedOptionalAVPIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L637) | unit/verify | revert, verified |
@@ -615,7 +615,7 @@ The H bit MUST only be set if a shared secret exists between the LAC and LNS (§
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L210) | unit/verify | revert, verified |
 | positive | [`TestWriteICCNBodyPAPProxyHiddenOrAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L164) | unit/verify | revert, verified |
@@ -626,7 +626,7 @@ Thus, if the M-bit is set within the Message Type AVP and the Message Type is un
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestUnknownMessageTypeClearsTunnelWhenMandatory`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_type_test.go#L31) | unit/verify | revert, verified |
 | positive | [`TestUnknownMessageTypeClearsTunnelWhenMandatory`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_type_test.go#L30) | unit/verify | revert, verified |
@@ -637,7 +637,7 @@ The M-bit MUST be set to 1 for all message types defined in this document (§4.4
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L202) | unit/verify | revert, verified |
 
@@ -647,7 +647,7 @@ This AVP MUST NOT be hidden (the H-bit MUST be 0). (§4.4)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged (independent auditor). The prior weak finding (the tagged walk never reached the PAP realm ICCN, where Ze writes a Random Vector beside the one AVP it hides) is resolved by the new tag on rfc2661_iccn_proxy_flags_test.go::TestRFC2661ProxyICCNAVPFlags. Section 4.4.1, Random Vector: "This AVP MUST NOT be hidden (the H-bit MUST be 0)." The unit walks every AVP of the PAP-with-secret and CHAP proxy ICCNs built by newICCNProxy and writeICCNBody and fails on any H=1 AVP other than Proxy Authen Response (AVP 33, which Section 4.4.5 lets be hidden: "This AVP may be hidden (the H-bit may be 0 or 1)."), so a hidden Random Vector, Message Type, Tx Connect Speed, Framing Type or AVP 26 to 32 reddens it; it also requires the Random Vector and AVP 33 present, so it cannot pass vacuously. Producer read: writeAVPRandomVector writes FlagMandatory only; writeAVPHidden is called only for AVP 33 in writeICCNProxyPAP. The mutant record adding the H bit on the Random Vector header is observed red. TestRFC2661WrittenAVPFlags still covers every other emitted body. {single-polarity} accepted: avp.go::skipHiddenAVP refuses every hidden AVP on receipt, so no receive-side input distinguishes the MUST-NOT-hide set.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661ProxyICCNAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_iccn_proxy_flags_test.go#L42) | unit/verify | mutant, verified |
 | positive | [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L208) | unit/verify | revert, verified |
@@ -658,7 +658,7 @@ The M-bit for this AVP MUST be set to 1. (§4.4)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged (independent auditor). The prior weak finding (no tagged unit reached writeAVPRandomVector, so a Random Vector with M=0 in the PAP realm ICCN stayed green) is resolved by the new tag on rfc2661_iccn_proxy_flags_test.go::TestRFC2661ProxyICCNAVPFlags. Section 4.4.1, Random Vector: "The M-bit for this AVP MUST be set to 1." The unit builds both proxy ICCNs through the real producers (newICCNProxy then writeICCNBody: PAP with a shared secret, and CHAP), walks every AVP and compares its M bit to the Section 4.4 definition (rfc2661MandatoryBit for Message Type, Tx Connect Speed, Framing Type; Random Vector M=1, AVPs 26 to 33 M=0), fails on an AVP absent from both tables, and requires the PAP body to carry the Random Vector and AVP 33, so the walk cannot pass by not reaching the proxy path. Producer read: writeAVPRandomVector writes FlagMandatory; the mutant record replacing FlagMandatory by 0 on that line is observed red. TestRFC2661WrittenAVPFlags (the ten writers) and TestRFC2661HelloAVPMandatoryBits (HELLO) still cover every other emitted body. {single-polarity} accepted: a sender obligation with no receiver refusal in the RFC.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661ProxyICCNAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_iccn_proxy_flags_test.go#L38) | unit/verify | mutant, verified |
 | positive | [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L204) | unit/verify | revert, verified |
@@ -670,7 +670,7 @@ Human readable text in all error messages MUST be provided in the UTF-8 charset 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661ResultCodeMessageUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L664) | unit/verify | revert, verified |
 
@@ -680,7 +680,7 @@ A peer MUST NOT request an incoming or outgoing call with a Framing Type AVP spe
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661CallCapabilitiesChecked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L433) | unit/verify | revert, verified |
 | positive | [`TestRFC2661CallCapabilitiesChecked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L431) | unit/verify | revert, verified |
@@ -691,7 +691,7 @@ This AVP MUST be present if the sender can place outgoing calls when requested (
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661BearerCapabilitiesEmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L477) | unit/verify | revert, verified |
 
@@ -701,7 +701,7 @@ The lower value "wins", and the "loser" MUST silently discard its tunnel (§4.4.
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestTieBreakerWinnerKeepsItsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tiebreaker_test.go#L45) | unit/verify | revert, verified |
 | positive | [`TestTieBreakerLoserDiscardsItsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tiebreaker_test.go#L32) | unit/verify | revert, verified |
@@ -712,7 +712,7 @@ In the case where a tie breaker is present on both sides, and the value is equal
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestTieBreakerUnequalKeepsOneTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tiebreaker_test.go#L72) | unit/verify | revert, verified |
 | positive | [`TestTieBreakerEqualDiscardsBoth`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tiebreaker_test.go#L59) | unit/verify | revert, verified |
@@ -723,7 +723,7 @@ The M-bit for this AVP MUST be set to 0. (§4.4)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 79e3205310 (LAC realm relay). writeICCNBody now takes an *iccnProxy, and a realm call's ICCN carries AVPs 26 to 33 and, toward a remote with a shared secret, a Random Vector (AVP 36) ahead of a hidden AVP 33 (iccn_proxy.go writeICCNProxyAVPs, writeAVPRandomVector). TestRFC2661WrittenAVPFlags still walks only writeICCNBody(buf, 64000, 1, nil), and its tag comments were narrowed to 'these writers'. The change does not reach this row: the Tie Breaker, the one M=0 AVP of Section 4.4 proper that Ze emits, is still compared to rfc2661MandatoryBit (false) over the SCCRQ writer, and the record is current. The annotation's split holds: AVPs 26 to 33 are RFC2661-4.4.5-7 (M=0 for AVP 33 is also asserted in TestWriteICCNBodyHiddenAVP33). Prior judgement: Forbidden = an M=0-defined AVP (Tie Breaker, the one Ze emits) sent with M=1. message_rfc2661_test.go::TestRFC2661WrittenAVPFlags compares the emitted M bit to rfc2661MandatoryBit (false for Tie Breaker) over the SCCRQ writer that emits it. Row carries single-polarity.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661WrittenAVPFlags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L207) | unit/verify | revert, verified |
 
@@ -733,7 +733,7 @@ The Host Name is of arbitrary length, but MUST be at least 1 octet (§4.4.3)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661HostNameAtLeastOneOctet`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L445) | unit/verify | revert, verified |
 | positive | [`TestRFC2661HostNameAtLeastOneOctet`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L443) | unit/verify | revert, verified |
@@ -744,7 +744,7 @@ The L2TP peer MUST place this value in the Tunnel ID header field of all control
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661HeaderTunnelIDNeverWrong`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L211) | unit/verify | revert, verified |
 | positive | [`TestRFC2661HeaderTunnelIDBeforeAndAfterAssignment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L183) | unit/verify | revert, verified |
@@ -755,7 +755,7 @@ Before the Assigned Tunnel ID AVP is received from a peer, messages MUST be sent
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661HeaderTunnelIDNeverWrong`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L206) | unit/verify | revert, verified |
 | positive | [`TestRFC2661HeaderTunnelIDBeforeAndAfterAssignment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L177) | unit/verify | revert, verified |
@@ -766,7 +766,7 @@ In the StopCCN control message, the Assigned Tunnel ID AVP MUST be the same as t
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661StopCCNRepeatsFirstAssignedTunnelID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L243) | unit/verify | revert, verified |
 | positive | [`TestRFC2661StopCCNRepeatsFirstAssignedTunnelID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L241) | unit/verify | revert, verified |
@@ -777,7 +777,7 @@ This AVP MUST be present in an SCCRP or SCCCN if a challenge was received in the
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661AnsweringSideVerifiesChallengeResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L316) | unit/verify | revert, verified |
 | positive | [`TestRFC2661InitiatorAnswersChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L260) | unit/verify | revert, verified |
@@ -788,7 +788,7 @@ The L2TP peer MUST place this value in the Session ID header field of all contro
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661HeaderSessionIDNeverWrong`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L395) | unit/verify | revert, verified |
 | positive | [`TestRFC2661HeaderSessionIDBeforeAndAfterAssignment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L363) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
@@ -799,7 +799,7 @@ Before the Assigned Session ID AVP is received from a peer, messages MUST be sen
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661HeaderSessionIDNeverWrong`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L391) | unit/verify | revert, verified |
 | positive | [`TestRFC2661HeaderSessionIDBeforeAndAfterAssignment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L357) | unit/verify | revert, verified |
@@ -810,7 +810,7 @@ Bits in the Value field of this AVP MUST only be set by the LNS for an OCRQ if i
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661CallCapabilitiesChecked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L425) | unit/verify | revert, verified |
 | positive | [`TestRFC2661CallCapabilitiesChecked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L423) | unit/verify | revert, verified |
@@ -821,7 +821,7 @@ Bits in the Value field of this AVP MUST only be set by the LNS for an OCRQ if i
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661CallCapabilitiesChecked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L429) | unit/verify | revert, verified |
 | positive | [`TestRFC2661CallCapabilitiesChecked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L427) | unit/verify | revert, verified |
@@ -832,7 +832,7 @@ The Sequencing Required AVP, Attribute Type 39, indicates to the LNS that Sequen
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSequencingRequiredReachesKernelSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L100) | unit/verify | revert, verified |
 | positive | [`TestSequencingRequiredReachesKernelSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L99) | unit/verify | revert, verified |
@@ -843,7 +843,7 @@ This AVP MUST be present if proxy authentication is to be utilized (§4.4.5)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestWriteICCNBodyProxyAVPs`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L118) | unit/verify | revert, verified |
 
@@ -853,7 +853,7 @@ This AVP MUST be present in messages containing a Proxy Authen Type AVP with an 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestWriteICCNBodyProxyAVPs`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L119) | unit/verify | revert, verified |
 
@@ -863,7 +863,7 @@ This AVP MUST be present for Proxy Authen Types 2 and 5 (§4.4.5)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestWriteICCNBodyProxyAVPs`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L120) | unit/verify | revert, verified |
 
@@ -873,7 +873,7 @@ ID is a 2 octet unsigned integer, the most significant octet MUST be 0 (§4.4.5)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestWriteICCNBodyProxyAVPs`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L121) | unit/verify | revert, verified |
 
@@ -883,7 +883,7 @@ The Proxy Authen ID AVP MUST be present for Proxy authen types 2, 3 and 5 (§4.4
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestWriteICCNBodyProxyAVPs`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L122) | unit/verify | revert, verified |
 
@@ -893,7 +893,7 @@ This AVP MUST be present for Proxy authen types 1, 2, 3 and 5 (§4.4.5)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestWriteICCNBodyProxyAVPs`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L123) | unit/verify | revert, verified |
 
@@ -903,7 +903,7 @@ The M-bit for this AVP MUST be set to 0. (§4.4.5)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestWriteICCNBodyProxyAVPs`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L124) | unit/verify | revert, verified |
 
@@ -913,7 +913,7 @@ Reserved - Not used, MUST be 0 CRC Errors - Number of PPP frames received with C
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661CallErrorsReservedZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L462) | unit/verify | revert, verified |
 
@@ -923,7 +923,7 @@ The Tunnel and corresponding Control Connection MUST be established before an in
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661CallNeedsEstablishedTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L491) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2661CallNeedsEstablishedTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L489) | unit/verify | revert, verified |
@@ -934,7 +934,7 @@ An L2TP Session MUST be established before L2TP can begin to tunnel PPP frames (
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestKernelSessionRequestedOnlyOnceEstablished`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L72) | unit/verify | revert, verified |
 | positive | [`TestKernelSessionRequestedOnlyOnceEstablished`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L71) | unit/verify | revert, verified |
@@ -945,7 +945,7 @@ If a Challenge AVP is received in an SCCRQ or SCCRP, a Challenge Response AVP MU
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661AnsweringSideVerifiesChallengeResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L319) | unit/verify | revert, verified |
 | positive | [`TestRFC2661InitiatorAnswersChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L263) | unit/verify | revert, verified |
@@ -956,7 +956,7 @@ If the expected response and response received from a peer does not match, estab
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661AnsweringSideVerifiesChallengeResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L313) | unit/verify | revert, verified |
 | positive | [`TestRFC2661AnsweringSideVerifiesChallengeResponse`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L311) | unit/verify | revert, verified |
@@ -967,7 +967,7 @@ To participate in tunnel authentication, a single shared secret MUST exist betwe
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661InitiatorWithoutSecretRefusesChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L282) | unit/verify | revert, verified |
 | positive | [`TestRFC2661InitiatorAnswersChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L265) | unit/verify | revert, verified |
@@ -978,7 +978,7 @@ For the cases where a Session ID has not yet been assigned by the peer (i.e., du
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661HeaderSessionIDNeverWrong`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L393) | unit/verify | revert, verified |
 | positive | [`TestRFC2661HeaderSessionIDBeforeAndAfterAssignment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L360) | unit/verify | revert, verified |
@@ -989,7 +989,7 @@ Similarly, for cases where the Tunnel ID has not yet been assigned from the peer
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661HeaderTunnelIDNeverWrong`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L209) | unit/verify | revert, verified |
 | positive | [`TestRFC2661HeaderTunnelIDBeforeAndAfterAssignment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L180) | unit/verify | revert, verified |
@@ -1000,7 +1000,7 @@ If this AVP is present during session setup, sequence numbers MUST be present at
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSequencingRequiredReachesKernelSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L102) | unit/verify | revert, verified |
 | positive | [`TestSequencingRequiredReachesKernelSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L101) | unit/verify | revert, verified |
@@ -1011,7 +1011,7 @@ Thus, if the LAC receives a data message without sequence numbers present, it MU
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestLACKernelSessionFollowsPeerSequencing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L139) | unit/verify | revert, verified |
 | positive | [`TestLACKernelSessionFollowsPeerSequencing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L138) | unit/verify | revert, verified |
@@ -1022,7 +1022,7 @@ If the LAC receives a data message with sequence numbers present, it MUST begin 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestLACKernelSessionFollowsPeerSequencing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L141) | unit/verify | revert, verified |
 | positive | [`TestLACKernelSessionFollowsPeerSequencing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L140) | unit/verify | revert, verified |
@@ -1033,7 +1033,7 @@ The receiver of a StopCCN MUST send a ZLB ACK to acknowledge receipt of the mess
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661StopCCNAcknowledged`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L519) | unit/verify | revert, verified |
 | positive | [`TestRFC2661StopCCNAcknowledged`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L515) | unit/verify | revert, verified |
@@ -1044,7 +1044,7 @@ A peer MUST NOT withhold acknowledgment of messages as a technique for flow cont
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661AckNotWithheldUnderFlowControl`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L602) | unit/verify | revert, verified |
 | positive | [`TestRFC2661AckNotWithheldUnderFlowControl`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L599) | unit/verify | revert, verified |
@@ -1063,7 +1063,7 @@ The following AVP MUST be present in the SCCCN: (§6.3)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L379) | unit/verify | revert, verified |
 | positive | [`TestRFC2661MandatoryAVPSetsEmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L288) | unit/verify | revert, verified |
@@ -1074,7 +1074,7 @@ The following AVPs MUST be present in the StopCCN: (§6.4)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L382) | unit/verify | revert, verified |
 | positive | [`TestRFC2661MandatoryAVPSetsEmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L290) | unit/verify | revert, verified |
@@ -1085,7 +1085,7 @@ A peer MUST NOT expect HELLO messages at any time or interval (§6.5)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestDeadPeerZLBAckKeepsTunnelUp`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_test.go#L1315) | unit/verify | revert, verified |
 
@@ -1095,7 +1095,7 @@ The Session ID in a HELLO message MUST be 0 (§6.5)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661HelloShape`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L492) | unit/verify | revert, verified |
 
@@ -1105,7 +1105,7 @@ The Following AVP MUST be present in the HELLO message: (§6.5)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661HelloShape`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L494) | unit/verify | revert, verified |
 
@@ -1115,7 +1115,7 @@ The following AVPs MUST be present in the ICRQ: (§6.6)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L385) | unit/verify | revert, verified |
 | positive | [`TestRFC2661MandatoryAVPSetsEmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L292) | unit/verify | revert, verified |
@@ -1126,7 +1126,7 @@ The following AVPs MUST be present in the ICRP: (§6.7)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L389) | unit/verify | revert, verified |
 | positive | [`TestRFC2661MandatoryAVPSetsEmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L294) | unit/verify | revert, verified |
@@ -1137,7 +1137,7 @@ The following AVPs MUST be present in the ICCN: (§6.8)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L392) | unit/verify | revert, verified |
 | positive | [`TestRFC2661MandatoryAVPSetsEmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L296) | unit/verify | revert, verified |
@@ -1148,7 +1148,7 @@ An LNS MUST have received a Bearer Capabilities AVP during tunnel establishment 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661CallCapabilitiesChecked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L421) | unit/verify | revert, verified |
 | positive | [`TestRFC2661CallCapabilitiesChecked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L419) | unit/verify | revert, verified |
@@ -1159,7 +1159,7 @@ The following AVPs MUST be present in the OCRQ: (§6.9)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L396) | unit/verify | revert, verified |
 | positive | [`TestRFC2661MandatoryAVPSetsEmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L298) | unit/verify | revert, verified |
@@ -1170,7 +1170,7 @@ The following AVPs MUST be present in the OCRP: (§6.10)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L399) | unit/verify | revert, verified |
 | positive | [`TestRFC2661MandatoryAVPSetsEmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L300) | unit/verify | revert, verified |
@@ -1181,7 +1181,7 @@ The following AVPs MUST be present in the OCCN: (§6.11)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L402) | unit/verify | revert, verified |
 | positive | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L405) | unit/verify | revert, verified |
@@ -1192,7 +1192,7 @@ The following AVPs MUST be present in the CDN: (§6.12)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L407) | unit/verify | revert, verified |
 | positive | [`TestRFC2661MandatoryAVPSetsEmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L302) | unit/verify | revert, verified |
@@ -1203,7 +1203,7 @@ The following AVPs MUST be present in the WEN: (§6.13)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L410) | unit/verify | revert, verified |
 | positive | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L412) | unit/verify | revert, verified |
@@ -1214,7 +1214,7 @@ These options can change at any time during the life of the call, thus the LAC M
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661SLIUpdatesACCM`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L768) | unit/verify | revert, verified |
 | positive | [`TestRFC2661SLIUpdatesACCM`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L766) | unit/verify | revert, verified |
@@ -1225,7 +1225,7 @@ The following AVPs MUST be present in the SLI: (§6.14)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L414) | unit/verify | revert, verified |
 | positive | [`TestRFC2661MandatoryAVPSetsParsed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L416) | unit/verify | revert, verified |
@@ -1236,7 +1236,7 @@ Receipt of an invalid or unrecoverable malformed control message should be logge
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). Adds the §7.2.1 idle row 'idle Receive SCCRP Send StopCCN Clean up idle' (D-8 fixed in handleSCCRP, producer read: parse the SCCRP, adopt its Assigned Tunnel ID when it parses, clearImproperSequence). + TestRFC2661StraySCCRPInIdleSendsStopCCN: one StopCCN addressed to TID 5, tunnel closed, WARN logged; failing-first observed. Existing units unchanged: + TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection, TestRFC2661OutOfOrderSCCCNClearsControlConnection, TestRFC2661InvalidOrMalformedMessageClearsControlConnection; - TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection. Every unit carries an observed-red record. By main-thread decision an SCCRP whose header names a tunnel ID Ze never allocated stays dropped at the reactor (no tunnel state; answering would reflect to an unauthenticated source), disclosed in docs/architecture/wire/l2tp.md.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661InvalidOrMalformedMessageClearsControlConnection`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L475) | unit/verify | revert, verified |
 | negative | [`TestRFC2661OutOfOrderSCCCNClearsControlConnection`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_scccn_wrong_order_test.go#L31) | unit/verify | revert, verified |
@@ -1252,7 +1252,7 @@ If the version is earlier and not supported, a StopCCN MUST be sent to the peer 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSCCRQAtTheSupportedProtocolVersionEstablishes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_protocol_version_test.go#L93) | unit/verify | revert, verified |
 | positive | [`TestSCCRQAtAnUnsupportedProtocolVersionIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_protocol_version_test.go#L37) | unit/verify | revert, verified |
@@ -1263,7 +1263,7 @@ In the event of a local termination, the originator MUST send a Stop-Control-Con
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661LocalTerminationSendsStopCCN`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L539) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2661LocalTerminationSendsStopCCN`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L536) | unit/verify | revert, verified |
@@ -1274,7 +1274,7 @@ If the originator receives a Stop-Control-Connection-Notification it MUST also c
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661OriginatorCleansUpOnStopCCN`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L575) | unit/verify | revert, verified |
 | positive | [`TestRFC2661OriginatorCleansUpOnStopCCN`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L573) | unit/verify | revert, verified |
@@ -1285,7 +1285,7 @@ The LAC MUST respond to the Outgoing-Call-Request message with an Outgoing-Call-
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661OCRQAnsweredWithOCRP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L798) | unit/verify | revert, verified |
 | positive | [`TestRFC2661OCRQAnsweredWithOCRP`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L795) | unit/verify | revert, verified |
@@ -1296,7 +1296,7 @@ established If a Call-Disconnect-Notify is received by the LAC, the telco call M
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661CDNCleansUpSilently`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L709) | unit/verify | revert, verified |
 | positive | [`TestRFC2661CDNCleansUpSilently`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L706) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
@@ -1307,7 +1307,7 @@ If the call is disconnected by the client or the called interface, a Call-Discon
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661LACSendsCDNOnDisconnect`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L742) | unit/verify | revert, verified |
 
@@ -1317,7 +1317,7 @@ Once the source and destination ports and addresses are established, they MUST r
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661LocalTerminationSendsStopCCN`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L541) | unit/verify | revert, verified |
 
@@ -1327,7 +1327,7 @@ The default for any L2TP implementation is that UDP checksums MUST be enabled fo
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestControlSocketKeepsUDPChecksums`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L167) | unit/verify | revert, verified |
 
@@ -1337,7 +1337,7 @@ An L2TP implementation running on a system which does not support L2F MUST silen
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661KnownVersionAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L116) | unit/verify | revert, verified |
 | positive | [`TestRFC2661UnknownVersionRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L100) | unit/verify | revert, verified |
@@ -1348,7 +1348,7 @@ When operating in IP environments, L2TP MUST offer the UDP encapsulation describ
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2661UDPEncapsulationOffered`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L829) | unit/verify | revert, verified |
 
@@ -1366,7 +1366,7 @@ If no peer response is detected after several retransmissions, (a recommended de
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read RFC 2661 Section 5.8 and the current producer chain after ExtractParameters gained independent PPP LCP parsing. This requirement owns the configurable reliable-delivery retransmission budget, not the separate 5.8-3 clearing obligation. ExtractParameters still parses max-retransmit into Parameters.MaxRetransmit, tunnelDefaults and reliableConfig still carry it to both tunnel constructors, and ReliableEngine.Tick still exhausts that budget. TestRFC2661ConfiguredMaxRetransmitClearsTunnel sets two before creating the tunnel, disables HELLO dead-peer detection, asserts Established through each allowed retransmission, and Closed after the next deadline. A fixed five fails the positive assertion; premature clearing fails the distinct negative assertions. TestConfig_MaxRetransmit separately asserts default five and an explicit nine; TestReloadAppliesMaxRetransmit asserts an explicit eight reaches reactor and new-tunnel defaults. The new PPP LCP parse does not alter this reliable-delivery setting or the existing tagged assertions.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2661ConfiguredMaxRetransmitClearsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L81) | unit/verify | revert, verified |
 | positive | [`TestRFC2661ConfiguredMaxRetransmitClearsTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L78) | unit/verify | revert, verified |

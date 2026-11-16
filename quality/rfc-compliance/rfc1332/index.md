@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 8 | of 8 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 8 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 8 | of 8 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 8 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 8 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 8 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 0 | of 8 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 8 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 12 | 12 of 21 tests linked to requirements, 0 without a fault test and 9 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 12 | 12 of 21 tests linked to requirements, 0 without a fault test and 9 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 8 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 8 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 8 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 8 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 8 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 8 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 8 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: PPP Internet Protocol Control Protocol under L2TP 
 
 **Area:** IPCP
 
-**Proof:** 5 of 8 MUST proven
+**Test verification:** 5 of 8 MUST proven
 
 **Evidence:** unit 5
 
@@ -109,7 +109,7 @@ Included in automatic checks: PPP Internet Protocol Control Protocol under L2TP 
 | Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **8** | every mandatory requirement appears in exactly one group above |
@@ -118,8 +118,8 @@ Included in automatic checks: PPP Internet Protocol Control Protocol under L2TP 
 
 ## Figures
 
-- **MUST bar**: Ze proven 5, Proof pending 3
-- **Overview bar**: Ze MUST proven 5, Proof pending 3, Not assessed 6
+- **MUST bar**: Ze verified 5, Tests awaiting verification 3
+- **Overview bar**: Ze MUST verified 5, Tests awaiting verification 3, Not assessed 6
 
 | Figure | Rows |
 |---|---|
@@ -128,9 +128,9 @@ Included in automatic checks: PPP Internet Protocol Control Protocol under L2TP 
 | Mandatory requirements complete | not complete |
 | MUST rows | 8 |
 | MUST rows kept (the MUST bar) | 8 |
-| Ze proven | 5 |
+| Ze verified | 5 |
 | OS verified | 0 |
-| Proof pending | 3 |
+| Tests awaiting verification | 3 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -140,19 +140,19 @@ Included in automatic checks: PPP Internet Protocol Control Protocol under L2TP 
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 6 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 6 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc1332.json](../../../data/rfc/rfc1332.json).
 
@@ -179,9 +179,9 @@ Source: [data/rfc/rfc1332.json](../../../data/rfc/rfc1332.json).
 
 RFC 1332 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC1332-2-1`](#rfc1332-2-1)
 
@@ -189,7 +189,7 @@ Exactly one IPCP packet is encapsulated in the Information field of PPP Data Lin
 
 Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun, internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestIPCPOnePacketPerFrameThroughRun#2 moved. Judge ppp4 2026-09-30. Re-read after the frame_test.go negative moved to RFC1661-5-2 (it proved Length validation, a neighbour). Still proven by TestIPCPOnePacketPerFrameThroughRun: ze's IPCP CONFREQ from run() is 0x8021 with Length == Information length (+); a 0x8021 frame carrying a CONFREQ and a trailing Terminate-Request draws the Configure-Ack alone and no Terminate-Ack in 1 s (-, receiver-side injection).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPCPOnePacketPerFrameThroughRun`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L258) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestIPCPFrameCarriesExactlyOnePacket`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/frame_test.go#L145) | unit/verify | revert, verified |
@@ -201,7 +201,7 @@ Only Codes 1 through 7 (Configure-Request, Configure-Ack, Configure-Nak, Configu
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPCPUsedCodesAreNotCodeRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_codes_test.go#L74) | unit/verify | revert, verified |
 | positive | [`TestIPCPUnusedCodesAreCodeRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_codes_test.go#L35) | unit/verify | revert, verified |
@@ -213,7 +213,7 @@ Before any IP packets may be communicated, PPP must reach the Network-Layer Prot
 
 Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase moved. Rejudged 2026-11-08 after 14d3df65a7 against RFC 1332 Section 2.1 "Before any IP packets may be communicated, PPP must reach the Network-Layer Protocol phase, and the IP Control Protocol must reach the Opened state." Network-phase clause: TestNCPHeldUntilNetworkPhase/ipv4 holds CHAP pending 3 s; onlyChallengesUntil fails on any frame but a CHAP Challenge (Code 1) with a changed Identifier (RFC 1994 4.1 retransmission), so any IPCP 0x8021 or IP frame fails it; it also asserts no EventIPRequest and no AddAddressP2P (-); runAuthPhase revert recorded. Tightened window isolates the rule better than the old one. Opened clause, units unchanged: TestIPCPNoAddressBeforeOpened holds IPCP at Ack-Rcvd and fails on EventSessionIPAssigned, any AddAddressP2P or SetAdminUp (-, mutant ncp.go handleNCPPacket NewState == Opened -> != recorded); TestIPResponseConfiguresInterface installs ppp42 10.0.0.1/32 peer 10.0.0.2/32 and brings it up after Opened (+, sendIPAssigned revert recorded). Receive side: TestRFC1661NetworkLayerPacketDiscardedBeforeNCPOpened under RFC1661-3.6-2.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPCPNoAddressBeforeOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L167) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestNCPHeldUntilNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L168) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
@@ -225,7 +225,7 @@ The maximum length of an IP packet transmitted over a PPP link is the same as th
 
 Audit verdict: weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU, internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2 moved. Independent rejudgment 2026-11-15. Read RFC 1332 Section 2.1: "The maximum length of an IP packet transmitted over a PPP link is the same as the maximum length of the Information field of a PPP data link layer frame." TestIPMTUInstalledFromNegotiatedMRU still drives the real Driver/proxy-LCP path with peer MRU 1400 and maxMRU 1500, and asserts exactly one backend MTU call, ppp7=1400, plus kernel receive MRU 1500. afterLCPOpen uses transmitMRU and sets the device MTU before reconnecting the channel. This is useful discriminating evidence at Ze's delegated-kernel boundary: the current semantic mutation replaces mru with MaxFrameLen and both tagged claims go red. However the positive and negative tags share one input and one exact-output observation; the later no-MTU-above-1400 loop cannot independently fail after the exact-1400 assertion succeeded. It is not an independent polarity pair under the current audit skill. The new validated LCP fixture changes neither assertion nor this limitation. Weak denotes the existing polarity-proof gap, not a newly found runtime MTU defect; no test, producer or claim was edited by this auditor.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L19) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L18) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
@@ -236,7 +236,7 @@ Larger IP datagrams must be fragmented as necessary. (§2.1)
 
 Audit verdict: weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU, internal/component/l2tp/ppp/rfc1332_mtu_test.go::TestIPMTUInstalledFromNegotiatedMRU#2 moved. Independent rejudgment 2026-11-15. Read RFC 1332 Section 2.1: "Larger IP datagrams must be fragmented as necessary." The tagged TestIPMTUInstalledFromNegotiatedMRU proves Ze installs ppp7 MTU 1400 from the peer's negotiated MRU, the size used by Linux IPv4 output for fragmentation; it does not send or observe an oversized IP datagram or kernel fragmentation. Delegated-boundary evidence is permitted by the repository rule and is not itself called a product defect. The existing same test carries both polarities over one 1400-MRU input; its exact-1400 assertion already excludes every value the later above-1400 loop could reject. The semantic MaxFrameLen-for-mru mutation discriminates that shared assertion but does not create a second polarity case or prove fragmentation itself. Retain the installed-MTU scoped truth and report the existing polarity-proof gap rather than silently renewing whole-pair assurance. Added validated LCP configuration preserves the existing assertions. No Go source or tests were changed by this auditor.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L21) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestIPMTUInstalledFromNegotiatedMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_mtu_test.go#L20) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
@@ -247,7 +247,7 @@ IPCP uses the same Configuration Option format defined for LCP [1], with a separ
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: TestIPCPOptionsWrittenInLCPFormat changed only by the iPCPOptions -> IPCPOptions type rename; it still compares WriteIPCPOptions output byte for byte (Types 3/129/131, Length 6, four octets) and walks it with ParseLCPOptions, so any drift of Type, Length or Data is red. Receive side unchanged: TestIPCPParseOptions decodes a well-formed list, TestIPCPParseRejects refuses malformed TLVs with the exact errors.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPCPParseRejects`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_ipcp_test.go#L71) | unit/verify | revert, verified |
 | positive | [`TestIPCPOptionsWrittenInLCPFormat`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_clauses_test.go#L23) | unit/verify | revert, verified |
@@ -259,7 +259,7 @@ The value of the IP-address given must be acceptable as the remote IP-address, o
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestIPCPNakCarriesTheAssignedRemoteAddress, internal/component/l2tp/ppp/auth_phase_rfc1334_test.go::TestIPCPNakNeverCarriesAnUnacceptableAddress moved. Forbidden: a Configure-Nak IP-Address that is not acceptable as the remote address. TestIPCPNakCarriesTheAssignedRemoteAddress asserts the Nak carries the assigned 10.0.0.2 for a request of 10.9.9.9 and for a request with no address, red if another value is given. TestIPCPNakNeverCarriesAnUnacceptableAddress asserts the requested address is not echoed and that with nothing assigned the option is omitted rather than written invalid. The 'or indicate a request' branch is a permitted alternative Ze does not use.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPCPNakNeverCarriesAnUnacceptableAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L313) | unit/verify | revert, verified |
 | positive | [`TestIPCPNakCarriesTheAssignedRemoteAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/auth_phase_rfc1334_test.go#L299) | unit/verify | revert, verified |
@@ -270,7 +270,7 @@ The slot identifier must not be compressed if there is no ability for the PPP li
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPCPRejectsVanJacobsonCompression`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1332_codes_test.go#L151) | unit/verify | revert, verified |
 | negative | [`TestClientIPCPRejectsVanJacobsonCompression`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1332_ipcp_codes_test.go#L90) | unit/verify | revert, verified |

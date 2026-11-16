@@ -128,12 +128,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>31</strong><b>of 39 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8</strong><b>of 39 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>31</strong><b>of 39 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8</strong><b>of 39 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 39 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 39 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 39 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 39 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>53</strong><b>53 of 99 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>53</strong><b>53 of 99 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>43</strong><b>of 39 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -141,9 +141,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 39 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 39 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 39 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 39 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 39 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 39 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 39 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -171,11 +171,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -187,7 +187,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -195,7 +195,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -276,7 +276,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> BMP v3</p>
-<p><strong>Proof:</strong> 25 of 39 MUST proven</p>
+<p><strong>Test verification:</strong> 25 of 39 MUST proven</p>
 <p><strong>Evidence:</strong> unit 25</p>
 <p><strong>Unmet:</strong> -</p>
 
@@ -302,7 +302,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -323,9 +323,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7854:must">Ze proven 25, Proof pending 14</div>
+<div data-ze-rfc-bar="rfc7854:must">Ze verified 25, Tests awaiting verification 14</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7854:overview">Ze MUST proven 25, SHOULD proven 3, Proof pending 15, Not assessed 5</div>
+<div data-ze-rfc-bar="rfc7854:overview">Ze MUST verified 25, SHOULD verified 3, Tests awaiting verification 15, Not assessed 5</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -345,13 +345,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc7854:must.kept">39</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc7854:must.ze-proven">25</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7854:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc7854:must.proof-pending">14</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -381,7 +381,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc7854:should.total">9</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc7854:should.proven">3</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -402,7 +402,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc7854:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc7854:should.proof-pending">1</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -417,7 +417,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -886,29 +886,29 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Gaps and untested MUSTs</h2>
 <p>RFC 7854 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc7854-x-1"><code>RFC7854-x-1</code></a></h3>
 <p>This is set to &#39;3&#39; for all messages defined in this specification. (§4.1, Common Header)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. rfc7854_wire_header_test.go::TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength builds all seven types through the writers the sender calls (writeRouteMonitoring, writeStatisticsReport, writePeerDown, writePeerUp, writeInitiation, writeTermination, writeRouteMirroring) into a 0xA5-patterned buffer and requires octet 0 == 3 on each, so a writer that emits another version or leaves the octet unset goes red. The sentence binds the sender and no input can make it send another version; the negatives (header_test decode table #2, session_test TestBMPMalformedHeaderDrops) are the receiver refusing a version-2 header, the same rule read at the other end. The old decode-table positive stays tagged and proves only decode.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L37" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPCommonHeaderDecode</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_test.go#L77" title="internal/component/bgp/plugins/bmp/rfc7854_session_test.go" target="_blank" rel="noopener"><code>TestBMPMalformedHeaderDrops</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L18" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPCommonHeaderDecode</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L68" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength</code></a></td>
@@ -923,17 +923,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength reads the transmitted octets of all seven types: octet 0 == 3 (so never the reserved 0), octets 1-4 == the whole message computed independently from the case&#39;s own inputs (common header + per-peer header where present + data) and equal to the octets the writer produced, and octet 5 == the type. Each clause of the quoted definition is asserted on a sent message. The tagged negative (header_test, a 3-octet buffer refused) is thin, but the clauses are sender field definitions with no input to refuse; the positive discriminates every one.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L30" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPCommonHeaderDecode</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L83" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPCommonHeaderEncode</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L70" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854EveryTransmittedMessageCarriesVersion3AndItsTotalLength</code></a></td>
@@ -948,12 +948,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. rfc7854_wire_header_test.go::TestRFC7854PerPeerHeaderFollowsTheCommonHeader writes all seven types and decodes a per-peer header at octet 6 of Route Monitoring, Statistics Report, Peer Down, Peer Up and Route Mirroring, requiring it to equal the header the writer was given (4-octet AS 4200000001); for Initiation and Termination it requires the first TLV (type 1, length 2) at octet 6 and a message too short to hold a per-peer header, which is the &#39;most&#39; of the sentence. The older TestHasPeerHeader tags stay: hasPeerHeader has no non-test caller, so those two tags prove a helper table only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L287" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestHasPeerHeader</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L110" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854PerPeerHeaderFollowsTheCommonHeader</code></a></td>
@@ -963,7 +963,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L285" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestHasPeerHeader</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L106" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854PerPeerHeaderFollowsTheCommonHeader</code></a></td>
@@ -978,17 +978,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. rfc7854_wire_header_test.go::TestRFC7854PeerASIsFourOctetsWithTheShortASZeroPadded writes a Peer Down (writePeerHeader) into a patterned buffer and reads per-peer octets 26-29 raw: 65001 must be 00 00 FD E9 (the 16 most significant bits zero) and 4200000001 must be FA 56 EA 01, so a 2-octet field, a lost padding or a misplaced AS goes red. {single-polarity: positive} holds: the field is a fixed 4-octet encode with no shorter variant to refuse.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L116" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPPeerHeaderDecode</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/header_test.go#L173" title="internal/component/bgp/plugins/bmp/header_test.go" target="_blank" rel="noopener"><code>TestBMPPeerHeaderEncode</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go#L148" title="internal/component/bgp/plugins/bmp/rfc7854_wire_header_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerASIsFourOctetsWithTheShortASZeroPadded</code></a></td>
@@ -1003,17 +1003,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. IPv4 lands in octets 12..15 with 0..11 zero; the IPv6 negative keeps its full address</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L400" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv6</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L386" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestParseIPIntoIPv4</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1023,12 +1023,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. collector reads the first message off a live TCP connection and asserts type Initiation; single-polarity marker</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L19" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderConnects</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1038,12 +1038,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. live Initiation carries sysName equal to the system identity and a sysDescr; single-polarity marker</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L84" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderInitiation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1053,22 +1053,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 7854 Section 4.10: &#34;Sent OPEN Message: The full OPEN message transmitted by the monitored router to its peer. o Received OPEN Message: The full OPEN message received by the monitored router from its peer.&#34; 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestHandleSenderStatePeerUp, TestPeerUpOnCacheMissNeverReachesTheCollector). The second unit now builds its per-peer header through the test helper mustPeerHeader, which calls peerHeaderFromEvent and fails the test on its new refusal; the event has a known AS, so the written frame and the assertion that no Peer Up without both OPENs reaches the collector are the same. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-13 after the RFC 7854 Section 3.3 guard (no Peer Down for a peer never reported up). Positives unchanged: TestHandleSenderStatePeerUp and TestBMPSenderPeerUp echo both cached OPENs byte for byte. Negative TestPeerUpOnCacheMissNeverReachesTheCollector: up event with no OPEN cached, down event, then a Route Monitoring sentinel on the same FIFO queue; the first message read must be the sentinel, and a Peer Up is a named failure. Owner-approved marker change (sentinel replaces the Peer Down, which Section 3.3 no longer owes). Reviewer observed red with the guard removed (first message became the Peer Down), so the test still sees the whole queue head; a Peer Up emitted without both OPENs would be read first and fail.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go#L43" title="internal/component/bgp/plugins/bmp/rfc7854_peerup_openless_test.go" target="_blank" rel="noopener"><code>TestPeerUpOnCacheMissNeverReachesTheCollector</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L139" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerUp</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L211" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerUp</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1078,12 +1078,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Route Monitoring wraps the body in a full RFC 4271 header of type UPDATE; single-polarity marker</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L279" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderRouteMonitoring</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1093,12 +1093,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 7854 Section 4.9: &#34;Reason indicates why the session was closed.&#34; 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestHandleSenderStatePeerDown). The reason-byte assertions are unchanged. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-18 (independent auditor, after 4ef90497c6). Section 4.9: &#34;Reason indicates why the session was closed.&#34; The earlier finding (no unit tied a Reason to the cause, and peerDownFor never emitted reason 4) is fixed and now proven at both decision points. Reactor: TestPeerCloseNamesTheTransportLoss drops TCP under a running Peer and asserts rpc.ReasonTCPFailure with Event 18; TestPeerCloseNamesTheCongestionTeardownLocal drives congestionTeardownPeer and asserts rpc.ReasonLocalClose with Event 18, so ze closing the transport itself is not reported as the remote doing it. BMP: TestRFC7854PeerDownTransportLossIsReason4 asserts Reason 4 (&#34;This includes any unexpected termination of the transport session&#34;) with no Data for rpc.ReasonTCPFailure. TestHandleSenderStatePeerDown (reason 2 for a NOTIFICATION close with no cached PDU) and TestBMPSenderPeerDown (round-trips a chosen byte) remain weak on their own. Seam not covered by a tagged unit: apiStateObserver.OnPeerClosed and server/events.go copying the reason and CloseFSMEvent into the StructuredEvent. Single-polarity annotation holds: every Peer Down is written with a reason byte.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/event_test.go#L272" title="internal/component/bgp/plugins/bmp/event_test.go" target="_blank" rel="noopener"><code>TestHandleSenderStatePeerDown</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go#L24" title="internal/component/bgp/plugins/bmp/rfc7854_peerdown_cause_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownTransportLossIsReason4</code></a></td>
@@ -1108,7 +1108,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L248" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderPeerDown</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/peer_close_test.go#L104" title="internal/component/bgp/reactor/peer_close_test.go" target="_blank" rel="noopener"><code>TestPeerCloseNamesTheCongestionTeardownLocal</code></a></td>
@@ -1128,17 +1128,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29: the stale unit TestSenderStopSendsTerminationToCollector changed only by an added RFC7854-4.5-5 tag comment; body unchanged. It still requires the collector to read a Termination through stop() racing holdConnection, and the writeTerminationLocked break recorded under RFC7854-4.5-5 on this same unit was observed red. sender_test.go::TestBMPSenderTermination covers the encoder, no record. {single-polarity: positive} holds for a MAY that ze always exercises.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L562" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_test.go#L363" title="internal/component/bgp/plugins/bmp/rfc7854_sender_test.go" target="_blank" rel="noopener"><code>TestBMPSenderTermination</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1148,12 +1148,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. receiver loop driven with Initiation and Termination writes zero bytes toward the router end; single-polarity marker</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_test.go#L135" title="internal/component/bgp/plugins/bmp/rfc7854_session_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverUnidirectional</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1163,7 +1163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after ecba2d9147). Section 4.9: &#34;Reason 2: The local system closed the session.  No notification message was sent.  Following the reason code is a 2-byte field containing the code corresponding to the Finite State Machine (FSM) Event that caused the system to close the session&#34;, and the figure gives &#34;Data (present if Reason = 1, 2 or 3)&#34;. The two data units now feed the close reasons the reactor sends: TestRFC7854PeerDownCarriesTheDataItsReasonRequires feeds rpc.ReasonNotification with a sent and a received NOTIFICATION and asserts reasons 1 and 3 with Data equal to the exact NOTIFICATION PDU, and rpc.ReasonLocalClose on FSMEvent 18 and asserts reason 2 with Data 0012, red if peerDownFor (bmp_events.go) writes constant zero octets or drops the event. TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone asserts reason 5 for rpc.ReasonPeerRemoved and reason 4 for rpc.ReasonTCPFailure on event 18, each with no Data, so an encoder that always appends the event code goes red; its tag claim names reason 5 only and the body proves more. TestRFC7854PeerDownLocalCloseCarriesTheFSMEvent is unchanged. Residual seam as before: which event closed the session is the reactor&#39;s answer (sessionCloseFor), and the copy of CloseFSMEvent into StructuredEvent.FSMEvent (server/events.go) has no unit; these units set FSMEvent directly.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go#L163" title="internal/component/bgp/plugins/bmp/rfc7854_peerdown_data_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerDownOmitsDataWhereTheReasonHasNone</code></a></td>
@@ -1188,17 +1188,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. receiver closes after reading a Termination with the router end held open (well under the read deadline) and drops the router; without a Termination two valid messages leave the session open</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go#L9" title="internal/component/bgp/plugins/bmp/rfc7854_termination_absent_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverKeepsSessionWithoutTermination</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go#L9" title="internal/component/bgp/plugins/bmp/rfc7854_termination_close_test.go" target="_blank" rel="noopener"><code>TestBMPReceiverClosesAfterTermination</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1208,7 +1208,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. statistics-timeout 1 through the reload rail yields two reports about one interval apart; statistics-timeout 0 yields none</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/statistics_test.go#L475" title="internal/component/bgp/plugins/bmp/statistics_test.go" target="_blank" rel="noopener"><code>TestRFC7854StatisticsTimeoutZeroSendsNoReport</code></a></td>
@@ -1228,7 +1228,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. The wrong tags on TestConcurrentDumpsStayAddressedToTheirOwnCollector are gone. rfc7854_session_opening_test.go::TestRFC7854SessionPeerUpOnlyForEstablishedPeers primes a new collector (primeSender) over one Established peer and one peer that exchanged OPENs and sent an UPDATE but never reported Up; it counts Peer Ups per address on the collector&#39;s bytes: exactly 1 for the Established peer, 0 for the other, and the first message is the Peer Up. A producer that announced every peer with cached OPENs, or none, goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L98" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionPeerUpOnlyForEstablishedPeers</code></a></td>
@@ -1248,7 +1248,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. rfc7854_session_opening_test.go::TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp reads the same two-peer session in order: no Route Monitoring before the Peer Up, the Established peer&#39;s received route (exact UPDATE body announceBody(1)) arrives as a pre-policy Route Monitoring (L clear, the default pre-policy selection), and nothing is dumped for the peer that never reached Established. Order, content and scope of the Adj-RIB-In dump are each asserted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L132" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionDumpsAdjRIBInAfterThePeerUp</code></a></td>
@@ -1268,7 +1268,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29. Both clauses now hold both polarities. Sender: rfc7854_test.go TestRFC7854InitiationCarriesSysDescr and the new rfc7854_session_opening_test.go::TestRFC7854InitiationCarriesSysName decode the Initiation sendInitiation writes and require exactly one sysName (type 2) and a sysDescr (type 1). Receiver: TestRFC7854InitiationMissingSysDescrEndsSession and TestBMPInitiationMissingSysNameEndsSession (tag added) each send an Initiation missing one TLV and require the session closed (decodeInitiation checks each independently); TestRFC7854InitiationEmptyIdentityValuesAccepted keeps presence, not length, as the test.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L28" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestBMPInitiationMissingSysNameEndsSession</code></a></td>
@@ -1278,12 +1278,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L15" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationMissingSysDescrEndsSession</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L40" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationEmptyIdentityValuesAccepted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go#L19" title="internal/component/bgp/plugins/bmp/rfc7854_session_opening_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationCarriesSysName</code></a></td>
@@ -1303,7 +1303,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. nextReconnectWait doubles and caps at reconnectMax; a refused dial is not retried before the base wait even when the port reopens early</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L114" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854RetryNotBeforeBackoff</code></a></td>
@@ -1323,7 +1323,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. after the collector closes a session the sender reconnects, and not before the base wait since the first session</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L174" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854SessionEstablishmentRateLimited</code></a></td>
@@ -1343,22 +1343,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. after reconnect Peer Up precedes the surviving route and each family gets EOR after its routes; an incremental UPDATE and another collector&#39;s reconnect produce no EOR, and an incomplete snapshot never emits EOR</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L95" title="internal/component/bgp/plugins/bmp/rfc7854_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7854AdjReplayCompletionIsSessionScoped</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L198" title="internal/component/bgp/plugins/bmp/rfc7854_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7854IncompleteAdjReplayCannotClaimCompletion</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L67" title="internal/component/bgp/plugins/bmp/rfc7854_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7854AdjReplayEndsEachFamily</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1368,7 +1368,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. type 200 is skipped and the following Termination is consumed; a malformed Peer Up still ends the session</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L261" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854MalformedKnownTypeStillEndsSession</code></a></td>
@@ -1388,7 +1388,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. transmitted Route Monitoring on both directions has reserved bits 0; a Peer Up with every reserved bit set is accepted and its defined flags decode unchanged</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L357" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854ReservedFlagsIgnoredOnReceipt</code></a></td>
@@ -1408,7 +1408,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854InitiationIsTheCommonHeaderThenTwoOrMoreTLVs reads the octets sender.go::sendInitiation writes off a pipe, checks type 4 and walks TLVs by hand from octet 6 to exactly the end, requiring &gt;= 2. Negative (R1(a)) ::TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused: a one-TLV Initiation is refused by the receiver. The refusal comes from decodeInitiation&#39;s sysName-presence check (RFC7854-x-18), not a count check, but every one-TLV Initiation lacks sysName or sysDescr, so no one-TLV input is accepted; the buffer is otherwise valid.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L99" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationWithFewerThanTwoTLVsIsRefused</code></a></td>
@@ -1428,27 +1428,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Initiation and Peer Up strings reach the command output in transmitted order, with duplicates kept</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L32" title="internal/component/bgp/plugins/bmp/rfc7854_identity_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationStringsKeepDuplicates</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L55" title="internal/component/bgp/plugins/bmp/rfc7854_identity_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerUpStringsKeepDuplicates</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L21" title="internal/component/bgp/plugins/bmp/rfc7854_identity_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationStringsReportedInOrder</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L44" title="internal/component/bgp/plugins/bmp/rfc7854_identity_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerUpStringsReportedInOrder</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1458,17 +1458,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. sysDescr carries the running build and uname sysname, release and machine, the MIB-II sysDescr content; it changes when the build identity changes</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L227" title="internal/component/bgp/plugins/bmp/rfc7854_identity_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationDescriptionChangesWithBuild</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L205" title="internal/component/bgp/plugins/bmp/rfc7854_identity_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationDescribesRunningSystem</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1478,17 +1478,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. sysName is the configured host.domain FQDN, the MIB-II sysName convention, survives rollback, and follows a configuration change</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L188" title="internal/component/bgp/plugins/bmp/rfc7854_identity_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationSystemNameChanges</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_identity_test.go#L168" title="internal/component/bgp/plugins/bmp/rfc7854_identity_test.go" target="_blank" rel="noopener"><code>TestRFC7854InitiationUsesConfiguredSystemName</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1498,7 +1498,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. after stop() the collector reads the Termination then EOF; a Peer Up afterwards is refused with errNotConnected</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L385" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854TerminationThenCloseAndSilence</code></a></td>
@@ -1518,17 +1518,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. live shutdown Termination carries exactly one two-octet Reason; absent, empty, short and long Reason TLVs fail decode and end the session</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L86" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854TerminationRequiresTwoByteReason</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L54" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854SenderTerminationCarriesReason</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1538,7 +1538,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854TerminationIsTheCommonHeaderThenTLVs reads the octets the sender&#39;s Termination path writes, walks TLVs from octet 6 to exactly the end, requires at least one and exactly one Reason TLV. Negative ::TestRFC7854TerminationWithNoTLVIsRefused: a 6-octet header-only Termination is refused (decodeTermination&#39;s missing-Reason branch, which any zero-TLV body reaches).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L149" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854TerminationWithNoTLVIsRefused</code></a></td>
@@ -1558,7 +1558,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Station clause: termination_absent_test.go::TestBMPReceiverEndsTheSessionWhenTheRouterLeavesWithoutTermination sends Initiation + Peer Up, confirms one router and one peer held, closes the pipe with no Termination, and requires handleSession to return with zero routers and zero peers (record: removeRouter break observed red). RECOMMENDED clause: sender_queue_test.go::TestSenderStopSendsTerminationToCollector reads a Termination on the collector side through stop() racing holdConnection (record: writeTerminationLocked break observed red). {single-polarity: positive} holds: the sentence permits the no-message close, so no non-compliant router input exists for the station to refuse.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go#L569" title="internal/component/bgp/plugins/bmp/rfc7854_sender_queue_test.go" target="_blank" rel="noopener"><code>TestSenderStopSendsTerminationToCollector</code></a></td>
@@ -1578,17 +1578,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. transmitted Route Mirroring ends with the BGP Message TLV; Information then BGP Message is accepted, BGP Message then Information ends the session</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L134" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854MirrorBGPMessageNotLastEndsSession</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L120" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithPDUAccepted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L421" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854RouteMirroringBGPMessageTLVLast</code></a></td>
@@ -1603,17 +1603,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Errored PDU with a BGP Message TLV is accepted; Errored PDU without one ends the session</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L146" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithoutPDUEndsSession</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L121" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854ErroredMirrorWithPDUAccepted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1623,7 +1623,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854RouteMirroringIsThePerPeerHeaderThenTLVs: writeRouteMirroring output decodes a per-peer header equal to the input at octet 6, then TLVs walked by hand from octet 48 to exactly the end, same types and values in order. Negative ::TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused: the valid message is first accepted, then a 3-octet tail that is no TLV (length fixed up) is refused, so only the not-TLVs body differs.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L209" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854RouteMirroringWhoseBodyIsNotTLVsIsRefused</code></a></td>
@@ -1643,7 +1643,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. unknown stat type 60000 and a 3-octet counter are consumed and the session survives; a stat length past the report end still ends it</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L290" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854TruncatedStatEndsSession</code></a></td>
@@ -1663,12 +1663,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. a transmitted report carries one statistic; an empty report is refused before it reaches the collector</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_codec_test.go#L175" title="internal/component/bgp/plugins/bmp/rfc7854_codec_test.go" target="_blank" rel="noopener"><code>TestRFC7854SenderRefusesEmptyStatistics</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L451" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854StatsReportCarriesAStatistic</code></a></td>
@@ -1683,7 +1683,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-29. Positive rfc7854_message_layout_test.go::TestRFC7854StatsReportCountNamesTheCountersThatFollow: the 4-octet count at octet 48 equals 3 and exactly three counter TLVs, walked by hand, run to the end with the input types and values. Negative ::TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused: the valid report is first accepted, then count+1 (truncated entry) and count-1 (trailing data) are each refused by decodeStatisticsReport.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L270" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854StatsReportCountDisagreeingWithItsCountersIsRefused</code></a></td>
@@ -1703,7 +1703,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-29. The row&#39;s sentence is the lead-in to the §4.10 figure, the only statement of the Peer Up layout, so the obligation judged is that figure: Local Address (16), Local Port, Remote Port, Sent OPEN, Received OPEN after the per-peer header (Information TLVs are RFC7854-x-19, the OPEN contents RFC7854-x-8). Positive rfc7854_message_layout_test.go::TestRFC7854PeerUpIsThePerPeerHeaderThenTheFixedFieldsAndBothOPENs reads each field raw at its offset from writePeerUp output and the exact total length. Negative ::TestRFC7854PeerUpShorterThanItsFixedFieldsIsRefused: a valid Peer Up is accepted, the same cut 10 octets into the fixed fields is refused (decodePeerUp short check).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go#L339" title="internal/component/bgp/plugins/bmp/rfc7854_message_layout_test.go" target="_blank" rel="noopener"><code>TestRFC7854PeerUpShorterThanItsFixedFieldsIsRefused</code></a></td>
@@ -1723,7 +1723,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (the negative unit gained the RFC7854-5-4 tag line only; assertions unchanged). rfc7854_test.go::TestRFC7854LFlagFollowsPolicy: received announce and withdraw leave with L clear, sent with L set. ::TestRFC7854LFlagNotDecidedByBody: one body streamed on both sides leaves L clear received and L set sent, so the flag follows the direction (policy stage) and not the message. Ze sends no post-policy Adj-RIB-In; its L-set stream is the RFC 8671 Adj-RIB-Out (O and L set, peerHeaderFromEvent).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L503" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854LFlagNotDecidedByBody</code></a></td>
@@ -1743,17 +1743,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. replayed routes and EORs with unknown receipt time carry 0.0; a known receipt time survives replay exactly</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L142" title="internal/component/bgp/plugins/bmp/rfc7854_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7854KnownRouteTimeSurvivesReplay</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L122" title="internal/component/bgp/plugins/bmp/rfc7854_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7854UnknownRouteTimeIsZero</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1763,7 +1763,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-09-29 (first clause of the §5 sentence; the twice-sent-withdraw clause left with retired RFC7854-5-3). Producer peerHeaderFromEvent sets L only on the sent direction, so a route&#39;s announcement and its withdraw take their L from the same direction. Positive rfc7854_test.go::TestRFC7854LFlagFollowsPolicy: a received withdraw carries L clear like a received announce, a sent withdraw L set like a sent announce. Negative ::TestRFC7854LFlagNotDecidedByBody: the same withdraw body on both sides gets L clear and L set, so a withdraw cannot carry the other side&#39;s flag. Both observed red under the peerHeaderFromEvent break. The test does not pair one announce with its own withdraw by prefix; the direction is the only input L reads, so no pairing can diverge.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L504" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854LFlagNotDecidedByBody</code></a></td>
@@ -1783,7 +1783,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rfc7854_replay_test.go::TestRFC7854ChangedAttributesCanReturnToEarlierValue receives one prefix three times with ORIGIN IGP, INCOMPLETE, IGP and requires exactly three Route Monitoring messages, each body byte-equal to the UPDATE carrying that ORIGIN, so a sender that suppresses or dedupes the return to an earlier value fails (record: handleSenderUpdate break observed red). One attribute (ORIGIN) samples &#39;such as an attribute change&#39;. {single-polarity: positive} holds: every route change is compliant input to the router, which has no refusal path.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_replay_test.go#L247" title="internal/component/bgp/plugins/bmp/rfc7854_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7854ChangedAttributesCanReturnToEarlierValue</code></a></td>
@@ -1798,7 +1798,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Loc-RIB instance Peer Up carries ports 0/0; a BGP peer&#39;s Peer Up carries its real 179/40000</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/bmp/rfc7854_test.go#L542" title="internal/component/bgp/plugins/bmp/rfc7854_test.go" target="_blank" rel="noopener"><code>TestRFC7854BGPPeerUpCarriesTransportPorts</code></a></td>
@@ -2229,7 +2229,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

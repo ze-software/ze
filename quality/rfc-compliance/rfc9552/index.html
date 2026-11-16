@@ -128,15 +128,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>46</strong><b>of 59 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5</strong><b>of 59 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>46</strong><b>of 59 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5</strong><b>of 59 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 59 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>117</strong><b>117 of 165 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>117</strong><b>117 of 165 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>1</strong><b>of 59 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-bad"><span>Partial test coverage</span><strong>1</strong><b>of 59 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>6</strong><b>of 59 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 <article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>43</strong><b>of 59 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
@@ -145,9 +145,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 59 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>1</strong><b>of 59 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 59 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 59 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 59 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 59 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 59 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -175,11 +175,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -191,7 +191,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -199,7 +199,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -280,7 +280,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> BGP-LS (obsoletes RFC 7752)</p>
-<p><strong>Proof:</strong> 44 of 59 MUST proven</p>
+<p><strong>Test verification:</strong> 44 of 59 MUST proven</p>
 <p><strong>Evidence:</strong> functional 1, unit 43</p>
 <p><strong>Unmet:</strong> RFC9552-5.1-7, RFC9552-5.2-5, RFC9552-5.3-1, RFC9552-5.3-2, RFC9552-5.3.2.7-1, RFC9552-5.4-2, RFC9552-5.5-1, RFC9552-8.2.6-2</p>
 
@@ -306,7 +306,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>1</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -324,13 +324,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (46):</strong> <a href="#rfc9552-5.1-1"><code>RFC9552-5.1-1</code></a>, <a href="#rfc9552-5.1-2"><code>RFC9552-5.1-2</code></a>, <a href="#rfc9552-5.1-3"><code>RFC9552-5.1-3</code></a>, <a href="#rfc9552-5.1-4"><code>RFC9552-5.1-4</code></a>, <a href="#rfc9552-5.1-5"><code>RFC9552-5.1-5</code></a>, <a href="#rfc9552-5.1-6"><code>RFC9552-5.1-6</code></a>, <a href="#rfc9552-5.2-1"><code>RFC9552-5.2-1</code></a>, <a href="#rfc9552-5.2-2"><code>RFC9552-5.2-2</code></a>, <a href="#rfc9552-5.2-3"><code>RFC9552-5.2-3</code></a>, <a href="#rfc9552-5.2-6"><code>RFC9552-5.2-6</code></a>, <a href="#rfc9552-5.2-7"><code>RFC9552-5.2-7</code></a>, <a href="#rfc9552-5.2-8"><code>RFC9552-5.2-8</code></a>, <a href="#rfc9552-5.2.1.4-1"><code>RFC9552-5.2.1.4-1</code></a>, <a href="#rfc9552-5.2.2-1"><code>RFC9552-5.2.2-1</code></a>, <a href="#rfc9552-5.2.2-2"><code>RFC9552-5.2.2-2</code></a>, <a href="#rfc9552-5.2.2-3"><code>RFC9552-5.2.2-3</code></a>, <a href="#rfc9552-5.2.2-5"><code>RFC9552-5.2.2-5</code></a>, <a href="#rfc9552-5.3.2.1-1"><code>RFC9552-5.3.2.1-1</code></a>, <a href="#rfc9552-5.3.2.2-1"><code>RFC9552-5.3.2.2-1</code></a>, <a href="#rfc9552-5.3.2.3-1"><code>RFC9552-5.3.2.3-1</code></a>, <a href="#rfc9552-5.9-1"><code>RFC9552-5.9-1</code></a>, <a href="#rfc9552-5.2.3-1"><code>RFC9552-5.2.3-1</code></a>, <a href="#rfc9552-5.3.2.3-2"><code>RFC9552-5.3.2.3-2</code></a>, <a href="#rfc9552-8.2.2-1"><code>RFC9552-8.2.2-1</code></a>, <a href="#rfc9552-8.2.2-2"><code>RFC9552-8.2.2-2</code></a>, <a href="#rfc9552-8.2.2-4"><code>RFC9552-8.2.2-4</code></a>, <a href="#rfc9552-8.2.2-5"><code>RFC9552-8.2.2-5</code></a>, <a href="#rfc9552-8.2.2-6"><code>RFC9552-8.2.2-6</code></a>, <a href="#rfc9552-8.2.6-1"><code>RFC9552-8.2.6-1</code></a>, <a href="#rfc9552-5.2.2-6"><code>RFC9552-5.2.2-6</code></a>, <a href="#rfc9552-5.2.1.1-1"><code>RFC9552-5.2.1.1-1</code></a>, <a href="#rfc9552-5.2.1.1-2"><code>RFC9552-5.2.1.1-2</code></a>, <a href="#rfc9552-5.2.2.1-1"><code>RFC9552-5.2.2.1-1</code></a>, <a href="#rfc9552-8.2.2-9"><code>RFC9552-8.2.2-9</code></a>, <a href="#rfc9552-8.2.2-10"><code>RFC9552-8.2.2-10</code></a>, <a href="#rfc9552-8.2.3-5"><code>RFC9552-8.2.3-5</code></a>, <a href="#rfc9552-5.2.2.1-2"><code>RFC9552-5.2.2.1-2</code></a>, <a href="#rfc9552-5.2.3-2"><code>RFC9552-5.2.3-2</code></a>, <a href="#rfc9552-5.3.1.1-1"><code>RFC9552-5.3.1.1-1</code></a>, <a href="#rfc9552-5.3.1.5-1"><code>RFC9552-5.3.1.5-1</code></a>, <a href="#rfc9552-5.3.2.2-3"><code>RFC9552-5.3.2.2-3</code></a>, <a href="#rfc9552-5.3.2.6-1"><code>RFC9552-5.3.2.6-1</code></a>, <a href="#rfc9552-5.3.2.6-2"><code>RFC9552-5.3.2.6-2</code></a>, <a href="#rfc9552-5.3.3.1-1"><code>RFC9552-5.3.3.1-1</code></a>, <a href="#rfc9552-5.3.3.6-1"><code>RFC9552-5.3.3.6-1</code></a>, <a href="#rfc9552-5.3.3.6-2"><code>RFC9552-5.3.3.6-2</code></a></p>
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (13):</strong> <a href="#rfc9552-5.2-4"><code>RFC9552-5.2-4</code></a>, <a href="#rfc9552-5.2-5"><code>RFC9552-5.2-5</code></a>, <a href="#rfc9552-5.2.1.4-2"><code>RFC9552-5.2.1.4-2</code></a>, <a href="#rfc9552-5.2.2-4"><code>RFC9552-5.2.2-4</code></a>, <a href="#rfc9552-5.2.3.1-1"><code>RFC9552-5.2.3.1-1</code></a>, <a href="#rfc9552-5.2.1-1"><code>RFC9552-5.2.1-1</code></a>, <a href="#rfc9552-5.5-1"><code>RFC9552-5.5-1</code></a>, <a href="#rfc9552-5.3-1"><code>RFC9552-5.3-1</code></a>, <a href="#rfc9552-5.4-1"><code>RFC9552-5.4-1</code></a>, <a href="#rfc9552-5.3-2"><code>RFC9552-5.3-2</code></a>, <a href="#rfc9552-5.1-7"><code>RFC9552-5.1-7</code></a>, <a href="#rfc9552-8.2.6-2"><code>RFC9552-8.2.6-2</code></a>, <a href="#rfc9552-5.4-2"><code>RFC9552-5.4-2</code></a></p>
-<p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc9552-5.5-1"><code>RFC9552-5.5-1</code></a></p>
+<p class="rfc-id-list"><strong>Partial test coverage (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc9552-5.5-1"><code>RFC9552-5.5-1</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc9552:must">Ze proven 44, Proof pending 7, Not built 7</div>
+<div data-ze-rfc-bar="rfc9552:must">Ze verified 44, Tests awaiting verification 7, Not built 7</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc9552:overview">Ze MUST proven 44, SHOULD proven 1, Not owed 1, Proof pending 7, Not assessed 28, Not built 8</div>
+<div data-ze-rfc-bar="rfc9552:overview">Ze MUST verified 44, SHOULD verified 1, Not owed 1, Tests awaiting verification 7, Not assessed 28, Not built 8</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -350,13 +350,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc9552:must.kept">58</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc9552:must.ze-proven">44</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc9552:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc9552:must.proof-pending">7</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -386,7 +386,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc9552:should.total">30</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc9552:should.proven">1</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -407,7 +407,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc9552:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc9552:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -422,7 +422,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -702,7 +702,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9552-5.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7752_bgpls_test.go#L25" title="internal/core/bgp/attribute/rfc7752_bgpls_test.go" target="_blank" rel="noopener"><code>TestRFC7752BGPLSNextHopFollowsRFC4760</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
-</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;MUST be encoded&#34;; gap &#34;as described in [RFC4760]&#34;; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. weak (the tests pass over code that does not enforce the requirement), fresh. Independent rejudgment on 2026-11-16 of only RFC9552-5.5-1, against the applied summary row and current working tree (comparison HEAD d7a7a46affc8c2c272cea0458fc7e525c7e61077). Read both full RFC 7752 and RFC 9552, RFC 4760 in full, the exact applied correction, the sole tagged unit, and the current producing boundaries. RFC 9552 Section 5.5: &#34;The next-hop address MUST be encoded as described in [RFC4760].&#34; RFC 9552 obsoletes RFC 7752; the legacy row retains its restated-successor link, and the sentence is unchanged. RFC 4760 Section 3 defines the length as &#34;A 1-octet field whose value expresses the length of the &#34;Network Address of Next Hop&#34; field, measured in octets.&#34; Its MP_REACH envelope puts AFI, SAFI, this length, the address bytes, a zero Reserved octet and then NLRI. The LS section additionally describes native IPv4, global IPv6, a global/link-local pair and the VPN zero-RD prefix. The row remains annotated partial, with Tested &#34;MUST be encoded&#34; and Gap &#34;as described in [RFC4760]&#34;. These are valid source selectors; they do not divide this single MUST into independently fulfilled clauses. The Reason correctly bounds its declared Tested evidence by family/address form and distinguishes implemented framing from missing proof. Producer is internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo, which exists and was read. Q1: TestRFC7752BGPLSNextHopFollowsRFC4760 makes RFC-derived layout assertions for SAFI 71. Its IPv4 arm independently checks literal AFI 16388, SAFI 71, length 4, address 192.0.2.1, zero Reserved and following NLRI; ParseMPReachNLRI is checked for AFI/SAFI/NLRI, not decoded next-hop identity. The IPv6 arm checks length 16, zero Reserved and following NLRI, but not the IPv6 address bytes, AFI/SAFI or decoded next hop. Its tag prose therefore exceeds what that arm proves about the address. Q2: IPv4 address corruption or misplaced envelope fields would fail its independent literals. Corrupting only the IPv6 address bytes while retaining length/reserved/NLRI can remain green. There is no directly tagged negative input and no discrimination record for either requirement found in the bounded record search; no current producer-break observation is inferred. Q3: the direct codec test isolates the MP_REACH envelope, with real IPv4/global-IPv6 address values and independently located Reserved/NLRI boundaries, rather than passing because another rejection fired. It does not exercise negotiated family admission, the linked LS plugin profile or a daemon receiver. The opaque Node NLRI bytes are compared rather than independently validated as a complete emitted link-state object; this is codec-layout evidence only. Q4: the tagged unit covers only SAFI 71 singles. It proves no SAFI 71 global/link-local pair and no SAFI 72 address/RD form, and has no negative/current-break proof pair. New literal-wire/profile/forwarding tests are untagged and cannot supply audited credit to this row. Live routing-peer acceptance of the LS72 paired form remains unverified. Thus weak remains the honest verdict, not partial/enforced; zero whole-requirement credit. The earlier implementation-absence explanation is superseded by actual current source: the LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48 with RDPerAddress. MPReachNLRI.WriteTo selects and sizes through the registered profile and calls NextHopProfile.WriteNextHops; that writer explicitly clears an eight-octet RD before each SAFI 72 address. NextHopProfile.DecodeNextHops and decodeMPNextHopRD read 12/24/48 framing; buildMPReachPlugin selects the same profile and writer for singles. The removed writeNextHops symbol is not cited. These producers match the comparison HEAD; this audit corrects proof context and does not implement or newly test them. The applied private correction b67b8385d7fd4fb2a25291ef8b27fb18e6c9fd2d5770c588e80c76516d43aa67 exactly matches the current row; quote, ID, level, Tested/Gap selectors and RFC7752 successor suffix are preserved. Its Wireshark v4.4.0 layout statement was checked against the primary packet-bgp.c source: decode_mp_next_hop dispatches AFNUM_BGP_LS/SAFNUM_BGP_LS_VPN to VPN decoders, which recognize zero-RD+IPv4, zero-RD+IPv6 and two RD+IPv6 slots. This is decoder-backed layout evidence, not routing-peer acceptance (https://raw.githubusercontent.com/wireshark/wireshark/v4.4.0/epan/dissectors/packet-bgp.c). No summary/test/tag/discrimination/source edit, runtime test, mutant/revert record, interop execution or full-RFC conformance claim is made by this rejudgment. ROOT still owes native rfc check and the declared proof/real-entry-point work.</p></td>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;MUST be encoded&#34;; gap &#34;as described in [RFC4760]&#34;; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. weak (the tests pass over code that does not enforce the requirement), fresh. Independent rejudgment on 2026-11-16 of only RFC9552-5.5-1, against the applied summary row and current working tree (comparison HEAD d7a7a46affc8c2c272cea0458fc7e525c7e61077). Read both full RFC 7752 and RFC 9552, RFC 4760 in full, the exact applied correction, the sole tagged unit, and the current producing boundaries. RFC 9552 Section 5.5: &#34;The next-hop address MUST be encoded as described in [RFC4760].&#34; RFC 9552 obsoletes RFC 7752; the legacy row retains its restated-successor link, and the sentence is unchanged. RFC 4760 Section 3 defines the length as &#34;A 1-octet field whose value expresses the length of the &#34;Network Address of Next Hop&#34; field, measured in octets.&#34; Its MP_REACH envelope puts AFI, SAFI, this length, the address bytes, a zero Reserved octet and then NLRI. The LS section additionally describes native IPv4, global IPv6, a global/link-local pair and the VPN zero-RD prefix. The row remains annotated partial, with Tested &#34;MUST be encoded&#34; and Gap &#34;as described in [RFC4760]&#34;. These are valid source selectors; they do not divide this single MUST into independently fulfilled clauses. The Reason correctly bounds its declared Tested evidence by family/address form and distinguishes implemented framing from missing proof. Producer is internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo, which exists and was read. Q1: TestRFC7752BGPLSNextHopFollowsRFC4760 makes RFC-derived layout assertions for SAFI 71. Its IPv4 arm independently checks literal AFI 16388, SAFI 71, length 4, address 192.0.2.1, zero Reserved and following NLRI; ParseMPReachNLRI is checked for AFI/SAFI/NLRI, not decoded next-hop identity. The IPv6 arm checks length 16, zero Reserved and following NLRI, but not the IPv6 address bytes, AFI/SAFI or decoded next hop. Its tag prose therefore exceeds what that arm proves about the address. Q2: IPv4 address corruption or misplaced envelope fields would fail its independent literals. Corrupting only the IPv6 address bytes while retaining length/reserved/NLRI can remain green. There is no directly tagged negative input and no discrimination record for either requirement found in the bounded record search; no current producer-break observation is inferred. Q3: the direct codec test isolates the MP_REACH envelope, with real IPv4/global-IPv6 address values and independently located Reserved/NLRI boundaries, rather than passing because another rejection fired. It does not exercise negotiated family admission, the linked LS plugin profile or a daemon receiver. The opaque Node NLRI bytes are compared rather than independently validated as a complete emitted link-state object; this is codec-layout evidence only. Q4: the tagged unit covers only SAFI 71 singles. It proves no SAFI 71 global/link-local pair and no SAFI 72 address/RD form, and has no negative/current-break proof pair. New literal-wire/profile/forwarding tests are untagged and cannot supply audited credit to this row. Live routing-peer acceptance of the LS72 paired form remains unverified. Thus weak remains the honest verdict, not partial/enforced; zero whole-requirement credit. The earlier implementation-absence explanation is superseded by actual current source: the LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48 with RDPerAddress. MPReachNLRI.WriteTo selects and sizes through the registered profile and calls NextHopProfile.WriteNextHops; that writer explicitly clears an eight-octet RD before each SAFI 72 address. NextHopProfile.DecodeNextHops and decodeMPNextHopRD read 12/24/48 framing; buildMPReachPlugin selects the same profile and writer for singles. The removed writeNextHops symbol is not cited. These producers match the comparison HEAD; this audit corrects proof context and does not implement or newly test them. The applied private correction b67b8385d7fd4fb2a25291ef8b27fb18e6c9fd2d5770c588e80c76516d43aa67 exactly matches the current row; quote, ID, level, Tested/Gap selectors and RFC7752 successor suffix are preserved. Its Wireshark v4.4.0 layout statement was checked against the primary packet-bgp.c source: decode_mp_next_hop dispatches AFNUM_BGP_LS/SAFNUM_BGP_LS_VPN to VPN decoders, which recognize zero-RD+IPv4, zero-RD+IPv6 and two RD+IPv6 slots. This is decoder-backed layout evidence, not routing-peer acceptance (https://raw.githubusercontent.com/wireshark/wireshark/v4.4.0/epan/dissectors/packet-bgp.c). No summary/test/tag/discrimination/source edit, runtime test, mutant/revert record, interop execution or full-RFC conformance claim is made by this rejudgment. ROOT still owes native rfc check and the declared proof/real-entry-point work.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9552-5.3-1">RFC9552-5.3-1</code></td><td colspan="3"><span class="rfc-subject">BGP-LS Producers MUST ensure that the TLVs included in the BGP-LS Attribute does not result in a BGP UPDATE message for a single Link-State NLRI that crosses the maximum limit for a BGP message. (§5.3)</span></td></tr>
 <tr><td></td>
@@ -1314,7 +1314,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>the passive sentence names no party, so neither not-applicable shape takes it. The assignment is the operator&#39;s, and ze holds the half it can see without checking it: internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig refuses a duplicate native domain mapping but not one Instance-ID configured for two of ze&#39;s own IGP domains, so ze can emit the same Instance-ID for different domains; no test asserts either</td>
 </tr>
 <tr><td><a href="#rfc9552-5.5-1"><code>RFC9552-5.5-1</code></a> The next-hop address MUST be encoded as described in [RFC4760]. (§5.5)</td>
-<td>{partial}, Partial proof; remaining gap</td>
+<td>{partial}, Partial test coverage</td>
 <td>tested &#34;MUST be encoded&#34;; gap &#34;as described in [RFC4760]&#34;; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed</td>
 </tr>
 <tr><td><a href="#rfc9552-5.3-1"><code>RFC9552-5.3-1</code></a> BGP-LS Producers MUST ensure that the TLVs included in the BGP-LS Attribute does not result in a BGP UPDATE message for a single Link-State NLRI that crosses the maximum limit for a BGP message. (§5.3)</td>
@@ -1345,14 +1345,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc9552-5.1-1"><code>RFC9552-5.1-1</code></a></h3>
 <p>To compare NLRIs with unknown TLVs, all TLVs within the NLRI MUST be ordered in ascending order by TLV Type. (§5.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.1: &#34;To compare NLRIs with unknown TLVs, all TLVs within the NLRI MUST be ordered in ascending order by TLV Type.&#34; Native whole-Link-NLRI proof: ls_export TestRFC9552NativeLinkTLVsCanonicalOrder / ...ReorderedSource (unchanged). Core descriptor units moved verbatim (package clause only): 260 precedes 261 for mixed families, and no descriptor combination descends.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go#L116" title="internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeLinkTLVsReorderedSource</code></a></td>
@@ -1382,7 +1382,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (was wrong: the units asserted repeated 518 inside a Node Descriptor, which 5.2.1.4 forbids; those tags are removed under D-15 and the units kept untagged). Now proven on the one producer that repeats a Type: the two ls_export units emit two 259, two 260, two 261, two 262 and assert them ascending by Value, and that no longer same-type TLV precedes a shorter one. The Length key never differs within a Type on this producer (259/260 are 4 octets, 261/262 16), so the Length clause is met by construction and asserted as a tie; the Value clause is discriminated: judge break (Value comparison reversed) turns both units red, revert records observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go#L118" title="internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeLinkTLVsReorderedSource</code></a></td>
@@ -1402,7 +1402,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.1: &#34;Unknown and unsupported types MUST be preserved and propagated within both the NLRI and the BGP-LS Attribute.&#34; Proof stays reactor TestRFC9552UnknownTypesPropagateOnAForwardedUpdate / ...SurviveARewrittenUpdate (both halves byte-identical, internal and rewritten external path). The ls decoder-level positive now parses through bgpls.ParseBGPLSWithRest and requires an empty remainder.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_propagate_test.go#L191" title="internal/component/bgp/reactor/rfc9552_propagate_test.go" target="_blank" rel="noopener"><code>TestRFC9552UnknownTypesSurviveARewrittenUpdate</code></a></td>
@@ -1427,7 +1427,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.1: &#34;The presence of unknown or unexpected TLVs MUST NOT result in the NLRI or the BGP-LS Attribute being considered malformed.&#34; NLRI half: reactor rfc9552_nlri_test units (unchanged). Attribute half: TestRFC9552UnorderedUnexpectedAttributeTLVs walks 0x7FFF, 1088 in a node set, 1026, 1024 without error; TestRFC9552AttributeSyntaxStillRejected keeps the bound: an unknown TLV is tolerated only while its declared length fits (bgpls.ErrBGPLSTruncated).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L101" title="internal/component/bgp/plugins/nlri/ls/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552AttributeSyntaxStillRejected</code></a></td>
@@ -1442,7 +1442,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L55" title="internal/component/bgp/plugins/nlri/ls/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552UnorderedUnexpectedAttributeTLVs</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L55" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated</code></a></td>
@@ -1457,12 +1457,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c21 judge). Section 5.1&#39;s three ordering clauses are now all driven through enforceRFC7606: type (existing descending 257-before-256 unit), same-type Length (TLV 1234 lengths 3 then 2 discarded; 2 then 3 kept byte-identical) and same-type Value (equal lengths, bb bb then aa aa discarded; aa aa then bb bb kept). Each malformed case is otherwise well framed, so only the order trips, and the survivor beside it is kept. Records observed red on bgplsTLVOrdered.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L53" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L339" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateSameTypeTLVsInOrderArePropagated</code></a></td>
@@ -1472,7 +1472,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L166" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L315" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateSameTypeTLVsOutOfOrderAreDiscarded</code></a></td>
@@ -1487,7 +1487,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L100" title="internal/component/bgp/plugins/nlri/ls/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552AttributeSyntaxStillRejected</code></a></td>
@@ -1497,7 +1497,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L54" title="internal/component/bgp/plugins/nlri/ls/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552UnorderedUnexpectedAttributeTLVs</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1507,17 +1507,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L269" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752NonLinkStateFamilyRefused</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L232" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752NonVPNFamilyIsAFI16388SAFI71</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1527,22 +1527,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L270" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752NonLinkStateFamilyRefused</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L135" title="internal/component/bgp/message/rfc9552_bgpls_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSVPNNLRIFramedByLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L250" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752VPNFamilyIsAFI16388SAFI72</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1552,7 +1552,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L38" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeProtocolIDFollowsSource</code></a></td>
@@ -1580,7 +1580,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c23: add and remove now driven (TestRFC9552NativeDescriptorTLVAddRemoveWithdrawsFirst: TLV 260 added then removed, each time a del of exactly the previous NLRI precedes the add) beside the HEAD modify +/-; wire half TestRFC9552LinkStateWithdrawalLeavesInMPUnreach pins MP_UNREACH_NLRI = 40 04 47 + exact NLRI with empty Withdrawn Routes and NLRI. Records: revert on reconcilePeer and buildBatchWithdrawUpdate. Judge probes: skipping the withdraw when a replacement exists turned the add/remove unit red; routing AFI 16388 into Withdrawn Routes turned the wire unit red. The update-handler hop between them is generic and untagged. Sub-TLV changes alter the containing TLV value, the modify case</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L71" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeDescriptorChangeWithdrawsFirst</code></a></td>
@@ -1610,7 +1610,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read RFC 9552 Section 5.2&#39;s complete capability paragraph and RFC 7752 Section 3.2&#39;s predecessor against the current summary/derived row. This is RFC9552-5.2-7, not the separate AFI/SAFI encoding row RFC9552-5.2-1. The core advertised-and-negotiated test retains literal AFI/reserved/SAFI/length and family-intersection assertions; the silent-peer negative excludes BGP-LS while retaining unicast and separately distinguishes VPN SAFI 72. TestRFC9552LinkStateSentToCapablePeer submits a real Node NLRI through AnnounceNLRIBatch and requires exactly one UPDATE with literal MP_REACH prefix 40 04 47. TestRFC9552LinkStateNeverSentToIncapablePeer uses that same NLRI with unicast-only negotiated families and requires exact ErrNoPeersAcceptedFamily and no recipient UPDATE bodies. The fixture&#39;s final Session receives precisely its existing family/encoding negotiation; these controls retain actual conditional exchange. Numeric OPEN identity is supplied by the independent literal pair, not inferred from the core test&#39;s shared capability-code constant. Unknown-NLRI handling and support for additional NLRI types are separate obligations and receive no credit here. The configured OPEN fixture&#39;s test-only Session.buildOpen delegates directly to the current production buildOpenFromSnapshot with one captured plugin snapshot. In production prepareOpen retains the built message with its settings and declarations in one preparedOpen; sendOpen writes that message, and prepareNegotiation/publishNegotiation retain the advertised local/remote family intersection. The obsolete production buildOpen code key is replaced by buildOpenFromSnapshot; all other existing code anchors and tagged covers remain. The literal positive independently walks parameter and capability TLVs from the configured OPEN, requiring exactly one literal code 1, length 4 and exact AFI/reserved/SAFI payload for each exercised application (1/133, 1/134, 16388/71), then requires application and unicast negotiation against a separately handwritten code-1 peer stream. The negative provides a valid code-1 unicast control and the application payload under code 250, requires successful parsing, first excludes the application, and then requires surviving unicast. Thus a shared codec constant or rejection of every capability cannot satisfy the pair. Existing recorded breaks target Multiprotocol.WriteTo emitting 250 and parseCapability recognizing 250; the latter must fail for acceptance of the bad application, not solely loss of the unicast control. This independent current-source judgment credits only the capability-advertisement obligation. Main&#39;s final native inventories at HEAD 606a3ba2 report all existing records current: four for RFC5575-4-1, five for RFC7752-3.2-1, two for RFC8955-4-1 and five for RFC9552-5.2-7, with no stale bindings. This continuation read all sixteen actual record objects and every tagged test and reached producer before stamping. The eight numeric-code records and eight partner records remain intact; four supplementary registration/core-positive tagged covers have no historical record and are judged from their assertions without inventing execution. This verdict covers this capability-advertisement requirement alone, not whole-RFC or additional-NLRI conformance.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L109" title="internal/component/bgp/reactor/multiprotocol_application_code_test.go" target="_blank" rel="noopener"><code>TestMultiprotocolApplicationsRejectUnrecognizedCapabilityCode</code></a></td>
@@ -1640,7 +1640,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L29" title="internal/core/bgp/capability/rfc7752_bgpls_test.go" target="_blank" rel="noopener"><code>TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1650,22 +1650,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L90" title="internal/component/bgp/message/rfc9552_bgpls_test.go" target="_blank" rel="noopener"><code>TestRFC9552MalformedBGPLSNLRIRefused</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L136" title="internal/component/bgp/message/rfc9552_bgpls_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSVPNNLRIFramedByLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L46" title="internal/component/bgp/message/rfc9552_bgpls_test.go" target="_blank" rel="noopener"><code>TestRFC9552UnknownBGPLSNLRITypeIsOpaque</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc9552-52-rs-opaque-withdraw-peer-down.ci#L3" title="test/plugin/rfc9552-52-rs-opaque-withdraw-peer-down.ci" target="_blank" rel="noopener"><code>rfc9552-52-rs-opaque-withdraw-peer-down.ci</code></a></td>
@@ -1680,12 +1680,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.2.1.4: &#34;At most, there MUST be one instance of each sub-TLV type present in any Node Descriptor.&#34; Sender half: core TestNodeDescriptorNeverRepeatsASubTLVType (512..517 each once, six types) and TestSRv6SIDNLRIKeepsItsSIDOutOfTheNodeDescriptor (no 518 inside the Local Node container, one at NLRI level), moved verbatim. Receive half: reactor duplicate-512 discard and distinct-types kept (unchanged).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L54" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_node_descriptor_unique_test.go#L75" title="internal/core/bgp/nlri/bgpls/rfc9552_node_descriptor_unique_test.go" target="_blank" rel="noopener"><code>TestSRv6SIDNLRIKeepsItsSIDOutOfTheNodeDescriptor</code></a></td>
@@ -1695,7 +1695,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L128" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_node_descriptor_unique_test.go#L37" title="internal/core/bgp/nlri/bgpls/rfc9552_node_descriptor_unique_test.go" target="_blank" rel="noopener"><code>TestNodeDescriptorNeverRepeatsASubTLVType</code></a></td>
@@ -1710,12 +1710,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.2.1.4: &#34;The sub-TLVs within a Node Descriptor MUST be arranged in ascending order by sub-TLV type.&#34; {single-polarity: positive}: exact 512..517 sequence from bgpls.NodeDescriptor.WriteTo, the encoder the native exporter uses for every Node Descriptor (exportNodeID).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L167" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752NodeDescriptorSubTLVsAscending</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1725,7 +1725,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c23: genuine negative under R1(b): TestRFC9552NativeDualStackLinkKeepsEveryAddress forces link ids 7/9 and IPv4+IPv6 globals on both ends and asserts TLVs 259, 260, 261, 262 each exactly once with their values (revert record on encodeNativeLink). Judge probe dropping the IPv6 interface address when IPv4 is present turned it red on TLV 261. HEAD positive TestRFC9552NativeLinkIdentitySelection pins exact values; HEAD invalid-zero-address negative stays as a supplement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L196" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeDualStackLinkKeepsEveryAddress</code></a></td>
@@ -1750,7 +1750,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. negative asserts TLV 258 absent from a link carrying global addresses and link IDs; positive asserts the link is still advertised by 261/260</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L243" title="internal/component/bgp/plugins/ls_export/rfc9552_export_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeLinkIdentitySelection</code></a></td>
@@ -1770,7 +1770,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. negative asserts link-local 169.254/fe80 addresses absent from 259-262 (exact single global values), and a link-local-only link carries none of 259-262; positive pins the global addresses once each</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L244" title="internal/component/bgp/plugins/ls_export/rfc9552_export_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeLinkIdentitySelection</code></a></td>
@@ -1790,7 +1790,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c22 judge). First clause now driven: TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers exports an IS-IS link with no interface or neighbor address and link ids 7/9 and asserts TLV 258 == 00000007 00000009 and none of 259-262. Second clause (link-local-only addressing) stays on TestRFC9552NativeLinkIdentitySelection. Row carries {single-polarity: positive}, read against encodeNativeLink: no refusal input exists. Revert records on encodeNativeLink observed red for both units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L135" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers</code></a></td>
@@ -1810,7 +1810,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c22 judge). Genuine negative added: TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed feeds one IS-IS link in topologies 0, 2, 2 and asserts exactly two Link NLRIs, each with exactly one TLV 263, MT-IDs {0,2}: a producer collapsing onto the default topology or dropping 263 on the topology-2 NLRI goes red. Positive TestRFC9552NativeLinkNonDefaultTopology asserts 263 = MT-ID 2; its inline negative tag still re-asserts the same value and proves nothing on its own. Over-constraint noted: the negative also requires TLV 263 with MT-ID 0 on the default-topology NLRI, which RFC 9552 does not require (only the non-default case is a MUST). Revert records on encodeNativeLink observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L122" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeLinkNonDefaultTopology</code></a></td>
@@ -1835,7 +1835,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against full RFC 9552 Section 5.2.3.1: the OSPF Route Type TLV MUST accompany an advertisement when the underlying LSA signals the type explicitly or another LSA for the same prefix determines it. The source further specifies resolving Extended Prefix external/NSSA classes and type zero from base LSAs. Read both tagged tests and producer chain. The live LSDB publisher test installs actual Router, Summary Network, AS External and NSSA LSAs plus an opaque-marked Extended Prefix; ten cases demand exactly one correlated advertisement for router 2.2.2.2 with exact type 1..6, including cross-area NSSA. Its opaque guard excludes a base-only result. publishBGPLSLocked processes bases before extensions; extendedV2Prefix consumes v2PrefixRouteTypes, which correlates prefix/router identity and external metric type. The exporter test independently reconciles a native OSPF snapshot and asserts TLV 264 value 1 in captured NLRI. These compose source-publisher and encoder boundaries; this is not a live BGP-peer test and the wire test does not exhaust all six values. The single-positive annotation is sound for mandatory origination, not an exemption when the underlying value is zero. The exhaustive-ignore directive only documents the fixture&#39;s restricted LSA types. Verdict enforced. No execution or replay freshness claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L246" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeOSPFRouteType</code></a></td>
@@ -1855,7 +1855,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged all current tagged carriers against RFC 9552 Section 5.2.1: &#39;When configured, these auxiliary TE Router-IDs (TLV 1028/1029) MUST be included in the node attribute described in Section 5.3.1 and MAY be included in the link attribute described in Section 5.3.2.&#39; Preserved IS-IS TestRFC9552ISISNodeRouterID and TestRFC9552ISISNodeCarriesBothRouterIDs assert exact per-node IPv4 and IPv6 values from native LSP TLVs 134/140. New OSPF TestRFC9552OSPFRouterIDsReachExporter installs one area-scope opaque-type-1 Router Address LSA per router, conforming to RFC 3630 Sections 2.1 and 2.4.1, and compares the complete native node TLV multiset and final encoded BGP-LS Attribute bytes from the registered exporter against independent literals. It catches omission, substitution, duplication and invented IPv6 IDs, closing the previous OSPF and final-attribute proof gaps. Read indexV2 scope guards, trafficEngineering, snapshot router-ID collection, encodeTopology, originateAttributes and send. The single-positive annotation is appropriate for this inclusion obligation. TestRFC9552OSPFAuxiliaryRouterIDsNotCollapsed is untagged robustness evidence only: multiple Router Address LSAs from one router violate RFC 3630&#39;s exactly-one-LSA condition and are not the conforming positive. This is a source-level judgment; new native discrimination observations remain Main&#39;s responsibility, and no fresh independent-peer run is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L114" title="internal/plugins/isis/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISNodeCarriesBothRouterIDs</code></a></td>
@@ -1880,7 +1880,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged all current tagged carriers against RFC 9552 Section 5.3.2.1: &#39;All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI.&#39; Preserved IS-IS TestRFC9552ISISLinkRouterIDs and TestRFC9552ISISLinkCarriesAllRouterIDs assert exact local/remote IPv4 and IPv6 inclusion and separately forbid swapped values. OSPF TestRFC9552OSPFRouterIDsReachExporter uses conforming single Router Address LSAs and pins both directed links&#39; exact 1028/1030 values through complete encoded attributes. TestRFC9552OSPFRouterIDAbsenceReachExporter uses absent, MaxAge and unrelated-opaque local sources with a live remote control: it requires the remote ID to remain on the correct side and forbids invented local IDs, with roles reversed on the reverse link. TestRFC9552OSPFInterASRouterIDsReachExporter uses RFC 5392 type-6 Link TLVs in both permitted area/AS scopes, mandatory remote-AS and permitted simultaneous remote IPv4/IPv6 ASBR IDs, with no prohibited Link ID; it requires local 1028 and remote 1030/1031 in exact final bytes and detects contamination from an internal same-four-octet-ID router. Read indexV2, trafficEngineering, linkAttributes and exporter attribute producers; Remote.ASN == 0 correctly prevents internal-ID borrowing. Literal complete snapshots and final attribute equality catch missing, swapped, duplicate or invented IDs rather than merely accepting a parse. The untagged multi-LSA case is robustness evidence, not a conforming positive; untagged wrong-scope and mixed-body regressions support provenance without adding tagged covers. This is a source-level judgment; new native discrimination observations remain Main&#39;s responsibility, and the documented FRR ordinary/inter-AS collectors are not claimed freshly passed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L157" title="internal/plugins/isis/rfc9552_router_id_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISLinkCarriesAllRouterIDs</code></a></td>
@@ -1925,7 +1925,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. negative refuses an IS-IS replacement carrying TLV 1094 and keeps the prior state; positive shows a Direct link still carries the mask; OSPF Protocol-IDs 3 and 6 are not driven</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L223" title="internal/component/bgp/plugins/ls_export/rfc9552_export_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeIGPMPLSMaskRefused</code></a></td>
@@ -1945,7 +1945,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudge 2026-10-17, upgraded from weak because the live originator is now tagged. RFC 9552 Section 5.3.2.3: &#34;If a source protocol uses a metric width of fewer than 32 bits, then the high-order bits of this field MUST be padded with zero.&#34; Ze widens a metric into TLV 1092 only in internal/plugins/isis/bgpls_export.go linkAttribute case 18 (RFC 5305 sub-TLV 18, 24 bits): alloc(4) then copy(v[1:], value); OSPF TE metric is already 32 bits. TestRFC9552ISISTEDefaultMetricZeroPaddedHighOrder (80 00 01 -&gt; 00 80 00 01) and ...SourceNeverInHighOrder (fe dc ba -&gt; 00 fe dc ba) store a real LSP (TLV 22 with sub-TLV 18), run bgplsBuilder.build (the same build publishBGPLSLocked calls) and assert the exact TLV 1092 octets; copy(v, value) or a wrong width reddens both. The old plugin-ls TestRFC7752TEDefaultMetricZeroPadded stays tagged but drives a decode-side type with no production encoder and carries no weight. The arena dependency is now covered too: TestRFC9552ISISTEDefaultMetricRebuildNeverCarriesStaleArena (negative) builds twice on ONE builder, as the persistent exporter does; the first build fills the arena with 0xff from a 200-octet unmapped TLV 251, a fixture check proves the arena octet under the new TLV 1092 was non-zero before the second build, and the exact 00 0a 0b 0c assertion goes red (ff 0a 0b 0c) if clear(value) is removed from bgplsBuilder.alloc. Every way Ze could leave a non-zero high-order octet (wrong offset, wrong width, dirty arena) now reddens a tagged unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_metric_test.go#L132" title="internal/plugins/isis/rfc9552_bgpls_export_metric_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISTEDefaultMetricRebuildNeverCarriesStaleArena</code></a></td>
@@ -1960,7 +1960,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L206" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752TEDefaultMetricZeroPadded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_metric_test.go#L98" title="internal/plugins/isis/rfc9552_bgpls_export_metric_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISTEDefaultMetricZeroPaddedHighOrder</code></a></td>
@@ -1972,16 +1972,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc9552-5.5-1"><code>RFC9552-5.5-1</code></a></h3>
 <p>The next-hop address MUST be encoded as described in [RFC4760]. (§5.5)</p>
-<p>Records cover only part of this requirement: tested &#34;MUST be encoded&#34;; gap &#34;as described in [RFC4760]&#34;; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed; they do not prove the whole requirement.</p>
+<p>Records cover only part of this requirement: tested &#34;MUST be encoded&#34;; gap &#34;as described in [RFC4760]&#34;; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed; they do not verify the whole requirement.</p>
 <p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Independent rejudgment on 2026-11-16 of only RFC9552-5.5-1, against the applied summary row and current working tree (comparison HEAD d7a7a46affc8c2c272cea0458fc7e525c7e61077). Read both full RFC 7752 and RFC 9552, RFC 4760 in full, the exact applied correction, the sole tagged unit, and the current producing boundaries. RFC 9552 Section 5.5: &#34;The next-hop address MUST be encoded as described in [RFC4760].&#34; RFC 9552 obsoletes RFC 7752; the legacy row retains its restated-successor link, and the sentence is unchanged. RFC 4760 Section 3 defines the length as &#34;A 1-octet field whose value expresses the length of the &#34;Network Address of Next Hop&#34; field, measured in octets.&#34; Its MP_REACH envelope puts AFI, SAFI, this length, the address bytes, a zero Reserved octet and then NLRI. The LS section additionally describes native IPv4, global IPv6, a global/link-local pair and the VPN zero-RD prefix. The row remains annotated partial, with Tested &#34;MUST be encoded&#34; and Gap &#34;as described in [RFC4760]&#34;. These are valid source selectors; they do not divide this single MUST into independently fulfilled clauses. The Reason correctly bounds its declared Tested evidence by family/address form and distinguishes implemented framing from missing proof. Producer is internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo, which exists and was read. Q1: TestRFC7752BGPLSNextHopFollowsRFC4760 makes RFC-derived layout assertions for SAFI 71. Its IPv4 arm independently checks literal AFI 16388, SAFI 71, length 4, address 192.0.2.1, zero Reserved and following NLRI; ParseMPReachNLRI is checked for AFI/SAFI/NLRI, not decoded next-hop identity. The IPv6 arm checks length 16, zero Reserved and following NLRI, but not the IPv6 address bytes, AFI/SAFI or decoded next hop. Its tag prose therefore exceeds what that arm proves about the address. Q2: IPv4 address corruption or misplaced envelope fields would fail its independent literals. Corrupting only the IPv6 address bytes while retaining length/reserved/NLRI can remain green. There is no directly tagged negative input and no discrimination record for either requirement found in the bounded record search; no current producer-break observation is inferred. Q3: the direct codec test isolates the MP_REACH envelope, with real IPv4/global-IPv6 address values and independently located Reserved/NLRI boundaries, rather than passing because another rejection fired. It does not exercise negotiated family admission, the linked LS plugin profile or a daemon receiver. The opaque Node NLRI bytes are compared rather than independently validated as a complete emitted link-state object; this is codec-layout evidence only. Q4: the tagged unit covers only SAFI 71 singles. It proves no SAFI 71 global/link-local pair and no SAFI 72 address/RD form, and has no negative/current-break proof pair. New literal-wire/profile/forwarding tests are untagged and cannot supply audited credit to this row. Live routing-peer acceptance of the LS72 paired form remains unverified. Thus weak remains the honest verdict, not partial/enforced; zero whole-requirement credit. The earlier implementation-absence explanation is superseded by actual current source: the LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48 with RDPerAddress. MPReachNLRI.WriteTo selects and sizes through the registered profile and calls NextHopProfile.WriteNextHops; that writer explicitly clears an eight-octet RD before each SAFI 72 address. NextHopProfile.DecodeNextHops and decodeMPNextHopRD read 12/24/48 framing; buildMPReachPlugin selects the same profile and writer for singles. The removed writeNextHops symbol is not cited. These producers match the comparison HEAD; this audit corrects proof context and does not implement or newly test them. The applied private correction b67b8385d7fd4fb2a25291ef8b27fb18e6c9fd2d5770c588e80c76516d43aa67 exactly matches the current row; quote, ID, level, Tested/Gap selectors and RFC7752 successor suffix are preserved. Its Wireshark v4.4.0 layout statement was checked against the primary packet-bgp.c source: decode_mp_next_hop dispatches AFNUM_BGP_LS/SAFNUM_BGP_LS_VPN to VPN decoders, which recognize zero-RD+IPv4, zero-RD+IPv6 and two RD+IPv6 slots. This is decoder-backed layout evidence, not routing-peer acceptance (https://raw.githubusercontent.com/wireshark/wireshark/v4.4.0/epan/dissectors/packet-bgp.c). No summary/test/tag/discrimination/source edit, runtime test, mutant/revert record, interop execution or full-RFC conformance claim is made by this rejudgment. ROOT still owes native rfc check and the declared proof/real-entry-point work.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7752_bgpls_test.go#L25" title="internal/core/bgp/attribute/rfc7752_bgpls_test.go" target="_blank" rel="noopener"><code>TestRFC7752BGPLSNextHopFollowsRFC4760</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1995,7 +1995,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. ls_export unit withdraws the unreachable origin and re-announces the identical commands once Unreachable clears, and emits nothing while it stays unreachable; IS-IS and OSPF units prove the source restores eligibility only after completed SPF; assertions are engine commands, not wire</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L323" title="internal/component/bgp/plugins/ls_export/rfc9552_export_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeReachabilityWithdrawalAndRestoration</code></a></td>
@@ -2005,17 +2005,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_test.go#L443" title="internal/plugins/isis/rfc9552_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestISISBGPLSNativeSPFReachability</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L633" title="internal/plugins/ospf/rfc9552_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestBGPLSNativeSPFPartitionRestoresStaleOrigins</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L862" title="internal/plugins/ospf/rfc9552_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestBGPLSNativeSPFUnknownOriginsWaitForComputation</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L322" title="internal/component/bgp/plugins/ls_export/rfc9552_export_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeReachabilityWithdrawalAndRestoration</code></a></td>
@@ -2025,22 +2025,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_test.go#L442" title="internal/plugins/isis/rfc9552_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestISISBGPLSNativeSPFReachability</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L738" title="internal/plugins/ospf/rfc9552_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestBGPLSNativeSPFInterAreaASBROrigin</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L631" title="internal/plugins/ospf/rfc9552_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestBGPLSNativeSPFPartitionRestoresStaleOrigins</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L800" title="internal/plugins/ospf/rfc9552_bgpls_export_test.go" target="_blank" rel="noopener"><code>TestBGPLSNativeV3SPFPseudonodeRestoration</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2050,7 +2050,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. single-polarity negative per row annotation; a private-use 65000 node attribute is refused with no UPDATE; the refusal is of every private type, not of a short Enterprise Code</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L295" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativePrivateUseWithoutEnterpriseRefused</code></a></td>
@@ -2065,7 +2065,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. negative: an unmasked 198.51.100.129/25 is emitted as 25,198.51.100.128; positive: a masked prefix is unchanged</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L86" title="internal/component/bgp/plugins/ls_export/rfc9552_export_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeTopologySeparation</code></a></td>
@@ -2085,12 +2085,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudge 2026-10-17, upgraded from weak because the live originator is now tagged. RFC 9552 Section 5.3.2.4: &#34;IS-IS small metrics are 6 bits in size but are encoded in a 1-octet field; therefore, the two most significant bits of the field MUST be set to 0 by the originator and MUST be ignored by the receiver.&#34; (row carries the originator clause). Ze originates the 1-octet TLV 1095 only in internal/plugins/isis/bgpls_export.go narrowLinks: metric[0] = entry.DefaultMetricValue, where DefaultMetricValue is filled by packet.DecodeNarrowISReachTLV as def &amp; narrowMetricValueMask (0x3f). TestRFC9552ISISSmallMetricOriginatedWithTopBitsZero (source octet ca, reserved bit 8 and I/E over metric 10, -&gt; 0a) and ...FlagBitsNeverReachIGPMetric (ff -&gt; 3f) store a real TLV 2 LSP, run bgplsBuilder.build and assert the exact octet; dropping the mask emits ca/ff and reddens both. That the mask sits in the shared decoder rather than in narrowLinks does not weaken it: per ai/rules/rfc-compliance.md the verdict is judged on what the stack Ze runs produces, and the tests assert the octet the BGP-LS Producer emits, so any change that lets the S or I/E bit reach TLV 1095 (decoder or originator) goes red. The old plugin-ls units stay tagged but drive an encoder with no production caller and carry no weight. The recorded breaks panic the whole decoder, so they prove reach; the mask-specific red is established by reading.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L164" title="internal/component/bgp/plugins/nlri/ls/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_metric_test.go#L79" title="internal/plugins/isis/rfc9552_bgpls_export_metric_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISSmallMetricFlagBitsNeverReachIGPMetric</code></a></td>
@@ -2100,7 +2100,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L130" title="internal/component/bgp/plugins/nlri/ls/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISSmallMetricTwoMSBsZero</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_metric_test.go#L63" title="internal/plugins/isis/rfc9552_bgpls_export_metric_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISSmallMetricOriginatedWithTopBitsZero</code></a></td>
@@ -2115,7 +2115,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 8.2.2: &#34;A Link-State NLRI MUST NOT be considered malformed or invalid based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e., semantic errors), as described in Sections 5.1 and 5.2.&#34; Session-path proof: reactor rfc9552_semantic_test units (unchanged). Core decoder units moved verbatim (identical bodies, local copies of buildAttrTLV and unknownAttrTLVType 0x7FFF): Private-Use Protocol-ID 200 with no IGP Router-ID and an unknown sub-TLV parses and re-emits byte-identically; Total-Length overrun, short body and sub-TLV overrun return ErrBGPLSTruncated.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L114" title="internal/component/bgp/reactor/rfc9552_semantic_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded</code></a></td>
@@ -2145,7 +2145,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 8.2.2: &#34;A BGP-LS Attribute MUST NOT be considered malformed or invalid based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e., semantic errors), as described in Sections 5.1 and 5.3.&#34; Session proof: reactor semantic/framing-twin attribute units (unchanged). ls units: unordered and unexpected TLVs walk without error; a TLV length past the attribute end is ErrBGPLSTruncated.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L102" title="internal/component/bgp/plugins/nlri/ls/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552AttributeSyntaxStillRejected</code></a></td>
@@ -2160,7 +2160,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L56" title="internal/component/bgp/plugins/nlri/ls/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552UnorderedUnexpectedAttributeTLVs</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L186" title="internal/component/bgp/reactor/rfc9552_semantic_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed</code></a></td>
@@ -2175,7 +2175,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 8.2.2: &#34;A BGP-LS Propagator, even when it has a coexisting BGP-LS Consumer on the same node, should not perform semantic validation of the Link-State NLRI or the BGP-LS Attribute to determine if it is malformed or invalid.&#34; Reactor receive path (ls plugin linked) refuses none of the semantic NLRIs/attributes and discards every framing twin (unchanged). Core and ls decoder-level units are supplementary, moved/renamed only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L103" title="internal/component/bgp/plugins/nlri/ls/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552AttributeSyntaxStillRejected</code></a></td>
@@ -2200,7 +2200,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L57" title="internal/component/bgp/plugins/nlri/ls/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552UnorderedUnexpectedAttributeTLVs</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L187" title="internal/component/bgp/reactor/rfc9552_semantic_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed</code></a></td>
@@ -2225,22 +2225,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c21 judge): stale only because TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated gained a 5.1-4 tag line; its body is unchanged. Receive path: TLV overrun and duplicate sub-TLV NLRIs removed alone, sibling survives, no session reset; a well-formed NLRI survives byte-identically.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L51" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L91" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRITLVOverrunIsDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L129" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2250,17 +2250,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c21 judge): stale only because TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated gained a 5.1-4 tag line; its body is unchanged. Total NLRI Length overrunning MP_REACH gives RFC7606ActionSessionReset; a well-formed section leaves the session up.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L52" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L205" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRILengthOverrunResetsSession</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2270,22 +2270,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TLV overrun and trailing-octet attributes give AttributeDiscard with tombstone and MP_REACH kept; a well-formed attribute survives byte-identically</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L88" title="internal/component/bgp/reactor/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSAttributeWellFormedIsKept</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L121" title="internal/component/bgp/reactor/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSAttributeTLVOverrunDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L162" title="internal/component/bgp/reactor/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSAttributeTrailingOctetsDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2299,17 +2299,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_prefix_limit_test.go#L100" title="internal/component/bgp/reactor/rfc9552_prefix_limit_test.go" target="_blank" rel="noopener"><code>TestBGPLSPrefixLimitActuallyFires</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_prefix_limit_test.go#L39" title="internal/component/bgp/reactor/rfc9552_prefix_limit_test.go" target="_blank" rel="noopener"><code>TestBGPLSPrefixCountCountsNLRIsNotPrefixBytes</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2319,7 +2319,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L112" title="internal/component/bgp/plugins/ls_export/rfc9552_export_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeOSPFTopologyBoundary</code></a></td>
@@ -2343,7 +2343,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.2.1.1: &#34;(A) The same node MUST NOT be represented by two keys (otherwise, one node will look like two nodes).&#34; Moved verbatim to core: one node parsed from 512,514,515 and 515,514,512 re-encodes to the identical canonical ascending bytes; WriteTo and Bytes emit identical octets. Native Node Descriptors come from one builder (ls_export exportNodeID), so encoder canonicality is the remaining way to mint a second key. The negative is an encoder-consistency check rather than a rejected input; accepted because the violation it guards (two encodings of one node) is exactly two keys.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_types_descriptor_key_test.go#L156" title="internal/core/bgp/nlri/bgpls/rfc9552_types_descriptor_key_test.go" target="_blank" rel="noopener"><code>TestNodeDescriptorWriteToMatchesBytes</code></a></td>
@@ -2363,7 +2363,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_types_descriptor_key_test.go#L57" title="internal/core/bgp/nlri/bgpls/rfc9552_types_descriptor_key_test.go" target="_blank" rel="noopener"><code>TestNodeDescriptorKeepsBackboneDistinctFromAreaLess</code></a></td>
@@ -2383,7 +2383,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, second pass after the coordinator&#39;s comment-only fix). RFC 9552 Section 5.2.2.1: &#34;When used as a Link or Prefix Descriptor for IS-IS, the Bits R are reserved and MUST be set to 0 (as per Section 7.2 of [RFC5120]) when originated and ignored on receipt.&#34; Receipt: TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt builds IS-IS (Protocol-ID 2) Link and Prefix NLRIs with MT-ID 0x00E and R bits 0x0 vs 0xF; bgpls.ParseBGPLSLinkTLVs and ParseBGPLSPrefixTLVs (descriptor_info.go:74/:188, mask &amp; 0x0FFF; reached from the NLRI JSON path) must yield the same MT-ID [14] and still decode the following descriptor (192.0.2.1, 192.0.2.0/24). Its doc comment now names those producers correctly, and the body is unchanged. Origination: ls_export TestRFC9552NativeISISTopologyReservedBits gives an IS-IS link topology 4096 (an R bit set), requires replace to error and no UPDATE to be emitted. Both clauses exercised at real producers.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L273" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeISISTopologyReservedBits</code></a></td>
@@ -2393,7 +2393,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L227" title="internal/component/bgp/plugins/nlri/ls/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2403,32 +2403,32 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c21 judge). The two bullets the earlier note named are now driven through enforceRFC7606: MP_UNREACH_NLRI length sum (Total NLRI Length 255 with 21 present: session reset + error, TestRFC9552LinkStateUnreachLengthOverrunResetsSession) and the sub-TLV length of a recognized TLV (TLV 256 framed at 8, sub-TLV 512 claiming 8 with 4 present: NLRI discarded, survivor kept). With the existing MP_REACH sum, TLV overrun, ordering and duplicate sub-TLV units and the well-formed negative, every concrete bullet of the section 8.2.2 list is driven; the &#39;per RFC 7606&#39; bullet is the umbrella of the others. New units carry records observed red on validateBGPLSNLRISyntax and bgplsNodeDescriptorWellFormed; older units carry none (pre-existing).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L50" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L204" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRILengthOverrunResetsSession</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L165" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L90" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNLRITLVOverrunIsDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L127" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L249" title="internal/component/bgp/reactor/rfc9552_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC9552LinkStateRecognizedTLVSubTLVOverrunIsDiscarded</code></a></td>
@@ -2448,12 +2448,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 8.2.2: &#34;A BGP-LS Speaker MUST perform the following syntactic validation of the BGP-LS Attribute to determine if it is malformed.&#34; Session proof: reactor TestRFC9552BGPLSAttributeTLVOverrunDiscarded / TrailingOctetsDiscarded / WellFormedIsKept (unchanged). ls TestRFC7752MalformedTLVNotPreserved now asserts bgpls.ErrBGPLSTruncated for the overrun and the wrong-size fixed TLV, and that no generic-key preservation occurs.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L87" title="internal/component/bgp/reactor/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSAttributeWellFormedIsKept</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L105" title="internal/component/bgp/plugins/nlri/ls/rfc7752_test.go" target="_blank" rel="noopener"><code>TestRFC7752MalformedTLVNotPreserved</code></a></td>
@@ -2463,12 +2463,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L120" title="internal/component/bgp/reactor/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSAttributeTLVOverrunDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L161" title="internal/component/bgp/reactor/rfc9552_test.go" target="_blank" rel="noopener"><code>TestRFC9552BGPLSAttributeTrailingOctetsDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2478,7 +2478,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L286" title="internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeInstanceIDOverflowRefused</code></a></td>
@@ -2502,7 +2502,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L146" title="internal/component/bgp/plugins/ls_export/rfc9552_export_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeTopologyReplacement</code></a></td>
@@ -2522,7 +2522,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L147" title="internal/component/bgp/plugins/ls_export/rfc9552_export_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeTopologyReplacement</code></a></td>
@@ -2542,7 +2542,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552: &#34;The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver.&#34; Originator: ls_export TestRFC9552NativeDefinedFlags / TestRFC9552NativeReservedFlagsCleared (unchanged). Receiver: Node Flag Bits (0xA8 vs 0xAB; 0x03 sets no O/T/E/B/R/V), the walk continues to the next TLV; key constant now bgpls.JSONKeyReserved, same &#34;RSV&#34;.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L210" title="internal/component/bgp/plugins/ls_export/rfc9552_export_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeReservedFlagsCleared</code></a></td>
@@ -2572,7 +2572,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. OSPFv2 node opaque from RI-LSA provenance reaches TLV 1025; Extended Link LSA provenance is refused by validOpaqueSource and leaves the advertised state untouched; the OSPF node check is shared by OSPFv2 and OSPFv3, only OSPFv2 driven</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L52" title="internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeOpaqueNodeProvenance</code></a></td>
@@ -2592,7 +2592,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552: &#34;The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver.&#34; Originator: ls_export TestRFC9552NativeDefinedFlags / TestRFC9552NativeReservedFlagsCleared (unchanged). Receiver: MPLS Protocol Mask (0x3f decodes L=0 R=0, Node Name after it intact; 0xc0 decodes L/R), the walk continues to the next TLV; key constant now bgpls.JSONKeyReserved, same &#34;RSV&#34;.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L212" title="internal/component/bgp/plugins/ls_export/rfc9552_export_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeReservedFlagsCleared</code></a></td>
@@ -2622,7 +2622,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. OSPFv2 link opaque from Extended Link LSA reaches TLV 1097; RI-LSA provenance refused without replacing the valid state; the OSPFv2 link allowlist has one member, so the pair discriminates it</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L60" title="internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeOpaqueOSPFv2LinkProvenance</code></a></td>
@@ -2642,7 +2642,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. OSPFv3 link opaque from E-Router-LSA reaches TLV 1097; E-Inter-Area-Prefix provenance refused; E-Link-LSA acceptance and other forbidden sources are not driven, one representative of each side</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L68" title="internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeOpaqueOSPFv3LinkProvenance</code></a></td>
@@ -2662,7 +2662,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV-&gt;WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552: &#34;The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver.&#34; Originator: ls_export TestRFC9552NativeDefinedFlags / TestRFC9552NativeReservedFlagsCleared (unchanged). Receiver: IGP Flags (0xA0 vs 0xAF; 0x0f sets no D/N/L/P), the walk continues to the next TLV; key constant now bgpls.JSONKeyReserved, same &#34;RSV&#34;.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L211" title="internal/component/bgp/plugins/ls_export/rfc9552_export_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeReservedFlagsCleared</code></a></td>
@@ -2692,7 +2692,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. OSPFv2 prefix opaque from Extended Prefix LSA reaches TLV 1157; Extended Link LSA provenance refused; single-member allowlist, so the pair discriminates it</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L76" title="internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeOpaqueOSPFv2PrefixProvenance</code></a></td>
@@ -2712,7 +2712,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. OSPFv3 prefix opaque from E-NSSA-LSA reaches TLV 1157; E-Link-LSA provenance refused; the other three permitted LSAs and other forbidden sources are not driven, one representative of each side</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L84" title="internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go" target="_blank" rel="noopener"><code>TestRFC9552NativeOpaqueOSPFv3PrefixProvenance</code></a></td>
@@ -3412,7 +3412,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

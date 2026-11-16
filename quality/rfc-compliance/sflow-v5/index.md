@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 13 | of 31 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 8 | of 31 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 13 | of 31 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 8 | of 31 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 31 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 31 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 63 | 63 of 63 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 31 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 63 | 63 of 63 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 31 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 31 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 1 | of 31 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 1 | of 31 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 31 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 31 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 31 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: sFlow Version 5 exporter/agent. The checklist incl
 
 **Area:** sFlow export
 
-**Proof:** 21 of 31 MUST proven
+**Test verification:** 21 of 31 MUST proven
 
 **Evidence:** unit 21
 
@@ -109,7 +109,7 @@ Included in automatic checks: sFlow Version 5 exporter/agent. The checklist incl
 | Annotated (including scoped evidence) | 18 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **31** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: sFlow Version 5 exporter/agent. The checklist incl
 
 ## Figures
 
-- **MUST bar**: Ze proven 21, OS testing gap 1, Not built 9
-- **Overview bar**: Ze MUST proven 21, SHOULD proven 3, OS testing gap 1, Not assessed 8, Not built 9
+- **MUST bar**: Ze verified 21, OS testing gap 1, Not built 9
+- **Overview bar**: Ze MUST verified 21, SHOULD verified 3, OS testing gap 1, Not assessed 8, Not built 9
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: sFlow Version 5 exporter/agent. The checklist incl
 | Mandatory requirements complete | not complete |
 | MUST rows | 31 |
 | MUST rows kept (the MUST bar) | 31 |
-| Ze proven | 21 |
+| Ze verified | 21 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 1 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: sFlow Version 5 exporter/agent. The checklist incl
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 11 |
-| SHOULD proven | 3 |
+| SHOULD verified | 3 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 8 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/sflow-v5.json](../../../data/rfc/sflow-v5.json).
 
@@ -220,9 +220,9 @@ Source: [data/rfc/sflow-v5.json](../../../data/rfc/sflow-v5.json).
 | [`SFLOW-V5-x-42`](#sflow-v5-x-42) The Agent may implement an automated one-way backoff of the Sampling Rate that triggers whenever an excessive number of samples per second is generated. When the triggered the Agent can double the Sampling Rate. If the threshold is exceeded again, the Sampling Rate is doubled again. The Sampling Rate will quickly reach a value that is sustainable. The sampling rate must stay at its new value and never automatically return to the originally configured value. (§4.2.2) | {gap}, no test | no owner decision declines sampling-rate backoff. sFlow v5 Section 4.2.2 says "The Agent may implement an automated one-way backoff of the Sampling Rate that triggers whenever an excessive number of samples per second is generated.", and ze implements no automatic backoff, so the rate never changes by itself: internal/plugins/flowexport/sampling/tc_linux.go::SetupSampling installs the configured rate into act_sample and nothing else writes it |
 | [`SFLOW-V5-4.3-1`](#sflow-v5-4.3-1) The sFlowAgent address must provide SNMP connectivity to the agent. (§4.3) | {gap}, no test | Ze runs no SNMP agent, so no address provides SNMP connectivity to it. Ze configures sFlow through YANG (internal/plugins/flowexport/yang) and writes the configured agent-address into every datagram header, but nothing answers SNMP at that address |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`SFLOW-V5-x-1`](#sflow-v5-x-1)
 
@@ -230,7 +230,7 @@ enum datagram_version { VERSION5 = 5 } union sample_datagram_type (datagram_vers
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity: the header's first field decodes big-endian to 5, the only datagram_version the XDR union defines; WriteDatagramHeader writes a constant, so any other value fails the assertion
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestSFlowDatagramHeaderIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go#L11) | unit/verify | revert, verified |
 
@@ -240,7 +240,7 @@ The address should be an invariant that does not change as interfaces are reconf
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Row narrowed to its last two sentences (invariance, unique key); SNMP and loopback moved to gap rows SFLOW-V5-4.3-1/4.3-2. Invariance: TestSFlowV5AgentAddressIsTheAgentKey drives the factory-built counter encoder over three interface sets and requires 192.0.2.1 in every header; TestSFlowDatagramHeaderIPv4 pins the header bytes. No code path derives the address from interfaces, so invariance has no reject path (positive only). Unique key: Config.Validate refuses a missing, 0.0.0.0, :: or second agent address, naming agent-address (parseAgentAddress, differentAgents); TestSFlowV5AgentAddressSpellingsNameOneAgent accepts two spellings of 2001:db8::1 and refuses ::1 vs ::2, which fails if the compare returns to strings (D-8 fixed). All units recorded (revert).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5AgentAddressIsTheAgentKey`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_config_test.go#L60) | unit/verify | revert, verified |
 | positive | [`TestSFlowV5AgentAddressIsTheAgentKey`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_config_test.go#L56) | unit/verify | revert, verified |
@@ -253,7 +253,7 @@ In the case of a multi-homed agent, this should be the loopback address of the a
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-11-14 (independent auditor). sFlow v5 Section 4.3, sFlowAgentAddress: "In the case of a multi-homed agent, this should be the loopback address of the agent." The operator must configure agent-address (validateSFlowCollectors refuses a missing one). adviseSFlowCollectors, registered by RegisterCollectorsAdvisor("sflow", ...) and run by adviseProtocolCollectors, classifies it against iface.ListInterfaces, and runEngine's configure logs each advice at WARN and refuses nothing. That is a faithful SHOULD: the deviation stays allowed and is reported with its fix. TestSFlowV5AgentAddressMultiHomedEngineWarns drives runEngine over the SDK configure callback with a registered iface backend (lo, dummy agent0, routed eth0 and eth1). It requires the config applied and exactly one WARN carrying the address, routed interface eth0, 'more than one routed interface' and the dummy-interface fix. It goes red when the advisor is unregistered, its answers are dropped (recorded mutant on the Warn loop), it ignores the interface list, or the classifier reports single-homed. TestSFlowV5AgentAddressOnLoopbackEngineSilent requires no record at WARN or above for addresses on lo and on agent0 (recorded mutant: the advisor classifying against ifs[:0] gives a false WARN). The sflow/ units pin the classifier and advice text, including the single-homed and IPv6 spellings.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5AgentAddressOnLoopbackWhenMultiHomed`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go#L43) | unit/verify | revert, verified |
 | negative | [`TestSFlowV5AgentAddressSingleHomedNoAdvice`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_agent_loopback_test.go#L90) | unit/verify | revert, verified |
@@ -267,7 +267,7 @@ address agent_address /* IP address of sampling agent, sFlowAgentAddress. */ uns
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity: agent_address and sub_agent_id 7 both decode to the distinct values written, so the pair the header carries names the sub-agent's datagram stream
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestSFlowDatagramHeaderIPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go#L53) | unit/verify | revert, verified |
 
@@ -277,7 +277,7 @@ Incremented with each sample datagram generated by a sub-agent within an agent. 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity (marker: the exporter holds no path that emits a datagram without advancing): writeCounterDatagrams' two datagrams carry sequence 1 and 2 and return 3 as the next, so a sender that did not increment per datagram fails seq2 != 2 and nextSeq != 3
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestSFlowMultiInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go#L93) | unit/verify | revert, verified |
 
@@ -287,7 +287,7 @@ The maximum number of data bytes that can be sent in a single sample datagram. T
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity row. TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram sets a non-default 600-octet bound on a real Sender, requires every counter datagram for 30 interfaces to be <= 600 octets while together carrying all 30 samples (num_samples summed on the collector socket), requires a flow sample with a 1400-octet header to arrive in <= 600 octets, and requires Sender.Send to refuse 601 octets; the older default-bound unit TestSFlowMultiInterface stays. An encoder bounding by the default instead of the configured size goes red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go#L43) | unit/verify | revert, verified |
 | positive | [`TestSFlowMultiInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_encoder_test.go#L94) | unit/verify | revert, verified |
@@ -298,7 +298,7 @@ The sFlow Agent may at most delay a sample by 1 second before it is required to 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity row. TestSFlowV5FlowSampleSentWithinOneSecond hands a sample to the real sflow FlowEncoder with a real Sender and requires the datagram on the collector socket within one second of the call, so an encoder holding a sample longer than 1 s goes red while one flushing sooner passes, matching the quote; TestExportFlowSampleDispatch proves exportFlowSample dispatches synchronously. Counter samples are sent synchronously in the poll (x-26 units).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestSFlowV5FlowSampleSentWithinOneSecond`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_datagram_test.go#L85) | unit/verify | revert, verified |
 | positive | [`TestExportFlowSampleDispatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_exporter_test.go#L99) | unit/verify | revert, verified |
@@ -309,7 +309,7 @@ The format of the sFlow datagram is specified using the XDR standard [32]. (§5)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity row, every sflow writer now compared as XDR words with distinct-octet values: datagram header and sampled_header padding (TestSFlowV5FlowDatagramIsXDR), counters_sample wrapper (TestSFlowV5CounterSampleWrapperIsXDR), all flow_sample words (TestSFlowV5FlowSampleWordsAreXDR), extended_gateway IPv4 and IPv6 unions and variable-length arrays (TestSFlowV5ExtendedGatewayIsXDR), if_counters (TestSFlowIfCounters). A little-endian, reordered or unpadded write changes compared bytes. Every unit recorded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestSFlowIfCounters`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_counter_test.go#L35) | unit/verify | revert, verified |
 | positive | [`TestSFlowV5FlowDatagramIsXDR`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go#L77) | unit/verify | revert, verified |
@@ -323,7 +323,7 @@ unsigned int sequence_number; /* Incremented with each sample datagram generated
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. positive: counter and flow datagrams of one sender share one datagram sequence that wraps through 0xFFFFFFFF; negative: a counter generation reset restarts only the source sample sequence, never the datagram sequence
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowCounterResetDoesNotResetDatagrams`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_counters_test.go#L240) | unit/verify | revert, verified |
 | positive | [`TestSFlowMixedDatagramSequenceWraps`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_counters_test.go#L203) | unit/verify | revert, verified |
@@ -334,7 +334,7 @@ unsigned int sampling_rate; /* sFlowPacketSamplingRate */ (§5)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity row. TestSFlowV5SamplingRateIsTheSourceRate drives the real EncodeFlowSample with two sources at 74565 and 1000 and requires each datagram's sampling_rate to equal its source's rate, so a constant, a stale rate or a literal goes red (recorded). sampling_worker.go fills FlowSample.Rate from the psample packet's rate.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestSFlowV5SamplingRateIsTheSourceRate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_flow_sampling_test.go#L32) | unit/verify | revert, verified |
 | positive | [`TestSFlowFlowSample`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_flow_test.go#L9) | unit/verify | revert, verified |
@@ -345,7 +345,7 @@ unsigned int sample_pool; /* Total number of packets that could have been sample
 
 Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. asserts the code's estimate sample_pool = min(seq*rate, MaxUint32), not the RFC's 'Total number of packets that could have been sampled'; no packet count the data source saw is observed, and the saturation subtest asserts behaviour the RFC does not state (an XDR unsigned counter wraps; a saturated pool stops advancing)
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestSFlowFlowSamplePoolTracksTotal`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_flow_adapter_test.go#L51) | unit/verify | revert, verified |
 
@@ -355,7 +355,7 @@ If ifIndex numbers may be >= 2^24 then the expanded must be used. (§5)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. positive: ifIndex 0x01000000 and 0xFFFFFFFF decode unchanged from expanded counter format 4 and flow format 3; negative: indexes at and above 2^24 never alias to their low 24 bits in source_id_index or if_counters.ifIndex
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowCounterSampleSourceIDOverflow`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_counter_test.go#L216) | unit/verify | revert, verified |
 | positive | [`TestSFlowV5ExpandedEncodingForEveryInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L242) | unit/verify | revert, verified |
@@ -374,7 +374,7 @@ The maximum number of seconds between successive samples of the counters associa
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. notifySnapshot now polls at elapsed >= interval - one snapshot tick and waits for the mutex instead of TryLock-dropping. TestSFlowV5CounterGapNeverExceedsInterval drives 30 late 1.01 s snapshots at a 5 s interval through a real Sender and requires no gap over 5 s and at least 6 polls; the old elapsed >= interval gate leaves a 5.05 s gap and goes red (author observed red at HEAD). Its two tags sit on one assertion: the maximum is one upper bound, so this is effectively single-polarity, not a pair. TestSFlowCounterPollAtInterval covers the 1 s interval. The busy-exporter drop is covered under x-26.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5CounterGapNeverExceedsInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_polling_test.go#L86) | unit/verify | revert, verified |
 | positive | [`TestSFlowCounterPollAtInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_exporter_test.go#L227) | unit/verify | revert, verified |
@@ -386,7 +386,7 @@ The following values should be used for fields that are unknown (unless otherwis
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Integer clause, both polarities: TestSFlowV5UnknownEgressInterfaceIsZero requires output format 0 and value 0 for an unknown egress, and TestInterfaceCountersFromUnknownSpeed requires ifSpeed 0 and ifDirection 0 for unknown speed 0 and empty duplex (ifSpeed is a gauge, not a counter, so the integer clause governs it; ifDirection 0 also matches the if_counters 0 = unkown comment); TestInterfaceCountersFromExtended requires the exact 10 Gbit/s ifSpeed and the full-duplex code for a known link, so a known integer is never sent as the unknown 0. Counter clause: TestSFlowV5UnavailableCountersCarrySentinelEveryPoll requires exactly 0xFFFFFFFF for the four counters the kernel does not expose, and TestSFlowV5AvailableCountersNeverTurnUnavailable requires the real values, zero included, for the rest. All five units carry observed-red records; the ifSpeed half of the unknown-speed unit is proven by its exact assertion, not by its recorded break, and the unknown-to-0 mapping of a sysfs speed lives upstream in parseLinkSpeedDuplex, which no x-16 unit reaches.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5AvailableCountersNeverTurnUnavailable`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_counters_test.go#L66) | unit/verify | revert, verified |
 | negative | [`TestInterfaceCountersFromExtended`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_register_test.go#L35) | unit/verify | mutant, verified |
@@ -400,7 +400,7 @@ While the sFlow Datagram structure permits multiple samples to be included in ea
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. positive: one sample yields exactly one datagram sent at once; negative: three samples yield three datagrams, the sender count advancing by one each, and no datagram carries more than one flow_sample
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5NoDatagramHeldForMoreSamples`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L170) | unit/verify | revert, verified |
 | positive | [`TestSFlowV5SampleSentWithoutWaitingForBuffer`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L147) | unit/verify | revert, verified |
@@ -411,7 +411,7 @@ If counters must be sent in order to satisfy the maximum sampling interval then 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Chain now whole. TestSFlowV5DueCountersAreSent requires every due poll over 30 late ticks to send a datagram listing all three interfaces, and requires a due snapshot that meets a held exporter mutex still to send them (the old TryLock drop goes red). The real encoder's part: writeCounterDatagrams units require all 30 sources emitted with the partial tail not held back, and TestSFlowV5ConfiguredMaxDatagramBoundsEveryDatagram counts all 30 samples on the collector socket through CounterEncoder.Encode. Trigger (x-14) now enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5TailDatagramNotWithheld`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L215) | unit/verify | revert, verified |
 | negative | [`TestSFlowV5DueCountersAreSent`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_polling_test.go#L116) | unit/verify | revert, verified |
@@ -424,7 +424,7 @@ An agent must not mix compact/expanded encodings. If an agent will never use ifI
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Ze cannot promise its ifIndex stays below 2^24 (Linux ifindex is a full int), so it falls in the quote's 'Otherwise' branch and the compact-for-all clause does not bind it; mixing: a compact format 1 or 2 among the six records fails 'compact data_format emitted'; expanded for all: alternating low and full-width ifIndex values fail 'want expanded 4' and 'want expanded 3' if any interface drops to compact
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5CompactFormatsNeverMixedIn`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L278) | unit/verify | revert, verified |
 | positive | [`TestSFlowV5ExpandedEncodingForEveryInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L241) | unit/verify | revert, verified |
@@ -435,7 +435,7 @@ unsigned int sequence_number; /* Incremented with each flow sample generated by 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Per-source clause: TestSFlowV5FlowSequencePerSourceID interleaves sources 3 and 4 and requires 1,2,3 and 1,2, so one sequence shared across source_ids goes red (recorded). Reset clause: TestSFlowV5PoolAndSequenceResetTogether and TestSFlowV5PoolNeverResetsWithoutSequence (both recorded).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5PoolNeverResetsWithoutSequence`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L326) | unit/verify | revert, verified |
 | positive | [`TestSFlowV5FlowSequencePerSourceID`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_sequence_test.go#L71) | unit/verify | revert, verified |
@@ -447,7 +447,7 @@ unsigned int sequence_number; /* Incremented with each counter sample generated 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Reset clause: TestSFlowV5SequenceResetOnAnyCounterGoingBack rewinds each of 13 cumulative counters and requires sequence 1; TestSFlowV5SequenceResetWithCounters requires source 3's reset on ifInOctets going back. Increment and no-spurious-reset: TestSFlowV5SequenceNeverResetWithoutDiscontinuity requires 1,2,3 while counters rise. All units now recorded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5SequenceNeverResetWithoutDiscontinuity`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_counters_test.go#L57) | unit/verify | revert, verified |
 | positive | [`TestSFlowV5SequenceResetWithCounters`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_counters_test.go#L38) | unit/verify | revert, verified |
@@ -459,7 +459,7 @@ In the case of ifIndex-based source_id's the sequence number must be reset each 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. positive: a CounterGeneration change with rising counters resets the sequence to 1; negative: an unchanged generation keeps 1,2,3 even when a counter reads lower
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5SequenceKeptWhileDiscontinuityTimeSteady`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_discontinuity_test.go#L34) | unit/verify | revert, verified |
 | positive | [`TestSFlowV5SequenceResetOnDiscontinuityTime`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_discontinuity_test.go#L15) | unit/verify | revert, verified |
@@ -470,7 +470,7 @@ Each sFlowDataSource must be associated with only one sub-agent. The association
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Only-one-sub-agent: TestSFlowV5OneSubAgentPerDataSource requires Config.Validate to accept two sflow collectors with sub-agent-id 7 and to refuse 7 and 8, naming sub-agent-id (validateSFlowCollectors; every sflow collector exports every data source); TestSFlowV5DataSourceKeepsOneSubAgent shows one collector's counter and flow factories use its single sub-agent. Constant-association: the sflow_v5_test.go negative keeps ifIndex 3 on one sub-agent over five datagrams. All units recorded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5OneSubAgentPerDataSource`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_config_test.go#L40) | unit/verify | revert, verified |
 | negative | [`TestSFlowV5SubAgentBindingConstantForSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L369) | unit/verify | revert, verified |
@@ -484,7 +484,7 @@ Within any given sFlow session a particular counter must be always available, or
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. positive: every counter unavailable on the first poll is still the sentinel on a poll with different statistics; negative: available counters stay available on a later zero-valued poll
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5AvailableCountersNeverTurnUnavailable`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_counters_test.go#L67) | unit/verify | revert, verified |
 | positive | [`TestSFlowV5UnavailableCountersCarrySentinelEveryPoll`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow_v5_counters_test.go#L50) | unit/verify | revert, verified |
@@ -495,7 +495,7 @@ A flow_sample must contain packet header information. (§5)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. positive: the flow_sample carries one sampled_header record with the 14 captured bytes; negative: a 1500-byte capture that cannot fit is truncated but still carried as a non-empty sampled_header prefix
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5FlowSampleNeverWithoutHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L408) | unit/verify | revert, verified |
 | positive | [`TestSFlowV5FlowSampleCarriesPacketHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_test.go#L388) | unit/verify | revert, verified |
@@ -506,7 +506,7 @@ Any octets added to the frame_length to compensate for encapsulations removed by
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. positive: a 60-octet skb gives frame_length 64 and stripped 4, the FCS added to both; negative: over 64, 1500 and 9000 octets frame_length minus stripped is always the skb length
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSFlowV5FrameCompensationNeverUnstripped`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_counters_test.go#L105) | unit/verify | revert, verified |
 | positive | [`TestSFlowV5FrameLengthAndStrippedIncludeFCS`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/sflow/sflow_v5_counters_test.go#L89) | unit/verify | revert, verified |

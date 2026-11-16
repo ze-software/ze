@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 11 | of 11 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 11 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 11 | of 11 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 11 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 11 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 11 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 0 | of 11 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 11 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 21 | 21 of 22 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 21 | 21 of 22 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 | Audit verdicts | 11 | of 11 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -26,9 +26,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 11 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 11 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 11 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 11 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 11 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 11 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 11 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -47,13 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -87,7 +87,7 @@ Included in automatic checks: Software Version capability for BGP (code 75): ele
 
 **Area:** BGP Software Version capability code 75
 
-**Proof:** 11 of 11 MUST proven
+**Test verification:** 11 of 11 MUST proven
 
 **Evidence:** unit 11
 
@@ -102,7 +102,7 @@ Included in automatic checks: Software Version capability for BGP (code 75): ele
 | Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **11** | every mandatory requirement appears in exactly one group above |
@@ -111,8 +111,8 @@ Included in automatic checks: Software Version capability for BGP (code 75): ele
 
 ## Figures
 
-- **MUST bar**: Ze proven 11
-- **Overview bar**: Ze MUST proven 11, Not assessed 4
+- **MUST bar**: Ze verified 11
+- **Overview bar**: Ze MUST verified 11, Not assessed 4
 
 | Figure | Rows |
 |---|---|
@@ -121,9 +121,9 @@ Included in automatic checks: Software Version capability for BGP (code 75): ele
 | Mandatory requirements complete | complete |
 | MUST rows | 11 |
 | MUST rows kept (the MUST bar) | 11 |
-| Ze proven | 11 |
+| Ze verified | 11 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -133,19 +133,19 @@ Included in automatic checks: Software Version capability for BGP (code 75): ele
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 4 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 4 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/draft-abraitis-bgp-version-capability.json](../../../data/rfc/draft-abraitis-bgp-version-capability.json).
 
@@ -173,9 +173,9 @@ Source: [data/rfc/draft-abraitis-bgp-version-capability.json](../../../data/rfc/
 
 DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3-1`](#draft-abraitis-bgp-version-capability-3-1)
 
@@ -183,7 +183,7 @@ If an implementation supports the inclusion of the capability, the implementatio
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a software-version capability no configuration option can switch on or off. TestSoftverConfigOptionEnables asserts extractSoftverCapabilities declares code 75 for mode enable, red if the option were ignored. Negative: TestSoftverConfigOptionDisables, mode disable declares nothing.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSoftverConfigOptionDisables`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L37) | unit/verify | revert, verified |
 | positive | [`TestSoftverConfigOptionEnables`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L27) | unit/verify | revert, verified |
@@ -194,7 +194,7 @@ a configuration option to enable or disable its use, and MUST default to disable
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: advertising code 75 by default. TestSoftverDefaultsToDisabled asserts a peer whose capability block has no software-version key gets no declaration, red if the capability were on by default. Negative: TestSoftverDefaultIsNotABlanketRefusal, the same peer with the key present gets code 75, so the empty answer is the default and not a refusal of everything.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSoftverDefaultIsNotABlanketRefusal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L55) | unit/verify | revert, verified |
 | positive | [`TestSoftverDefaultsToDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L46) | unit/verify | revert, verified |
@@ -205,7 +205,7 @@ The Capability Length for the Software Version Capability MUST be greater than z
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: sending code 75 with Capability Length zero. TestSoftverCapabilityLengthIsGreaterThanZero asserts the Capability Value encodeValue produces for the default draft encoding is longer than zero (require.Greater) and is exactly the bytes of ZeVersion, so the Capability Length is len(ZeVersion); red on an empty value. The legacy encoding is an owner-approved deviation (D-13) and is not what this verdict covers. Negative: TestSoftverZeroCapabilityLengthIsRefused, decodeSoftwareVersion(nil) returns ok false and no version.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSoftverZeroCapabilityLengthIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L77) | unit/verify | revert, verified |
 | positive | [`TestSoftverCapabilityLengthIsGreaterThanZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L65) | unit/verify | revert, verified |
@@ -216,7 +216,7 @@ A value of zero SHALL be treated as an encoding error (§3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: reading a zero-length Capability Value as a valid version. TestSoftverZeroValueIsAnEncodingError asserts decodeSoftwareVersion([]byte{}) returns ok false, red if it decodes; the length check runs before the legacy-form test, so neither form reads an empty value. Negative: TestSoftverWellFormedValueIsNotAnEncodingError, the bare value zebgp decodes to zebgp, red if the error verdict were returned for every input.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSoftverWellFormedValueIsNotAnEncodingError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L96) | unit/verify | revert, verified |
 | positive | [`TestSoftverZeroValueIsAnEncodingError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L87) | unit/verify | revert, verified |
@@ -227,7 +227,7 @@ A value of zero SHALL be treated as an encoding error and the Capability MUST be
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: acting on or displaying a zero-length capability. TestSoftverZeroValueCapabilityIsIgnored asserts RunCLIDecode of an empty value exits 1 with empty stdout, red if decodeSoftwareVersion accepted it and a version were shown. Its RunDecodeMode arm feeds the empty hex field invokePluginDecode writes for a zero-length value and asserts decoded unknown with no version; that arm is refused by the request parser before the decoder, so the CLI arm carries the discrimination. Negative: TestSoftverWellFormedCapabilityIsNotIgnored, the bare value zebgp is decoded and shown on both surfaces.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSoftverWellFormedCapabilityIsNotIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L125) | unit/verify | revert, verified |
 | positive | [`TestSoftverZeroValueCapabilityIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L106) | unit/verify | revert, verified |
@@ -238,7 +238,7 @@ The Version field MUST be encoded using UTF-8. (§3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Version field that is not UTF-8. TestSoftverVersionFieldIsUTF8 asserts utf8.Valid over the whole Capability Value encodeValue writes for the default draft encoding, which is the version string with no length octet, and equality with ZeVersion; red on invalid UTF-8 or on any octet beside the string. The legacy encoding's length octet is the D-13 deviation and is outside this verdict. Negative: TestSoftverNonUTF8VersionFieldIsRefused, C3 28 61 is refused by decodeSoftwareVersion.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSoftverNonUTF8VersionFieldIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L151) | unit/verify | revert, verified |
 | positive | [`TestSoftverVersionFieldIsUTF8`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L140) | unit/verify | revert, verified |
@@ -249,7 +249,7 @@ A receiving BGP speaker MUST NOT interpret invalid UTF-8 sequences. (§3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: interpreting invalid UTF-8 received in the Version field. TestSoftverInvalidUTF8IsNotInterpreted asserts decodeSoftwareVersion returns ok false and an empty string for the value FF FE FD FC, and RunCLIDecode exits 1 with empty stdout, red if the bytes are rendered. decodeSoftwareVersion checks utf8.Valid on the legacy remainder before taking that form, and on the whole value otherwise, so neither form hands invalid bytes on. Negative: TestSoftverValidMultiByteUTF8IsInterpreted, the bare value Zé/0.1.0 decodes intact.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSoftverValidMultiByteUTF8IsInterpreted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L178) | unit/verify | revert, verified |
 | positive | [`TestSoftverInvalidUTF8IsNotInterpreted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L162) | unit/verify | revert, verified |
@@ -260,9 +260,9 @@ a sender MUST NOT generate advertising or other nonessential information within 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: advertising or other nonessential information in the product identifier ze sends. TestSoftverProductIdentifierCarriesNothingNonessential asserts the whole Capability Value encodeValue writes for the default draft encoding matches the product[/product-version] grammar with no spaces or prose (productIdentifierIsEssential), red if ZeVersion carried any. Negative: six identifiers carrying such information are refused by the same check.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestSoftverNonessentialProductIdentifiersAreRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L224) | unit/verify | unproven |
+| negative | [`TestSoftverNonessentialProductIdentifiersAreRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L224) | unit/verify | not verified |
 | positive | [`TestSoftverProductIdentifierCarriesNothingNonessential`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L211) | unit/verify | revert, verified |
 
 ### [`DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY-3.1-1`](#draft-abraitis-bgp-version-capability-3.1-1)
@@ -271,7 +271,7 @@ Implementations of this specification are REQUIRED Extended Optional Parameters 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: no RFC 9072 Extended Optional Parameters Length support. TestSoftwareVersionCapabilityUsesExtendedOptionalParameters packs an OPEN whose capabilities exceed 255 octets with code 75 inside and asserts the FF FF markers, the two-octet length, and UnpackOpen reporting ExtendedParams with identical parameters, red if either direction lacks the extended form. Negative: under 255 octets the classic form is used.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSoftwareVersionCapabilityKeepsClassicFormUnderTheCeiling`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/draft_abraitis_bgp_version_capability_softver_test.go#L66) | unit/verify | revert, verified |
 | positive | [`TestSoftwareVersionCapabilityUsesExtendedOptionalParameters`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/draft_abraitis_bgp_version_capability_softver_test.go#L44) | unit/verify | revert, verified |
@@ -282,7 +282,7 @@ The Software Version Capability MUST only be used for displaying the version of 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudge after 4594143b56. Draft Section 4: "The Software Version Capability MUST only be used for displaying the version of a BGP speaker's router daemon to make troubleshooting easier." Producers at HEAD conform: parseCapability returns code 75 as an Unknown holding a copy of the raw value; Negotiate's remote loop only sets peerCodes[75] for it (no type case matches Unknown), remoteOrder takes Multiprotocol entries alone; the reactor's RefusedCapabilities and RequiredCapabilities are filled only by applyCapMode (config_capabilities.go), which is never called with code 75, so validateCapabilityModes cannot act on it; the softver plugin's own refuse mode only suppresses advertisement and its decode path is display. Positive: exact Unknown code and bytes after parse, and PeerAdvertised(75) after Negotiate, which is what a display reads; a revert record (Negotiate body panics) goes red. Negative isolates code 75 (two OPENs identical but for one Unknown placed between the two Multiprotocol entries) and asserts Families with order, Identity, Encoding, Session and the named session fields, then the previously unchecked peerCodes: with.peerCodes must equal a copy of without.peerCodes plus {75: true} exactly, then the whole Negotiated (unexported fields included, via reflect equality) with peerCodes cleared. That closes the 10e10198ce finding: a Negotiate that marks any extra code (for example 70, which selects RFC 7313 handling via PeerAdvertised, or a refused code read by CheckRefusedCodes) when it sees 75 now goes red; the recorded mutant (also mark code 70 on 75) was observed red at that assertion. The family-order mutant record was replaced (one record per requirement, polarity and unit), but the in-order Families assertion with 75 between the Multiprotocol entries remains in the body, so that break is still caught. The positive and negative are distinct assertions, not one test with two tags. Residual, not a finding: proof is at the capability boundary; reactor-level non-use rests on the reads above (every session decision reads Negotiated or config lists that never carry 75).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSoftwareVersionCapabilityDecidesNothing`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L36) | unit/verify | mutant, verified |
 | positive | [`TestSoftwareVersionCapabilityIsRecordedForDisplay`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/draft_abraitis_bgp_version_capability_softver_test.go#L84) | unit/verify | revert, verified |
@@ -293,7 +293,7 @@ Enabling (i.e., turning on) this capability requires bouncing all existing BGP s
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: advertising code 75 without explicit configuration. TestSoftverNotAdvertisedWithoutExplicitConfiguration asserts no declaration for a peer with no capability block, an empty capability block, and a group without the key (assert.Empty), red if any advertises. Positive: an explicit mode enable declares code 75 with encodeValue's payload.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSoftverNotAdvertisedWithoutExplicitConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L252) | unit/verify | revert, verified |
 | positive | [`TestSoftverAdvertisedOnlyAfterExplicitConfiguration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/softver/draft_abraitis_bgp_version_capability_test.go#L241) | unit/verify | revert, verified |

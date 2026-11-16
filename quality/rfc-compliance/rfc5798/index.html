@@ -128,15 +128,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>45</strong><b>of 59 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4</strong><b>of 59 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>45</strong><b>of 59 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>4</strong><b>of 59 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 59 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>155</strong><b>155 of 155 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>155</strong><b>155 of 155 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>1</strong><b>of 59 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-bad"><span>Partial test coverage</span><strong>1</strong><b>of 59 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>6</strong><b>of 59 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 <article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>47</strong><b>of 59 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
@@ -145,9 +145,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 59 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 59 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>3</strong><b>of 59 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>3</strong><b>of 59 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 59 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 59 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 59 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -175,11 +175,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -191,7 +191,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -199,7 +199,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -280,7 +280,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> VRRPv3 (obsoleted by RFC 9568)</p>
-<p><strong>Proof:</strong> 49 of 59 MUST proven</p>
+<p><strong>Test verification:</strong> 49 of 59 MUST proven</p>
 <p><strong>Evidence:</strong> unit 49</p>
 <p><strong>Unmet:</strong> RFC5798-6.4.3-4, RFC5798-7.1-3, RFC5798-8.2.2-2, RFC5798-8.2.2-3, RFC5798-8.2.3-1, RFC5798-8.4.2-1, RFC5798-A.2-1, RFC5798-A.2-3</p>
 
@@ -306,7 +306,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>1</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -324,13 +324,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <p class="rfc-id-list"><strong>Positive and negative tests (45):</strong> <a href="#rfc5798-5.1.1.3-2"><code>RFC5798-5.1.1.3-2</code></a>, <a href="#rfc5798-5.1.2.3-2"><code>RFC5798-5.1.2.3-2</code></a>, <a href="#rfc5798-5.2.2-1"><code>RFC5798-5.2.2-1</code></a>, <a href="#rfc5798-5.2.4-1"><code>RFC5798-5.2.4-1</code></a>, <a href="#rfc5798-5.2.4-2"><code>RFC5798-5.2.4-2</code></a>, <a href="#rfc5798-5.2.6-1"><code>RFC5798-5.2.6-1</code></a>, <a href="#rfc5798-5.2.8-1"><code>RFC5798-5.2.8-1</code></a>, <a href="#rfc5798-5.2.9-1"><code>RFC5798-5.2.9-1</code></a>, <a href="#rfc5798-5.2.9-2"><code>RFC5798-5.2.9-2</code></a>, <a href="#rfc5798-6.1-1"><code>RFC5798-6.1-1</code></a>, <a href="#rfc5798-6.4.2-1"><code>RFC5798-6.4.2-1</code></a>, <a href="#rfc5798-6.4.2-2"><code>RFC5798-6.4.2-2</code></a>, <a href="#rfc5798-6.4.2-3"><code>RFC5798-6.4.2-3</code></a>, <a href="#rfc5798-6.4.2-4"><code>RFC5798-6.4.2-4</code></a>, <a href="#rfc5798-6.4.2-5"><code>RFC5798-6.4.2-5</code></a>, <a href="#rfc5798-6.4.2-6"><code>RFC5798-6.4.2-6</code></a>, <a href="#rfc5798-6.4.2-7"><code>RFC5798-6.4.2-7</code></a>, <a href="#rfc5798-6.4.2-8"><code>RFC5798-6.4.2-8</code></a>, <a href="#rfc5798-6.4.2-9"><code>RFC5798-6.4.2-9</code></a>, <a href="#rfc5798-6.4.2-10"><code>RFC5798-6.4.2-10</code></a>, <a href="#rfc5798-6.4.3-1"><code>RFC5798-6.4.3-1</code></a>, <a href="#rfc5798-6.4.3-2"><code>RFC5798-6.4.3-2</code></a>, <a href="#rfc5798-6.4.3-3"><code>RFC5798-6.4.3-3</code></a>, <a href="#rfc5798-6.4.3-5"><code>RFC5798-6.4.3-5</code></a>, <a href="#rfc5798-6.4.3-6"><code>RFC5798-6.4.3-6</code></a>, <a href="#rfc5798-6.4.3-7"><code>RFC5798-6.4.3-7</code></a>, <a href="#rfc5798-6.4.3-8"><code>RFC5798-6.4.3-8</code></a>, <a href="#rfc5798-6.4.3-9"><code>RFC5798-6.4.3-9</code></a>, <a href="#rfc5798-6.4.3-10"><code>RFC5798-6.4.3-10</code></a>, <a href="#rfc5798-6.4.3-11"><code>RFC5798-6.4.3-11</code></a>, <a href="#rfc5798-6.4.3-12"><code>RFC5798-6.4.3-12</code></a>, <a href="#rfc5798-7.1-1"><code>RFC5798-7.1-1</code></a>, <a href="#rfc5798-7.1-2"><code>RFC5798-7.1-2</code></a>, <a href="#rfc5798-7.1-4"><code>RFC5798-7.1-4</code></a>, <a href="#rfc5798-7.2-1"><code>RFC5798-7.2-1</code></a>, <a href="#rfc5798-7.2-3"><code>RFC5798-7.2-3</code></a>, <a href="#rfc5798-7.4-2"><code>RFC5798-7.4-2</code></a>, <a href="#rfc5798-8.1.2-1"><code>RFC5798-8.1.2-1</code></a>, <a href="#rfc5798-8.1.2-6"><code>RFC5798-8.1.2-6</code></a>, <a href="#rfc5798-8.1.1-2"><code>RFC5798-8.1.1-2</code></a>, <a href="#rfc5798-8.2.1-2"><code>RFC5798-8.2.1-2</code></a>, <a href="#rfc5798-8.1.3-1"><code>RFC5798-8.1.3-1</code></a>, <a href="#rfc5798-8.2.2-1"><code>RFC5798-8.2.2-1</code></a>, <a href="#rfc5798-8.2.2-8"><code>RFC5798-8.2.2-8</code></a>, <a href="#rfc5798-8.2.2-4"><code>RFC5798-8.2.2-4</code></a></p>
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (14):</strong> <a href="#rfc5798-5.1.1.2-1"><code>RFC5798-5.1.1.2-1</code></a>, <a href="#rfc5798-5.1.1.3-1"><code>RFC5798-5.1.1.3-1</code></a>, <a href="#rfc5798-5.1.2.2-1"><code>RFC5798-5.1.2.2-1</code></a>, <a href="#rfc5798-5.1.2.3-1"><code>RFC5798-5.1.2.3-1</code></a>, <a href="#rfc5798-6.4.3-4"><code>RFC5798-6.4.3-4</code></a>, <a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a>, <a href="#rfc5798-7.2-2"><code>RFC5798-7.2-2</code></a>, <a href="#rfc5798-7.2-4"><code>RFC5798-7.2-4</code></a>, <a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a>, <a href="#rfc5798-8.2.2-2"><code>RFC5798-8.2.2-2</code></a>, <a href="#rfc5798-8.2.2-3"><code>RFC5798-8.2.2-3</code></a>, <a href="#rfc5798-8.2.3-1"><code>RFC5798-8.2.3-1</code></a>, <a href="#rfc5798-8.4.2-1"><code>RFC5798-8.4.2-1</code></a>, <a href="#rfc5798-a.2-1"><code>RFC5798-A.2-1</code></a></p>
-<p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a></p>
+<p class="rfc-id-list"><strong>Partial test coverage (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc5798:must">Ze proven 49, OS testing gap 3, Not built 7</div>
+<div data-ze-rfc-bar="rfc5798:must">Ze verified 49, OS testing gap 3, Not built 7</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc5798:overview">Ze MUST proven 49, SHOULD proven 1, OS testing gap 3, Not assessed 24, Not built 8</div>
+<div data-ze-rfc-bar="rfc5798:overview">Ze MUST verified 49, SHOULD verified 1, OS testing gap 3, Not assessed 24, Not built 8</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -350,13 +350,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc5798:must.kept">59</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc5798:must.ze-proven">49</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc5798:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc5798:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -386,7 +386,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc5798:should.total">26</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc5798:should.proven">1</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -407,7 +407,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc5798:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc5798:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -422,7 +422,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -805,7 +805,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5798-7.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc5798_owner_discard_test.go#L45" title="internal/plugins/vrrp/rfc5798_owner_discard_test.go" target="_blank" rel="noopener"><code>TestRFC5798OwnerDiscardsAdvertisement</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc5798_owner_discard_test.go#L72" title="internal/plugins/vrrp/rfc5798_owner_discard_test.go" target="_blank" rel="noopener"><code>TestRFC5798NonOwnerProcessesAdvertisement</code></a></span></div>
-</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;the local router is not the IPvX address owner&#34;; gap &#34;Priority = 255&#34;; internal/plugins/vrrp/instance.go::onPacket is the boundary: Tested covers the address owner discarding an advertisement for its VRID in an IPv4 group configured checksum rfc5798-compatible, counted under the owner discard reason, and a non-owner in such a group processing it; Gap is every other address owner (Priority = 255): an IPv6 owner, and an IPv4 owner in a group in the default RFC 9568 mode, follow RFC 9568 erratum 8298, logging the advertisement and processing it rather than discarding it</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement</p></td>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;the local router is not the IPvX address owner&#34;; gap &#34;Priority = 255&#34;; internal/plugins/vrrp/instance.go::onPacket is the boundary: Tested covers the address owner discarding an advertisement for its VRID in an IPv4 group configured checksum rfc5798-compatible, counted under the owner discard reason, and a non-owner in such a group processing it; Gap is every other address owner (Priority = 255): an IPv6 owner, and an IPv4 owner in a group in the default RFC 9568 mode, follow RFC 9568 erratum 8298, logging the advertisement and processing it rather than discarding it</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5798-7.1-4">RFC5798-7.1-4</code></td><td colspan="3"><span class="rfc-subject">If any one of the above checks fails, the receiver MUST discard the packet (§7.1)</span></td></tr>
 <tr><td></td>
@@ -1274,7 +1274,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>ze runs IPv6 virtual routers and sends no Router Advertisement for them. The announcer&#39;s only IPv6 frame is the unsolicited Neighbor Advertisement, icmpv6TypeNA 136, built by BuildNA internal/plugins/vrrp/transport/na.go and selected by frameBuilder internal/plugins/vrrp/transport/transport.go, and no Router Advertisement builder and no RA send path exists under internal/plugins/vrrp</td>
 </tr>
 <tr><td><a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a> - MUST verify that the VRID is configured on the receiving interface and the local router is not the IPvX address owner (Priority = 255 (decimal)). (§7.1)</td>
-<td>{partial}, Partial proof; remaining gap</td>
+<td>{partial}, Partial test coverage</td>
 <td>tested &#34;the local router is not the IPvX address owner&#34;; gap &#34;Priority = 255&#34;; internal/plugins/vrrp/instance.go::onPacket is the boundary: Tested covers the address owner discarding an advertisement for its VRID in an IPv4 group configured checksum rfc5798-compatible, counted under the owner discard reason, and a non-owner in such a group processing it; Gap is every other address owner (Priority = 255): an IPv6 owner, and an IPv4 owner in a group in the default RFC 9568 mode, follow RFC 9568 erratum 8298, logging the advertisement and processing it rather than discarding it</td>
 </tr>
 <tr><td><a href="#rfc5798-7.4-1"><code>RFC5798-7.4-1</code></a> IPv6 routers running VRRP MUST create their Interface Identifiers in the normal manner (e.g., &#34;Transmission of IPv6 Packets over Ethernet Networks&#34; [RFC2464]). (§7.4)</td>
@@ -1309,8 +1309,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc5798-5.1.1.2-1"><code>RFC5798-5.1.1.2-1</code></a></h3>
 <p>The IPv4 multicast address as assigned by the IANA for VRRP is: 224.0.0.18 This is a link-local scope multicast address. Routers MUST NOT forward a datagram with this destination address, regardless of its TTL. (§5.1.1.2)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
@@ -1320,7 +1320,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.1.1.3 says &#34;The TTL MUST be set to 255.&#34; TestSendAdvertV3IPv4HeaderTTLProtoDst changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; it still requires frame[8] == 255. Single-polarity per the row annotation. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L317" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertV3IPv4HeaderTTLProtoDst</code></a></td>
@@ -1335,7 +1335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.1.1.3 says &#34;A VRRP router receiving a packet with the TTL not equal to 255 MUST discard the packet.&#34; TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. N4 with TTL 64 still requires ErrTTL. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L486" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
@@ -1359,7 +1359,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after d3195edb70 rewrote the row annotation and openV6 changed on 2026-10-27): RFC 5798 Section 5.1.2.3 says &#34;The Hop Limit MUST be set to 255.&#34; openV6 (internal/plugins/vrrp/transport/backend_linux.go) still sets IPV6_MULTICAST_HOPS 255 on the advertisement tx socket, and advertisements go only to ff02::12 through SendAdvert&#39;s Sendmsg on that socket, so the multicast hop limit is the one every advertisement carries; openNASocket sets the same on the NA socket. TestIntegrationOpenInstanceSocketOptions (//go:build linux, opens with userns.Enter, which runs it unprivileged in its own user, network and mount namespace and carries the child&#39;s fail or skip back) reads IPV6_MULTICAST_HOPS back with getsockopt from both the tx and NA socket and requires exactly 255; the kernel default is 1, so an openV6 that stopped setting it fails, and the recorded mutant (255 -&gt; 254 in openV6) went red. Single-polarity per the row annotation: a socket constant no input changes; receive-side discard is the separate -5.1.2.3-2 row. The rewritten annotation now matches the test. Findings outside this verdict: the tag&#39;s claim still cites backend_linux.go:185 where the call is now at :187, and the summary&#39;s Support remaining text still calls this evidence integration-gated, QEMU-only and unreachable by ./le rfc record, which is no longer true. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_integration_linux_test.go#L261" title="internal/plugins/vrrp/transport/transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestIntegrationOpenInstanceSocketOptions</code></a></td>
@@ -1374,7 +1374,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. golden v6 decode passes at hop limit 255; hop limit 64 asserts ErrTTL</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L616" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV3IPv6ChecksumAndHopLimit</code></a></td>
@@ -1394,7 +1394,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.2.2 says &#34;The only packet type defined in this version of the protocol is: 1 ADVERTISEMENT A packet with unknown type MUST be discarded.&#34; TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. Type 2 still requires ErrType before the VRID lookup. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L145" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestValidationOrder</code></a></td>
@@ -1414,7 +1414,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. owner EffectivePriority(0)==255 from configured 120; non-owner keeps 100</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L814" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestOwnerAutoDetection</code></a></td>
@@ -1434,7 +1434,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent): config range: TestBoundaryPriority accepts 1 and 254 and refuses 0 and 255; run-time: TestEffectivePriorityWithTracking (now tagged here) requires exact values including the floor at 1 for decrements equal to and past the priority (254/254, 100/100, 100/4064), so removing the clamp goes red. Record: revert EffectivePriority.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L322" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestBoundaryPriority</code></a></td>
@@ -1459,7 +1459,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.2.6 says &#34;This field MUST be set to zero on transmission and ignored on reception.&#34; TestEncodeGoldenV3IPv4 now runs a subtest per checksum mode, and each still requires the rsvd nibble to be zero and the exact golden bytes; TestEncodeV3ReserveZeroOverDirtyBuffer encodes over an all-0xFF buffer against the default-mode golden G2. The reception half is TestDecodeV3ReserveIgnoredOnReceive, unchanged. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L590" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestDecodeV3ReserveIgnoredOnReceive</code></a></td>
@@ -1484,7 +1484,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.2.8 says &#34;The checksum is the 16-bit one&#39;s complement of the one&#39;s complement sum of the entire VRRP message starting with the version field and a &#34;pseudo-header&#34; as defined in Section 8.1 of [RFC2460]. The next header field in the ...&#34; Ze now computes this form for IPv4 only in a group configured checksum rfc5798-compatible, because RFC 9568 Section 5.2.8, which obsoletes this text, says the IPv4 checksum &#34;only includes the VRRP message&#34;; the default IPv4 group neither sends nor accepts it, and the earlier sentence about dual-accept is withdrawn. TestFillChecksumFamilies (v3v4 under rfc5798-compatible) and TestFillChecksumZeroesFieldAndCoversPseudoHeader pin the IPv4 pseudo-header sum 0xDEFB and the IPv6 one in every mode; an overlay mutant forcing verifyReceived to the message-only form reddened the compatible-mode decodes. The only proof that a compatible group carries the mode from instance.doSendAdvert to the wire is the keepalived interop scenario, which no tag names. Enforced for the compatible mode only.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/rfc_rx_verdict_test.go#L234" title="internal/plugins/vrrp/packet/rfc_rx_verdict_test.go" target="_blank" rel="noopener"><code>TestFillChecksumZeroesFieldAndCoversPseudoHeader</code></a></td>
@@ -1514,7 +1514,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 5.2.9 says &#34;For IPv6, the first address must be the IPv6 link-local address associated with the virtual router.&#34; TestSendAdvertIPv6LeadsWithLinkLocal changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; octets 8-24 are still required to be fe80::1 ahead of 2001:db8::1. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L554" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestValidateIPv6LinkLocal</code></a></td>
@@ -1544,7 +1544,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent): TestValidateVIPFamilyMatchesGroupFamily now isolates both mixed-family cases: the IPv4 group lists 192.0.2.1 then 2001:db8::1, the IPv6 group lists fe80::1 then 192.0.2.1 (so the first-address-link-local rule cannot refuse it), and each refusal must carry the family error text; same-family lists validate. Records: revert validateGroup, both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L578" title="internal/plugins/vrrp/groups_test.go" target="_blank" rel="noopener"><code>TestValidateVIPFamilyMatchesGroupFamily</code></a></td>
@@ -1564,7 +1564,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. ICMPv6 135 and 136 accepts must precede the first drop of the accept-filter chain; the test fails if either is missing or placed after a drop</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L112" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop</code></a></td>
@@ -1584,7 +1584,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit&#39;s body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: Backup installs no VIP (parent carries arp_ignore=1, so nothing answers ARP for it); Master contrast installs it on the vMAC device</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L455" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
@@ -1604,7 +1604,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Backup installs no IPv6 VIP, Master installs it on the vMAC macvlan only; NS answering follows the kernel address</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L741" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
@@ -1624,7 +1624,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Backup emits zero announcements; the Master&#39;s one announcement is BuildNA type 136, never 134</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L1135" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceBackupSendsNoRouterAdvertisement</code></a></td>
@@ -1644,7 +1644,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 5798 Section 6.4.2 says &#34;MUST discard packets with a destination link-layer MAC address equal to the virtual router MAC address.&#34; TestVRRPBackupDoesNotForwardVirtualMACFrames is otherwise unchanged: with the recipe in force and no filter a datagram sent to the virtual MAC is forwarded (control), with setBackupFilter the same datagram is not forwarded, each asserted from a capture on the next hop. TestBackupDiscardFollowsTheState (unchanged) still proves the worker sets and withdraws the discard with the state. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/backupfilter_test.go#L113" title="internal/plugins/vrrp/backupfilter_test.go" target="_blank" rel="noopener"><code>TestBackupDiscardFollowsTheState</code></a></td>
@@ -1674,7 +1674,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit&#39;s body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: Backup installs no VIP so no packet to it is delivered locally; Master contrast installs it</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L457" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceOwnerStartupGoesMaster</code></a></td>
@@ -1694,7 +1694,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. matrix row backup/shutdown asserts exactly StopTimers + EmitStateChange to Initialize; a non-Shutdown event leaves Backup</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L112" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
@@ -1714,7 +1714,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. vrrp final judge 2026-09-29 (independent): earlier proof stands (promotion action list, StartAdvertTimer at the own interval, GARP per IPv4 VIP with the virtual router MAC, NA per IPv6 VIP R=1 S=0 O=1 TLL 00-00-5e-00-02-0a, stale-generation negative). The Solicited-Node clause is now asserted at Ze&#39;s boundary: TestPromotionInstallsIPv6AddressesOnVirtualMACDevice requires nothing installed in Backup and, on the Master_Down_Timer, exactly fe80::1 and 2001:db8::1 installed on the virtual-MAC device, never the parent -- the address add from which Linux addrconf joins each Solicited-Node group (record: doInstallVIPs). Kernel membership itself is not read.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L639" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></td>
@@ -1749,7 +1749,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Priority 0 advert arms StartMasterDownTimer(skewDur); non-zero arms mdDur</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L116" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
@@ -1769,7 +1769,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent): TestV3BackupAdoptsIntervalOrDiscards: equal, greater and Preempt-off lower adverts carrying 4 s each set Master_Adver_Interval to 4000 and arm the literal 14.4375 s; Preempt-on lower yields nothing and keeps 1000.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L120" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
@@ -1799,7 +1799,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Preempt True and lower priority emits no actions; same advert with Preempt False adopts</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L124" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
@@ -1819,7 +1819,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 5798 Section 6.4.3 says &#34;MUST respond to ARP requests for the IPv4 address(es) associated with the virtual router.&#34; TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly, otherwise unchanged, observes ARP replies for the virtual address held on the virtual-MAC macvlan and none once the address is removed; the sender hardware address read is arp[8:14]. TestPromotionInstallsIPv4AddressOnVirtualMACDevice (unchanged) proves the product installs that address on promotion only. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L143" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
@@ -1854,7 +1854,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Master installs the IPv6 VIP on the vMAC macvlan (kernel joins its solicited-node group); Backup installs nothing</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L747" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
@@ -1874,7 +1874,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Master installs the IPv6 VIP on the vMAC macvlan so it answers NS; Backup installs nothing</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L749" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
@@ -1898,7 +1898,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 5798 Section 6.4.3 says &#34;MUST forward packets with a destination link-layer MAC address equal to the virtual router MAC address.&#34; TestVRRPBackupDoesNotForwardVirtualMACFrames, otherwise unchanged, forwards the datagram to the next hop once the filter is withdrawn and the addresses installed, and not while the filter holds, read from the capture. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/backupfilter_test.go#L119" title="internal/plugins/vrrp/backupfilter_test.go" target="_blank" rel="noopener"><code>TestBackupDiscardFollowsTheState</code></a></td>
@@ -1928,7 +1928,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent): both admitting conditions and the refusal are asserted: TestActiveAddressOwnerAcceptsWhateverAcceptModeSays (owner, Accept_Mode False, now tagged here) requires exactly one filter with accept=true and the reported accept-mode true; TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery covers Accept_Mode True; the non-owner Accept_Mode False negative requires accept=false. Record: revert EffectiveAcceptMode on the owner unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L206" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery</code></a></td>
@@ -1953,7 +1953,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent): Forbidden: a Master that is neither owner nor Accept_Mode True accepting packets to the VIP. TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery requires accept=false; both exemptions are now tagged: Accept_Mode True (accept=true) and the address owner with Accept_Mode False (TestActiveAddressOwnerAcceptsWhateverAcceptModeSays, accept=true), so a suppression applied to the owner goes red. Record: revert EffectiveAcceptMode on the owner unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L270" title="internal/plugins/vrrp/acceptfilter_test.go" target="_blank" rel="noopener"><code>TestActiveAddressOwnerAcceptsWhateverAcceptModeSays</code></a></td>
@@ -1978,7 +1978,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. master/shutdown asserts StopTimers, SendAdvertZeroPriority, RemoveVIPs, Initialize; Backup shutdown sends no zero-priority advert</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L128" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
@@ -1998,7 +1998,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. armed-generation expiry sends an advert and re-arms at 1s; a stale generation does nothing</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L641" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMStaleTimerGenerationIgnored</code></a></td>
@@ -2018,7 +2018,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Priority 0 advert sends an advert and re-arms the Adver_Timer; a losing non-zero advert does not re-arm</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L134" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
@@ -2038,7 +2038,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent, continuations 1-2): TestInstanceIPv6ElectionUsesUnsignedOrder closes the missing IPv6 operand: an IPv6 Master whose advertisement source is link-local yields to a higher-priority advert and to an equal-priority sender greater in the high octet (fe80::80 vs fe80::7f), asserting advert timer cancelled, the advert&#39;s 3000ms interval adopted, Skew_Time and Master_Down_Interval recomputed from it, down timer armed, Backup; the reverse pair, which a signed compare would rank greater, keeps Master, timer armed, 1000ms interval. With TestInstanceTieBreakComparesTheAdvertisementSource (IPv4 operand) and TestFSMTransitionMatrix (timer value). Records: senderWinsTieBreak, observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L138" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
@@ -2078,7 +2078,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. losing rows leave state and timers untouched; the extra SendAdvert they assert is RFC 9568 Section 6.4.3&#39;s added step, recorded on the row&#39;s superseded marker, and does not act on the advert&#39;s contents</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L142" title="internal/plugins/vrrp/fsm/fsm_test.go" target="_blank" rel="noopener"><code>TestFSMTransitionMatrix</code></a></td>
@@ -2098,7 +2098,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.1 says &#34;MUST verify that the VRRP version is 3.&#34; TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. N9 still requires ErrVersion for a v2 advert at a v3 group. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L562" title="internal/plugins/vrrp/packet/validate_test.go" target="_blank" rel="noopener"><code>TestNegativeReferenceBugs</code></a></td>
@@ -2118,7 +2118,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.1 says &#34;MUST verify that the received packet contains the complete VRRP packet (including fixed fields, and IPvX address).&#34; TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. TestDecodeV3DiscardsIncompletePacket switched its IPv4 golden to G2 and recomputes in the default form, so the truncation and short-address cases still fail on ErrTruncated or ErrLength and not on ErrChecksum. The earlier residual about the mis-aimed N2 tag stands. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/rfc_rx_verdict_test.go#L149" title="internal/plugins/vrrp/packet/rfc_rx_verdict_test.go" target="_blank" rel="noopener"><code>TestDecodeV3DiscardsIncompletePacket</code></a></td>
@@ -2145,11 +2145,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5798-7.1-3"><code>RFC5798-7.1-3</code></a></h3>
 <p>- MUST verify that the VRID is configured on the receiving interface and the local router is not the IPvX address owner (Priority = 255 (decimal)). (§7.1)</p>
-<p>Records cover only part of this requirement: tested &#34;the local router is not the IPvX address owner&#34;; gap &#34;Priority = 255&#34;; internal/plugins/vrrp/instance.go::onPacket is the boundary: Tested covers the address owner discarding an advertisement for its VRID in an IPv4 group configured checksum rfc5798-compatible, counted under the owner discard reason, and a non-owner in such a group processing it; Gap is every other address owner (Priority = 255): an IPv6 owner, and an IPv4 owner in a group in the default RFC 9568 mode, follow RFC 9568 erratum 8298, logging the advertisement and processing it rather than discarding it; they do not prove the whole requirement.</p>
+<p>Records cover only part of this requirement: tested &#34;the local router is not the IPvX address owner&#34;; gap &#34;Priority = 255&#34;; internal/plugins/vrrp/instance.go::onPacket is the boundary: Tested covers the address owner discarding an advertisement for its VRID in an IPv4 group configured checksum rfc5798-compatible, counted under the owner discard reason, and a non-owner in such a group processing it; Gap is every other address owner (Priority = 255): an IPv6 owner, and an IPv4 owner in a group in the default RFC 9568 mode, follow RFC 9568 erratum 8298, logging the advertisement and processing it rather than discarding it; they do not verify the whole requirement.</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc5798_owner_discard_test.go#L72" title="internal/plugins/vrrp/rfc5798_owner_discard_test.go" target="_blank" rel="noopener"><code>TestRFC5798NonOwnerProcessesAdvertisement</code></a></td>
@@ -2169,7 +2169,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 5798 Section 7.1 says &#34;If any one of the above checks fails, the receiver MUST discard the packet&#34;. TestInstanceRxValidAdvertReachesFSM changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same. TestInstanceRxFailedCheckIsDiscarded is unchanged, and an overlay mutant giving instance.lookup the wrong checksum mode reddened both, so the discard path is still exercised end to end. The owner-check carve-out under erratum 8298 stands. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L549" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceRxDecodeErrorMapsReason</code></a></td>
@@ -2199,7 +2199,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-10-31 (independent auditor, authored none of 7682a5dc93). RFC 5798 Section 7.2 says &#34;The following operations MUST be performed when transmitting a VRRP packet: - Fill in the VRRP packet fields with the appropriate virtual router configuration state - Compute the VRRP checksum&#34;. 7682a5dc93 changed openV6 to open the RX socket on the instance MACVLAN instead of the parent (peer multicast with the shared virtual MAC is redirected to the PRIVATE macvlan); the TX socket still sets IPV6_CHECKSUM 6 (backend_linux.go), so on IPv6 the kernel still computes the checksum, and 0b9e085901 added panic boundaries only. The tagged units are byte-identical to the 2026-10-18 judgement: the fill clause and the opt-in IPv4 rfc5798-compatible checksum are proven by TestTransmittedAdvertFilledFromInstanceState, TestSendAdvertFillsFieldsAndChecksum, TestEncodeGoldenV3IPv4 and the TestBoundaryInterval negative, as the earlier overlay mutants showed. The IPv6 checksum clause remains unproven by any tagged unit: the transport test runs a fake backend whose IPv6 frame carries no checksum, and the IPv6 run of the instance test calls FillChecksum in the test body. Removing the IPV6_CHECKSUM setsockopt would leave every tagged unit green; only the integration-tagged QEMU units TestIntegrationOpenInstanceSocketOptions and TestIntegrationAdvertV6OnWire read it, and neither is tagged. Fix unchanged: tag one of them positive for this row and take its QEMU discrimination record. Verdict unchanged: weak.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L339" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestBoundaryInterval</code></a></td>
@@ -2229,7 +2229,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 5798 Section 7.2 says &#34;Set the source MAC address to virtual router MAC Address&#34; TestTxAdvertV4OnWire (v2 and v3) and TestTxAdvertV6OnWire capture the transmitted frame on the peer veth and compare its source MAC with the literals 00-00-5e-00-01-0a and 00-00-5e-00-02-0a, never the package constants. Single-polarity. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L437" title="internal/plugins/vrrp/packet/packet_test.go" target="_blank" rel="noopener"><code>TestConstants</code></a></td>
@@ -2254,7 +2254,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 5798 Section 7.2 says &#34;Set the source IPv4 address to interface primary IPv4 address&#34; TestTxAdvertV4OnWire adds a lower secondary 192.0.2.5/24 after the primary and requires the captured source to be the primary 192.0.2.251; TestTxAdvertV6OnWire requires the captured source to be the macvlan&#39;s link-local address; TestSendAdvertNoLinkLocalSkipsAndCounts (unchanged) is the negative. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L411" title="internal/plugins/vrrp/transport/transport_test.go" target="_blank" rel="noopener"><code>TestSendAdvertNoLinkLocalSkipsAndCounts</code></a></td>
@@ -2289,7 +2289,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 5798 Section 7.2 says &#34;Send the VRRP packet to the VRRP IPvX multicast group&#34; Both wire tests compare protocol/next header 112 and destination 224.0.0.18 / ff02::12 with literals from the captured frame. Single-polarity. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L47" title="internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go" target="_blank" rel="noopener"><code>TestTxAdvertV4OnWire</code></a></td>
@@ -2318,7 +2318,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L39" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC</code></a></td>
@@ -2338,7 +2338,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 5798 Section 8.1.2 says &#34;The Virtual Router Master MUST NOT respond with its physical MAC address in the ARP response.&#34; TestVRRPOwnerAnswersWithVirtualMACOnly (owner case; its helper ownerAwaitUsable now also syncs the macvlan receive filter before probing, outside the unit) sees the physical MAC as ARP sender hardware address without the owner filter, only the virtual MAC with it, and the physical MAC again once withdrawn; TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly gives the non-owner case with the recipe as control. ownerExpect fails on any MAC other than the two and requires the virtual MAC in every phase. The owner unit still t.Skipf&#39;s when the nft backend cannot load, as before. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L145" title="internal/plugins/vrrp/dataplane_linux_test.go" target="_blank" rel="noopener"><code>TestDataplaneRestoreOnLastGroup</code></a></td>
@@ -2388,7 +2388,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 5798 Section 8.1.2 says &#34;the Virtual Router Master MUST respond to the ARP request with an ARP response that indicates the virtual MAC address for the virtual router.&#34; TestVRRPOwnerAnswersWithVirtualMACOnly (owner case; its helper ownerAwaitUsable now also syncs the macvlan receive filter before probing, outside the unit) sees the physical MAC as ARP sender hardware address without the owner filter, only the virtual MAC with it, and the physical MAC again once withdrawn; TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly gives the non-owner case with the recipe as control. ownerExpect fails on any MAC other than the two and requires the virtual MAC in every phase. The owner unit still t.Skipf&#39;s when the nft backend cannot load, as before. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L59" title="internal/plugins/vrrp/owner_answer_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPOwnerAnswersWithVirtualMACOnly</code></a></td>
@@ -2418,7 +2418,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 5798 Section 8.1.1 says &#34;If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address.&#34; TestVRRPRedirectSourceFollowsVirtualMAC, otherwise unchanged, pins the reverse route through the parent with source 192.0.2.254, then requires each of two virtual MACs to draw a redirect sourced from its own virtual address and the physical MAC to draw one from 192.0.2.254. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L27" title="internal/plugins/vrrp/redirect_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPRedirectSourceFollowsVirtualMAC</code></a></td>
@@ -2438,7 +2438,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 5798 Section 8.2.1 says &#34;If a VRRP router is acting as Master for virtual router(s) containing addresses it does not own, then it must determine which virtual router the packet was sent to when selecting the redirect source address.&#34; TestVRRPIPv6RedirectFollowsVirtualMAC, otherwise unchanged, requires the ICMPv6 redirect for a datagram sent to each virtual MAC to come from a link-local held by that macvlan and by neither the other macvlan nor the parent, and the physical-MAC datagram&#39;s redirect from a parent link-local. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_v6_integration_linux_test.go#L42" title="internal/plugins/vrrp/redirect_v6_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPIPv6RedirectFollowsVirtualMAC</code></a></td>
@@ -2458,7 +2458,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/proxyarp_test.go#L67" title="internal/plugins/vrrp/proxyarp_test.go" target="_blank" rel="noopener"><code>TestNoProxyARPOnVRRPInterfaceAccepted</code></a></td>
@@ -2478,7 +2478,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 5798 Section 8.2.2 says &#34;The Virtual Router Master MUST NOT respond with its physical MAC address.&#34; TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly, otherwise unchanged, sees the physical MAC in the Target Link-Layer Address option with the address on the parent, only the virtual MAC once it lives on the macvlan, and no advertisement once removed; TestVRRPOwnerAnswersWithVirtualMACOnly gives the owner case with and without the owner filter. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L746" title="internal/plugins/vrrp/instance_test.go" target="_blank" rel="noopener"><code>TestInstanceIPv6VIPLivesOnVirtualMACDevice</code></a></td>
@@ -2528,7 +2528,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child&#39;s fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration &amp;&amp; linux. RFC 5798 Section 8.2.2 says &#34;the Virtual Router Master MUST respond to the ND Neighbor Solicitation message with the virtual MAC address for the virtual router.&#34; TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly, otherwise unchanged, sees the physical MAC in the Target Link-Layer Address option with the address on the parent, only the virtual MAC once it lives on the macvlan, and no advertisement once removed; TestVRRPOwnerAnswersWithVirtualMACOnly gives the owner case with and without the owner filter. Verdict enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L39" title="internal/plugins/vrrp/nd_nonowner_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly</code></a></td>
@@ -2566,7 +2566,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent, continuations 1-2): TestEngineWaitsForALateVirtualMACDevice (ipv6) runs the live macvlanCreator.create over a registry that creates the device 30ms late and a transport that refuses an absent device: order is device, install, Neighbor Advertisement; a device that never appears gives no instance, install or NA. Deleting the wait reddens the positive (records on register.go create, observed red). With TestEngineAnnouncesNothingBeforeTheVirtualMACDevice and TestInstanceDelaysAnnounceUntilParentUsable (address half). Kernel-originated RA/NS are outside ze&#39;s announce path and not observed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_late_device_test.go#L118" title="internal/plugins/vrrp/boot_late_device_test.go" target="_blank" rel="noopener"><code>TestEngineWaitsForALateVirtualMACDevice</code></a></td>
@@ -2618,7 +2618,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L100" title="internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go" target="_blank" rel="noopener"><code>TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal</code></a></td>
@@ -3701,7 +3701,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

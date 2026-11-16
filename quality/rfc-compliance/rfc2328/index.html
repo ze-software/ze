@@ -128,12 +128,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66</strong><b>of 67 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 67 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>66</strong><b>of 67 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 67 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 67 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 67 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 67 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 67 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>191</strong><b>191 of 218 tests linked to requirements, 2 without a fault test and 0 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>191</strong><b>191 of 218 tests linked to requirements, 2 without a fault test and 0 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 <article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>69</strong><b>of 67 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
@@ -141,9 +141,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 67 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 67 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 67 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 67 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 67 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 67 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 67 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -171,11 +171,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -187,7 +187,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -195,7 +195,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -276,7 +276,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> OSPFv2</p>
-<p><strong>Proof:</strong> 58 of 67 MUST proven</p>
+<p><strong>Test verification:</strong> 58 of 67 MUST proven</p>
 <p><strong>Evidence:</strong> unit 58</p>
 <p><strong>Unmet:</strong> -</p>
 
@@ -302,7 +302,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -323,9 +323,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc2328:must">Ze proven 58, Proof pending 9</div>
+<div data-ze-rfc-bar="rfc2328:must">Ze verified 58, Tests awaiting verification 9</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc2328:overview">Ze MUST proven 58, SHOULD proven 2, Proof pending 9, Not assessed 13</div>
+<div data-ze-rfc-bar="rfc2328:overview">Ze MUST verified 58, SHOULD verified 2, Tests awaiting verification 9, Not assessed 13</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -345,13 +345,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc2328:must.kept">67</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc2328:must.ze-proven">58</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc2328:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc2328:must.proof-pending">9</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -381,7 +381,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc2328:should.total">15</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc2328:should.proven">2</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -402,7 +402,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc2328:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc2328:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -417,7 +417,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -1251,24 +1251,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Gaps and untested MUSTs</h2>
 <p>RFC 2328 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc2328-a.3.1-1"><code>RFC2328-A.3.1-1</code></a></h3>
 <p>The version number field must specify protocol version 2. (§8.2)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting or emitting a Version other than 2. Red: TestOSPFHeaderRejectsBadVersionAndLength fails unless DecodeHeader returns ErrBadVersion for Version 3. Other polarity: TestOSPFHeaderRoundTrip fails unless every packet type written by WriteTo decodes, which needs the emitted Version octet to equal 2. One clause, both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_header_test.go#L153" title="internal/plugins/ospf/packet/rfc2328_header_test.go" target="_blank" rel="noopener"><code>TestOSPFHeaderRejectsBadVersionAndLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_header_test.go#L131" title="internal/plugins/ospf/packet/rfc2328_header_test.go" target="_blank" rel="noopener"><code>TestOSPFHeaderRoundTrip</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1278,7 +1278,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c20 judge: independent arithmetic (test-side RFC 1071 fold) for both sides. TestRFC2328PacketChecksumCoversHeaderExcludesAuth: with a simple password the generated field equals the reference over header+body excluding Auth, differs from the whole-packet sum, is unchanged by another password and moves with the Router ID. TestRFC2328PacketChecksumWrongRangeRefused: VerifyPacketChecksum refuses an Auth-included and a body-excluded checksum, accepts the correct one. Revert records PacketChecksum (+), VerifyPacketChecksum (-).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go#L61" title="internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go" target="_blank" rel="noopener"><code>TestRFC2328PacketChecksumWrongRangeRefused</code></a></td>
@@ -1308,37 +1308,37 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: (a) checksum covering LS age: TestOSPFLSAChecksumExcludesAge fails when the LS age octets are mutated and the LSA stops verifying, and TestOSPFLSAChecksum checks independent Fletcher sums over lsa[2:length] (not VerifyLSAChecksum&#39;s shared code); (b) an unchecked covered region: mutating Options must fail VerifyLSAChecksum; (c) accepting LS Checksum 0: TestRFC2328ZeroLSChecksumRejected solves the Fletcher sums to zero with the field zero, so only the zero rule can reject, and fails if VerifyLSAChecksum accepts it. Positive: the encoded LSA verifies with a non-zero backfilled checksum. Every clause has its assertion. Re-judged 2026-09-27 after the RFC905-x-6 tags moved here (J102). TestOSPFLSAChecksumExcludesAge now also carries the negative tag for the covered-octet mutation, clause (b). TestFletcherRFC905Vectors and TestFletcherIgnoresLSAge (ospf/types) add positives: the first pins 0x15ff over the window from Options, and the second shows LS Age mutation leaves the checksum unchanged. The verdict is unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L96" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksumExcludesAge</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_test.go#L10" title="internal/plugins/ospf/packet/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328ZeroLSChecksumRejected</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L72" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksum</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L98" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFLSAChecksumExcludesAge</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L46" title="internal/plugins/ospf/types/checksum_test.go" target="_blank" rel="noopener"><code>TestFletcherIgnoresLSAge</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L26" title="internal/plugins/ospf/types/checksum_test.go" target="_blank" rel="noopener"><code>TestFletcherRFC905Vectors</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1348,7 +1348,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Both steps proven on the real wire path: TestRFC2328DiscardedLSAThenNextLSAProcessed encodes one LS Update (bad-checksum LSA, or LS type 6 with a valid Fletcher, then a good router-LSA) and dispatches it through the engine from an Exchange neighbor; the bad LSA is neither stored nor acknowledged and the next is installed and acknowledged. Red against the pre-fix producers (ReceiveUpdate returned on the first bad checksum; DecodeLSUpdate failed the whole packet on an unknown type). D-8 fix read at the producer: LSAIterator.Next advances at least 20 octets per pass and a truncated or short Length still ends the packet with an error (fuzzed 20 s each, iterator and DecodePacket); skipped LSAs count against # LSAs. The DecodeLSReq unit lost its 13-1 tag (LS Request decoder, D-15).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L17" title="internal/plugins/ospf/lsdb/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328BadLSChecksumDiscarded</code></a></td>
@@ -1378,7 +1378,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. c20 judge: both clauses on the real flood path. Into: TestRFC2328ASExternalNotFloodedIntoStubArea, four-area ABR, Type-5 received on eth0 and self-originated, reaches the normal-area control eth3 and never leaves the stub eth1 or NSSA eth2, no stub/NSSA retransmission entry (red with eligibleInterface reverted). Throughout: TestRFC2328ASExternalFromStubInterfaceGoesNowhere, Type-5 from the stub/NSSA neighbor not installed and flooded out no interface, eth1 back included (red with shouldDropByArea reverted). Old helper-only units kept as supplementary. Helper rename by sed re-read: lsaFloodedOn consistent, no leftover.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L248" title="internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go" target="_blank" rel="noopener"><code>TestOSPFStubAreaDropsType5</code></a></td>
@@ -1408,7 +1408,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Engine drop now exercised: LS Updates dispatched through eng.dispatch from an unknown neighbor, Init, and ExStart are not stored and draw no LS Ack or LS Update even after FlushDelayedAcks; the same packet after Exchange is installed and acknowledged. Disabling the AcceptsFlooding drop in handleLSUpdate turns all three negatives red. 2-Way (not reachable on point-to-point) stays on the neighbor-package AcceptsFlooding units, which gate the same call.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L20" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328FloodingRequiresExchangeOrHigher</code></a></td>
@@ -1438,7 +1438,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 13-3. Negative: LS Acks from 2.2.2.2 in Init and in ExStart are each dropped with reason state (2) and transmit nothing. Positive: from Exchange the LS Ack removes the summary-LSA from the retransmission list (a later tick resends nothing). Records on handleLSAck and AcceptsFlooding.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_active_neighbor_test.go#L209" title="internal/plugins/ospf/rfc2328_active_neighbor_test.go" target="_blank" rel="noopener"><code>TestRFC2328LSAckBelowExchangeDiscarded</code></a></td>
@@ -1458,7 +1458,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c20 judge: order and signedness now discriminated. TestRFC2328FreshnessStepsAppliedInOrder pits an earlier step against a later one in both argument orders (sequence over checksum+MaxAge, unsigned 0x8001 over 0x7FFF against MaxAge, MaxAge over age, age &gt; MaxAgeDiff, MaxSequenceNumber over InitialSequenceNumber signed); TestRFC2328LessRecentByEarlierStepRefused through ReceiveUpdate (past MinLSArrival) keeps the database copy against a lower sequence or smaller checksum at MaxAge. Matrix and Older-sequence units kept. Revert records both polarities on CompareHeaders; author overlays (order swaps, signed checksum, unsigned sequence) red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go#L55" title="internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go" target="_blank" rel="noopener"><code>TestRFC2328LessRecentByEarlierStepRefused</code></a></td>
@@ -1488,17 +1488,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: acknowledging, or sending the database copy back for, an LSA received while the database copy is MaxAge at MaxSequenceNumber. Red: TestOSPFMaxSeqMaxAgeSilentDiscard installs a MaxSequenceNumber copy aged to MaxAge, receives an older instance, flushes delayed acks, and fails on any send. Other polarity: TestRFC2328OlderInstanceGetsDatabaseCopyBack fails if an ordinary more-recent copy is not sent back to the sender (so a blanket silent discard goes red). One clause, both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L54" title="internal/plugins/ospf/lsdb/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328OlderInstanceGetsDatabaseCopyBack</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go#L19" title="internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go" target="_blank" rel="noopener"><code>TestOSPFMaxSeqMaxAgeSilentDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1508,7 +1508,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Clauses: (a) flooded LSAs go on the adjacency&#39;s retransmission list: TestOSPFFloodOutOtherInterfaces + (eth1 Full neighbor queued; record on queueRetransmit observed red) and TestOSPFFloodQueuesExchangeAndLoadingNeighbors - (2-Way and the receiving neighbor never queued; record on isFloodEligibleNeighborState observed red). (b) retransmitted until acknowledged, every configurable per-interface RxmtInterval: TestRFC2328RetransmitEveryConfiguredRxmtInterval parses a real OSPFv2 config (eth1 retransmit-interval 3, eth2 11, eth0 default), takes RxmtInterval from engine.lsdbTopology, floods via ReceiveUpdate and ticks RetransmitTick each second 1..24: + eth1 at 3,6,9,12 and eth2 at 11,22 (repeated, per interface); - nothing on any other second, so a hard-coded 5 s or a single retransmission fails, and after eth1&#39;s ack at 12 no eth1 resend at 15..24 while unacknowledged eth2 still resends at 22. Exact per-second set compared, buffers isolated (one LSA, one neighbor per interface). TestOSPFRetransmitTimer keeps its earlier default-interval pin. Records on RetransmitTick observed red for both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L57" title="internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go" target="_blank" rel="noopener"><code>TestOSPFFloodQueuesExchangeAndLoadingNeighbors</code></a></td>
@@ -1543,7 +1543,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clauses: LS age incremented by InfTransDelay and capped at MaxAge: TestRFC2328FloodIncrementsAgeByInfTransDelay (unchanged; records on floodCopy). The &#39;(which must be &gt; 0)&#39; clause: TestRFC2328TransmitDelayMustBePositive + an OSPFv2 interface with transmit-delay 1 accepted by validateConfig, - transmit-delay 0 refused with ErrTransmitDelayZero (the config.go validateConfigAF check that production reaches through register.go validateConfig); each case its own single-interface config, so the refusal is this rule&#39;s and no other. Records on validateConfigAF observed red for both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go#L106" title="internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go" target="_blank" rel="noopener"><code>TestRFC2328FloodIncrementsAgeByInfTransDelay</code></a></td>
@@ -1573,22 +1573,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: (a) LS age incremented past MaxAge: TestLSAgeAddSaturates fails unless MaxAge-10 plus 20 equals MaxAge exactly, and TestOSPFLSDBAgeToPurge fails unless the aged LSA sits at MaxAge; (b) a MaxAge LSA used in the routing calculation: TestOSPFGraphSkipsMaxAge fails if BuildGraph makes a router vertex of a MaxAge router-LSA. The fixture is isolated: BuildGraph (graph.go) turns a decodable non-MaxAge router-LSA into a vertex with no other filter, so only the age check can exclude it. Positive: age advances and saturation leaves DoNotAge untouched.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_graph_test.go#L40" title="internal/plugins/ospf/spf/rfc2328_graph_test.go" target="_blank" rel="noopener"><code>TestOSPFGraphSkipsMaxAge</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_aging_test.go#L34" title="internal/plugins/ospf/lsdb/rfc2328_aging_test.go" target="_blank" rel="noopener"><code>TestOSPFLSDBAgeToPurge</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc2328_lsage_test.go#L39" title="internal/plugins/ospf/types/rfc2328_lsage_test.go" target="_blank" rel="noopener"><code>TestLSAgeAddSaturates</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1598,7 +1598,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. TestOSPFPurgeRetainedForExchangeOrLoading now drives Exchange and Loading each on a fresh database: the purged LSA is kept while that neighbor exists and removed once it leaves, so a guard holding for one state only goes red (record on hasExchangeOrLoadingForKey, the clause b guard). Clause a and the dedicated rfc2328_maxage_exchange_test pair unchanged; positives recorded on deletePurgedIfAcked.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L384" title="internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go" target="_blank" rel="noopener"><code>TestOSPFPurgeRetainedForExchangeOrLoading</code></a></td>
@@ -1628,7 +1628,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. c20 judge: TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate reaches the ordinary newer-LSA ack through ReceiveUpdate, not hand-set flags: point-to-point, DROther and Backup (from the DR) each send an LS Ack carrying the header on eth0 after FlushDelayedAcks; the DR receiving from a DROther acks implicitly by flooding back out eth0. Negative TestOSPFDRRefloodsBackOutReceivingInterface (flooded back, implicit ack, no explicit ack, Table 19) now carries a judge-observed revert record on ackForReceive. Direct ack of unknown MaxAge held by TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go#L80" title="internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go" target="_blank" rel="noopener"><code>TestOSPFDRRefloodsBackOutReceivingInterface</code></a></td>
@@ -1658,7 +1658,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). The round 4 defect is fixed: flushReceivedSelfLSA now installs and refloods the received instance at MaxAge with its own sequence (Section 14.1 &#39;while leaving its LS sequence number alone&#39;), and TestOSPFSelfOriginatedNoLocalCopyFlush asserts the received sequence, MaxAge and a flood through ReceiveUpdate. Detection by Router ID and by network-LSA own interface address, and the three foreign negatives, in rfc2328_self_detect_test. Records on flushReceivedSelfLSA and handleSelfReceived.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go#L86" title="internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go" target="_blank" rel="noopener"><code>TestRFC2328ForeignLSANotTakenAsSelfOriginated</code></a></td>
@@ -1688,7 +1688,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). TestOSPFOriginateSelfReceivedHigherSeq now proves the new instance: database sequence received+1, LS age 0, and an LS Update carrying that sequence below MaxAge is flooded (Section 12.4: age set to 0, added to the database and flooded). Negative: an older self copy leaves the sequence unchanged. Records on handleSelfReceived.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_self_older_test.go#L17" title="internal/plugins/ospf/lsdb/rfc2328_self_older_test.go" target="_blank" rel="noopener"><code>TestRFC2328SelfReceivedOlderIsNotReoriginated</code></a></td>
@@ -1708,7 +1708,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). Positive: a withdrawn summary received again at a higher sequence stays at MaxAge in the database with the received sequence (Section 14.1) and a MaxAge LS Update is reflooded; a network-LSA with an own address and another Advertising Router is flushed at MaxAge and reflooded. Negative: a still-originated router-LSA is re-originated at received+1 below MaxAge and never flooded at MaxAge. Records on flushReceivedSelfLSA and handleSelfReceived.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_self_flush_test.go#L81" title="internal/plugins/ospf/lsdb/rfc2328_self_flush_test.go" target="_blank" rel="noopener"><code>TestRFC2328SelfOriginatedStillWantedIsNotFlushed</code></a></td>
@@ -1728,7 +1728,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c20 judge: every skip clause and the continuation. TestRFC2328SPFExaminesNextLinkAfterSkip: root lists links to a missing router-LSA, a MaxAge router-LSA, a router with no link back, and a transit net with no network-LSA BEFORE 5.5.5.5, which is still reached at 10 with only 192.0.2.0/24 at 15 routed. TestRFC2328SPFSkipsMissingOrMaxAgeVertex isolates missing/MaxAge for router and network LSAs with a below-MaxAge control. Link-back clause by TestOSPFSPFShortestPath / TestOSPFTwoWayCheck. Revert records Compute (+), BuildGraph (-).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_test.go#L31" title="internal/plugins/ospf/spf/rfc2328_spf_test.go" target="_blank" rel="noopener"><code>TestOSPFTwoWayCheck</code></a></td>
@@ -1758,7 +1758,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. All four orderings asserted: intra over external (route_test), inter-area at 100 over E1 and E2 at 1 (selectBestRoutes, both input orders), E1 over E2 regardless of metric (external_test), and among E2 the smallest advertised metric (7 via an ASBR 50 away) over 9 via an ASBR 1 away through ComputeExternal. Ranking inter-area below externals, or letting distance decide E2, turns the new units red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_external_test.go#L96" title="internal/plugins/ospf/spf/rfc2328_external_test.go" target="_blank" rel="noopener"><code>TestOSPFExternalE1PreferredOverE2</code></a></td>
@@ -1788,7 +1788,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. TestOSPFInterAreaRoute now runs in non-backbone area 0.0.0.1 on a single-area router, so it installs only if the router is judged not to be an ABR; TestRFC2328NonABRUsesItsAreaSummaries likewise. Negative TestOSPFABRBackboneOnlyAcceptance: the ABR ignores the cheaper area-1 summary. Records on ComputeInterAreaWith, whose abr gate (interarea.go:131) is the clause.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L76" title="internal/plugins/ospf/spf/rfc2328_interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFABRBackboneOnlyAcceptance</code></a></td>
@@ -1813,7 +1813,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. Each skip has its own unit. LSInfinity: TestOSPFInterAreaLSInfinityDropped asserts v4SummaryReader yields no record for a summary whose own cost is LSInfinity and no route installs through an ABR 10 away. MaxAge: TestRFC2328InterAreaSkipsMaxAgeSummary, reachable ABR, no route. Self: TestRFC2328InterAreaSkipsSelfSummary, root vertex carries a next hop so only the AdvertisingRouter == Root skip (interarea.go:141) keeps it empty. Positive TestOSPFInterAreaRoute installs the conforming summary.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L139" title="internal/plugins/ospf/spf/rfc2328_interarea_test.go" target="_blank" rel="noopener"><code>TestOSPFInterAreaLSInfinityDropped</code></a></td>
@@ -1853,7 +1853,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First judgement 2026-10-21. RFC 2328 16.4 (1): If the cost specified by the LSA is LSInfinity, or if the LSA LS age is equal to MaxAge, then examine the next LSA; (2) self-originated, examine the next. Positive TestOSPFExternalE1Cost installs a conforming external through its ASBR (record ComputeExternalWith). Negative TestOSPFExternalLSInfinityDropped: v4ExternalReader yields no record for an LSA whose own cost is LSInfinity and nothing installs through an ASBR 10 away (record v4ExternalReader). Negative TestRFC2328ExternalSkipsMaxAgeAndSelf: a MaxAge external and one advertised by the root, whose ASBR entry is the root at cost 10, install nothing. The two skips share one unit and one revert record, so the record cannot say which assertion went red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_external_test.go#L62" title="internal/plugins/ospf/spf/rfc2328_external_test.go" target="_blank" rel="noopener"><code>TestOSPFExternalLSInfinityDropped</code></a></td>
@@ -1878,17 +1878,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a Simple-password packet whose 64-bit authentication field differs from the configured password. Red: TestRFC2328SimplePasswordMismatchDiscarded fails if a packet signed with &#39;badpass&#39; is accepted, and fails unless the reason is exactly password-mismatch (isolated: the AuType matches). Other polarity: the same unit fails if the configured &#39;goodpass&#39; is rejected. One clause, both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L99" title="internal/plugins/ospf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328SimplePasswordMismatchDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L95" title="internal/plugins/ospf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328SimplePasswordMismatchDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1898,7 +1898,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment of RFC 2328 Appendix D.3: &#34;The message digest appended to the OSPF packet is not actually considered part of the OSPF protocol packet: the message digest is not included in the OSPF header&#39;s packet length, although it is included in the packet&#39;s IP header length field.&#34; Read all three tagged units and the transport/signing boundary. SignVerifyCrypto asserts unchanged Packet Length and exact appended digest length; RejectsExtraTrailerBytes verifies exact framing and refuses one extra byte. The moved transport unit drives both SendPacket and SendPacketRouted with keyed MD5 and asserts exactly one 44+16-byte payload at the fake InterfaceHandle, OSPF length 44, and trailing digest equal to an independent padded-key MD5. Current production transport passes the signed payload unchanged to InterfaceHandle; Linux Send/SendRouted pass the complete payload to unix.Sendto on raw protocol-89 sockets. This proves the Ze-side socket-payload boundary; the tagged unit does not capture an actual IP header or execute the kernel. The old note&#39;s unqualified claim of observed IP length is not repeated. The moved transport unit retains exact payload, Packet Length and independent digest assertions. Verdict enforced at this transport boundary. Stored producer-halt records were read but not replayed; the SendPacket halt alone is reachability evidence and does not independently discriminate the routed branch. No checks ran.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L225" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsExtraTrailerBytes</code></a></td>
@@ -1923,7 +1923,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). Positive: TestOSPFAuthReplay accepts 10, 11, 11 then rejects 10, true only if 11 was stored. New negative TestRFC2328FailedAuthenticationLeavesSequenceAlone: after a genuine Hello at 10, a Hello at 1000 with a wrong digest is digest-mismatch and the per-neighbor slot stays 10, then a genuine 12 verifies and is stored; a store before the digest check turns it red (record on verify). The off-row tag on TestNeighborDownResetsCryptoSeq is gone.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L117" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
@@ -1953,7 +1953,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from D.3-2. Positive: five Hellos signed through the engine on eth0, across a key change, each carry a sequence not below the previous (record on signKey); AuType 2 accepts equal and higher sequences. Negative: Hellos at 5 and 10 below the last accepted 11 are discarded with reason replay although their digest verifies (record on verify).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L118" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplay</code></a></td>
@@ -1978,7 +1978,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Non-compliant behaviour: an AuType 2 packet whose standard-header Checksum is calculated rather than set to 0. TestOSPFPacketChecksumZeroForAuType2 encodes a cryptographic-auth Hello through WriteTo and fails (&#39;AuType2 checksum = %#04x, want 0&#39;) on any non-zero field. Single-polarity positive per the row&#39;s marker: the rule is generate-side and there is no receive path to reject.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L53" title="internal/plugins/ospf/packet/checksum_test.go" target="_blank" rel="noopener"><code>TestOSPFPacketChecksumZeroForAuType2</code></a></td>
@@ -1993,7 +1993,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). TestOSPFAuthReplayPerNeighborAuType2, for MD5 and HMAC-SHA-256: after a Hello at 100, an LS Ack at 5 from the same neighbor is discarded as replay under either key (one per-neighbor slot, replaySlotFor), and LS Acks at 100 and 101 are accepted, so only &#39;less than&#39; discards. Per-type slots or a &lt;= comparison turn it red. Records on replaySlotFor.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L225" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplayPerNeighborAuType2</code></a></td>
@@ -2013,22 +2013,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a DD sent over a virtual link carrying a non-zero Interface MTU. Red: TestRFC2328VirtualLinkDBDescCarriesZeroMTU fails on any sent DD with InterfaceMTU != 0 over the MTU-less virtual interface, and TestRFC2328VirtualInterfaceHasNoMTU fails unless the engine-created virtual interface reports MTU 0 (so the DD stamps 0). Other polarity: the same units fail unless a real interface&#39;s DD carries 1500 and the real interface reports a non-zero MTU, so a blanket zero goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L63" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualLinkDBDescCarriesZeroMTU</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L58" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualLinkDBDescCarriesZeroMTU</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L32" title="internal/plugins/ospf/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualInterfaceHasNoMTU</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2038,7 +2038,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. TestOSPFDDRetransmit now requires the retransmitted DD to equal the outstanding one (sameDD), not merely be a DD. The dedicated pair TestRFC2328MasterHoldsOneOutstandingDD / TestRFC2328MasterSendsNoSecondDDWithoutAck is unchanged: a master with more than one DD of headers sends only DD n until acked. Records on resendLastDDLocked and handleExchangeDDLocked.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go#L118" title="internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go" target="_blank" rel="noopener"><code>TestRFC2328MasterSendsNoSecondDDWithoutAck</code></a></td>
@@ -2068,22 +2068,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an LS Request for an LSA absent from the database not generating BadLSReq. Red: TestOSPFBadLSReqRestart fails on HandleLSReq != reasonBadLSReq, on state != exstart, and on the resent DD not being the initial I|M|MS DD. Other polarity: TestOSPFValidLSReqSendsLSUpdate and TestRFC2328KnownLSRequestDoesNotRestartExchange go red if a satisfiable request restarts the exchange (state change, exstart) or is not answered with one LS Update carrying that LSA. One clause, both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L914" title="internal/plugins/ospf/neighbor/rfc2328_nsm_test.go" target="_blank" rel="noopener"><code>TestOSPFValidLSReqSendsLSUpdate</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L121" title="internal/plugins/ospf/neighbor/rfc2328_test.go" target="_blank" rel="noopener"><code>TestRFC2328KnownLSRequestDoesNotRestartExchange</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L741" title="internal/plugins/ospf/neighbor/rfc2328_nsm_test.go" target="_blank" rel="noopener"><code>TestOSPFBadLSReqRestart</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2093,7 +2093,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge). Explicit cost 0 stays refused (TestInterfaceCostAndTransmitDelayBoundary). The unset-cost gap is closed: TestRFC2328DefaultedInterfaceCostIsPositive resolves interfaces from config text with no cost leaf and reads interfaceCost, the one producer every consumer uses (instance.go Router-LSA and routing-table cost, ldp_sync.go, te_originate.go): 1 Gbit/s under 100 Gbit/s -&gt; 100, and the inputs that divide to 0 (100 Gbit/s under a 1 Mbit/s reference, unknown speed) -&gt; 1. Records: revert on interfaceCost (positive) and on DefaultMetric (negative); a mutant dropping DefaultMetric&#39;s MetricMin clamp would be sharper.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_config_interface_validate_test.go#L17" title="internal/plugins/ospf/rfc2328_config_interface_validate_test.go" target="_blank" rel="noopener"><code>TestInterfaceCostAndTransmitDelayBoundary</code></a></td>
@@ -2123,7 +2123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an ABR attached to a stub area not advertising a default route into it via a summary-LSA. Red: TestRFC2328StubAreaGetsDefaultSummary fails unless the stub area holds a Type 3 summary with Link State ID 0.0.0.0, mask 0.0.0.0 and the configured cost 5. Other polarity: TestRFC2328NormalAreaGetsNoDefaultSummary fails if a normal area receives one, and still checks the ordinary summary is originated. One clause, both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L53" title="internal/plugins/ospf/spf/rfc2328_abr_summary_test.go" target="_blank" rel="noopener"><code>TestRFC2328NormalAreaGetsNoDefaultSummary</code></a></td>
@@ -2143,7 +2143,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child&#39;s own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 4.4: &#34;Support for receiving and sending IP multicast datagrams, along with the appropriate lower-level protocol support, is required.&#34; TestOSPFTransportVethMulticastRoundTrip and TestOSPFTransportAllDRoutersReceive changed by the guard and by the CAP_NET_RAW probe failing instead of skipping (stronger); withVethPair&#39;s namespace/veth refusals likewise fail now. Bodies otherwise unchanged: the round trip reads IP_MULTICAST_IF and TTL 1, sends AllSPFRouters across a veth into a peer namespace and asserts receiving interface, source and exact payload; AllDRouters is received after join (positive control) and not received after leave. The namespace the lab builds now sits inside the child&#39;s own network namespace, which removes host-route and host-rp_filter influence without changing any assertion. Proves Ze&#39;s socket/send/receive boundary, not Linux forwarding (not required). Records (setMulticastOptions, leaveGroup reverts) current.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L97" title="internal/plugins/ospf/transport/rfc2328_socket_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFMulticastMembershipRefusesForeignGroup</code></a></td>
@@ -2173,17 +2173,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a classful routing table (mask derived from address class) that cannot carry variable-length subnets or supernets. Red: TestRFC2328ClasslessPrefixesReachIPRIB fails unless 192.0.0.0/16 (a supernet of class-C networks), 192.0.2.0/24 and 192.0.2.128/25 (a variable-length subnet) each reach the IP Loc-RIB with its own next hop. Other polarity: TestRFC2328ClasslessWithdrawalPreservesOverlaps fails if withdrawing the /24 removes the /16 or the /25. Both the VLSM and the supernet clause have a prefix that a classful table would lose.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_classless_test.go#L51" title="internal/plugins/ospf/spf/rfc2328_classless_test.go" target="_blank" rel="noopener"><code>TestRFC2328ClasslessWithdrawalPreservesOverlaps</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_classless_test.go#L34" title="internal/plugins/ospf/spf/rfc2328_classless_test.go" target="_blank" rel="noopener"><code>TestRFC2328ClasslessPrefixesReachIPRIB</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2193,7 +2193,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against RFC 2328 Section 4.4 lower-level protocol support: &#34;Indications must be passed from these protocols to OSPF as the network interface goes up and down.&#34; Read all three tagged units and registration/dispatch producers. The moved transport positive requires opening eth0, matching up callback ifindex/name, no premature down, matching down callback and closed handle. The negative uses a non-enabled interface and requires no socket and zero callbacks. The separate engine positive builds the real transport over a fake backend, establishes a non-down neighbor on a point-to-point OSPF interface, then requires actual interface Down and neighbor down after HandleLinkDown and Point-to-point after HandleLinkUp. Thus transport callbacks alone cannot masquerade as delivery to OSPF. instance.go registers both engine callbacks; onInterfaceDown marks the running interface down and onInterfaceUp restarts it. The current transport unit still asserts these outcomes after its comment/directive drift. Verdict enforced. These are injected link indications, not a kernel carrier-event test. Existing records were read, not replayed or independently freshness-verified. No checks ran.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_link_test.go#L45" title="internal/plugins/ospf/transport/rfc2328_link_test.go" target="_blank" rel="noopener"><code>TestOSPFTransportPassesNoIndicationForNonOSPFInterface</code></a></td>
@@ -2218,7 +2218,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child&#39;s own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 8.1: &#34;On these interfaces, the IP source should be set to any of the other IP addresses belonging to the router.  For this reason, there must be at least one IP address assigned to the router.&#34; Unit changes read: the guard; CAP_NET_RAW probe fails instead of skipping; and the positive now adds a link-scope route to the peer&#39;s 10.255.0.2/32 over the unnumbered device, because the child namespace has no host default route and loose rp_filter needs a route back to the reply&#39;s source. That route is what OSPF would install on a real unnumbered link; it has no preferred source, so it cannot supply the donor address, and it does not bear on the outgoing multicast&#39;s source, which the test still compares exactly: getsockopt IP_MULTICAST_IF == donor, and the peer reads the IP header source == 10.255.0.1 with the exact payload. The reply to AllSPFRouters must still arrive on the unnumbered device&#39;s socket, so the membership-on-the-borrower assertion is intact. The removed comment about Alpine&#39;s strict rp_filter described the old host and is correctly replaced. Negative TestOSPFRefusesDeviceWithoutRouterAddress: guard only; with no IPv4 address in the namespace and a kernel control proving the join works without one, the backend must refuse and name the missing address. Mutant records (multicastDevice ifindex-&gt;0; interfaceIPv4 error-&gt;nil) were re-recorded in d8427e4380 and are current per the gate. The setReversePath comment change is accurate to the new lab.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go#L101" title="internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFRefusesDeviceWithoutRouterAddress</code></a></td>
@@ -2238,17 +2238,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Each listed test has both polarities through deliverDatagram, the Linux receive path. IP checksum: the &#39;checksum&#39; case fails if a datagram with a broken header checksum is delivered. Destination: accepted for the interface address, AllSPFRouters and AllDRouters (TestOSPFReceiveAcceptsValidIPv4Envelope fails if any is rejected or not delivered), &#39;destination&#39; case fails if a foreign address is delivered. Protocol: &#39;protocol&#39; case (17) fails if delivered, while the valid datagrams carry 89. Rejections also assert one drop recorded and nothing on recvCh.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_backend_linux_test.go#L158" title="internal/plugins/ospf/transport/rfc2328_backend_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFReceiveRejectsInvalidIPv4Envelope</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_backend_linux_test.go#L137" title="internal/plugins/ospf/transport/rfc2328_backend_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFReceiveAcceptsValidIPv4Envelope</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2258,7 +2258,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c10/c11). Case (1) as the prior judgement: Area-ID clause TestOSPFReceiveAcceptsMatchingAreaID + / TestOSPFReceiveDropsMismatchedAreaID -; source clause under the interface mask TestOSPFReceiveDropsOffNetworkSourceOnBroadcast -, TestOSPFReceiveAcceptsOnNetworkSourceOnBroadcast +, point-to-point skip TestOSPFReceiveAcceptsOffNetworkSourceOnPointToPoint +. Case (2), the gap of the prior verdict, now proven through engine.acceptsArea on an ABR fixture (eth0 transit 0.0.0.1, eth1 backbone, eth2 0.0.0.2, VL to 10.0.0.2 resolved): TestRFC2328VirtualLinkAreaIDAccepted + (backbone header from the VL endpoint on the Transit-area interface accepted); TestRFC2328VirtualLinkAreaIDRefused - with one assertion per clause, each discriminated by a targeted overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) of virtualLinkTargetLocked: dropping the backbone check -&gt; red at the non-backbone 0.0.0.2 assertion; dropping the neighbor Router ID match -&gt; red at the 9.9.9.9 assertion; dropping the Transit-area match -&gt; red at the eth2 assertion. The recorded negative red is the panic stub; these mutants are the clause-level evidence. &#39;Receiving router must be an ABR&#39; is structural: a configured virtual link attaches the router to the backbone, and no separate refusal path exists. Behaviour note (R42, documented in ospf-4-component-config.md): only the interface&#39;s first IPv4 address/prefix forms the OSPF interface, so a neighbour on a secondary subnet is dropped.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_source_test.go#L68" title="internal/plugins/ospf/rfc2328_receive_source_test.go" target="_blank" rel="noopener"><code>TestOSPFReceiveDropsOffNetworkSourceOnBroadcast</code></a></td>
@@ -2303,7 +2303,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent judge) after both negatives moved to receiveEngineMetered (registry installed before openInterfaces, so the neighbor table knows eth0) and gained a control that the same Hello signed AuType 1 forms the neighbor on the same engine, which makes the &#39;no neighbor&#39; assertion able to fail. RFC 2328 s8.2 quoted; Appendix D makes AuType per-interface, so comparing against the interface key chain&#39;s AuType (authStore.verify) is the RFC&#39;s associated value. Targeted overlays, observed: disabling only &#39;if h.AuType != keys[0].auType&#39; reddens both null-into-password negatives (dropped 0, want 1); disabling only the no-key-chain non-Null refusal reddens TestRFC2328PasswordAuTypeIntoNullAreaDropped (dropped 0, want 1); renaming that reason to password-mismatch reddens both reason assertions, so the drop is attributed to the AuType check. Positive TestOSPFReceiveAcceptsMatchingAuType (AuType 1 into AuType 1, neighbor forms) unchanged. Residual, not a defect: TestOSPFReceiveDropsMismatchedAuType and TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType now carry the same input and assertions (one test under two tags); the reverse negative asserts no reason label; the recorded discrimination breaks are whole-body panics, weaker than the line overlays above.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_autype_test.go#L48" title="internal/plugins/ospf/rfc2328_autype_test.go" target="_blank" rel="noopener"><code>TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType</code></a></td>
@@ -2333,7 +2333,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 8.2-3. Through the real dispatcher on a keyed-MD5 interface: a Hello signed with the configured key is not dropped and forms a neighbor; the same Hello signed with another key (AuType and Key ID matching) is dropped once and forms none, isolating the digest check. Records on auth_wiring.go::verifyPacket.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_packet_authenticated_test.go#L53" title="internal/plugins/ospf/rfc2328_packet_authenticated_test.go" target="_blank" rel="noopener"><code>TestRFC2328UnauthenticatedPacketDropped</code></a></td>
@@ -2353,7 +2353,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 8.2-3. Negative: DD, LS Request, LS Update and LS Ack from 9.9.9.9 (no Hello) are each dropped with reason neighbor (4), create no neighbor, install nothing, transmit nothing. Positive: from the Exchange neighbor 2.2.2.2 the LS Update is installed and the LS Ack clears the retransmission, with no neighbor/state drops. Records on neighbor/table.go::AcceptsFlooding.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_active_neighbor_test.go#L143" title="internal/plugins/ospf/rfc2328_active_neighbor_test.go" target="_blank" rel="noopener"><code>TestRFC2328NonHelloFromUnknownRouterDropped</code></a></td>
@@ -2373,7 +2373,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: the Designated Router for a network not originating its network-LSA. Red: TestRFC2328DROriginatesNetworkLSA fails unless OriginateFromTopology produces a network-LSA for eth1 (where 1.1.1.1 is DR) listing exactly [1.1.1.1 3.3.3.3]. Other polarity: TestRFC2328NonDROriginatesNoNetworkLSA fails if the Backup on eth0 originates one. One clause, both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L408" title="internal/plugins/ospf/lsdb/rfc2328_flooding_test.go" target="_blank" rel="noopener"><code>TestRFC2328NonDROriginatesNoNetworkLSA</code></a></td>
@@ -2393,7 +2393,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c20 judge: eligible router to every eligible neighbor (TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor) and DROther skipping priority-0 neighbors (negative TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor); DR and Backup sending to the priority-0 neighbor too (TestRFC2328NBMAHelloTargetsByRole dr/backup, red under an overlay gating priority-0 in every state). Ineligible-router clause: the subtest asserts a priority-0 DROther targets both DR and BDR; no producer branch reads the router&#39;s own priority (it sends to every eligible neighbor, a superset the sentence allows), so no targeted overlay exists; the assertion fails on any producer that drops DR or BDR from that router&#39;s targets, and the unit&#39;s revert record is observed red. Single positive for that clause is the sentence&#39;s own shape (no MUST NOT).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_test.go#L92" title="internal/plugins/ospf/iface/rfc2328_dr_test.go" target="_blank" rel="noopener"><code>TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor</code></a></td>
@@ -2418,7 +2418,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 9.5.1-1. Positive: Start brings an eligible NBMA interface to Waiting and a unicast Hello reaches the configured neighbor within 1.5 s while still Waiting. Negative: a stopped interface (Down) sends nothing over 2.5 s after Stop, which a Hello timer surviving InterfaceDown breaks; the never-started half is weaker but harmless. Records on iface.go Start and Stop.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_nbma_hello_state_test.go#L80" title="internal/plugins/ospf/iface/rfc2328_nbma_hello_state_test.go" target="_blank" rel="noopener"><code>TestRFC2328NBMANoHelloWhileDown</code></a></td>
@@ -2438,7 +2438,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a Hello whose Network Mask, HelloInterval or RouterDeadInterval differs from the receiving interface. Red: TestRFC2328HelloMismatchRejectedAndNoTwoWayUnlisted mutates each of the three fields separately and fails unless ReceiveHello returns that field&#39;s drop reason and no neighbor is created (processing stopped). Other polarity: TestRFC2328HelloMatchingParametersAndTwoWay fails if a matching Hello is refused. Every listed field has its own case.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_hello_test.go#L35" title="internal/plugins/ospf/iface/rfc2328_hello_test.go" target="_blank" rel="noopener"><code>TestRFC2328HelloMismatchRejectedAndNoTwoWayUnlisted</code></a></td>
@@ -2458,7 +2458,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 10.5-1. Through Table.Hello: a Hello listing this router moves an Init neighbor to 2-way (broadcast, not DR/BDR) and a first-heard p2p neighbor to exstart; a Hello not listing it leaves a p2p neighbor in init over three Hellos and takes a 2-way neighbor back to init. Records on table.go::hello.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_hello_twoway_test.go#L43" title="internal/plugins/ospf/neighbor/rfc2328_hello_twoway_test.go" target="_blank" rel="noopener"><code>TestRFC2328HelloNotListingRouterRunsOneWayReceived</code></a></td>
@@ -2478,7 +2478,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 4 judge). Units changed only by added 10.6-2/10.6-3 tag lines. Positive TestRFC2328SlaveResendsLastDDInLoadingAndFull: in Loading and Full a duplicate of the master&#39;s last DD at 0 s and RouterDeadInterval-1 s draws exactly one packet, sameDD as the slave&#39;s last DD, state unchanged; TestRFC2328SlaveRepliesAndRepeatsOnDuplicate covers the Exchange duplicate. Negatives: a non-duplicate (Init DD 99, new DD 101) is SeqNumberMismatch to ExStart with an Init DD, never the last DD; out-of-sequence 101 in Exchange likewise. Records on resendLastDDLocked, sameDD, handleExchangeDDLocked.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_after_exchange_test.go#L103" title="internal/plugins/ospf/neighbor/rfc2328_dd_slave_after_exchange_test.go" target="_blank" rel="noopener"><code>TestRFC2328SlaveRepeatsOnlyForTheLastMasterDD</code></a></td>
@@ -2508,7 +2508,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). New TestRFC2328SlaveAcceptsAndAnswersNextDDInExchange: in Exchange the master&#39;s DD 100 after 99 is accepted (reason empty), the slave stores sequence 100 and stays in Exchange; negative DD 101 after 99 is SeqNumberMismatch to ExStart. Records on handleExchangeDDLocked for both.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go#L68" title="internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go" target="_blank" rel="noopener"><code>TestRFC2328SlaveRefusesOutOfSequenceDD</code></a></td>
@@ -2533,7 +2533,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). The Exchange-state reply is now asserted: DD 100 accepted as next in sequence draws exactly one slave DD with sequence 100, MS and I clear (record on handleExchangeDDLocked); the ExStart reply and the duplicate repeat stay pinned; an out-of-sequence DD draws a fresh Init DD, not a reply.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go#L70" title="internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go" target="_blank" rel="noopener"><code>TestRFC2328SlaveRefusesOutOfSequenceDD</code></a></td>
@@ -2558,7 +2558,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged c18. Clauses: (1) flush by premature aging AND reflooding, (2) wait for ALL adjacent neighbors&#39; acks, (3) then originate at InitialSequenceNumber. Positive TestRFC2328SequenceWrapFloodsFlushThenRestarts: the flush is decoded from LS Updates at MaxAge + MaxSequenceNumber out of eth0 AND eth1; after 2.2.2.2 and 3.3.3.3 both ack it is deleted; next origination is InitialSequenceNumber age 0 flooded out of both. Negative TestRFC2328SequenceWrapWaitsForEveryNeighbor (subtest per neighbor): one ack alone leaves it in the database, the next origination is the MaxAge instance at MaxSequenceNumber, and no InitialSequenceNumber instance is flooded, so a restart after the first ack goes red. Records: nextOwnSequenceForce and deletePurgedIfAcked, both polarities, observed red. Old flooding_test tags kept.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L194" title="internal/plugins/ospf/lsdb/rfc2328_flooding_test.go" target="_blank" rel="noopener"><code>TestRFC2328SequenceWrapWaitsForAck</code></a></td>
@@ -2588,7 +2588,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a lookup that ignores any element of the (LS type, Link State ID, Advertising Router) triple. + TestRFC2328LookupTellsApartLSAsSharingTwoElements: three LSAs from 4.4.4.4 (Router 4.4.4.4; Summary 4.4.4.4 differing only in type; Summary 9.9.9.9 differing only in LSID) each found by its own triple with its own sequence. - TestRFC2328LookupMissesWhenOneElementDiffers: a triple differing in LS type alone, LSID alone, or Advertising Router alone finds nothing. Records on lsdb.go::Lookup observed red; TestRFC2328LookupByTriple/NeedsFullTriple unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L174" title="internal/plugins/ospf/lsdb/rfc2328_flooding_test.go" target="_blank" rel="noopener"><code>TestRFC2328LookupNeedsFullTriple</code></a></td>
@@ -2618,7 +2618,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 4 judge). lsdb units changed only by added 16.7-1 tag lines. spf/rfc2328_unreachable_summary_test drives OriginateSummaries with a real LSDB: an unreached destination&#39;s Type 3 goes to MaxAge and is reflooded, the reachable one stays; lsdb tests pin FlushStaleSummaryLSAs at MaxAge plus a MaxAge LS Update, and no flush for a kept key.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L288" title="internal/plugins/ospf/lsdb/rfc2328_flooding_test.go" target="_blank" rel="noopener"><code>TestRFC2328AdvertisedSummaryNotFlushed</code></a></td>
@@ -2648,7 +2648,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 12.4-1. From InjectExternal/WithdrawExternal with 2.2.2.2 in Exchange: the withdrawn 10.6.0.0/16 AS-external-LSA is at MaxAge in the database and a MaxAge instance is flooded to the neighbor; the still-redistributed 10.8.0.0/16 stays below MaxAge and is not flooded at MaxAge. Records on origination.go::PurgeExternal.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_external_flush_test.go#L66" title="internal/plugins/ospf/rfc2328_external_flush_test.go" target="_blank" rel="noopener"><code>TestRFC2328ReachableExternalNotFlushed</code></a></td>
@@ -2668,7 +2668,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). New TestRFC2328SummaryFlushedWhenDeletedOrNoLongerAdvertisableToArea drives OriginateSummaries into a real LSDB: a deleted 10.20.0.0/24 goes to MaxAge and a MaxAge LS Update leaves eth1 while 10.10.0.0/24 stays; when area 0.0.0.2 turns totally stubby its 10.10.0.0/24 summary is flushed and reflooded on eth2 alone, area 0.0.0.1 keeps it below MaxAge with no MaxAge flood. lsdb pair keeps the kept-key negative. Records on FlushStaleSummaryLSAs.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L289" title="internal/plugins/ospf/lsdb/rfc2328_flooding_test.go" target="_blank" rel="noopener"><code>TestRFC2328AdvertisedSummaryNotFlushed</code></a></td>
@@ -2693,7 +2693,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: splitting the area&#39;s links over several router-LSAs, or omitting one. Red: TestRFC2328SingleRouterLSACarriesEveryLink fails unless exactly one router-LSA from 1.1.1.1 exists in the area and its body holds a transit link for each of the two interfaces. Other polarity: TestRFC2328RouterLSAExcludesOtherAreaLinks fails if an interface of area 0.0.0.1 is described in the backbone router-LSA, so &#39;links to the area&#39; is bounded. One clause, both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L354" title="internal/plugins/ospf/lsdb/rfc2328_flooding_test.go" target="_blank" rel="noopener"><code>TestRFC2328RouterLSAExcludesOtherAreaLinks</code></a></td>
@@ -2713,7 +2713,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 4 judge). abr_summary units changed only by added 12.4.3-2 tag lines. rfc2328_newly_attached_area_test: real LSDB, area attached with no own Router-LSA gets the intra-area and inter-area summaries and none of its own routes; abr_summary pins one Type 3 per backbone intra-area route with mask and metric, and range handling. Records on summaryDesiredForArea, OriginateSummaries, applyAreaRanges.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L103" title="internal/plugins/ospf/spf/rfc2328_abr_summary_test.go" target="_blank" rel="noopener"><code>TestRFC2328ABRComponentNeverEscapesRange</code></a></td>
@@ -2743,7 +2743,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). New TestRFC2328RangeCondensesSeveralNetworksIntoOneSummary: three /24 networks under 10.10.0.0/16 give exactly one Type 3 summary-LSA, at 10.10.0.0 with mask /16, so a per-component mask rewrite fails the count. Negative: a network outside the range keeps its own /24 summary beside the one range summary (count 2). Records on applyAreaRanges.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L104" title="internal/plugins/ospf/spf/rfc2328_abr_summary_test.go" target="_blank" rel="noopener"><code>TestRFC2328ABRComponentNeverEscapesRange</code></a></td>
@@ -2773,7 +2773,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2328ReplacedInstanceLeavesSenderRetransmitList queues the old instance for 3.3.3.3, then the newer instance arrives FROM 3.3.3.3 so no flood can overwrite that entry; after install the list is empty for the key and a retransmit tick sends nothing on eth1. A no-op removeFromAllRetransmit turns it red while the older positive stays green. Negative: a duplicate leaves other lists intact (unchanged).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L144" title="internal/plugins/ospf/lsdb/rfc2328_flooding_test.go" target="_blank" rel="noopener"><code>TestRFC2328DuplicateKeepsOtherRetransmitLists</code></a></td>
@@ -2798,7 +2798,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c21 judge (independent). Positive TestRFC2328ChangedContentsRecalculateEveryArea drives the production wiring (newEngine -&gt; initSPF: lsdb.SetOnChange -&gt; Computer.TriggerArea -&gt; Run), nothing triggers by hand: a changed router-LSA and a changed network-LSA installed in area 0.0.0.1 each withdraw the neighbor stub 203.0.113.64/26 and move BOTH areas last-run stamps past the settled baseline; not-advertised ranges keep the ABR summary origination from triggering the backbone, so only the 13.2 whole-table behaviour recalculates area 0 (isolated). Judge re-ran the dirty-only Computer.Run overlay: both subtests red &#34;area 0.0.0.0 was not recalculated&#34;; record on TriggerArea observed red. Run is monolithic (every configured area, then summary and external steps), so the entire table follows. TestSPFRecalculatesEveryAreaOnOneAreaChange stays as unit-level supplement. Negative TestSPFRecalculationBoundedToConfiguredAreas bounds the recalculation to configured areas; 13.2 offers no refusal path (unchanged contents is a permission, not an obligation), so the row is judged on its positive, the negative held as supplementary.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_recalc_test.go#L47" title="internal/plugins/ospf/spf/rfc2328_recalc_test.go" target="_blank" rel="noopener"><code>TestSPFRecalculationBoundedToConfiguredAreas</code></a></td>
@@ -2823,7 +2823,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Through lsdb.Install and the engine&#39;s SetOnChange wiring to SPF: a new summary-LSA instance with metric 25 moves the inter-area route from 15 to 35, and an instance at LSInfinity removes the route. Records on spf/interarea.go::ComputeInterAreaWith.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_summary_recalc_test.go#L91" title="internal/plugins/ospf/rfc2328_summary_recalc_test.go" target="_blank" rel="noopener"><code>TestRFC2328SummaryAtInfinityRemovesRoute</code></a></td>
@@ -2843,7 +2843,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. c20 judge: discard without ack and keep the earlier copy proven by TestRFC2328MinLSArrivalDiscardsWithoutAck (negative) and the elapsed case by TestRFC2328MinLSArrivalElapsedAccepts; the &#39;examine the next LSA&#39; clause now by TestRFC2328TooSoonDiscardThenNextLSAExamined: one LS Update [too-soon 4.4.4.4, new 5.5.5.5], 4.4.4.4 keeps its sequence and is not flooded, 5.5.5.5 installed, flooded and the ONLY header acknowledged. Author overlay (continue-&gt;return on the TooSoon branch) red on the new unit only; revert record on ReceiveUpdate.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L44" title="internal/plugins/ospf/lsdb/rfc2328_flooding_test.go" target="_blank" rel="noopener"><code>TestRFC2328MinLSArrivalDiscardsWithoutAck</code></a></td>
@@ -2868,7 +2868,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). Positive: floodExcept on NBMA sends exactly one LS Update to each of 10.0.0.2 (Full) and 10.0.0.3 (Exchange). Negative: no send to AllSPFRouters, AllDRouters or the 2-Way 10.0.0.4. Both records now break flooding.go::floodExcept, the producer of this clause (the round 4 FlushDelayedAcks record on the negative is replaced).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L469" title="internal/plugins/ospf/lsdb/rfc2328_flooding_test.go" target="_blank" rel="noopener"><code>TestRFC2328NBMANeverMulticastsNorReachesTwoWay</code></a></td>
@@ -2888,7 +2888,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 13.3-3. A queued delayed ack on the NBMA interface flushes as exactly one LS Ack unicast to each of 10.0.0.2 (Full) and 10.0.0.3 (Exchange); nothing goes to AllSPFRouters, AllDRouters or the 2-Way 10.0.0.4. Records on flooding.go::FlushDelayedAcks.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L470" title="internal/plugins/ospf/lsdb/rfc2328_flooding_test.go" target="_blank" rel="noopener"><code>TestRFC2328NBMANeverMulticastsNorReachesTwoWay</code></a></td>
@@ -2908,17 +2908,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c10/c11). Prior clauses unchanged: cost = intra-area path cost carried by the routing table entry (spf/TestRFC2328VirtualCostIsTransitPathCost), a cost change originates a new backbone router-LSA (TestRFC2328VirtualCostChangeOriginatesNewInstance, TestRFC2328VirtualCostChangeReoriginatesBackbone +, TestRFC2328VirtualUnusablePathWithdrawsBackboneLink -). The missing MUST clause &#39;The cost of a virtual link is NOT configured&#39; now has negatives on both virtual-link lists through the operator path (config text -&gt; config.ParseTreeWithYANG over ZeOSPFConfYANG -&gt; ToPluginMap -&gt; parseOSPFConfig): TestRFC2328VirtualLinkCostNotConfigurable (ospf areas area virtual-link) and TestRFC2328VirtualLinkCostNotConfigurableV3 (address-family ipv6, ospf-af-topology grouping), each accepting the link without cost (reaches cfg.VirtualLinks / cfg.V6.VirtualLinks) and refusing `cost 10` with an error naming cost. Their records are no-break declaration-only (the tool cannot mutate an embedded YANG file); the judge observed the red with an overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) adding `leaf cost { type uint16; }` to both lists of ze-ospf-conf.yang: both units red at the refusal assertion.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_cost_config_test.go#L69" title="internal/plugins/ospf/rfc2328_virtual_cost_config_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualLinkCostNotConfigurable</code></a></td>
 <td>unit/verify</td>
-<td>no-break without a fault test (declaration-only), which does not count as proof, verified</td>
+<td>no-break without a fault test (declaration-only), so fault detection has not been verified, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_cost_config_test.go#L139" title="internal/plugins/ospf/rfc2328_virtual_cost_config_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualLinkCostNotConfigurableV3</code></a></td>
 <td>unit/verify</td>
-<td>no-break without a fault test (declaration-only), which does not count as proof, verified</td>
+<td>no-break without a fault test (declaration-only), so fault detection has not been verified, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L98" title="internal/plugins/ospf/rfc2328_virtual_route_test.go" target="_blank" rel="noopener"><code>TestRFC2328VirtualUnusablePathWithdrawsBackboneLink</code></a></td>
@@ -2948,7 +2948,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: choosing a router vertex before a network vertex at equal distance. Red: TestRFC2328EqualDistanceNetworkVertexFirst pushes two routers and one network at dist 10 and fails unless the first pop is the network vertex. Other polarity: TestRFC2328CloserRouterVertexBeforeFartherNetwork fails if the network-first preference overrides distance (router at 10 must pop before network at 11). Both over spfHeap, the SPF candidate list itself.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_tiebreak_test.go#L25" title="internal/plugins/ospf/spf/rfc2328_tiebreak_test.go" target="_blank" rel="noopener"><code>TestRFC2328CloserRouterVertexBeforeFartherNetwork</code></a></td>
@@ -2968,7 +2968,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: OSPF packets sent with a TTL other than 1. Red: TestOSPFSocketTTLIsOne first proves the kernel default is not 1, then fails unless IP_TTL and IP_MULTICAST_TTL both read back 1 after setMulticastOptions (which hard-codes 1, backend_linux.go:307-316). Other polarity: TestOSPFSocketTTLFailureIsAnError fails if a setsockopt failure is swallowed, so a socket cannot enter service with the default TTL.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L58" title="internal/plugins/ospf/transport/rfc2328_socket_linux_test.go" target="_blank" rel="noopener"><code>TestOSPFSocketTTLFailureIsAnError</code></a></td>
@@ -2988,7 +2988,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both halves now asserted. + TestOSPFElectedDRJoinsAllDRouters: priority 5 vs 2 -&gt; StateDR and exactly one JoinAllDRouters(eth0), no leave; TestOSPFElectedBDRJoinsAllDRouters keeps the BDR join. - the same unit: priority dropped to 0, re-election -&gt; DROther and LeaveAllDRouters(eth0); TestOSPFDROtherDoesNotJoinAllDRouters keeps the never-joined case. Records on iface.go::runElectionLocked observed red; author&#39;s overlay making membership BDR-only turned the DR positive red. Judge lint fix (unparam on the shared electWith helper): the unit&#39;s neighbour priority is 2, not 1; records re-recorded.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go#L44" title="internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go" target="_blank" rel="noopener"><code>TestOSPFElectedDRJoinsAllDRouters</code></a></td>
@@ -3018,7 +3018,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sentence (A.4.4): the Network Mask &#39;must be zero for Type 4 summary-LSAs&#39;. (a) Non-compliant behaviour: originating a Type 4 summary-LSA with a non-zero Network Mask. (b) TestRFC2328Type4SummaryMaskIsZero originates a Type 4 through OriginateSummary (origination.go, the only Type 4 producer) with mask 255.255.255.0 and fails on body.NetworkMask != 0.0.0.0 after decoding the stored LSA, so a producer that copied the caller&#39;s mask goes red. Negative: TestRFC2328Type3SummaryKeepsMask proves the zeroing is confined to Type 4 (a Type 3 keeps 255.255.255.0), so a producer that zeroed every summary mask goes red there. One clause, both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L515" title="internal/plugins/ospf/lsdb/rfc2328_flooding_test.go" target="_blank" rel="noopener"><code>TestRFC2328Type3SummaryKeepsMask</code></a></td>
@@ -3572,7 +3572,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

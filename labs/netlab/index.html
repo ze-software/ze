@@ -49,7 +49,7 @@
                     <h1 id="lab-title">netlab Topology Lab</h1>
                     <p>
                         netlab starts three Ze nodes under containerlab from
-                        the supplied topology. A live check proves the
+                        the supplied topology. A live check tests the
                         routing protocols, the kernel routes and the traffic
                         between them, then tears the lab down.
                     </p>
@@ -74,7 +74,7 @@
                     </div>
                     <div class="status-table" aria-label="Lab facts">
                         <div class="status-row">
-                            <strong>Proves</strong>
+                            <strong>What this lab tests</strong>
                             <span>Every declared BGP, OSPF, IS-IS and BFD adjacency, both static routes in the kernel FIB, and sourced loopback pings between every pair of nodes, when <code>./le test netlab run</code> exits 0 after teardown</span>
                         </div>
                         <div class="status-row">
@@ -142,7 +142,7 @@
             </section>
             <section aria-labelledby="netlab-proof-title">
                 <div class="section-head reveal">
-                    <h2 id="netlab-proof-title">What is proven, and what is not.</h2>
+                    <h2 id="netlab-proof-title">What has been tested.</h2>
                 </div>
                 <div class="md-content reveal">
                     <p>
@@ -164,7 +164,7 @@
                             <tr><td>The render is valid ze configuration</td><td><code>ze config validate</code> exits 0 on each file under <code>contrib/netlab/golden/</code></td></tr>
                             <tr><td>A daemon runs one of those renders and answers the show command with JSON</td><td><code>test/plugin/netlab-lab-profile.ci</code></td></tr>
                             <tr><td>Every declared protocol reaches its healthy state, static routes reach the kernel FIB, and sourced loopback pings pass</td><td><code>./le test netlab run</code> exits 0 after teardown</td></tr>
-                            <tr><td>Each declared feature passes netlab's own upstream integration suite</td><td>Not verified: no run here executes netlab's upstream integration suite. This is separate from the native reference-lab proof</td></tr>
+                            <tr><td>Each declared feature passes netlab's own upstream integration suite</td><td>Not verified: no run here executes netlab's upstream integration suite. This is separate from the native reference-lab test</td></tr>
                         </tbody>
                     </table>
                     <!-- source: internal/le/test/netlab/actions.go -- Answer -->
@@ -272,9 +272,9 @@
                 </div>
                 <div class="md-content reveal">
                     <details>
-                        <summary>What a failed proof saves</summary>
+                        <summary>Files saved when a test fails</summary>
                         <p>
-                            Before cleanup, a failed proof saves a private
+                            Before cleanup, a failed test run saves a private
                             <code>diagnostics-*</code> directory inside the retained
                             lab directory. It contains startup output, the topology
                             snapshot, generated node files, Docker inspection, and
@@ -355,7 +355,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:25 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

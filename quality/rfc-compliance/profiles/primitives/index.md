@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/primitives.json](../.
 
 ## Figures
 
-- **MUST bar**: Ze proven 20, Proof pending 4, Not built 27
-- **Overview bar**: Ze MUST proven 20, SHOULD proven 2, Proof pending 4, Not assessed 32, Not built 27
+- **MUST bar**: Ze verified 20, Tests awaiting verification 4, Not built 27
+- **Overview bar**: Ze MUST verified 20, SHOULD verified 2, Tests awaiting verification 4, Not assessed 32, Not built 27
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/primitives.json](../.
 | Mandatory requirements complete | not complete |
 | MUST rows | 51 |
 | MUST rows kept (the MUST bar) | 51 |
-| Ze proven | 20 |
+| Ze verified | 20 |
 | OS verified | 0 |
-| Proof pending | 4 |
+| Tests awaiting verification | 4 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -30,19 +30,19 @@ Figures as of the last build, read from [data/rfc/profiles/primitives.json](../.
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 34 |
-| SHOULD proven | 2 |
+| SHOULD verified | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 32 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 ## Tree
 
@@ -52,15 +52,15 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 792](../../rfc792/) (cycle with rfc791) | Internet Control Message Protocol | Ze proven 6, Proof pending 4 | Ze MUST proven 6, Proof pending 4, Not assessed 4 |
-| [RFC 905](../../rfc905/) | ISO Transport Protocol Specification (ISO DP 8073) | Ze proven 8, Not built 3 | Ze MUST proven 8, Not built 3 |
-| [RFC 1071](../../rfc1071/) | Computing the Internet Checksum | Ze proven 6 | Ze MUST proven 6, Not assessed 3 |
+| [RFC 792](../../rfc792/) (cycle with rfc791) | Internet Control Message Protocol | Ze verified 6, Tests awaiting verification 4 | Ze MUST verified 6, Tests awaiting verification 4, Not assessed 4 |
+| [RFC 905](../../rfc905/) | ISO Transport Protocol Specification (ISO DP 8073) | Ze verified 8, Not built 3 | Ze MUST verified 8, Not built 3 |
+| [RFC 1071](../../rfc1071/) | Computing the Internet Checksum | Ze verified 6 | Ze MUST verified 6, Not assessed 3 |
 
 ### Level 1
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4787](../../rfc4787/) | Network Address Translation (NAT) Behavioral Requirements for Unicast UDP | Not built 13 | SHOULD proven 2, Not assessed 14, Not built 13 |
+| [RFC 4787](../../rfc4787/) | Network Address Translation (NAT) Behavioral Requirements for Unicast UDP | Not built 13 | SHOULD verified 2, Not assessed 14, Not built 13 |
 
 ### Level 3
 

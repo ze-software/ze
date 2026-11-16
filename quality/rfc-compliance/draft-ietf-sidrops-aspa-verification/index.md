@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 9 | of 10 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 10 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 9 | of 10 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 10 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 10 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 10 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 21 | 21 of 23 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 10 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 21 | 21 of 23 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 10 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 10 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 10 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 10 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 10 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 10 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 10 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: Router-verification requirements follow the cached
 
 **Area:** ASPA path verification
 
-**Proof:** 9 of 10 MUST proven
+**Test verification:** 9 of 10 MUST proven
 
 **Evidence:** unit 9
 
@@ -108,7 +108,7 @@ Included in automatic checks: Router-verification requirements follow the cached
 | Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **10** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: Router-verification requirements follow the cached
 
 ## Figures
 
-- **MUST bar**: Ze proven 9, Not built 1
-- **Overview bar**: Ze MUST proven 9, Not assessed 10, Not built 1
+- **MUST bar**: Ze verified 9, Not built 1
+- **Overview bar**: Ze MUST verified 9, Not assessed 10, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: Router-verification requirements follow the cached
 | Mandatory requirements complete | not complete |
 | MUST rows | 10 |
 | MUST rows kept (the MUST bar) | 10 |
-| Ze proven | 9 |
+| Ze verified | 9 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: Router-verification requirements follow the cached
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 10 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 10 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/draft-ietf-sidrops-aspa-verification.json](../../../data/rfc/draft-ietf-sidrops-aspa-verification.json).
 
@@ -188,9 +188,9 @@ Source: [data/rfc/draft-ietf-sidrops-aspa-verification.json](../../../data/rfc/d
 |---|---|---|
 | [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2`](#draft-ietf-sidrops-aspa-verification-5.1-2) If the aforementioned AS_PATH checks and error handling are implemented, they MUST be applied prior to ASPA verification. (Section 5.1) | {gap}, no test | entrypoint coverage for this newly explicit ordering obligation is unverified; Session.processMessage applies existing checks before semantic UPDATE delivery, but the prior neighbor-AS tests have not been established as ordering proof |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-4-1`](#draft-ietf-sidrops-aspa-verification-4-1)
 
@@ -198,7 +198,7 @@ Normally, a SPAS (see Section 3) is not expected to contain both an AS 0 and oth
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: AS 0 beside other providers changing the verification outcome. TestASPAZeroDoesNotAuthorizeOrInvalidate: {0,200} Valid, {0} alone Invalid. TestASPAZeroBesideProvidersIsNoWildcard: {0,200} = {200} = Valid (AS 0 does not invalidate) and {0,999} = {999} = Invalid for a path whose provider 200 is unlisted (AS 0 is no wildcard).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestASPAZeroDoesNotAuthorizeOrInvalidate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L213) | unit/verify | revert, verified |
 | negative | [`TestASPAZeroBesideProvidersIsNoWildcard`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_zero_test.go#L34) | unit/verify | revert, verified |
@@ -219,7 +219,7 @@ Let the sequence COMPRESSED_AS_PATH {AS(N), AS(N-1),..., AS(2), AS(1)} represent
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a COMPRESSED_AS_PATH that keeps consecutive duplicates, removes non-consecutive ones, or reverses origin and neighbor. TestASPACompressedUpdatePrependsValid asserts state valid and accepted for prepends within a segment, across a segment boundary and on a single AS, red if a duplicate survives as an unauthorized self-hop; with 100 as neighbor and 300 as origin, a reversed order also turns it Invalid. TestASPACompressedUpdatePreservesHops asserts invalid and rejected for the separated repeat [100 200 300 200], red if non-consecutive ASNs are dropped.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestASPACompressedUpdatePreservesHops`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go#L149) | unit/verify | revert, verified |
 | positive | [`TestASPACompressedUpdatePrependsValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_compressed_aspa_test.go#L97) | unit/verify | revert, verified |
@@ -230,7 +230,7 @@ The upstream verification algorithm described here is applied when a route is re
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a route from a Customer or Peer, by an RS from an RS-client, or by an RS-client from an RS verified other than by the upstream algorithm. TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes asserts configuredASPAMode == aspaUpstream for local roles provider, peer, rs and rs-client (one per listed case) and that the down-ramp path is Invalid under each, red if any maps to downstream; local role customer maps to aspaDownstream and verifies the same path Valid.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go#L33) | unit/verify | revert, verified |
 | positive | [`TestASPAUpstreamAppliesToCustomerPeerAndRSRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_role_mode_test.go#L32) | unit/verify | revert, verified |
@@ -241,7 +241,7 @@ If the AS_PATH has an AS_SET, then the procedure halts with the outcome "Invalid
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestASPAStateForPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L180) | unit/verify | revert, verified |
 | positive | [`TestASPAVerifyASSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L56) | unit/verify | revert, verified |
@@ -252,7 +252,7 @@ If the receiving AS is not an RS-client and the most recently added AS in the AS
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestASPAASTransNeighborFirstASIsASTrans`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L200) | unit/verify | revert, verified |
 | negative | [`TestASPAASTransNeighborRSClientExempt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L242) | unit/verify | revert, verified |
@@ -264,7 +264,7 @@ If the most recently added AS in the AS_PATH does not match the neighbor AS, the
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestASPAASTransNeighborDownstreamConfirmed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L286) | unit/verify | revert, verified |
 | positive | [`TestASPAASTransNeighborDownstreamUnconfirmed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L261) | unit/verify | revert, verified |
@@ -275,11 +275,11 @@ If the AS_PATH is determined to be Invalid, then the route SHOULD be considered 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment 2026-11-15 after only the two selecting-RIB retention fixture topology repairs. The canonical ASPA verification draft Section 5.7 says: 'If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]).' The row's stable identifier remains 5.6-1 although the current draft section is 5.7. RFC 4271 Section 9.1.2 independently excludes an unresolvable NEXT_HOP before selection. TestASPARetentionReceiveRecovery now supplies only connected 192.0.2.9/32; all six typed/text by early/pending/installed cases still use the real registered Adj-RIB-In bridge and selecting RIB, retain exact attributes, NLRI and next-hop bytes after rejection, require absence from both Loc-RIB and best-path replay while Invalid, and recover the same received route on a later accepting decision without another UPDATE. TestASPARetentionReplacementWithdrawal supplies only connected 192.0.2.9/32 and 192.0.2.10/32, making both unchanged old and replacement next hops feasible independently of validation. It still rejects the newer message generation, removes the old selection, retains the replacement's new bytes, refuses a stale acceptance, and forbids resurrection after actual withdrawal, session removal and origin rejection. The topology cannot itself accept a validation-refused path; every generation and exclusion assertion remains. The unchanged Adj-RIB-In TestASPARetainedPathReplayRecovery supplies both tagged polarities: a retained Invalid ADD-PATH sibling survives expiry with complete bytes, stays out of ordinary replay, recovers after a cursor without another UPDATE, and its withdrawal preserves the eligible sibling while targeted replay reports an explicit withdrawal. No wire bytes, actions, message IDs, validation phases, assertions, negative controls, shared constructors or producers changed in this repair. Main's selected repaired RIB roots passed with race in 4d7e8db1 and no skips. I inspected both new normal-return semantic proof logs and native records against the current selecting-RIB bodies. In e8c69275 the clean TestASPARetentionReceiveRecovery baseline passed all six cases. The applyToInstalled mutant removed an installed route on an Ineligible decision: false/installed and true/installed then failed the exact retained-byte assertion with an empty stored list, while all four early/pending cases still passed. This observation proves discrimination for the installed-to-Invalid retention branch, not an observed mutant failure of every receive order. In 517807c4 the clean TestASPARetentionReplacementWithdrawal baseline passed all three branches. Changing the old-decision guard from d.MsgID < route.MsgID to d.MsgID != route.MsgID wrongly ignored the newer Invalid decision; withdraw, session and origin-reject cases then each failed at Loc-RIB installed=true, want false, before their later removal assertions. These two native mutant records bind the current positive and negative claim bodies. Neither observation used a panic, skip or build failure, and no broader mutant coverage is inferred. Other tagged units, requirement quotes, levels and discrimination entries are unchanged. This pending file does not itself stamp or publish an audit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L68) | unit/verify | unproven |
+| negative | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L68) | unit/verify | not verified |
 | negative | [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L257) | unit/verify | mutant, verified |
-| positive | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L65) | unit/verify | unproven |
+| positive | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L65) | unit/verify | not verified |
 | positive | [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L210) | unit/verify | mutant, verified |
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1`](#draft-ietf-sidrops-aspa-verification-6.2-1)
@@ -288,7 +288,7 @@ The verification procedures described in this document MUST be applied to BGP ro
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an IPv4 unicast or IPv6 unicast route left unverified. TestASPAAppliesToIPv6Unicast asserts family ipv6/unicast reaches the decision path with aspaState ASPAInvalid and is tracked, red if MP_REACH IPv6 unicast is skipped. TestASPAAppliesToIPv4Unicast asserts ipv4/unicast carries ASPAInvalid, red if the plain-NLRI branch is skipped.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestASPAAppliesToIPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L132) | unit/verify | revert, verified |
 | positive | [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L110) | unit/verify | revert, verified |
@@ -299,7 +299,7 @@ The procedures MUST NOT be applied to other address families by default (Section
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestASPANotAppliedToOtherFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L165) | unit/verify | revert, verified |
 | positive | [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L111) | unit/verify | revert, verified |

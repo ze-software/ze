@@ -8,10 +8,10 @@
   "must": {
     "total": 31,
     "kept": 31,
-    "ze-proven": 26,
+    "ze-proven": 27,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 5,
+    "proof-pending": 4,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 0,
@@ -31,7 +31,7 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 26
+    "unit": 27
   },
   "unmet": []
 }

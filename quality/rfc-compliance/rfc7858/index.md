@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 4 | of 19 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3 | of 19 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 4 | of 19 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 19 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 19 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 19 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 8 | 8 of 15 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 19 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 8 | 8 of 15 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 19 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 19 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 19 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 19 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 19 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 19 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 19 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: DNS over TLS / DoT (RFC 7858): ze is a DoT server 
 
 **Area:** DNS over TLS (DoT)
 
-**Proof:** 3 of 19 MUST proven
+**Test verification:** 3 of 19 MUST proven
 
 **Evidence:** unit 3
 
@@ -108,7 +108,7 @@ Included in automatic checks: DNS over TLS / DoT (RFC 7858): ze is a DoT server 
 | Annotated (including scoped evidence) | 15 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **19** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: DNS over TLS / DoT (RFC 7858): ze is a DoT server 
 
 ## Figures
 
-- **MUST bar**: Ze proven 3, Proof pending 4, Not built 12
-- **Overview bar**: Ze MUST proven 3, Proof pending 4, Not assessed 19, Not built 12
+- **MUST bar**: Ze verified 3, Tests awaiting verification 4, Not built 12
+- **Overview bar**: Ze MUST verified 3, Tests awaiting verification 4, Not assessed 19, Not built 12
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: DNS over TLS / DoT (RFC 7858): ze is a DoT server 
 | Mandatory requirements complete | not complete |
 | MUST rows | 19 |
 | MUST rows kept (the MUST bar) | 19 |
-| Ze proven | 3 |
+| Ze verified | 3 |
 | OS verified | 0 |
-| Proof pending | 4 |
+| Tests awaiting verification | 4 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: DNS over TLS / DoT (RFC 7858): ze is a DoT server 
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 19 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 19 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7858.json](../../../data/rfc/rfc7858.json).
 
@@ -217,9 +217,9 @@ Source: [data/rfc/rfc7858.json](../../../data/rfc/rfc7858.json).
 | [`RFC7858-4.2-6`](#rfc7858-4.2-6) Implementations of this privacy profile MUST support the calculation of a fingerprint as the SHA-256 [RFC6234] hash of the DER-encoded ASN.1 representation of the SPKI of an X.509 certificate. (§4.2) | {gap}, no test | ze is a DNS client that implements no DoT: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoT code is the server listener bindDoT (internal/core/dnsserver/secure.go); no owner decision declines a DoT client, so no ze client computes an SPKI fingerprint |
 | [`RFC7858-4.2-7`](#rfc7858-4.2-7) Implementations MUST support the representation of a SHA-256 fingerprint as a base64-encoded character string [RFC4648]. (§4.2) | {gap}, no test | ze is a DNS client that implements no DoT: the dnsresolver forwarder sends its upstream queries over plain UDP and TCP only (exchange in internal/plugins/dnsresolver/forward.go) and the stub resolver queries over UDP (internal/component/resolve/dns/resolver.go), and ze's only DoT code is the server listener bindDoT (internal/core/dnsserver/secure.go); no owner decision declines a DoT client, so no ze client stores a base64 SPKI pin |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC7858-3.1-1`](#rfc7858-3.1-1)
 
@@ -227,7 +227,7 @@ By default, a DNS server that supports DNS over TLS MUST listen for and accept T
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Re-judged 2026-09-30. Clause 2 now discriminates: TestDefaultSecureConfig compares the default DoT port with the literal 853 (no longer DefaultDoTPort against itself) and a config enabling tls without listen-port parses to 853; clause 1 stays TestDoTListener (listen, accept, answer). Record: DefaultSecureConfig revert observed red. {single-polarity} holds: a listen-and-accept mandate has no refusal path. Edit to a HEAD test adds assertions only (approval D-15).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestDefaultSecureConfig`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L379) | unit/verify | revert, verified |
 | positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L52) | unit/verify | revert, verified |
@@ -254,10 +254,10 @@ The first data exchange on this TCP connection MUST be the client and server ini
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Forbidden: a server that accepts cleartext DNS as the first data exchange instead of a TLS handshake. TestDoTRefusesCleartext sends a length-prefixed cleartext query over raw TCP and fails at t.Fatalf("server answered a cleartext DNS query on the DoT port") when a DNS reply with the query's Id comes back. Positive: TestDoTListener completes the handshake with a verifying tcp-tls client and asserts the answer. Server role only; the client half is the querying resolver's.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L642) | unit/verify | unproven |
-| positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L53) | unit/verify | unproven |
+| negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L642) | unit/verify | not verified |
+| positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L53) | unit/verify | not verified |
 
 ### [`RFC7858-3.1-6`](#rfc7858-3.1-6)
 
@@ -265,10 +265,10 @@ DNS clients and servers MUST NOT use port 853 to transport cleartext DNS message
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L643) | unit/verify | unproven |
-| positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L54) | unit/verify | unproven |
+| negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L643) | unit/verify | not verified |
+| positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L54) | unit/verify | not verified |
 
 ### [`RFC7858-3.1-7`](#rfc7858-3.1-7)
 
@@ -284,10 +284,10 @@ DNS servers MUST NOT respond to cleartext DNS messages on any port used for DNS 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Forbidden: a DNS server responding to a cleartext DNS message on its DoT port, including after the TLS handshake fails. TestDoTRefusesCleartext sends a cleartext query whose bytes fail the TLS handshake and fails at t.Fatalf("server answered a cleartext DNS query on the DoT port") on any unpackable reply with the matching Id. Positive: TestDoTListener asserts the TLS-wrapped query on the same kind of port is answered with the expected A record.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L644) | unit/verify | unproven |
-| positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L55) | unit/verify | unproven |
+| negative | [`TestDoTRefusesCleartext`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L644) | unit/verify | not verified |
+| positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L55) | unit/verify | not verified |
 
 ### [`RFC7858-3.3-1`](#rfc7858-3.3-1)
 
@@ -295,9 +295,9 @@ All messages (requests and responses) in the established TLS session MUST use th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Single-polarity positive (row marker). Forbidden: a server response on the TLS session that does not carry the RFC 1035 4.2.2 two-octet length prefix. TestDoTListener uses the miekg tcp-tls client, which reads a two-octet length and then the message; an unprefixed response would be mis-framed and fail at t.Fatalf("DoT exchange") or the answer-count / A-record assertions. The server's reading of prefixed requests is exercised by the same exchange.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L56) | unit/verify | unproven |
+| positive | [`TestDoTListener`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L56) | unit/verify | not verified |
 
 ### [`RFC7858-3.3-4`](#rfc7858-3.3-4)
 
@@ -321,7 +321,7 @@ Clients and servers that keep idle connections open MUST be robust to terminatio
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Both parties now: client-side close (HEAD TestDoTRobustToIdleConnectionClose) and server-side close (TestRFC7858ServerIdleCloseLeavesTheServerServing: EOF within 16 s of the 8 s idle timeout, then a fresh connection answered). Ze runs no DoT client. Record: bindDoT revert observed red. {single-polarity} holds: robustness has no failure input to refuse.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC7858ServerIdleCloseLeavesTheServerServing`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc7858_idle_close_test.go#L29) | unit/verify | revert, verified |
 | positive | [`TestDoTRobustToIdleConnectionClose`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L718) | unit/verify | revert, verified |
@@ -388,7 +388,7 @@ Clients and servers MUST adhere to the TLS implementation recommendations and se
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Re-judged 2026-09-30. Beyond the HEAD TLS 1.2 floor: TestRFC7858DoTNegotiatesOnlyBCP195Suites drives the DoT listener built from selfcert.NewTLSConfig (the production constructor) with a hand-built TLS 1.2 ClientHello (internal/test/tlsprobe), ECDSA and RSA certs: ECDHE AES-128-GCM selected with null compression and renegotiation_info, also after every forbidden suite; each NULL/RC4/export/DES/3DES/static-RSA/static-ECDH/DHE suite alone never selected; DEFLATE alone refused. The good suite in the same hello shape is the control, so refusals are about the suite. Records: NewTLSConfig revert both polarities; an overlay adding RC4/3DES/static RSA turned the negative red for 7 suites. Not asserted: RFC 9325 SHOULD-level items outside negotiation (session tickets, EMS).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7858DoTNegotiatesOnlyBCP195Suites`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc7858_bcp195_test.go#L25) | unit/verify | revert, verified |
 | negative | [`TestDoTRejectsBelowTLS12`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/secure_test.go#L694) | unit/verify | revert, verified |

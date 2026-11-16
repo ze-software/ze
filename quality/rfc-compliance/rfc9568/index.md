@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 50 | of 66 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 6 | of 66 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 50 | of 66 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 6 | of 66 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 66 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 66 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 112 | 112 of 190 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 66 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 112 | 112 of 190 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 66 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 66 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 66 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 66 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 66 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 66 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 66 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: VRRP Version 3 for IPv4 and IPv6
 
 **Area:** VRRPv3 (IPv4 and IPv6)
 
-**Proof:** 37 of 66 MUST proven
+**Test verification:** 37 of 66 MUST proven
 
 **Evidence:** unit 37
 
@@ -109,7 +109,7 @@ Included in automatic checks: VRRP Version 3 for IPv4 and IPv6
 | Annotated (including scoped evidence) | 16 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **66** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: VRRP Version 3 for IPv4 and IPv6
 
 ## Figures
 
-- **MUST bar**: Ze proven 37, Proof pending 19, Not built 10
-- **Overview bar**: Ze MUST proven 37, SHOULD proven 3, Proof pending 19, Not assessed 25, Not built 10
+- **MUST bar**: Ze verified 37, Tests awaiting verification 19, Not built 10
+- **Overview bar**: Ze MUST verified 37, SHOULD verified 3, Tests awaiting verification 19, Not assessed 25, Not built 10
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: VRRP Version 3 for IPv4 and IPv6
 | Mandatory requirements complete | not complete |
 | MUST rows | 66 |
 | MUST rows kept (the MUST bar) | 66 |
-| Ze proven | 37 |
+| Ze verified | 37 |
 | OS verified | 0 |
-| Proof pending | 19 |
+| Tests awaiting verification | 19 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: VRRP Version 3 for IPv4 and IPv6
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 28 |
-| SHOULD proven | 3 |
+| SHOULD verified | 3 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 25 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9568.json](../../../data/rfc/rfc9568.json).
 
@@ -272,9 +272,9 @@ Source: [data/rfc/rfc9568.json](../../../data/rfc/rfc9568.json).
 | [`RFC9568-8.4.2-2`](#rfc9568-8.4.2-2) When a Virtual Router is configured this way and is the Backup Router, it MUST time out based on the rate advertised by the Active Router. (§8.4.2) | {gap}, no test | ze implements no Section 8.4.2 VRRPv2 and VRRPv3 interoperation mode: a group runs exactly one version (parseVersion in internal/plugins/vrrp/groups.go), advertises in that version only (doSendAdvert in internal/plugins/vrrp/instance.go), and the receive path discards an advertisement of another version with ErrVersion (internal/plugins/vrrp/packet/validate.go); no owner decision declines the mode, so no Backup Router times out on a VRRPv2 Active Router's rate |
 | [`RFC9568-8.4.2-3`](#rfc9568-8.4.2-3) In the case of a VRRPv2 Active Router, this means it MUST translate the timeout value it receives (in seconds) into centiseconds. (§8.4.2) | {gap}, no test | ze implements no Section 8.4.2 VRRPv2 and VRRPv3 interoperation mode: a group runs exactly one version (parseVersion in internal/plugins/vrrp/groups.go), advertises in that version only (doSendAdvert in internal/plugins/vrrp/instance.go), and the receive path discards an advertisement of another version with ErrVersion (internal/plugins/vrrp/packet/validate.go); no owner decision declines the mode, so no group translates a VRRPv2 interval into centiseconds, although per-version conversion helpers exist in internal/plugins/vrrp/packet/packet.go |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC9568-5.1.1.2-1`](#rfc9568-5.1.1.2-1)
 
@@ -290,9 +290,9 @@ The TTL MUST be set to 255. (§5.1.1.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 5.1.1.3 says "The TTL MUST be set to 255." TestSendAdvertV3IPv4HeaderTTLProtoDst changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same; it still requires byte 8 of the sent frame to be 255. Single-polarity. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestSendAdvertV3IPv4HeaderTTLProtoDst`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L316) | unit/verify | unproven |
+| positive | [`TestSendAdvertV3IPv4HeaderTTLProtoDst`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L316) | unit/verify | not verified |
 
 ### [`RFC9568-5.1.1.3-2`](#rfc9568-5.1.1.3-2)
 
@@ -300,11 +300,11 @@ A VRRP Router receiving a packet with the TTL not equal to 255 MUST discard the 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 5.1.1.3 says "A VRRP Router receiving a packet with the TTL not equal to 255 MUST discard the packet [RFC5082]." TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. N4 with TTL 64 still requires ErrTTL, and TestInstanceRxDiscardsBadTTLTypeAndCountZero, unchanged, proves the discard. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L485) | unit/verify | unproven |
+| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L485) | unit/verify | not verified |
 | negative | [`TestInstanceRxDiscardsBadTTLTypeAndCountZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_rx_discard_test.go#L69) | unit/verify | revert, verified |
-| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L70) | unit/verify | unproven |
+| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L70) | unit/verify | not verified |
 | positive | [`TestInstanceRxDiscardsBadTTLTypeAndCountZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_rx_discard_test.go#L68) | unit/verify | revert, verified |
 
 ### [`RFC9568-5.1.2.2-1`](#rfc9568-5.1.2.2-1)
@@ -321,7 +321,7 @@ The Hop Limit MUST be set to 255. (§5.1.2.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after d3195edb70 rewrote the row annotation and openV6 changed on 2026-10-27): RFC 9568 Section 5.1.2.3 says "The Hop Limit MUST be set to 255." openV6 (internal/plugins/vrrp/transport/backend_linux.go) still sets IPV6_MULTICAST_HOPS 255 on the advertisement tx socket, and advertisements go only to ff02::12 through SendAdvert's Sendmsg on that socket, so the multicast hop limit is the one every advertisement carries; openNASocket sets the same on the NA socket. TestIntegrationOpenInstanceSocketOptions (//go:build linux, opens with userns.Enter, which runs it unprivileged in its own user, network and mount namespace and carries the child's fail or skip back) reads IPV6_MULTICAST_HOPS back with getsockopt from both the tx and NA socket and requires exactly 255; the kernel default is 1, so an openV6 that stopped setting it fails, and the recorded mutant (255 -> 254 in openV6) went red. Single-polarity per the row annotation: a socket constant no input changes; receive-side discard is the separate -5.1.2.3-2 row. The rewritten annotation now matches the test. Findings outside this verdict: the tag's claim still cites backend_linux.go:185 where the call is now at :187, and the summary's Support remaining text still calls this evidence integration-gated, QEMU-only and unreachable by ./le rfc record, which is no longer true. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestIntegrationOpenInstanceSocketOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_integration_linux_test.go#L260) | unit/verify | mutant, verified |
 
@@ -331,11 +331,11 @@ A VRRP Router receiving a packet with the Hop Limit not equal to 255 MUST discar
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent): Same unit, IPv6: Hop Limit 255 reaches the FSM; 0, 64, 254 record exactly ttl and never reach it.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestDecodeV3IPv6ChecksumAndHopLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L615) | unit/verify | unproven |
+| negative | [`TestDecodeV3IPv6ChecksumAndHopLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L615) | unit/verify | not verified |
 | negative | [`TestInstanceRxDiscardsBadTTLTypeAndCountZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_rx_discard_test.go#L71) | unit/verify | revert, verified |
-| positive | [`TestDecodeGoldenV3IPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L96) | unit/verify | unproven |
+| positive | [`TestDecodeGoldenV3IPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L96) | unit/verify | not verified |
 | positive | [`TestInstanceRxDiscardsBadTTLTypeAndCountZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_rx_discard_test.go#L70) | unit/verify | revert, verified |
 
 ### [`RFC9568-5.2.2-1`](#rfc9568-5.2.2-1)
@@ -344,11 +344,11 @@ A packet with unknown type MUST be discarded. (§5.2.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 5.2.2 says "A packet with unknown type MUST be discarded." TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. Type 2 still requires ErrType before the VRID lookup. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L144) | unit/verify | unproven |
+| negative | [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L144) | unit/verify | not verified |
 | negative | [`TestInstanceRxDiscardsBadTTLTypeAndCountZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_rx_discard_test.go#L73) | unit/verify | revert, verified |
-| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L72) | unit/verify | unproven |
+| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L72) | unit/verify | not verified |
 | positive | [`TestInstanceRxDiscardsBadTTLTypeAndCountZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_rx_discard_test.go#L72) | unit/verify | revert, verified |
 
 ### [`RFC9568-5.2.4-1`](#rfc9568-5.2.4-1)
@@ -357,7 +357,7 @@ The priority value for the VRRP Router that owns the IPvX address associated wit
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 re-read after a tag was added to TestEffectivePriorityWithTracking (body unchanged): TestOwnerAutoDetection requires EffectivePriority 255 for the owner configured at 120 and the configured 100 for a non-owner; TestEffectivePriorityWithTracking keeps the owner at 255 under any decrement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOwnerAutoDetection`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L813) | unit/verify | revert, verified |
 | positive | [`TestEffectivePriorityWithTracking`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L1620) | unit/verify | revert, verified |
@@ -369,10 +369,10 @@ VRRP Routers backing up a Virtual Router MUST use priority values between 1-254 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 re-read after a tag was added to TestEffectivePriorityWithTracking (body unchanged): TestBoundaryPriority accepts 1 and 254 and rejects 0 and 255 through extractGroupSpecs/validateGroups; TestEffectivePriorityWithTracking floors a tracked decrement at 1
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestBoundaryPriority`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L321) | unit/verify | unproven |
-| positive | [`TestBoundaryPriority`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L319) | unit/verify | unproven |
+| negative | [`TestBoundaryPriority`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L321) | unit/verify | not verified |
+| positive | [`TestBoundaryPriority`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L319) | unit/verify | not verified |
 | positive | [`TestEffectivePriorityWithTracking`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L1621) | unit/verify | revert, verified |
 
 ### [`RFC9568-5.2.5-1`](#rfc9568-5.2.5-1)
@@ -381,11 +381,11 @@ If the received count is 0, the VRRP advertisement MUST be ignored. (§5.2.5, er
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 5.2.5 says "If the received count is 0, the VRRP advertisement MUST be ignored." TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. The Count 0 advert still requires ErrCountZero. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L495) | unit/verify | unproven |
+| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L495) | unit/verify | not verified |
 | negative | [`TestInstanceRxDiscardsBadTTLTypeAndCountZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_rx_discard_test.go#L75) | unit/verify | revert, verified |
-| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L74) | unit/verify | unproven |
+| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L74) | unit/verify | not verified |
 | positive | [`TestInstanceRxDiscardsBadTTLTypeAndCountZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_rx_discard_test.go#L74) | unit/verify | revert, verified |
 
 ### [`RFC9568-5.2.6-1`](#rfc9568-5.2.6-1)
@@ -394,9 +394,9 @@ The Reserve field MUST be set to zero on transmission and ignored on reception. 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 5.2.6 says "The Reserve field MUST be set to zero on transmission and ignored on reception." TestEncodeGoldenV3IPv4 now runs a subtest per checksum mode, and each still requires the Reserve nibble to be zero and the exact golden bytes; the receive half TestDecodeV3ReserveIgnoredOnReceive is unchanged. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestDecodeV3ReserveIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L589) | unit/verify | unproven |
+| negative | [`TestDecodeV3ReserveIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L589) | unit/verify | not verified |
 | positive | [`TestEncodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L107) | unit/verify | revert, verified |
 
 ### [`RFC9568-5.2.9-1`](#rfc9568-5.2.9-1)
@@ -405,12 +405,12 @@ For IPv6, the first address MUST be the IPv6 link-local address associated with 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestValidateIPv6LinkLocal refuses a global-first IPv6 group and accepts a link-local-first one (transmit side); TestValidationOrder row 13 rejects a received global-first advert with ErrFirstNotLinkLocal
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestValidateIPv6LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L553) | unit/verify | unproven |
-| negative | [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L253) | unit/verify | unproven |
-| positive | [`TestValidateIPv6LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L551) | unit/verify | unproven |
-| positive | [`TestDecodeGoldenV3IPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L99) | unit/verify | unproven |
+| negative | [`TestValidateIPv6LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L553) | unit/verify | not verified |
+| negative | [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L253) | unit/verify | not verified |
+| positive | [`TestValidateIPv6LinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L551) | unit/verify | not verified |
+| positive | [`TestDecodeGoldenV3IPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L99) | unit/verify | not verified |
 
 ### [`RFC9568-5.2.9-2`](#rfc9568-5.2.9-2)
 
@@ -418,7 +418,7 @@ The address family of the addresses, IPv4 or IPv6 but not both, MUST be the same
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent): the cascade confound is removed: the IPv6 group's IPv4 address now follows fe80::1, so the first-address-link-local rule cannot refuse it, and every refusal must carry the family error text ('is not an IPv6 address' / 'is not an IPv4 address'); same-family IPv4 and IPv6 lists validate. Records: revert validateGroup, both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestValidateVIPFamilyMatchesGroupFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L577) | unit/verify | revert, verified |
 | positive | [`TestValidateVIPFamilyMatchesGroupFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/groups_test.go#L575) | unit/verify | revert, verified |
@@ -429,10 +429,10 @@ Note: IPv6 Neighbor Solicitations and Neighbor Advertisements MUST NOT be droppe
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop requires ICMPv6 135 and 136 accept terms ahead of the first drop term in the Accept_Mode False table, and fails if the table has no drop
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L111) | unit/verify | unproven |
-| positive | [`TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L109) | unit/verify | unproven |
+| negative | [`TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L111) | unit/verify | not verified |
+| positive | [`TestAcceptFilterAcceptsNeighborDiscoveryBeforeAnyDrop`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L109) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.2-1`](#rfc9568-6.4.2-1)
 
@@ -440,10 +440,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: TestInstanceStartupNonOwnerGoesBackup requires a Backup to install no virtual address, the state Ze hands the kernel that answers ARP; TestInstanceOwnerStartupGoesMaster is the Active contrast
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L454) | unit/verify | unproven |
-| positive | [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L417) | unit/verify | unproven |
+| negative | [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L454) | unit/verify | not verified |
+| positive | [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L417) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.2-2`](#rfc9568-6.4.2-2)
 
@@ -451,10 +451,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestInstanceIPv6VIPLivesOnVirtualMACDevice requires a Backup to install no IPv6 virtual address and the Active router to install it on the vMAC macvlan only
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L740) | unit/verify | unproven |
-| positive | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L738) | unit/verify | unproven |
+| negative | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L740) | unit/verify | not verified |
+| positive | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L738) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.2-3`](#rfc9568-6.4.2-3)
 
@@ -470,7 +470,7 @@ No test carries RFC9568-6.4.2-3, so there is no linked test.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 6.4.2 says "MUST discard packets with a destination link-layer MAC address equal to the Virtual Router MAC address." TestVRRPBackupDoesNotForwardVirtualMACFrames is otherwise unchanged: with the recipe in force and no filter a datagram sent to the virtual MAC is forwarded (control), with setBackupFilter the same datagram is not forwarded, each asserted from a capture on the next hop. TestBackupDiscardFollowsTheState (unchanged) still proves the worker sets and withdraws the discard with the state. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestBackupDiscardFollowsTheState`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/backupfilter_test.go#L111) | unit/verify | revert, verified |
 | negative | [`TestVRRPBackupDoesNotForwardVirtualMACFrames`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L127) | unit/verify | revert, verified |
@@ -483,10 +483,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: TestInstanceStartupNonOwnerGoesBackup requires no virtual address installed in Backup, so the kernel accepts nothing addressed to it; Active contrast installs it
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L456) | unit/verify | unproven |
-| positive | [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L419) | unit/verify | unproven |
+| negative | [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L456) | unit/verify | not verified |
+| positive | [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L419) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.2-6`](#rfc9568-6.4.2-6)
 
@@ -494,10 +494,10 @@ If a Shutdown event is received, then: - Cancel the Active_Down_Timer - Transiti
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestFSMTransitionMatrix backup/shutdown requires exactly StopTimers and a transition to Initialize; the negative is a contrast row (stale timer event keeps Backup)
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L111) | unit/verify | unproven |
-| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L109) | unit/verify | unproven |
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L111) | unit/verify | not verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L109) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.2-7`](#rfc9568-6.4.2-7)
 
@@ -505,10 +505,10 @@ If the Active_Down_Timer fires, then: - Send an ADVERTISEMENT - If the protected
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp final judge 2026-09-29 (independent): earlier proof stands (promotion action list with StartAdvertTimer, GARP per IPv4 VIP with the Virtual Router MAC, NA per IPv6 VIP R=1 S=0 O=1 with the Virtual Router MAC). The Solicited-Node clause is now asserted at the boundary Ze owns: TestPromotionInstallsIPv6AddressesOnVirtualMACDevice requires an IPv6 Backup to install nothing, then on its own down timer to install exactly fe80::1 and 2001:db8::1 on the virtual-MAC device and never the parent; that address add is what makes Linux addrconf join each Solicited-Node group (Ze builds no MLD). Observed-red record: doInstallVIPs. Kernel membership itself is not read.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFSMStaleTimerGenerationIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L638) | unit/verify | unproven |
-| positive | [`TestFSMMasterDownPromotion`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L447) | unit/verify | unproven |
+| negative | [`TestFSMStaleTimerGenerationIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L638) | unit/verify | not verified |
+| positive | [`TestFSMMasterDownPromotion`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L447) | unit/verify | not verified |
 | positive | [`TestPromotionSetsAdverTimerToOwnInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/rfc_verdict_test.go#L89) | unit/verify | revert, verified |
 | positive | [`TestPromotionInstallsIPv6AddressesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/promote_install_v6_test.go#L28) | unit/verify | revert, verified |
 | positive | [`TestAnnounceMasterFramesPerAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_announce_verdict_test.go#L53) | unit/verify | revert, verified |
@@ -519,10 +519,10 @@ If the Priority in the ADVERTISEMENT is 0, then: o Set the Active_Down_Timer to 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. matrix row backup/advert/priority-zero requires exactly StartMasterDownTimer with skewDur; equal-priority row arms mdDur instead
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L115) | unit/verify | unproven |
-| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L113) | unit/verify | unproven |
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L115) | unit/verify | not verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L113) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.2-9`](#rfc9568-6.4.2-9)
 
@@ -530,10 +530,10 @@ If Preempt_Mode is False, or if the Priority in the ADVERTISEMENT is greater tha
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. matrix row backup/advert/adopt/equal-priority requires the down timer at mdDur(cfg, 4000), the recomputed interval from the advertised 4000 ms; the discard row emits no action
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L119) | unit/verify | unproven |
-| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L117) | unit/verify | unproven |
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L119) | unit/verify | not verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L117) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.2-10`](#rfc9568-6.4.2-10)
 
@@ -541,10 +541,10 @@ else // preempt was true and priority was less than the local priority + Discard
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. matrix row preempt-lower-priority-no-delay requires no actions (discard); preempt-false-lower-priority re-arms instead, so the discard is bound to Preempt_Mode True
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L123) | unit/verify | unproven |
-| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L121) | unit/verify | unproven |
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L123) | unit/verify | not verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L121) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.3-1`](#rfc9568-6.4.3-1)
 
@@ -552,11 +552,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. matr
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 6.4.3 says "MUST respond to ARP requests for the IPv4 address(es) associated with the Virtual Router." TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly, otherwise unchanged, observes ARP replies for the virtual address held on the virtual-MAC macvlan and none once the address is removed; the sender hardware address read is arp[8:14]. TestPromotionInstallsIPv4AddressOnVirtualMACDevice (unchanged) proves the product installs that address on promotion only. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L142) | unit/verify | unproven |
+| negative | [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L142) | unit/verify | not verified |
 | negative | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L68) | unit/verify | revert, verified |
-| positive | [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L71) | unit/verify | unproven |
+| positive | [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L71) | unit/verify | not verified |
 | positive | [`TestPromotionInstallsIPv4AddressOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/promote_install_test.go#L28) | unit/verify | revert, verified |
 | positive | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L67) | unit/verify | revert, verified |
 
@@ -566,9 +566,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after f1b637444b tagged a second unit and corrected the row annotation): RFC 9568 Section 6.4.3 says an Active router protecting an IPv6 address "MUST be a member of the Solicited-Node multicast address for the IPv6 address(es) associated with the Virtual Router." Two producers meet it: doInstallVIPs (internal/plugins/vrrp/instance.go) calls joinSolicitedNode (solicitednode_linux.go), which adds a link-layer PACKET_MR_MULTICAST membership for 33:33:ff:xx:xx:xx on the virtual-MAC macvlan and syncs the receive filter down the device stack before returning, then registers the addresses, whose install on that macvlan makes the kernel take the IPv6 group membership itself. TestVRRPActiveJoinsSolicitedNodeBeforeItsAddressIsInstalled (//go:build linux, userns.Enter) drives the real FSM and promotion with the real joinSolicitedNode and address-owner registry on a macvlan with the product's recipe: it requires no membership as Backup, the group in the macvlan's /proc/thread-self/net/dev_mcast and synced onto the parent when the promotion returns while the address is provably not installed, a reconfiguration while Active to add the new group, drop the removed one and never drop the shared fe80::1 group (sampled concurrently), the group gone after demotion, and after a second promotion and install a single multicast solicitation answered with the Virtual Router MAC, which shows the group is functional at the IPv6 level, not just listed. The recorded mutant (solicitedNodeMACs(nil) in joinSolicitedNode) went red. TestInstanceIPv6VIPLivesOnVirtualMACDevice (instance_test.go) covers the other half: the Active router installs every IPv6 virtual address on the virtual-MAC device and never on the parent, so the kernel's membership lands on the device that answers; a Backup installs none. Single-polarity per the row annotation: the not-a-member case is the Backup requirement RFC9568-6.4.2-2 (both units still assert it). Finding outside this verdict: the unit-test tag cites instance.go:369 for doInstallVIPs, which now sits near line 617. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L742) | unit/verify | unproven |
+| positive | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L742) | unit/verify | not verified |
 | positive | [`TestVRRPActiveJoinsSolicitedNodeBeforeItsAddressIsInstalled`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_solicited_node_integration_linux_test.go#L58) | unit/verify | mutant, verified |
 
 ### [`RFC9568-6.4.3-3`](#rfc9568-6.4.3-3)
@@ -577,7 +577,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestVRRPSolicitedNACarriesRouterFlag`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_nd_router_flag_integration_linux_test.go#L37) | unit/verify | revert, verified |
 | positive | [`TestVRRPSolicitedNACarriesRouterFlag`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_nd_router_flag_integration_linux_test.go#L36) | unit/verify | revert, verified |
@@ -596,7 +596,7 @@ No test carries RFC9568-6.4.3-4, so there is no linked test.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 6.4.3 says "MUST forward packets with a destination link-layer MAC address equal to the Virtual Router MAC address." TestVRRPBackupDoesNotForwardVirtualMACFrames, otherwise unchanged, forwards the datagram to the next hop once the filter is withdrawn and the addresses installed, and not while the filter holds, read from the capture. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestBackupDiscardFollowsTheState`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/backupfilter_test.go#L117) | unit/verify | revert, verified |
 | negative | [`TestVRRPBackupDoesNotForwardVirtualMACFrames`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L133) | unit/verify | revert, verified |
@@ -609,13 +609,13 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent, continuations 1-2): Re-read: the unit's body is unchanged; only the 6.4.2 and 6.4.3 Virtual Router MAC proxy tags left it for TestVRRPBackupDoesNotForwardVirtualMACFrames, so the verdict stands. Prior note: vrrp judge 2026-09-29 re-read after RFC5798 tags were added to TestActiveAddressOwnerAcceptsWhateverAcceptModeSays (body unchanged): owner installs and accepts (instance and acceptfilter tests), Accept_Mode True hands no suppression, and a non-owner with Accept_Mode False gets a suppression: both conditions and the contrast are asserted
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L205) | unit/verify | unproven |
-| negative | [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L421) | unit/verify | unproven |
-| positive | [`TestActiveAddressOwnerAcceptsWhateverAcceptModeSays`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L267) | unit/verify | unproven |
-| positive | [`TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L241) | unit/verify | unproven |
-| positive | [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L453) | unit/verify | unproven |
+| negative | [`TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L205) | unit/verify | not verified |
+| negative | [`TestInstanceStartupNonOwnerGoesBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L421) | unit/verify | not verified |
+| positive | [`TestActiveAddressOwnerAcceptsWhateverAcceptModeSays`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L267) | unit/verify | not verified |
+| positive | [`TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L241) | unit/verify | not verified |
+| positive | [`TestInstanceOwnerStartupGoesMaster`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L453) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.3-7`](#rfc9568-6.4.3-7)
 
@@ -623,11 +623,11 @@ It MUST accept packets addressed to the IPvX address(es) associated with the Vir
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 re-read after RFC5798 tags were added to TestActiveAddressOwnerAcceptsWhateverAcceptModeSays (body unchanged): TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery requires accept=false for exactly the VIP; Accept_Mode True and owner contrasts require accept=true
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestActiveAddressOwnerAcceptsWhateverAcceptModeSays`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L268) | unit/verify | unproven |
-| negative | [`TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L243) | unit/verify | unproven |
-| positive | [`TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L203) | unit/verify | unproven |
+| negative | [`TestActiveAddressOwnerAcceptsWhateverAcceptModeSays`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L268) | unit/verify | not verified |
+| negative | [`TestActiveNonOwnerWithAcceptModeTrueAcceptsLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L243) | unit/verify | not verified |
+| positive | [`TestActiveNonOwnerWithAcceptModeFalseSuppressesLocalDelivery`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/acceptfilter_test.go#L203) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.3-8`](#rfc9568-6.4.3-8)
 
@@ -635,11 +635,11 @@ If a Shutdown event is received, then: - Cancel the Adver_Timer - Send an ADVERT
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. matrix row master/shutdown requires StopTimers, SendAdvertZeroPriority, RemoveVIPs, Initialize; TestInstanceShutdownAsMasterSendsPriorityZero proves the executor sends priority 0; backup/shutdown sends none
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L127) | unit/verify | unproven |
-| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L125) | unit/verify | unproven |
-| positive | [`TestInstanceShutdownAsMasterSendsPriorityZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L524) | unit/verify | unproven |
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L127) | unit/verify | not verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L125) | unit/verify | not verified |
+| positive | [`TestInstanceShutdownAsMasterSendsPriorityZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L524) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.3-9`](#rfc9568-6.4.3-9)
 
@@ -647,10 +647,10 @@ If the Adver_Timer fires, then: - Send an ADVERTISEMENT - Reset the Adver_Timer 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. matrix row master/advert-timer-expired/matching-gen requires SendAdvert and StartAdvertTimer at 1s; a stale generation sends nothing
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFSMStaleTimerGenerationIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L640) | unit/verify | unproven |
-| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L129) | unit/verify | unproven |
+| negative | [`TestFSMStaleTimerGenerationIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L640) | unit/verify | not verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L129) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.3-10`](#rfc9568-6.4.3-10)
 
@@ -658,10 +658,10 @@ If the Priority in the ADVERTISEMENT is 0, then: o Send an ADVERTISEMENT o Reset
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. matrix row master/advert/priority-zero requires SendAdvert and StartAdvertTimer; a losing non-zero advert sends without re-arming
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L133) | unit/verify | unproven |
-| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L131) | unit/verify | unproven |
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L133) | unit/verify | not verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L131) | unit/verify | not verified |
 
 ### [`RFC9568-6.4.3-11`](#rfc9568-6.4.3-11)
 
@@ -669,12 +669,12 @@ If the Priority in the ADVERTISEMENT is greater than the local Priority or the P
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent, continuations 1-2): TestInstanceIPv6ElectionUsesUnsignedOrder closes both named gaps: the IPv6 operand through the engine (link-local advertisement source) and the unsigned network-byte-order compare (fe80::80 vs fe80::7f, which a signed octet compare inverts). Yield rows assert Adver_Timer cancelled, Active_Adver_Interval set to the advert's 3000ms, Skew_Time and Active_Down_Interval recomputed from it, Active_Down_Timer armed, Backup; the hold row keeps Active, timer armed, 1000ms. With TestInstanceTieBreakComparesTheAdvertisementSource (IPv4). Records: senderWinsTieBreak, observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L137) | unit/verify | unproven |
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L137) | unit/verify | not verified |
 | negative | [`TestInstanceTieBreakComparesTheAdvertisementSource`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/tiebreak_test.go#L77) | unit/verify | revert, verified |
 | negative | [`TestInstanceIPv6ElectionUsesUnsignedOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/tiebreak_v6_test.go#L50) | unit/verify | revert, verified |
-| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L135) | unit/verify | unproven |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L135) | unit/verify | not verified |
 | positive | [`TestInstanceTieBreakComparesTheAdvertisementSource`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/tiebreak_test.go#L76) | unit/verify | revert, verified |
 | positive | [`TestInstanceIPv6ElectionUsesUnsignedOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/tiebreak_v6_test.go#L49) | unit/verify | revert, verified |
 
@@ -684,10 +684,10 @@ else // new Active Router logic + Discard the ADVERTISEMENT + Send an ADVERTISEM
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. losing lower-priority, smaller-ip and equal-ip rows require exactly one SendAdvert and state Active; the winning row demotes instead
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L141) | unit/verify | unproven |
-| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L139) | unit/verify | unproven |
+| negative | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L141) | unit/verify | not verified |
+| positive | [`TestFSMTransitionMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/fsm/fsm_test.go#L139) | unit/verify | not verified |
 
 ### [`RFC9568-7.1-1`](#rfc9568-7.1-1)
 
@@ -695,10 +695,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. losi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.1 says "It MUST verify that the VRRP version is 3." TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. N9 still requires ErrVersion for a v2 advert at a v3 group. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L561) | unit/verify | unproven |
-| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L75) | unit/verify | unproven |
+| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L561) | unit/verify | not verified |
+| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L75) | unit/verify | not verified |
 
 ### [`RFC9568-7.1-2`](#rfc9568-7.1-2)
 
@@ -706,10 +706,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.1 says "It MUST verify that the VRRP packet type is 1 (ADVERTISEMENT)." TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. TestValidationOrder still requires ErrType for type 2 before the VRID lookup. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L146) | unit/verify | unproven |
-| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L77) | unit/verify | unproven |
+| negative | [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L146) | unit/verify | not verified |
+| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L77) | unit/verify | not verified |
 
 ### [`RFC9568-7.1-3`](#rfc9568-7.1-3)
 
@@ -717,12 +717,12 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.1 says "It MUST verify that the received packet contains the complete VRRP packet (including fixed fields and the IPvX address)." TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. TestDecodeV3DiscardsIncompletePacket switched its IPv4 golden to G2 and recomputes in the default form, so the truncation and short-address cases still fail on ErrTruncated or ErrLength rather than ErrChecksum. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDecodeV3DiscardsIncompletePacket`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/rfc_rx_verdict_test.go#L151) | unit/verify | revert, verified |
-| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L461) | unit/verify | unproven |
+| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L461) | unit/verify | not verified |
 | positive | [`TestDecodeV3DiscardsIncompletePacket`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/rfc_rx_verdict_test.go#L150) | unit/verify | revert, verified |
-| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L78) | unit/verify | unproven |
+| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L78) | unit/verify | not verified |
 
 ### [`RFC9568-5.2.8-1`](#rfc9568-5.2.8-1)
 
@@ -730,12 +730,12 @@ It MUST verify the VRRP checksum. (§7.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.1 says "It MUST verify the VRRP checksum." TestDecodeVerifiesChecksumBothFamilies lost only the assertion on the removed MsgOnlyChecksum flag; it still accepts the message-only IPv4 golden and the IPv6 golden under the default mode and refuses a flipped checksum bit in each family with ErrChecksum. An overlay mutant that made the default mode sum the IPv4 pseudo-header reddened it. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDecodeVerifiesChecksumBothFamilies`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/rfc_rx_verdict_test.go#L288) | unit/verify | revert, verified |
-| negative | [`TestDecodeV3IPv6ChecksumAndHopLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L613) | unit/verify | unproven |
+| negative | [`TestDecodeV3IPv6ChecksumAndHopLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L613) | unit/verify | not verified |
 | positive | [`TestDecodeVerifiesChecksumBothFamilies`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/rfc_rx_verdict_test.go#L287) | unit/verify | revert, verified |
-| positive | [`TestDecodeGoldenV3IPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L98) | unit/verify | unproven |
+| positive | [`TestDecodeGoldenV3IPv6`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L98) | unit/verify | not verified |
 
 ### [`RFC9568-5.2.8-2`](#rfc9568-5.2.8-2)
 
@@ -743,7 +743,7 @@ For the IPv4 address family, the checksum calculation only includes the VRRP mes
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after d2abad70ad). RFC 9568 Section 5.2.8 says "For the IPv4 address family, the checksum calculation only includes the VRRP message starting with the Version field and ending after the last IPv4 address (refer to Section 5.2)." Producers: pseudoSumFor returns no pseudo-header for ChecksumRFC9568, FillChecksum applies it on transmit and verifyReceived on receive in the one configured form. Positive TestEncodeGoldenV3IPv4 pins G2 0x828A (re-derived independently over the 16-octet message; the pseudo-header sum for 192.0.2.251 to 224.0.0.18 is 0xDEFB). Positive/negative TestDecodeV3IPv4ChecksumOnlyConfiguredForm: the default mode accepts G2 and refuses G2c with ErrChecksum, and each mode refuses the other form, in separate subtests, not one assertion wearing two hats. Overlay mutants run 2026-10-18 over the whole vrrp tree: restoring dual-accept in verifyReceived reds the two refusal subtests; summing the IPv4 pseudo-header under ChecksumRFC9568 reds the golden and the default accept and refuse subtests. The hop that previously made this weak is closed: doSendAdvert hard-coded to ChecksumRFC5798Compatible, or with Checksum dropped, now reds TestTransmittedAdvertFilledFromInstanceState, which is tagged RFC9568-7.2-5 rather than this row; the config default (groups.go struct literal) is caught only by the untagged TestLeafShapesFromTextConfig "checksum absent is rfc9568". Both are hops that choose the form, owned by the 7.2 transmit step and the parser, while this row's own obligation, what the computation covers, is pinned at its producers in both directions. Claims match assertions. No tagged unit is a QEMU-guest unit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDecodeV3IPv4ChecksumOnlyConfiguredForm`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L150) | unit/verify | revert, verified |
 | positive | [`TestDecodeV3IPv4ChecksumOnlyConfiguredForm`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L149) | unit/verify | revert, verified |
@@ -755,7 +755,7 @@ For the IPv6 address family, the checksum calculation also includes a prepended 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp closure judge 2026-09-30 (independent): TestDecodeV3IPv6ChecksumCoversPseudoHeader recomputes the IPv6 golden's checksum with refChecksum (independent of checksum.go): the RFC 8200 pseudo-header plus message sum is accepted, the message-only sum is refused with ErrChecksum, so a v6 verifier that dropped the pseudo-header or fell back to message-only (as the v4 path does) goes red. Producer verifyReceived family==V6 uses pseudoSumV6 only. Both polarities recorded observed red (pseudoSumV6, verifyReceived).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDecodeV3IPv6ChecksumCoversPseudoHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/rfc9568_ipv6_pseudo_header_test.go#L22) | unit/verify | revert, verified |
 | positive | [`TestDecodeV3IPv6ChecksumCoversPseudoHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/rfc9568_ipv6_pseudo_header_test.go#L21) | unit/verify | revert, verified |
@@ -766,12 +766,12 @@ It MUST verify that the VRID is configured on the receiving interface. (§7.1, e
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 7.1 says "It MUST verify that the VRID is configured on the receiving interface" TestRxAdvertScopedToReceivingInterface sends, for v2 and v3, a VRID 10 advert on the interface that holds only VRID 20 and fails if it reaches the VRID 10 instance, requires it to arrive at the VRID 20 instance (so absence is not vacuous) and decode there as ErrUnknownVRID, then requires the same advert on the VRID 10 interface to reach its instance and decode. Its other change is rp_filter 0 on the second macvlan so the IPv4 multicast is received at all. The unchanged packet/validate_test.go and rfc9568_rx_interface_v3_test.go tags stand. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L157) | unit/verify | unproven |
+| negative | [`TestValidationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L157) | unit/verify | not verified |
 | negative | [`TestRxV3VRIDCheckedOnTheReceivingInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go#L26) | unit/verify | revert, verified |
 | negative | [`TestRxAdvertScopedToReceivingInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go#L131) | unit/verify | revert, verified |
-| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L80) | unit/verify | unproven |
+| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L80) | unit/verify | not verified |
 | positive | [`TestRxV3VRIDCheckedOnTheReceivingInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_rx_interface_v3_test.go#L25) | unit/verify | revert, verified |
 | positive | [`TestRxAdvertScopedToReceivingInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_rx_iface_verdict_linux_test.go#L130) | unit/verify | revert, verified |
 
@@ -781,10 +781,10 @@ It MUST verify that the Max Advertise Interval is non zero. (§7.1, erratum 8301
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.1 says "It MUST verify that the Max Advertise Interval is non zero." TestDecodeGoldenV3IPv4 now decodes the RFC 9568 message-only golden G2 under the default-mode lookup instead of the pseudo-header golden G2c, and lost only the removed MsgOnlyChecksum assertion; the subtests of TestNegativeReferenceBugs other than N1 gained only the FillChecksum mode argument. The positive is still a fully conforming advert, the checksum check precedes the checks this row names so a wrong form would fail with ErrChecksum and not pass silently, and each negative still asserts its exact sentinel. N6 still zeroes the interval, recomputes the checksum and requires ErrIntervalZero. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L505) | unit/verify | unproven |
-| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L81) | unit/verify | unproven |
+| negative | [`TestNegativeReferenceBugs`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L505) | unit/verify | not verified |
+| positive | [`TestDecodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/validate_test.go#L81) | unit/verify | not verified |
 
 ### [`RFC9568-7.1-6`](#rfc9568-7.1-6)
 
@@ -792,11 +792,11 @@ If any one of the above checks fails, the receiver MUST discard the packet (§7.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after a78870fd39). RFC 9568 Section 7.1 says "If any one of the above checks fails, the receiver MUST discard the packet". TestInstanceRxValidAdvertReachesFSM changed only by the checksum-mode plumbing (a Checksum: packet.ChecksumRFC9568 field added to the GroupSpec, AdvertParams or packet.Local literal, or the mode argument added to packet.FillChecksum); every assertion and every isolating input is byte-for-byte the same. TestInstanceRxFailedCheckIsDiscarded is unchanged, and an overlay mutant giving instance.lookup the wrong checksum mode reddened both, so every mandatory check still discards through onPacket. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestInstanceRxDecodeErrorMapsReason`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L548) | unit/verify | revert, verified |
 | negative | [`TestInstanceRxFailedCheckIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rx_discard_test.go#L101) | unit/verify | revert, verified |
-| positive | [`TestInstanceRxValidAdvertReachesFSM`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L573) | unit/verify | unproven |
+| positive | [`TestInstanceRxValidAdvertReachesFSM`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L573) | unit/verify | not verified |
 | positive | [`TestInstanceRxFailedCheckIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rx_discard_test.go#L102) | unit/verify | revert, verified |
 
 ### [`RFC9568-7.2-1`](#rfc9568-7.2-1)
@@ -805,7 +805,7 @@ The following operations MUST be performed when transmitting a VRRP packet: * Fi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after d2abad70ad). RFC 9568 Section 7.2 says "The following operations MUST be performed when transmitting a VRRP packet: * Fill in the VRRP packet fields with the appropriate Virtual Router configuration state". TestTransmittedAdvertFilledFromInstanceState requires the params doSendAdvert hands the transport to carry version 3, the effective priority (200, then 150 after eth1 fails), 1000 ms and both VIPs in order, for IPv4 in both checksum modes and IPv6; TestSendAdvertFillsFieldsAndChecksum pins every field of the IPv4 and IPv6 frames encodeLocked produces; the v3 goldens pin WriteTo. Overlay mutants run 2026-10-18 over the whole vrrp tree: doSendAdvert filling the configured priority instead of the effective one reds all three subtests of TestTransmittedAdvertFilledFromInstanceState. The {single-polarity} argument holds for WriteTo, which refuses nothing; encodeLocked does refuse through Validate (ErrIntervalRange, ErrCountRange), a guard RFC5798-7.2-1 carries as its negative. Nit: the annotation line numbers are stale (encodeLocked is at transport.go:537, WriteTo at packet.go:246). No tagged unit is a QEMU-guest unit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestTransmittedAdvertFilledFromInstanceState`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/advert_fill_rfc5798_test.go#L40) | unit/verify | revert, verified |
 | positive | [`TestEncodeGoldenV3IPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L109) | unit/verify | revert, verified |
@@ -818,7 +818,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Re-judged 2026-10-31 (independent auditor, authored none of 7682a5dc93). RFC 9568 Section 7.2 says "The following operations MUST be performed when transmitting a VRRP packet: ... * Compute the VRRP checksum", in the Section 5.2.8 form: message-only for IPv4, and for IPv6 "the checksum calculation also includes a prepended \"pseudo-header\", as defined in Section 8.1 of [RFC8200]." 7682a5dc93 moved openV6's RX socket from the parent to the instance MACVLAN; the TX socket still sets IPV6_CHECKSUM 6, so the kernel still computes the IPv6 checksum with its pseudo-header. Tagged units are byte-identical to the 2026-10-18 judgement. IPv4: proven (TestTransmittedAdvertFilledFromInstanceState asserts p.Checksum == spec.Checksum in both modes; TestSendAdvertFillsFieldsAndChecksum computes the expected sums itself; the compatible-mode subtest is the negative). IPv6: still unproven by any tagged unit; the transport test's fake backend carries no IPv6 checksum and the instance test computes FillChecksum in its own body, so removing the setsockopt leaves every tagged unit green. Only the untagged integration QEMU units TestIntegrationOpenInstanceSocketOptions and TestIntegrationAdvertV6OnWire read it. Fix unchanged: tag one positive for this row with its QEMU discrimination record. Verdict unchanged: weak.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSendAdvertFillsFieldsAndChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/advert_fill_checksum_test.go#L38) | unit/verify | revert, verified |
 | positive | [`TestTransmittedAdvertFilledFromInstanceState`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/advert_fill_rfc5798_test.go#L41) | unit/verify | revert, verified |
@@ -831,9 +831,9 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 7.2 says "Set the source MAC address to the Virtual Router MAC address" TestTxAdvertV4OnWire (v2 and v3) and TestTxAdvertV6OnWire capture the transmitted frame on the peer veth and compare its source MAC with the literals 00-00-5e-00-01-0a and 00-00-5e-00-02-0a, never the package constants. Single-polarity. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestConstants`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L436) | unit/verify | unproven |
+| positive | [`TestConstants`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/packet/packet_test.go#L436) | unit/verify | not verified |
 | positive | [`TestTxAdvertV4OnWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L42) | unit/verify | revert, verified |
 | positive | [`TestTxAdvertV6OnWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L105) | unit/verify | revert, verified |
 
@@ -843,7 +843,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 7.2 says "Set the source IPv4 address to the interface's primary IPv4 address" TestTxAdvertV4OnWire adds a lower secondary 192.0.2.5/24 after the primary and requires the captured source to be the primary 192.0.2.251; TestTxAdvertV6OnWire requires the captured source to be the macvlan's link-local address; TestSendAdvertNoLinkLocalSkipsAndCounts (unchanged) is the negative. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSendAdvertNoLinkLocalSkipsAndCounts`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L412) | unit/verify | revert, verified |
 | negative | [`TestSendAdvertNoPrimaryV4SkipsAndCounts`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L364) | unit/verify | revert, verified |
@@ -857,11 +857,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 7.2 says "Send the VRRP packet to the VRRP IPvX multicast group" Both wire tests compare protocol/next header 112 and destination 224.0.0.18 / ff02::12 with literals from the captured frame. Single-polarity. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestTxAdvertV4OnWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L48) | unit/verify | revert, verified |
 | positive | [`TestTxAdvertV6OnWire`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/rfc_tx_verdict_linux_test.go#L109) | unit/verify | revert, verified |
-| positive | [`TestSendAdvertV3IPv4HeaderTTLProtoDst`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L318) | unit/verify | unproven |
+| positive | [`TestSendAdvertV3IPv4HeaderTTLProtoDst`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/transport/transport_test.go#L318) | unit/verify | not verified |
 
 ### [`RFC9568-7.4-1`](#rfc9568-7.4-1)
 
@@ -869,7 +869,7 @@ The Virtual Router MAC MUST NOT be used for the Net_Iface parameter used in the 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L37) | unit/verify | revert, verified |
 | positive | [`TestVRRPMacvlanDerivesNoLinkLocalFromVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L36) | unit/verify | revert, verified |
@@ -880,7 +880,7 @@ If a VRRP Router is acting as the Active Router for Virtual Router(s) containing
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 8.1.1 says "If a VRRP Router is acting as the Active Router for Virtual Router(s) containing address(es) it does not own, then it must determine to which Virtual Router the packet was sent when selecting the redirect source address." TestVRRPRedirectSourceFollowsVirtualMAC, otherwise unchanged, pins the reverse route through the parent with source 192.0.2.254, then requires each of two virtual MACs to draw a redirect sourced from its own virtual address and the physical MAC to draw one from 192.0.2.254. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestVRRPRedirectSourceFollowsVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L29) | unit/verify | revert, verified |
 | positive | [`TestVRRPRedirectSourceFollowsVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L28) | unit/verify | revert, verified |
@@ -891,7 +891,7 @@ If a VRRP Router is acting as the Active Router for Virtual Router(s) containing
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 8.2.1 says "If a VRRP Router is acting as the Active Router for Virtual Router(s) containing address(es) it does not own, then it has to determine to which Virtual Router the packet was sent when selecting the redirect source address." TestVRRPIPv6RedirectFollowsVirtualMAC, otherwise unchanged, requires the ICMPv6 redirect for a datagram sent to each virtual MAC to come from a link-local held by that macvlan and by neither the other macvlan nor the parent, and the physical-MAC datagram's redirect from a parent link-local. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestVRRPIPv6RedirectFollowsVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_v6_integration_linux_test.go#L40) | unit/verify | revert, verified |
 | positive | [`TestVRRPIPv6RedirectFollowsVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_v6_integration_linux_test.go#L39) | unit/verify | revert, verified |
@@ -902,13 +902,13 @@ The Active Router MUST NOT respond with its physical MAC address in the ARP resp
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 8.1.2 says "The Active Router MUST NOT respond with its physical MAC address in the ARP response." TestVRRPOwnerAnswersWithVirtualMACOnly (owner case; its helper ownerAwaitUsable now also syncs the macvlan receive filter before probing, outside the unit) sees the physical MAC as ARP sender hardware address without the owner filter, only the virtual MAC with it, and the physical MAC again once withdrawn; TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly gives the non-owner case with the recipe as control. ownerExpect fails on any MAC other than the two and requires the virtual MAC in every phase. The owner unit still t.Skipf's when the nft backend cannot load, as before. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L144) | unit/verify | unproven |
+| negative | [`TestDataplaneRestoreOnLastGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L144) | unit/verify | not verified |
 | negative | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L51) | unit/verify | revert, verified |
 | negative | [`TestOwnerFilterWiredOnPromotionForEveryFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L179) | unit/verify | revert, verified |
 | negative | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L62) | unit/verify | revert, verified |
-| positive | [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L73) | unit/verify | unproven |
+| positive | [`TestDataplaneApplyIPv4SetsRecipe`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/dataplane_linux_test.go#L73) | unit/verify | not verified |
 | positive | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L50) | unit/verify | revert, verified |
 | positive | [`TestOwnerFilterWiredOnPromotionForEveryFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L178) | unit/verify | revert, verified |
 | positive | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L61) | unit/verify | revert, verified |
@@ -919,7 +919,7 @@ When a host sends an ARP request for one of the Virtual Router IPv4 addresses, t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 8.1.2 says "the Active Router MUST respond to the ARP request with an ARP response that indicates the Virtual Router MAC address for the Virtual Router." TestVRRPOwnerAnswersWithVirtualMACOnly (owner case; its helper ownerAwaitUsable now also syncs the macvlan receive filter before probing, outside the unit) sees the physical MAC as ARP sender hardware address without the owner filter, only the virtual MAC with it, and the physical MAC again once withdrawn; TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly gives the non-owner case with the recipe as control. ownerExpect fails on any MAC other than the two and requires the virtual MAC in every phase. The owner unit still t.Skipf's when the nft backend cannot load, as before. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L57) | unit/verify | revert, verified |
 | negative | [`TestVRRPNonOwnerMasterAnswersARPWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/vmac_state_integration_linux_test.go#L70) | unit/verify | revert, verified |
@@ -932,14 +932,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent, continuations 1-2): TestEngineWaitsForALateVirtualMACDevice (ipv4) closes the gap: the live macvlanCreator.create runs over a registry that creates the device late and a transport refusing an absent device, and the order is device, install, gratuitous ARP; a device that never appears gives no instance, install or ARP. Deleting waitDevicePresent reddens the positive (records on register.go create, observed red). TestInstanceDelaysAnnounceUntilParentUsable covers the IPv4 address half.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEngineWaitsForALateVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_late_device_test.go#L114) | unit/verify | revert, verified |
 | negative | [`TestEngineAnnouncesNothingBeforeTheVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_order_test.go#L35) | unit/verify | revert, verified |
-| negative | [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L790) | unit/verify | unproven |
+| negative | [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L790) | unit/verify | not verified |
 | positive | [`TestEngineWaitsForALateVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_late_device_test.go#L113) | unit/verify | revert, verified |
 | positive | [`TestEngineAnnouncesNothingBeforeTheVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_order_test.go#L34) | unit/verify | revert, verified |
-| positive | [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L789) | unit/verify | unproven |
+| positive | [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L789) | unit/verify | not verified |
 
 ### [`RFC9568-8.1.3-1`](#rfc9568-8.1.3-1)
 
@@ -947,7 +947,7 @@ If Proxy ARP is to be used on a VRRP Router, then the VRRP Router MUST advertise
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestNoProxyARPOnVRRPInterfaceAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/proxyarp_test.go#L68) | unit/verify | revert, verified |
 | positive | [`TestProxyARPOnVRRPInterfaceRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/proxyarp_test.go#L34) | unit/verify | revert, verified |
@@ -958,12 +958,12 @@ The Active Router MUST NOT respond with its physical MAC address. (§8.2.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 8.2.2 says "The Active Router MUST NOT respond with its physical MAC address." TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly, otherwise unchanged, sees the physical MAC in the Target Link-Layer Address option with the address on the parent, only the virtual MAC once it lives on the macvlan, and no advertisement once removed; TestVRRPOwnerAnswersWithVirtualMACOnly gives the owner case with and without the owner filter. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L33) | unit/verify | revert, verified |
 | negative | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L55) | unit/verify | revert, verified |
 | negative | [`TestOwnerFilterWiredOnPromotionForEveryFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L175) | unit/verify | revert, verified |
-| positive | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L744) | unit/verify | unproven |
+| positive | [`TestInstanceIPv6VIPLivesOnVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L744) | unit/verify | not verified |
 | positive | [`TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L32) | unit/verify | revert, verified |
 | positive | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L54) | unit/verify | revert, verified |
 | positive | [`TestOwnerFilterWiredOnPromotionForEveryFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/ownerfilter_test.go#L174) | unit/verify | revert, verified |
@@ -990,14 +990,14 @@ No test carries RFC9568-8.2.2-3, so there is no linked test.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. vrrp judge 2026-09-29 (independent, continuations 1-2): TestEngineWaitsForALateVirtualMACDevice (ipv6): device, install, Neighbor Advertisement order under a late device through the live create, nothing at all when the device never appears; deleting the wait reddens it (records on register.go create, observed red). With TestEngineAnnouncesNothingBeforeTheVirtualMACDevice and TestInstanceDelaysAnnounceUntilParentUsable (address half).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEngineWaitsForALateVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_late_device_test.go#L116) | unit/verify | revert, verified |
 | negative | [`TestEngineAnnouncesNothingBeforeTheVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_order_test.go#L37) | unit/verify | revert, verified |
-| negative | [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L793) | unit/verify | unproven |
+| negative | [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L793) | unit/verify | not verified |
 | positive | [`TestEngineWaitsForALateVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_late_device_test.go#L115) | unit/verify | revert, verified |
 | positive | [`TestEngineAnnouncesNothingBeforeTheVirtualMACDevice`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/boot_order_test.go#L36) | unit/verify | revert, verified |
-| positive | [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L791) | unit/verify | unproven |
+| positive | [`TestInstanceDelaysAnnounceUntilParentUsable`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/instance_test.go#L791) | unit/verify | not verified |
 
 ### [`RFC9568-8.2.2-8`](#rfc9568-8.2.2-8)
 
@@ -1005,7 +1005,7 @@ When a host sends an ND Neighbor Solicitation message for a Virtual Router IPv6 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 8.2.2 says "the Active Router MUST respond to the ND Neighbor Solicitation message with the Virtual Router MAC address for the Virtual Router." TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly, otherwise unchanged, sees the physical MAC in the Target Link-Layer Address option with the address on the parent, only the virtual MAC once it lives on the macvlan, and no advertisement once removed; TestVRRPOwnerAnswersWithVirtualMACOnly gives the owner case with and without the owner filter. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestVRRPNonOwnerMasterAnswersNDWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/nd_nonowner_integration_linux_test.go#L37) | unit/verify | revert, verified |
 | negative | [`TestVRRPOwnerAnswersWithVirtualMACOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/owner_answer_integration_linux_test.go#L63) | unit/verify | revert, verified |
@@ -1050,7 +1050,7 @@ It SHOULD verify that the local router is not the IPvX address owner (Priority =
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-20 (independent auditor, after 30aabfda88). Erratum 8298 (rfc/errata/rfc9568/8298.txt, Verified) corrected text: "It SHOULD verify that the local router is not the IPvX address owner (Priority = 255 (decimal)) and log the event (subject to rate-limiting) and MAY indicate via network management that a misconfiguration was detected." onPacket gained one branch before noteOwnerConflict: an owner in a group configured checksum rfc5798-compatible records ReasonOwner and returns. Every other VRRPv3 group still reaches noteOwnerConflict (owner-conflict counter on every advert, Warn log at most once per ownerConflictLogInterval) and processes the advertisement. TestInstanceV3OwnerConflictLoggedAndProcessed runs under testSpec(), whose Checksum is packet.ChecksumRFC9568, so the new branch is not taken and the test still pins the counter, the log, its rate limit and delivery; the negative (non-owner, nothing counted, no log) is unchanged. PASS at HEAD. Finding, no verdict change: in an rfc5798-compatible IPv4 group the owner now counts under `owner` and writes no log line, so this SHOULD's "log the event" is not done there (an owner-approved, mode-scoped departure toward RFC 5798 Section 7.1 as published, disclosed in docs/guide/vrrp.md). rfc/short/rfc9568.md Support remaining does not mention it and should, since the rfc-compliance rule requires an owner-approved deviation to keep its section and reason in the scope record.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestInstanceV3OwnerConflictLoggedAndProcessed`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_owner_conflict_test.go#L66) | unit/verify | revert, verified |
 | positive | [`TestInstanceV3OwnerConflictLoggedAndProcessed`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_owner_conflict_test.go#L65) | unit/verify | revert, verified |
@@ -1061,7 +1061,7 @@ The IPv4 source address of an ICMP redirect should be the address that the end-h
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 (independent auditor, after the user-namespace conversion): every tagged unit now opens with `if !userns.Enter(t) { return }`, which re-executes the test in its own user, network and mount namespace and carries the child's fail or skip to the parent (Enter, internal/test/userns/userns_linux.go), and the file builds under plain linux instead of integration && linux. RFC 9568 Section 8.1.1 says "The IPv4 source address of an ICMP redirect should be the address that the end-host used when making its next-hop routing decision." TestVRRPRedirectSourceFollowsVirtualMAC, otherwise unchanged, pins the reverse route through the parent with source 192.0.2.254, then requires each of two virtual MACs to draw a redirect sourced from its own virtual address and the physical MAC to draw one from 192.0.2.254. Verdict enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestVRRPRedirectSourceFollowsVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L31) | unit/verify | revert, verified |
 | positive | [`TestVRRPRedirectSourceFollowsVirtualMAC`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/redirect_integration_linux_test.go#L30) | unit/verify | revert, verified |
@@ -1072,7 +1072,7 @@ The IPv6 source address of an ICMPv6 redirect SHOULD be the address that the end
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L98) | unit/verify | revert, verified |
 | positive | [`TestVRRPIPv6RedirectSourcedFromVirtualLinkLocal`](https://github.com/ze-software/ze/blob/main/internal/plugins/vrrp/rfc9568_vmac_link_local_integration_linux_test.go#L97) | unit/verify | revert, verified |

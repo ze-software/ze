@@ -128,11 +128,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>13</strong><b>of 15 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 15 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>13</strong><b>of 15 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 15 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 15 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 15 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>30</strong><b>30 of 57 tests linked to requirements, 0 without a fault test and 27 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 15 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>30</strong><b>30 of 57 tests linked to requirements, 0 without a fault test and 27 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -145,9 +145,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 15 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 15 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 15 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 15 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 15 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 15 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 15 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -175,11 +175,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -191,7 +191,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -199,7 +199,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -280,7 +280,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Link-local next-hop capability code 77</p>
-<p><strong>Proof:</strong> 10 of 15 MUST proven</p>
+<p><strong>Test verification:</strong> 10 of 15 MUST proven</p>
 <p><strong>Evidence:</strong> unit 10</p>
 <p><strong>Unmet:</strong> DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2, DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15</p>
 
@@ -306,7 +306,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -327,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="draft-ietf-idr-linklocal-capability:must">Ze proven 10, Proof pending 3, Not built 2</div>
+<div data-ze-rfc-bar="draft-ietf-idr-linklocal-capability:must">Ze verified 10, Tests awaiting verification 3, Not built 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="draft-ietf-idr-linklocal-capability:overview">Ze MUST proven 10, Proof pending 3, Not assessed 12, Not built 2</div>
+<div data-ze-rfc-bar="draft-ietf-idr-linklocal-capability:overview">Ze MUST verified 10, Tests awaiting verification 3, Not assessed 12, Not built 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -349,13 +349,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:must.kept">15</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:must.ze-proven">10</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:must.proof-pending">3</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -385,7 +385,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:should.total">12</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:should.proven">0</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -406,7 +406,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="draft-ietf-idr-linklocal-capability:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -421,7 +421,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -724,8 +724,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#draft-ietf-idr-linklocal-capability-1-2"><code>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2</code></a></h3>
 <p>Since IPv6 Link-Local addresses are not required to be globally unique, implementations must ensure that they are strictly associated with a specific interface. (§1)</p>
 <p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), stale-unit: internal/component/bgp/plugins/rib/rib_bestchange.go::mpNextHopAddr moved. Judged 2026-10-01 (BGP c20 judge, R58(c)). Row text is a verbatim span of draft -06 Section 1 (lowercase must, ruled to bind the implementation). Gap confirmed at the producers: mpNextHopAddr (rib_bestchange.go) turns the received Next Hop octets into a bare netip.Addr with no zone and no interface, and nothing in the BGP best-change path sets one (no WithZone on that path); on the send side applyLinkLocal (config_nexthop_form.go) parses session link-local as a plain address with no tie to the session&#39;s interface. The {gap} annotation states both halves.</p>
@@ -735,7 +735,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a sender meaning to send one Link-Local address writes a field other than 16 octets, or adds another address. TestLinkLocalOnlyNextHopFieldIsSixteenOctets builds the UPDATE through resolveNextHop and BuildUnicast and asserts assert.Len(field, 16) and that the field equals fe80::1 alone; either defect turns it red. The negative TestLinkLocalNextHopWithAGlobalIsNotSentAlone shows the 16-octet form is keyed on one address (32 octets when a Global is also sent).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L118" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go" target="_blank" rel="noopener"><code>TestLinkLocalNextHopWithAGlobalIsNotSentAlone</code></a></td>
@@ -755,7 +755,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c21 judge). The c19 finding is closed: TestLinkLocalBothAddressesSetTheWireLengthOctetToThirtyTwo reads the MP_REACH_NLRI Length of Next Hop octet off the bytes sendStaticRoutes wrote to the one-hop internal peer&#39;s connection and asserts 0x20 followed by exactly 2001:db8:1::1 then fe80::1 (both clauses: length 32, both addresses); TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen asserts 0x10 and the lone global for a route through another router, so the 32-octet length is tied to sending both. mpReachNextHopField slices exactly the octets the length announces and fails when none is written. Records observed red on mpnlri.go::nextHopLen. The older facts-level units stay tagged; their assert.Len over a [32]byte array is vacuous and carries no weight in this verdict.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go#L181" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_announce_test.go" target="_blank" rel="noopener"><code>TestLinkLocalSingleAddressSetsTheWireLengthOctetToSixteen</code></a></td>
@@ -785,7 +785,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged against draft -06 Sections 2 and 4. Section 4 says: &#39;If, after completing these procedures, there are no IPv6 next hop addresses included in the next hop, the BGP route MUST not be advertised to its peer. Instead, treat-as-withdraw (Section 2 of [RFC7606]) is used.&#39; TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer exercises forwardUpdateCore with received fe80::1, NextHopUnchanged, internal and external destinations outside the connected subnet; it requires dispatch to each distant destination, no announced next hop, and exact MP_UNREACH for 2001:db8:7::/64. The same fan-out requires an attached destination to receive exactly fe80::1. llnhExternalPeer now sets negotiated.LinkLocalNextHop=true, making that control conforming and preventing the capability refusal from masking the off-link gate. egressNextHopWithheld calls egressNextHopLinkLocalOnlyOffLink, and forwardUpdateCore turns the refusal into SetWithdraw. The two tagged buildRIBRouteUpdate tests additionally distinguish absent next hop (nil UPDATE for internal/external) from a Global address (exact 16-octet next hop), but alone are not the treat-as-withdraw proof. This is source-level judgment of semantic assertions, not a new execution or interop-pass claim.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L83" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAdvertised</code></a></td>
@@ -815,7 +815,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-04 after f93a30fbfc. Forbidden: including a Link-Local next hop toward an internal peer more than one hop away. The third-party case the earlier weak verdict named is now driven: TestLinkLocalReceivedPairStrippedForMultihopInternalPeer relays the received 32-octet 2001:db8:1::1 + fe80::9 pair through forwardUpdateCore under next hop unchanged and under auto to an internal (AS 65000) peer off every connected subnet and asserts the exact 16-octet Global alone; the control in the same fan-out, an internal peer on the advertiser&#39;s subnet, keeps the exact 32-octet pair, which RFC 2545 Section 3 permits without the capability. Restoring the pass-through turns the positive red. The facts-level units still cover the next-hop-self half.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go#L84" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_test.go" target="_blank" rel="noopener"><code>TestLinkLocalIncludedForPeerOneHopAway</code></a></td>
@@ -845,7 +845,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c20 judge, R58(a)). The c19 hole is closed at its producer: refuseLinkLocalCapabilityWithoutAddress (llnh.go), run by both OnConfigVerify (commit) and OnConfigure (startup, FatalOnConfigError in register.go), refuses a peer, a group member or a dynamic-group template whose capability 77 is enabled (llnhEnabledFor, the same answer extractLLNHCapabilities advertises from) with no session link-local on the peer or its group; ResolveBGPTree merges the group&#39;s session leaves into the peer, so the group case matches what the reactor&#39;s applyLinkLocal reads. So every configuration that can negotiate 77 carries the address linkScope.linkLocalNextHop appends. New units, both through the real LoadConfig + ToPluginMap lowering: negative TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress (standalone and group-inherited capability refused, error names peer1 and session link-local, the section entry refuses too); positive TestLinkLocalCapabilityAcceptedWithLinkLocalAddress (leaf on peer, group, member: accepted and the capability still declared). Both recorded red under the producer break. The wire half stays proven both polarities on the announce rail (directly connected originated route: [global, fe80::1]; route through another router: 16-octet global) and on the forward facts (next-hop self, local ip auto, unchanged), each with an observed-red record. Functional: test/plugin/llnh-refuses-without-link-local.ci (ze boot exits 1 with the refusal) passes. Residual note: the wire units do not negotiate capability 77 itself; linkLocalNextHop does not read the capability, so the same producer answers with and without it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go#L75" title="internal/component/bgp/plugins/llnh/draft_ietf_idr_linklocal_capability_llnh_refusal_test.go" target="_blank" rel="noopener"><code>TestLinkLocalCapabilityRefusedWithoutLinkLocalAddress</code></a></td>
@@ -890,7 +890,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-04 after f93a30fbfc. Forbidden: announcing to an internal peer a route the internal-peer procedures leave with no IPv6 next hop, rather than treat-as-withdraw. TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer (internal=true branch) relays a Link-Local-only fe80::1 to an internal peer more than one hop away, where the Link-Local MUST NOT be included and nothing remains, and asserts no MP_REACH next hop and the exact MP_UNREACH_NLRI for the prefix, so &#39;after evaluating the above procedures&#39; is an input and the withdrawal is asserted. Control: TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer announces the same route with a Global next hop and LOCAL_PREF (RIB rail, cross-rail but conformant). The RIB-rail positive alone is still only a zero-address builder check.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L105" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnInternalPeer</code></a></td>
@@ -915,7 +915,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged against draft -06 Section 4: &#39;A Route Reflector (RR) reflecting a route with a link-local-only next hop MUST NOT advertise that route to a client unless the client shares the same link-layer segment as the original advertiser.&#39; llnhClient now sets negotiated.LinkLocalNextHop=true. More importantly, the tagged TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment now includes directly-attached-other-segment: both clients are on connected /64s, only one shares the advertiser&#39;s /64, and both use NextHopUnchanged. On forwardUpdateCore&#39;s reflected path the off-segment client must be dispatched the exact MP_UNREACH for 2001:db8:7::/64, with no MP_REACH attribute and no next hop; the same-segment client must receive MP_REACH with exactly fe80::1 and no MP_UNREACH. These are distinct conforming/refused outcomes despite sharing one tagged function. Reading egressNextHopWithheld, sameLinkLayerSegment and destOnLink establishes isolation: removing only the reflection segment refusal leaves both clients on-link and capability-authorized, so the off-segment announcement violates the explicit no-MP_REACH and exact-withdrawal assertions. The older outer off-segment case alone was confounded by the independent multihop refusal; the new attached-other-segment subtest closes that proof gap. No remaining 4-5 source/test fix is established by this focused review. This is semantic source evidence, not an observed mutation run or an interop-pass claim.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L232" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedLinkLocalOnlyRouteIsWithheldFromAClientOffTheSegment</code></a></td>
@@ -935,7 +935,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-04 after f93a30fbfc. Forbidden: for an off-segment client, sending the Link-Local-only route neither rewritten nor ineligible. TestReflectedLinkLocalOnlyRouteIsRewrittenOrIneligibleForOtherClients asserts the next-hop-self client receives exactly 2001:db8:1::254 and not a Link-Local-only field, and the client without rewrite is written no MP_REACH next hop (now the withdrawal under the owner&#39;s decision; assert.Empty does not distinguish withdrawal from nothing, which the sentence does not require). Negative TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld: a Global next hop reaches the same off-segment client unchanged. No assertion delivers a Link-Local-only next hop, so the capability-77 fixture gap does not touch this pair.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go#L346" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_reflect_test.go" target="_blank" rel="noopener"><code>TestReflectedGlobalNextHopRouteIsNeitherRewrittenNorWithheld</code></a></td>
@@ -955,7 +955,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-04 after f93a30fbfc. Forbidden: announcing to a one-hop external peer a route with no next hop included, rather than treat-as-withdraw. TestNextHopSelfWithheldRouteServerWithdraws requires the fixture reached nhSelfWithheld (next-hop self configured, no address of this speaker, so third-party is disabled and nothing remains) and asserts on the route-server rail no MP_REACH next hop and the exact MP_UNREACH_NLRI for the prefix; the client is on-link, so no other gate explains the refusal. Both rails share egressNextHopWithheld and each calls mods.SetWithdraw on any refusal, and the general-rail withdrawal is proven by the 4-1 unit. Control: TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer (RIB rail, cross-rail, conformant). The RIB-rail positive alone is a zero-address builder check.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L126" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithANextHopIsAnnouncedToAnExternalPeer</code></a></td>
@@ -980,7 +980,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudge of the current twelve tagged units after correcting ordinary eBGP Auto expectations and adding explicit single-Link-Local coverage. Section 4 item 3 says: Link-Local IPv6 next hops MUST NOT be included. The surrounding condition is an external peer multiple IP hops away. The two configured-Self units cover common-subnet exclusion and its directly attached control. The four existing received-pair units cover both forwarding paths: Unchanged removes the received Link-Local half while retaining the received Global; ordinary eBGP Auto emits its own usable Global; attached Unchanged recipients retain the complete pair. The recipient fixtures explicitly are not route-server clients. The earlier six-unit set alone did not cover the separate received sixteen-octet Link-Local-only branch, so its previous whole-row assurance could not simply be refreshed. The six new rail-specific units now cover that branch without relying on an impossible explicit-Link-Local configuration. ReceivedMultihopCached and ReceivedMultihopNative first advertise a usable Global, require the exact prefix withdrawal with no announcement when received Link-Local-only input replaces it, then require explicit-Self recovery. PolicyMultihopCached and PolicyMultihopNative drive the real export-library FilterModify.Raw path with Global, Link-Local-only and restored Global output, asserting each actual socket result. AttachedCached and AttachedNative preserve exact single-Link-Local bytes and prefix with no withdrawal for both received and raw-policy input. The fixture supplies capability-77 permission before dispatch, explicitly checks ordinary eBGP and connected scope, and restores the immutable scope after the policy helper refreshes host interfaces; this isolates the scope rule from independent capability refusal or blanket dropping. egressNextHopLinkLocalOnlyOffLink tests connected scope before the effective rewritten or borrowed next-hop entity, and egressNextHopWithheld applies it on both forward paths. The twelve-unit population therefore covers configured self, received pairs, received single-Link-Local and reachable raw-policy single-Link-Local output, with distinct permitting controls and preserved useful advertisements. Retain enforced on this source-supported scope. This is a test and producer judgment, not a claim that capability negotiation or interoperability was rerun, nor that any pending native discrimination record refresh has already completed; those observations remain independently checked by the recorder and gate.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go#L140" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_multihop_test.go" target="_blank" rel="noopener"><code>TestLinkLocalReceivedPairKeptForDirectlyAttachedExternalPeer</code></a></td>
@@ -1050,7 +1050,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged against draft -06 Section 4&#39;s multihop EBGP procedure: &#39;If a Global IPv6 next hop is not included, the route MUST NOT be advertised to the external peer (treat-as-withdraw).&#39; TestLinkLocalOnlyRouteWithdrawnFromMultihopPeer (external branch, general rail) and TestLinkLocalOnlyRouteServerWithdrawnFromMultihopClient (route-server rail) relay received fe80::1 unchanged to an external destination outside every connected subnet and require dispatch, no announced next hop, and exact MP_UNREACH for 2001:db8:7::/64. Their attached controls receive exactly fe80::1; llnhExternalPeer now supplies negotiated.LinkLocalNextHop=true, so those controls are conforming and capability refusal cannot explain the distant-peer result. Both production rails invoke egressNextHopWithheld and materialize a withdrawal when egressNextHopLinkLocalOnlyOffLink refuses the no-Global route. The two additional tagged advertise tests distinguish no Global (nil RIB-built UPDATE) from an exact 16-octet Global next hop, alongside multihop next-hop-self facts; they supplement rather than replace the forwarding withdrawal proof. This is source-level judgment of semantic assertions, not a new execution or interop-pass claim.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go#L151" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_advertise_test.go" target="_blank" rel="noopener"><code>TestLinkLocalRouteWithAGlobalNextHopIsAdvertisedToAMultihopExternalPeer</code></a></td>
@@ -1089,7 +1089,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: sending the 16-octet Link-Local-only field for IPv4 NLRI when capability 77 plus RFC 8950 were not both negotiated. TestIPv4NLRINextHopIsThirtyTwoOctetsWithoutTheCombination asserts require.ErrorIs(err, ErrNextHopLinkLocalOnly) from resolveNextHop and assert.Len(field, 32) with Global then Link-Local; admitting the 16-octet form turns it red. The negative TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination shows the 16-octet form is sent once both are negotiated.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go#L173" title="internal/component/bgp/reactor/draft_ietf_idr_linklocal_capability_send_test.go" target="_blank" rel="noopener"><code>TestIPv4NLRILinkLocalOnlyNextHopNeedsTheCombination</code></a></td>
@@ -1109,7 +1109,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-03 by an independent auditor who authored none of 816ce1ce4c, 2cbd255ba4, 2e5c2d012a, d22b811ce4 or 1a2ccaeef8 (phase 5 of spec-filter-wire-0-umbrella, the per-peer text filter chain deleted). Draft Section 6 read: &#34;If the Next Hop field is malformed, the implementation MUST handle the malformed UPDATE message using the approach of &#34;treat-as- withdraw&#34;, as described in section 7.3 of [RFC7606].&#34; The only moved unit, TestRFC2545EffectivePairPolicyAndMixedSibling, changed only its export-filter plumbing: The test filter is now an answerTransport behind filterTransportSeam, compiled by answerPolicy into a policychain library chain, so the verdict travels the real filter-update path (route.Input, rpc.FilterUpdateOutput decoded by the library chain) instead of the deleted policyFilterSeam that handed a PolicyResponse straight to the text chain; that is the production path every plugin filter now takes. The filter is now called once per UPDATE and rewrites only when the fields carry the IPv6 prefix 2001:db8:7::/64, where it was called per family on the text. The tagged negative row cap77-source-invalid-second-withdrawn has no replacement, installs no policy, and still returns through rfc2545AssertWithdrawnAtReceipt, which requires the Session to publish the withdrawal of every route of the UPDATE, legacy sibling included, and no announcement to the recipient; every assertion is byte-identical. The other carriers of the row are unmoved and their judgement stands. Ran the tagged units under ./le job run at HEAD (-tags ze_bgp, -v): PASS (scratch audit-p5-units-v.log). Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go#L47" title="internal/component/bgp/message/draft_ietf_idr_linklocal_capability_malformed_test.go" target="_blank" rel="noopener"><code>TestLinkLocalCapabilityMalformedThirtyTwoOctet</code></a></td>
@@ -1361,7 +1361,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

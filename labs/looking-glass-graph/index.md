@@ -10,7 +10,7 @@ Injects 36 routes into a running Ze instance that describes a small but realisti
 
 The Go test runner starts a real Looking Glass in an isolated workspace, injects the routes, checks the topology graph and route views, then tears the instance down.
 
-- **Proves:** The Looking Glass topology graph and route views render correctly against a realistic multi-site, multi-peer network
+- **What this lab tests:** The Looking Glass topology graph and route views render correctly against a realistic multi-site, multi-peer network
 - **Topology:** AS65000 core ring + edge sites, external peers NTT/Cogent/Cloudflare/Akamai
 - **Requires:** Go toolchain
 - **Source:** [internal/le/interoplab/bgp/](https://github.com/ze-software/ze/tree/main/internal/le/interoplab/bgp)

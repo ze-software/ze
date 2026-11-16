@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 9 | of 9 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 9 | of 9 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 9 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 38 | 38 of 61 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 38 | 38 of 61 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -25,9 +25,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 9 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 9 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 9 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 9 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 9 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 9 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 9 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -46,13 +46,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -86,7 +86,7 @@ Included in automatic checks: Advertisement of Multiple Paths in BGP (ADD-PATH):
 
 **Area:** ADD-PATH
 
-**Proof:** 9 of 9 MUST proven
+**Test verification:** 9 of 9 MUST proven
 
 **Evidence:** interop 1, functional 1, unit 7
 
@@ -101,7 +101,7 @@ Included in automatic checks: Advertisement of Multiple Paths in BGP (ADD-PATH):
 | Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **9** | every mandatory requirement appears in exactly one group above |
@@ -110,8 +110,8 @@ Included in automatic checks: Advertisement of Multiple Paths in BGP (ADD-PATH):
 
 ## Figures
 
-- **MUST bar**: Ze proven 9
-- **Overview bar**: Ze MUST proven 9, Not assessed 4
+- **MUST bar**: Ze verified 9
+- **Overview bar**: Ze MUST verified 9, Not assessed 4
 
 | Figure | Rows |
 |---|---|
@@ -120,9 +120,9 @@ Included in automatic checks: Advertisement of Multiple Paths in BGP (ADD-PATH):
 | Mandatory requirements complete | complete |
 | MUST rows | 9 |
 | MUST rows kept (the MUST bar) | 9 |
-| Ze proven | 9 |
+| Ze verified | 9 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -132,19 +132,19 @@ Included in automatic checks: Advertisement of Multiple Paths in BGP (ADD-PATH):
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 4 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 4 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7911.json](../../../data/rfc/rfc7911.json).
 
@@ -170,9 +170,9 @@ Source: [data/rfc/rfc7911.json](../../../data/rfc/rfc7911.json).
 
 RFC 7911 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC7911-2-1`](#rfc7911-2-1)
 
@@ -180,7 +180,7 @@ However, the Path Identifier MUST be assigned in such a way that the BGP speaker
 
 Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/session_rfc7607.go::Session.transmittedASZeroAttribute, internal/component/bgp/reactor/session_rfc7607.go::Session.writeASZeroAsWithdrawal moved. RFC 7911 Section 2: "However, the Path Identifier MUST be assigned in such a way that the BGP speaker is able to use the (Prefix, Path Identifier) to uniquely identify a path advertised to a neighbor." Both tagged units were re-read. TestForwardPathIDsDifferForCollidingSources forces two ingress sources to use the same native prefix and received identifier, reads their destination identifier fields and requires inequality. TestForwardPathIDStableAcrossUpdates requires a repeat of one path to keep its local identifier while a colliding source remains distinct. Source tracing covers source/native-path allocation, recipient collision binding and retention, final ownership filtering, recorded deletion and session retirement. The new writeUpdateBody AS-zero gate reads the destination's negotiated ASN width, which the repaired fixtures now publish coherently. Its withdrawal branch projects original ingress identities through projectFwdWithdrawals and bindWithdrawalChunk instead of interpreting outgoing identifiers as source identifiers; normal valid advertisements keep the existing ownership path. These tagged units exercise buildFwdBody rather than the final AS-zero writer or a failed socket write. The independently inspected main AS-zero provenance fault additionally fails both ADD-PATH rails when original identities are replaced by outgoing ones, but is not an RFC7911 discrimination record. Rejudgment retains the identifier-uniqueness verdict without claiming allocator reclamation policy, complete session integration or a new foreign-peer run.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestForwardPathIDsDifferForCollidingSources`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L45) | unit/verify | revert, verified |
 | positive | [`TestForwardPathIDStableAcrossUpdates`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_test.go#L96) | unit/verify | revert, verified |
@@ -191,7 +191,7 @@ A BGP speaker that re-advertises a route MUST generate its own Path Identifier t
 
 Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/session_rfc7607.go::Session.transmittedASZeroAttribute, internal/component/bgp/reactor/session_rfc7607.go::Session.writeASZeroAsWithdrawal moved. RFC 7911 Section 2: "A BGP speaker that re-advertises a route MUST generate its own Path Identifier to be associated with the re-advertised route." Every current tagged cover was read. The core collision/stability units and generation units assert distinct source paths for one prefix, stable replacement despite attribute changes, exact inverse withdrawals, unframed sources, legal received and locally assigned zero/maximum values, per-neighbor stability and collision avoidance at wrap. TestForwardPathIDMPGeneration checks exact native prefix/identifier pairs on raw MP, cross-context and unframed-source rails, including reversed-order replacement and withdrawal; TestPathIDKeyFollowsWhatTheSourceFramed keeps a sibling prefix stable after another is retired. All four churn units assert recipient-visible identities through relay, cache acknowledgement and final writes, including rebuilt frames and a pair withdrawn and re-announced in one UPDATE. Their bodies are unchanged; newSyncOrderDest now publishes the supplied framing through real capability negotiation. The functional replay carrier compares exact live/replayed daemon bytes; its pinned first local identifier zero is a fixture fact, not an RFC allocator requirement. The foreign checker requires FRR to retain both source origins under different identifiers and retain each pairing after reconnect; its predicates were read, but no foreign run is claimed here. The changed AS-zero writer preserves original ingress identity while projecting held routes into compliant withdrawals, with its inspected projection boundaries added to code fingerprints. Memory-release assertions are Ze contracts, and numeric inequality from a received identifier is not itself an RFC obligation. Native renewal of the four churn records remains a main-thread step, not an observation made by this source audit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestForwardPathIDFiniteNamespace`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L246) | unit/verify | revert, verified |
 | negative | [`TestForwardPathIDMPGeneration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_mp_test.go#L26) | unit/verify | revert, verified |
@@ -219,16 +219,16 @@ In order to carry the Path Identifier in an UPDATE message, the NLRI encoding MU
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7911): "In order to carry the Path Identifier in an UPDATE message, the NLRI encoding MUST be extended by prepending the Path Identifier field, which is of four octets." The only edit to test/plugin/adj-rib-in-replay-addpath-source.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestPathInformationIsNotWrittenWithoutTheNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go#L84) | unit/verify | unproven |
-| negative | [`TestWriteNLRI_AddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_base_len_test.go#L143) | unit/verify | unproven |
-| negative | [`adj-rib-in-replay-addpath-source.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L19) | functional/verify | unproven |
+| negative | [`TestPathInformationIsNotWrittenWithoutTheNegotiation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go#L84) | unit/verify | not verified |
+| negative | [`TestWriteNLRI_AddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_base_len_test.go#L143) | unit/verify | not verified |
+| negative | [`adj-rib-in-replay-addpath-source.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L19) | functional/verify | not verified |
 | positive | [`TestWithdrawOnlyUpdateKeepsPathIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc7911_withdraw_only_test.go#L66) | unit/verify | revert, verified |
-| positive | [`TestPathInformationZeroIsAnIdentifierOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go#L42) | unit/verify | unproven |
-| positive | [`TestWriteNLRI_WithStoredPathID`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_base_len_test.go#L182) | unit/verify | unproven |
-| positive | [`TestINETWithAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_inet_test.go#L112) | unit/verify | unproven |
-| positive | [`adj-rib-in-replay-addpath-source.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L16) | functional/verify | unproven |
+| positive | [`TestPathInformationZeroIsAnIdentifierOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/update/rfc7911_addpath_pathid_test.go#L42) | unit/verify | not verified |
+| positive | [`TestWriteNLRI_WithStoredPathID`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_base_len_test.go#L182) | unit/verify | not verified |
+| positive | [`TestINETWithAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/rfc7911_inet_test.go#L112) | unit/verify | not verified |
+| positive | [`adj-rib-in-replay-addpath-source.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/adj-rib-in-replay-addpath-source.ci#L16) | functional/verify | not verified |
 
 ### [`RFC7911-4-1`](#rfc7911-4-1)
 
@@ -236,12 +236,12 @@ A BGP speaker that wishes to indicate support for multiple AFI/SAFIs MUST do so 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Now reads Ze's built OPEN. Positive: default send/receive over two families -> exactly one code-69 instance listing both, mode 3. Negative: per-family overrides only over three families with directions 2/1/3 -> still one instance holding all three. Judge break: config_capabilities.go appending one AddPath capability per family turned both red. Old parse-level TestAddPathCapability/TestAddPathMultipleFamilies tags are supplementary.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7911PerFamilyAddPathStaysOneInstance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L194) | unit/verify | revert, verified |
-| negative | [`TestAddPathCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L374) | unit/verify | unproven |
+| negative | [`TestAddPathCapability`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L374) | unit/verify | not verified |
 | positive | [`TestRFC7911OpenCarriesOneAddPathInstance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc_open_family_capability_test.go#L174) | unit/verify | revert, verified |
-| positive | [`TestAddPathMultipleFamilies`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L403) | unit/verify | unproven |
+| positive | [`TestAddPathMultipleFamilies`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L403) | unit/verify | not verified |
 
 ### [`RFC7911-5-1`](#rfc7911-5-1)
 
@@ -249,13 +249,13 @@ For a BGP speaker to be able to send multiple paths to its peer, that BGP speake
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7911 Section 5: "For a BGP speaker to be able to send multiple paths to its peer, that BGP speaker MUST advertise the ADD-PATH Capability with the Send/Receive field set to either 2 or 3, and MUST receive from its peer the ADD-PATH Capability with the Send/Receive field set to either 1 or 3, for the corresponding <AFI, SAFI>." All three current carriers read: capability/negotiated_test.go TestNegotiateAddPath, context/rfc7911_negotiated_test.go TestFromNegotiatedAddPath (all nine direction-mode pairs), capability/rfc7911_family_scope_test.go TestRFC7911AddPathNegotiationIsPerFamily. The new matrix crosses IPv4/IPv6 and unicast/multicast, both send-capable local modes and both receive-capable peer modes, while MP negotiation offers all families; exactly the intersection family can send. Thus local Receive-only, remote Send-only, wrong AFI and wrong SAFI independently cannot grant send. Negotiate keys both mode maps by the full Family and FromNegotiatedSend/Recv preserve the directional result. This closes the prior family-blindness gap rather than merely re-sealing it. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step. Post-lint independent source rejudgment: TestRFC7911AddPathNegotiationIsPerFamily now computes matchingFamilies = (localFamily == remoteFamily), then wantSend = matchingFamilies && (fam == localFamily). By equality transitivity this is exactly (fam == localFamily && fam == remoteFamily): false for crossed AFI or SAFI; true only for the matching queried family. All three session families are offered by MP on both sides, so lack of MP negotiation cannot mask leakage. All four local-send/remote-receive combinations and all nine family pairs still run. Re-read both companion carriers, including the nine direction-mode context matrix, and Negotiate maps indexed by the full Family. Positive and negative tags test distinct matrix inputs. Enforced remains; all four existing records on this changed unit require native renewal, which is not observed here.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7911AddPathNegotiationIsPerFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7911_family_scope_test.go#L13) | unit/verify | revert, verified |
-| negative | [`TestFromNegotiatedAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/rfc7911_negotiated_test.go#L168) | unit/verify | unproven |
-| positive | [`TestNegotiateAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L81) | unit/verify | unproven |
+| negative | [`TestFromNegotiatedAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/rfc7911_negotiated_test.go#L168) | unit/verify | not verified |
+| positive | [`TestNegotiateAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L81) | unit/verify | not verified |
 | positive | [`TestRFC7911AddPathNegotiationIsPerFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7911_family_scope_test.go#L12) | unit/verify | revert, verified |
-| positive | [`TestFromNegotiatedAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/rfc7911_negotiated_test.go#L167) | unit/verify | unproven |
+| positive | [`TestFromNegotiatedAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/rfc7911_negotiated_test.go#L167) | unit/verify | not verified |
 
 ### [`RFC7911-5-2`](#rfc7911-5-2)
 
@@ -263,13 +263,13 @@ For a BGP speaker to be able to send multiple paths to its peer, that BGP speake
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7911 Section 5: "For a BGP speaker to be able to send multiple paths to its peer, that BGP speaker MUST advertise the ADD-PATH Capability with the Send/Receive field set to either 2 or 3, and MUST receive from its peer the ADD-PATH Capability with the Send/Receive field set to either 1 or 3, for the corresponding <AFI, SAFI>." All three current carriers read: capability/negotiated_test.go TestNegotiateAddPath, context/rfc7911_negotiated_test.go TestFromNegotiatedAddPath (all nine direction-mode pairs), capability/rfc7911_family_scope_test.go TestRFC7911AddPathNegotiationIsPerFamily. The new matrix crosses IPv4/IPv6 and unicast/multicast, both send-capable local modes and both receive-capable peer modes, while MP negotiation offers all families; exactly the intersection family can send. Thus local Receive-only, remote Send-only, wrong AFI and wrong SAFI independently cannot grant send. Negotiate keys both mode maps by the full Family and FromNegotiatedSend/Recv preserve the directional result. This closes the prior family-blindness gap rather than merely re-sealing it. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step. Post-lint independent source rejudgment: the family-equality hoist preserves the truth table, not merely the assertion count. A queried family is send-enabled exactly when localFamily == remoteFamily == fam; crossed AFI, crossed SAFI, or a different queried family are false. Both remote Receive and Both and local Send and Both are crossed while MP offers all families. The companion TestNegotiateAddPath pins Both/Receive to exact Send, and TestFromNegotiatedAddPath tests all nine modes including peer Send-only disabling transmission. Negotiate reads localModes[f] and remoteModes[f] for each negotiated family. Enforced remains, with native renewal owed for both polarities of each row on the changed family-scope unit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7911AddPathNegotiationIsPerFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7911_family_scope_test.go#L15) | unit/verify | revert, verified |
-| negative | [`TestFromNegotiatedAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/rfc7911_negotiated_test.go#L170) | unit/verify | unproven |
-| positive | [`TestNegotiateAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L82) | unit/verify | unproven |
+| negative | [`TestFromNegotiatedAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/rfc7911_negotiated_test.go#L170) | unit/verify | not verified |
+| positive | [`TestNegotiateAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/negotiated_test.go#L82) | unit/verify | not verified |
 | positive | [`TestRFC7911AddPathNegotiationIsPerFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7911_family_scope_test.go#L14) | unit/verify | revert, verified |
-| positive | [`TestFromNegotiatedAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/rfc7911_negotiated_test.go#L169) | unit/verify | unproven |
+| positive | [`TestFromNegotiatedAddPath`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/context/rfc7911_negotiated_test.go#L169) | unit/verify | not verified |
 
 ### [`RFC7911-5-3`](#rfc7911-5-3)
 
@@ -277,11 +277,11 @@ A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7911 Section 5 makes the extended encoding conditional on local send and remote receive capability for the corresponding AFI/SAFI; without that condition the ordinary RFC4271 encoding applies. The complete scoped subject is this per-family generation/framing choice, not all requirements of the separately implemented base BGP specification. All five tagged covers were read. Both family-generation polarities negotiate local Send and remote Receive in turn for IPv4 unicast, IPv6 unicast and IPv4 multicast, call AnnounceNLRIBatch, and compare exact concatenated NLRI bytes: only the selected family carries identifiers 7 and 9; crossed AFI/SAFI cases remain plain. The direct body edit only publishes that existing Negotiated value to Session in addition to Peer. AnnounceNLRIBatch reaches announceFactsFor, buildBatchAnnounceUpdate and writeBatchNLRI with the destination family's addPath fact. TestForwardSplitConvertsAddPathContext strips identifiers and compares all 80 plain prefixes after destination-context splitting. TestForwardSplitSameContextKeepsRawSplit checks complete extended parsing, exact prefix order and separate identities for colliding sources after raw splitting. TestForwardPathIDLeavesNonAddPathDestinationAlone is principally the unchanged-buffer/no-borrow control; exact framing is supplied by the other covers. The repaired recording fixture exposes the same family/direction/ASN-width facts to the AS-zero final guard without changing these assertions. Retain enforced for the declared generation choice. Current source was independently re-read; native proof renewal is a separate main-thread prerequisite to stamping this judgment.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_family_generation_test.go#L22) | unit/verify | revert, verified |
-| negative | [`TestForwardSplitConvertsAddPathContext`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_body_test.go#L24) | unit/verify | unproven |
-| negative | [`TestForwardPathIDLeavesNonAddPathDestinationAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L221) | unit/verify | unproven |
+| negative | [`TestForwardSplitConvertsAddPathContext`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_body_test.go#L24) | unit/verify | not verified |
+| negative | [`TestForwardPathIDLeavesNonAddPathDestinationAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_path_id_gen_test.go#L221) | unit/verify | not verified |
 | positive | [`TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_family_generation_test.go#L21) | unit/verify | revert, verified |
 | positive | [`TestForwardSplitSameContextKeepsRawSplit`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_body_test.go#L128) | unit/verify | revert, verified |
 
@@ -291,12 +291,12 @@ A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/reactor_test.go::TestWriteAnnounceUpdateWithAddPath, internal/component/bgp/reactor/reactor_test.go::TestWriteAnnounceUpdateWithAddPath#2 moved. RFC 7911 Section 5: "A BGP speaker MUST follow the procedures defined in [RFC4271] when generating an UPDATE message for a particular <AFI, SAFI> to a peer unless the BGP speaker advertises the ADD-PATH Capability to the peer indicating its ability to send multiple paths for the <AFI, SAFI>, and also receives the ADD-PATH Capability from the peer indicating its ability to receive multiple paths for the <AFI, SAFI>, in which case the speaker MUST generate a route update for the <AFI, SAFI> based on the combination of the address prefix and the Path Identifier, and use the extended NLRI encodings specified in this document." All six tagged covers were read. The family-generation positive and negative tags require exact output for two identifiers 7 and 9 on the same prefix, with no extended framing leaking into the crossed family. Its existing actual capability.Negotiate result is now also published to Session; inputs and exact byte comparisons are unchanged. The producer uses each NLRI's stored identifier and the destination family's negotiated addPath fact, so prefix-only collapse, wrong identifiers, unconditional identifier fields or family leakage fail. TestWriteAnnounceUpdateWithAddPath is only a four-octet width/attribute-length control and is not treated as an exact content proof. TestSplitUpdateAddPathEndToEnd and TestSplitUpdateEndToEnd compare all concatenated extended/plain NLRI and retained attributes through the shared Splitter; despite their historical names/comments, collectSplit calls Splitter.Split directly, not a socket send path. The exact family-generation API test supplies the recipient-byte boundary. Retain enforced for pair-based generation and extended versus ordinary framing, without claiming all base-BGP decisions, socket integration or foreign interoperability. Native renewal of the four family-generation covers remains a main-thread prerequisite to stamping.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestWriteAnnounceUpdateWithAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_test.go#L518) | unit/verify | unproven |
+| negative | [`TestWriteAnnounceUpdateWithAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_test.go#L518) | unit/verify | not verified |
 | negative | [`TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_family_generation_test.go#L24) | unit/verify | revert, verified |
 | negative | [`TestSplitUpdateEndToEnd`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_split_test.go#L254) | unit/verify | revert, verified |
-| positive | [`TestWriteAnnounceUpdateWithAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_test.go#L517) | unit/verify | unproven |
+| positive | [`TestWriteAnnounceUpdateWithAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/reactor_test.go#L517) | unit/verify | not verified |
 | positive | [`TestRFC7911GeneratedPathsAreScopedToTheNegotiatedFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_family_generation_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestSplitUpdateAddPathEndToEnd`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_forward_split_test.go#L304) | unit/verify | revert, verified |
 
@@ -306,14 +306,14 @@ The peer SHALL act accordingly in processing an UPDATE message related to a part
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7911 Section 5: "The peer SHALL act accordingly in processing an UPDATE message related to a particular <AFI, SAFI>." Read together with the immediately preceding full send/receive negotiation and extended-(prefix,Path Identifier) encoding sentence. All four current carriers read: TestRFC7911AddPathStateAppliesPerFamily, TestEnforceRFC7606_MPAddPathLargePathIDAccepted, TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted and TestRFC7606Section54ReadsTypedNLRIUnderAddPath. The receive matrix positively accepts only the encoding selected for each family and negatively requires exact SessionReset on wrong framing in both IPv4/IPv6 orientations; large identifier octets isolate the framing misread. The typed test now installs a real receive context and verifies the recognized EVPN route retains its identifier while the unknown route disappears. enforceRFC7606 and typedNLRIEdit consult recvCtx.AddPathFor on the specific family. This is receive-side evidence, not an extra generation claim. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7911AddPathStateAppliesPerFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_reactor_b_test.go#L79) | unit/verify | revert, verified |
-| negative | [`TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_session_addpath_test.go#L122) | unit/verify | unproven |
-| negative | [`TestEnforceRFC7606_MPAddPathLargePathIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_session_addpath_test.go#L74) | unit/verify | unproven |
+| negative | [`TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_session_addpath_test.go#L122) | unit/verify | not verified |
+| negative | [`TestEnforceRFC7606_MPAddPathLargePathIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_session_addpath_test.go#L74) | unit/verify | not verified |
 | positive | [`TestRFC7911AddPathStateAppliesPerFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_reactor_b_test.go#L78) | unit/verify | revert, verified |
-| positive | [`TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_session_addpath_test.go#L121) | unit/verify | unproven |
-| positive | [`TestEnforceRFC7606_MPAddPathLargePathIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_session_addpath_test.go#L73) | unit/verify | unproven |
+| positive | [`TestEnforceRFC7606_IPv4BodyAddPathLargePathIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_session_addpath_test.go#L121) | unit/verify | not verified |
+| positive | [`TestEnforceRFC7606_MPAddPathLargePathIDAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7911_session_addpath_test.go#L73) | unit/verify | not verified |
 | positive | [`TestRFC7606Section54ReadsTypedNLRIUnderAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go#L88) | unit/verify | revert, verified |
 
 ## Requirement list review

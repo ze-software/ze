@@ -110,11 +110,11 @@
         return figures.get(stem);
     }
     function shortProof(figure) {
-        if (!figure) return "Loading proof…";
-        if (figure.error) return "Proof unavailable";
+        if (!figure) return "Loading test results…";
+        if (figure.error) return "Test results unavailable";
         if (figure.unknown) return "MUST unknown · " + figure.unknown.toLowerCase();
         if (figure.percent === null) return figure.must.total ? "No MUST obligations owed" : "No MUST rows";
-        return "MUST proof " + figure.percent.toFixed(1).replace(/\.0$/, "") + "%";
+        return "MUST verified " + figure.percent.toFixed(1).replace(/\.0$/, "") + "%";
     }
     function setURL() {
         const url = new URL(window.location.href);
@@ -409,22 +409,22 @@
     }
     function paintProof(host, figure) {
         host.replaceChildren();
-        host.append(el("h3", "rfc-map-eyebrow", "Recorded mandatory proof"));
+        host.append(el("h3", "rfc-map-eyebrow", "Recorded mandatory test results"));
         if (figure.error) {
             host.append(note(figure.error, "rfc-map-error"), note("The recorded figure could not be loaded. Open the canonical RFC record for its source; no percentage has been inferred."));
             return;
         }
         if (figure.unknown) {
-            host.append(el("p", "rfc-map-proof-value", "Unknown"), note(figure.unknown === "No summary" ? "This document has no summary. Its requirements and proof have not been assessed here." : "The requirement extraction is not signed off. No bounded proof percentage is available."));
+            host.append(el("p", "rfc-map-proof-value", "Unknown"), note(figure.unknown === "No summary" ? "This document has no summary. Its requirements and test coverage have not been assessed here." : "The requirement extraction is not signed off. No verified coverage percentage is available."));
             return;
         }
         const must = figure.must;
         host.append(el("p", "rfc-map-proof-value", figure.percent === null ? (must.total ? "None owed" : "No MUST rows") : figure.percent.toFixed(1).replace(/\.0$/, "") + "%"));
         if (figure.percent !== null) {
-            host.append(note(figure.proven + " of " + must.kept + " owed mandatory requirements proven. This card always covers the full mandatory register."));
-            const bar = svg("svg", { viewBox: "0 0 100 4", width: "100%", height: 10, role: "img", "aria-label": figure.proven + " proven, " + must["proof-pending"] + " awaiting proof, " + must["not-built"] + " recorded unmet" });
+            host.append(note(figure.proven + " of " + must.kept + " owed mandatory requirements verified by tests. This card always covers the full mandatory register."));
+            const bar = svg("svg", { viewBox: "0 0 100 4", width: "100%", height: 10, role: "img", "aria-label": figure.proven + " verified, " + must["proof-pending"] + " awaiting test verification, " + must["not-built"] + " recorded unmet" });
             const segments = [
-                ["ze-proven", "Ze proven"], ["os-verified", "OS verified"], ["proof-pending", "Proof pending"],
+                ["ze-proven", "Ze verified"], ["os-verified", "OS verified"], ["proof-pending", "Tests awaiting verification"],
                 ["os-gap", "OS testing gap"], ["exclusion-unchecked", "Exclusion unchecked"], ["not-assessed", "Not assessed"], ["not-built", "Recorded unmet"]
             ];
             let offset = 0;
@@ -441,12 +441,12 @@
             });
             host.append(bar);
             const metrics = el("div", "rfc-map-metrics");
-            metrics.append(metric("Proven", figure.proven), metric("Proof pending", must["proof-pending"]), metric("Recorded unmet", must["not-built"]), metric("Not assessed", must["not-assessed"]));
+            metrics.append(metric("Verified", figure.proven), metric("Tests awaiting verification", must["proof-pending"]), metric("Recorded unmet", must["not-built"]), metric("Not assessed", must["not-assessed"]));
             if (must["os-gap"] || must["exclusion-unchecked"]) metrics.append(metric("OS testing gap", must["os-gap"]), metric("Exclusions unchecked", must["exclusion-unchecked"]));
             host.append(metrics);
-        } else host.append(note(must.total ? "Every listed mandatory row is recorded as not owed. This is not a 100% proof result." : "The recorded summary lists no mandatory requirements. Advisory requirements can still apply."));
+        } else host.append(note(must.total ? "Every listed mandatory row is recorded as not owed. This is not 100% verified coverage." : "The recorded summary lists no mandatory requirements. Advisory requirements can still apply."));
         if (must["not-owed"]) host.append(note(must["not-owed"] + " mandatory rows are separately recorded as not owed."));
-        host.append(note("Proof is recorded evidence, not a fresh source audit or a release verdict. Recorded gaps can need source reconciliation.", "rfc-map-caption"));
+        host.append(note("These are recorded test results. A fresh source review and release checks are separate. Recorded gaps can need source reconciliation.", "rfc-map-caption"));
     }
     function renderInspector() {
         const data = nodes.get(state.selected);
@@ -463,7 +463,7 @@
         if (!scope().has(data.stem)) links.append(button("Add to this view", () => { state.added.push(data.stem); render(); }, "rfc-map-button rfc-map-button-quiet"));
         target.append(links);
         const proof = el("section", "rfc-map-proof-card");
-        proof.append(note("Loading the canonical proof record…"));
+        proof.append(note("Loading the recorded test results…"));
         target.append(proof);
         ensureFigure(data.stem).then(figure => { if (proof.isConnected) paintProof(proof, figure); });
         renderRelationships(target, data.stem);
@@ -510,7 +510,7 @@
     function renderRequirementList(target, stem) {
         const all = model.requirements[stem] || [];
         const rows = all.filter(row => state.level === "all" || state.level === "mandatory" && row.gated || row.level === state.level);
-        target.replaceChildren(note(rows.length + " of " + all.length + " listed statements. Keyword filtering changes this list and exact-ID relations, never the mandatory proof card."));
+        target.replaceChildren(note(rows.length + " of " + all.length + " listed statements. Keyword filtering changes this list and exact-ID relations, never the mandatory test results."));
         const relations = relationsFor(stem);
         const identities = unique(relations.map(row => row.spec));
         const specBlock = disclosure("Associated specifications · " + identities.length);
@@ -591,7 +591,7 @@
     }
     function renderProvenance() {
         const block = disclosure("Sources, scope and mapping diagnostics");
-        block.append(note("The graph, specification inventory and proof records can describe different snapshots. File or render time is not evidence freshness. This page is a planning aid, not release approval."));
+        block.append(note("The graph, specification inventory and test records can describe different snapshots. File or render time is not evidence freshness. This page is a planning aid, not release approval."));
         const inputs = el("div", "rfc-map-inputs");
         (model.inputs || []).forEach(input => {
             const item = el("div", "rfc-map-input");

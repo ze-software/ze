@@ -8,9 +8,9 @@ This lab connects Ze's PPPoE client to the `accel-ppp` access concentrator.
 
 In this pairing, accel-ppp is the PPPoE server (access concentrator) and Ze is the client. Their L2TP implementations both take the LNS responder role, so they cannot form an L2TP tunnel with each other. PPPoE gives them complementary roles for testing discovery and PPP negotiation.
 
-A peer-isolated Docker lab proves Ze's PPPoE client discovers, negotiates PPP, and establishes a session against a real accel-ppp AC.
+A peer-isolated Docker lab tests Ze's PPPoE client discovers, negotiates PPP, and establishes a session against a real accel-ppp AC.
 
-- **Proves:** RFC 2516 PPPoE discovery and PPP negotiation with accel-ppp
+- **What this lab tests:** RFC 2516 PPPoE discovery and PPP negotiation with accel-ppp
 - **Peer:** Real accel-ppp access concentrator
 - **Requires:** Docker, or Linux root with accel-ppp and PPPoE kernel support
 - **Source:** [docs/labs/pppoe-interop.md](https://github.com/ze-software/ze/blob/main/docs/labs/pppoe-interop.md)

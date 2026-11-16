@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-monitoring.json](
 
 ## Figures
 
-- **MUST bar**: Ze proven 37, Proof pending 27, Not built 20
-- **Overview bar**: Ze MUST proven 37, SHOULD proven 3, Proof pending 28, Not assessed 11, Not built 20
+- **MUST bar**: Ze verified 37, Tests awaiting verification 27, Not built 20
+- **Overview bar**: Ze MUST verified 37, SHOULD verified 3, Tests awaiting verification 28, Not assessed 11, Not built 20
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-monitoring.json](
 | Mandatory requirements complete | not complete |
 | MUST rows | 84 |
 | MUST rows kept (the MUST bar) | 84 |
-| Ze proven | 37 |
+| Ze verified | 37 |
 | OS verified | 0 |
-| Proof pending | 27 |
+| Tests awaiting verification | 27 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -30,19 +30,19 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-monitoring.json](
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 15 |
-| SHOULD proven | 3 |
+| SHOULD verified | 3 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 1 |
+| SHOULD tests awaiting verification | 1 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 11 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 ## Tree
 
@@ -58,11 +58,11 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7854](../../rfc7854/) | BGP Monitoring Protocol (BMP) | Ze proven 25, Proof pending 14 | Ze MUST proven 25, SHOULD proven 3, Proof pending 15, Not assessed 5 |
+| [RFC 7854](../../rfc7854/) | BGP Monitoring Protocol (BMP) | Ze verified 25, Tests awaiting verification 14 | Ze MUST verified 25, SHOULD verified 3, Tests awaiting verification 15, Not assessed 5 |
 
 ### Level 9
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8671](../../rfc8671/) | Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP) | Ze proven 2, Proof pending 7, Not built 2 | Ze MUST proven 2, Proof pending 7, Not assessed 1, Not built 2 |
-| [RFC 9069](../../rfc9069/) | Support for Local RIB in the BGP Monitoring Protocol (BMP) | Ze proven 10, Proof pending 6 | Ze MUST proven 10, Proof pending 6 |
+| [RFC 8671](../../rfc8671/) | Support for Adj-RIB-Out in the BGP Monitoring Protocol (BMP) | Ze verified 2, Tests awaiting verification 7, Not built 2 | Ze MUST verified 2, Tests awaiting verification 7, Not assessed 1, Not built 2 |
+| [RFC 9069](../../rfc9069/) | Support for Local RIB in the BGP Monitoring Protocol (BMP) | Ze verified 10, Tests awaiting verification 6 | Ze MUST verified 10, Tests awaiting verification 6 |

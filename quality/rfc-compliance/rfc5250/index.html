@@ -128,21 +128,21 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>14</strong><b>of 15 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 15 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>14</strong><b>of 15 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 15 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 15 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 15 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 15 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 15 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>30</strong><b>30 of 40 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>30</strong><b>30 of 40 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 15 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 15 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 15 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 15 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 15 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 15 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 15 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -170,11 +170,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -186,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -194,7 +194,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -275,7 +275,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> OSPFv2 opaque LSAs</p>
-<p><strong>Proof:</strong> 10 of 15 MUST proven</p>
+<p><strong>Test verification:</strong> 10 of 15 MUST proven</p>
 <p><strong>Evidence:</strong> unit 10</p>
 <p><strong>Unmet:</strong> -</p>
 
@@ -301,7 +301,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -322,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc5250:must">Ze proven 10, Proof pending 5</div>
+<div data-ze-rfc-bar="rfc5250:must">Ze verified 10, Tests awaiting verification 5</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc5250:overview">Ze MUST proven 10, Proof pending 5, Not assessed 2</div>
+<div data-ze-rfc-bar="rfc5250:overview">Ze MUST verified 10, Tests awaiting verification 5, Not assessed 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -344,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc5250:must.kept">15</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc5250:must.ze-proven">10</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc5250:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc5250:must.proof-pending">5</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -380,7 +380,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc5250:should.total">2</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc5250:should.proven">0</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -401,7 +401,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc5250:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc5250:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -416,7 +416,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -595,14 +595,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Gaps and untested MUSTs</h2>
 <p>RFC 5250 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc5250-3-1"><code>RFC5250-3-1</code></a></h3>
 <p>Opaque LSAs are types 9, 10, and 11 link state advertisements. Opaque LSAs consist of a standard LSA header followed by a 32-bit aligned application-specific information field. Standard link-state database flooding mechanisms are used for distribution of Opaque LSAs. The range of topological distribution (i.e., the flooding scope) of an Opaque LSA is identified by its link-state type. (§3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Every clause both polarities. LS types 9/10/11 as Opaque: lstype_test.go TestLSTypeKnownValues (+ opaque types IsOpaque, - standard types not), revert records on IsOpaque. Scope by LS type: TestOpaqueScopeRouting (+ Type 11 AS-wide, - Type 9 refused an area store), revert records on Install. 32-bit aligned body: TestRFC5250AlignedOpaqueStoredAndFlooded (+ 8-octet body stored, flooded out eth1 at length 28 with body intact, on the retransmission list) and TestRFC5250UnalignedOpaqueBodyDiscarded (- 5-octet body with a valid checksum not stored, acked or flooded; aligned companion in the same update stored), red on the pre-fix ReceiveUpdate (D-8 fixed at lsdb/flooding.go ReceiveUpdate). Standard flooding: the aligned unit plus TestRFC5250DuplicateOpaqueNotReflooded (- the same instance after MinLSArrival is acked, not reflooded), red under an equal-copies-reflooded overlay. Revert records on ReceiveUpdate for all three new units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go#L146" title="internal/plugins/ospf/lsdb/rfc5250_opaque_format_flood_test.go" target="_blank" rel="noopener"><code>TestRFC5250DuplicateOpaqueNotReflooded</code></a></td>
@@ -647,7 +647,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (independent judge, ospf c27). The &#39;not acknowledged&#39; clause is now asserted: lsdb/rfc5250_type9_ack_test.go receives a Type 9 from 2.2.2.2 on eth0 through ReceiveUpdate (eth0, eth1 in area 0, Full neighbors), flushes both interfaces&#39; delayed acks and decodes the sent packets. + TestRFC5250Type9AcknowledgedOnArrivalInterface: an LSAck carrying the header leaves eth0 (same-interface case); - TestRFC5250Type9NotAcknowledgedOnOtherInterface: no LSAck and no LS Update carrying it leaves eth1. Judge replayed overlays on flooding.go ackForReceive: ack queued on eth1 -&gt; + and - red (&#39;acknowledged out eth1&#39;); ack dropped -&gt; only + red. Discard clause: TestOpaqueType9WrongInterfaceDiscarded (not in the eth1 store, not flooded, not retransmit-queued), now with + and - revert records on link_scope.go installLinkLocked. All four records observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L120" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType9WrongInterfaceDiscarded</code></a></td>
@@ -677,22 +677,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Type 10 flooded to or read from an area other than its own. TestOpaqueType10ConfinedToItsArea fatals if the LSA is readable (LookupLSA or Lookup) from area 0.0.0.2, if floodExcept emits anything but exactly one send, on eth0, which also refuses any acknowledgement out the other area interface, or if the eth1 neighbor is queued to retransmit it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L207" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType10ConfinedToItsArea</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L63" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueScopeRouting</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L203" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType10ConfinedToItsArea</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -702,17 +702,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clause 1 forbidden: a Type 11 flooded out a stub interface; TestOpaqueType11StubDiscarded fatals if floodExcept sends on eth0 (stub). Clause 2 forbidden: a Type 11 received on a stub interface installed or acknowledged; the same test fatals if it is found in the store or if any packet at all is sent (len(tx.sends) != 0, which covers an LSAck).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L152" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11StubDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go#L161" title="internal/plugins/ospf/lsdb/rfc5250_opaque_scope_test.go" target="_blank" rel="noopener"><code>TestOpaqueType11StubDiscarded</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -722,17 +722,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an opaque LSA placed on the retransmission list of a non-opaque-capable neighbor, or missing from an opaque-capable one. The opaque_flood_test.go unit fatals if db.retransmit lacks the Type 11 for 2.2.2.2 (OpaqueCapable) or holds it for 3.3.3.3 (not capable), and shows a Router LSA still reaches both.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go#L42" title="internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go" target="_blank" rel="noopener"><code>TestOpaqueFloodOnlyToOpaqueNeighbor</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go#L38" title="internal/plugins/ospf/lsdb/rfc5250_opaque_flood_test.go" target="_blank" rel="noopener"><code>TestOpaqueFloodOnlyToOpaqueNeighbor</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -742,12 +742,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Link State ID split other than 8-bit type and 24-bit ID. TestOpaqueLinkStateIDSplit fatals if OpaqueTypeOf(AA BB CC DD) != 0xAA or OpaqueIDOf != 0x00BBCCDD, on a failed round trip, on a high id byte leaking into the type, and at the 0xFF/0xFFFFFF boundary. Row carries {single-polarity: positive}.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5250_lsa_opaque_test.go#L19" title="internal/plugins/ospf/packet/rfc5250_lsa_opaque_test.go" target="_blank" rel="noopener"><code>TestOpaqueLinkStateIDSplit</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -757,7 +757,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. The neighbor-table tags that could not carry an O-bit Hello are gone. A real engine: TestRFC5250HelloSentWithoutOBit, every Hello sent has 0x40 clear while the DD to the same neighbor has it set (record buildHelloPacketLocked); TestRFC5250HelloOBitIgnoredOnReceipt, an O-bit Hello from 10.0.0.2 with no DD is processed (one neighbor row) and leaves it not opaque-capable (record NeighborHello).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_obit_hello_test.go#L94" title="internal/plugins/ospf/rfc5250_obit_hello_test.go" target="_blank" rel="noopener"><code>TestRFC5250HelloOBitIgnoredOnReceipt</code></a></td>
@@ -777,7 +777,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 4 judge). Unit changed only by added 5-4 tag lines. Real SPF: not usable while SPF is pending, not usable for a reached router without the E-bit (no ASBR entry), not usable for an unknown originator, usable once the E-bit Router-LSA yields an ASBR entry; the verdict therefore comes from the ASBR routing table entry. Records on spf/reachability.go::ASBRReachable.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L49" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></td>
@@ -797,7 +797,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Row is a verbatim span of RFC 5250 Section 5 (2). Positive: a Type-11 LSA whose originator has no ASBR entry (SPF pending, reached without E-bit, unknown originator) is delivered not usable; negative: an originator with an ASBR entry is delivered usable, so the do-nothing rule is bound to the missing entry. Consumers honouring the not-usable flag (TED) are proven by the RFC5250-5-2 tests. Records on ASBRReachable.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_asbr_lookup_test.go#L70" title="internal/plugins/ospf/rfc5250_asbr_lookup_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11LooksUpOriginatorRoutingEntry</code></a></td>
@@ -817,7 +817,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. TestRFC5250DiscontinueOpaqueFromUnreachableOriginator: two Type-11 extended-prefix LSAs from 2.2.2.2 are usable, then with no new LSA the originator becomes unreachable and both rows turn unusable (record extPrefixUsable). Detection is stubbed here and proven in 5-1. The TED consumer has its own live gate (te_ted.go usableLocked), tested by TestInterAsTEType11UnreachableUnusable, which carries no tag.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_discontinue_test.go#L64" title="internal/plugins/ospf/rfc5250_discontinue_test.go" target="_blank" rel="noopener"><code>TestRFC5250DiscontinueOpaqueFromUnreachableOriginator</code></a></td>
@@ -837,7 +837,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30 (independent judge, ospf c13). Section 5 (1): &#39;An OSPF router that is configured to originate AS-scope opaque LSAs will advertise itself as an ASBR and MUST follow the requirements related to setting of the Options field E-bit in OSPF LSA headers as specified in [OSPF].&#39; RFC 2328 Section 12.1.2: the E-bit &#39;should also be set in all AS-external-LSAs&#39;. Producers: lsdb/origination.go selfIsASBRLocked now scans d.asOpaque (self, non-purged); lsdb/opaque_as.go OriginateOpaque ORs OptionE into every Type-11 header. Production refreshes the Router-LSA on every origination tick (instance.go ticker -&gt; originateSelfLSAs -&gt; OriginateFromTopology), so the E-bit follows a Type-11 origination or withdrawal within one tick. lsdb TestRFC5250Type11OriginatorAdvertisesASBR: - Router-LSA E clear with nothing, with Type-10 only, and after the only Type-11 is withdrawn; + Type-11 header Options carries E although the caller passed only O, and Router-LSA E set. Two-router TestRFC5250TwoRoutersType11OriginatorReachable: router A&#39;s own originated Router-LSA installed on engine B, B&#39;s SPF runs, deliverOpaque judges A&#39;s Type-11: unusable before A originates it, usable after (the end-to-end consequence of 5 (1) against the 5 (2) receiver). Judge overlays observed red for the right reason: dropping !e.purged from the asOpaque scan reds the withdrawn negative (&#39;E-bit still set after the only Type-11 opaque LSA was withdrawn&#39;); dropping the OptionE set reds the header assertion (&#39;Options 0x40 lack the E-bit&#39;). Recorded revert breaks on selfIsASBRLocked are panic halts. The Router-LSA is carried by Install, not over the wire: the encode/flood path is not exercised.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go#L45" title="internal/plugins/ospf/lsdb/rfc5250_asbr_ebit_test.go" target="_blank" rel="noopener"><code>TestRFC5250Type11OriginatorAdvertisesASBR</code></a></td>
@@ -862,7 +862,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Production path databaseSummaryLocked over a real lsdb.LSDB at ExStart: positive lists all eight named types (Router, Network, Summary 3 and 4, type-9 on its interface, type-10, AS External, type-11); negative shows area 0.0.0.4&#39;s Router and type-10 and eth9&#39;s type-9 absent and the list exactly 8. Judge overlays: dropping link LSAs, Router or Network LSAs turns the positive red; appending another area&#39;s Router LSA turns only the negative red. Records observed red on databaseSummaryLocked; the lsdb units stay as supplementary.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go#L58" title="internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsGlobalLSAsInStubAndNSSA</code></a></td>
@@ -892,17 +892,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_virtual_exchange_test.go#L85" title="internal/plugins/ospf/rfc5250_virtual_exchange_test.go" target="_blank" rel="noopener"><code>TestRFC5250PhysicalDatabaseExchangeRetainsASScope</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5250_virtual_exchange_test.go#L68" title="internal/plugins/ospf/rfc5250_virtual_exchange_test.go" target="_blank" rel="noopener"><code>TestRFC5250VirtualDatabaseExchangeOmitsASScope</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -912,7 +912,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go#L27" title="internal/plugins/ospf/lsdb/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryListsOpaqueAndGlobalLSAs</code></a></td>
@@ -932,7 +932,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc5250_dd_summary_test.go#L61" title="internal/plugins/ospf/neighbor/rfc5250_dd_summary_test.go" target="_blank" rel="noopener"><code>TestRFC5250SummaryOmitsOtherInterfaceType9</code></a></td>
@@ -1208,7 +1208,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

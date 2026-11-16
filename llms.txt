@@ -14,16 +14,16 @@ This file collects information for AI tools in one place. It describes the produ
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 513 CLI commands, 39 config sections, 98 plugin registrations, 60 direct Go dependencies, 46 update reports.
-- Test evidence counts: 47,400+ unit tests, 110 fuzz targets, 3,000+ end-to-end transcript steps, 410+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
+- Current generated counts: 52 shipped or experimental feature cards, 518 CLI commands, 39 config sections, 98 plugin registrations, 60 direct Go dependencies, 46 update reports.
+- Test evidence counts: 47,500+ unit tests, 110 fuzz targets, 3,000+ end-to-end transcript steps, 410+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
 - Plans for the release and later improvements (a plan does not mean a feature is ready): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
 - Generated date: 2026-11-16.
 
 ## Quality and verification model
 
-Ze uses layered proof because bugs appear at different boundaries.
+Ze tests behavior at several levels because bugs appear at different boundaries.
 
-- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 47,400+ unit tests.
+- Local Go tests: package behavior, parser rules, encoders, state transitions, validation paths, and error shapes. Current scale: 47,500+ unit tests.
 - Race, coverage, and fuzz: fuzz targets are normal Go tests with generated input. Current scale: 110 fuzz targets.
 - gomu mutation checks: mutate production Go code and rerun tests to find weak assertions. gomu is advisory, not the default CI gate.
 - Functional `.ci` transcripts: drive processes, CLI commands, files, HTTP, syslog, peers, daemons, exits, and BGP wire expectations. BGP failures are decoded structurally, not shown as raw hex only.
@@ -32,7 +32,7 @@ Ze uses layered proof because bugs appear at different boundaries.
 - QEMU: runs Linux-only behavior from macOS or CI where netlink, nftables, eBPF, PPP, network namespaces, and kernel modules exist.
 - Interop: 411 scenarios across 8 lab suites. The main recorded set has 13 test images; other suites use additional images. Scenarios exchange messages with FRR, BIRD, GoBGP and other real daemons where applicable.
 - Verify workflow: `./le verify worktree` runs the whole native verification population against a fixed commit in a detached worktree, writes stage logs under `tmp/`, groups related failures, and prints narrow rerun commands. `./le repo` is the narrower handoff gate.
-- Rule for regressions: do not hide a failure with a skip or loose assertion. Move the proof to the layer that can see the real behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
+- Rule for regressions: do not hide a failure with a skip or loose assertion. Test at the layer that can observe the behavior, add the narrow test, rerun it, then rerun the gate that should have caught it.
 
 Useful commands: `go test -race -run TestName ./internal/...`, `./le test fuzz run`, `gomu run`, `./le test bgp plugin 42 -v`, `./le test qemu netns`, `./le test integration interop`, `./le verify evidence release-candidate`.
 
@@ -252,7 +252,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 143 daemon, 12 daemon, offline, 3 offline, 314 read-only, 41 read-only, offline.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 143 daemon, 12 daemon, offline, 3 offline, 314 read-only, 46 read-only, offline.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` groups operators as `always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of the contract. An operator absent from those groups is refused by name.
 
 ### `clear` commands (32)
@@ -449,7 +449,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `set sysctl` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `set sysctl <key> <value>`): Set a transient sysctl value
 - `set system file-descriptors` (daemon; wire ze-host:set-system-file-descriptors; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args limit:union; usage `set system file-descriptors [limit <limit|max>]`): Raise the file descriptor limit for the daemon process\.
 
-### `show` commands (317)
+### `show` commands (322)
 - `show aaa accounting` (read-only; wire ze-aaa:show-accounting; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show aaa accounting`): Show AAA accounting counters and any dropped records\.
 - `show agent context` (read-only, offline; wire ze-skills:show-agent-context; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show agent context`): Show what an agent session is told about this Ze\.
 - `show agent skill` (read-only, offline; wire ze-skills:show-agent-skill; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args agent:enum; usage `show agent <claude|codex|opencode|pi> skill`): Show whether the ze skill is set up for each agent harness\.
@@ -523,6 +523,11 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `show config history` (read-only, offline; wire ze-config-cli:show-config-history; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show config history`): List available configuration rollback points\.
 - `show config list` (read-only, offline; wire ze-config-cli:show-config-list; pipes always: json ndjson table text yaml raw no-more save match count first last display fill, when-streaming: log, local-only: save; shape tab; usage `show config list`): List all configuration files stored in the database\.
 - `show config running` (read-only; wire ze-config:show-config-running; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `show config running`): Show the configuration the running daemon applied\.
+- `show config supplied diff` (read-only, offline; wire ze-config-cli:show-config-supplied-diff; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args content:string; usage `show config supplied diff <content>`): Compare two supplied configurations with secrets masked\.
+- `show config supplied dump` (read-only, offline; wire ze-config-cli:show-config-supplied-dump; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args strip-private:flag, content:string, name:string; usage `show config supplied dump <content> [strip-private] [name <name>]`): Show the resolved tree from supplied configuration bytes\.
+- `show config supplied fmt` (read-only, offline; wire ze-config-cli:show-config-supplied-fmt; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape blob; args check:flag, diff:flag, content:string, name:string; usage `show config supplied fmt <content> [check] [diff] [name <name>]`): Format supplied configuration without writing a file\.
+- `show config supplied graph` (read-only, offline; wire ze-config-cli:show-config-supplied-graph; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape blob; args content:string, name:string; usage `show config supplied graph <content> [name <name>]`): Show dependencies from supplied configuration bytes\.
+- `show config supplied validation` (read-only, offline; wire ze-config-cli:show-config-supplied-validation; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args content:string, name:string; usage `show config supplied validation <content> [name <name>]`): Validate supplied configuration without applying it\.
 - `show config validation` (read-only, offline; wire ze-config-cli:show-config-validation; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape doc; args file:string; usage `show config validation <file>`): Check a config for errors without applying it\.
 - `show crashes` (read-only; wire ze-crashes:show-crashes; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args name:string; usage `show crashes [name <name>]`): View saved crash reports\, and whether kernel capture is armed\.
 - `show data cat` (read-only, offline; wire ze-config-storage:show-data-cat; pipes always: json ndjson table text yaml raw no-more save, when-streaming: log, local-only: save; shape blob; args key:string; usage `show data cat <key>`): Print the value of a storage key\.
@@ -1052,7 +1057,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Plugin Protocol](https://ze-software.net/developers/plugins/protocol/index.md): Ze plugins communicate with the engine via newline-framed YANG RPCs over a single bidirectional connection. Internal plugins use `net.Pipe()` for startup; external plugins connect back via TLS. (web: https://ze-software.net/developers/plugins/protocol/)
 - [YANG Schema Authoring](https://ze-software.net/developers/plugins/schema/index.md): Plugins declare their configuration schema using YANG (RFC 7950). This guide covers the basics for plugin authors. (web: https://ze-software.net/developers/plugins/schema/)
 - [Testing Your Plugin](https://ze-software.net/developers/plugins/testing/index.md): This guide covers testing strategies for ze plugins using the SDK (`pkg/plugin/sdk`). (web: https://ze-software.net/developers/plugins/testing/)
-- [Why Ze / Why Not Ze](https://ze-software.net/project/why-ze/index.md): An honest assessment of when Ze is the right tool and when it is not. (web: https://ze-software.net/project/why-ze/)
+- [Why Ze / Why Not Ze](https://ze-software.net/project/why-ze/index.md): Ze is a network operating system (NOS) with programmable routing. It combines its own BGP engine with Linux networking and network services, managed through one configuration and plugin engine. You can use it as a route... (web: https://ze-software.net/project/why-ze/)
 - [Use Cases](https://ze-software.net/use-cases/index.md): Use these pages when you want Ze to play a concrete role in a network. (web: https://ze-software.net/use-cases/)
 - [AS112 anycast DNS inside a network](https://ze-software.net/use-cases/as112/index.md): Run Ze as the AS112 sink for RFC 1918 and link-local reverse DNS, then learn the four AS112 covering prefixes from Ze over BGP. (web: https://ze-software.net/use-cases/as112/)
 - [ExaBGP Migration](https://ze-software.net/use-cases/exabgp-migration/index.md): Ze provides tools for converting ExaBGP configurations and running existing ExaBGP plugins with ze as the BGP engine. (web: https://ze-software.net/use-cases/exabgp-migration/)
@@ -1060,7 +1065,7 @@ Direct Go modules are grouped by why Ze needs them. This is generated from go.mo
 - [Route Server at an IXP](https://ze-software.net/use-cases/route-server/index.md): Use Ze as an RFC 7947 route server when each member should maintain one eBGP session and receive eligible routes from the other members without next-hop rewriting. (web: https://ze-software.net/use-cases/route-server/)
 - [Transit Edge with RPKI](https://ze-software.net/use-cases/transit-edge-rpki/index.md): This example uses Ze at an Internet edge with two transit sessions, origin validation, explicit import policy, and local preference to select the preferred transit and its backup. (web: https://ze-software.net/use-cases/transit-edge-rpki/)
 - [FlowSpec Injection](https://ze-software.net/use-cases/flowspec-injection/index.md): Use Ze to inject or relay BGP FlowSpec rules when an automation system must distribute traffic filters to routers. Keep the route source, policy, and withdrawal path explicit because a stale FlowSpec rule can affect... (web: https://ze-software.net/use-cases/flowspec-injection/)
-- [Chaos-Tested BGP Peering](https://ze-software.net/use-cases/chaos-tested-peering/index.md): Use `le chaos run` before deployment to prove that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not. (web: https://ze-software.net/use-cases/chaos-tested-peering/)
+- [Chaos-Tested BGP Peering](https://ze-software.net/use-cases/chaos-tested-peering/index.md): Use `le chaos run` before deployment to check that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not. (web: https://ze-software.net/use-cases/chaos-tested-peering/)
 - [AS-Path Topology](https://ze-software.net/use-cases/as-path-topology/index.md): Use the built-in Looking Glass to turn the AS paths for a prefix into a topology view. The graph is an operational aid for comparing what different peers advertise, not a complete map of the Internet. (web: https://ze-software.net/use-cases/as-path-topology/)
 
 ## Page map
@@ -1133,7 +1138,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ### Live system
 - [Reference index](https://ze-software.net/reference/index.md): Commands, configuration, plugins, standards, and feature status (web: https://ze-software.net/reference/)
-- [CLI reference](https://ze-software.net/reference/cli/index.md): 513 commands, generated from Ze's live binary (web: https://ze-software.net/reference/cli/)
+- [CLI reference](https://ze-software.net/reference/cli/index.md): 518 commands, generated from Ze's live binary (web: https://ze-software.net/reference/cli/)
 - [Configuration reference](https://ze-software.net/reference/configuration/index.md): 39 sections, generated from Ze's YANG schemas (web: https://ze-software.net/reference/configuration/)
 - [Plugin catalogue](https://ze-software.net/reference/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/reference/plugins/)
 ### Standards and lookup

@@ -128,11 +128,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>8</strong><b>of 11 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 11 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>8</strong><b>of 11 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 11 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 11 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 11 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>73</strong><b>73 of 84 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 11 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>73</strong><b>73 of 84 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -144,9 +144,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 11 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 11 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 11 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 11 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 11 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 11 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 11 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -174,11 +174,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -190,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -198,7 +198,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -279,7 +279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> UDP encapsulation of ESP</p>
-<p><strong>Proof:</strong> 6 of 11 MUST proven</p>
+<p><strong>Test verification:</strong> 6 of 11 MUST proven</p>
 <p><strong>Evidence:</strong> unit 6</p>
 <p><strong>Unmet:</strong> RFC3948-2.1-4</p>
 
@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -327,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc3948:must">Ze proven 6, Proof pending 4, Not built 1</div>
+<div data-ze-rfc-bar="rfc3948:must">Ze verified 6, Tests awaiting verification 4, Not built 1</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc3948:overview">Ze MUST proven 6, SHOULD proven 2, Proof pending 4, Not assessed 3, Not built 1</div>
+<div data-ze-rfc-bar="rfc3948:overview">Ze MUST verified 6, SHOULD verified 2, Tests awaiting verification 4, Not assessed 3, Not built 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -349,13 +349,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc3948:must.kept">11</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc3948:must.ze-proven">6</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc3948:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc3948:must.proof-pending">4</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -385,7 +385,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc3948:should.total">5</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc3948:should.proven">2</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -406,7 +406,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc3948:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc3948:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -421,7 +421,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -652,14 +652,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc3948-2.1-1"><code>RFC3948-2.1-1</code></a></h3>
 <p>The SPI field in the ESP header MUST NOT be a zero value. (S2.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 67700fd37e. The only change in TestRFC3948OutboundESPSPIIsNeverZero is that initiatorFirstChildSA no longer takes the peer config (it reads sa.PeerCfg); the outbound ESP state must still carry exactly the peer&#39;s non-zero SPI, and an SAr2 with SPI 0 must still leave the initiator un-established with no SA installed. Records are current. Prior judgement: Re-judged 2026-10-10 against RFC 3948 S2.1 &#34;The SPI field in the ESP header MUST NOT be a zero value.&#34; after e2e724cf57 changed TestResponderRefusesPeerSPIZero. Its negative no longer asserts the IKE SA stays down (RFC 7296 S2.21.2 lets it stay up childless); it asserts no first Child SA on the session, an IKE_AUTH response sent, no SA payload in it and a NO_PROPOSAL_CHOSEN refusal. That is still the SPI obligation: the only route to an ESP header carrying the peer&#39;s 0 is a Child SA built on it, and the SAi2 edit is the only difference from TestResponderUsesPeerSPI, which pins outbound SPI 0x0a0b0c0d. Removing both refusals (selectAuthChildSA&#39;s ChildOutboundSPI==0 and createFirstChildSA&#39;s) creates the Child SA and reddens it. Unchanged units: own SPI TestRFC3948GeneratedESPSPIIsNeverZero (five scripted zero draws discarded), initiator SAr2 TestRFC3948OutboundESPSPIIsNeverZero (no establish, no ESP state), rekey request and response refuse 0 with no Child SA and no ESP state and install 0x0a0b0c0d. Records revert the producers (whole-body, reach); discrimination judged from the exact assertions. Caveat: TestGenerateESPSPI (random draws) cannot fail on its own and is redundant.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L269" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestGenerateESPSPI</code></a></td>
@@ -729,7 +729,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-15 after b457ba88cf (Child SA encap ports come from the IKE SA) rewrote TestChildSANATTEncapPorts, the test this verdict found wrong, and, with 8233b4e305 and 4fecbbd82a, added eight tagged units: TestRFC3948ChildSAFollowsANATMappedPeerPort500 and TestRFC3948ChildSARefusesEncapWithoutAnIKEPort (b457ba88cf), TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort and TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort (8233b4e305), and the four TestRFC3948Rebind units (4fecbbd82a). RFC 3948 Section 2.1: &#34;the Source Port and Destination Port MUST be the same as that used by IKE traffic,&#34;. Producer: childEncapPorts (create_child.go) answers remote = the peer&#39;s authenticated IKE endpoint port and local = the bound NAT-T socket port (MOBIKE: its local path), refuses with errChildEncapPort when no endpoint exists, and installChildSA no longer defaults to 4500. Positive: TestChildSANATTEncapPorts and TestRFC3948ChildSAFollowsANATMappedPeerPort500 assert exact (sport, dport) on both installed states with the peer on 14500 (or a NAT-mapped 500) and the local socket on a kernel-picked port, so the 4500 constant cannot pass; TestRFC3948ResponderChildSAEncapsulatesToTheIKEPeerPort calls handleAuthRequest directly with the PSK IKE_AUTH from source port 14500, and TestRFC3948EAPResponderChildSAEncapsulatesToTheIKEPeerPort drives the EAP exchange through handleInbound from the same port; both assert the installed pair; TestRFC3948RebindMigratesTunnelChildSAs, TestRFC3948RebindRekeysWithoutAMigrator and TestRFC3948RebindRekeysTransportChildSA assert the migrated or rekeyed states carry the moved IKE port. Negative: TestRFC3948ChildSARefusesEncapWithoutAnIKEPort asserts errChildEncapPort naming the peer and zero installed states (with and without MOBIKE, and a rekey that leaves only the old pair); TestRFC3948RebindNotRunWithoutAnAdoptedMove asserts the ports do not change without an adopted move. Both source and destination port are asserted in both directions, so the whole sentence is covered. Proven at the dataplane.SAParams boundary through mockDP; the kernel read-back (rfc3948_encap_port_integration_linux_test.go) is untagged and has not run. The engine tests ran green 2026-10-15 (./le job run, -run &#39;TestRFC3948|TestChildSANATTEncapPorts&#39;). rfc/discrimination/rfc3948.json holds a RFC3948-2.1-2 record for each of the nine tagged units: three written by b7b658f27d (TestChildSANATTEncapPorts, TestRFC3948ChildSAFollowsANATMappedPeerPort500, TestRFC3948ChildSARefusesEncapWithoutAnIKEPort), two by 8233b4e305 and four by 4fecbbd82a, each with the commit that added its unit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_encap_port_test.go#L173" title="internal/component/ike/engine/rfc3948_encap_port_test.go" target="_blank" rel="noopener"><code>TestRFC3948ChildSARefusesEncapWithoutAnIKEPort</code></a></td>
@@ -784,17 +784,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/ipsec/checkers.go::checkNATTTransportInnerChecksum, internal/le/interoplab/ipsec/checkers.go::checkNATTTunnelInnerChecksum moved. Independently re-judged against committed a617f53893dab242be088ea985b9baae7e66c430. RFC 3948 Section 3.1.2 states: &#34;When a transport mode has been used to transmit packets, contained TCP or UDP headers will have incorrect checksums due to the change of parts of the IP header during transit.&#34; The section requires one local-policy checksum-handling alternative. checkNATTTransportInnerChecksum requires inbound transport-mode ESP-in-UDP state, successful TCP and UDP delivery, and acceptance of correct and deliberately corrupt inner-checksum probes without checksum-error increments. checkNATTTunnelInnerChecksum requires correct probes to succeed and corrupt probes to increment checksum-error counters without acceptance. craftedProbe uses rawprobe -b through a raw IP socket, not nping. createFirstChildSA/installChildSA and xfrmStateFromParams select and install the mode and encapsulation consumed by Linux XFRM. This covers the selected transport receive outcome and tunnel boundary, not NAT-OA or a real address-translating middlebox. Both scenario names dispatch to the examined checkers. Verdict retained from source review; no new execution result is claimed by this rejudgment.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1726" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
 <td>interop/nightly</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1687" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
 <td>interop/nightly</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -804,17 +804,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1690" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTransportInnerChecksum</code></a></td>
 <td>interop/nightly</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L1723" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkNATTTunnelInnerChecksum</code></a></td>
 <td>interop/nightly</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -828,7 +828,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Closure rejudge 2026-10-02: the tag on transport TestKeepaliveDefaultInterval was removed (it asserts only the DefaultKeepaliveInterval constant and could never carry a record); its comment now says so and names TestRFC3948UnsetKeepaliveIntervalFallsBackToM, which closes the rewording the 2026-09-30 note left owed. Need clause unchanged: the non-MOBIKE gate startNATKeepalive held by TestRFC3948KeepaliveStartsWhenNATDetected (+) and TestRFC3948NoKeepaliveWithoutDetectedNAT (-), the MOBIKE gate serviceMobike by TestRFC3948MobikeKeepaliveWhenNATDetected (+) and TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT (-); each reads the peer socket. M-second clause held by TestRFC3948KeepaliveIdleWindowNeverExceedsM (+, on Run), TestRFC3948UnsetKeepaliveIntervalFallsBackToM (-, on NewKeepalive) and TestNATKeepalive (+, on Run). All seven carry observed-red records.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_keepalive_need_test.go#L137" title="internal/component/ike/engine/rfc3948_keepalive_need_test.go" target="_blank" rel="noopener"><code>TestRFC3948MobikeNoKeepaliveWithoutDetectedNAT</code></a></td>
@@ -873,7 +873,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L519" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></td>
@@ -883,12 +883,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L195" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInstallsInDataplane</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L478" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestTunnelModeIsTheChildSADefault</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -898,12 +898,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a NAT-keepalive whose payload is longer than one octet or not 0xFF. TestNATKeepalive runs Keepalive.Run against a real UDP socket and fails unless the datagram read is exactly n == 1 and buf[0] == 0xFF, so both clauses (one octet, value 0xFF) go red on a change of keepaliveByte or of the write length. Single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_test.go#L16" title="internal/component/ike/transport/rfc3948_keepalive_test.go" target="_blank" rel="noopener"><code>TestNATKeepalive</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -913,22 +913,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L675" title="internal/component/ike/engine/rfc7296_natt_test.go" target="_blank" rel="noopener"><code>TestNATKeepaliveReachesNoSA</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/rfc3948_keepalive_test.go#L80" title="internal/component/ike/transport/rfc3948_keepalive_test.go" target="_blank" rel="noopener"><code>TestNATKeepaliveIsNeverDeliveredToASession</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_natt_test.go#L666" title="internal/component/ike/engine/rfc7296_natt_test.go" target="_blank" rel="noopener"><code>TestNATKeepaliveReachesNoSA</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -938,12 +938,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-20 (independent judge, after 13c1b058ed, f9d98e8ab1, 6f87487816 and the rename to rfc4301_child_multi_pair_test.go). Section 3.1.1: &#34;Depending on local policy, one of the following MUST be done:&#34; and option 1: &#34;If a valid source IP address space has been defined in the policy for the encapsulated packets from the peer, check that the source IP address of the inner packet is valid according to the policy.&#34; TestChildInboundPolicyDefinesTheValidInnerSourceSpace changed only in its comment, which now matches installChildSA (one inbound policy per pair, one here), closing the prior judge&#39;s stale-comment finding; it still drives createFirstChildSA and asserts the protect inbound policy Src is the negotiated remote selector. In transport mode the inbound state selector is now exactly that one pair, so the defined source space is no longer widened by a cover. TestChildSAInboundPolicyUsesNegotiatedTS unchanged. Both PASS at HEAD. Verdict stands.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L433" title="internal/component/ike/engine/child_test.go" target="_blank" rel="noopener"><code>TestChildSAInboundPolicyUsesNegotiatedTS</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3948_inner_source_policy_test.go#L29" title="internal/component/ike/engine/rfc3948_inner_source_policy_test.go" target="_blank" rel="noopener"><code>TestChildInboundPolicyDefinesTheValidInnerSourceSpace</code></a></td>
@@ -958,7 +958,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 at HEAD 137c2dcfcf by an auditor who did not author dfe4e3aa8d or e2d9c4a62a. RFC 3948 Section 5.1: &#34;Because SGW will now see two possible SAs that lead to 10.1.2.3, it can become confused about where to send packets coming from Suzy&#39;s server.  Implementors MUST devise ways of preventing this from occurring.&#34; Ze&#39;s way is the cross-peer inner-selector registry (dropForeignInnerOverlaps at narrowing, innerSelectorRegistry.beginInstall under one lock at install): a pair one packet could match together with another peer&#39;s live pair, tunnel against tunnel or tunnel against transport, is refused TS_UNACCEPTABLE unless both pairs are operator-fixed and their policy-priority values differ; two transport-mode pairs are left to RFC3948-5.2-1&#39;s dataplane policyOwners.claim. dfe4e3aa8d staled five units by unparam rewrites only: orderedTransportPeers hardwires priorityB 1000, mustNamePeersAndFix hardwires tunnel peer a, orderedTransportChild drops its unused *ChildSA; every caller at HEAD passed those values, so inputs, priorities and asserted refusal strings are unchanged. Re-probed at HEAD by go -overlay (tree untouched; foreign in-flight edits to config/loader_redistribute.go and redistribute/destination.go overlaid with their HEAD blobs so the package built): isConfiguredHost accepting any host reddens TestRFC3948OrderedTransportLocalHalfNarrowedRefused and TestRFC3948OrderedTransportNarrowedToPortRefused only; operatorOrdered ignoring priority reddens TestRFC3948OrderedTransportEqualPriorityRefused only; operatorOrdered always false reddens the positive TestRFC3948OrderedTransportBesideFullTunnelServed only; bothTransport true when either pair is transport reddens TestRFC3948TunnelAroundTransportPeerRefused (and the three refusals that need the tunnel-transport comparison). So each changed unit still isolates its rule, its refusal is asserted as TS_UNACCEPTABLE with the RFC 3948 Section 5.1 reason, nothing on the second peer&#39;s dataplane and one registry holding, and the positive is a conforming configured-and-ordered pair, not a different error. The producers moved under these units since the last verdict (e2d9c4a62a split claim into beginInstall/finishInstall); the probes above ran against the current producers, so the stale discrimination record of TestRFC3948TunnelAroundTransportPeerRefused does not void this judgement, though it still owes a fresh ./le rfc record. Units not changed by dfe4e3aa8d keep the 2026-10-27 judgement: lease guards, claim atomicity (concurrent installs), initiator wiring, IKE and Child SA rekey carriers, stranded records, and the three audit-gap edges (classifyInnerPair transport test, samePolicyPair local port and local prefix). Those edges enforce Ze&#39;s stated rule, stricter than the bare MUST needs, and assert nothing the RFC contradicts. Weak spot kept from the last verdict: replacing childPolicyPair&#39;s protocol intersection leaves every RFC3948-5.1-1 unit green; the installed intersection is proven by RFC4301-4.4.2-2&#39;s record on TestRFC4301MixedProtocolPairInstallsTheIntersection.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/cp_test.go#L366" title="internal/component/ike/engine/cp_test.go" target="_blank" rel="noopener"><code>TestNoChildSAWithoutLeaseOnBoundPeer</code></a></td>
@@ -1138,7 +1138,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Ze disallows the conflicting connection (policyOwners.claim, dataplane/policy_owner.go): a transport-mode claim is refused when a DIFFERENT owner holds a transport-mode selector that overlaps it (same dir/if_id, overlapping prefixes, protocol any-or-equal, masked ports agreeing). Owner is the configured peer name and a peer holds one live IKE SA (a second client on one peer config replaces the first), so two concurrent clients behind one NAT are two owners. Negative TestRFC3948TransportConflictingConnectionIsDisallowed: second client&#39;s overlapping transport claim (any vs tcp/80, tcp/80 vs any, inbound tcp-any vs tcp/80) at one NAT address refused with TransportSelectorConflictError naming both, no record kept; red at HEAD by reading (identical-key check only). Positive TestRFC3948TransportDisjointConnectionsAreAdmitted: disjoint descriptions (tcp/80 vs tcp/443, tcp vs udp) admitted, same client&#39;s overlap admitted. Supplementary: TestPolicyOwnerRefusesASecondPeerOnOneSelector (identical selector refused) and TestPolicyOwnerSeparatesDistinctSelectors (tunnel-mode identity bounded by selector), prose now narrowed to what they assert. Pass 2: TestRFC3948TransportClientsAtDifferentAddressesAreAdmitted admits clients at a different NAT address with overlapping descriptions both directions; judge forced prefixesOverlap to true (go test -overlay) and both subtests went red. Tunnel mode not being compared is not exercised and is not the obligation. Records are whole-body panic breaks of claim.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc3948_policy_owner_test.go#L40" title="internal/component/ike/dataplane/rfc3948_policy_owner_test.go" target="_blank" rel="noopener"><code>TestPolicyOwnerRefusesASecondPeerOnOneSelector</code></a></td>
@@ -1173,7 +1173,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-30 (transport judge). Producer: UDPTransport.Run (transport/udp.go) drops every datagram shorter than the 28-octet IKE header, so a one-octet 0xFF keepalive never reaches Recv; the engine&#39;s IsNATKeepalive continue in dispatchNATTInbound is a second layer the transport makes unreachable and is not separately proven. Positive TestRFC3948KeepaliveAheadOfIKEIsIgnored: keepalive then an IKE datagram on one NAT-T socket, the first delivered packet is the IKE datagram byte for byte (ignored and the receive path unaffected). Negative TestRFC3948KeepaliveIsNotHandedOn: a lone keepalive never reaches Recv in 200ms (the non-compliant receiver hands it on). Removing the n&lt;28 floor would turn both red (the keepalive is delivered first / at all); both carry observed-red revert records on udp.go::Run. TestIsNATKeepalive (+/-) proves the classification only and is supplementary.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/transport/nat_test.go#L128" title="internal/component/ike/transport/nat_test.go" target="_blank" rel="noopener"><code>TestIsNATKeepalive</code></a></td>
@@ -1462,7 +1462,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

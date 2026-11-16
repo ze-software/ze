@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 23 | of 32 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3 | of 32 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 23 | of 32 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 32 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 32 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 32 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 23 | 23 of 63 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 32 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 23 | 23 of 63 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 32 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 32 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 32 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 32 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 32 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 32 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 32 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: OSPFv3 Extensions for Segment Routing
 
 **Area:** OSPFv3 Segment Routing
 
-**Proof:** 6 of 32 MUST proven
+**Test verification:** 6 of 32 MUST proven
 
 **Evidence:** unit 6
 
@@ -108,7 +108,7 @@ Included in automatic checks: OSPFv3 Extensions for Segment Routing
 | Annotated (including scoped evidence) | 9 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **32** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: OSPFv3 Extensions for Segment Routing
 
 ## Figures
 
-- **MUST bar**: Ze proven 6, Proof pending 20, Not built 6
-- **Overview bar**: Ze MUST proven 6, Proof pending 20, Not assessed 26, Not built 6
+- **MUST bar**: Ze verified 6, Tests awaiting verification 20, Not built 6
+- **Overview bar**: Ze MUST verified 6, Tests awaiting verification 20, Not assessed 26, Not built 6
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: OSPFv3 Extensions for Segment Routing
 | Mandatory requirements complete | not complete |
 | MUST rows | 32 |
 | MUST rows kept (the MUST bar) | 32 |
-| Ze proven | 6 |
+| Ze verified | 6 |
 | OS verified | 0 |
-| Proof pending | 20 |
+| Tests awaiting verification | 20 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: OSPFv3 Extensions for Segment Routing
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 26 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 26 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc8666.json](../../../data/rfc/rfc8666.json).
 
@@ -231,9 +231,9 @@ Source: [data/rfc/rfc8666.json](../../../data/rfc/rfc8666.json).
 | [`RFC8666-8.1-2`](#rfc8666-8.1-2) An SR Mapping Server MUST use the OSPFv3 Extended Prefix Range TLVs when advertising SIDs for prefixes (§8.1) | {gap}, no test | ze is no SR Mapping Server, so it advertises no SID for a remote prefix in an Extended Prefix Range TLV; it emits that TLV only from the ABR inter-area propagation (internal/plugins/ospf/sr_interarea_v6.go::v6EInterAreaPrefixBody), which is Section 8.2 carriage; owed with Mapping Server support |
 | [`RFC8666-8.1-3`](#rfc8666-8.1-3) The NU-bit [RFC5340] MUST be set in the PrefixOptions field of the LSA, which is used by the Mapping Server to advertise SID or SID Range, which prevents the advertisement from contributing to prefix reachability. (§8.1) | {gap}, no test | ze is no SR Mapping Server, so no LSA it originates is a Mapping Server advertisement owing the NU-bit; OptPrefixNU (internal/plugins/ospf/v3/types/prefix.go) has no producer; owed with Mapping Server support |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC8666-5-1`](#rfc8666-5-1)
 
@@ -241,9 +241,9 @@ The Range Size MUST NOT exceed the number of prefixes that could be satisfied by
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity positive: v6EInterAreaPrefixBody (the only range producer) decodes to Range Size 1 for a /128; 1 never exceeds what any Prefix Length satisfies
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8666ExtPrefixRangeSizeWithinPrefixLength`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L401) | unit/verify | unproven |
+| positive | [`TestRFC8666ExtPrefixRangeSizeWithinPrefixLength`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L401) | unit/verify | not verified |
 
 ### [`RFC8666-5-2`](#rfc8666-5-2)
 
@@ -251,10 +251,10 @@ Flags: Reserved. MUST be zero when sent and are ignored when received. (§5)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. positive asserts the encoded Flags octet is zero; the other tag sets Flags=0xFF and asserts header, address and Prefix-SID decode unchanged
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666ExtPrefixRangeFlagsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L25) | unit/verify | unproven |
-| positive | [`TestRFC8666ExtPrefixRangeFlagsZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L15) | unit/verify | unproven |
+| negative | [`TestRFC8666ExtPrefixRangeFlagsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L25) | unit/verify | not verified |
+| positive | [`TestRFC8666ExtPrefixRangeFlagsZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L15) | unit/verify | not verified |
 
 ### [`RFC8666-5-7`](#rfc8666-5-7)
 
@@ -262,10 +262,10 @@ Reserved: SHOULD be set to 0 on transmission and MUST be ignored on reception. (
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. 0xFFFFFF in Reserved decodes identically to zero (and encoder sends zero); negative bounds the ignore by showing the adjacent AF octet is honoured
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L221) | unit/verify | unproven |
-| positive | [`TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L189) | unit/verify | unproven |
+| negative | [`TestRFC8666V6ExtPrefixRangeAFOctetNotIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L221) | unit/verify | not verified |
+| positive | [`TestRFC8666V6ExtPrefixRangeReservedIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L189) | unit/verify | not verified |
 
 ### [`RFC8666-5-3`](#rfc8666-5-3)
 
@@ -289,10 +289,10 @@ If set, then the penultimate hop MUST NOT pop the Prefix-SID before delivering p
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. NP set through the real OSPFv3 carriage and installer: push 16009, swap 18009->16009, no pop entry; negative shows NP clear does pop
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666PHPPopsPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L126) | unit/verify | unproven |
-| positive | [`TestRFC8666NoPHPKeepsPrefixSIDOnStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L92) | unit/verify | unproven |
+| negative | [`TestRFC8666PHPPopsPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L126) | unit/verify | not verified |
+| positive | [`TestRFC8666NoPHPKeepsPrefixSIDOnStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L92) | unit/verify | not verified |
 
 ### [`RFC8666-6-2`](#rfc8666-6-2)
 
@@ -300,10 +300,10 @@ If set, any upstream neighbor of the Prefix-SID originator MUST replace the Pref
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. NP+E set imposes ExplicitNullV6 (2) at ingress and in the transit swap; E clear imposes the SRGB label. IPv4 clause (label 0) does not arise: OSPFv3 reception rejects a non-IPv6 AF
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666NoPHPKeepsPrefixSIDOnStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L99) | unit/verify | unproven |
-| positive | [`TestRFC8666ExplicitNullReplacesPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L147) | unit/verify | unproven |
+| negative | [`TestRFC8666NoPHPKeepsPrefixSIDOnStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L99) | unit/verify | not verified |
+| positive | [`TestRFC8666ExplicitNullReplacesPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L147) | unit/verify | not verified |
 
 ### [`RFC8666-6-3`](#rfc8666-6-3)
 
@@ -311,10 +311,10 @@ Other bits: Reserved. These MUST be zero when sent and are ignored when received
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. all defined flags set encode as 0x7C with bits 0/6/7 clear; reserved bits 0x83 set on receive decode identically
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666PrefixSIDReservedFlagBitsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L66) | unit/verify | unproven |
-| positive | [`TestRFC8666PrefixSIDReservedFlagBitsZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L52) | unit/verify | unproven |
+| negative | [`TestRFC8666PrefixSIDReservedFlagBitsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L66) | unit/verify | not verified |
+| positive | [`TestRFC8666PrefixSIDReservedFlagBitsZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L52) | unit/verify | not verified |
 
 ### [`RFC8666-6-4`](#rfc8666-6-4)
 
@@ -322,10 +322,10 @@ Reserved: SHOULD be set to 0 on transmission and MUST be ignored on reception. (
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Reserved=0xFFFF decodes identically; negative bounds the ignore to Reserved by showing the Algorithm octet is honoured
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666PrefixSIDAlgorithmOctetNotIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L109) | unit/verify | unproven |
-| positive | [`TestRFC8666PrefixSIDReservedFieldIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L86) | unit/verify | unproven |
+| negative | [`TestRFC8666PrefixSIDAlgorithmOctetNotIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L109) | unit/verify | not verified |
+| positive | [`TestRFC8666PrefixSIDReservedFieldIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L86) | unit/verify | not verified |
 
 ### [`RFC8666-6-5`](#rfc8666-6-5)
 
@@ -333,10 +333,10 @@ A router receiving a Prefix-SID from a remote node and with an algorithm value t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. algorithm 0 not in the originator's SR-Algorithm list installs no mpls-fib entry; advertised algorithm installs push 16009
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666PrefixSIDUnadvertisedAlgorithmIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L214) | unit/verify | unproven |
-| positive | [`TestRFC8666PrefixSIDAdvertisedAlgorithmInstalls`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L203) | unit/verify | unproven |
+| negative | [`TestRFC8666PrefixSIDUnadvertisedAlgorithmIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L214) | unit/verify | not verified |
+| positive | [`TestRFC8666PrefixSIDAdvertisedAlgorithmInstalls`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L203) | unit/verify | not verified |
 
 ### [`RFC8666-6-6`](#rfc8666-6-6)
 
@@ -344,10 +344,10 @@ All other combinations of V-Flag and L-Flag are invalid and any SID Advertisemen
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. V=1/L=0 and V=0/L=1 are rejected by DecodePrefixSIDValueV6, whose error drops the TLV in v6PrefixSIDFromTLV; valid V/L pairs decode
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFv3PrefixSIDCodec`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L32) | unit/verify | unproven |
-| positive | [`TestOSPFv3SIDWidthFromVL`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L59) | unit/verify | unproven |
+| negative | [`TestOSPFv3PrefixSIDCodec`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L32) | unit/verify | not verified |
+| positive | [`TestOSPFv3SIDWidthFromVL`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L59) | unit/verify | not verified |
 
 ### [`RFC8666-6-7`](#rfc8666-6-7)
 
@@ -355,7 +355,7 @@ If an OSPFv3 router advertises multiple Prefix-SIDs for the same prefix, topolog
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c12). Section 6: 'If an OSPFv3 router advertises multiple Prefix-SIDs for the same prefix, topology, and algorithm, all of them MUST be ignored.' The consequence gap (every unit asserted rs.Duplicate at the detector, none that nothing is installed) is closed: TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing feeds real LSAs through srRemotePrefixSIDsV6 into installRoutes: - one Prefix-SID from 5.5.5.5 installs a forwarding entry (scope limit, same fixture); + the same Prefix-SID repeated in two LSAs installs none. Author overlay removing '|| rs.Duplicate' from sr_install.go reds it ('installed 1 forwarding entries, want none'); judge read the diff and the log. Records +/- revert on installRoutes observed. Detector-level units (TestRFC8666OneRouterMultiplePrefixSIDsAllIgnored, TestRFC8666PrefixSIDsKeyedByAlgorithm) keep their tags.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8666OneRouterRepeatedPrefixSIDInstallsNothing`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_duplicate_install_test.go#L42) | unit/verify | revert, verified |
 | negative | [`TestRFC8666PrefixSIDsKeyedByAlgorithm`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_malformed_test.go#L109) | unit/verify | revert, verified |
@@ -370,7 +370,7 @@ When calculating the outgoing label for the prefix, the router MUST take into ac
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 5). Positive: new TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel, next hop = SID advertiser, four flag settings each give the Section 6 outcome: NP clear -> no push and PHP pop of 18009; NP -> push 16009; NP+E -> push IPv6 Explicit NULL; M+E with NP clear -> push 16009 (M makes NP and E ignored, distinguishable from the NP-clear pop). Negative: TestRFC8666TransitHopIgnoresOriginatorPHPFlags, a non-advertising next hop does not apply the originator's NP=0; judge overlay applying the flags unconditionally in forwarding (sr_install.go) reds it. Revert record on forwarding observed red for the positive. TestRFC8666OutgoingLabelUsesNextHopRouter stays tagged as supplementary (next hop's SRGB).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8666TransitHopIgnoresOriginatorPHPFlags`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L341) | unit/verify | revert, verified |
 | positive | [`TestRFC8666NextHopAdvertisedFlagsShapeOutgoingLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L365) | unit/verify | revert, verified |
@@ -382,7 +382,7 @@ This MUST be done regardless of whether the next-hop router contributes to the b
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8666 Section 6 (same sentence as RFC 8665 Section 5). The IPv6 mirror through newTestInstallerV6 checks that the next hop's own NP clear pops 18009 and its NP+E pushes the IPv6 Explicit NULL, and that a non-advertising next hop gets 17009 with no pop. The fix is the shared srInstaller.forwarding. Minor: the IPv6 Explicit NULL is compared with the sr.ExplicitNullV6 constant, not the literal 2.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8666OffPathAdvertiserFlagsNotAppliedToNextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_nexthop_off_best_path_test.go#L69) | unit/verify | revert, verified |
 | positive | [`TestRFC8666NextHopFlagsAppliedOffBestPath`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_nexthop_off_best_path_test.go#L23) | unit/verify | revert, verified |
@@ -393,10 +393,10 @@ The NP-Flag (No-PHP) MUST be set and the E-Flag MUST be clear for Prefix-SIDs al
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. v6InterAreaPrefixSIDRule sets NP and clears E for a propagated prefix and keeps flags when directly attached; TestOSPFv3OriginateInterAreaPropagation asserts NP set/E clear on the real propagated LSA
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFv3InterAreaPrefixSIDRule`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L21) | unit/verify | unproven |
-| positive | [`TestOSPFv3InterAreaPrefixSIDRule`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L19) | unit/verify | unproven |
+| negative | [`TestOSPFv3InterAreaPrefixSIDRule`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L21) | unit/verify | not verified |
+| positive | [`TestOSPFv3InterAreaPrefixSIDRule`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L19) | unit/verify | not verified |
 
 ### [`RFC8666-6-10`](#rfc8666-6-10)
 
@@ -412,10 +412,10 @@ If the NP-Flag is not set, then: Any upstream neighbor of the Prefix-SID origina
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. NP clear programs a PHP pop of 18009 and no push or swap; negative: NP set programs no pop
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666NoPHPKeepsPrefixSIDOnStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L97) | unit/verify | unproven |
-| positive | [`TestRFC8666PHPPopsPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L123) | unit/verify | unproven |
+| negative | [`TestRFC8666NoPHPKeepsPrefixSIDOnStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L97) | unit/verify | not verified |
+| positive | [`TestRFC8666PHPPopsPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L123) | unit/verify | not verified |
 
 ### [`RFC8666-6-12`](#rfc8666-6-12)
 
@@ -423,10 +423,10 @@ If the NP-Flag is set and the E-Flag is not set, then: Any upstream neighbor of 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. NP set, E clear keeps the SRGB label on the stack (push 16009, swap to 16009); negative: NP clear pops
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666PHPPopsPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L129) | unit/verify | unproven |
-| positive | [`TestRFC8666NoPHPKeepsPrefixSIDOnStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L95) | unit/verify | unproven |
+| negative | [`TestRFC8666PHPPopsPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L129) | unit/verify | not verified |
+| positive | [`TestRFC8666NoPHPKeepsPrefixSIDOnStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L95) | unit/verify | not verified |
 
 ### [`RFC8666-6-13`](#rfc8666-6-13)
 
@@ -434,11 +434,11 @@ If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 against the widened row (Section 6: "If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label."). Action: positive TestRFC8666ExplicitNullReplacesPrefixSID (NP+E) imposes label 2 at ingress and swaps 18009 -> 2. Condition, both halves: TestRFC8666NoPHPKeepsPrefixSIDOnStack (NP set, E clear) imposes 16009, not 2; TestRFC8666WithoutMappingServerFlagNPAndEApply, newly tagged (E set, NP clear), pops 18009 and pushes nothing. An E-only Explicit NULL rule now reddens the latter. OutgoingActionFor (sr/install.go) checks M, then !NP, then E; revert record on it for the new negative. The earlier weak finding is closed by the added tag.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666NoPHPKeepsPrefixSIDOnStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L101) | unit/verify | unproven |
+| negative | [`TestRFC8666NoPHPKeepsPrefixSIDOnStack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L101) | unit/verify | not verified |
 | negative | [`TestRFC8666WithoutMappingServerFlagNPAndEApply`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L189) | unit/verify | revert, verified |
-| positive | [`TestRFC8666ExplicitNullReplacesPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L149) | unit/verify | unproven |
+| positive | [`TestRFC8666ExplicitNullReplacesPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L149) | unit/verify | not verified |
 
 ### [`RFC8666-6-14`](#rfc8666-6-14)
 
@@ -446,10 +446,10 @@ When the M-Flag is set, the NP-Flag and the E-Flag MUST be ignored on reception.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 after the doc comment of TestRFC8666WithoutMappingServerFlagNPAndEApply gained an RFC8666-6-13 tag; its body is unchanged. Positive TestRFC8666MappingServerFlagIgnoresNPAndE: M=1, NP=0, E=1 keeps 16009, no Explicit NULL, no pop, so both flags are ignored. Negative: the same NP=0/E=1 without M pops 18009 and pushes nothing, so the ignore is conditional on M. OutgoingActionFor returns ActionKeep on M first.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666WithoutMappingServerFlagNPAndEApply`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L187) | unit/verify | unproven |
-| positive | [`TestRFC8666MappingServerFlagIgnoresNPAndE`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L168) | unit/verify | unproven |
+| negative | [`TestRFC8666WithoutMappingServerFlagNPAndEApply`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L187) | unit/verify | not verified |
+| positive | [`TestRFC8666MappingServerFlagIgnoresNPAndE`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L168) | unit/verify | not verified |
 
 ### [`RFC8666-7.1-1`](#rfc8666-7.1-1)
 
@@ -457,10 +457,10 @@ Other bits: Reserved. These MUST be zero when sent and are ignored when received
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. all defined Adj-SID flags encode 0xF8 with bits 5-7 clear; 0x07 set on receive decodes identically
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666AdjSIDReservedFlagBitsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L138) | unit/verify | unproven |
-| positive | [`TestRFC8666AdjSIDReservedFlagBitsZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L125) | unit/verify | unproven |
+| negative | [`TestRFC8666AdjSIDReservedFlagBitsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L138) | unit/verify | not verified |
+| positive | [`TestRFC8666AdjSIDReservedFlagBitsZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L125) | unit/verify | not verified |
 
 ### [`RFC8666-7.1-2`](#rfc8666-7.1-2)
 
@@ -468,10 +468,10 @@ Reserved: SHOULD be set to 0 on transmission and MUST be ignored on reception. (
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Reserved=0xFFFF decodes identically and encoder sends zero; negative bounds the ignore by showing Weight is honoured
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666AdjSIDWeightOctetNotIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L181) | unit/verify | unproven |
-| positive | [`TestRFC8666AdjSIDReservedFieldIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L158) | unit/verify | unproven |
+| negative | [`TestRFC8666AdjSIDWeightOctetNotIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L181) | unit/verify | not verified |
+| positive | [`TestRFC8666AdjSIDReservedFieldIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L158) | unit/verify | not verified |
 
 ### [`RFC8666-7.1-3`](#rfc8666-7.1-3)
 
@@ -479,9 +479,9 @@ When the P-Flag is set, the Adj-SID MUST be persistent (§7.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8666AdjSIDPersistentFlagClearForNonPersistentAllocation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L425) | unit/verify | unproven |
+| positive | [`TestRFC8666AdjSIDPersistentFlagClearForNonPersistentAllocation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L425) | unit/verify | not verified |
 
 ### [`RFC8666-7.2-1`](#rfc8666-7.2-1)
 
@@ -489,10 +489,10 @@ Reserved: SHOULD be set to 0 on transmission and MUST be ignored on reception. (
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. LAN Adj-SID Reserved=0xFFFF decodes identically and encoder sends zero; negative shows Neighbor ID is honoured
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8666LANAdjSIDNeighborIDNotIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L221) | unit/verify | unproven |
-| positive | [`TestRFC8666LANAdjSIDReservedFieldIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L197) | unit/verify | unproven |
+| negative | [`TestRFC8666LANAdjSIDNeighborIDNotIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L221) | unit/verify | not verified |
+| positive | [`TestRFC8666LANAdjSIDReservedFieldIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_test.go#L197) | unit/verify | not verified |
 
 ### [`RFC8666-7.2-2`](#rfc8666-7.2-2)
 
@@ -500,9 +500,9 @@ When the P-Flag is set, the LAN Adjacency SID MUST be persistent (§7.2)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8666AdjSIDPersistentFlagClearForNonPersistentAllocation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L429) | unit/verify | unproven |
+| positive | [`TestRFC8666AdjSIDPersistentFlagClearForNonPersistentAllocation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_test.go#L429) | unit/verify | not verified |
 
 ### [`RFC8666-8.1-1`](#rfc8666-8.1-1)
 
@@ -534,10 +534,10 @@ In order to support SR in a multiarea environment, OSPFv3 MUST propagate Prefix-
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. intra-area Prefix-SID learned in area 1 is re-originated by v6OriginateInterAreaSR into the backbone E-Inter-Area-Prefix-LSA and not back into area 1
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFv3OriginateInterAreaPropagation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L41) | unit/verify | unproven |
-| positive | [`TestOSPFv3OriginateInterAreaPropagation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L38) | unit/verify | unproven |
+| negative | [`TestOSPFv3OriginateInterAreaPropagation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L41) | unit/verify | not verified |
+| positive | [`TestOSPFv3OriginateInterAreaPropagation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_interarea_v6_test.go#L38) | unit/verify | not verified |
 
 ### [`RFC8666-8.4.1-1`](#rfc8666-8.4.1-1)
 
@@ -545,7 +545,7 @@ If the adjacency transitions to a state lower than 2-Way, then the Adj-SID Adver
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 6, judge): the weak finding (no FSM-driven withdrawal) is closed. TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay drives an OSPFv3 neighbor to Full through the real table (Hello + DD), then a Hello not listing this router moves it to Init; the Adj-SID leaves the manager and the origination store, the E-Router-LSA body no longer carries it, and the mpls-fib pop entry is removed. Revert record on srAdjNeighborLost observed red. Negative: sr_origination_v6_test.go keeps the Adj-SID while the neighbor is up (pre-existing, unproven record). Setup nit: the test allocates the Adj-SID itself if Full did not, which weakens nothing about the withdrawal assertion.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFv3ERouterBodyCarriesAdjSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_origination_v6_test.go#L21) | unit/verify | revert, verified |
 | positive | [`TestRFC8666AdjSIDWithdrawnWhenFSMFallsBelowTwoWay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_adjsid_fsm_test.go#L78) | unit/verify | revert, verified |
@@ -557,7 +557,7 @@ For any new TLVs/sub-TLVs defined in this document, if the length is invalid, th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. RFC 8666 s10 read: 'if the length is invalid, the LSA in which it is advertised is considered malformed and MUST be ignored.' The three gaps of the 2026-09-27 audit are closed. Adj-SID and LAN Adj-SID at a reader: TestRFC8666AdjSIDLengthInvalidIgnoredByReader installs real E-Router-LSAs and reads the BGP-LS export (sentinel LSA proves the snapshot is current): + well-formed Adj-SID/LAN Adj-SID exported with attr 1099/1100; - each one octet long or two short exports no link from the router (records on srV3ExtendedLengthInvalid). SID/Label (s3.1 'Length: 3 or 4 octets'): D-8 defect fixed in sr_malformed.go srV3SubTLVLengthInvalid (type 7 had no case); TestRFC8666SIDLabelLengthInvalidIgnoresLSA + length 3/4 keeps the Prefix-SID, - length 2/5 yields none (red before the fix; records on srV3SubTLVLengthInvalid). Prefix-SID and Extended Prefix Range stay on rfc8666_malformed_test and sr_length_before_flags_test with records.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8666LengthInvalidSubTLVIgnoresExtendedLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_malformed_test.go#L81) | unit/verify | revert, verified |
 | negative | [`TestRFC8666AdjSIDLengthInvalidIgnoredByReader`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_reader_ignore_test.go#L98) | unit/verify | revert, verified |
@@ -574,11 +574,11 @@ Implementations MUST ensure that malformed TLVs and sub-TLVs defined in this doc
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. malformed values are rejected with an error (not only no panic) by every v3 SR decoder and by v6PrefixSIDFromPrefixTLV; well-formed range TLVs still decode
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFv3ExtPrefixRangeTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L96) | unit/verify | unproven |
-| positive | [`TestOSPFv3ReceptionMalformedNoPanic`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_reception_v6_test.go#L171) | unit/verify | unproven |
-| positive | [`TestOSPFv3SRTLVMalformed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L127) | unit/verify | unproven |
+| negative | [`TestOSPFv3ExtPrefixRangeTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L96) | unit/verify | not verified |
+| positive | [`TestOSPFv3ReceptionMalformedNoPanic`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8666_sr_reception_v6_test.go#L171) | unit/verify | not verified |
+| positive | [`TestOSPFv3SRTLVMalformed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8666_codec_v6_test.go#L127) | unit/verify | not verified |
 
 ## Requirement list review
 

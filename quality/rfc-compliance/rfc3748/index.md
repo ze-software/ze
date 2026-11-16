@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 50 | of 59 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3 | of 59 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 50 | of 59 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 59 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 59 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 59 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 130 | 130 of 158 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 59 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 130 | 130 of 158 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 59 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 59 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 59 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 59 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 59 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 59 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 59 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: IKEv2-carried EAP peer and co-located authenticato
 
 **Area:** EAP
 
-**Proof:** 42 of 59 MUST proven
+**Test verification:** 42 of 59 MUST proven
 
 **Evidence:** unit 42
 
@@ -108,7 +108,7 @@ Included in automatic checks: IKEv2-carried EAP peer and co-located authenticato
 | Annotated (including scoped evidence) | 9 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **59** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: IKEv2-carried EAP peer and co-located authenticato
 
 ## Figures
 
-- **MUST bar**: Ze proven 42, Proof pending 11, Not built 6
-- **Overview bar**: Ze MUST proven 42, Proof pending 11, Not assessed 4, Not built 6
+- **MUST bar**: Ze verified 42, Tests awaiting verification 11, Not built 6
+- **Overview bar**: Ze MUST verified 42, Tests awaiting verification 11, Not assessed 4, Not built 6
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: IKEv2-carried EAP peer and co-located authenticato
 | Mandatory requirements complete | not complete |
 | MUST rows | 59 |
 | MUST rows kept (the MUST bar) | 59 |
-| Ze proven | 42 |
+| Ze verified | 42 |
 | OS verified | 0 |
-| Proof pending | 11 |
+| Tests awaiting verification | 11 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: IKEv2-carried EAP peer and co-located authenticato
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 4 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 4 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc3748.json](../../../data/rfc/rfc3748.json).
 
@@ -236,9 +236,9 @@ Source: [data/rfc/rfc3748.json](../../../data/rfc/rfc3748.json).
 | [`RFC3748-3.1-3`](#rfc3748-3.1-3) EAP is capable of functioning on lower layers that provide an EAP MTU size of 1020 octets or greater. (§3.1) | {gap}, no test | a gap in proof. ze's own IKEv2 carrier is the lower layer here, so ze fills the role: it carries EAP packets inside IKEv2 messages over UDP, and EAP-TLS fragments its method data in 1024-octet pieces (internal/core/eap/eap_tls.go, eapTLSFragmentSize), so an EAP MTU of 1020 octets or more is expected, but no test shows the carrier passes an EAP packet of that size |
 | [`RFC3748-5.7-1`](#rfc3748-5.7-1) An implementation that supports the Expanded attribute MUST treat EAP Types that are less than 256 equivalently, whether they appear as a single octet or as the 32-bit Vendor-Type within an Expanded Type where Vendor-Id is 0. (§5.7) | {gap}, no test | the condition is an optional feature ze does not implement, and no owner decision declines it. ze offers MD5-Challenge (4), EAP-TLS (13) and EAP-MSCHAPv2 (26), NewSession (internal/core/eap/eap.go) rejects every other type, and the codec never encodes or parses an Expanded Type (254) packet or its Vendor-Id; the peer only answers a Type 254 Request with the legacy Nak (PeerSession.naks, internal/core/eap/peer.go). The row stays a gap until ze supports Expanded Types or Thomas declines the feature |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC3748-4-1`](#rfc3748-4-1)
 
@@ -246,7 +246,7 @@ A message with the Length field set to a value larger than the number of receive
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Clauses: a Length larger than the received octets; the message MUST be silently discarded. Both roles are driven through the engine's real entry points with an IKE layer that is valid (checksum verifies, generic header states the true length), so the one fault is the EAP Length. Authenticator (TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength, handleResponderInbound): the overlong EAP Response leaves StateEAPInProgress and writes no datagram (rtxExpectSilence), then the real round-2 request at the same Message ID is processed and answered. Peer (TestRFC3748PeerDiscardsAnOverlongEAPLength, handleInbound): an overlong EAP Request on the first IKE_AUTH response and on round 2 leaves state, NextMsgID and LastSentMsg unchanged, then the real message is processed. Producer: wire/payload_eap.go returns ErrEAPLengthExceedsData, engine/eap_auth.go::eapMessageDiscarded, the three callers return before any state change. Both tests went red on the pre-fix code (StateDead). The four records are panic breaks of eapMessageDiscarded (reach only); the targeted discrimination is the pre-fix red. core/eap TestRFC3748PacketLengthDiscard still covers only the decode error.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748AuthenticatorDiscardsAnOverlongEAPLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_eap_length_test.go#L112) | unit/verify | revert, verified |
 | negative | [`TestRFC3748PeerDiscardsAnOverlongEAPLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_eap_length_test.go#L159) | unit/verify | revert, verified |
@@ -261,7 +261,7 @@ The Length field is two octets and indicates the length, in octets, of the EAP p
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: a Request with Type and 3 data octets encodes to 8 octets with Length 8, and decodes back. Negative: the same packet with Length 4 (Data only) or 3 (Type-Data only) is refused by DecodePacket; a decoder reading Length as data length would accept both, so the pair discriminates the header-inclusive reading.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748LengthCountsTheWholePacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L375) | unit/verify | revert, verified |
 | negative | [`TestRFC3748MinimumPacketLength`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L99) | unit/verify | revert, verified |
@@ -274,7 +274,7 @@ EAP is a 'lock step' protocol, so that other than the initial Request, a new Req
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity positive (row marker). TestRFC3748NoNewRequestBeforeAValidResponse: after Responses with another Identifier and another Type drew nil, only the peer's valid Response draws the next packet, under a new Identifier, and its replay draws nil (eap.go Session.Process Identifier check). The legacy TestRFC3748AuthenticatorLockStep tag still cannot fail on its own; the verdict rests on the new unit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC3748NoNewRequestBeforeAValidResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L123) | unit/verify | revert, verified |
 | positive | [`TestRFC3748AuthenticatorLockStep`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L168) | unit/verify | revert, verified |
@@ -285,7 +285,7 @@ other than the initial Request, a new Request cannot be sent prior to receiving 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read RFC 3748 in full, especially Section 2 [3] (no new Request before a valid Response), Sections 2.2-2.3 role routing and 4.1 Identifier/Type validity, and every tagged unit. TestRFC3748AuthenticatorRequiresValidResponse now supplies a genuine matching Identity Response and requires a non-nil CodeRequest of TypeMSCHAPv2; it does not expect a wrong-role Request to draw Failure. TestRFC3748NoNewRequestBeforeAValidResponse separately supplies a wrong-Identifier Response and a wrong-Type Response while the Challenge is outstanding and requires nil for each; the real peer then answers the retained Challenge, requires a next packet with a changed Identifier if it is a Request, and requires nil on replay. Session.Process checks CodeResponse and the outstanding Identifier before state dispatch; handleMethod checks the configured Type before calling the method. The malformed method payload in the wrong-Identifier probe cannot independently satisfy its nil assertion: mschapv2Method.handleResponse returns Err on that short payload and Session.handleMethod would emit Failure, which the assertion rejects. The wrong-Type probe likewise reaches a non-nil Failure if the framework Type discard is removed. handleIdentity, handleMethod and finalRequest emit their next Requests only while processing the admitted Response; handleResponderEAP consumes nil as no output and forwards non-nil packets through sendResponderEAP. Retain enforced for this lock-step obligation; this source rejudgment is not an executed test or named-peer result.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748NoNewRequestBeforeAValidResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L109) | unit/verify | revert, verified |
 | positive | [`TestRFC3748NoNewRequestBeforeAValidResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L128) | unit/verify | revert, verified |
@@ -297,7 +297,7 @@ the peer and authenticator MUST utilize only one authentication method (Type 4 o
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Authenticator clause: TestRFC3748OneMethodPerConversation (a Type-13 Response once MS-CHAPv2 is active draws nil, no success; unproven, no record). Peer clause: TestRFC3748ThePeerKeepsToOneMethod: an EAP-TLS Request to a peer mid-MS-CHAPv2 is discarded (no Response, no Err), and the same peer then acks the MS-CHAPv2 Success with Type 26 and concludes. Records are whole-body panics of handleRequest, so Q2 for the discard is answered by reading, not by the record.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748ThePeerKeepsToOneMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L229) | unit/verify | revert, verified |
 | negative | [`TestRFC3748OneMethodPerConversation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L230) | unit/verify | revert, verified |
@@ -310,7 +310,7 @@ However, the peer and authenticator MUST utilize only one authentication method 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both clauses: every method Request of a full MS-CHAPv2 flight carries Type 26 (wantOneMethodRequests) and the flight ends in EAP-Success; the wrong-password flight also stays on Type 26 and ends in EAP-Failure with Succeeded false; after either result a Type-4 Response draws nil. Positive and negative are distinct inputs.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748OneMethodThenTheResult`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L210) | unit/verify | revert, verified |
 | negative | [`TestRFC3748MethodCompletionSendsResult`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L265) | unit/verify | revert, verified |
@@ -323,7 +323,7 @@ A peer MUST NOT send a Nak (legacy or expanded) in reply to a Request after an i
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a peer answering a Request with a legacy or expanded Nak after its first non-Nak Response. TestRFC3748PeerNaksBeforeItCommitsToAMethod negative: after commitment a Type-40 Request must be Discarded and fails on res.Response != nil (any Response, so both Nak forms) or res.Err. Positive: before commitment the same Type-40 Request draws a legacy Nak naming MS-CHAPv2 (wantLegacyNak), so the discard is tied to commitment.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748PeerNaksBeforeItCommitsToAMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L385) | unit/verify | revert, verified |
 | positive | [`TestRFC3748PeerNaksBeforeItCommitsToAMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L372) | unit/verify | revert, verified |
@@ -334,7 +334,7 @@ Responses MUST only be sent in reply to a valid Request and never be retransmitt
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. 'Only in reply to a valid Request': TestRFC3748PeerAnswersNoInvalidRequest (a Request of another method mid-method and a method Request after Success each discarded, a valid Request answered). 'Never retransmitted on a timer': TestRFC3748PeerNeverRetransmitsOnATimer walks PeerSession for a time.Timer, time.Ticker or chan time.Time (none), checks Process is the only method returning *Packet or PeerResult, and shows an answered peer handed an early EAP-Success returns no Response and marks it Discarded. PeerSession has no transport, so Process is its only send path. Limit: the reflection does not look for a func-typed send callback; adding one would also add a send path the method-set check misses. All units recorded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748PeerAnswersNoInvalidRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L201) | unit/verify | revert, verified |
 | positive | [`TestRFC3748PeerNeverRetransmitsOnATimer`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_peer_timer_test.go#L29) | unit/verify | revert, verified |
@@ -354,9 +354,9 @@ Because the Success and Failure packets are not acknowledged, they are not retra
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. {single-polarity: positive} carried on the row. Forbidden: the authenticator re-sending Success or Failure. TestRFC3748SuccessFailureNotRetransmitted fails on a non-nil packet from Process after a Failure (Nak path) and after a Success (full MS-CHAPv2 flight).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC3748SuccessFailureNotRetransmitted`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L141) | unit/verify | unproven |
+| positive | [`TestRFC3748SuccessFailureNotRetransmitted`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_test.go#L141) | unit/verify | not verified |
 
 ### [`RFC3748-4.2-2`](#rfc3748-4.2-2)
 
@@ -364,7 +364,7 @@ Success and Failure packets MUST NOT contain additional data. (§4.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: Encode of a Success and of a Failure carrying Type 26 and Type-Data yields exactly code,id,00,04. Negative: a received Success/Failure whose Length covers 3 data octets is delivered with Type 0 and nil Type-Data (DecodePacket). The sender obligation is fully proven by the exact 4-octet encode; the neighbouring Request-needs-Type arm is untagged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748SuccessAndFailureCarryNoData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L341) | unit/verify | revert, verified |
 | positive | [`TestRFC3748SuccessAndFailureCarryNoData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L332) | unit/verify | revert, verified |
@@ -376,12 +376,12 @@ The Identifier field MUST match the Identifier field of the Response packet that
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read the full RFC 3748 text and Section 4.2 Identifier rule, all four tagged test units, Session.Process/handleIdentity/handleMethod/finalRequest/failure, and the real MS-CHAPv2 producer and peer routing. The sender-only single-polarity annotation remains appropriate: the forbidden outcome is a terminal packet whose Identifier differs from the Response it answers, not a receiver acceptance rule. TestFailureIdentifierMatchesResponse now drives real wrong credentials through the method Failure Request, the peer acknowledgement and stateLastWord, requires CodeFailure within eight rounds, and compares its Identifier exactly with that actual acknowledgement Response (the previous refused-code 0x42 fixture no longer describes this unit). TestFailureIdentifierMatchesResponseOnNAK pins CodeFailure and Identifier 0x7E; TestIdentityFailureIdentifierMatchesResponse pins CodeFailure and 0x11 on the existing identity refusal branch; TestSuccessIdentifierMatchesResponse pins CodeSuccess and 0x5A on the Done branch. These assertions reject the former terminal Identifier increment. failure copies answered.Identifier, and the Done arm stamps response.Identifier; the IKE consumer forwards both terminal packet kinds without changing the EAP Identifier. The malformed identity fixture is evidence only for the Identifier on that existing terminal branch, not proof that emitting Failure for a wrong Type complies with the separate Section 4.1 discard obligation. Retain enforced for the scoped sender Identifier rule, with no live interop or test-execution claim.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestFailureIdentifierMatchesResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L24) | unit/verify | unproven |
-| positive | [`TestFailureIdentifierMatchesResponseOnNAK`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L59) | unit/verify | unproven |
-| positive | [`TestIdentityFailureIdentifierMatchesResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L94) | unit/verify | unproven |
-| positive | [`TestSuccessIdentifierMatchesResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L163) | unit/verify | unproven |
+| positive | [`TestFailureIdentifierMatchesResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L24) | unit/verify | not verified |
+| positive | [`TestFailureIdentifierMatchesResponseOnNAK`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L59) | unit/verify | not verified |
+| positive | [`TestIdentityFailureIdentifierMatchesResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L94) | unit/verify | not verified |
+| positive | [`TestSuccessIdentifierMatchesResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L163) | unit/verify | not verified |
 
 ### [`RFC3748-2.3-1`](#rfc3748-2.3-1)
 
@@ -429,7 +429,7 @@ an EAP method supporting key derivation MUST export a Master Session Key (MSK) o
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Unchanged judgement after a comment-only edit to TestRFC3748EAPTLSExportsASixtyFourOctetEMSK (new 7.10-6 tag): MSK and EMSK values, not sizes, on both methods; EMSK is export octets 64-127 (EAP-TLS) or the HKDF expansion (MS-CHAPv2), equal on both ends; negatives show no EMSK without a completed export or successful exchange. All units recorded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748NoEMSKWithoutACompletedExport`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L193) | unit/verify | revert, verified |
 | negative | [`TestRFC3748NoMSCHAPv2EMSKWithoutASuccessfulExchange`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L154) | unit/verify | revert, verified |
@@ -444,7 +444,7 @@ Octets outside the range of the Length field should be treated as Data Link Laye
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: an Identity Response with 3 octets past Length decodes with Type-Data 'user', and Session.Process records identity 'user' and draws the method Request. Negative: the same octets with Length raised to cover them are delivered as 'userXYZ', so the positive reads the Length field, not the buffer. Distinct inputs, unlike the legacy TestRFC3748LengthBoundsTypeData pair.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748PaddingPastLengthIsNotData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L414) | unit/verify | revert, verified |
 | negative | [`TestRFC3748LengthBoundsTypeData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L118) | unit/verify | revert, verified |
@@ -457,7 +457,7 @@ The Identifier field MUST be the same if a Request packet is retransmitted due t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Clause 2 (new Requests modify the Identifier): TestRFC3748NewRequestChangesIdentifier, each Request differs from the one before and no Identifier repeats in the exchange. Clause 1 (a retransmitted Request keeps the Identifier): Ze runs no EAP-layer retransmission timer (IKEv2 carries EAP and the IKE initiator retransmits), so the retransmission path is the replay of the cached IKE_AUTH response; TestEapRtxResponderReplaysCachedResponseMidEAP asserts the EAP Request re-sent on a retransmitted IKE_AUTH is byte-identical to the first, so its Identifier is unchanged, while a rebuild cannot match (fresh CBC IV). Record: revert responder.go::replayCachedResponse.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748NewRequestChangesIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L147) | unit/verify | revert, verified |
 | positive | [`TestEapRtxResponderReplaysCachedResponseMidEAP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_retransmit_test.go#L98) | unit/verify | revert, verified |
@@ -469,10 +469,10 @@ The Identifier field of the Response MUST match that of the currently outstandin
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a peer Response whose Identifier differs from the outstanding Request's. TestRFC3748ResponseEchoesRequestIdentifier fails on resp.Identifier != requests[i].Identifier for every Response of a full MS-CHAPv2 flight, and on an unusual Identifier 0xC3 not echoed (catches a peer that counts or uses a constant).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L179) | unit/verify | unproven |
-| positive | [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L168) | unit/verify | unproven |
+| negative | [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L179) | unit/verify | not verified |
+| positive | [`TestRFC3748ResponseEchoesRequestIdentifier`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L168) | unit/verify | not verified |
 
 ### [`RFC3748-4.1-5`](#rfc3748-4.1-5)
 
@@ -480,7 +480,7 @@ The Type field of a Response MUST either match that of the Request, or correspon
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Clauses: the Response Type matches the Request; or it is a Nak for an unacceptable Type. Clause 1: resp.Type != requests[i].Type fails over the flight. Clause 2 and the forbidden case (answering an unacceptable Type with a non-Nak): a Type-99 Request fails on res.Err, no Response, Response.Type != TypeNAK, or Type-Data != [MS-CHAPv2].
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L216) | unit/verify | revert, verified |
 | positive | [`TestRFC3748ResponseTypeMatchesRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L205) | unit/verify | revert, verified |
@@ -491,7 +491,7 @@ On the peer, once the method completes unsuccessfully (that is, either the authe
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both triggers: authenticator failure indication on TestRFC3748PeerEndsAnUnsuccessfulConversation (unproven legacy); peer-decides trigger on TestRFC3748PeerEndsAConversationItRefuses: a wrong Authenticator Response gives Err, no ack, a following EAP-Success concludes nothing with zero MSK and Succeeded false (peer.go handleMSCHAPv2Success sets peerStateFailed, Process discards). Negative: the matching value is acked and concludes.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748PeerEndsAConversationItRefuses`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L315) | unit/verify | revert, verified |
 | negative | [`TestRFC3748PeerEndsAnUnsuccessfulConversation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L265) | unit/verify | revert, verified |
@@ -504,10 +504,10 @@ If the authenticator has not sent a result indication, and the peer is willing t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the waiting peer silently discarding the Success or the Failure. Success: peerFinal.Done false or an all-zero MSK fails. Failure: peerFinal.Err nil or Done true fails. Both packets of the quoted 'either of them' are covered.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L296) | unit/verify | unproven |
-| positive | [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L284) | unit/verify | unproven |
+| negative | [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L296) | unit/verify | not verified |
+| positive | [`TestRFC3748PeerActsOnTheTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L284) | unit/verify | not verified |
 
 ### [`RFC3748-4-5`](#rfc3748-4-5)
 
@@ -515,7 +515,7 @@ Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-11 by an independent auditor (not the author) after fsm.go::handleEAPResponse and responder_eap.go::handleResponderEAP changed in 9019fe4d21 and a49d4d301f. RFC 3748 Section 4: "Since EAP only defines Codes 1-4, EAP packets with other codes MUST be silently discarded by both authenticators and peers." Both handlers now open the SK payload through openProtected (protected_input.go), which drops input that fails its integrity check before any EAP processing (nothing written to the SA, nothing sent) and returns only authenticated-malformed errors wrapping errInnerParse; a chain failure is wrapped as "%w: %w" with errInnerChain, so eapMessageDiscarded (errors.Is ErrEAPLengthExceedsData) still matches and is still asked first, before the StateDead arm. wire.PayloadEAP parsing accepts any Code, so an authenticated packet with Code 0, 5 or 255 opens cleanly and reaches ps.Process (peer, result.Discarded return with no state, Message ID or retransmit change) or sess.Process (authenticator, nil next, no send) exactly as before; the new drop arm only widens silence for unauthenticated input and cannot turn a discard into a state change. responder.go::handleResponderInbound, core eap.go::Process and peer.go::Process are unchanged since the 2026-11-10 judgement, and the three tagged units are byte-identical. TestEngineDiscardedEAPCodesPreserveExchange seals its injected Codes with the production builder buildEncryptedMessageEx under the live SA keys, the same path that seals the held-back valid packets, so the injected packets pass openProtected and exercise the RFC 3748 arm rather than the unauthenticated drop: a sealing defect would also redden the valid controls. It asserts both roles keep state, expected/next Message ID, LastSentMsg, retransmit time and count, and send nothing on UDP, then the held-back valid packet advances each round and the exchange ends with matching nonzero MSKs and a verified AUTH. The core units assert the authenticator answers nothing for Codes 0, 5, 255 and the peer reports Discarded with no response, error, Done or MSK, state and round budget unchanged, before legitimate packets complete. Residual note: the engine test calls decryptAndParse, now a test-only helper in protected_input_test.go; the spec's next phase deleting it must keep that helper or rewrite the call. Verdict stands. Tests not re-run by this judge.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEngineDiscardedEAPCodesPreserveExchange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_eap_discard_admission_test.go#L25) | unit/verify | revert, verified |
 | negative | [`TestRFC3748UndefinedCodesAreSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L263) | unit/verify | revert, verified |
@@ -530,7 +530,7 @@ By default, an EAP peer MUST silently discard a "canned" Success packet (a Succe
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: acting on a Success sent at connection. A Success on a fresh peer fails on eapdWantDiscarded, on Succeeded(), and if the following Identity Request is no longer answered. Positive: the same Success at method end must conclude Done with a non-zero MSK.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748PeerDiscardsACannedSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L103) | unit/verify | revert, verified |
 | positive | [`TestRFC3748PeerDiscardsACannedSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L82) | unit/verify | revert, verified |
@@ -541,7 +541,7 @@ A peer EAP implementation receiving a Success or Failure packet where sending on
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both halves. Success: TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet. Failure: TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted: after both success indications an EAP-Failure is discarded (no Err, no Response) and the following EAP-Success still concludes; mid-method, where Failure is permitted, the same packet yields ErrEAPFailure and is not discarded (peer.go Process CodeFailure arm).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748PeerDiscardsAFailureWhereNoneIsPermitted`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L270) | unit/verify | revert, verified |
 | negative | [`TestRFC3748PeerDiscardsASuccessTheMethodDoesNotPermitYet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L145) | unit/verify | revert, verified |
@@ -554,7 +554,7 @@ On the peer, after success result indications have been exchanged by both sides,
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748PeerDiscardsAFailureAfterMutualSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L199) | unit/verify | revert, verified |
 | positive | [`TestRFC3748PeerDiscardsAFailureAfterMutualSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L178) | unit/verify | revert, verified |
@@ -565,7 +565,7 @@ The authenticator MUST NOT send a Success or Failure packet when retransmitting 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748NoTerminalPacketWhileTheRequestStands`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_retransmission_test.go#L86) | unit/verify | revert, verified |
 | positive | [`TestRFC3748NoTerminalPacketWhileTheRequestStands`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_retransmission_test.go#L33) | unit/verify | revert, verified |
@@ -576,7 +576,7 @@ Given these considerations, the Success, Failure, Nak Response(s), and Notificat
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. All four message kinds asserted at the receiver and the composer: a Nak Response carrying a desired-Type list ends the exchange with EAP-Failure and reaches no method (recording/tap method sees nothing), Success and Failure encode to their four octets, the peer's Notification Response carries zero octets of Type-Data, ze's authenticator sends no Notification Request, and an injected Notification carrying MS-CHAPv2 result bytes does not advance the method. A live Response of the method Type reaches the method with its Type-Data (control arm), so the silence is not a dead method layer. Every unit now carries an observed-red record.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748FrameworkMessagesReachNoMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L330) | unit/verify | revert, verified |
 | negative | [`TestRFC3748NoFrameworkMessageReachesAnEAPMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L214) | unit/verify | revert, verified |
@@ -591,10 +591,10 @@ Additional Request packets MUST be sent until a valid Response packet is receive
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC3748OutstandingRequestStandsUntilAValidResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L141) | unit/verify | unproven |
-| positive | [`TestRFC3748OutstandingRequestStandsUntilAValidResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L126) | unit/verify | unproven |
+| negative | [`TestRFC3748OutstandingRequestStandsUntilAValidResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L141) | unit/verify | not verified |
+| positive | [`TestRFC3748OutstandingRequestStandsUntilAValidResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L126) | unit/verify | not verified |
 
 ### [`RFC3748-4.1-7`](#rfc3748-4.1-7)
 
@@ -602,12 +602,12 @@ The peer MUST send a Response packet in reply to a valid Request packet (S4.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC3748PeerAnswersOnlyAValidRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L179) | unit/verify | unproven |
-| negative | [`TestRFC3748PeerAnswersAValidRequestAndDiscardsAnInvalidOne`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L117) | unit/verify | unproven |
-| positive | [`TestRFC3748PeerAnswersOnlyAValidRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L163) | unit/verify | unproven |
-| positive | [`TestRFC3748PeerAnswersAValidRequestAndDiscardsAnInvalidOne`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L100) | unit/verify | unproven |
+| negative | [`TestRFC3748PeerAnswersOnlyAValidRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L179) | unit/verify | not verified |
+| negative | [`TestRFC3748PeerAnswersAValidRequestAndDiscardsAnInvalidOne`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L117) | unit/verify | not verified |
+| positive | [`TestRFC3748PeerAnswersOnlyAValidRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L163) | unit/verify | not verified |
+| positive | [`TestRFC3748PeerAnswersAValidRequestAndDiscardsAnInvalidOne`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L100) | unit/verify | not verified |
 
 ### [`RFC3748-4.1-8`](#rfc3748-4.1-8)
 
@@ -615,12 +615,12 @@ Requests MUST be processed in the order that they are received, and MUST be proc
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC3748RequestsAreProcessedInOrderToCompletion`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L225) | unit/verify | unproven |
-| negative | [`TestRFC3748PeerReadsEachRequestAgainstItsPredecessors`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L157) | unit/verify | unproven |
-| positive | [`TestRFC3748RequestsAreProcessedInOrderToCompletion`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L208) | unit/verify | unproven |
-| positive | [`TestRFC3748PeerReadsEachRequestAgainstItsPredecessors`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L140) | unit/verify | unproven |
+| negative | [`TestRFC3748RequestsAreProcessedInOrderToCompletion`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L225) | unit/verify | not verified |
+| negative | [`TestRFC3748PeerReadsEachRequestAgainstItsPredecessors`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L157) | unit/verify | not verified |
+| positive | [`TestRFC3748RequestsAreProcessedInOrderToCompletion`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L208) | unit/verify | not verified |
+| positive | [`TestRFC3748PeerReadsEachRequestAgainstItsPredecessors`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_ordering_test.go#L140) | unit/verify | not verified |
 
 ### [`RFC3748-4.1-9`](#rfc3748-4.1-9)
 
@@ -628,10 +628,10 @@ A single Type MUST be specified for each EAP Request or Response (S4.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC3748OnePacketCarriesOneType`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L274) | unit/verify | unproven |
-| positive | [`TestRFC3748OnePacketCarriesOneType`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L248) | unit/verify | unproven |
+| negative | [`TestRFC3748OnePacketCarriesOneType`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L274) | unit/verify | not verified |
+| positive | [`TestRFC3748OnePacketCarriesOneType`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_lockstep_test.go#L248) | unit/verify | not verified |
 
 ### [`RFC3748-4.1-10`](#rfc3748-4.1-10)
 
@@ -639,10 +639,10 @@ An authenticator receiving a Response whose Identifier value does not match that
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAuthenticatorProcessesAResponseAnsweringTheOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L213) | unit/verify | unproven |
-| positive | [`TestAuthenticatorDiscardsAResponseAnsweringNoOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L192) | unit/verify | unproven |
+| negative | [`TestAuthenticatorProcessesAResponseAnsweringTheOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L213) | unit/verify | not verified |
+| positive | [`TestAuthenticatorDiscardsAResponseAnsweringNoOutstandingRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_identifier_test.go#L192) | unit/verify | not verified |
 
 ### [`RFC3748-4.1-11`](#rfc3748-4.1-11)
 
@@ -650,7 +650,7 @@ An EAP server receiving a Response not meeting these requirements MUST silently 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both 'these requirements' asserted at the authenticator: a Response of another Type draws nil and does not complete the exchange (exact nil, Succeeded false), a Nak after the initial non-Nak Response is discarded and the method still concludes; the method-Type control Response is processed to EAP-Success, so the discard is the Type check, not a refusal of every Response. All three units carry observed-red records.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestAuthenticatorProcessesAResponseOfTheMethodType`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L305) | unit/verify | revert, verified |
 | positive | [`TestAuthenticatorDiscardsAResponseOfAnotherType`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L278) | unit/verify | revert, verified |
@@ -662,7 +662,7 @@ Once a peer has sent a Response of the same Type as the initial Request, an auth
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Authenticator MUST NOTs: every Request of a completed MS-CHAPv2 flight is Type 26 and a Type-13 Response after EAP-Success draws nil (no additional method); mid-method a Type-13 Response draws nil and the MS-CHAPv2 method continues with a Type-26 Request. Peer clause: TestPeerDiscardsARequestOfAnotherType (record); TestAuthenticatorProcessesAResponseOfTheMethodType is an unproven control. Ze's authenticator holds one configured method, so the mid-method provocation is the reachable violation.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748TheAuthenticatorSendsNoRequestOfAnotherType`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L165) | unit/verify | revert, verified |
 | negative | [`TestPeerProcessesARequestOfTheMethodType`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_discard_test.go#L368) | unit/verify | revert, verified |
@@ -675,7 +675,7 @@ the peer MUST terminate the conversation and indicate failure to the lower layer
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Clauses: the peer terminates and indicates failure; MUST silently discard Success (the Failure discard is a MAY). Termination: the EAP-Failure fails unless res.Err is ErrEAPFailure. Success discard: a later Success fails on !Discarded, Done, a non-zero MSK or Succeeded(). Positive: a completed peer concludes on the Success (Done false or Discarded fails).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L341) | unit/verify | revert, verified |
 | positive | [`TestRFC3748PeerDiscardsASuccessAfterItEndedTheSession`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L316) | unit/verify | revert, verified |
@@ -686,7 +686,7 @@ Success and Failure packets MUST NOT be sent by an EAP authenticator if the spec
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748NoTerminalPacketLeavesMidMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L110) | unit/verify | revert, verified |
 | positive | [`TestRFC3748NoTerminalPacketLeavesMidMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L94) | unit/verify | revert, verified |
@@ -697,7 +697,7 @@ Because the Success and Failure packets are not acknowledged, they are not retra
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both halves of the note. Lost Success: the peer does not conclude before it, discards strays, concludes on the late Success. Lost Failure (TestRFC3748PeerConcludesFailureWithoutTheFailurePacket): after the MS-CHAPv2 failure indication is acknowledged and the EAP-Failure is dropped, a forged EAP-Success or a stray Request ends with ErrEAPFailure, not Done, no MSK, no Response; the producer parks pendingErr in handleMSCHAPv2Failure, and without it the forged Success would be silently discarded and the test fails. Every tagged unit carries a record.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748PeerOutlivesALostTerminalPacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L255) | unit/verify | revert, verified |
 | positive | [`TestRFC3748PeerConcludesFailureWithoutTheFailurePacket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_remaining_clause_test.go#L238) | unit/verify | revert, verified |
@@ -709,7 +709,7 @@ After the authenticator sends a failure result indication to the peer, regardles
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748FailureFollowsTheFailureIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L155) | unit/verify | revert, verified |
 | positive | [`TestRFC3748FailureFollowsTheFailureIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L129) | unit/verify | revert, verified |
@@ -720,7 +720,7 @@ After the authenticator sends a success result indication to the peer and receiv
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748SuccessFollowsBothSuccessIndications`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L196) | unit/verify | revert, verified |
 | positive | [`TestRFC3748SuccessFollowsBothSuccessIndications`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L177) | unit/verify | revert, verified |
@@ -731,7 +731,7 @@ If the peer attempts to authenticate to the authenticator and fails to do so, th
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748FailedAuthenticationIsRefusedNotGranted`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L231) | unit/verify | revert, verified |
 | positive | [`TestRFC3748FailedAuthenticationIsRefusedNotGranted`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_result_indication_test.go#L215) | unit/verify | revert, verified |
@@ -742,7 +742,7 @@ The MSK and EMSK MUST NOT be used directly to protect data (S7.10)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748TheEAPMSKNeverKeysTheDataItProtects`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_msk_test.go#L148) | unit/verify | revert, verified |
 | positive | [`TestRFC3748TheEAPMSKNeverKeysTheDataItProtects`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc3748_msk_test.go#L114) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
@@ -753,7 +753,7 @@ The EMSK is reserved for future use and MUST remain on the EAP peer and EAP serv
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. EAP-TLS side now closed: TestRFC3748EAPTLSExportsASixtyFourOctetEMSK asserts the MSK equals export octets 0-63 exactly, TLS 1.2 and 1.3, so an MSK hashed from or mixed with the EMSK fails; MS-CHAPv2 MSK asserted octet by octet from the MPPE MasterKey alone. Remain-on-both-ends: the EMSK is held on both ends and appears in no outward value or wire octet (negatives on both methods). All units recorded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748TheEMSKIsNeverHandedOutward`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L284) | unit/verify | revert, verified |
 | negative | [`TestRFC3748TheMSCHAPv2EMSKIsNeverHandedOutward`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_mschapv2_emsk_test.go#L245) | unit/verify | revert, verified |
@@ -768,7 +768,7 @@ Since EAP does not provide for explicit key lifetime negotiation, EAP peers, aut
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an exchange that fails when one party discarded key state the other still holds. With the authenticator's ticket keys discarded and a peer offering the stale ticket, resumption on either side fails the test (lines 67, 70) and the new MSK must differ from the kept-state MSK; control: with the state kept, both sides resume (lines 48, 51).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748AnExchangeOutlivesDiscardedKeyState`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_key_state_test.go#L40) | unit/verify | revert, verified |
 | positive | [`TestRFC3748AnExchangeOutlivesDiscardedKeyState`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_key_state_test.go#L54) | unit/verify | revert, verified |
@@ -779,10 +779,10 @@ Nak (Type 3) or Expanded Nak (Type 254) are valid only for Response packets, the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Request of Type 3 or 254. Every Request of a full MS-CHAPv2 flight fails on req.Type == TypeNAK or TypeExpandedEAP; a Nak Response, the input a faulty authenticator would echo, must draw a Failure (out.Code != CodeFailure fails).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L323) | unit/verify | unproven |
-| positive | [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L313) | unit/verify | unproven |
+| negative | [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L323) | unit/verify | not verified |
+| positive | [`TestRFC3748NoNAKInARequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L313) | unit/verify | not verified |
 
 ### [`RFC3748-5-2`](#rfc3748-5-2)
 
@@ -790,7 +790,7 @@ All EAP implementations MUST support Types 1-4, which are defined in this docume
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748PeerRefusesATypeOutsideOneToFour`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L391) | unit/verify | revert, verified |
 | positive | [`TestRFC3748PeerSupportsTypesOneToFour`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_md5challenge_test.go#L320) | unit/verify | revert, verified |
@@ -801,7 +801,7 @@ The peer MUST respond to a Notification Request with a Notification Response unl
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: no Notification Response to a Notification Request (the prohibiting-method exception applies to no method Ze runs). wantNotificationResponse fails in the identity state, on a 4000-octet message, on a zero-length and a non-UTF-8 message, and res.Discarded fails; the identity exchange must continue afterwards.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPeerNeverNaksANotificationRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L147) | unit/verify | revert, verified |
 | positive | [`TestPeerAnswersANotificationRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L89) | unit/verify | revert, verified |
@@ -812,7 +812,7 @@ In any case, a Nak Response MUST NOT be sent in response to a Notification Reque
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Nak answering a Notification Request. wantNotificationResponse (Type 2 Response) fails on each malformed Notification Request; the same peer Naks a Type-40 Request (Response.Type != TypeNAK fails) and then answers a Notification with a Notification Response, so the Notification path is distinguished from the Nak path.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPeerNaksAnAuthenticationTypeButNotANotification`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L179) | unit/verify | revert, verified |
 | positive | [`TestPeerNeverNaksANotificationRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_notification_test.go#L153) | unit/verify | revert, verified |
@@ -823,7 +823,7 @@ Where a peer receives a Request for an unacceptable authentication Type (4-253,2
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPeerDoesNotNakATypeItHandles`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L179) | unit/verify | revert, verified |
 | positive | [`TestPeerNaksAnExpandedTypeRequestWithALegacyNak`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L259) | unit/verify | revert, verified |
@@ -835,7 +835,7 @@ The Type-Data field of the Nak Response (Type 3) MUST contain one or more octets
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestNakNamesTheConfiguredMethod`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L230) | unit/verify | revert, verified |
 | positive | [`TestPeerNaksAnUnacceptableAuthenticationType`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L147) | unit/verify | revert, verified |
@@ -846,7 +846,7 @@ The Identifier field of a legacy Nak Response MUST match the Identifier field of
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestNakIdentifierMatchesTheRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L304) | unit/verify | revert, verified |
 | positive | [`TestNakIdentifierMatchesTheRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L289) | unit/verify | revert, verified |
@@ -857,7 +857,7 @@ Since the legacy Nak Type is valid only in Responses and has very limited functi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Nak used as an error indication. A truncated MS-CHAPv2 Challenge must return the method error with no Response (res.Response != nil fails, so no Nak carries it); control: the same peer Naks an unacceptable Type 40 (wantLegacyNak).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPeerDoesNotNakAMethodError`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L347) | unit/verify | revert, verified |
 | positive | [`TestPeerDoesNotNakAMethodError`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_nak_test.go#L324) | unit/verify | revert, verified |
@@ -868,7 +868,7 @@ The Request contains a "challenge" message to the peer. A Response MUST be sent 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: the peer answers ze's MD5-Challenge Request with a Type-4 Response carrying the Request's Identifier and the MD5 value computed outside the package. Negative: a Type-4 Request carrying no challenge (Value-Size 0, or no Type-Data) violates the row's first sentence and draws no Response and an error. The Identity Requery tag was removed; its orphan record is the stale entry rfc check reports.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748MD5ChallengeAnswersOnlyARequestThatCarriesOne`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L454) | unit/verify | revert, verified |
 | positive | [`TestRFC3748MD5ChallengeAnswersOnlyARequestThatCarriesOne`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L431) | unit/verify | revert, verified |
@@ -880,7 +880,7 @@ EAP peer and EAP server implementations MUST support the MD5- Challenge mechanis
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: ze's peer and ze's server run Type 4 to EAP-Success and peer Done (two units). Negative: a peer holding another secret draws EAP-Failure and Succeeded false, so a server that accepts any Type-4 Response (no real support of the mechanism) goes red. The configured-method Nak unit is no longer tagged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748MD5ChallengeServerRefusesAWrongValue`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L490) | unit/verify | revert, verified |
 | positive | [`TestRFC3748MD5ChallengeServerRefusesAWrongValue`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L472) | unit/verify | revert, verified |
@@ -892,10 +892,10 @@ The Identity Response field MUST NOT be null terminated (S5.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L374) | unit/verify | unproven |
-| positive | [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L366) | unit/verify | unproven |
+| negative | [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L374) | unit/verify | not verified |
+| positive | [`TestRFC3748IdentityResponseIsNotNullTerminated`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L366) | unit/verify | not verified |
 
 ### [`RFC3748-7.5-1`](#rfc3748-7.5-1)
 
@@ -903,7 +903,7 @@ If a per- packet MIC is employed within an EAP method, then peers, authenticatio
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Peer clause: TestRFC3748EAPTLSValidatesItsPerPacketMIC. Server clause: TestRFC3748TheServerValidatesThePeersMIC: a clean flight ends in EAP-Success; one octet changed in the peer's second record-bearing Response (the TLS 1.3 encrypted client flight, so the octet sits under the AEAD tag) never draws EAP-Success. Ze's authenticator is the authentication server, no pass-through mode exists.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748TheServerValidatesThePeersMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L581) | unit/verify | revert, verified |
 | negative | [`TestRFC3748EAPTLSValidatesItsPerPacketMIC`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L486) | unit/verify | revert, verified |
@@ -916,7 +916,7 @@ EAP Methods deriving keys MUST provide for mutual authentication between the EAP
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both directions for both key-deriving methods. EAP-TLS: peer refuses an untrusted server (legacy walk unit); the new unit shows the server refuses an untrusted client certificate with no EAP-Success and zero MSK. MS-CHAPv2: mutual success with an MSK; wrong NT-Response gives EAP-Failure and zero authenticator MSK; wrong Authenticator Response gives peer Err and zero peer MSK. The negative record's red lands in the positive half (driveClauseFlight also calls handleMSCHAPv2Success); Q2 for each negative assertion answered by reading.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3748KeyDerivingMethodsAuthenticateThePeerToo`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_clause_test.go#L608) | unit/verify | revert, verified |
 | negative | [`TestRFC3748KeyDerivingMethodAuthenticatesBothEnds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_walk_test.go#L520) | unit/verify | revert, verified |

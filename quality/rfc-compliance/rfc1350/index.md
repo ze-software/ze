@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 6 | of 11 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 2 | of 11 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 6 | of 11 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 2 | of 11 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 11 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 11 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 33 | 33 of 33 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 11 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 33 | 33 of 33 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 11 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 11 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 11 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 11 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 11 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 11 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 11 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: The TFTP Protocol (revision 2), base TFTP read-onl
 
 **Area:** TFTP
 
-**Proof:** 8 of 11 MUST proven
+**Test verification:** 8 of 11 MUST proven
 
 **Evidence:** unit 8
 
@@ -108,7 +108,7 @@ Included in automatic checks: The TFTP Protocol (revision 2), base TFTP read-onl
 | Annotated (including scoped evidence) | 5 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **11** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: The TFTP Protocol (revision 2), base TFTP read-onl
 
 ## Figures
 
-- **MUST bar**: Ze proven 8, Not built 3
-- **Overview bar**: Ze MUST proven 8, SHOULD proven 2, Not assessed 2, Not built 3
+- **MUST bar**: Ze verified 8, Not built 3
+- **Overview bar**: Ze MUST verified 8, SHOULD verified 2, Not assessed 2, Not built 3
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: The TFTP Protocol (revision 2), base TFTP read-onl
 | Mandatory requirements complete | not complete |
 | MUST rows | 11 |
 | MUST rows kept (the MUST bar) | 11 |
-| Ze proven | 8 |
+| Ze verified | 8 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: The TFTP Protocol (revision 2), base TFTP read-onl
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 4 |
-| SHOULD proven | 2 |
+| SHOULD verified | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 2 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc1350.json](../../../data/rfc/rfc1350.json).
 
@@ -185,9 +185,9 @@ Source: [data/rfc/rfc1350.json](../../../data/rfc/rfc1350.json).
 | [`RFC1350-4-2`](#rfc1350-4-2) Since the positive response to a write request is an acknowledgment packet, in this special case the block number will be zero. (§4) | {gap}, no test | ze serves no write request and no owner decision declines writes: internal/plugins/tftpserver/handler.go answers every WRQ with an Illegal Operation error (write not supported), so no WRQ is acknowledged with block 0 |
 | [`RFC1350-5-5`](#rfc1350-5-5) If a host receives a octet file and then returns it, the returned file must be identical to the original. (§5) | {gap}, no test | ze's TFTP server receives no file and no owner decision declines uploads: internal/plugins/tftpserver/handler.go::serveRequests answers every WRQ with an Illegal Operation error (write not supported), so the server never holds a received octet file to return, and the client internal/core/fetch/tftp.go::tftpGet only reads; TFTP uploads are in scope (ai/META-DECISIONS.md) and owed by plan/post-release/features/spec-tftp-server-uploads.md |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC1350-2-1`](#rfc1350-2-1)
 
@@ -195,7 +195,7 @@ the file is sent in fixed length blocks of 512 bytes (§2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. TestTFTPReadExact512 requires block 1 of a 512-byte file to carry exactly 512 bytes and the transfer to continue; TestTFTPReadLargeFile requires three blocks 512,512,476 for 1500 bytes. Sender-only row; single-polarity marker holds.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestTFTPReadExact512`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L449) | unit/verify | revert, verified |
 | positive | [`TestTFTPReadLargeFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L369) | unit/verify | revert, verified |
@@ -206,7 +206,7 @@ Each data packet contains one block of data, and must be acknowledged by an ackn
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. The operative MUST is the sender waiting for the ACK: TestRFC1350LockstepWaitsForTheACK requires silence for 1 s with block 1 unacked, then block 2 after ACK 1; TestTFTPConcurrentLimit holds an unacked transfer in awaitACK so the second request is refused.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestTFTPConcurrentLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L704) | unit/verify | mutant, verified |
 | negative | [`TestRFC1350LockstepWaitsForTheACK`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L157) | unit/verify | revert, verified |
@@ -219,7 +219,7 @@ The host sending the last DATA must retransmit it until the packet is acknowledg
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. TestRFC1350LastDATARetransmittedUntilAcknowledged and TestTFTPRetransmitOnTimeout: the unacked last DATA is resent byte for byte after the timeout (serveFile resends the window from first on errNoACK), and after its ACK silence follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1350LastDATARetransmittedUntilAcknowledged`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L275) | unit/verify | revert, verified |
 | positive | [`TestTFTPRetransmitOnTimeout`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L735) | unit/verify | revert, verified |
@@ -239,7 +239,7 @@ block numbers are consecutive and begin with one (§4)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. Numbering is the sender's: TestTFTPReadRequest asserts block 1 first, TestTFTPReadLargeFile asserts 1,2,3 (serveFile starts first at 1, sendWindow writes first+sent). Single-polarity marker holds for the server.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestTFTPReadLargeFile`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L375) | unit/verify | revert, verified |
 | positive | [`TestTFTPReadRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/handler_test.go#L313) | unit/verify | revert, verified |
@@ -258,7 +258,7 @@ each end of the connection chooses a TID for itself, to be used for the duration
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both ends are now tagged. Client: tftpPeer.read fails the test on any client packet whose source address or port differs from the RRQ's, so every client test checks that the client keeps its TID. TestRFC1350ClientKeepsItsTID also requires that nothing more reaches the request port for 300 ms once the server answered from its own TID. Server: TestListenTFTPLoopbackRoundTrip and TestRFC1350ServerChoosesOneTIDForTheTransfer are unchanged in substance; handleRRQ and runTransfer changed only by identifier renames.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1350ClientKeepsItsTID`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc1350_client_test.go#L293) | unit/verify | revert, verified |
 | positive | [`TestRFC1350ClientKeepsItsTID`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc1350_client_test.go#L290) | unit/verify | revert, verified |
@@ -271,7 +271,7 @@ Timeouts must also be used to detect errors. (Section 7)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. Client half unchanged: TestRFC1350ClientTimeouts (lost RRQ resent after one timeout; a silent server fails with 'no answer'). Server half: TestTFTPRetransmitOnTimeout observes the retransmission the awaitACK deadline triggers, with TestRFC1350TimeoutEndsTheTransferOfAGonePeer and TestRFC1350TimeoutThenACKContinuesTheTransfer.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1350ClientTimeouts`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc1350_client_test.go#L362) | unit/verify | revert, verified |
 | negative | [`TestRFC1350TimeoutThenACKContinuesTheTransfer`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L340) | unit/verify | revert, verified |
@@ -285,7 +285,7 @@ All packets other than duplicate ACK's and those used for termination are acknow
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Receiver half now tagged. Positive: TestRFC7440ClientWindowOneIsLockstep, where every DATA must draw its own ACK within tftpTimeout/2, before the server sends the next one. Negative: TestRFC1350ClientServerError, where an ERROR (a termination packet) must draw nothing for 300 ms and the fetch must fail naming code 1 and its message. Sender half unchanged: TestRFC1350DuplicateACKTriggersNoDATA, where a duplicate ACK draws no DATA for 1 s and a fresh ACK draws the next block.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1350ClientServerError`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc1350_client_test.go#L226) | unit/verify | revert, verified |
 | negative | [`TestRFC1350DuplicateACKTriggersNoDATA`](https://github.com/ze-software/ze/blob/main/internal/plugins/tftpserver/rfc1350_transfer_test.go#L182) | unit/verify | revert, verified |
@@ -298,7 +298,7 @@ The data field is from zero to 512 bytes long. If it is 512 bytes long, the bloc
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor after the TFTP windowsize/timeout change: the tagged handler_test units changed only in their claim comments (producer references moved from handler.go line numbers to serveFile, windowSender.sendWindow, readBlock and awaitACK in window_send.go); every assertion is byte-identical. A request with no option is now served by the window sender at windowsize 1, which sends one block and waits in awaitACK, so the unchanged assertions still bind the same producer behaviour. Sender half: TestTFTPReadExact512 (512-byte file gives 512 then 0) and TestTFTPReadEmptyFile (one zero-length block 1 ends it); readBlock returns an empty block past EOF and sendWindow marks n < blksize final. Receiver half unchanged: TestRFC1350ClientDataLengthEndsTheTransfer.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1350ClientDataLengthEndsTheTransfer`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc1350_client_test.go#L325) | unit/verify | revert, verified |
 | positive | [`TestRFC1350ClientDataLengthEndsTheTransfer`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc1350_client_test.go#L322) | unit/verify | revert, verified |
@@ -320,7 +320,7 @@ If a source TID does not match, the packet should be discarded as erroneously se
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC1350ClientRefusesStrangerTID: mid-transfer, DATA block 2 'intruder' (8 octets, so it would be final) from another loopback port must draw ERROR code exactly 5 back to that port, and the transfer with the server's TID must continue to ACK 2 with the file holding only the server's 532 octets. A client that accepted the stranger ends on 'intruder' (red); one that only discarded it gets no ERROR (red). Only a different port is exercised, not a different address; fromPeer compares both.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1350ClientRefusesStrangerTID`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc1350_client_test.go#L25) | unit/verify | revert, verified |
 | positive | [`TestRFC1350ClientRefusesStrangerTID`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc1350_client_test.go#L22) | unit/verify | revert, verified |
@@ -331,7 +331,7 @@ dallying is encouraged. This means that the host sending the final ACK will wait
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC1350ClientDallies now sets the new tftpDally (1 s) instead of tftpTimeout; the assertions are unchanged. After the final ACK 2, a resent final DATA 2 must draw ACK 2 again within tftpTimeout/2, so a client that exits at once is red. A resent older block 1 must draw nothing for 200 ms, so a dally that ACKs anything is red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1350ClientDallies`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc1350_client_test.go#L77) | unit/verify | revert, verified |
 | positive | [`TestRFC1350ClientDallies`](https://github.com/ze-software/ze/blob/main/internal/core/fetch/rfc1350_client_test.go#L74) | unit/verify | revert, verified |

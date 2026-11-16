@@ -1,255 +1,227 @@
 # Why Ze / Why Not Ze
 
-An honest assessment of when Ze is the right tool and when it is not.
+Ze is a network operating system (NOS) with programmable routing. It combines its own BGP engine
+with Linux networking and network services, managed through one configuration
+and plugin engine. You can use it as a route controller, or evaluate it as the
+software that configures a router and its services.
+<!-- source: feature-gates.txt -- BGP, routing, management and network-service feature boundaries -->
 
-> Ze is pre-release software. This page reflects the current state of development
-> and will be updated as features mature. Last updated: 2026-05-29. Corrections
-> welcome via the [issue tracker](https://github.com/ze-software/ze/issues).
+> Ze is pre-release software. This assessment was reviewed on November 16, 2026.
+> APIs and configuration syntax can change. The
+> [feature inventory](https://ze-software.net/reference/feature-status/) records
+> implementation scope and maturity, including partial and experimental features.
+> Corrections are welcome through the
+> [issue tracker](https://github.com/ze-software/ze/issues).
+<!-- source: website/data/github-releases.json -- recorded release inventory -->
+<!-- source: features/configuration.md -- Scope, Scope gaps and Level -->
 
-## When to use Ze
+## Reasons to consider Ze
 
-### Configuration and protocol engine
+### Programmable routing, with control of the device around it
 
-Ze is useful when protocols, configuration and operator tools need to be one
-system. The core holds the supervisor, message bus, config provider and plugin
-manager, while BGP, interface management and other subsystems register
-themselves with their own YANG.
-
-That model gives a subsystem the CLI, completion, validation, web editor and MCP
-tools without another hand-written surface. It also gives operators one config
-tree to commit, diff and roll back.
-
-### Programmable route injection
-
-Ze still carries ExaBGP's programmable route-injection model. External processes
-can receive BGP events in Python, Go, Rust or any language that reads lines, and
-they can inject routes back through text commands or the plugin SDK.
-
-ExaBGP pioneered this model and is deployed worldwide for DDoS mitigation,
-traffic engineering, and SDN integration. Ze keeps that programmability, on a
-stack which also configures the device and was written for update rates ExaBGP
-was never meant to carry.
-
-| What you get | How |
-|---|---|
-| BGP events as structured JSON | External process on stdin/stdout, or plugin SDK |
-| Route injection from scripts | Text command protocol or plugin API |
-| Any programming language | Anything that reads lines and writes lines |
-| Atomic route updates | `request commit start` / `request commit end` workflow |
-| Raw wire access | Hex-mode encoding and decoding, `send bgp <sel> cached <id>` |
-
+Ze keeps ExaBGP's controller model: a process can receive BGP events and inject
+routes. Your controller can remain a separate program, written in a language
+that can read and write the process protocol. The Go plugin SDK provides another
+way to integrate custom logic.
 <!-- source: pkg/plugin/sdk/sdk.go -- plugin SDK entry point -->
-<!-- source: pkg/plugin/rpc/mux.go -- MuxConn for concurrent RPCs -->
+<!-- source: pkg/plugin/rpc/mux.go -- multiplexed process protocol -->
 
-ExaBGP pioneered this space. GoBGP offers gRPC but limits you to the operations its
-API exposes. BIRD has no programmatic API at all. Ze gives raw wire access alongside
-structured events, in a compiled multithreaded daemon.
+That controller can run alongside the device functions Ze provides. The code
+includes interface configuration, routing-table installation, firewall rules
+and IPsec, plus access services such as L2TP and PPPoE. Each has its own scope
+and maturity record. A route-injection deployment can use the BGP functions
+without configuring those services.
+<!-- source: feature-gates.txt -- ze_bgp, ze_ike, ze_l2tp and system feature boundaries -->
+<!-- source: features/route-installation.md -- route installation declaration -->
+<!-- source: features/firewall.md -- firewall declaration -->
 
-### BGP monitoring and analysis
+For an existing ExaBGP deployment, `ze exabgp migrate` converts configuration
+and `ze exabgp plugin` bridges process scripts. The
+[migration guide](https://ze-software.net/use-cases/exabgp-migration/) explains the differences to check
+with your own configuration and scripts before replacing a deployment.
+<!-- source: internal/plugins/exabgp/main.go -- cmdMigrate, cmdPlugin -->
 
-Ze decodes 23 address families across 15 path attribute types. The `ze bgp decode`
-command turns hex wire bytes into structured JSON. The event subscription system
-streams every BGP state transition and route change in real time. The Adj-RIB-In
-plugin can replay raw hex for forensic analysis.
+### Operator tools that share the configuration model
 
-If you need to observe BGP sessions, parse UPDATE messages, or build monitoring
-tools, Ze provides the parsing and event infrastructure so you don't have to write
-your own BGP parser.
+Ze uses YANG to describe configuration. Its CLI and web editor use that schema,
+so operators can inspect and edit the same configuration through either
+interface. The editor provides completion, comparisons and commit validation.
+The [configuration editor guide](../../guides/config-editor/index.md) shows the workflow.
+<!-- source: features/configuration.md -- configuration model and transactional commits -->
+<!-- source: features/web-interface.md -- web configuration editor -->
 
-### Route server with custom policy
+Operational tools include a live BGP dashboard, a looking glass and `ze doctor`
+for configuration and runtime diagnostics. These are useful when the task is
+to understand the device as well as exchange routes. The
+[operations guide](../../guides/operations/index.md) describes the diagnostic commands.
+<!-- source: README.md -- Why Ze, Tools for operators -->
 
-Ze separates the BGP engine from policy. The engine handles FSM, wire parsing, and
-message forwarding. Plugins handle everything else: RIB storage, best-path selection,
-route reflection, graceful restart. This means policy decisions are not constrained
-by a built-in filter language. You can write policy in Go (as a plugin), Python (as
-an external process), or anything else.
+### Automation through native APIs and MCP
 
-For IX operators who need policy logic that goes beyond prefix lists and AS-path
-regex, such as integration with member databases, real-time RPKI feeds, or custom
-business rules, Ze's plugin model is more flexible than any built-in policy language.
+REST and gRPC are implemented command transports. They share an execution
+engine and expose command discovery and execution, with streaming for registered
+streaming commands. The gRPC service also provides configuration sessions.
+The [API guide](../../guides/api/index.md) documents authentication and listener requirements.
+<!-- source: internal/component/api/engine.go -- APIEngine.ListCommands, Execute, Stream -->
+<!-- source: internal/component/api/grpc/server.go -- zeServiceImpl.Execute, Stream, zeConfigServiceImpl -->
 
-### ExaBGP migration
+Ze's Model Context Protocol (MCP) server builds tools from command metadata,
+so an AI assistant can discover commands and call the daemon. This gives an
+assistant access to the operator's tools. The
+[MCP guide](../../guides/mcp/overview/index.md) explains the connection and access controls.
+<!-- source: internal/component/mcp/tools.go -- groupCommands, generateTools, buildToolDef -->
 
-`ze exabgp migrate` converts ExaBGP configuration files. `ze exabgp plugin` runs
-existing ExaBGP processes with Ze as the BGP engine. If you have ExaBGP deployments
-and want multithreading, broader address family support, or the plugin ecosystem,
-Ze provides a migration path that does not require rewriting your scripts.
-<!-- source: internal/plugins/exabgp/main.go -- cmdMigrate, ze exabgp migrate -->
-<!-- source: internal/plugins/exabgp/main.go -- ze exabgp plugin -->
+API compatibility still matters when you choose an implementation. Ze's gRPC
+service uses Ze's command model, so an integration written for another daemon's
+protobuf service needs an adapter. API completion is unimplemented, and the
+REST/gRPC feature remains experimental. [gNMI](../../guides/gnmi/index.md) is a separate
+configuration and telemetry interface.
+<!-- source: internal/component/api/grpc/server.go -- zeServiceImpl.Execute, Complete -->
+<!-- source: features/rest-grpc-api.md -- Scope gaps and Level -->
+<!-- source: features/gnmi.md -- gNMI declaration -->
 
-### Wire-level protocol tooling
+### Deployment as a service or an appliance
 
-Ze is useful even without running a daemon. `ze bgp decode` and `ze bgp encode`
-are standalone tools for converting between human-readable route descriptions and
-BGP wire bytes. `ze config validate` checks configuration files offline. `ze schema methods`
-introspects the YANG-modeled RPC surface. These tools are valuable for protocol
-debugging, test generation, and education.
+Ze can run as a Linux daemon or in a container. There is also an immutable
+appliance image built with Linux and gokrazy, with a read-only root filesystem
+and persistent storage under `/perm`. The [appliance guide](../../guides/appliance/index.md)
+and [Docker guide](../../guides/docker/index.md) describe those deployment choices.
+<!-- source: gokrazy/ze/config.json -- appliance package composition -->
+<!-- source: docs/guide/appliance.md -- image contents and filesystem layout -->
+<!-- source: docs/guide/docker.md -- container deployment -->
 
-## When not to use Ze
+Optional subsystems have build tags, so you can compile a focused service or
+include the wider network OS. An omitted subsystem's code and schema are
+excluded from the build. The available functions therefore depend on both the
+build and its configuration.
+<!-- source: feature-gates.txt -- optional subsystem package declarations -->
 
-### You need a production-proven router
+### Routing policy, monitoring and protocol tools
 
-Ze now has a FIB pipeline, static routes, connected route redistribution, kernel
-route redistribution, policy routing, MPLS FIB programming, firewall, interface,
-and VPP code in tree. Those pieces are still pre-release. If you need a router
-that has years of production mileage, use FRR, BIRD, OpenBGPd, or a vendor NOS.
+BGP functions include route-server and route-reflector plugins, routing
+information base (RIB) storage, graceful restart and filter plugins. Custom
+plugins can extend policy through the same plugin interfaces. The
+[plugin guide](../../developers/plugins/index.md) explains those interfaces and their
+configuration requirements.
+<!-- source: internal/component/plugin/all/all_ze_bgp.go -- BGP plugin composition -->
+<!-- source: internal/component/bgp/plugins/rs/register.go -- route-server registration and filters -->
 
-The network operating system built on Ze has a dataplane now. Treat those
-features according to the status labels in `features.md`.
+For monitoring and analysis, Ze includes BGP events, a looking glass and MRT
+recording. The MRT recorder can write UPDATEs, all BGP messages and periodic
+TABLE_DUMP_V2 RIB snapshots. MRT recording is experimental. The
+[MRT guide](../../guides/mrt-analysis/index.md) also describes tools to inspect and replay
+recorded data.
+<!-- source: internal/plugins/mrt/component.go -- Component.Start, OnBGPMessage, ribDumpLoop -->
+<!-- source: features/mrt-dump.md -- MRT scope and maturity -->
 
-### You need a full routing suite
+Standalone tools include `ze bgp decode`, `ze bgp encode` and
+`ze config validate`. They are useful for protocol debugging and offline
+configuration checks, even when you do not run Ze as the router.
+<!-- source: cmd/ze/dispatch_bgp.go -- BGP command registration -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation -->
 
-Ze does BGP, OSPFv2/OSPFv3, IS-IS, BFD, LDP, RSVP-TE, static routes, route
-redistribution, IPsec/IKE, L2TP/PPP, PPPoE, and several dataplane integrations.
-OSPF and IS-IS ship as experimental (pre-release, not production-hardened), and
-PIM multicast routing is not implemented. If you need a mature, battle-tested
-multi-protocol routing suite, FRR is the open-source option with the broadest
-coverage.
+## Reasons to choose another implementation
 
-### You need proven production stability
+### Your deployment requires a released, operationally established NOS
 
-Ze has not been released yet. It has extensive testing, functional tests, fuzz
-testing, chaos testing, and interop tests against FRR, BIRD, GoBGP, OpenBGPD,
-FreeRtr, and Rust implementations, but it has no production deployments. BIRD has been running IXP route
-servers since 1998. FRR runs in commercial products. OpenBGPd operates at LINX and
-Netnod. Production confidence comes from production use, and Ze does not have that yet.
+Ze has no published release. Its test suites and interoperability labs provide
+evidence about specific behavior, but they do not establish a history of
+production operation. A network that requires an established release and support
+process needs an implementation that already meets those requirements.
+<!-- source: website/data/github-releases.json -- empty release inventory -->
 
-### You need features Ze does not have
+The distinction applies across the network OS. OSPFv2, OSPFv3 and IS-IS exist,
+and the code includes BFD, MPLS, IPsec and subscriber access functions. OSPF,
+IS-IS and PPPoE remain experimental and partial. Their presence in the binary
+is a reason to evaluate the documented behavior in a lab, rather than assume
+that the whole routing suite is ready for your network.
+<!-- source: feature-gates.txt -- protocol and dataplane composition -->
+<!-- source: features/ospf.md -- Scope, Scope gaps and Level -->
+<!-- source: features/is-is.md -- Scope, Scope gaps and Level -->
+<!-- source: features/pppoe-access.md -- Scope, Scope gaps and Level -->
 
-| Missing feature | Impact | Alternative |
-|---|---|---|
-| MRT dump (RFC 6396) | No route data archival in standard format | rustbgpd, BIRD 3, FRR, GoBGP |
-| Production-hardened OSPF / IS-IS | Ze ships OSPFv2/OSPFv3 and IS-IS, but they are experimental, not battle-tested | FRR, BIRD |
-| Full BGP confederation behavior | AS path parsing exists, deployment support is not listed as supported | BIRD 3, FRR, GoBGP |
-| PIM multicast routing | Not implemented | FRR |
-| Embeddable library | Cannot import Ze as a Go library into your application | GoBGP |
-| TCP-AO (RFC 5925) | No modern session authentication | Nobody has this yet |
+### You need a feature Ze does not provide
 
-Some of these are planned. Check the [feature comparison](https://github.com/ze-software/ze/blob/main/docs/comparison.md) for the
-current state.
+The [feature inventory](https://ze-software.net/reference/feature-status/)
+records what each feature implements and the evidence behind its maturity.
+The [comparison](https://ze-software.net/compare/bgp/) identifies gaps such as BGP confederation
+support and PIM multicast routing. Check the behavior your deployment depends
+on, including the selected dataplane, rather than infer support from a protocol
+name.
+<!-- source: docs/comparison.md -- Key Gaps and protocol comparison tables -->
+<!-- source: features/rest-grpc-api.md -- example of partial feature scope -->
 
-### You need gRPC
+The [standards coverage pages](https://ze-software.net/quality/rfc-compliance/)
+describe what has been tested and what is missing. They list tests that still
+need checking separately from behavior Ze does not implement. A feature label
+or a large test count alone does not tell you whether Ze meets your network's
+requirements.
+<!-- source: docs/contributing/rfc-conformance-gates.md -- requirement evidence and discrimination records -->
 
-Ze includes gNMI and REST/gRPC API components, but its native operational surface is
-still the Ze command grammar, YANG RPC model, and plugin IPC. If your infrastructure
-expects GoBGP-style protobuf APIs for every BGP operation, GoBGP or rustbgpd may fit
-with less translation.
+### Your project requires a different license or maintenance model
 
-If your infrastructure is built around gNMI and YANG-modeled config, check the Ze
-gNMI guide and current API status before deciding.
+Ze is licensed under AGPL-3.0-only. If your project requires a permissive
+license, Ze does not meet that requirement. The [license](https://ze-software.net/license/) and
+[contribution policy](https://ze-software.net/contribute/guide/) describe the project terms and contribution requirements.
+<!-- source: LICENSE -- GNU Affero General Public License version 3 -->
+<!-- source: README.md -- Contributing and License -->
 
-### You need vendor adoption or a permissive license
+Ze is developed with AI coding assistants, with Thomas Mangin directing the
+architecture and development decisions. Specifications, tests and independent
+review constrain that process. If your organization requires a larger
+maintainer team or a contracted support arrangement, evaluate those requirements
+separately from the feature list.
+<!-- source: README.md -- AI-Assisted Development -->
 
-Ze is AGPL-3.0. This requires anyone who provides Ze as a network service to release
-their modifications. Network equipment vendors (Cisco, Arista, Cumulus, SONiC) will
-not ship AGPL code. FRR (GPL-2.0), GoBGP (Apache-2.0), BIRD (GPL-2.0+), and OpenBGPd
-(ISC) are all more permissive.
+## Engineering tradeoffs
 
-If commercial adoption or vendor integration matters to your use case, AGPL is a
-blocker.
+### Plugins share a contract, with a choice of process boundary
 
-### You need a large contributor community
+Ze separates BGP functions such as RIB storage and route-server behavior into
+plugins. Internal plugins run inside the daemon and use DirectBridge for typed
+calls after startup. External plugins run in separate processes and communicate
+through the process protocol. The separation lets a plugin be replaced without
+moving its policy into the BGP engine.
+<!-- source: internal/component/plugin/process/process.go -- Process.startInternal, startExternal -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge -->
 
-Ze is primarily developed by one person (architect) with AI-assisted implementation.
-ExaBGP had the same single-maintainer dynamic. For infrastructure software that you
-depend on, bus factor matters. FRR has dozens of active contributors across multiple
-organizations. BIRD is maintained by CZ.NIC. GoBGP has the OSRG team. OpenBGPd has
-the OpenBSD community.
+Internal plugins share the daemon's address space. External processes provide
+a process boundary, with transport and serialization costs. Both forms still
+need correct lifecycle handling and event ordering.
+<!-- source: internal/component/plugin/process/process.go -- Process.startInternal, startExternal -->
+<!-- source: pkg/plugin/rpc/bridge.go -- DirectBridge.SendCallback, DeliverEvents -->
 
-## Honest trade-offs
+### Performance depends on the workload
 
-### The plugin architecture
+Ze is written in Go and uses pooled data and lazy wire parsing to reduce
+allocation and decoding costs. `WireUpdate` retains the supplied payload and
+parses sections when needed. These techniques reduce particular costs, and their
+effect on throughput depends on the workload.
+<!-- source: internal/component/bgp/wireu/wire_update.go -- NewWireUpdate, InitWireUpdate, ensureParsed -->
+<!-- source: internal/component/bgp/attrpool/pool.go -- attribute pool -->
 
-Ze's most distinctive design choice is also its most controversial: the RIB, best-path
-selection, graceful restart, and route reflection are all plugins, not part of the
-engine.
+The [performance results](../../performance/bgp/index.md) describe measured scenarios, with
+their dates and environments. They cannot establish a general percentage cost
+for Go, a plugin boundary or another implementation. For a deployment decision,
+use the [benchmarking guide](../../guides/benchmarking/index.md) to test your route counts,
+policies and peer topology, and check that all expected routes arrive.
+<!-- source: docs/performance.md -- Methodology, Environment and Reading the Results -->
+<!-- source: docs/guide/benchmarking.md -- Before you report a number -->
 
-**The upside:** Any of these can be replaced, extended, or written in another language.
-The engine remains a minimal BGP speaker. New functionality can be added without
-modifying the engine. External plugins run as separate processes, so a crash does not
-bring down the engine.
+### Process IPC and management APIs serve different callers
 
-**The downside:** Correctness is distributed across process boundaries. A GR bug could
-be in the plugin, the IPC encoding, the event dispatch, or the cache forwarding. Every
-other BGP daemon keeps the RIB in-process because centralized state is easier to reason
-about.
-
-**The mitigation:** All shipped plugins run in-process via DirectBridge, which bypasses
-IPC serialization entirely. The plugin boundary is a logical separation with near-zero
-runtime cost for internal plugins. The IPC overhead only applies to external plugins,
-which are out-of-process by design for isolation.
-
-### Performance vs. C and Rust
-
-Ze is written in Go. Compared to C (BIRD, FRR) and Rust (rustbgpd) implementations:
-
-| Factor | Mitigation |
-|---|---|
-| Garbage collection | Pool-based dedup, sync.Pool for hot-path structs, and stack-allocated caches keep most data off the GC-scanned heap |
-| Goroutine scheduling | Long-lived workers on channels, no per-event goroutines |
-| Bounds checking | Unavoidable in Go, but modern CPUs branch-predict these away |
-| Interface dispatch | Concrete types in hot paths where possible |
-
-<!-- source: internal/component/bgp/attrpool/pool.go -- pool-based dedup -->
-<!-- source: internal/component/bgp/reactor/forward_pool.go -- long-lived forward workers -->
-
-**Estimated composite overhead:** Ze is expected to leave roughly 10-15% on the table
-compared to an optimal C/Rust monolith when using internal plugins (DirectBridge). Most
-of this is the inherent cost of Go's runtime. The plugin architecture adds a smaller
-amount on top (channel hops, batch struct copies).
-
-For external plugins, the JSON serialization path adds significant overhead (estimated
-40-50%). This is the price of language-agnostic programmability and is comparable to
-ExaBGP's approach.
-
-For context: BGP CPU performance is rarely the bottleneck in operations. For most
-deployments, the control plane is idle once converged. The scenarios where this 10-15%
-matters are large IXP route servers with 1000+ peers during full reconvergence, and
-there BIRD 3 and rustbgpd have the edge.
-
-**Caveat:** these overhead percentages are estimates based on code path analysis, not
-measured benchmarks. Ze has not been benchmarked at DFZ scale (1M+ prefixes). The chaos
-testing framework validates correctness under fault injection with small route counts,
-not performance at scale.
-
-### Zero-copy claims
-
-Ze's `WireUpdate` holds a byte slice reference to the TCP read buffer. Lazy parsing
-avoids decoding into intermediate structs. When source and destination peers share the
-same encoding context (ContextID), UPDATE messages are forwarded as cached wire bytes
-with no parsing at all.
-<!-- source: internal/component/bgp/wireu/wire_update.go -- WireUpdate byte slice reference -->
-<!-- source: internal/core/bgp/context/registry.go -- ContextID matching -->
-
-This is not zero-copy in the strictest sense: Go's TCP layer copies bytes from the
-kernel into a Go slice. True zero-copy (kernel buffer to userspace without copying)
-requires `io_uring` or `mmap`, which Go does not expose. Ze's "zero-copy" means zero
-additional copies within the application, after the initial TCP read. Rust with
-`bytes::Bytes` can achieve reference-counted sharing from closer to the kernel buffer.
-
-The practical impact is small. The TCP read copy is a single `memcpy` per message,
-dwarfed by the cost of parsing, policy evaluation, and re-encoding.
-
-### Custom IPC vs. gRPC
-
-Ze uses a custom multiplexed text protocol (`#<id> <verb> [<json>]`) for plugin
-communication instead of gRPC. This was a deliberate choice:
-<!-- source: pkg/plugin/rpc/framing.go -- wire framing for multiplexed protocol -->
-<!-- source: pkg/plugin/rpc/mux.go -- MuxConn multiplexer -->
-
-- **Simplicity:** The protocol is human-readable and debuggable with `cat`.
-- **No code generation:** No `.proto` files, no generated stubs, no protobuf dependency.
-- **Language agnostic:** Any language that reads and writes lines can be a plugin.
-- **Lightweight:** No HTTP/2 framing overhead for in-process communication.
-
-The cost is that every new RPC requires hand-writing a handler on both sides, and
-there is no auto-generated client library for external consumers. For a project with
-a small contributor base, this is manageable. For a large ecosystem with many
-third-party integrations, gRPC would scale better.
+External plugins use a multiplexed text protocol, while operators and automation
+can use REST, gRPC or MCP. A custom plugin therefore needs to implement the
+plugin contract even if its application already uses a management API. The
+[process protocol reference](../../developers/plugins/protocol/index.md) describes
+that contract, and the [API guide](../../guides/api/index.md) describes daemon management.
+<!-- source: pkg/plugin/rpc/framing.go -- multiplexed protocol framing -->
+<!-- source: pkg/plugin/rpc/mux.go -- MuxConn -->
+<!-- source: internal/component/api/engine.go -- APIEngine -->
 
 ## Further reading
 
-- [Feature list](https://ze-software.net/reference/feature-status/) for the complete feature inventory.
-- [Comparison](https://github.com/ze-software/ze/blob/main/docs/comparison.md) for a feature-by-feature comparison with other BGP daemons.
-- [Design document](https://github.com/ze-software/ze/blob/main/docs/DESIGN.md) for architecture and principles.
-- [Quick start](../../guides/quickstart/index.md) to try Ze yourself.
+- [Feature inventory](https://ze-software.net/reference/feature-status/): scope, maturity and evidence for each feature.
+- [Feature comparison](https://ze-software.net/compare/bgp/): differences between routing implementations.
+- [Architecture](../../architecture/index.md): the configuration engine, subsystems and plugins.
+- [Quick start](../../guides/quickstart/index.md): a first lab deployment.

@@ -128,11 +128,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>17</strong><b>of 47 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 47 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>17</strong><b>of 47 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 47 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 47 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 47 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>48</strong><b>48 of 48 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 47 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>48</strong><b>48 of 48 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -145,9 +145,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 47 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 47 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 47 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 47 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 47 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 47 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 47 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -175,11 +175,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -191,7 +191,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -199,7 +199,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -280,7 +280,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> BGP Mobile User Plane SAFI 85</p>
-<p><strong>Proof:</strong> 17 of 47 MUST proven</p>
+<p><strong>Test verification:</strong> 17 of 47 MUST proven</p>
 <p><strong>Evidence:</strong> unit 17</p>
 <p><strong>Unmet:</strong> DRAFT-IETF-BESS-MUP-SAFI-3.1.3.1-4, DRAFT-IETF-BESS-MUP-SAFI-3.1.4.1-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.1-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.1-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.1-3, DRAFT-IETF-BESS-MUP-SAFI-3.3.1-4, DRAFT-IETF-BESS-MUP-SAFI-3.3.10-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.10-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.11-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.12-4, DRAFT-IETF-BESS-MUP-SAFI-3.3.12-5, DRAFT-IETF-BESS-MUP-SAFI-3.3.12-6, DRAFT-IETF-BESS-MUP-SAFI-3.3.12-7, DRAFT-IETF-BESS-MUP-SAFI-3.3.2-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.3-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.3-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.3-3, DRAFT-IETF-BESS-MUP-SAFI-3.3.3-4, DRAFT-IETF-BESS-MUP-SAFI-3.3.4-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.4-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.4-3, DRAFT-IETF-BESS-MUP-SAFI-3.3.4-4, DRAFT-IETF-BESS-MUP-SAFI-3.3.5-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.6-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.6-2, DRAFT-IETF-BESS-MUP-SAFI-3.3.6-4, DRAFT-IETF-BESS-MUP-SAFI-3.3.7-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.8-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.9-1, DRAFT-IETF-BESS-MUP-SAFI-3.3.9-2</p>
 
@@ -306,7 +306,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -327,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="draft-ietf-bess-mup-safi:must">Ze proven 17, Not built 30</div>
+<div data-ze-rfc-bar="draft-ietf-bess-mup-safi:must">Ze verified 17, Not built 30</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="draft-ietf-bess-mup-safi:overview">Ze MUST proven 17, Not assessed 20, Not built 30</div>
+<div data-ze-rfc-bar="draft-ietf-bess-mup-safi:overview">Ze MUST verified 17, Not assessed 20, Not built 30</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -349,13 +349,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="draft-ietf-bess-mup-safi:must.kept">47</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="draft-ietf-bess-mup-safi:must.ze-proven">17</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="draft-ietf-bess-mup-safi:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="draft-ietf-bess-mup-safi:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -385,7 +385,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="draft-ietf-bess-mup-safi:should.total">20</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="draft-ietf-bess-mup-safi:should.proven">0</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -406,7 +406,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="draft-ietf-bess-mup-safi:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="draft-ietf-bess-mup-safi:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -421,7 +421,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -1179,8 +1179,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#draft-ietf-bess-mup-safi-3.3.1-1"><code>DRAFT-IETF-BESS-MUP-SAFI-3.3.1-1</code></a></h3>
 <p>When advertising the Interwork Segment Discovery route, a PE MUST attach the export BGP Route Target Extended Community of the associated routing instance. (Section 3.3.1)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
@@ -1230,7 +1230,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1: &#34;Any other Route Types MUST be silently ignored upon a receipt if a BGP speaker supports only 3gpp-5G architecture type.&#34; The earlier weak finding (retainMUP summed Discarded and WithdrawnCount, so a recognizer answering Withdraw for unknown route types still passed) is answered: TestMUPOtherRouteTypesSilentlyIgnoredAtIngress now reads retainMUPCounts and asserts discarded == 4 and withdrawn == 0 separately, with the ISD between them kept byte for byte, under both MUP families. keyMUP keys an unknown route type on its whole NLRI, so a Withdraw answer would land in WithdrawnCount and go red; a Keep answer fails the kept equality. The negative TestMUPDefinedRouteTypesSurviveIngress (types 1 to 4, kept whole, nothing dropped) changed only by the T1ST body gaining its mandatory zero Source Address Length octet. TestRFCMUPUnknownRouteTypeIsNotRejected adds that ParseMUP skips an unknown route by its Length. RecognizeNLRI revert records re-observed red today on both polarities. The optional &#34;MAY log&#34; is not tested and not owed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go#L87" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPDefinedRouteTypesSurviveIngress</code></a></td>
@@ -1275,7 +1275,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.1 ISD Prefix Length bound (32 under IPv4, 128 under IPv6) with treat-as-withdraw. The changed unit is the negative TestMUPWellFormedRouteKeptAtIngress: its two T1ST cases gained the zero Source Address Length octet and are now complete routes under the corrected parser; every other case, and every assertion (section kept whole, Withdrawn and Unkeyable empty, Discarded zero), is unchanged. The positive ISD cases (IPv4 33 withdrawn exactly; IPv6 129 discarded as unkeyable) and the negative ISD 32/128 cases are byte-identical. Both revert records were re-taken today with ./le rfc discriminate-record over HEAD and observed red naming the unit. </p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L199" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
@@ -1295,7 +1295,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.1: &#34;A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.&#34; Positive keeps exactly L then L2 around every malformed shape. The changed unit is the negative TestMUPWellFormedRouteKeptAtIngress: its two T1ST cases gained the zero Source Address Length octet and are now complete routes under the corrected parser; every other case, and every assertion (section kept whole, Withdrawn and Unkeyable empty, Discarded zero), is unchanged. 32ff59085b made the T1ST Source Address Length octet mandatory, matching Section 3.1.3.1 (&#34;The Source Address Length has a fixed length of 1 octet.&#34; and the TLV remainder counted from &#34;the offset of the end of the Source Address&#34;); parseBodyT1ST now returns ErrMUPTruncated when nothing follows the endpoint. The T1ST malformed cases now use endpoint4NoSource, so the corrected parser does not confound them. Both revert records were re-taken today with ./le rfc discriminate-record over HEAD and observed red naming the unit. </p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L200" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
@@ -1315,7 +1315,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.2 DSD address length (4 under IPv4, 16 under IPv6) with treat-as-withdraw. The changed unit is the negative TestMUPWellFormedRouteKeptAtIngress: its two T1ST cases gained the zero Source Address Length octet and are now complete routes under the corrected parser; every other case, and every assertion (section kept whole, Withdrawn and Unkeyable empty, Discarded zero), is unchanged. The DSD positive (16-octet under IPv4, 4-octet under IPv6, withdrawn exactly) and negative (4 and 16 kept) cases are byte-identical. Both revert records were re-taken today with ./le rfc discriminate-record over HEAD and observed red naming the unit. </p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L201" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
@@ -1335,7 +1335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.3: &#34;If the AFI is IPv4, then the maximum value of the Prefix Length field is 32. If the AFI is IPv6, then the maximum value of the Prefix Length field is 128.&#34; 32ff59085b made the T1ST Source Address Length octet mandatory, matching Section 3.1.3.1 (&#34;The Source Address Length has a fixed length of 1 octet.&#34; and the TLV remainder counted from &#34;the offset of the end of the Source Address&#34;); parseBodyT1ST now returns ErrMUPTruncated when nothing follows the endpoint. Positive T1ST IPv4 prefix length 33 now closes with endpoint4NoSource, so the prefix bound is the only fault and the route is withdrawn exactly; negative prefix 32 kept, now with its mandatory zero source length. The IPv6 128 clause has no T1ST case in the tagged units: parseBodyT1ST calls the shared AFI-indexed m.parsePrefixField, whose IPv6 bound the ISD 128/129 cases pin; a T1ST-only regression of that clause would stay green here, as the 2026-10-14 judgement already noted. Both revert records were re-taken today with ./le rfc discriminate-record over HEAD and observed red naming the unit. </p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L202" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
@@ -1355,7 +1355,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.3.1: &#34;The TEID value of 0 is considered as an invalid and a malformed TEID.  A BGP speaker MUST handle such a malformed NLRI as a \&#34;Treat-as-withdraw\&#34; [RFC7606].&#34; 32ff59085b made the T1ST Source Address Length octet mandatory, matching Section 3.1.3.1 (&#34;The Source Address Length has a fixed length of 1 octet.&#34; and the TLV remainder counted from &#34;the offset of the end of the Source Address&#34;); parseBodyT1ST now returns ErrMUPTruncated when nothing follows the endpoint. The positive T1ST TEID 0 case now ends in endpoint4NoSource, so with the TEID check removed the route would be complete and kept: TEID 0 stays the only fault (withdrawn exactly, siblings kept). Negative TEID 1 kept. Both revert records were re-taken today with ./le rfc discriminate-record over HEAD and observed red naming the unit. </p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L203" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
@@ -1375,7 +1375,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.3.1 Endpoint Address Length 32 or 128, &#34;Any other value is considered as an invalid and a malformed Endpoint Address.&#34; The changed unit is the negative TestMUPWellFormedRouteKeptAtIngress: its two T1ST cases gained the zero Source Address Length octet and are now complete routes under the corrected parser; every other case, and every assertion (section kept whole, Withdrawn and Unkeyable empty, Discarded zero), is unchanged. The ingress positive case (length 24) is unchanged and remains confounded (with 3 endpoint octets the trailing 0x01 reads as an invalid Source Address Length), which is why the isolating unit TestMUPT1STEndpointLengthIsTheOnlyFault (unchanged, its addressBitsOctets record verifies) carries this proof. Negative 32 and 128 kept, now complete routes. Re-taken parseBodyT1ST records observed red. </p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L204" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
@@ -1400,7 +1400,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.3.1 Source Address Length 0, 32 or 128, any other value treat-as-withdraw. 32ff59085b made the T1ST Source Address Length octet mandatory, matching Section 3.1.3.1 (&#34;The Source Address Length has a fixed length of 1 octet.&#34; and the TLV remainder counted from &#34;the offset of the end of the Source Address&#34;); parseBodyT1ST now returns ErrMUPTruncated when nothing follows the endpoint. This is the field the fix concerns. Negative now pins length 0 (twice: the TEID 1 case and the Source Address Length 0 case are now the same octets), 32 with IPv4 and 128 with IPv6, all kept. Positive length 16 at ingress, and the isolating TestMUPT1STSourceLengthIsTheOnlyFault, withdraw. The &#34;MAY have a local configuration&#34; sentence binds nothing. parseBodyT1ST records (producer-changed) re-taken and observed red. </p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L205" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
@@ -1425,7 +1425,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw, internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw#2 moved. Independent rejudgment at HEAD ff3feee994 after 3249a93545 and 38fb0c08fe, replacing the weak verdict of 8be6ddfbed. draft-ietf-bess-mup-safi Section 3.1.3.1 (rfc/drafts/draft-ietf-bess-mup-safi.txt): &#34;The Source Address Length has a fixed length of 1 octet.&#34;, &#34;compute the number of remaining octets by subtracting, from the Length field in the MUP NLRI common header, the offset of the end of the Source Address measured from the start of the Route Type specific field&#34;, and &#34;- &lt; 0:   the mandatory fields exceed the declared Length; the NLRI is malformed; MUST be treated as Treat-as-withdraw.&#34; Producer at HEAD, types.go::parseBodyT1ST: ErrMUPTruncated when fewer than the 6 fixed octets (TEID, QFI, Endpoint Address Length) remain, when the Endpoint Address is short, when nothing remains for the Source Address Length octet (the draft-mpmz-bess-mup-safi-02 form), and when a non-zero Source Address is short; ValidateNLRI runs the same decode at ingress. (1) Asserts the draft, not the code: the parser units assert ErrorIs ErrMUPTruncated, the session units assert RFC 7606 treat-as-withdraw itself (ActionNone, the route leaves MP_REACH_NLRI, MP_UNREACH_NLRI is exactly the held generation K0 and decodable, siblings byte for byte). (2) Fails on non-compliance, at every bound inside parseBodyT1ST: TestMUPT1STFixedOctetsWithinLength (new) cuts the Length inside the TEID, before the QFI and before the Endpoint Address Length; TestMUPT1STSourceAddressWithinLength (new) gives Source Address Length 32 and two source octets. Each is followed by a whole second NLRI, so the body slice has capacity past its Length and a parser that skipped the bound reads the next route&#39;s octets: I traced that deleting len(rest) &lt; fixedLen panics on rest[4] or rest[5] and deleting len(rest) &lt; sourceOctets panics on rest[sourceOctets:], both red; the recorded mutants (line 314 and line 359 to false) confirm it. The endpoint cut and the -02 cut in TestMUPT1STMandatoryFieldsWithinLength go red under a lenient len(rest)==0 return or a deleted endpoint bound (read; their records are revert-to-panic only). TestMUPT1ST02TreatAsWithdraw (now tagged) and TestMUPMalformedT1STTreatAsWithdraw carry the -02 and endpoint cuts through the receive path. (3) Isolated: TEID 0x3039 non-zero, Endpoint and Source Address Lengths 32, following NLRI well formed, so only the truncation can fire. (4) Whole requirement: every cut that leaves the route key (RD, Prefix Length, Prefix) intact is tagged and discriminated, with both polarities: a route ending exactly at its Length parses with nothing left and exact TEID and endpoint, and a well-formed UPDATE comes back byte-identical. Reading taken, stated openly: a Length ending inside the RD or the prefix is also below zero by the letter, but Section 3.1.3 makes RD, Prefix Length and Prefix the route key, so such a route has no key to withdraw and Ze discards it (TestMUPUnkeyableMalformedT1STDiscardedNotRelayed, &#34;RD overruns the Length&#34;; TestMUPParseErrors for the shared RD and parsePrefixField bounds). Those units are untagged for this row and earn it no credit; the unkeyable class is judged as the discard ruling, not here. Polarity labels are inverted between packages (mup: positive = well formed parses; reactor: positive = malformed withdrawn) but each file holds a genuine conforming and violating pair. Untagged corroboration: tlv_applicability_test parses a T1ST with a 32-bit source address and TLVs. Implemented and tested for all keyable truncations.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go#L53" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_t1st_truncation_test.go" target="_blank" rel="noopener"><code>TestMUPT1STFixedOctetsWithinLength</code></a></td>
@@ -1470,7 +1470,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw moved. Independent source rejudgment. draft-ietf-bess-mup-safi-01 Section 3.1.3.1 (rfc/drafts/draft-ietf-bess-mup-safi.txt:439-441): &#34;- 1: encoding is invalid (a valid TLV requires at minimum a Type byte and a Length byte); MUST be treated as Treat-as-withdraw.&#34; Read both tagged units in full: TestMUPT1STTLVFraming in internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go accepts a complete TLV and requires ErrMUPTLV for exactly one byte after the zero Source Address Length; TestMUPMalformedT1STTreatAsWithdraw in internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go first receives valid K0, then the same route key with the lone TLV byte 0xf0. It requires exact ActionNone/no reset, exact surviving sibling bytes, and MP_UNREACH containing exactly K0, checked decodable, not merely disappearance of K. Producers read: mup/types.go ParseMUP, ValidateNLRI, decode, parseBodyT1ST and validateTLVs; mup/rfc7606.go recognizerFor; reactor/session_validation.go applyRFC7606; session_validation_nlritype.go applyTypedNLRIDiscard, typedNLRIEdit, typedNLRIRelayEdit and typedNLRIPlaceWithdrawals; session_validation_nlritype_held.go typedNLRIWalk.withdrawal. The complete mandatory body isolates the lone-byte framing fault; the parser rejects it, recognizer returns Withdraw and the held generation supplies the withdrawal. Section 3.1.3 makes RD/Prefix Length/Prefix the key, so K0 names the route being removed. Scope has no partial or exclusion annotation. No checks or native discrimination run by this auditor.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go#L77" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go" target="_blank" rel="noopener"><code>TestMUPT1STTLVFraming</code></a></td>
@@ -1495,7 +1495,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.3.1: &#34;unknown TLV types MUST be ignored for local processing and MUST be propagated unchanged when re- advertising the route to other BGP peers&#34;. Changed unit TestMUPUnknownTLVNotStrippedAtIngress builds the same octets as before (t1stBody now includes the zero source length the old code appended): the relayed route is five octets longer than the TLV-less one, its Length counts the TLV, its last five octets are TLV 0xF0. TestMUPUnknownTLVPropagatedUnchangedAtIngress and TestMUPT1STUnknownTLVIgnoredAndPropagated are likewise byte-identical in their wire. Retain, validateTLVs and ParseMUP records re-taken and observed red. </p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go#L148" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPUnknownTLVNotStrippedAtIngress</code></a></td>
@@ -1525,7 +1525,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go::TestMUPMalformedT1STTreatAsWithdraw moved. Independent source rejudgment. draft-ietf-bess-mup-safi-01 Section 3.1.3.1 (rfc/drafts/draft-ietf-bess-mup-safi.txt:443-457): &#34;Parse TLVs one by one per Section 3.1.5; unknown TLV types MUST be ignored for local processing and MUST be propagated unchanged when re-advertising the route to other BGP peers; any TLV parsing error MUST result in Treat-as-withdraw; TLVs are not part of the NLRI key for route processing.&#34; Read Section 3.1.5 and all three defined TLVs: each applies to ST2, so T1ST validates their framing and ignores their values. Read both tagged units: TestMUPT1STTLVFraming in internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go accepts a complete TLV, rejects a lone header byte, and requires ErrMUPTLV when Length 5 exceeds the available two value bytes. TestMUPMalformedT1STTreatAsWithdraw in internal/component/bgp/reactor/draft_ietf_bess_mup_safi_t1st_withdraw_test.go isolates Length 5 with one value byte after complete mandatory fields, first seeds valid K0 of the same RD/prefix, and requires exact surviving sibling bytes plus exactly K0 in a decodable MP_UNREACH, with ActionNone/no reset and no extra withdrawal body. This catches retaining, merely dropping, or withdrawing the malformed bytes instead of the held generation. Producers read: mup/types.go ParseMUP, ValidateNLRI, decode, parseBodyT1ST and validateTLVs; mup/rfc7606.go recognizerFor; reactor/session_validation.go applyRFC7606; session_validation_nlritype.go applyTypedNLRIDiscard, typedNLRIEdit, typedNLRIRelayEdit and typedNLRIPlaceWithdrawals; session_validation_nlritype_held.go typedNLRIWalk.withdrawal. validateTLVs checks both header truncation and value overrun on each iteration; recognizer and session convert its error to the tested withdrawal. Scope has no partial or exclusion annotation. No checks or native discrimination run by this auditor.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go#L83" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_mup_test.go" target="_blank" rel="noopener"><code>TestMUPT1STTLVFraming</code></a></td>
@@ -1550,7 +1550,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.4 Endpoint length bound (64 under IPv4, 160 under IPv6) with treat-as-withdraw. The changed unit is the negative TestMUPWellFormedRouteKeptAtIngress: its two T1ST cases gained the zero Source Address Length octet and are now complete routes under the corrected parser; every other case, and every assertion (section kept whole, Withdrawn and Unkeyable empty, Discarded zero), is unchanged. The T2ST positive (65 withdrawn, 161 discarded as unkeyable) and negative (64 and 160 kept) cases are byte-identical. Both revert records were re-taken today with ./le rfc discriminate-record over HEAD and observed red naming the unit. </p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L206" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
@@ -1570,7 +1570,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, authored none of 32ff59085b). Section 3.1.4.1: &#34;The TEID value of 0 is considered as an invalid and a malformed TEID.&#34; with treat-as-withdraw. The changed unit is the negative TestMUPWellFormedRouteKeptAtIngress: its two T1ST cases gained the zero Source Address Length octet and are now complete routes under the corrected parser; every other case, and every assertion (section kept whole, Withdrawn and Unkeyable empty, Discarded zero), is unchanged. The T2ST TEID 0 positive (withdrawn exactly) and the TEID 1 and no-TEID negatives are byte-identical. Both revert records were re-taken today with ./le rfc discriminate-record over HEAD and observed red naming the unit. </p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go#L207" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_malformed_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPWellFormedRouteKeptAtIngress</code></a></td>
@@ -1590,7 +1590,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Encoder (the sender side the MUST NOT binds): TestMUPT2STEncoderKeepsEndpointLengthWithinTEID asserts EncodeNLRIHex writes Endpoint Length address bits + 0/16/32 (32 default) for IPv4 and IPv6; TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID asserts teid bits 33 and 40 (v4, v6), -8 and unreadable are refused with errTeidBits. Author observed all five negatives red on HEAD&#39;s parseTEIDWithBits (D-8 defect fixed in encode.go, re-checked at the producer: both callers propagate the error). Decode path: TestMUPT2STEndpointLengthBoundedByTEID, 64 parses, 72 refused ErrMUPEndpointTooLong. Not covered here: ingress (RecognizeNLRI) does not refuse an over-long Endpoint Length from a peer, so such a route is stored and relayed; that receive handling is the Section 3.1.4 malformed rule (3.1.4-1, a disclosed {gap}), not this sentence</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go#L205" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_ingress_test.go" target="_blank" rel="noopener"><code>TestMUPT2STEncoderRefusesEndpointLengthBeyondTEID</code></a></td>
@@ -1620,7 +1620,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_applicability_test.go#L24" title="internal/component/bgp/plugins/nlri/mup/draft_ietf_bess_mup_safi_tlv_applicability_test.go" target="_blank" rel="noopener"><code>TestMUPST1DoesNotInterpretInapplicableAddressTLV</code></a></td>
@@ -1660,7 +1660,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 691bd048e9). draft-ietf-bess-mup-safi Section 3.3.6: &#34;When a BGP speaker receives a MP_REACH_NLRI attribute update message with a Direct Segment Discovery route without a prefix SID attribute, than it MUST be treated as if it contained a malformed prefix SID attribute and the &#34;Treat-as-withdraw procedure of [RFC7606] is applied.  A BGP speaker MUST skip such NLRIs and continue processing of rest of the Update message.&#34; The earlier unimplemented verdict is superseded: mup/rfc7606.go::CheckDSDPrefixSID is registered by mup/register.go for both ipv4/mup and ipv6/mup through nlritype.RegisterUpdateCheck, and the receive path (Session.applyRFC7606 -&gt; applyTypedNLRIDiscard -&gt; typedNLRIEdit -&gt; nlritype.RetainUpdate) moves an announced DSD route with no Prefix-SID out of MP_REACH_NLRI into MP_UNREACH_NLRI per NLRI, keeping its siblings and the session; typedNLRIUpdateAttrs counts a Prefix-SID that RFC 7606 attribute-discard removes (the RFC 8669 Section 4 EBGP rule) as absent. Tests drive whole hex UPDATE bodies through Session.enforceRFC7606 and assert exact bytes: TestMUPDSDWithoutPrefixSIDWithdrawnOnReceive (kept MP_REACH NLRI equals the ISD sibling, MP_UNREACH NLRI equals the DSD route, no error, for both an absent and an EBGP-discarded Prefix-SID) and TestMUPDSDWithPrefixSIDKeptOnReceive (DSD with a Prefix-SID, and ISD plus Type 2 ST without one, return RFC7606ActionNone and the UPDATE byte for byte). The recorded discrimination breaks are panics, which prove reach only, so five overlay mutants were run (go test -overlay, tags ze_core ze_bgp): Keep instead of Withdraw when the Prefix-SID is absent (positive red, both cases); withdraw a DSD even with a Prefix-SID (negative DSD case red); drop the route-type test so every type is withdrawn (positive and negative ISD/T2ST case red); Discard instead of Withdraw (positive red, &#34;withdrawn, not dropped&#34;); ignore attribute-discard entries in typedNLRIUpdateAttrs (positive EBGP-discard case red). All five killed. Residual: only AFI 1 is exercised; the AFI 2 family is covered by the same registration loop, not by a test. test/plugin/mup-dsd-without-prefix-sid-withdraw.ci exists but is untagged and was not run here.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go#L108" title="internal/component/bgp/reactor/draft_ietf_bess_mup_safi_dsd_prefix_sid_test.go" target="_blank" rel="noopener"><code>TestMUPDSDWithPrefixSIDKeptOnReceive</code></a></td>
@@ -2140,7 +2140,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

@@ -128,12 +128,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5</strong><b>of 5 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 5 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5</strong><b>of 5 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 5 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 5 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 5 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 5 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 5 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>19</strong><b>19 of 19 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>19</strong><b>19 of 19 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -145,9 +145,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 5 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 5 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 5 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 5 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 5 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 5 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 5 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -175,11 +175,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -191,7 +191,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -199,7 +199,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -280,7 +280,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RPKI origin validation</p>
-<p><strong>Proof:</strong> 5 of 5 MUST proven</p>
+<p><strong>Test verification:</strong> 5 of 5 MUST proven</p>
 <p><strong>Evidence:</strong> functional 1, unit 4</p>
 <p><strong>Unmet:</strong> -</p>
 
@@ -306,7 +306,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -326,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc6811:must">Ze proven 5</div>
+<div data-ze-rfc-bar="rfc6811:must">Ze verified 5</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc6811:overview">Ze MUST proven 5, Not assessed 4</div>
+<div data-ze-rfc-bar="rfc6811:overview">Ze MUST verified 5, Not assessed 4</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -348,13 +348,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc6811:must.kept">5</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc6811:must.ze-proven">5</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc6811:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc6811:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -384,7 +384,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc6811:should.total">4</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc6811:should.proven">0</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -405,7 +405,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc6811:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc6811:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -420,7 +420,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -525,14 +525,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Gaps and untested MUSTs</h2>
 <p>RFC 6811 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc6811-2-1"><code>RFC6811-2-1</code></a></h3>
 <p>The validation state of the Route MUST be set to reflect the result of the lookup. (Section 2)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 6811 Section 2 requires the Route&#39;s validation state to reflect the lookup result. The lookup uses the final AS_PATH segment: a final AS_SEQUENCE supplies its rightmost AS, an empty or confederation-ending path uses the local speaker AS, and AS_SET supplies NONE. TestValidateValid and TestValidateInvalid use the same covered prefix with respectively authorized and unauthorized origins and assert the exact Valid and Invalid constants. TestRouteStateIsSetFromTheLookup drives validateNLRIs for independently expected Valid, Invalid and NotFound results and checks both the returned per-prefix state and the queued decision state; its second arm performs a changed lookup and requires Invalid instead of the earlier Valid. TestBatchValidateTypedMatchesString retains every original typed-versus-text parity assertion and now also requires each transport to settle all four pending inputs, retain exactly the two accepted keys with their absolute Valid and Invalid states, and omit the two explicitly discarded keys. An accepted Invalid lookup therefore cannot become Valid merely because policy accepted it, and a shared wrong state or empty result on both transports cannot pass. TestRPKIOriginASFromASPathRFC6811 retains empty, sequence, set and confederation controls and adds distinct first/final sequence values plus a sequence followed by a final AS_SET. These require final-segment selection and NONE rather than an AS_SET member. Source review traces validateNLRIs, handleBatchValidateTyped, batchValidateCommand, applyDecision and promoteToInstalled, together with ROACache.Validate and rpkiOriginASFromASPath. The five new native clean runs in job-rpki-origin-existing-native-proofs-e302411f.log passed their named tests. Normal-return producer faults then failed the intended exact assertions: forcing promotion to Valid changed both transports&#39; accepted Invalid state from 3 to 1; reversing the Valid and Invalid lookup returns failed their respective lookup tests; selecting the first segment failed only the two new multisegment cases; using an AS_SET member as origin failed both final-set cases while empty, sequence and confederation controls passed. The seven canonical records comprise those five semantic observations and the two earlier validateNLRIs boundary-disable observations; the latter prove boundary reachability, while the test&#39;s exact expected-state assertions supply the semantic checks. The current production delivery contract is not a flattened JSON path: runRPKIPlugin subscribes to full events, handleStructuredUpdate uses segment-bearing attributes, handleEvent prefers raw attribute bytes or hex and uses the same segment-aware helper, and configuration revalidation decodes retained raw attributes before its lookup. Supplied malformed raw attributes do not fall back to the flattened path. Source also implements AS_CONFED_SET through the same local-AS branch as AS_CONFED_SEQUENCE; the existing untagged TestJSONOriginUsesLocalASAndRawSegmentTypes checks both confederation forms, empty path and AS_SET for byte and hex event forms. Those supporting tests are not counted as additional tagged discrimination records. Only the no-raw compatibility projection lacks segment types and uses the flattened path; this audit does not claim that projection can reconstruct information it never carries. The enforced verdict is for the stated MUST that a performed lookup&#39;s result becomes the route&#39;s state, with origin selection and acceptance-preservation assertions protecting that result. It does not certify every compatibility input, policy defaults or policy assignment, mapping-deletion revalidation, every address-family delivery path, or whole-RFC support; those are separate obligations and evidence. The earlier blanket claim that the normal JSON route necessarily misclassifies AS_SET or confederation origins is contradicted by the current full-event subscription and raw-attribute producers and is not retained.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go#L53" title="internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go" target="_blank" rel="noopener"><code>TestRouteStateIsSetFromTheLookup</code></a></td>
@@ -577,7 +577,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 6811 Section 2 states: &#39;An implementation MUST NOT exclude a route from the Adj-RIB-In or from consideration in the decision process as a side effect of its validation state, unless explicitly configured to do so.&#39; TestBuildDecisionsOriginInvalidAction always assigns an explicit accept or reject action before calling buildDecisions. Its negative tests explicit acceptance, not the absence of explicit configuration. It asserts typed Accept results and preserves the accepted Invalid state, not installed Adj-RIB-In or BGP route-selection state. parseRPKIConfig initializes OriginInvalidAction to ASPAPolicyReject even for a cache-only configuration, and buildDecisions converts that implicit action to Accept=false and Ineligible=true for Invalid routes. The separate untagged TestRPKIInvalidExclusionRequiresExplicitConfiguration exposes that defect with cache-only input and preserves explicit-reject and Valid controls; a failing probe is not conformance proof. This bounded decision-builder evidence cannot justify the whole requirement as enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L106" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
@@ -597,7 +597,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 6811 Section 3 states: &#39;An implementation MUST provide the ability to match and set the validation state of routes as part of its route policy filtering function.&#39; TestBuildDecisionsOriginInvalidAction directly initializes the Invalid disposition, supplies preexisting Invalid and Valid validation states, and calls buildDecisions. It proves explicit accept/reject actions alter typed Accept results, a Valid control remains accepted, and accepting Invalid preserves its existing ValState. The native positive break rejects Invalid regardless of the stated accept action; the negative applies the Invalid action to Valid too. Both produce the intended named assertion failures. Neither test input contains a policy that assigns a new validation state, and buildDecisions copies req.state into ValState rather than this test exercising a policy set operation. No configured policy entry point or installed-route policy result is asserted here. The bounded disposition proofs do not prove the whole match-and-set requirement. This is an evidence finding, not a claim that no implementation of the missing behavior exists elsewhere; no whole-row or whole-RFC credit is justified.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L108" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
@@ -617,7 +617,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L96" title="internal/component/bgp/plugins/rpki/rfc6811_validate_test.go" target="_blank" rel="noopener"><code>TestValidateFourOctetAS</code></a></td>
@@ -637,7 +637,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 6811 Section 4 states: &#39;When a mapping is added or deleted, the implementation MUST re-validate any affected prefixes and run the BGP decision process if needed.&#39; TestHandleROAChangeReValidates asserts a covering mapping addition changes a tracked NotFound route to Valid and enqueues a fresh validation request. Its negative calls the handler again with unchanged cache and tracked state and asserts no queued request; it does not observe unchanged or unaffected routes through the complete daemon or selection stack. TestReValidationAppliesToInstalledRoutes directly exercises stored NotFound routes through typed batch, text batch and accept-routes decisions: each accept rewrites the state to Valid, and the typed rewrite preserves replay sequence seven. Its discard control explicitly sends Accept=false and Ineligible=false and removes that stored route. This is not the current bgp-rpki Invalid-policy rejection, which sends Accept=false and Ineligible=true and retains received bytes. The unit&#39;s negative accepts a decision for an unknown prefix, requires an early buffer and leaves the existing route count unchanged without creating the absent route; this is a receive-store boundary, not a full cache-to-selection exchange. Both installed-unit native clean runs passed all five subcases. Forcing applyToInstalled to keep ValidationNotFound caused exactly the typed batch, text batch and accept-routes state assertions to fail with expected Valid and actual NotFound; explicit discard and unknown-prefix controls passed. Replacing only applyDecision&#39;s absent-route early-buffer fallback with promoteToInstalled caused only the unknown-prefix subcase to fail: it observed a second stored route, the phantom named prefix and no early buffer, while the other four subcases passed. Both were normal-return semantic failures, not build errors, panic, skip or timeout. The promoted test/plugin/rpki-revalidate-late-sync.ci asserts the real daemon&#39;s retained Adj-RIB-In route changes from NotFound/eligible to Invalid/ineligible after its first covering VRP arrives, with nonempty received attribute, next-hop and NLRI fields unchanged. That carrier loads bgp-rpki and bgp-adj-rib-in, not bgp-rib. Its native clean run passed; inverting handleROAChange&#39;s decisionRequired guard produced the named observer failure after cache synchronization, with the retained subject still NotFound and eligible. The promoted test/plugin/rpki-revalidate-selected-route.ci and rpki_selected_revalidation.go additionally require real namespace connected reachability and both received prefixes selected before releasing the first covering VRP. After release the explicitly rejected subject remains retained as Invalid/ineligible with identical received bytes and ceases to be selected in BGP best, authoritative Loc-RIB candidates and the selected system view, while the control becomes Valid and remains selected in all three views. The candidate assertion permits the subject to remain as an unselected candidate; it does not claim the candidate is absent. Source review traced handleROAChange, Adj-RIB-In applyToInstalled and validation-change publication, RIBManager.validationChanged, checkRouteBestChange and removeLocRIB. The selected carrier passed a counted own-system per-test-namespace load run with iterations=80, completed=80, executed=80 and no skipped phase. Its fresh native clean run then passed the sole selected test in 5.0 seconds with one executed test and zero skipped phases. Omitting only removeLocRIB in checkRouteBestChange&#39;s no-candidates branch produced the named selected-carrier failure in 12.2 seconds: after synchronization the authoritative Loc-RIB still selected subject 10.0.1.0/24 while control 10.0.2.0/24 remained selected. The source reaches that assertion only after both exact retained verdicts, immutable received bytes and the subject-absent/control-present BGP-best check succeed; the broken run does not reach the subsequent selected-system-view check. Both native guest runs stopped normally on Ze&#39;s 7.3.0-ze runtime kernel with matching SHA-256, and the red was the observer&#39;s semantic selection assertion, not setup, compilation, panic, skip or an outer timeout. All six native records, covering both installed-unit polarities, both tracker polarities and the two promoted functional positives, are retained in rfc/discrimination/rfc6811/RFC6811-4-1.json. These establish bounded mapping-addition, retained-validation and required selection behavior. No mapping-deletion carrier is exercised by any of these checks, so mapping deletion remains unproven and the whole requirement stays weak with no whole-row or whole-RFC credit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L378" title="internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></td>
@@ -839,7 +839,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

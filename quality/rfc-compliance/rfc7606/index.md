@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 47 | of 53 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5 | of 53 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 47 | of 53 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 53 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 53 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 53 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 100 | 100 of 232 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 53 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 100 | 100 of 232 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 53 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 53 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 53 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 53 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 53 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 53 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 53 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: Revised UPDATE error handling: the error-handling 
 
 **Area:** Revised UPDATE error handling
 
-**Proof:** 33 of 53 MUST proven
+**Test verification:** 33 of 53 MUST proven
 
 **Evidence:** interop 2, functional 5, unit 26
 
@@ -109,7 +109,7 @@ Included in automatic checks: Revised UPDATE error handling: the error-handling 
 | Annotated (including scoped evidence) | 6 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **53** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: Revised UPDATE error handling: the error-handling 
 
 ## Figures
 
-- **MUST bar**: Ze proven 33, Proof pending 19, Not built 1
-- **Overview bar**: Ze MUST proven 33, Proof pending 19, Not assessed 4, Not built 1
+- **MUST bar**: Ze verified 33, Tests awaiting verification 19, Not built 1
+- **Overview bar**: Ze MUST verified 33, Tests awaiting verification 19, Not assessed 4, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: Revised UPDATE error handling: the error-handling 
 | Mandatory requirements complete | not complete |
 | MUST rows | 53 |
 | MUST rows kept (the MUST bar) | 53 |
-| Ze proven | 33 |
+| Ze verified | 33 |
 | OS verified | 0 |
-| Proof pending | 19 |
+| Tests awaiting verification | 19 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: Revised UPDATE error handling: the error-handling 
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 4 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 4 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7606.json](../../../data/rfc/rfc7606.json).
 
@@ -226,9 +226,9 @@ Source: [data/rfc/rfc7606.json](../../../data/rfc/rfc7606.json).
 |---|---|---|
 | [`RFC7606-8-1`](#rfc7606-8-1) A document that specifies a new BGP attribute MUST provide specifics regarding what constitutes an error for that attribute and how that error is to be handled. (§8) | {gap}, no test | an obligation on a document that specifies a new BGP attribute, whose subject carries a relative clause no role binding can name; ze writes no such document, and no test asserts that each attribute ze decodes is handled as its own document's error rules say |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC7606-2-1`](#rfc7606-2-1)
 
@@ -236,14 +236,14 @@ o Treat-as-withdraw: In this approach, the UPDATE message containing the path at
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal (session_test.go) sends a malformed-ORIGIN UPDATE announcing 10.0.0.0/8 and asserts the DISPATCHED body has withdrawn=={0x08,0x0a}, nlri empty, attrLen zero; the message-level TestSynthesizeWithdrawMovesNLRIToWithdrawn and ...ConvertsMPReachToMPUnreach pin the rewrite exactly. Positive TestSessionRFC7606ValidUpdateDispatchesAnnouncement requires a valid UPDATE to stay byte-for-byte an announcement. 2026-07-20 re-audit: coverage STRENGTHENED beyond message synthesis. TestRIBTreatAsWithdrawRemovesInstalledRoute (rib_structured_test.go) now proves the route actually LEAVES the RIB -- Adj-RIB-In Len()==0 and a best-change Withdraw for 10.0.0.0/8 published to the Loc-RIB -- and that a treat-as-withdraw for a never-installed prefix publishes no spurious event. TestRIBTreatAsWithdrawAddPathPreservesPathID proves exactly the re-advertised ADD-PATH path (ID 42) is withdrawn while its sibling (ID 43) for the same prefix survives. Section 2 says the routes MUST be withdrawn; until these, the evidence stopped at 'a withdrawal-shaped message was dispatched'. Assertions are exact and fail on the old suppression bug. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-09-24 re-audit: commit 515bbc3b68 changed TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal and TestSessionRFC7606ValidUpdateDispatchesAnnouncement only in their fixtures (an AS_SEQUENCE carrying the eBGP neighbor AS 65002 so the new first-AS check passes, and a NEXT_HOP of 192.0.2.254) and in the callback signature; every assertion is unchanged, so malformed ORIGIN still has to yield the exact withdrawn-routes body and a valid UPDATE the exact announcement. Enforced. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote adds two clauses the paraphrase dropped: "(or in the MP_UNREACH_NLRI attribute if appropriate)" is pinned by TestSynthesizeWithdrawConvertsMPReachToMPUnreach, and "thus causing them to be removed from the Adj-RIB-In" by TestRIBTreatAsWithdrawRemovesInstalledRoute (Adj-RIB-In Len()==0). Both units carry this tag. Verdict unchanged. Rejudged 2026-10-16 (independent reader) after the owner-approved multi-label withdrawal change (RFC 8277 Section 2.4, nlrisplit.LabeledWithdrawal): SynthesizeWithdraw gained an addPath bool and SynthesizeWithdrawFamilies/mpReachToUnreach an addPath predicate, which mpReachToUnreach reads only for a family nlrisplit.CarriesCompatibility names (labeled unicast, VPN). Every edit in the tagged units (TestSynthesizeWithdrawMovesNLRIToWithdrawn, TestSynthesizeWithdrawConvertsMPReachToMPUnreach, TestRIBTreatAsWithdrawRemovesInstalledRoute, TestRIBTreatAsWithdrawAddPathPreservesPathID) is the call-site signature change passing false; their inputs are legacy IPv4 NLRI and IPv6 unicast MP_REACH, which never reach the labeled branch, so producer behavior, inputs and assertions are unchanged (the ADD-PATH unit's path IDs ride the legacy Withdrawn Routes field, untouched by the flag). The new labeled branch is covered by the untagged TestSynthesizeWithdrawLabeledOneCompatibilityField and TestSynthesizeWithdrawLabeledMalformedSkipped, outside this verdict's cited set. RFC 7606 Section 2: "the UPDATE message containing the path attribute in question MUST be treated as though all contained routes had been withdrawn just as if they had been listed in the WITHDRAWN ROUTES field (or in the MP_UNREACH_NLRI attribute if appropriate)". Verdict stands. Independent current-source rejudgment retains all six existing tests/units keys and the enforced verdict. TestRIBTreatAsWithdrawRemovesInstalledRoute adds only the connected terminal route for the unchanged 10.0.0.1 next hop: the initial Add prerequisite now reaches the ordinary election, and malformed reannouncement must still remove Adj-RIB-In state and publish its Withdraw; never-installed-prefix assertions remain unchanged. The ADD-PATH sibling/path-ID test, legacy and MP synthesis tests, malformed session dispatch and byte-identical valid-announcement control remain intact. This population proves synthesis, dispatch and RIB effects compositionally; the selected RIB root is not itself a socket-level malformed-UPDATE test. At initial proposal time RFC7606-2-1 had no discrimination file, and the proposed normal-return SynthesizeWithdraw mutation was untested. The parent subsequently supplied main-thread native recorder receipt cd2e1588: clean selected-root PASS (0.291s), then a compiling, normal-return broken run RED (0.492s), with the original assertions detecting retained Adj-RIB-In state, missing best-change Withdraw, unwanted never-installed-prefix state and additional events; the recorder completed successfully (reported exit 0). That observation is bounded to TestRIBTreatAsWithdrawRemovesInstalledRoute under SynthesizeWithdraw returning the received body while changed=true. It does not prove the session socket path, another tagged unit, or an unobserved clause; this planner authored no computed proof fields and did not run the observation.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestSynthesizeWithdrawConvertsMPReachToMPUnreach`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L57) | unit/verify | unproven |
-| negative | [`TestSynthesizeWithdrawMovesNLRIToWithdrawn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L21) | unit/verify | unproven |
-| negative | [`TestRIBTreatAsWithdrawAddPathPreservesPathID`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go#L167) | unit/verify | unproven |
+| negative | [`TestSynthesizeWithdrawConvertsMPReachToMPUnreach`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L57) | unit/verify | not verified |
+| negative | [`TestSynthesizeWithdrawMovesNLRIToWithdrawn`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L21) | unit/verify | not verified |
+| negative | [`TestRIBTreatAsWithdrawAddPathPreservesPathID`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go#L167) | unit/verify | not verified |
 | negative | [`TestRIBTreatAsWithdrawRemovesInstalledRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go#L92) | unit/verify | mutant, verified |
-| negative | [`TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1979) | unit/verify | unproven |
-| positive | [`TestSessionRFC7606ValidUpdateDispatchesAnnouncement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L279) | unit/verify | unproven |
+| negative | [`TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1979) | unit/verify | not verified |
+| positive | [`TestSessionRFC7606ValidUpdateDispatchesAnnouncement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L279) | unit/verify | not verified |
 
 ### [`RFC7606-2-2`](#rfc7606-2-2)
 
@@ -251,11 +251,11 @@ o Attribute discard: In this approach, the malformed attribute MUST be discarded
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestApplyAttrDiscardMultipleEntries (attr_discard_test.go:256) asserts findAttrByCode(6)/(7) are nil (discarded) while ORIGIN/AS_PATH/NEXT_HOP survive (continues processing); TestSessionRFC7606AttributeDiscardContinues (session_test.go:1990) drives eBGP LOCAL_PREF and requires callbackCount==1 with session Established (UPDATE still dispatched). Positive TestApplyAttrDiscardEmptyEntries (:337) guards against unconditional discard. Both halves observed exactly. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestApplyAttrDiscardMultipleEntries`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L255) | unit/verify | unproven |
-| negative | [`TestSessionRFC7606AttributeDiscardContinues`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2059) | unit/verify | unproven |
-| positive | [`TestApplyAttrDiscardEmptyEntries`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L336) | unit/verify | unproven |
+| negative | [`TestApplyAttrDiscardMultipleEntries`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L255) | unit/verify | not verified |
+| negative | [`TestSessionRFC7606AttributeDiscardContinues`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2059) | unit/verify | not verified |
+| positive | [`TestApplyAttrDiscardEmptyEntries`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L336) | unit/verify | not verified |
 
 ### [`RFC7606-2-3`](#rfc7606-2-3)
 
@@ -263,10 +263,10 @@ This approach MUST NOT be used except in the case of an attribute that has no ef
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC7606RouteSelectionAttributesNeverDiscarded (rfc7606_structural_test.go:426) enumerates ORIGIN/AS_PATH/NEXT_HOP/MED/LOCAL_PREF(iBGP) and asserts NotEqual(AttributeDiscard) AND NotEqual(None) AND DiscardEntries empty with AttrCode pinned per case — a two-sided exclusion that fails if any route-selection attr is discarded or silently accepted. Positive TestRFC7606NonRouteSelectionAttributesAreDiscarded (:497) shows ATOMIC_AGGREGATE/AGGREGATOR ARE discarded, so the MUST NOT is not trivially satisfied by never discarding. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote reads "except in the case of an attribute that has no effect on route selection or installation", the paraphrase's scope. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606RouteSelectionAttributesNeverDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L423) | unit/verify | unproven |
-| positive | [`TestRFC7606NonRouteSelectionAttributesAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L494) | unit/verify | unproven |
+| negative | [`TestRFC7606RouteSelectionAttributesNeverDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L423) | unit/verify | not verified |
+| positive | [`TestRFC7606NonRouteSelectionAttributesAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L494) | unit/verify | not verified |
 
 ### [`RFC7606-3.b-1`](#rfc7606-3.b-1)
 
@@ -274,10 +274,10 @@ If the Withdrawn Routes Length or Total Attribute Length is too large (i.e., if 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestSessionRFC7606SectionLengthConflictNotification (rfc7606_session_structural_test.go:153) declares Total Attr Length=0xFF over a shorter body and reads the NOTIFICATION off the wire: require.Equal notifBody[1]==NotifyUpdateMalformedAttr (subcode 1) plus callbackCount==0. Positive TestEnforceRFC7606_SectionLengthsExactlyFitAccepted (:114) pins the exact-fit boundary with explicit arithmetic asserts so an off-by-one is caught. Exact subcode assertion fails on non-compliance. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestSessionRFC7606SectionLengthConflictNotification`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L154) | unit/verify | unproven |
-| positive | [`TestEnforceRFC7606_SectionLengthsExactlyFitAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L115) | unit/verify | unproven |
+| negative | [`TestSessionRFC7606SectionLengthConflictNotification`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L154) | unit/verify | not verified |
+| positive | [`TestEnforceRFC7606_SectionLengthsExactlyFitAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L115) | unit/verify | not verified |
 
 ### [`RFC7606-3.c-1`](#rfc7606-3.c-1)
 
@@ -285,17 +285,17 @@ If the value of either the Optional or Transitive bits in the Attribute Flags is
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1). RFC 7606 Section 3(c): "If the value of either the Optional or Transitive bits in the Attribute Flags is in conflict with their specified values, then the attribute MUST be treated as malformed and the "treat-as-withdraw" approach used, unless the specification for the attribute mandates different handling for incorrect Attribute Flags." The only change to TestRFC7606ImplementedAttributeFlagConflicts is the call: the deleted ValidateUpdateRFC7606AddPath(..., nil, false) became ValidateUpdateRFC7606Peer(..., nil, false, false). The added acceptASSet=false is the RFC 9774 default and reaches only the AS_PATH/AS4_PATH validators, which this unit's TRAFFIC_ENGINEERING and ATTR_SET inputs never touch. No input byte or assertion changed: per attribute the correct flags give exact None and each Optional and Transitive conflict gives exact TreatAsWithdraw with the attribute's own code. Producer read at HEAD: validateAttributeFlags and the registered validators are unchanged in behavior (signature gained an ignored receivePolicy). The other carriers are unchanged. Unit ran green at HEAD; the revert records for this row verify.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606ImplementedAttributeFlagConflicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attribute_envelope_test.go#L52) | unit/verify | revert, verified |
 | negative | [`TestRFC7606FlagsOptionalAttributeConflict`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_flags_optional_test.go#L49) | unit/verify | revert, verified |
 | negative | [`TestRFC7606FlagsPluginAttributeConflict`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_flags_plugin_test.go#L56) | unit/verify | revert, verified |
-| negative | [`TestRFC7606FlagsWellKnownMarkedOptional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1191) | unit/verify | unproven |
-| negative | [`TestRFC7606FlagsWellKnownNotTransitive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1212) | unit/verify | unproven |
+| negative | [`TestRFC7606FlagsWellKnownMarkedOptional`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1191) | unit/verify | not verified |
+| negative | [`TestRFC7606FlagsWellKnownNotTransitive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1212) | unit/verify | not verified |
 | negative | [`TestRFC7606AttributeEnvelopeSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go#L20) | unit/verify | revert, verified |
 | positive | [`TestRFC7606FlagsOptionalAttributeAsSpecifiedAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_flags_optional_test.go#L112) | unit/verify | revert, verified |
 | positive | [`TestRFC7606FlagsPluginAttributeAsSpecifiedAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_flags_plugin_test.go#L104) | unit/verify | revert, verified |
-| positive | [`TestRFC7606FlagsOptionalAttributeValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1232) | unit/verify | unproven |
+| positive | [`TestRFC7606FlagsOptionalAttributeValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1232) | unit/verify | not verified |
 
 ### [`RFC7606-3.d-1`](#rfc7606-3.d-1)
 
@@ -303,7 +303,7 @@ If any of the well-known mandatory attributes are not present in an UPDATE messa
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. MissingOrigin and MissingASPath assert exact treat-as-withdraw and identify the missing attribute; ValidUpdate accepts the complete mandatory set, and MandatoryAttributesAcrossUpdateForms distinguishes a missing legacy NEXT_HOP from MP-only reception; the corrected empty-MP systematic cases still detect missing ORIGIN/AS_PATH but now require the stronger Section 5.2 session reset rather than an invalid withdrawal of no routes
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606MissingASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L155) | unit/verify | mutant, verified |
 | negative | [`TestRFC7606MissingOrigin`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L137) | unit/verify | mutant, verified |
@@ -316,7 +316,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Miss
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Malformed ORIGIN length, unrecognized AS_PATH segment, invalid IBGP LOCAL_PREF and isolated NEXT_HOP/MED length cases assert exact treat-as-withdraw rather than accepting session reset as a severity floor; exact accepted EBGP/IBGP baselines guard against indiscriminate rejection, and receive controls exercise withdrawal dispatch rather than a producer halt
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606ASPathUnrecognizedSegmentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L459) | unit/verify | mutant, verified |
 | negative | [`TestRFC7606LocalPrefIBGPInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1028) | unit/verify | mutant, verified |
@@ -329,11 +329,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Malf
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Malformed ATOMIC_AGGREGATE and wrong-width AGGREGATOR cases assert exact attribute-discard with the offending code and discard reason, while valid baselines remain accepted; extended-session discard controls verify the offending attribute is removed and the surviving announcement continues through both readers
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606DiscardEntryReasonCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L421) | unit/verify | unproven |
-| negative | [`TestRFC7606AggregatorLen8NoASN4Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1348) | unit/verify | unproven |
-| negative | [`TestRFC7606MalformedAtomicAggregate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L174) | unit/verify | unproven |
+| negative | [`TestRFC7606DiscardEntryReasonCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L421) | unit/verify | not verified |
+| negative | [`TestRFC7606AggregatorLen8NoASN4Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1348) | unit/verify | not verified |
+| negative | [`TestRFC7606MalformedAtomicAggregate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L174) | unit/verify | not verified |
 | positive | [`TestRFC7606SystematicLengthCorruption`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1635) | unit/verify | revert, verified |
 
 ### [`RFC7606-3.g-1`](#rfc7606-3.g-1)
@@ -342,16 +342,16 @@ If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI [RFC4760] attribute appear
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1). RFC 7606 Section 3(g): "If the MP_REACH_NLRI attribute or the MP_UNREACH_NLRI [RFC4760] attribute appears more than once in the UPDATE message, then a NOTIFICATION message MUST be sent with the Error Subcode "Malformed Attribute List"." The only change to TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk is a doc-comment rename (ValidateUpdateRFC7606AddPath to ValidateUpdateRFC7606Peer). Re-read the body: two MP_REACH (EVPN with reachable NLRI, then ipv4 10.0.0.0/24) followed by an AS_PATH declaring 64 octets with none present; the abandoned walk alone is treat-as-withdraw because reachable NLRI exists, so only the duplicate can yield the asserted exact SessionReset plus error, which isolates 3(g). The 3/1 subcode is asserted by the session-level carriers (TestSessionRFC7606SessionResetNotification, TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire), and single-MP controls stay accepted. Producer ValidateUpdateRFC7606Peer's in-loop duplicate reset is unchanged by 9c3697d0d1. Unit ran green at HEAD.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606MultipleMPReach`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L219) | unit/verify | unproven |
+| negative | [`TestRFC7606MultipleMPReach`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L219) | unit/verify | not verified |
 | negative | [`TestRFC7606SystematicLengthCorruption`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2263) | unit/verify | revert, verified |
-| negative | [`TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go#L48) | unit/verify | unproven |
-| negative | [`TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go#L79) | unit/verify | unproven |
-| negative | [`TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_dupmp_unreach_test.go#L51) | unit/verify | unproven |
-| negative | [`TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go#L30) | unit/verify | unproven |
-| negative | [`TestSessionRFC7606SessionResetNotification`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1827) | unit/verify | unproven |
-| positive | [`TestRFC7606MPReachIPv4NextHopValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L708) | unit/verify | unproven |
+| negative | [`TestRFC7606Section3gDuplicateMPBeatsAnAbandonedWalk`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go#L48) | unit/verify | not verified |
+| negative | [`TestRFC7606Section3gDuplicateMPUnreachBeatsAnAbandonedWalk`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_dupmp_test.go#L79) | unit/verify | not verified |
+| negative | [`TestRFC7606Section3gDuplicateMPUnreachResetsWithRoutesPresent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_dupmp_unreach_test.go#L51) | unit/verify | not verified |
+| negative | [`TestSessionRFC7606DuplicateMPUnreachNotificationOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_dupmp_unreach_wire_test.go#L30) | unit/verify | not verified |
+| negative | [`TestSessionRFC7606SessionResetNotification`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1827) | unit/verify | not verified |
+| positive | [`TestRFC7606MPReachIPv4NextHopValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L708) | unit/verify | not verified |
 
 ### [`RFC7606-3.h-1`](#rfc7606-3.h-1)
 
@@ -359,9 +359,9 @@ When multiple attribute errors exist in an UPDATE message, if the same approach 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC7606CollectAllErrors (rfc7606_test.go:1393) uses two attribute-discard errors (ATOMIC_AGG + AGGREGATOR) and asserts require.Equal(AttributeDiscard) with DiscardEntries len 2 covering codes 6 and 7 — fails on escalation or on dropping either entry. The {single-polarity,negative} annotation is sound: 'multiple attribute errors exist' has no error-free instance, so no positive can be constructed. Exact assertion, isolated buffer. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606CollectAllErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1536) | unit/verify | unproven |
+| negative | [`TestRFC7606CollectAllErrors`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1536) | unit/verify | not verified |
 
 ### [`RFC7606-3.h-2`](#rfc7606-3.h-2)
 
@@ -369,9 +369,9 @@ Otherwise, the approach with the strongest action MUST be used. (§3.h)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC7606MultipleErrorsStrongest (rfc7606_test.go:1369) combines ATOMIC_AGG discard (weaker) with COMMUNITY TAW (stronger) and asserts require.Equal(TreatAsWithdraw) AttrCode 8 — fails if the weaker action wins or if it over-escalates to SessionReset. The {single-polarity,negative} annotation holds (premise is that errors exist). The stronger boundary (TAW vs SessionReset) is separately pinned by 2-6. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606MultipleErrorsStrongest`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1512) | unit/verify | unproven |
+| negative | [`TestRFC7606MultipleErrorsStrongest`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1512) | unit/verify | not verified |
 
 ### [`RFC7606-3.i-1`](#rfc7606-3.i-1)
 
@@ -379,10 +379,10 @@ The Withdrawn Routes field MUST be checked for syntactic correctness in the same
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Negative TestEnforceRFC7606_InvalidWithdrawnNLRI (session_validate_test.go:87) puts prefix-length 33 in the Withdrawn Routes field (withdrawn-only body, isolated) and asserts require.Equal(SessionReset)+err — proving the withdrawn field IS syntax-checked like NLRI (mirror of TestEnforceRFC7606_InvalidTrailingNLRI for the NLRI field). Positive TestEnforceRFC7606_ValidWithdrawnNLRIAccepted (rfc7606_session_structural_test.go:72) drives a deliberately non-empty valid withdrawn field through enforceRFC7606 => ActionNone, unrewritten. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEnforceRFC7606_InvalidWithdrawnNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L177) | unit/verify | unproven |
-| positive | [`TestEnforceRFC7606_ValidWithdrawnNLRIAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L73) | unit/verify | unproven |
+| negative | [`TestEnforceRFC7606_InvalidWithdrawnNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L177) | unit/verify | not verified |
+| positive | [`TestEnforceRFC7606_ValidWithdrawnNLRIAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L73) | unit/verify | not verified |
 
 ### [`RFC7606-3.j-1`](#rfc7606-3.j-1)
 
@@ -390,17 +390,17 @@ If this is not possible, the procedures of [RFC4271] and/or [RFC4760] continue t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, after 66858fa127). RFC 7606 Section 3 (j): "If this is not possible, the procedures of [RFC4271] and/or [RFC4760] continue to apply, meaning that the "session reset" approach (or the "AFI/SAFI disable" approach) MUST be followed." Changed unit: TestRFC7606MPUnreachTooShort now requires the exact description "RFC 7606 Section 5.3: MP_UNREACH_NLRI length 2 < 3" besides exact SessionReset and AttrCode 15; its buffer (ORIGIN, empty AS_PATH, MP_UNREACH length 2 carrying AFI only) cannot be parsed, and the exact text pins the outcome to validateMPAttrLength (rfc7606.go), which returns before validateMPNLRIField could index the missing SAFI. The claim states what the body checks. Re-read the other negatives: MP_REACH length 4 (exact SessionReset, code 14), IPv4 /33 and NLRI overrun through ValidateNLRISyntax (exact SessionReset), IPv6 /129 through the production MP path (exact SessionReset, "129 > 128"), plus the unchanged session-level TestEnforceRFC7606_InvalidTrailingNLRI and the wire-level rfc7606-reset.ci. Positives (parseable IPv4 and IPv6 NLRI give nil) show the reset is not applied to a field that parses. Ze implements the session-reset alternative, which satisfies the MUST. Not verdict-changing: the positives are function-level and prove only that a parseable field is not reset; the other half of 3(j)'s spirit (a parseable NLRI with an attribute error gets treat-as-withdraw) is proven under the 7.x rows, not here. Verdict stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606MPReachTooShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L810) | unit/verify | unproven |
+| negative | [`TestRFC7606MPReachTooShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L810) | unit/verify | not verified |
 | negative | [`TestRFC7606MPUnreachTooShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1425) | unit/verify | revert, verified |
-| negative | [`TestRFC7606NLRIOverrun`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L940) | unit/verify | unproven |
-| negative | [`TestRFC7606NLRIPrefixLengthTooLongIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L856) | unit/verify | unproven |
-| negative | [`TestRFC7606NLRIPrefixLengthTooLongIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L909) | unit/verify | unproven |
-| negative | [`TestEnforceRFC7606_InvalidTrailingNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L203) | unit/verify | unproven |
+| negative | [`TestRFC7606NLRIOverrun`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L940) | unit/verify | not verified |
+| negative | [`TestRFC7606NLRIPrefixLengthTooLongIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L856) | unit/verify | not verified |
+| negative | [`TestRFC7606NLRIPrefixLengthTooLongIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L909) | unit/verify | not verified |
+| negative | [`TestEnforceRFC7606_InvalidTrailingNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L203) | unit/verify | not verified |
 | negative | [`rfc7606-reset.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-reset.ci#L12) | functional/verify | revert, verified |
-| positive | [`TestRFC7606NLRIPrefixLengthValidIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L836) | unit/verify | unproven |
-| positive | [`TestRFC7606NLRIPrefixLengthValidIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L880) | unit/verify | unproven |
+| positive | [`TestRFC7606NLRIPrefixLengthValidIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L836) | unit/verify | not verified |
+| positive | [`TestRFC7606NLRIPrefixLengthValidIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L880) | unit/verify | not verified |
 
 ### [`RFC7606-4-1`](#rfc7606-4-1)
 
@@ -408,7 +408,7 @@ In either of these cases, an error condition exists and the "treat- as-withdraw"
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, after 66858fa127). RFC 7606 Section 4: "In either of these cases, an error condition exists and the "treat- as-withdraw" approach MUST be used (unless some other, more severe error is encountered dictating a stronger approach)"; the first case is "the length of the last encountered path attribute would cause the Total Attribute Length to be exceeded when parsing the enclosed path attributes." Changed unit: TestRFC7606AttributeLengthConflictTreatAsWithdraw lost its RFC8654-3-1 tag and gained an RFC 7606 quote and a claim naming exactly what it asserts; body unchanged. Buffer isolates case 1: ORIGIN, AS_PATH, NEXT_HOP, then COMMUNITY declaring 8 (a legal COMMUNITY length, so 7.8 cannot fire) with 4 octets following; hasNLRI=true, so the Section 5.2 escalation in structuralError does not apply. Exact TreatAsWithdraw, AttrCode 8 and "Section 4" text: a reset or a silent accept both fail it. Producer read: ValidateUpdateRFC7606AddPath bounds check returns structuralError (treat-as-withdraw with reachable NLRI); every session-reset check returns immediately, so the collected strongest before a structural exit is never above treat-as-withdraw and the "more severe" carve-out is not downgraded. Case 2 is TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw (1 and 2 trailing octets, 3 with Extended Length: exact TreatAsWithdraw; clean mandatory set: exact None). Positives: that clean control and the exact-None baselines of TestRFC7606SystematicLengthCorruption. Verdict stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606FewerThanThreeOctetsRemainTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L118) | unit/verify | revert, verified |
 | negative | [`TestRFC7606AttributeLengthConflictTreatAsWithdraw`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L245) | unit/verify | revert, verified |
@@ -421,7 +421,7 @@ o The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded a
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideMovesTrailingMPAttributeFirst moved. Independent source rejudgment against RFC 7606 Section 5.1: "The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the very first path attribute in an UPDATE message." Read every tagged unit and its producer. Builder and parsed-split tests assert first type 14 with lower-code attributes present; wire payload construction asserts [14,1,2] for announcement and [15] for withdrawal. Same-context, cross-context, rebuilt forwarding, stored-route relay and raw export override tests compare concrete emitted attributes/body bytes, not a generic successful parse. The compliant-leading control checks backing-array identity rather than accepting an unnecessary copy. MPAttributesTrail still marks an MP attribute after another type, and reach-before-unreach; WriteMPAttributesFirst copies unreach, reach, then other attributes. writeOrdinaryUpdateBody applies this normalization to overrides before compliant splitting, and buildFwdBody handles both forwarding contexts. The newly argument-free exhaustive-ignore comment documents the narrow position-classification switch without changing its branches. These tests retain falsifiable MP-first assertions. Verdict enforced; no execution or current discrimination freshness is claimed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestForwardLeadingMPAttributeKeepsZeroCopy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go#L82) | unit/verify | mutant, verified |
 | positive | [`TestSplitMP_PreservesAscendingAttributeOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc4271_update_split_attr_order_test.go#L78) | unit/verify | mutant, verified |
@@ -439,18 +439,18 @@ o An UPDATE message MUST NOT contain more than one of the following: non-empty W
 
 Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/rfc7606-relay-one-field.ci moved. Independent source rejudgment against the complete RFC 7606 Section 5.1 sender restriction: "An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute." Read every tag, including the functional file and EoR test. The 16-combination matrix counts all four fields exactly, including MP attributes independently of NLRI contents. Parsed and wire splitters are forced by mixed shape while the input fits; their outputs assert at most one field and preservation of the announcements/withdrawals. Forwarding checks both matching and different contexts, export override checks two independently preserved fields, and compliant controls assert identity. The degenerate-empty-MP_UNREACH test also forbids a manufactured EoR while retaining all withdrawals. The functional test asserts a complete withdrawal-only wire frame, followed by the announcement, through the parsed daemon relay; it does not prove the zero-copy branch or every combination. NLRIBearingFieldCount's current exhaustive-ignore directive leaves its two MP cases unchanged. Receiver acceptance of old mixed senders remains distinct from the sender split. Verdict enforced. No test or gate execution was performed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSplitCompliantPassesThroughCompliantUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_shape_test.go#L159) | unit/verify | revert, verified |
-| negative | [`TestForwardCompliantShapeKeepsZeroCopy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_body_test.go#L116) | unit/verify | unproven |
-| negative | [`TestSplitWireUpdateCompliantShapeUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc7606_shape_test.go#L58) | unit/verify | unproven |
+| negative | [`TestForwardCompliantShapeKeepsZeroCopy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_body_test.go#L116) | unit/verify | not verified |
+| negative | [`TestSplitWireUpdateCompliantShapeUntouched`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc7606_shape_test.go#L58) | unit/verify | not verified |
 | positive | [`TestNLRIBearingFieldCountEveryCombination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_shape_test.go#L57) | unit/verify | revert, verified |
 | positive | [`TestSplitCompliantSplitsMixedUpdateThatFits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_shape_test.go#L127) | unit/verify | revert, verified |
 | positive | [`TestEgressOverrideSplitsMixedShape`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L92) | unit/verify | mutant, verified |
-| positive | [`TestForwardSplitsMixedShapeAcrossContextsThatFits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_body_test.go#L156) | unit/verify | unproven |
-| positive | [`TestForwardSplitsMixedShapeSameContextThatFits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_body_test.go#L51) | unit/verify | unproven |
-| positive | [`TestSplitWireUpdateSplitsMixedShapeThatFits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc7606_shape_test.go#L23) | unit/verify | unproven |
-| positive | [`TestSplitWireUpdateDoesNotManufactureEoR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc7606_split_eor_test.go#L32) | unit/verify | unproven |
+| positive | [`TestForwardSplitsMixedShapeAcrossContextsThatFits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_body_test.go#L156) | unit/verify | not verified |
+| positive | [`TestForwardSplitsMixedShapeSameContextThatFits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_body_test.go#L51) | unit/verify | not verified |
+| positive | [`TestSplitWireUpdateSplitsMixedShapeThatFits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc7606_shape_test.go#L23) | unit/verify | not verified |
+| positive | [`TestSplitWireUpdateDoesNotManufactureEoR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc7606_split_eor_test.go#L32) | unit/verify | not verified |
 | positive | [`rfc7606-relay-one-field.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-relay-one-field.ci#L4) | functional/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC7606-5.1-3`](#rfc7606-5.1-3)
@@ -459,14 +459,14 @@ Since older BGP speakers may not implement these restrictions, an implementation
 
 Audit verdict: enforced (the tests do what the requirement demands), stale-unit: test/plugin/rfc7606-relay-one-field.ci moved. Re-judged 2026-11-14 by an independent auditor who authored none of the change, after 96ead494aa moved the body of checkRFC7606MixedUpdate into checkMixedUpdateWire (internal/le/interoplab/bgp/check_mixed_discard.go); the tagged unit is now a one-line delegate to it. RFC 7606 Section 5.1: "Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination." The Go units (TestRFC7606MPReachIPv4NextHopValid and the four TestRFC7606Section51Accepts* units) and the two functional carriers are unchanged, and Session.applyRFC7606 is unchanged. The new interop body is stricter than the one judged before: it requires the FRR session and both Ze peers up, then the replayed and seeded prefixes both in FRR's BGP table and installed via the injector, the client AS_PATH 65004, and only then releases the ONE mixed UPDATE through the source fence; it then requires the announced half and the trailing fence installed, the seeded prefix withdrawn from FRR's BGP table and absent from the installed table beside the fence, an exact capture of Ze's output (requireMixedSplitWire: one valid OPEN, one split withdrawal of exactly the seed, no repeated attribute, unchanged ORIGIN, NEXT_HOP and AS_PATH, each prefix once, in order) and the session still up. The withdrawn half is now seeded, so its removal is credited as withdrawal delivery, which the earlier note withheld. Receiver tolerance of the mixed shape is still what the carrier proves; a reset, a drop or a stripped half each fails it. Caveat for the next auditor: the unit fingerprint covers only the delegate, so a later edit of checkMixedUpdateWire will not stale this verdict. This is a source rejudgment; no runtime or producer-break result is claimed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC7606Section51AcceptsMPReachWithLegacyNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_section51_receive_test.go#L62) | unit/verify | unproven |
-| positive | [`TestRFC7606Section51AcceptsMPUnreachAfterOtherAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_section51_receive_test.go#L41) | unit/verify | unproven |
-| positive | [`TestRFC7606Section51AcceptsMPUnreachWithLegacyNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_section51_receive_test.go#L72) | unit/verify | unproven |
-| positive | [`TestRFC7606Section51AcceptsReachAndUnreachTogether`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_section51_receive_test.go#L51) | unit/verify | unproven |
-| positive | [`TestRFC7606MPReachIPv4NextHopValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L709) | unit/verify | unproven |
-| positive | [`checkRFC7606MixedUpdate`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L779) | interop/nightly | unproven |
+| positive | [`TestRFC7606Section51AcceptsMPReachWithLegacyNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_section51_receive_test.go#L62) | unit/verify | not verified |
+| positive | [`TestRFC7606Section51AcceptsMPUnreachAfterOtherAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_section51_receive_test.go#L41) | unit/verify | not verified |
+| positive | [`TestRFC7606Section51AcceptsMPUnreachWithLegacyNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_section51_receive_test.go#L72) | unit/verify | not verified |
+| positive | [`TestRFC7606Section51AcceptsReachAndUnreachTogether`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_section51_receive_test.go#L51) | unit/verify | not verified |
+| positive | [`TestRFC7606MPReachIPv4NextHopValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L709) | unit/verify | not verified |
+| positive | [`checkRFC7606MixedUpdate`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L779) | interop/nightly | not verified |
 | positive | [`rfc7606-receive-combinations.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-receive-combinations.ci#L3) | functional/verify | mutant, verified |
 | positive | [`rfc7606-relay-one-field.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-relay-one-field.ci#L8) | functional/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
@@ -476,20 +476,20 @@ Thus, if an UPDATE message is encountered that does contain path attributes othe
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1). RFC 7606 Section 5.2: "For this reason, if any path attribute errors are encountered in such an UPDATE message and if any encountered error specifies an error-handling approach other than "attribute discard", then the "session reset" approach MUST be used." The only change to TestRFC7606EmptyMPReachEscalatesToReset is the call, now ValidateUpdateRFC7606Peer(attrs, legacyNLRI, false, false, nil, false, false): acceptASSet=false is RFC 9774's default and the unit's AS_PATH carries no set segment, so no input or verdict path moved. Its cases still assert exact outcomes on the population boundary: empty MP_REACH plus ORIGIN=3 gives SessionReset with AttrCode 1; the same error beside reachable MP NLRI or legacy NLRI gives TreatAsWithdraw; an attribute-discard-only error stays AttributeDiscard (code 7, one entry); an abandoned walk escalates only without reachable NLRI. Producer read at HEAD: the post-walk escalation (!hasReachableNLRI && hasAttrOtherThanMPUnreach && strongest > AttributeDiscard) is unchanged. Other carriers unchanged; rfc9830_nlri_receive_test.go working copy equals HEAD. Unit ran green at HEAD.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606EmptyMPReachEscalatesToReset`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attribute_envelope_test.go#L9) | unit/verify | revert, verified |
 | negative | [`TestRFC7606Section52MPUnreachOnlyNotEscalated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_mpunreach_only_test.go#L48) | unit/verify | revert, verified |
-| negative | [`TestRFC7606NoNLRIEscalation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1473) | unit/verify | unproven |
+| negative | [`TestRFC7606NoNLRIEscalation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1473) | unit/verify | not verified |
 | negative | [`TestRFC7606SystematicLengthCorruption`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2285) | unit/verify | revert, verified |
 | negative | [`TestRFC7606AttributeEnvelopeSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go#L19) | unit/verify | revert, verified |
-| negative | [`TestRFC7606Section52LeavesAnUpdateWithNLRIAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go#L69) | unit/verify | unproven |
+| negative | [`TestRFC7606Section52LeavesAnUpdateWithNLRIAlone`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go#L69) | unit/verify | not verified |
 | negative | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L233) | unit/verify | revert, verified |
 | positive | [`TestRFC7606Section52MPUnreachOnlyNotEscalated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_mpunreach_only_test.go#L47) | unit/verify | revert, verified |
-| positive | [`TestRFC7606MPUnreachMinValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1453) | unit/verify | unproven |
-| positive | [`TestRFC7606NoNLRIAttributeDiscardNoEscalation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1493) | unit/verify | unproven |
+| positive | [`TestRFC7606MPUnreachMinValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1453) | unit/verify | not verified |
+| positive | [`TestRFC7606NoNLRIAttributeDiscardNoEscalation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1493) | unit/verify | not verified |
 | positive | [`TestRFC7606SystematicLengthCorruption`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2299) | unit/verify | revert, verified |
-| positive | [`TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go#L40) | unit/verify | unproven |
+| positive | [`TestRFC7606Section52EscalatesWhenTheAttributeWalkIsAbandoned`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_noreach_test.go#L40) | unit/verify | not verified |
 
 ### [`RFC7606-5.4-1`](#rfc7606-5.4-1)
 
@@ -497,21 +497,21 @@ A BGP speaker advertising support for such a typed address family MUST handle ro
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard moved. Re-judged 2026-11-14 by an independent auditor who authored none of the change. RFC 7606 Section 5.4: "A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise." The only edit to the tagged unit checkRFC7606TypedNLRIDiscard since the last judgement is 96ead494aa, which rewrites the comment above assertion 2; the code is unchanged and still calls requireSpeakerEVPNDiscard on the speaker's report. In the same commit requireSpeakerEVPNDiscard (check_rfc_predicate.go) gained a final requireTypedEVPNWire check after its oracle, Established, route-bearing UPDATE, decoded EVPN NLRI and PASS checks, so the carrier now also requires the wire capture to hold exactly the fixture's assigned type-2 NLRI and no other EVPN announcement or withdrawal: stronger, not weaker. Every other tagged Go unit and .ci file is byte-identical to the last judgement. Verdict unchanged: enforced. This is a source rejudgment; no runtime or producer-break result is claimed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606Section54PropagatesUnknownBGPLSType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go#L187) | unit/verify | unproven |
-| negative | [`rfc7606-54-bgpls-override-propagates.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-54-bgpls-override-propagates.ci#L4) | functional/verify | unproven |
-| positive | [`mup/TestRecognizeNLRIRejectsUnimplementedTypes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/rfc7606_test.go#L50) | unit/verify | unproven |
-| positive | [`mvpn/TestRecognizeNLRIRejectsUnimplementedTypes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mvpn/rfc7606_test.go#L45) | unit/verify | unproven |
-| positive | [`TestRFC7606Section54DiscardsUnrecognizedEVPNType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go#L149) | unit/verify | unproven |
-| positive | [`TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go#L254) | unit/verify | unproven |
-| positive | [`TestRFC7606Section54SessionResetsUnparseableTypedNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go#L336) | unit/verify | unproven |
-| positive | [`TestRFC7606Section54DiscardsUnrecognizedMUPType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go#L126) | unit/verify | unproven |
-| positive | [`TestRFC7606Section54DiscardsUnrecognizedMVPNType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go#L97) | unit/verify | unproven |
-| positive | [`TestRFC7606Section54FiltersTreatAsWithdrawSynthesis`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go#L159) | unit/verify | unproven |
-| positive | [`TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go#L44) | unit/verify | unproven |
-| positive | [`TestRFC7606Section54ReadsTypedNLRIUnderAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go#L89) | unit/verify | unproven |
-| positive | [`checkRFC7606TypedNLRIDiscard`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L789) | interop/nightly | unproven |
+| negative | [`TestRFC7606Section54PropagatesUnknownBGPLSType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go#L187) | unit/verify | not verified |
+| negative | [`rfc7606-54-bgpls-override-propagates.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-54-bgpls-override-propagates.ci#L4) | functional/verify | not verified |
+| positive | [`mup/TestRecognizeNLRIRejectsUnimplementedTypes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mup/rfc7606_test.go#L50) | unit/verify | not verified |
+| positive | [`mvpn/TestRecognizeNLRIRejectsUnimplementedTypes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/mvpn/rfc7606_test.go#L45) | unit/verify | not verified |
+| positive | [`TestRFC7606Section54DiscardsUnrecognizedEVPNType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go#L149) | unit/verify | not verified |
+| positive | [`TestRFC7606Section54DropsMPUnreachOnlyUpdateRatherThanForgeEOR`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go#L254) | unit/verify | not verified |
+| positive | [`TestRFC7606Section54SessionResetsUnparseableTypedNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_test.go#L336) | unit/verify | not verified |
+| positive | [`TestRFC7606Section54DiscardsUnrecognizedMUPType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go#L126) | unit/verify | not verified |
+| positive | [`TestRFC7606Section54DiscardsUnrecognizedMVPNType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go#L97) | unit/verify | not verified |
+| positive | [`TestRFC7606Section54FiltersTreatAsWithdrawSynthesis`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_validation_nlritype_typed_test.go#L159) | unit/verify | not verified |
+| positive | [`TestRFC7606Section54FiltersWhenTheAttributeWalkIsAbandoned`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go#L44) | unit/verify | not verified |
+| positive | [`TestRFC7606Section54ReadsTypedNLRIUnderAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validation_nlritype_bypass_test.go#L89) | unit/verify | not verified |
+| positive | [`checkRFC7606TypedNLRIDiscard`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L789) | interop/nightly | not verified |
 | positive | [`rfc7606-54-discard-unrecognized-mup-nlri.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-54-discard-unrecognized-mup-nlri.ci#L4) | functional/verify | revert, verified |
 | positive | [`rfc7606-54-discard-unrecognized-nlri.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-54-discard-unrecognized-nlri.ci#L4) | functional/verify | revert, verified |
 
@@ -521,11 +521,11 @@ The attribute is considered malformed if its length is not 1 or if it has an und
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-audited 2026-08-27. Isolated exact negatives cover both Section 7.1 clauses: ORIGIN length 2 and defined-length value 3 each require TreatAsWithdraw, AttrCode 1, and a Section 7.1 description. Three positives accept exactly values 0, 1 and 2 with ActionNone. test/plugin/rfc7606-withdraw.ci adds end-to-end session-survival proof: after the malformed ORIGIN, a second valid route must reach the peer. The compiled rfc7606Withdraw13 observer waits for establishment, sends the first route, gates on the post-malformation update counter, then sends the second route; it cannot make the peer expectation pass after a reset. Acceptance, SessionReset over-reaction, the wrong attribute, or rejecting a defined value each fail. 2026-09-25 re-audit: commit 1fb33e8098 renamed the carrier's exec heads (ze-peer to le test peer, ze-test fixture to le test fixture) and changed no assertion, so the judgement above still describes what it judged. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606MalformedOriginLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L20) | unit/verify | mutant, verified |
 | negative | [`TestRFC7606OriginValueInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L606) | unit/verify | mutant, verified |
-| negative | [`rfc7606-withdraw.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-withdraw.ci#L8) | functional/verify | unproven |
+| negative | [`rfc7606-withdraw.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-withdraw.ci#L8) | functional/verify | not verified |
 | positive | [`TestRFC7606OriginValueEGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L572) | unit/verify | mutant, verified |
 | positive | [`TestRFC7606OriginValueIGP`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L555) | unit/verify | mutant, verified |
 | positive | [`TestRFC7606OriginValueIncomplete`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L589) | unit/verify | mutant, verified |
@@ -536,7 +536,7 @@ An AS_PATH is considered malformed if an unrecognized segment type is encountere
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after ca4eae70a0). Section 7.2: "An AS_PATH is considered malformed if an unrecognized segment type is encountered or if it contains a malformed segment." and "An UPDATE message with a malformed AS_PATH attribute SHALL be handled using the approach of "treat-as-withdraw"." RFC 9774 Section 3 (owner decision: AS_SET is treat-as-withdraw) now makes validateASPath return asPathSetVerdict after the structure walk. TestRFC7606ASPathValidSet changed from asserting None to asserting TreatAsWithdraw with the exact description "RFC 9774 Section 3: AS_SET in AS_PATH". As a 7.2 positive it still discriminates: a regression that read AS_SET (type 1) as an unrecognized or malformed segment returns from the walk first with a Section 7.2 description and fails the exact Equal; the input is well-framed so nothing else trips. It no longer proves acceptance, which is correct now that RFC 9774 deprecates AS_SET; TestRFC7606ASPathValidSequence remains the exact-None positive. The four isolated negatives (segment type, overrun, underrun, zero length) are unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606ASPath4ByteASNOverrun`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2391) | unit/verify | mutant, verified |
 | negative | [`TestRFC7606ASPathSegmentOverrun`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L481) | unit/verify | mutant, verified |
@@ -553,7 +553,7 @@ The attribute is considered malformed if its length is not 4 [RFC4271]. An UPDAT
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. SystematicLengthCorruption's isolated padded NEXT_HOP length-eight case uses an exact treat-as-withdraw assertion with AttrCode 3, not the surrounding tables' severity-floor assertion; ValidUpdate accepts length four, while RFC6368 inner NEXT_HOP is correctly ignored in its distinct ATTR_SET context
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606SystematicLengthCorruption`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1785) | unit/verify | revert, verified |
 | positive | [`TestRFC7606ValidUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L193) | unit/verify | mutant, verified |
@@ -564,10 +564,10 @@ The attribute is considered malformed if its length is not 4 [RFC4271]. An UPDAT
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. SystematicLengthCorruption's isolated padded MED length-eight case requires exact treat-as-withdraw and AttrCode 4; FlagsOptionalAttributeValid accepts an otherwise valid four-octet MED, and the zero-length MED case independently exercises malformed length zero without a framing cascade
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606SystematicLengthCorruption`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1799) | unit/verify | revert, verified |
-| positive | [`TestRFC7606FlagsOptionalAttributeValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1233) | unit/verify | unproven |
+| positive | [`TestRFC7606FlagsOptionalAttributeValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1233) | unit/verify | not verified |
 
 ### [`RFC7606-7.5-1`](#rfc7606-7.5-1)
 
@@ -575,11 +575,11 @@ o if the LOCAL_PREF attribute is received from an external neighbor, it SHALL be
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Negative rfc7606_test.go:846 TestRFC7606LocalPrefEBGPDiscard sends a valid-LENGTH (4) LOCAL_PREF over eBGP and asserts require.Equal AttributeDiscard + AttrCode 5 + '7.5', so the discard is attributable purely to eBGP not to length. The positive at :868 sends the identical bytes over iBGP and gets Action None, isolating the eBGP rule. Reinforced by attr_discard_test.go:408 (exact AttributeDiscard + Code 5 + Reason EBGPInvalid) and reactor test session_test.go:1990 which proves the session stays Established (not reset) and the UPDATE is still dispatched. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606DiscardEntryReasonCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L407) | unit/verify | unproven |
+| negative | [`TestRFC7606DiscardEntryReasonCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L407) | unit/verify | not verified |
 | negative | [`TestRFC7606LocalPrefEBGPDiscard`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L986) | unit/verify | mutant, verified |
-| negative | [`TestSessionRFC7606AttributeDiscardContinues`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2060) | unit/verify | unproven |
+| negative | [`TestSessionRFC7606AttributeDiscardContinues`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2060) | unit/verify | not verified |
 | positive | [`TestRFC7606LocalPrefIBGPValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1007) | unit/verify | mutant, verified |
 
 ### [`RFC7606-7.5-2`](#rfc7606-7.5-2)
@@ -588,7 +588,7 @@ if received from an internal neighbor, it SHALL be considered malformed if its l
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Negative rfc7606_test.go:888 TestRFC7606LocalPrefIBGPInvalid sends iBGP LOCAL_PREF len 3 and asserts require.Equal TreatAsWithdraw + AttrCode 5 + '7.5'; buffer isolates the malformed LOCAL_PREF. Positive :868 accepts iBGP LOCAL_PREF len 4 (Action None). The exact Action equal fails on both non-detection and over-reaction. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606LocalPrefIBGPInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1027) | unit/verify | mutant, verified |
 | positive | [`TestRFC7606LocalPrefIBGPValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1008) | unit/verify | mutant, verified |
@@ -599,10 +599,10 @@ The attribute SHALL be considered malformed if its length is not 0 [RFC4271]. An
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. MalformedAtomicAggregate and DiscardEntryReasonCodes require exact attribute-discard for nonzero lengths, including the named invalid-length discard entry; the systematic EBGP baseline requires exact acceptance of length zero, and session discard controls distinguish continued announcement processing from withdrawal or reset
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606DiscardEntryReasonCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L420) | unit/verify | unproven |
-| negative | [`TestRFC7606MalformedAtomicAggregate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L173) | unit/verify | unproven |
+| negative | [`TestRFC7606DiscardEntryReasonCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L420) | unit/verify | not verified |
+| negative | [`TestRFC7606MalformedAtomicAggregate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L173) | unit/verify | not verified |
 | positive | [`TestRFC7606SystematicLengthCorruption`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1638) | unit/verify | revert, verified |
 
 ### [`RFC7606-7.7-1`](#rfc7606-7.7-1)
@@ -611,14 +611,14 @@ The AGGREGATOR attribute SHALL be considered malformed if any of the following a
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both length variants are pinned in both directions: positives accept len 6 without asn4 (TestRFC7606AggregatorLen6NoASN4) and len 8 with asn4 (TestRFC7606AggregatorLen8WithASN4), each Action None; negatives assert require.Equal AttributeDiscard + AttrCode 7 + '7.7' for len 8 without asn4 and len 6 with asn4, so the capability-dependent expected length is genuinely exercised. Reinforced by attr_discard_test.go (exact AttributeDiscard + Code 7 + Reason InvalidLength). INDEPENDENT RE-AUDIT 2026-09-20, after a new tagged carrier made the verdict stale: reactor/rfc7606_aggregator_relay_test.go::TestForwardDiscardsMalformedAggregatorAtMatchingWidth. It is genuine added evidence and it reaches a clause the message-level units cannot. Section 7.7 sends a malformed AGGREGATOR to 'attribute discard', and Section 2 defines that as 'the malformed attribute MUST be discarded and the UPDATE message continues to be processed'. Until this unit, every tagged carrier stopped at the CLASSIFICATION ValidateUpdateRFC7606 returns; nothing asserted that the octets are absent from the body ze rebuilds for a peer. This one drives ASPathEdit.Record and buildModifiedPayload over a 7-octet and a 1-octet AGGREGATOR at a four-octet/four-octet width pair, asserts the AGGREGATOR code is gone from the rebuilt payload and that the route is not suppressed, which is the 'continues to be processed' half. Both lengths are malformed under the second bullet of Section 7.7 and neither trips a structural error first, so the buffer isolates the rule. The verdict stays enforced: the message-level pair is exact and unchanged, and this unit only strengthens it. FINDING, recorded rather than fixed because the carrier is another session's uncommitted work. Its tag reads 'RFC7606-7.7-1 positive' and the unit is a NEGATIVE. parseTagRest (internal/le/rfc/tags.go) fixes the meaning: 'a negative-only test passes if the code rejects everything and a positive-only one passes if it accepts everything'. This unit feeds a MALFORMED AGGREGATOR and asserts it is discarded, so an implementation that accepted everything fails it and one that discarded every AGGREGATOR passes it. The sibling tags in rfc7606_test.go use the word the same way the gate does: len 6 without asn4 accepted is 'positive', len 8 without asn4 discarded is 'negative'. The row is not deceived today, because the two genuine positives are still tagged, but the relay path itself now carries a negative and no positive: nothing tagged asserts that a WELL-FORMED AGGREGATOR survives the rebuild, so a recordAggregatorDiscard that fired on every AGGREGATOR would keep this row green. The tag word wants correcting to 'negative', and the relay path wants a positive beside it. RE-AUDIT 2026-09-20 (second pass), by a reader who wrote neither unit. The FINDING the paragraph above recorded is CLOSED IN THE CODE, not waived. The relay-rail carrier now reads 'RFC7606-7.7-1 negative', which is the word parseTagRest gives that polarity and the word its assertions earn, and TestForwardRelaysWellFormedAggregatorAtMatchingWidth is the positive that was missing. It is a genuine opposite input on the same rail rather than the negative's assertion in another hat: an eight-octet AGGREGATOR under SrcASN4 and DstASN4 both true, which RFC 7606 Section 7.7 leaves well-formed ('Its length is not 8 (when the 4-octet AS number capability is both advertised to and received from the peer)'), driven through the same ASPathEdit.Record then buildModifiedPayload path, asserting the value survives byte for byte, the flags stay 0xC0, and no ATTR_TOMBSTONE is written. That closes the hole the previous entry named: a recordAggregatorDiscard firing on EVERY AGGREGATOR now reddens this unit. Both relay units carry a discrimination record in rfc/discrimination/rfc7606.json observed by reverting recordAggregatorDiscard. SCOPE, recorded and not a downgrade: the relay rail's positive covers the four-octet/four-octet width arm alone, which is the arm its name claims, so the two-octet-width and cross-width relay arms still carry a negative and no positive there. Both length arms of the requirement itself stay proven in both polarities by the message-level units above. The verdict stays enforced. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote carries both length variants (6 without, 8 with the 4-octet AS capability); both are pinned in both directions. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606DiscardEntryReasonCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L434) | unit/verify | unproven |
-| negative | [`TestRFC7606AggregatorLen6WithASN4Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1372) | unit/verify | unproven |
-| negative | [`TestRFC7606AggregatorLen8NoASN4Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1347) | unit/verify | unproven |
+| negative | [`TestRFC7606DiscardEntryReasonCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L434) | unit/verify | not verified |
+| negative | [`TestRFC7606AggregatorLen6WithASN4Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1372) | unit/verify | not verified |
+| negative | [`TestRFC7606AggregatorLen8NoASN4Invalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1347) | unit/verify | not verified |
 | negative | [`TestForwardDiscardsMalformedAggregatorAtMatchingWidth`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_aggregator_relay_test.go#L29) | unit/verify | revert, verified |
-| positive | [`TestRFC7606AggregatorLen6NoASN4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1303) | unit/verify | unproven |
-| positive | [`TestRFC7606AggregatorLen8WithASN4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1325) | unit/verify | unproven |
+| positive | [`TestRFC7606AggregatorLen6NoASN4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1303) | unit/verify | not verified |
+| positive | [`TestRFC7606AggregatorLen8WithASN4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1325) | unit/verify | not verified |
 | positive | [`TestForwardRelaysWellFormedAggregatorAtMatchingWidth`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_aggregator_relay_test.go#L95) | unit/verify | revert, verified |
 
 ### [`RFC7606-7.8-1`](#rfc7606-7.8-1)
@@ -627,10 +627,10 @@ The Community attribute SHALL be considered malformed if its length is not a non
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. MalformedCommunityLength requires exact treat-as-withdraw for length five and identifies COMMUNITY; the zero-length COMMUNITY case separately checks the nonzero requirement, and the exact valid EBGP baseline accepts a four-octet community; floor-only length-corruption cases are supplementary and are not used to establish the required action
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606CommunityZeroLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L71) | unit/verify | unproven |
-| negative | [`TestRFC7606MalformedCommunityLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L40) | unit/verify | unproven |
+| negative | [`TestRFC7606CommunityZeroLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L71) | unit/verify | not verified |
+| negative | [`TestRFC7606MalformedCommunityLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L40) | unit/verify | not verified |
 | positive | [`TestRFC7606SystematicLengthCorruption`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1639) | unit/verify | revert, verified |
 
 ### [`RFC7606-7.9-1`](#rfc7606-7.9-1)
@@ -639,11 +639,11 @@ o if the ORIGINATOR_ID attribute is received from an external neighbor, it SHALL
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Negative pins the exact eBGP-context discard: attr_discard_test.go:449 (originator_id_ebgp_reason_1, isIBGP=false, code 9) asserts Action==AttributeDiscard, DiscardEntries len 1, Code==9, Reason==DiscardReasonEBGPInvalid; rfc7606_test.go:913 repeats AttributeDiscard+AttrCode 9+"7.9". Positive rfc7606_test.go:935 sends the identical ORIGINATOR_ID from iBGP and asserts ActionNone, pinning the context dependence. Fails if the code stopped discarding eBGP ORIGINATOR_ID. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606DiscardEntryReasonCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L449) | unit/verify | unproven |
-| negative | [`TestRFC7606OriginatorIDEBGPDiscard`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1053) | unit/verify | unproven |
-| positive | [`TestRFC7606OriginatorIDIBGPValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1074) | unit/verify | unproven |
+| negative | [`TestRFC7606DiscardEntryReasonCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L449) | unit/verify | not verified |
+| negative | [`TestRFC7606OriginatorIDEBGPDiscard`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1053) | unit/verify | not verified |
+| positive | [`TestRFC7606OriginatorIDIBGPValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1074) | unit/verify | not verified |
 
 ### [`RFC7606-7.9-2`](#rfc7606-7.9-2)
 
@@ -651,10 +651,10 @@ if received from an internal neighbor, it SHALL be considered malformed if its l
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive rfc7606_test.go:935 (len-4 iBGP ORIGINATOR_ID) asserts ActionNone; negative rfc7606_test.go:954 (len-5 iBGP) asserts the exact TreatAsWithdraw + AttrCode 9 + Description "7.9", matching validateOriginatorIDAttr (rfc7606.go:517). Fails if a malformed-length iBGP ORIGINATOR_ID were accepted. Minor: only len 5 exercises the !=4 predicate, so a hypothetical >4 bug would slip len 3, but the len-4-accept/len-5-reject boundary is pinned. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606OriginatorIDIBGPInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1094) | unit/verify | unproven |
-| positive | [`TestRFC7606OriginatorIDIBGPValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1075) | unit/verify | unproven |
+| negative | [`TestRFC7606OriginatorIDIBGPInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1094) | unit/verify | not verified |
+| positive | [`TestRFC7606OriginatorIDIBGPValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1075) | unit/verify | not verified |
 
 ### [`RFC7606-7.10-1`](#rfc7606-7.10-1)
 
@@ -662,11 +662,11 @@ if the CLUSTER_LIST attribute is received from an external neighbor, it SHALL be
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Negative attr_discard_test.go:462 (cluster_list_ebgp_reason_1, isIBGP=false) asserts AttributeDiscard + Code 10 + Reason DiscardReasonEBGPInvalid; rfc7606_test.go:979 repeats AttributeDiscard+AttrCode 10+"7.10". Positive rfc7606_test.go:1001 sends the same CLUSTER_LIST from iBGP and asserts ActionNone. Pins the eBGP-context discard of validateClusterListAttr (rfc7606.go:530). 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606DiscardEntryReasonCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L462) | unit/verify | unproven |
-| negative | [`TestRFC7606ClusterListEBGPDiscard`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1119) | unit/verify | unproven |
-| positive | [`TestRFC7606ClusterListIBGPValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1140) | unit/verify | unproven |
+| negative | [`TestRFC7606DiscardEntryReasonCodes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attr_discard_test.go#L462) | unit/verify | not verified |
+| negative | [`TestRFC7606ClusterListEBGPDiscard`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1119) | unit/verify | not verified |
+| positive | [`TestRFC7606ClusterListIBGPValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1140) | unit/verify | not verified |
 
 ### [`RFC7606-7.10-2`](#rfc7606-7.10-2)
 
@@ -674,12 +674,12 @@ if received from an internal neighbor, it SHALL be considered malformed if its l
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed, isIBGP true: lengths 4, 8 None; 0, 3, 5, 6 exact TreatAsWithdraw, AttrCode 10, '7.10', the attribute last so no cascade. Covers the zero and the multiple clauses.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L66) | unit/verify | revert, verified |
-| negative | [`TestRFC7606ClusterListIBGPInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1166) | unit/verify | unproven |
+| negative | [`TestRFC7606ClusterListIBGPInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1166) | unit/verify | not verified |
 | positive | [`TestRFC7606ClusterListIBGPNonMultipleOf4IsMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L64) | unit/verify | revert, verified |
-| positive | [`TestRFC7606ClusterListIBGPValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1141) | unit/verify | unproven |
+| positive | [`TestRFC7606ClusterListIBGPValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1141) | unit/verify | not verified |
 
 ### [`RFC7606-7.11-1`](#rfc7606-7.11-1)
 
@@ -687,15 +687,15 @@ If the Length of Next Hop Network Address field of the MP_REACH attribute is inc
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Three negatives assert the exact SessionReset + AttrCode 14 + "7.11" across families for an inconsistent next-hop length: IPv6 NH_LEN=5 (rfc7606_test.go:557), IPv4 NH_LEN=3 (:609), VPNv4 NH_LEN=4 (:660). Four positives assert ActionNone for consistent lengths (IPv6/16 :504, IPv6/32 :529, IPv4/4 :586, VPNv4/12 :634). validateMPReachNextHop (rfc7606.go:695-720) checks nhLen against the per-AFI/SAFI ValidNextHopLens table, so the reset fires for NH inconsistency specifically, not a structural cascade. Would fail if Ze weakened the action below session reset. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606MPReachIPv4NextHopInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L734) | unit/verify | unproven |
-| negative | [`TestRFC7606MPReachIPv6NextHopInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L682) | unit/verify | unproven |
-| negative | [`TestRFC7606MPReachVPNv4NextHopInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L785) | unit/verify | unproven |
-| positive | [`TestRFC7606MPReachIPv4NextHopValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L707) | unit/verify | unproven |
-| positive | [`TestRFC7606MPReachIPv6NextHopDualValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L654) | unit/verify | unproven |
-| positive | [`TestRFC7606MPReachIPv6NextHopValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L629) | unit/verify | unproven |
-| positive | [`TestRFC7606MPReachVPNv4NextHopValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L759) | unit/verify | unproven |
+| negative | [`TestRFC7606MPReachIPv4NextHopInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L734) | unit/verify | not verified |
+| negative | [`TestRFC7606MPReachIPv6NextHopInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L682) | unit/verify | not verified |
+| negative | [`TestRFC7606MPReachVPNv4NextHopInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L785) | unit/verify | not verified |
+| positive | [`TestRFC7606MPReachIPv4NextHopValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L707) | unit/verify | not verified |
+| positive | [`TestRFC7606MPReachIPv6NextHopDualValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L654) | unit/verify | not verified |
+| positive | [`TestRFC7606MPReachIPv6NextHopValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L629) | unit/verify | not verified |
+| positive | [`TestRFC7606MPReachVPNv4NextHopValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L759) | unit/verify | not verified |
 
 ### [`RFC7606-7.13-1`](#rfc7606-7.13-1)
 
@@ -703,10 +703,10 @@ In the interim, an implementation that determines (for whatever reason) that an 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. IMPLEMENTED 2026-07-20. validateTrafficEngineeringAttr (message/rfc7606_optional_attrs.go) registers code 24 and rejects anything shorter than one RFC 5543 descriptor (36 octets: SwitchingCap+Encoding+Reserved+8x4 bandwidth). Negative TestRFC7606TrafficEngineeringTooShort pins lengths 0/1/35 to TreatAsWithdraw with AttrCode 24; positive TestRFC7606TrafficEngineeringValid pins 36/44/72 to Action None, so a validator that rejected everything would fail. Both drive ValidateUpdateRFC7606, not the validator directly. The check is deliberately minimal because 7.13 states RFC 5543 'does not detail what constitutes malformation'; over-validating would blackhole valid routes. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606TrafficEngineeringTooShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L56) | unit/verify | unproven |
-| positive | [`TestRFC7606TrafficEngineeringValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L83) | unit/verify | unproven |
+| negative | [`TestRFC7606TrafficEngineeringTooShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L56) | unit/verify | not verified |
+| positive | [`TestRFC7606TrafficEngineeringValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L83) | unit/verify | not verified |
 
 ### [`RFC7606-7.14-1`](#rfc7606-7.14-1)
 
@@ -714,12 +714,12 @@ The Extended Community attribute SHALL be considered malformed if its length is 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed: lengths 8, 16 None; 0, 5, 7, 9, 12, 15 exact TreatAsWithdraw, AttrCode 16, '7.14', attribute last. Judge break (drop the length==0 arm in validateExtCommunityAttr): red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L39) | unit/verify | revert, verified |
-| negative | [`TestRFC7606ExtendedCommunityZeroLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L340) | unit/verify | unproven |
+| negative | [`TestRFC7606ExtendedCommunityZeroLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L340) | unit/verify | not verified |
 | positive | [`TestRFC7606ExtendedCommunityNonMultipleOf8IsMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L37) | unit/verify | revert, verified |
-| positive | [`TestRFC7606ExtendedCommunityValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L309) | unit/verify | unproven |
+| positive | [`TestRFC7606ExtendedCommunityValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L309) | unit/verify | not verified |
 
 ### [`RFC7606-7.14-2`](#rfc7606-7.14-2)
 
@@ -727,9 +727,9 @@ Note that a BGP speaker MUST NOT treat an unrecognized Extended Community Type o
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity (positive-only) argument holds: §7.14 is a MUST NOT prohibition ('MUST NOT treat an unrecognized Extended Community Type or Sub-Type as an error'), so acceptance is the only conforming observation. Positive rfc7606_test.go:247 uses valid length 8 with unrecognized Type 0x3f/Sub-Type 0xee and asserts ActionNone; length kept valid so the 7.14-1 length clause cannot mask the type question. validateExtCommunityAttr (rfc7606.go:550-560) inspects only length, never type, so introducing a type allowlist would flip this test to TreatAsWithdraw and fail it. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC7606ExtendedCommunityUnrecognizedType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L369) | unit/verify | unproven |
+| positive | [`TestRFC7606ExtendedCommunityUnrecognizedType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L369) | unit/verify | not verified |
 
 ### [`RFC7606-7.15-1`](#rfc7606-7.15-1)
 
@@ -737,10 +737,10 @@ The IPv6 Address Specific Extended Community attribute SHALL be considered malfo
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. IMPLEMENTED 2026-07-20. validateIPv6ExtCommunityAttr registers code 25 and applies 7.15's exact rule: malformed unless the length is a non-zero multiple of 20. Negative TestRFC7606IPv6ExtCommunityBadLength pins 0/19/21/30; positive TestRFC7606IPv6ExtCommunityValidLength pins 20/40. Zero is covered explicitly because 0 % 20 == 0 would pass a multiple-of-20 test alone. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote is the Section 7.15 malformation rule and its handling; the tagged negative pins 0, 19, 21 and 30. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606IPv6ExtCommunityBadLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L115) | unit/verify | unproven |
-| positive | [`TestRFC7606IPv6ExtCommunityValidLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L142) | unit/verify | unproven |
+| negative | [`TestRFC7606IPv6ExtCommunityBadLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L115) | unit/verify | not verified |
+| positive | [`TestRFC7606IPv6ExtCommunityValidLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L142) | unit/verify | not verified |
 
 ### [`RFC7606-7.15-2`](#rfc7606-7.15-2)
 
@@ -748,9 +748,9 @@ Note that a BGP speaker MUST NOT treat an unrecognized IPv6 Address Specific Ext
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. IMPLEMENTED 2026-07-20, and the basis CHANGED. Previously met by omission (nothing validated code 25, so nothing could error). Now met by design: validateIPv6ExtCommunityAttr takes the attribute value as `_` and tests length alone, so no Type or Sub-Type can reach a rejection. TestRFC7606IPv6ExtCommunityUnrecognizedType pins Type 0x3f / Sub-Type 0xee with a valid length 20 to Action None -- the length clause cannot fire and mask the type question. Positive-only by the same argument as 7.14-2: the rule is a prohibition, so a negative would assert the rejection the RFC forbids. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quoted sentence states the same obligation the paraphrase did, and no clause is new. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC7606IPv6ExtCommunityUnrecognizedType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L172) | unit/verify | unproven |
+| positive | [`TestRFC7606IPv6ExtCommunityUnrecognizedType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L172) | unit/verify | not verified |
 
 ### [`RFC7606-7.16-1`](#rfc7606-7.16-1)
 
@@ -758,19 +758,19 @@ An UPDATE message with a malformed ATTR_SET attribute SHALL be handled using the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 by an independent auditor who authored neither f9a295a7cf nor 37b21d0c46. RFC 7606 Section 7.16, New Text: "An UPDATE message with a malformed ATTR_SET attribute SHALL be handled using the approach of "treat as withdraw"." RFC 6368 Section 5 still defines malformed, including "The included attributes are malformed themselves." The only unit change since the last verdict is the new TestRFC7606AttrSetIncludedASSetKeepsRoute; the eight other units are byte-identical and their earlier judgement stands (exact TreatAsWithdraw with AttrCode 128 for malformed inner attributes, nesting cap, inner discard, MP_REACH presence, short length; exact None for conforming ATTR_SETs with 4-octet inner AS_PATH and inner iBGP attributes on eBGP). New unit, positive: an ATTR_SET whose included AS_PATH holds an AS_SET or AS_CONFED_SET, or whose included AS4_PATH holds an AS_SET, draws exact RFC7606ActionNone from ValidateUpdateRFC7606Peer under acceptASSet false and true, with a set-free top-level AS_PATH so only code 128 is judged. That input is conforming: RFC 7606 Section 7.2 and RFC 4271 Section 4.3 make AS_SET a valid segment type, and RFC 9774 Section 3 binds "reception of BGP UPDATE messages containing AS_SETs or AS_CONFED_SETs in the AS_PATH or AS4_PATH [RFC6793]." without calling a set malformed. Interop check read at source: FRR bgpd/bgp_attr.c has no ATTR_SET case, code 128 falls to "default: ret = bgp_attr_unknown(&attr_args);"; BIRD proto/bgp/attrs.c sends it to the "Unknown attribute" branch, bgp_decode_unknown. Neither inspects the included path, so keeping the route matches both. Negative: the same included AS_SET holding AS 0 (RFC 7607 Section 2 malformed) draws exact TreatAsWithdraw, AttrCode 128 and the exact description "... an included attribute is itself malformed, code (2)" under both policies, which also proves the producer's receivePolicy{acceptASSet: true} at the inner validateAttribute call (validateAttrSetDepth) keeps the structural and AS 0 checks while dropping only the set scan. The earlier finding (no test pinned the inner AS_SET reading) is closed by this unit. Discrimination records exist for both polarities of the new unit on validateAttrSetDepth. Units ran green at HEAD (go test -run TestRFC7606AttrSet, message package; TestRFC7606AttributeEnvelopeSession, reactor).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606AttrSetMalformedInnerAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attribute_envelope_test.go#L89) | unit/verify | revert, verified |
 | negative | [`TestRFC7606AttrSetIncludedASSetKeepsRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_context_test.go#L136) | unit/verify | revert, verified |
 | negative | [`TestRFC7606AttrSetInnerMalformedStillWithdraws`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_context_test.go#L79) | unit/verify | revert, verified |
 | negative | [`TestRFC7606AttrSetNestingCapBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_context_test.go#L96) | unit/verify | revert, verified |
 | negative | [`TestRFC7606AttrSetInnerDiscardWithdraws`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_discard_test.go#L13) | unit/verify | revert, verified |
-| negative | [`TestRFC7606AttrSetMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L207) | unit/verify | unproven |
+| negative | [`TestRFC7606AttrSetMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L207) | unit/verify | not verified |
 | negative | [`TestRFC7606AttributeEnvelopeSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_attribute_envelope_test.go#L21) | unit/verify | revert, verified |
 | positive | [`TestRFC7606AttrSetIncludedASSetKeepsRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_context_test.go#L133) | unit/verify | revert, verified |
 | positive | [`TestRFC7606AttrSetInnerASPathAlwaysFourOctet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_context_test.go#L31) | unit/verify | revert, verified |
 | positive | [`TestRFC7606AttrSetInnerIBGPAttributesOnEBGPSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_attrset_context_test.go#L55) | unit/verify | revert, verified |
-| positive | [`TestRFC7606AttrSetValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L252) | unit/verify | unproven |
+| positive | [`TestRFC7606AttrSetValid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_optional_attrs_test.go#L252) | unit/verify | not verified |
 
 ### [`RFC7606-4-3`](#rfc7606-4-3)
 
@@ -778,7 +778,7 @@ the Total Attribute Length MUST be relied upon to enable the beginning of the NL
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: locating the NLRI from an overrunning attribute's own length instead of the Total Attribute Length. TestRFC7606NLRILocatedByTotalAttributeLength builds an UPDATE whose COMMUNITY declares 8 octets where 4 remain, confirms the validator returns TreatAsWithdraw at code 8, and fails unless SynthesizeWithdraw's Withdrawn Routes equal the two prefixes at the Total Attribute Length offset (assert.Equal nlri); the negative assert.NotEqual rejects the tail the overrun would have pointed at. SynthesizeWithdraw is SynthesizeWithdrawFamilies(body, nil), the same locator the receive path calls in session_read.go. Rejudged 2026-10-16 (independent reader) after the owner-approved multi-label withdrawal change (RFC 8277 Section 2.4, nlrisplit.LabeledWithdrawal): SynthesizeWithdraw gained an addPath bool and SynthesizeWithdrawFamilies/mpReachToUnreach an addPath predicate, which mpReachToUnreach reads only for a family nlrisplit.CarriesCompatibility names (labeled unicast, VPN). The one edit in TestRFC7606NLRILocatedByTotalAttributeLength passes false to SynthesizeWithdraw; the input is legacy IPv4 NLRI after a COMMUNITY that overruns, so the assertion that the NLRI at Total Attribute Length is what is withdrawn is unchanged. RFC 7606 Section 4: "the Total Attribute Length MUST be relied upon to enable the beginning of the NLRI field to be located." Verdict stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606NLRILocatedByTotalAttributeLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_nlri_locate_test.go#L24) | unit/verify | revert, verified |
 | positive | [`TestRFC7606NLRILocatedByTotalAttributeLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_nlri_locate_test.go#L23) | unit/verify | revert, verified |
@@ -789,11 +789,11 @@ For all path attributes other than those specified as having an attribute length
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. ZeroLengthAttributeMalformed supplies otherwise complete valid attributes and isolates zero-length COMMUNITY, MED and LARGE_COMMUNITY, asserting exact treat-as-withdraw and each offending code; ValidUpdate and the exact systematic EBGP baseline accept the specified zero-length AS_PATH and ATOMIC_AGGREGATE exceptions; severity-floor corruption sweeps are not relied upon as semantic proof
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606ZeroLengthAttributeMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L278) | unit/verify | unproven |
+| negative | [`TestRFC7606ZeroLengthAttributeMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L278) | unit/verify | not verified |
 | positive | [`TestRFC7606SystematicLengthCorruption`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1637) | unit/verify | revert, verified |
-| positive | [`TestRFC7606ValidUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L194) | unit/verify | unproven |
+| positive | [`TestRFC7606ValidUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L194) | unit/verify | not verified |
 
 ### [`RFC7606-3.g-2`](#rfc7606-3.g-2)
 
@@ -801,12 +801,12 @@ If any other attribute (whether recognized or unrecognized) appears more than on
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Recognized case held by the HEAD first-wins pair; unrecognized case now proven: TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded (0xF0 twice) requires Action None, DuplicateRanges exactly the later occurrence, and StripAttrRanges leaving mandatory+first byte for byte; the reactor applies StripAttrRanges (session_validation.go).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L91) | unit/verify | revert, verified |
-| negative | [`TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L568) | unit/verify | unproven |
+| negative | [`TestRFC7606DuplicateAttributeFirstOccurrenceIsValidated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L568) | unit/verify | not verified |
 | positive | [`TestRFC7606UnrecognizedDuplicateAttributeLaterOccurrenceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_clause_test.go#L89) | unit/verify | revert, verified |
-| positive | [`TestRFC7606DuplicateAttributeFirstOccurrenceWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L547) | unit/verify | unproven |
+| positive | [`TestRFC7606DuplicateAttributeFirstOccurrenceWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L547) | unit/verify | not verified |
 
 ### [`RFC7606-8-1`](#rfc7606-8-1)
 
@@ -822,10 +822,10 @@ Because of these potential issues, a BGP speaker must provide debugging faciliti
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor) after owner-approved lint-only edits in 96ec49327b and 4e731b2d96; the row text is unchanged and each changed unit was re-read diff by diff. TestRFC7606DiagnosticWireAndMPNLRI joins consecutive appends of the same attribute bytes, iterates log lines with strings.SplitSeq (same lines as strings.Split), and calls registerTypeLenRecognizer without the constant lo of 1. No input byte or assertion changed. Verdict stands. Diagnostic assertions compare the complete original wire UPDATE and affected NLRI rather than merely checking that logging occurred; controls cover ordinary/coalesced readers, extended/nonextended frames, legacy/MP IPv4/MP IPv6/typed NLRI, NEW/OLD first-AS handling, in-place discard, late empty-MP reset and typed-NLRI early return; next-hop policy diagnostics explicitly identify their processed representation, and disabled-debug allocation controls remain intact
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606DiagnosticWireAndMPNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_receive_boundary_test.go#L204) | unit/verify | revert, verified |
-| negative | [`TestRFC7606DiagnosticsCostsNothingWhenDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_diag_cost_test.go#L26) | unit/verify | unproven |
+| negative | [`TestRFC7606DiagnosticsCostsNothingWhenDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_diag_cost_test.go#L26) | unit/verify | not verified |
 | negative | [`TestRFC7606DiagnosticsSilentWhenDebugDisabled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go#L89) | unit/verify | revert, verified |
 | positive | [`TestRFC7606DiagnosticWireAndMPNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_receive_boundary_test.go#L203) | unit/verify | revert, verified |
 | positive | [`TestRFC7606DiagnosticsCoverSessionReset`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_diagnostics_test.go#L107) | unit/verify | revert, verified |
@@ -837,11 +837,11 @@ An error detected while processing the UPDATE message for which a session reset 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23 (independent auditor, after 9242dcd57b). RFC 7606 Section 3 (a) New Text: "An error detected while processing the UPDATE message for which a session reset is specified MUST be indicated by sending the NOTIFICATION message with the Error Code UPDATE Message Error. The error subcode elaborates on the specific nature of the error." test/plugin/rfc7606-reset.ci changed only its expectation: the iBGP peer sends ORIGIN, empty AS_PATH and an MP_REACH_NLRI of length 2, and ze must answer with the exact frame FFx16 001A 03 03 09 800E020001: type NOTIFICATION, Error Code 3 UPDATE Message Error, subcode 9 Optional Attribute Error, Data the whole MP_REACH_NLRI attribute. The Error Code is still pinned byte-exact, and the subcode now elaborates the nature of the error as RFC 4760 Section 7 asks ("UPDATE Message Error"/"Optional Attribute Error"), with Data per RFC 4271 Section 6.3; the exact Data also isolates the trigger to the MP_REACH length rule, since no other attribute in the UPDATE could produce it. Producer: rfc7606.go validateMPAttrLength -> MPAttributeErrorNotification, sent by session_validation.go applyRFC7606 -> rfc7606ResetNotification. The positives TestSessionRFC7606ValidUpdateSendsNoNotification and TestEnforceRFC7606_ShortBody are unchanged. A discrimination record for the .ci (validateMPAttrLength disabled) carries the 3/9 expectation. Verdict stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEnforceRFC7606_ShortBody`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L153) | unit/verify | unproven |
+| negative | [`TestEnforceRFC7606_ShortBody`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L153) | unit/verify | not verified |
 | negative | [`rfc7606-reset.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-reset.ci#L9) | functional/verify | revert, verified |
-| positive | [`TestSessionRFC7606ValidUpdateSendsNoNotification`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L219) | unit/verify | unproven |
+| positive | [`TestSessionRFC7606ValidUpdateSendsNoNotification`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L219) | unit/verify | not verified |
 
 ### [`RFC7606-2-5`](#rfc7606-2-5)
 
@@ -849,10 +849,10 @@ thus causing them to be removed from the Adj-RIB-In according to the procedures 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. now proven at the Adj-RIB-In itself, not by a dispatch-shape proxy shared with 2-1. TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute (adj_rib_in/rib_test.go): a valid announce leaves 10.0.0.0/8 in ribIn (Len 1, the positive); feeding the message.SynthesizeWithdraw output for a malformed re-announce of the same prefix removes it (Len 0, the negative), observed directly on r.ribIn via removeStructuredNLRIs. The proxy 2-5 tags on the reactor session tests were removed; the reactor still proves 2-1 (dispatched as a withdrawal). 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*->routeaction.*, message.Type*->msgtype.Type*, rib/events->core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-07-25 re-stamp: stale again for the same structural reason -- spec-fixit-bgp-egress-rail-divergence edited OTHER tests in rib_test.go (replay now carries the source peer; the update-hex command form is gone), and tagged_unit_shas fingerprints the whole enclosing file. TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute is byte-identical, and so is every line of the path it exercises: git diff on rib.go shows handleReceivedStructured, installStructuredNLRIs and removeStructuredNLRIs unmodified (the only diff match is a context line). rfc/short/rfc7606.md is byte-identical, so requirement_sha is unchanged. Re-judged against rfc/full/rfc7606.txt:243-254 rather than the summary: the obligation is that contained routes be removed from the Adj-RIB-In, and the test asserts ribIn Len 1->0 -- RIB state, not a dispatch-shape proxy -- with exact equality on both halves, and the two buffers differ only in the ORIGIN length octet with identical NLRI, so the removal is measured against the key that was installed. Narrowness noted and unchanged: it covers the IPv4-unicast body-NLRI encoding, not the MP_UNREACH_NLRI parenthetical, which is a separate branch. Verdict stands. 2026-07-25 re-stamp (2): stale again for the SAME structural reason -- tagged_unit_shas fingerprints the whole enclosing FILE, and this change added three subtests to TestReplayOwnerDedupe in rib_test.go for the declarative stage-2 replay claim. The sole diff hunk is @@ -958,6 +958,58 @@ inside TestReplayOwnerDedupe; TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute (line 269) is byte-identical and did not even shift line number, and requirement_sha is unchanged (verified: stored == recomputed). The judgement above still describes exactly what it judged. 2026-07-26 re-stamp: stale again, and again only from the file-level fingerprint. requirement_sha is byte-identical (a8534d7b2f2b4ae6) and git shows ZERO changed lines in TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute or its two tags; b8f64e345 added a maxMsgID argument to buildReplayRoutes call sites elsewhere in rib_test.go, and tagged_unit_shas hashes the whole enclosing file. Re-read both halves before re-stamping: the positive feeds a valid announce and asserts ribIn[peer].Len()==1, the negative feeds message.SynthesizeWithdraw of a malformed-ORIGIN re-announce and asserts Len()==0, so an implementation that stopped removing on treat-as-withdraw leaves Len()==1 and fails the negative. Verdict unchanged: enforced. This is the SECOND such false-stale for this requirement (see the 2026-07-22 entry above); both cost a re-audit of an untouched test, which is the documented over-trigger bias working as designed. 2026-07-26 re-stamp (3): stale again for the SAME structural reason -- tagged_unit_shas fingerprints the whole enclosing FILE, and the peer-up replay-cut fix (adj-rib-in: max-msg-id bounded by PRESENCE, not by the value 0) changed six buildReplayRoutes CALL SITES in rib_test.go at lines 351, 397, 428, 433, 442, 462 and 584 -- every one of them a `0` -> `unboundedReplay()` argument-form change, with no assertion added, removed, reworded or weakened anywhere in the file. TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute (rib_test.go:269-317) is byte-identical: every diff hunk is at line 351 or below. So is the path it exercises -- the rib.go diff touches handleStructuredState, handleState and buildReplayRoutes only, none of which that test calls; handleReceivedStructured, installStructuredNLRIs and removeStructuredNLRIs are unmodified. rfc/short/rfc7606.md is untouched and requirement_sha is unchanged (a8534d7b2f2b4ae6), and both tag lines are still 267/268. Verdict stands, with the same narrowness noted before: IPv4-unicast body NLRI, not the MP_UNREACH_NLRI parenthetical. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote narrows to the removal clause of the Section 2 treat-as-withdraw bullet ("thus causing them to be removed from the Adj-RIB-In according to the procedures of [RFC4271]"), which is what TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute asserts. Verdict unchanged. Rejudged 2026-10-16 (independent reader) after the owner-approved multi-label withdrawal change (RFC 8277 Section 2.4, nlrisplit.LabeledWithdrawal): SynthesizeWithdraw gained an addPath bool and SynthesizeWithdrawFamilies/mpReachToUnreach an addPath predicate, which mpReachToUnreach reads only for a family nlrisplit.CarriesCompatibility names (labeled unicast, VPN). The one edit in TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute passes false to SynthesizeWithdraw; the input is legacy IPv4 10.0.0.0/8, which does not reach the labeled branch, so the synthesized withdrawal and the Adj-RIB-In removal assertion are unchanged. RFC 7606 Section 2: "thus causing them to be removed from the Adj-RIB-In according to the procedures of [RFC4271]." Verdict stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L262) | unit/verify | unproven |
-| positive | [`TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L261) | unit/verify | unproven |
+| negative | [`TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L262) | unit/verify | not verified |
+| positive | [`TestAdjRIBInRFC7606TreatAsWithdrawRemovesRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc7606_rib_test.go#L261) | unit/verify | not verified |
 
 ### [`RFC7606-5.3-1`](#rfc7606-5.3-1)
 
@@ -860,11 +860,11 @@ The NLRI field or Withdrawn Routes field SHALL be considered "syntactically inco
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Negative session_validate_test.go:107 (TestEnforceRFC7606_InvalidTrailingNLRI) runs the production path enforceRFC7606 -> ValidateNLRISyntax(nlri,false) on a trailing /33; asserts require.Error + require.Equal(SessionReset). Valid ORIGIN/AS_PATH/NEXT_HOP filler isolates it, and removing the >32 check (rfc7606.go:857) would let the /33 parse cleanly (5 bytes fit) -> ActionNone -> test fails. Positive structural_test.go:55 accepts /32; direct unit negative rfc7606_test.go:736 reinforces. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote is the lead-in plus its first bullet ("The length of any of the included NLRI is greater than 32."). Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606NLRIPrefixLengthTooLongIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L854) | unit/verify | unproven |
-| negative | [`TestEnforceRFC7606_InvalidTrailingNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L201) | unit/verify | unproven |
-| positive | [`TestRFC7606NLRIMaxPrefixLengthAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L54) | unit/verify | unproven |
+| negative | [`TestRFC7606NLRIPrefixLengthTooLongIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L854) | unit/verify | not verified |
+| negative | [`TestEnforceRFC7606_InvalidTrailingNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L201) | unit/verify | not verified |
+| positive | [`TestRFC7606NLRIMaxPrefixLengthAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L54) | unit/verify | not verified |
 
 ### [`RFC7606-5.3-2`](#rfc7606-5.3-2)
 
@@ -872,11 +872,11 @@ When parsing NLRI contained in the field, the length of the last NLRI found exce
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 4e731b2d96 (owner-approved lint-only reactor test edits). The tagged unit is byte-identical (gate-verified); the file-level changes are comment punctuation, slices.Concat over the same bytes, joined appends, strings.SplitSeq, newDefaultOriginatePeer taking its fixed addresses from constants with the same values, and registerTypeLenRecognizer losing a lo every caller passed as 1, none of which changes what a helper this unit calls produces. Verdict stands. NLRILastPrefixExactlyFitsAccepted provides the exact-boundary positive; InvalidWithdrawnNLRI uses a legal /24 with only two prefix octets, isolating the last-prefix overrun from the greater-than-32 rule and requiring session reset; CoalescedMalformedNLRIBoundaries additionally checks original physical-message boundaries with and without ADD-PATH and Extended Message so adjoining messages cannot repair a truncated NLRI
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606CoalescedMalformedNLRIBoundaries`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_receive_boundary_test.go#L120) | unit/verify | revert, verified |
-| negative | [`TestEnforceRFC7606_InvalidWithdrawnNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L175) | unit/verify | unproven |
-| positive | [`TestRFC7606NLRILastPrefixExactlyFitsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L75) | unit/verify | unproven |
+| negative | [`TestEnforceRFC7606_InvalidWithdrawnNLRI`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L175) | unit/verify | not verified |
+| positive | [`TestRFC7606NLRILastPrefixExactlyFitsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L75) | unit/verify | not verified |
 | positive | [`TestRFC7606CoalescedMalformedNLRIBoundaries`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_receive_boundary_test.go#L119) | unit/verify | revert, verified |
 
 ### [`RFC7606-5.3-3`](#rfc7606-5.3-3)
@@ -885,11 +885,11 @@ Similarly, the MP_REACH_NLRI or MP_UNREACH_NLRI attribute of an update SHALL be 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23 (independent auditor, after a59427f8c0). RFC 7606 Section 5.3: "Similarly, the MP_REACH_NLRI or MP_UNREACH_NLRI attribute of an update SHALL be considered to be incorrect if any of the following are true: o The length of any of the included NLRI is inconsistent with the given AFI/SAFI (for example, if an IPv4 NLRI has a length greater than 32 or an IPv6 NLRI has a length greater than 128)." The only change to a tagged unit is a comment in TestRFC7606MPNLRILengthConsistentWithAFIAccepted renaming validateMPReachAttr to validateMPNLRIField, which is the current producer (rfc7606.go validateMPNLRIField -> validateMPNLRISyntax -> ValidateNLRISyntaxAddPath). Body unchanged: IPv6 /64 and /128 return nil from ValidateNLRISyntax. The production-path pair is unchanged: TestRFC7606NLRIPrefixLengthTooLongIPv6 (IPv6 MP_REACH prefixLen 129 through ValidateUpdateRFC7606, exact SessionReset) and TestRFC7606MPReachWellFormedAccepted; that reset now also carries the 3/9 NOTIFICATION with the attribute, which this row does not assert and does not need. All three ran green. Verdict stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606NLRIPrefixLengthTooLongIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L907) | unit/verify | unproven |
-| positive | [`TestRFC7606MPNLRILengthConsistentWithAFIAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L97) | unit/verify | unproven |
-| positive | [`TestRFC7606MPReachWellFormedAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L290) | unit/verify | unproven |
+| negative | [`TestRFC7606NLRIPrefixLengthTooLongIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L907) | unit/verify | not verified |
+| positive | [`TestRFC7606MPNLRILengthConsistentWithAFIAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L97) | unit/verify | not verified |
+| positive | [`TestRFC7606MPReachWellFormedAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L290) | unit/verify | not verified |
 
 ### [`RFC7606-5.3-4`](#rfc7606-5.3-4)
 
@@ -897,11 +897,11 @@ When parsing NLRI contained in the attribute, the length of the last NLRI found 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of 9c3697d0d1 or 439a413ffd). RFC 7606 Section 5.3: "When parsing NLRI contained in the attribute, the length of the last NLRI found exceeds the amount of unconsumed data remaining in the attribute." 439a413ffd replaced the negative's require.Contains("overrun") with require.Equal on the exact description "RFC 7606 Section 5.3/3(j): NLRI overrun (need 16 bytes, have 2)" plus require.Equal AttrCode 14. Re-read the unit: IPv6 MP_REACH with a valid 16-octet next hop and a /128 NLRI with 2 octets left; the description is produced only by the NLRI overrun guard in ValidateNLRISyntaxAddPath (rfc7606.go), so a next-hop or ADD-PATH identifier overrun can no longer pass in its place, and the action is exact SessionReset (Section 3(j)). The previous finding is closed. Positives TestRFC7606MPReachWellFormedAccepted and TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted (last NLRI needs exactly the one remaining octet) unchanged and assert exact ActionNone. Discrimination record observed red under the overrun-guard mutant. Units ran green at HEAD.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7606MPReachNLRIOverrunsAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L225) | unit/verify | mutant, verified |
 | positive | [`TestRFC7606MPReachNLRIConsistentWithAFISAFIAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L128) | unit/verify | revert, verified |
-| positive | [`TestRFC7606MPReachWellFormedAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L291) | unit/verify | unproven |
+| positive | [`TestRFC7606MPReachWellFormedAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L291) | unit/verify | not verified |
 
 ### [`RFC7606-5.3-5`](#rfc7606-5.3-5)
 
@@ -909,10 +909,10 @@ The attribute flags of the attribute are inconsistent with those specified in [R
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. validateAttributeFlags now checks MP_REACH/MP_UNREACH flags per RFC 4760 (optional, non-transitive) and returns SessionReset. Negative (TestRFC7606MPReachFlagsInconsistentWithRFC4760) uses a valid next hop and NLRI with flags 0x40; flipping to 0x80 yields None, proving isolation; asserts 'RFC 4760'. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote is the flags bullet alone; the paraphrase's NOTE about Section 3.j routing is gone from the line, and the units still assert SessionReset. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606MPReachFlagsInconsistentWithRFC4760`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L262) | unit/verify | unproven |
-| positive | [`TestRFC7606MPReachWellFormedAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L292) | unit/verify | unproven |
+| negative | [`TestRFC7606MPReachFlagsInconsistentWithRFC4760`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L262) | unit/verify | not verified |
+| positive | [`TestRFC7606MPReachWellFormedAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L292) | unit/verify | not verified |
 
 ### [`RFC7606-5.3-6`](#rfc7606-5.3-6)
 
@@ -920,12 +920,12 @@ The length of the MP_UNREACH_NLRI attribute is less than 3, or the length of the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, after 66858fa127). RFC 7606 Section 5.3: "Similarly, the MP_REACH_NLRI or MP_UNREACH_NLRI attribute of an update SHALL be considered to be incorrect if any of the following are true:" ... "The length of the MP_UNREACH_NLRI attribute is less than 3, or the length of the MP_REACH_NLRI attribute is less than 5." Changed unit TestRFC7606MPUnreachTooShort now asserts the exact description "RFC 7606 Section 5.3: MP_UNREACH_NLRI length 2 < 3", and its doc comment no longer claims length 3 is tested here, naming TestRFC7606MPUnreachMinValid and TestRFC7606MPMinimumLengthsAccepted for the valid side: both minor findings of the previous judgement are closed. Producer read: validateMPAttrLength emits exactly that text with SessionReset, AttrCode 15 and the RFC 4760 Section 7 NOTIFICATION. Both clauses have both polarities at the boundary: negatives MP_REACH 4 (TestRFC7606MPReachLengthFourIsIncorrect, exact "length 4 < 5", code 14) and MP_UNREACH 2 (this unit), positives MP_REACH 5 (FlowSpec, no next hop, so 7.11 cannot interfere) and MP_UNREACH 3 (exact None), plus the wire-level rfc7606-reset.ci (MP_REACH length 2, exact 3/9). Verdict stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606MPReachLengthFourIsIncorrect`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_minimum_length_test.go#L9) | unit/verify | unproven |
+| negative | [`TestRFC7606MPReachLengthFourIsIncorrect`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_minimum_length_test.go#L9) | unit/verify | not verified |
 | negative | [`TestRFC7606MPUnreachTooShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1426) | unit/verify | revert, verified |
 | negative | [`rfc7606-reset.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-reset.ci#L8) | functional/verify | revert, verified |
-| positive | [`TestRFC7606MPMinimumLengthsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L159) | unit/verify | unproven |
+| positive | [`TestRFC7606MPMinimumLengthsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L159) | unit/verify | not verified |
 
 ### [`RFC7606-2-6`](#rfc7606-2-6)
 
@@ -933,10 +933,10 @@ They are as follows (listed in order, from the one with the "strongest" action t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC7606StrongestActionWins (rfc7606_structural_test.go:324) has two require.Equal cases: ATOMIC_AGG(discard)+COMMUNITY(TAW) => TreatAsWithdraw AttrCode 8, and COMMUNITY(TAW)+MP_REACH IPv6 5-byte-NH => SessionReset AttrCode 14. Positive TestRFC7606EqualStrengthErrorsDoNotEscalate (:378) requires two discard errors to yield EXACTLY AttributeDiscard (both DiscardEntries present), which only require.Equal can enforce against escalation. Buffers isolate the intended errors with controlled ordering. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The row now quotes the Section 2 ordering sentence ("listed in order, from the one with the strongest action to the one with the weakest"). Ze implements three of the four approaches (RFC7606Action: AttributeDiscard, TreatAsWithdraw, SessionReset; AFI/SAFI disable is the MAY of RFC7606-2-4 that ze does not take), and the tagged units pin discard < treat-as-withdraw < session reset with require.Equal, so the order among the approaches ze can select is proven. Verdict unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7606StrongestActionWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L321) | unit/verify | unproven |
-| positive | [`TestRFC7606EqualStrengthErrorsDoNotEscalate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L375) | unit/verify | unproven |
+| negative | [`TestRFC7606StrongestActionWins`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L321) | unit/verify | not verified |
+| positive | [`TestRFC7606EqualStrengthErrorsDoNotEscalate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_structural_test.go#L375) | unit/verify | not verified |
 
 ## Requirement list review
 

@@ -128,11 +128,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>17</strong><b>of 31 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 31 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>17</strong><b>of 31 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 31 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 31 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 31 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>46</strong><b>46 of 48 tests linked to requirements, 2 without a fault test and 0 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 31 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>46</strong><b>46 of 48 tests linked to requirements, 2 without a fault test and 0 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -144,9 +144,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 31 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 31 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 31 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -174,11 +174,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -190,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -198,7 +198,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -279,7 +279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RADIUS/EAP</p>
-<p><strong>Proof:</strong> 17 of 31 MUST proven</p>
+<p><strong>Test verification:</strong> 17 of 31 MUST proven</p>
 <p><strong>Evidence:</strong> unit 17</p>
 <p><strong>Unmet:</strong> RFC3579-1-2, RFC3579-1.2-2, RFC3579-2.1-2, RFC3579-2.2-2, RFC3579-2.6.3-3, RFC3579-2.6.5-1, RFC3579-4.2-1, RFC3579-4.2-2, RFC3579-4.2-3, RFC3579-4.3.4-1, RFC3579-4.3.6-1, RFC3579-4.3.6-3, RFC3579-4.3.6-4, RFC3579-4.3.6-5</p>
 
@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -326,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc3579:must">Ze proven 17, Not built 14</div>
+<div data-ze-rfc-bar="rfc3579:must">Ze verified 17, Not built 14</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc3579:overview">Ze MUST proven 17, SHOULD proven 2, Not assessed 17, Not built 14</div>
+<div data-ze-rfc-bar="rfc3579:overview">Ze MUST verified 17, SHOULD verified 2, Not assessed 17, Not built 14</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -348,13 +348,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc3579:must.kept">31</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc3579:must.ze-proven">17</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc3579:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc3579:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -384,7 +384,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc3579:should.total">19</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc3579:should.proven">2</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -405,7 +405,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc3579:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc3579:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -420,7 +420,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -958,14 +958,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc3579-1-1"><code>RFC3579-1-1</code></a></h3>
 <p>This implies that a NAS that is unable to offer EAP service MUST NOT implement the RADIUS attributes for EAP. (§1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. + TestRFC3579EAPAttributesServeALiveEAPMethod: the NAS that implements EAP-Message offers EAP (admin login, auth-method eap-mschapv2 completes, every Access-Request carries EAP-Message; red when authenticateEAP is disabled). - TestRFC3579SubscriberNASRefusesEAPMessage: the L2TP subscriber NAS, which offers PPP peers no EAP, answers CoA-Request and Disconnect-Request carrying EAP-Message with NAK Error-Cause 401, no event, no teardown; adding EAP-Message to coaSupportedAttrs/disconnectSupportedAttrs turns it red (recorded at coa.go unsupportedAttr). The older dictionary units stay as declaration-only supplementary tags.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L105" title="internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go" target="_blank" rel="noopener"><code>TestRFC3579SubscriberNASRefusesEAPMessage</code></a></td>
@@ -975,12 +975,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L150" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService</code></a></td>
 <td>unit/verify</td>
-<td>no-break without a fault test (declaration-only), which does not count as proof, verified</td>
+<td>no-break without a fault test (declaration-only), so fault detection has not been verified, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L110" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryCoversTheServicesZeOffers</code></a></td>
 <td>unit/verify</td>
-<td>no-break without a fault test (declaration-only), which does not count as proof, verified</td>
+<td>no-break without a fault test (declaration-only), so fault detection has not been verified, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L550" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC3579EAPAttributesServeALiveEAPMethod</code></a></td>
@@ -999,7 +999,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. negative compares verdict, profiles and source with and without a Notification carrying text; positive shows the message is delivered (logged, Notification Response sent) and not acted on</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L396" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapNotificationDoesNotSteerTheLogin</code></a></td>
@@ -1023,7 +1023,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Access-Reject returns aaa.ErrAuthRejected with no profiles; the negative carries an EAP-Success inside the Access-Reject and still denies</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L455" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAccessRejectDeniesEvenCarryingEAPSuccess</code></a></td>
@@ -1047,7 +1047,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. positive compares User-Name to the Type-Data of the peer&#39;s EAP-Response/Identity read off the wire; negative checks every subsequent request (method Responses, not Identity) carries the same User-Name. Both clauses covered</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L109" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapUserNameRidesEverySubsequentRequest</code></a></td>
@@ -1067,7 +1067,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (cont 5). The prior weak (Code and Identifier unproven) is closed and was a real defect: an Access-Challenge carrying EAP Code 0 was handed to the peer and answered. Fix in processEAPMessage pins Code 1 for an Access-Challenge only (Accept/Reject may carry Success/Failure), and new checkEAPResponseHeader requires Code 2 and the current Request&#39;s Identifier before forwarding; RFC 3579 Section 2.2 quotes above both, text checked. Length: the existing corruptEAPFrom pair. Code, server side: negative TestRFC3579NASRefusesANonRequestCodeInAChallenge rewrites only the Code octet (0,2,3,4,5,255) and asserts the infrastructure error naming the server&#39;s EAP header, not ErrAuthRejected, and exactly one Access-Request (nothing forwarded). Code+Identifier, peer side: positive TestRFC3579NASForwardsTheCurrentIdentifierBothWays pairs every Challenge&#39;s Request with the next Access-Request&#39;s Response (Code 2, same Identifier) over a full EAP-MSCHAPv2 login and the check admits a matching pair; negative TestRFC3579NASRefusesAResponseOffTheCurrentIdentifier drives checkEAPResponseHeader directly (Identifier 6/8 vs 7, Code 1, Code 4), since the in-process peer echoes the Identifier and cannot be driven off it. Ze ends the login on a mismatched Response rather than silently discarding it; with an in-process peer no other Response can arrive, so nothing is forwarded either way. Valid EAP-TLS/MSCHAPv2 flows stay green (race run 2026-09-30). All units recorded red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_eap_header_fields_test.go#L82" title="internal/component/radius/rfc3579_eap_header_fields_test.go" target="_blank" rel="noopener"><code>TestRFC3579NASRefusesANonRequestCodeInAChallenge</code></a></td>
@@ -1106,7 +1106,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Access-Reject carrying EAP-Success denies (TestRadiusAdminEapDecisionFollowsTheRadiusCode) and Access-Accept carrying EAP-Failure at the identity round grants (TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes); both directions, fixture chosen so an early return on eapErr would go red</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L881" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes</code></a></td>
@@ -1126,7 +1126,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. same pair as 2.6.3-1 read from the prohibition side: EAP content contradicting the code in either direction does not change the decision</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L606" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapDecisionFollowsTheRadiusCode</code></a></td>
@@ -1150,7 +1150,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. a concluding Access-Accept&#39;s EAP Notification (and, in the negative, an undecodable EAP-Message) reaches the log before the code decides; a loop that reads resp.Code first and returns would log nothing</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L260" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapProcessesAnUnparseableEAPMessageBeforeTheCode</code></a></td>
@@ -1174,7 +1174,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Row now quotes the MUST clause only (SHOULD half is RFC3579-3-2, {gap}). + TestRadiusAdminEapAccessRequestNamesTheNAS and TestRadiusAdminEapNamesTheNASWithoutASourceAddress: every Access-Request of the EAP conversation carries a non-empty NAS-Identifier, with and without a source address (one of the three suffices). - TestRadiusAdminEapWithNoNASIdentityIsNotSent: nasID empty and no IPv4 source -&gt; Authenticate errors &#39;no NAS identity&#39; and the server receives zero requests; observed red against the pre-fix exchange, which sent a zero-length NAS-Identifier. Producer exchange (authenticator.go) refuses before sending; NAS-IPv6-Address is never sent, so an IPv6-only source with no NAS-Identifier is refused, which is conservative, not non-conformant. Records at exchange observed red for all three units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L580" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapWithNoNASIdentityIsNotSent</code></a></td>
@@ -1199,7 +1199,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after BlastRADIUS moved the Message-Authenticator out of eapCredential into encodeRequest (insertMessageAuthenticatorFirst, placed before every other attribute, so it can never land inside the run). TestEAPMessageKeepsTheRunConsecutive: eapMessageValues requires each EAP-Message index to be first+count (red on any interleaving), three values for 600 octets, State the only other attribute and after the run. Split at 253 in order (join reproduces the packet) and receive-side concatenation around foreign attributes unchanged. Discrimination record re-taken on appendEAPMessage.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_eap_test.go#L95" title="internal/component/radius/rfc3579_eap_test.go" target="_blank" rel="noopener"><code>TestEAPMessageKeepsTheRunConsecutive</code></a></td>
@@ -1224,7 +1224,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. every sent Access-Request&#39;s EAP Length equals the whole run&#39;s octets, so a second packet riding along goes red; decoder refuses two separated runs in an Access-Challenge</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_eap_test.go#L166" title="internal/component/radius/rfc3579_eap_test.go" target="_blank" rel="noopener"><code>TestEAPMessageRefusesASecondRun</code></a></td>
@@ -1244,7 +1244,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28; negative renamed TestEAPRequestWithoutMessageAuthenticatorIsSigned. Forbidden: an EAP-bearing Access-Request on the wire without Message-Authenticator. encodeRequest now inserts it itself: the test builds an EAP request with none and requires it at offset HeaderLen+2 with a non-zero HMAC (red if insertMessageAuthenticatorFirst is skipped; revert recorded), and refuses a caller-supplied second one. Positive TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage has the mock server verify the HMAC. Ze sends only Access-Requests, so the Challenge/Accept/Reject clauses bind the server; Ze&#39;s receive side discards an unsigned EAP answer (RFC3579 3.1 verdict path).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L749" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestEAPRequestWithoutMessageAuthenticatorIsSigned</code></a></td>
@@ -1264,7 +1264,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. a forged challenge is discarded (retransmission observed, error is not a rejection); a verified challenge advances the conversation to a different second request</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L501" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapDiscardsUnauthenticatedChallenge</code></a></td>
@@ -1284,7 +1284,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. SignMessageAuthenticator matches an openssl HMAC-MD5 vector over the Access-Request, and a 0xff placeholder yields the same digest, so the field hashes as sixteen zero octets</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L472" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestSignMessageAuthenticatorZeroesTheSignatureField</code></a></td>
@@ -1304,7 +1304,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. encodeRequest refuses an Accounting-Request carrying EAP-Message or Message-Authenticator, and the control without either encodes</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L705" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestAccountingRequestRefusesEAPAttributes</code></a></td>
@@ -1324,7 +1324,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after BlastRADIUS: the two encodeRequest tests no longer pass a Message-Authenticator placeholder because encodeRequest adds one to every Access-Request. TestAccessRequestRefusesTwoCredentialTypes still drives all six pairs of User-Password, CHAP-Password, ARAP-Password, EAP-Message and requires an error naming both types and zero octets; TestRFC3579EachCredentialTypeAloneEncodes encodes each alone, so the refusal is the pair&#39;s; TestRFC3579ARAPBesideEAPIsRefusedAtExchange shows no datagram reaches the server. Producer client.go oneCredentialType via encodeRequest.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L959" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestAccessRequestRefusesTwoCredentialTypes</code></a></td>
@@ -1374,7 +1374,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. a successful and a rejected eap-mschapv2 login put an EAP-Message and no User-Password or CHAP-Password on every request, and the rejection produces no weaker retry</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L515" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapDoesNotDowngradeAfterARejection</code></a></td>
@@ -1406,7 +1406,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after d12a30ef66). RFC 3579 Section 3: &#34;The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets&#34;; every EAP-bearing Access-Request ze sends is an admin login&#39;s, built by (*radiusAuthenticator).exchange, which now appends NAS-Port-Id from AuthRequest.Service, and the only RADIUS-reaching logins name a channel (ssh/passwordauth.go &#34;ssh&#34;, web/auth.go &#34;web&#34;; the API authenticates locally). The L2TP subscriber Access-Request is outside this RFC&#39;s scope because it never carries EAP-Message, and it sends NAS-Port anyway. The recorded discrimination breaks (exchange body replaced by panic) only fail the whole login, so they prove nothing about the attribute; auditor overlay mutants did: dropping the NAS-Port-Id append, or passing &#34;&#34; from Authenticate or authenticateEAP, turns the ssh/web EAP subtests and the PAP test red, and a constant &#34;ssh&#34; port turns the web and no-channel subtests red. The tagged negative (no channel, no attribute) checks RFC 2865 Section 5 more than this SHOULD, and its zero-length clause is discharged by EncodeTo, which drops empty attributes (an unconditional-append mutant survives as wire-equivalent); its real value is catching a fixed port. aaa-radius-admin.ci shows the mock server reading nas-port-id=ssh end to end, and web/auth_test.go TestWebLoginsNameTheWebChannel covers the web hand-off untagged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L621" title="internal/component/radius/rfc3579_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapAccessRequestNamesThePort</code></a></td>
@@ -1436,7 +1436,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_client_test.go#L78" title="internal/component/radius/rfc3579_client_test.go" target="_blank" rel="noopener"><code>TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator</code></a></td>
@@ -1899,7 +1899,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

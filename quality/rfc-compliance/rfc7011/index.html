@@ -128,11 +128,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>12</strong><b>of 50 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>6</strong><b>of 50 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>12</strong><b>of 50 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>6</strong><b>of 50 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 50 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 50 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>31</strong><b>31 of 40 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 50 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>31</strong><b>31 of 40 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -144,9 +144,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 50 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 50 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 50 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 50 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 50 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 50 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 50 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -174,11 +174,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -190,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -198,7 +198,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -279,7 +279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> IPFIX</p>
-<p><strong>Proof:</strong> 12 of 50 MUST proven</p>
+<p><strong>Test verification:</strong> 12 of 50 MUST proven</p>
 <p><strong>Evidence:</strong> unit 12</p>
 <p><strong>Unmet:</strong> RFC7011-10-1, RFC7011-10-2, RFC7011-10-5, RFC7011-10.2.2-1, RFC7011-10.3.2-1, RFC7011-10.4.1-1, RFC7011-10.4.4-1, RFC7011-11-1, RFC7011-11.1-1, RFC7011-11.1-2, RFC7011-11.1-3, RFC7011-11.1-4, RFC7011-11.3-1, RFC7011-11.3-2, RFC7011-11.3-3, RFC7011-11.3-4, RFC7011-3.2-2, RFC7011-3.4.2-1, RFC7011-3.4.2.1-1, RFC7011-4.1-1, RFC7011-4.1-2, RFC7011-4.1-3, RFC7011-6.1.3-1, RFC7011-6.1.4-1, RFC7011-6.1.6-1, RFC7011-6.1.6-2, RFC7011-6.2-3, RFC7011-7-1, RFC7011-7-2, RFC7011-8.1-1, RFC7011-8.2-4, RFC7011-x-2</p>
 
@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -326,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7011:must">Ze proven 12, Proof pending 6, Not built 32</div>
+<div data-ze-rfc-bar="rfc7011:must">Ze verified 12, Tests awaiting verification 6, Not built 32</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7011:overview">Ze MUST proven 12, Proof pending 6, Not assessed 7, Not built 32</div>
+<div data-ze-rfc-bar="rfc7011:overview">Ze MUST verified 12, Tests awaiting verification 6, Not assessed 7, Not built 32</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -348,13 +348,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc7011:must.kept">50</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc7011:must.ze-proven">12</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7011:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc7011:must.proof-pending">6</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -384,7 +384,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc7011:should.total">7</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc7011:should.proven">0</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -405,7 +405,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc7011:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc7011:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -420,7 +420,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -1092,19 +1092,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc7011-3.1-1"><code>RFC7011-3.1-1</code></a></h3>
 <p>The value of this field is 0x000a for the current version (Section 3.1)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Message Header whose Version is not 0x000a. TestRFC7011VersionIsIPFIX asserts the first two octets WriteMessageHeader writes are 0x000a and the Version constant is 0x000a, red on any other value. Single-polarity marker: the version is a compile-time constant with no path to another value.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L102" title="internal/plugins/flowexport/ipfix/rfc7011_test.go" target="_blank" rel="noopener"><code>TestRFC7011VersionIsIPFIX</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1114,17 +1114,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a padding octet that is not zero. TestRFC7011PaddingIsZero asserts the 3 padding octets after a 53-octet IPv4 flow record are 0; TestRFC7011PaddingZeroedOverGarbage pre-fills the buffer with 0xFF and asserts the same octets are 0, red if writeFlowDataSet skips the zeroing. The IPv6 flow Set shares writeFlowDataSet, and the counter Set (32-octet records) never pads.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L149" title="internal/plugins/flowexport/ipfix/rfc7011_test.go" target="_blank" rel="noopener"><code>TestRFC7011PaddingZeroedOverGarbage</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L137" title="internal/plugins/flowexport/ipfix/rfc7011_test.go" target="_blank" rel="noopener"><code>TestRFC7011PaddingIsZero</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1134,12 +1134,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: padding as long as or longer than a record of the Set. TestRFC7011PaddingShorterThanRecord asserts the padding is &gt; 0, &lt; FlowRecordSize and &lt;= 3 octets, red otherwise. Single-polarity marker: 4-octet alignment padding cannot reach the smallest record.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L161" title="internal/plugins/flowexport/ipfix/rfc7011_test.go" target="_blank" rel="noopener"><code>TestRFC7011PaddingShorterThanRecord</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1149,7 +1149,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Single-polarity row. TestRFC7011TemplateIDsUniqueInSession reads the Template ID of all three Template Sets one Transport Session carries (counter, IPv4 flow, IPv6 flow) and requires each &gt;= 256 and all three distinct, so setting FlowTemplateID to 256 goes red (recorded). The exporter emits no other Template.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/integral_rfc7011_test.go#L84" title="internal/plugins/flowexport/ipfix/integral_rfc7011_test.go" target="_blank" rel="noopener"><code>TestRFC7011TemplateIDsUniqueInSession</code></a></td>
@@ -1173,7 +1173,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an Enterprise Number following a field specifier whose E bit is 0. TestRFC7011NoEnterpriseNumberWhenEClear asserts each of the counter, flow4 and flow6 templates is exactly 8 + 4 x fieldCount octets (red if any specifier carries 4 more octets) and that bit 15 is clear in every specifier; TestIPFIXTemplateSet pins the counter Template Set. Single-polarity marker: no code path sets E.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_template_test.go#L9" title="internal/plugins/flowexport/ipfix/rfc7011_template_test.go" target="_blank" rel="noopener"><code>TestIPFIXTemplateSet</code></a></td>
@@ -1183,7 +1183,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L198" title="internal/plugins/flowexport/ipfix/rfc7011_test.go" target="_blank" rel="noopener"><code>TestRFC7011NoEnterpriseNumberWhenEClear</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1205,7 +1205,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC7011EachActiveTemplateRetransmittedEveryInterval counts the counter Template and the flow Templates separately over seven half-interval exports (0..1800 s) and requires exactly one send per elapsed 600 s interval, four in all, so a single resend, no resend, or a flow Template never refreshed goes red (recorded). The same exact count forbids a resend at a half interval. The old negative (no resend at +2 s) tests over-sending, not this MUST, and carries no record; the new unit carries both directions. The flow count is of EncodeFlowTemplate calls; that one call sends both 257 and 258 is shown by the 8.2-1 rollback unit, which reads three Template messages.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_test.go#L46" title="internal/plugins/flowexport/rfc7011_test.go" target="_blank" rel="noopener"><code>TestRFC7011TemplateNotRetransmittedBeforeInterval</code></a></td>
@@ -1230,7 +1230,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC7011ConfiguredRefreshDrivesRetransmit sets template-refresh 30 s and requires counter and flow resends at 30 s and not at 29 s; TestRFC7011ConfiguredRefreshOverridesDefault sets 900 s and requires no resend at 600 or 899 s, so an exporter hard-coding 600 s goes red (both recorded). The config parse into CollectorConfig.TemplateRefresh is the existing TestRFC7011TemplateRefreshConfigurable.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_template_refresh_test.go#L109" title="internal/plugins/flowexport/rfc7011_template_refresh_test.go" target="_blank" rel="noopener"><code>TestRFC7011ConfiguredRefreshOverridesDefault</code></a></td>
@@ -1260,7 +1260,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive TestRFC7011UDPExporterSendsNoTemplateWithdrawal: the real IPFIX encoders over a real UDP socket through start, first flows and a 600 s refresh; every Template Record the collector walks has Field Count &gt; 0, 256 and 257 are defined, none has Field Count 0. Negative (R1(b)) TestRFC7011UDPExporterReloadSendsNoTemplateWithdrawal: drives the exporter toward withdrawal (reload to another Observation Domain replacing every Template, in configure&#39;s order; then collector removal with straggling snapshot/flows into stopped exporters) and asserts no Field Count 0 record and zero datagrams after removal. Records: revert of BuildCounterTemplate (+) and buildFlowTemplate (-), both panic reverts; the tests replicate configure&#39;s start-then-stop order rather than calling the configure closure, which stays untested for this rule.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_withdrawal_test.go#L201" title="internal/plugins/flowexport/rfc7011_withdrawal_test.go" target="_blank" rel="noopener"><code>TestRFC7011UDPExporterReloadSendsNoTemplateWithdrawal</code></a></td>
@@ -1288,12 +1288,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a reduced-size length on an address or dateTime IE. TestRFC7011NoReducedSizeForAddressOrTimestamp walks the counter, flow4 and flow6 templates and asserts IPv4 address IEs at 4, IPv6 at 16, dateTimeSeconds at 4 and dateTimeMilliseconds at 8 octets, red on any reduced length; every other exported IE is integral, for which reduced size is permitted. Single-polarity marker: no path applies reduced-size encoding.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L227" title="internal/plugins/flowexport/ipfix/rfc7011_test.go" target="_blank" rel="noopener"><code>TestRFC7011NoReducedSizeForAddressOrTimestamp</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1303,7 +1303,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L120" title="internal/plugins/flowexport/ipfix/rfc7011_export_test.go" target="_blank" rel="noopener"><code>TestRFC7011RecordTypesNotMixedInSet</code></a></td>
@@ -1339,7 +1339,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Both Data Record paths now proven. Per-flow path: the three existing units (recorded). Counter path writeCounterRecord: TestRFC7011CounterRecordIntegralsNetworkByteOrder compares the whole record to the big-endian concatenation of ingressInterface, octetTotalCount, packetTotalCount, egressInterface and the two dateTimeSeconds, each built from distinct octets; TestRFC7011CounterRecordIntegralsNeverLittleEndian requires no byte-reversed field (both recorded, writeCounterRecord).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/integral_rfc7011_test.go#L55" title="internal/plugins/flowexport/ipfix/integral_rfc7011_test.go" target="_blank" rel="noopener"><code>TestRFC7011CounterRecordIntegralsNeverLittleEndian</code></a></td>
@@ -1374,7 +1374,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an ipv4Address or ipv6Address not written as 4 or 16 octets in network byte order. TestRFC7011AddressOctetsNetworkByteOrder asserts the IPv4 record opens with 0a010203 0a040506 and the IPv6 record with the 16-octet source then destination in network order, and that each Set payload is the record size; TestRFC7011IPv4NeverWidenedToSixteenOctets asserts an IPv4 flow is neither encoded at the IPv6 width nor carries an IPv4-mapped 16-octet form. Ze exports no macAddress IE, so that clause has no producer.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L231" title="internal/plugins/flowexport/ipfix/rfc7011_export_test.go" target="_blank" rel="noopener"><code>TestRFC7011IPv4NeverWidenedToSixteenOctets</code></a></td>
@@ -1422,7 +1422,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Counter Template: TestRFC7011CounterTemplateExportTimeIsSendTime pins its Export Time to the send second. Ordering: TestRFC7011TemplateRefreshAfterClockRollbackKeepsOrder steps the clock back with synctest and requires the refreshed counter 256 and flow 257, 258 Templates to carry an Export Time not before the earlier action, so removing either max(now, templateExportTime) clamp goes red (both recorded). The exporter sends no Template Withdrawals.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L265" title="internal/plugins/flowexport/ipfix/rfc7011_export_test.go" target="_blank" rel="noopener"><code>TestRFC7011TemplateExportTimeNeverRegresses</code></a></td>
@@ -1452,7 +1452,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L308" title="internal/plugins/flowexport/ipfix/rfc7011_export_test.go" target="_blank" rel="noopener"><code>TestRFC7011StaleSnapshotClampedToTemplateTime</code></a></td>
@@ -1472,7 +1472,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L500" title="internal/plugins/flowexport/ipfix/rfc7011_export_test.go" target="_blank" rel="noopener"><code>TestRFC7011DataSetNeverPrecedesTemplate</code></a></td>
@@ -1500,7 +1500,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_config_test.go#L74" title="internal/plugins/flowexport/rfc7011_config_test.go" target="_blank" rel="noopener"><code>TestRFC7011CollectorPortOutOfRangeRefused</code></a></td>
@@ -1528,12 +1528,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an IPFIX UDP datagram sent without a valid UDP checksum. TestRFC7011UDPChecksumEnabledOnSenderSocket (Linux) reads the socket NewSender dials and asserts SO_NO_CHECK clear for IPv4 and UDP_NO_CHECK6_TX clear for IPv6, red if either is set, so the kernel writes the checksum. Single-polarity marker: NewSender never sets either option.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_sender_linux_test.go#L38" title="internal/plugins/flowexport/rfc7011_sender_linux_test.go" target="_blank" rel="noopener"><code>TestRFC7011UDPChecksumEnabledOnSenderSocket</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1543,17 +1543,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_datagram_test.go#L56" title="internal/plugins/flowexport/rfc7011_datagram_test.go" target="_blank" rel="noopener"><code>TestRFC7011MaxDatagramSizeOutOfRangeRefused</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_datagram_test.go#L23" title="internal/plugins/flowexport/rfc7011_datagram_test.go" target="_blank" rel="noopener"><code>TestRFC7011MaxDatagramSizeConfigured</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2422,7 +2422,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 32 | of 33 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 33 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 32 | of 33 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 33 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 33 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 33 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 82 | 82 of 90 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 33 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 82 | 82 of 90 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 33 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 33 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 33 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 33 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 33 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 33 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 33 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: Fast Reroute Extensions to RSVP-TE for LSP Tunnels
 
 **Area:** RSVP-TE Fast Reroute
 
-**Proof:** 29 of 33 MUST proven
+**Test verification:** 29 of 33 MUST proven
 
 **Evidence:** unit 29
 
@@ -109,7 +109,7 @@ Included in automatic checks: Fast Reroute Extensions to RSVP-TE for LSP Tunnels
 | Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **33** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: Fast Reroute Extensions to RSVP-TE for LSP Tunnels
 
 ## Figures
 
-- **MUST bar**: Ze proven 29, Proof pending 3, Not built 1
-- **Overview bar**: Ze MUST proven 29, SHOULD proven 6, Proof pending 3, Not assessed 1, Not built 2
+- **MUST bar**: Ze verified 29, Tests awaiting verification 3, Not built 1
+- **Overview bar**: Ze MUST verified 29, SHOULD verified 6, Tests awaiting verification 3, Not assessed 1, Not built 2
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: Fast Reroute Extensions to RSVP-TE for LSP Tunnels
 | Mandatory requirements complete | not complete |
 | MUST rows | 33 |
 | MUST rows kept (the MUST bar) | 33 |
-| Ze proven | 29 |
+| Ze verified | 29 |
 | OS verified | 0 |
-| Proof pending | 3 |
+| Tests awaiting verification | 3 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: Fast Reroute Extensions to RSVP-TE for LSP Tunnels
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 8 |
-| SHOULD proven | 6 |
+| SHOULD verified | 6 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 1 |
 | SHOULD not built | 1 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4090.json](../../../data/rfc/rfc4090.json).
 
@@ -211,9 +211,9 @@ Source: [data/rfc/rfc4090.json](../../../data/rfc/rfc4090.json).
 | [`RFC4090-4.4-5`](#rfc4090-4.4-5) the PLR MUST set this flag when the desired bandwidth is guaranteed and the "bandwidth protection desired" flag was set in the SESSION_ATTRIBUTE object. (§4.4) | {gap}, no test | a bypass reserves no bandwidth, so the flag has no positive input; plan/spec-rsvpte-bypass-bandwidth-protection.md |
 | [`RFC4090-6-8`](#rfc4090-6-8) The PLR SHOULD set the "bandwidth protection" flag if the backup path offers a bandwidth guarantee (§6) | {gap} | a bypass reserves no bandwidth, so no backup path offers a bandwidth guarantee and the flag has no positive input; plan/spec-rsvpte-bypass-bandwidth-protection.md |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC4090-4.1-1`](#rfc4090-4.1-1)
 
@@ -221,7 +221,7 @@ Class-Num = 205 C-Type = 1 (§4.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). TestRFC4090FastRerouteClassAndCTypeLiterals compares the encoded header with the literals 24/205/1 over a 0xFF buffer and decodes a raw 205/1 object as FAST_REROUTE; TestRFC4090FastRerouteOtherCTypeNotRecognized reads 205/2 as an unknown C-Type, not FAST_REROUTE. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.1 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestFastRerouteShortBody`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L49) | unit/verify | revert, verified |
 | negative | [`TestRFC4090FastRerouteOtherCTypeNotRecognized`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L90) | unit/verify | revert, verified |
@@ -234,10 +234,10 @@ To indicate that an LSP should be locally protected, the head-end LSR MUST eithe
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. a protection-desired head-end PATH carries SESSION_ATTRIBUTE with 0x01 and FAST_REROUTE; negative is an unprotected PSB emitting neither (a conditioned-off input, not a violation) Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestBuildPathNoProtection`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L183) | unit/verify | unproven |
-| positive | [`TestBuildPathIncludesFastReroute`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L168) | unit/verify | unproven |
+| negative | [`TestBuildPathNoProtection`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L183) | unit/verify | not verified |
+| positive | [`TestBuildPathIncludesFastReroute`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L168) | unit/verify | not verified |
 
 ### [`RFC4090-4.3-2`](#rfc4090-4.3-2)
 
@@ -245,7 +245,7 @@ If node protection is desired, the head-end LSR should set the "node protection 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). The 'otherwise cleared' clause is now driven through buildPath: TestRFC4090NodeDesiredClearedWhenNotDesired builds a protected PATH without node protection and reads SESSION_ATTRIBUTE 0x01 set, 0x10 clear. The set clause stays proven on the built PATH. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSessionAttributeEmptyName`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L91) | unit/verify | revert, verified |
 | negative | [`TestRFC4090NodeDesiredClearedWhenNotDesired`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_plr_flags_test.go#L47) | unit/verify | revert, verified |
@@ -258,7 +258,7 @@ If the head-end LSR desires that the one-to-one backup method be used for the pr
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Both clauses on the built PATH: TestRFC4090OneToOneRequestInPath (FAST_REROUTE present, 0x01 set) and TestBuildPathIncludesFastReroute for facility; TestRFC4090RequestNeverNamesOtherMethod shows each request leaves the other method's flag clear and the facility request sets 0x02. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestFastRerouteOneToOneMethodFlag`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L847) | unit/verify | revert, verified |
 | negative | [`TestRFC4090RequestNeverNamesOtherMethod`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_plr_flags_test.go#L35) | unit/verify | revert, verified |
@@ -271,9 +271,9 @@ Whenever the PLR has a backup path available, the PLR MUST set the "local protec
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. full engine: armed bypass brought up, relayed RESV RRO subobject carries 0x01; negative is an unprotected LSP with zero flags Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestPLRNoBypassWithoutProtection`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L350) | unit/verify | unproven |
+| negative | [`TestPLRNoBypassWithoutProtection`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L350) | unit/verify | not verified |
 | positive | [`TestPLRArmsBypass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L332) | unit/verify | revert, verified |
 
 ### [`RFC4090-4.4-2`](#rfc4090-4.4-2)
@@ -282,7 +282,7 @@ During fast reroute, for each protected LSP containing an RRO object, the PLR ob
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). TestRFC4090RepairSetsInUseAndAvailable drives handleLinkDown onto the bypass, then sendResv from the stored state, and reads the PLR's own RRO subobject with both 0x01 and 0x02 set; the fixture asserts in-use was clear before repair. Existing negative keeps in-use clear while no repair happened. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.5 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRROProtectionFlagsReflectState`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L863) | unit/verify | revert, verified |
 | positive | [`TestRROProtectionFlagsReflectState`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L871) | unit/verify | revert, verified |
@@ -294,7 +294,7 @@ the PLR MUST set this flag when the node protection is provided and the "node pr
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC4090NodeBitSetWhenNodeProtectionProvided: node request with an NNHOP bypass armed relays 0x08. Negative TestRFC4090NodeBitClearWhenNodeProtectionNotProvided: node request with only an NHOP bypass up relays 0x08 clear; its record breaks selectBypass, the guard that keeps rroProtectionFlags (which reads the request bit) from claiming node protection over a link bypass. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.4 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRROProtectionFlagsReflectState`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L865) | unit/verify | revert, verified |
 | negative | [`TestRFC4090NodeBitClearWhenNodeProtectionNotProvided`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_plr_flags_test.go#L109) | unit/verify | revert, verified |
@@ -307,7 +307,7 @@ To provide this notification, the PLR SHOULD send a Path Error message with erro
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). TestRFC4090LocalRepairNotifyLiterals compares the PathErr sent toward the head-end after handleLinkDown with the literals 25 and 0x0003, not the constants. Negative: an unrepairable failure sends code 24, not a Notify. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.5.1 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestLocalRepairFallsBackToTeardown`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L476) | unit/verify | revert, verified |
 | positive | [`TestLocalRepairSendsNotify`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L455) | unit/verify | revert, verified |
@@ -319,10 +319,10 @@ The label will be switched for one which will be understood by R4 to indicate th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestLocalRepairSwitchesFIB asserts the exact backup stack [5000 bypass, 18000 MP label]; negative TestLocalRepairFallsBackToTeardown programs no stacked swap without a usable bypass. The quoted Section 3.2 sentence is descriptive ('will be switched') and carries no RFC 2119 keyword, although the row is [MUST] Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 3.2 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestLocalRepairFallsBackToTeardown`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L470) | unit/verify | unproven |
-| positive | [`TestLocalRepairSwitchesFIB`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L426) | unit/verify | unproven |
+| negative | [`TestLocalRepairFallsBackToTeardown`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L470) | unit/verify | not verified |
+| positive | [`TestLocalRepairSwitchesFIB`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L426) | unit/verify | not verified |
 
 ### [`RFC4090-4.2-1`](#rfc4090-4.2-1)
 
@@ -330,10 +330,10 @@ LSRs that do not support the DETOUR objects MUST reject any Path message contain
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. a PATH with a DETOUR object is rejected: PathErr to the PLR, no RESV, no LSP state; the same PATH without DETOUR is accepted Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.2 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEnginePathWithDetourRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L918) | unit/verify | unproven |
-| positive | [`TestEnginePathWithDetourRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L899) | unit/verify | unproven |
+| negative | [`TestEnginePathWithDetourRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L918) | unit/verify | not verified |
+| positive | [`TestEnginePathWithDetourRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/frr_test.go#L899) | unit/verify | not verified |
 
 ### [`RFC4090-4.2-2`](#rfc4090-4.2-2)
 
@@ -341,7 +341,7 @@ This PathErr SHOULD be generated as specified in [RSVP] for unknown objects with
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive: a PATH with DETOUR (Class-Num 63, C-Type 7) draws a PathErr to the PLR with code 13 and value 0x3f07 and no path state. Negative: C-Type 8 is still answered as unknown class (13, 0x3f08), not unknown C-Type (14). Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.2 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090DetourOtherCTypeStillUnknownClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L648) | unit/verify | revert, verified |
 | positive | [`TestRFC4090DetourPathErrAsUnknownClass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L628) | unit/verify | revert, verified |
@@ -352,7 +352,7 @@ The globally revertive mode SHOULD always be used. (§6.5.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: both units gained only the RFC4090-6.5.2-1 tag comment; bodies byte-identical. Positive TestRFC4090HeadEndRevertsGlobally: on Notify 25/3 the head-end signals a make-before-break replacement (next LSP_ID PATH) and keeps the repaired LSP, the global revertive behavior. Negative TestRFC4090TransitDoesNotReoptimize: a transit starts no replacement and relays the Notify to the head-end. Re-judged 2026-10-08 against rfc4090.txt Section 6.5.2: TestRFC4090TransitDoesNotReoptimize changed only by passing nil for buildPathErr's new adspec argument (commit 9b8bfe250c); the inbound Notify is the same bytes as before (no ADSPEC), the assertions are unchanged, and handlePathErr changed only by threading the received ADSPEC into the relayed PathErr. Still red with handlePathErr disabled.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090TransitDoesNotReoptimize`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L689) | unit/verify | revert, verified |
 | positive | [`TestRFC4090HeadEndRevertsGlobally`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L666) | unit/verify | revert, verified |
@@ -363,7 +363,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30. Positive TestRFC4090HeadEndRevertsGlobally: the head-end receiving Notify 25/3 creates the replacement LSP (LSPID 2) itself, keeps the repaired LSP, and sends a PATH with SenderTemplate LSPID 2. Negative TestRFC4090TransitDoesNotReoptimize: a transit receiving the same Notify creates no replacement, sends no PATH (count unchanged) and relays the PathErr 25/3 to the ingress. Level SHOULD over 'is responsible for' (no keyword) follows the section's SHOULD on global mode, accepted under D-3. Recorded red on frr.go::reoptimizeOnNotify (+) and engine.go::handlePathErr (-). Re-judged 2026-10-08 against rfc4090.txt Section 6.5.2: the negative unit changed only by a nil adspec argument to buildPathErr (commit 9b8bfe250c); input bytes and assertions unchanged, still red with handlePathErr disabled.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090TransitDoesNotReoptimize`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L690) | unit/verify | revert, verified |
 | positive | [`TestRFC4090HeadEndRevertsGlobally`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L667) | unit/verify | revert, verified |
@@ -374,7 +374,7 @@ This object MUST only be inserted into the PATH message by the head-end LER and 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. a transit relays the received FAST_REROUTE unchanged field for field, and inserts none when the head-end sent only the SESSION_ATTRIBUTE flag Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.1 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090TransitInsertsNoFastReroute`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L105) | unit/verify | revert, verified |
 | positive | [`TestRFC4090TransitRelaysFastRerouteUnchanged`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L81) | unit/verify | revert, verified |
@@ -393,7 +393,7 @@ If the requested bandwidth is not guaranteed, the PLR MUST NOT set this flag. (�
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Genuine negative TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair: bandwidth desired, FAST_REROUTE bandwidth, a downstream subobject claiming 0x04 and an armed unguaranteed bypass; the PLR's own subobject keeps 0x04 clear before and during local repair. The positive TestRFC4090BandwidthBitNeverClaimed is the conforming report (0x01 only). No input can guarantee bandwidth (RFC4090-4.4-5 gap). Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.4 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090BandwidthBitNeverClaimed`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L213) | unit/verify | revert, verified |
 | negative | [`TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_plr_flags_test.go#L127) | unit/verify | revert, verified |
@@ -405,7 +405,7 @@ If node protection is not provided, the PLR MUST NOT set this flag. Thus, if a P
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Positive TestRFC4090NodeBitSetWhenNodeProtected; negative TestRFC4090LinkProtectionLeavesNodeBitClear (link request, NHOP bypass up: 0x01 set, 0x08 clear), which is the row's link-only case. The vacuous tag on TestRFC4090NodeBitClearWithoutNodeBypass is removed. A node request never falls back to a link bypass in Ze (spec-rsvpte-frr-link-protection-fallback). Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 4.4 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090LinkProtectionLeavesNodeBitClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_plr_flags_test.go#L55) | unit/verify | revert, verified |
 | positive | [`TestRFC4090NodeBitSetWhenNodeProtected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L284) | unit/verify | revert, verified |
@@ -416,7 +416,7 @@ If a head-end LSR signals a FAST_REROUTE object, it MUST be stored for Path refr
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. head-end refresh PATH carries the stored FAST_REROUTE field for field; a tunnel with no protection refreshes none Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090HeadEndRefreshWithoutProtection`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L408) | unit/verify | revert, verified |
 | positive | [`TestRFC4090HeadEndStoresFastRerouteForRefresh`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L387) | unit/verify | revert, verified |
@@ -427,7 +427,7 @@ The head-end LSR of a protected LSP MUST set the "label recording desired" flag 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. protected tunnel's PATH SESSION_ATTRIBUTE has label recording desired set (SessAttrLabelRecording = 0x02); negative is an unprotected tunnel emitting no SESSION_ATTRIBUTE, a conditioned-off input. Tag prose on TestRFC4090HeadEndSetsLabelRecordingDesired says 0x04, which is the SE Style flag Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090UnprotectedPathRequestsNoLabelRecording`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L433) | unit/verify | revert, verified |
 | positive | [`TestRFC4090HeadEndSetsLabelRecordingDesired`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L422) | unit/verify | revert, verified |
@@ -438,7 +438,7 @@ The head-end LSR of a protected LSP MUST support the additional flags defined in
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. head-end accepts a RESV whose RRO subobject carries all four flags (0x0F) or none, LSP goes Up and flags stored as received Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090HeadEndAcceptsRROProtectionFlags`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L490) | unit/verify | revert, verified |
 | positive | [`TestRFC4090HeadEndAcceptsRROProtectionFlags`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L489) | unit/verify | revert, verified |
@@ -449,7 +449,7 @@ The head-end LSR of a protected LSP MUST support the RRO Label sub-object. (S5)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. head-end accepts an RRO with Label subobjects and resolves the recorded label; no label recorded resolves none Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 5 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090HeadEndAcceptsRROLabelSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L506) | unit/verify | revert, verified |
 | positive | [`TestRFC4090HeadEndAcceptsRROLabelSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L505) | unit/verify | revert, verified |
@@ -460,7 +460,7 @@ Every LSR along a protected LSP (except the egress) MUST follow the PLR behavior
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. transit on a protected LSP arms the NHOP bypass; the egress arms none and reports no flag. Umbrella row: the specific PLR behaviours carry their own rows Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090EgressDoesNotActAsPLR`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L176) | unit/verify | revert, verified |
 | positive | [`TestRFC4090FastRerouteAloneRequestsProtection`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L134) | unit/verify | revert, verified |
@@ -471,7 +471,7 @@ A PLR MUST consider an LSP to have asked for local protection if the "local prot
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. flag-only and FAST_REROUTE-only PATHs are both protection requests that arm a bypass; flag clear and no FAST_REROUTE stores nothing Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090NoProtectionRequestArmsNothing`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L154) | unit/verify | revert, verified |
 | positive | [`TestRFC4090FastRerouteAloneRequestsProtection`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L133) | unit/verify | revert, verified |
@@ -483,7 +483,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. flag
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. armed bypass not yet up: relayed RRO subobject flags are 0; once up, 0x01 set Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090FlagsClearUntilBypassEstablished`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L47) | unit/verify | revert, verified |
 | positive | [`TestRFC4090FlagsSetOnceBypassEstablished`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L55) | unit/verify | revert, verified |
@@ -494,10 +494,10 @@ If no established one-to-one backup LSP or bypass tunnel exists, or if the one-t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. bypass not established: 0x01 clear; established: set; bypass goes Down: next RESV refresh clears it Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090FlagsClearUntilBypassEstablished`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L48) | unit/verify | revert, verified |
-| negative | [`TestRFC4090RefreshTracksBypassState`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L64) | unit/verify | unproven |
+| negative | [`TestRFC4090RefreshTracksBypassState`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L64) | unit/verify | not verified |
 | positive | [`TestRFC4090FlagsSetOnceBypassEstablished`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L56) | unit/verify | revert, verified |
 
 ### [`RFC4090-6-5`](#rfc4090-6-5)
@@ -506,7 +506,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. bypa
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. in-use bit clear on the relayed RESV while armed and up, set only after link failure redirected traffic Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090InUseOnlyWhileRedirecting`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L318) | unit/verify | revert, verified |
 | positive | [`TestRFC4090InUseOnlyWhileRedirecting`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L317) | unit/verify | revert, verified |
@@ -517,7 +517,7 @@ The PLR SHOULD also set the "node protection" flag if the backup path protects a
 
 Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Judged 2026-09-29 (routing child, continuation judge). Unchanged judgement; TestRFC4090NodeBitClearWithoutNodeBypass lost only its RFC4090-4.4-7 tag. The set half is proven; the clear half still runs with no backup path armed, because selectBypass refuses an NHOP bypass for a node request, so no unit shows a backup path that does not protect the next node with the node bit cleared. Blocked by spec-rsvpte-frr-link-protection-fallback. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the weak verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090NodeBitClearWithoutNodeBypass`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L301) | unit/verify | revert, verified |
 | positive | [`TestRFC4090NodeBitSetWhenNodeProtected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L285) | unit/verify | revert, verified |
@@ -528,7 +528,7 @@ if the path does not, the PLR SHOULD clear the "bandwidth protection" flag. This
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Row narrowed to the clear clause and its MUST condition; the set clause is RFC4090-6-8 {gap}. With bandwidth desired and a backup that guarantees no bandwidth, the bit is clear: TestRFC4090BandwidthBitNeverClaimed, and TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair pushes every input toward setting it (request, downstream claim, repair). TestRFC4090BandwidthDesiredWithoutBackup is a second conforming case. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090BandwidthDesiredWithoutBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L235) | unit/verify | revert, verified |
 | negative | [`TestRFC4090BandwidthBitNotClaimedFromDownstreamOrRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_plr_flags_test.go#L128) | unit/verify | revert, verified |
@@ -540,7 +540,7 @@ If the head-end of a tunnel is also acting as the PLR, it MUST choose an IP addr
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. head-end PLR signals the backup PATH from the distinct local address 10.0.1.2, not its SENDER_TEMPLATE address; with no alternate address no backup identity is signaled Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.1, 6.1.1 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090HeadEndRequiresAlternateSender`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L387) | unit/verify | revert, verified |
 | positive | [`TestRFC4090HeadEndUsesDistinctSender`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L348) | unit/verify | revert, verified |
@@ -551,7 +551,7 @@ For bypass tunnels (Section 7), the destination MUST be the address of the MP. (
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. bypass PATH SESSION tunnel endpoint and IP destination are the configured merge point; a bypass to another MP is not selected Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.2 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090BypassDestinationIsMergePoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L364) | unit/verify | mutant, verified |
 | positive | [`TestRFC4090BypassDestinationIsMergePoint`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L363) | unit/verify | revert, verified |
@@ -562,7 +562,7 @@ The RSVP_HOP object MUST contain an IP source address belonging to the PLR. (§6
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. backup PATH RSVP_HOP equals the PLR router id in link, node and egress cases; no backup PATH without an established bypass Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L281) | unit/verify | revert, verified |
 | positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L144) | unit/verify | revert, verified |
@@ -573,7 +573,7 @@ The PLR MUST generate an EXPLICIT_ROUTE object toward the egress. (§6.4.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. backup PATH carries the ERO from the MP to the egress (equals psb.ERO[index:]); no backup ERO before repair Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L282) | unit/verify | revert, verified |
 | positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L145) | unit/verify | revert, verified |
@@ -584,7 +584,7 @@ When the PLR detects a link or/and node failure condition, it has to reroute the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). TestRFC4090FailureSwitchesToBackup: a failure on the protected link reprograms the protected in-label to the bypass next hop under the bypass label; a failure on an unrelated link programs no backup. Both polarities sit in one unit on separate assertions; the revert record reds through the positive half only. Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 6.4.3 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090FailureSwitchesToBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L342) | unit/verify | revert, verified |
 | positive | [`TestRFC4090FailureSwitchesToBackup`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L341) | unit/verify | revert, verified |
@@ -595,7 +595,7 @@ to start sending the control traffic for the protected LSP onto the bypass tunne
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-12 by an independent judge (authored none of 9114a04414, 27be2c4a3c) against rfc/full/rfc4090.txt Section 6.4.3: "When the PLR detects a link or/and node failure condition, it has to reroute the data traffic onto the bypass tunnel and to start sending the control traffic for the protected LSP onto the bypass tunnel." Row text is a verbatim span of that sentence. Producer read: frr.go::repairedPathSelection (exact compare of PSB.ReceivedERO, set on every transit acceptance in engine.go::handlePathTransit, with remainingERO of the refresh), engine.go::handlePath (a repaired selection skips resolveReceivedPath) and handlePathTransit (repaired -> sendPath, which takes the bypass). Positive TestRepairedLSPKeepsUpstreamRefresh: after the link-down repair and native routing moved off the failed link, an ingress PATH refresh naming the accepted route draws no PathErr, is relayed exactly once with the bypass's TableID and the PLR's sender, the repair stays in use, and the MP's RESV for the PLR sender is accepted with the [5000 24000] stack. It goes red if control traffic is refused, dropped, or sent off the bypass. Negative TestRepairedLSPChangedEROResolvedAgain: a refresh whose ERO no longer passes the merge point (first downstream hop dropped, or another strict hop) is not relayed on the bypass and is resolved again to PathErr 24/2. That is a violation of this row, not only a neighbour: the bypass ends at the MP and Section 6.4.4 builds the backup ERO from the first address belonging to the MP, so a route that no longer names the MP is not the protected LSP's control traffic. Case 1 also discriminates the replaced one-hop length heuristic. Both records are mutants on frr.go line 700 (true/false) from a hand-written one-mutant report whose file, line and original text match HEAD; the recorder applies the break by overlay and refuses an unobserved red, and the logic predicts both reds (true: refusal reddens the positive's NotEqual PathErr; false: case 1 relays a PATH). Scope note: the immediate backup PATH at repair (tryLocalRepair's sendPath) is not observed by these units, which count only after the repair; it is asserted by the RFC4090-6.4-1/6.4-2 units in rfc4090_frr_bypass_test.go and by TestSelectedBypassCarriesAllProtectedControl, and with it removed control traffic still reaches the bypass at the next refresh. The RFC's "has to" carries the [MUST] class row RFC4090-6.4.3-1 already uses.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRepairedLSPChangedEROResolvedAgain`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_repair_refresh_test.go#L86) | unit/verify | mutant, verified |
 | positive | [`TestRepairedLSPKeepsUpstreamRefresh`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_repair_refresh_test.go#L22) | unit/verify | mutant, verified |
@@ -606,7 +606,7 @@ More specifically, the PLR MUST: - remove all the sub-objects proceeding the fir
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. backup ERO starts at the MP address with the preceding hops removed, including the failed node in the node case; before repair the normal ERO is kept Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090NoBackupPathBeforeRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L283) | unit/verify | revert, verified |
 | positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L146) | unit/verify | revert, verified |
@@ -617,7 +617,7 @@ If merging occurs and one of the Path messages merged was for the protected LSP,
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC4090ProtectedPathSurvivesRepair (link and node cases): after the PLR's backup PATH reaches the MP, the MP forwards the protected LSP's SENDER_TEMPLATE downstream; negative TestRFC4090DifferentPathsDoNotMerge: a PATH whose remaining ERO differs is not merged and keeps its own sender Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090DifferentPathsDoNotMerge`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L298) | unit/verify | revert, verified |
 | positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L147) | unit/verify | revert, verified |
@@ -628,7 +628,7 @@ Once the final Path message has been identified, the MP MUST start to refresh it
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC4090ProtectedPathSurvivesRepair: refreshPaths on the MP emits exactly one more PATH with no new incoming PATH once the merged final PATH is identified; negative: an unmerged transit emits no local refresh Re-judged 2026-10-08 against rfc4090.txt Sections 6.4.3, 6.4.4 and 7.1.1: TestRFC4090ProtectedPathSurvivesRepair changed only by passing nil for buildPathErr's new adspec argument in the late MP PathErr it injects (commit 9b8bfe250c); every assertion on the backup PATH, its ERO, the MP's forwarded sender and its refresh is unchanged, and the discrimination record was re-observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090DifferentPathsDoNotMerge`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L299) | unit/verify | revert, verified |
 | positive | [`TestRFC4090ProtectedPathSurvivesRepair`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_bypass_test.go#L148) | unit/verify | revert, verified |
@@ -639,7 +639,7 @@ When a downstream LSR detects a local link failure, for any protected LSPs route
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. downstream LSR keeps PSB and RSB on upstream link failure and sends no PathTear/PathErr/ResvErr; as PLR with no bypass it tears down Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 7.2 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L553) | unit/verify | revert, verified |
 | positive | [`TestRFC4090DownstreamKeepsStateOnUpstreamLinkFailure`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L552) | unit/verify | revert, verified |
@@ -650,7 +650,7 @@ State MUST be removed if it has not been refreshed before the refresh timer expi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. cleanupTick removes the LSP whose PATH is older than period x multiplier and keeps a refreshed one Re-stamped 2026-10-08: every tagged unit is byte-identical to the judged one (rfc check: SHIFTED; the stamp recomputed the same unit fingerprints), only its test file moved; the row was re-read verbatim against rfc4090.txt Section 7.2 and the enforced verdict holds unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4090StateExpiresWithoutRefresh`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L593) | unit/verify | revert, verified |
 | positive | [`TestRFC4090StateExpiresWithoutRefresh`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc4090_frr_test.go#L592) | unit/verify | revert, verified |

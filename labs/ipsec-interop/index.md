@@ -10,7 +10,7 @@ A peer-isolated Docker lab runs Ze as an IKEv2 initiator against strongSwan/char
 
 The native Go runner owns Docker lifecycle, scenario discovery, and protocol checks. The checked-in lab tree supplies container definitions, PKI material, and scenario fixtures.
 
-- **Proves:** IKEv2 negotiation and tunnel establishment against a real, independent IKE implementation
+- **What this lab tests:** IKEv2 negotiation and tunnel establishment against a real, independent IKE implementation
 - **Peer:** Real strongSwan/charon (IKE responder), optional FRR for redistribute scenarios
 - **Requires:** Docker, privileged containers
 - **Source:** [internal/le/interoplab/ipsec/](https://github.com/ze-software/ze/tree/main/internal/le/interoplab/ipsec)

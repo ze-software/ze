@@ -128,21 +128,21 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>26</strong><b>of 31 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5</strong><b>of 31 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>26</strong><b>of 31 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5</strong><b>of 31 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 31 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 31 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 31 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 31 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>76</strong><b>76 of 107 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>80</strong><b>80 of 107 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 31 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 31 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 31 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 31 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -170,11 +170,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -186,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -194,7 +194,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RADIUS authentication</p>
-<p><strong>Proof:</strong> 26 of 31 MUST proven</p>
-<p><strong>Evidence:</strong> unit 26</p>
+<p><strong>Test verification:</strong> 27 of 31 MUST proven</p>
+<p><strong>Evidence:</strong> unit 27</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -301,7 +301,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -322,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc2865:must">Ze proven 26, Proof pending 5</div>
+<div data-ze-rfc-bar="rfc2865:must">Ze verified 27, Tests awaiting verification 4</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc2865:overview">Ze MUST proven 26, Proof pending 5, Not assessed 1</div>
+<div data-ze-rfc-bar="rfc2865:overview">Ze MUST verified 27, Tests awaiting verification 4, Not assessed 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -344,14 +344,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc2865:must.kept">31</span></td>
 </tr>
-<tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc2865:must.ze-proven">26</span></td>
+<tr><td>Ze verified</td>
+<td><span data-ze-rfc="rfc2865:must.ze-proven">27</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc2865:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
-<td><span data-ze-rfc="rfc2865:must.proof-pending">5</span></td>
+<tr><td>Tests awaiting verification</td>
+<td><span data-ze-rfc="rfc2865:must.proof-pending">4</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc2865:must.os-gap">0</span></td>
@@ -380,7 +380,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc2865:should.total">1</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc2865:should.proven">0</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -401,7 +401,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc2865:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc2865:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -416,7 +416,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -769,14 +769,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Gaps and untested MUSTs</h2>
 <p>RFC 2865 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc2865-3-1"><code>RFC2865-3-1</code></a></h3>
 <p>The minimum length is 20 and maximum length is 4096. (§3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive: Decode accepts 20- and 4096-octet packets (16 attributes kept) and EncodeTo writes exactly 4096 with Length 4096. Negative: Decode refuses 19 octets, refuses a 4097-octet packet whose Length field says 4097 and whose attributes are all valid (so only the maximum can refuse it), and EncodeTo refuses attributes making 4097 octets. Both bounds now discriminated at both edges.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L193" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestDecodeBadLength</code></a></td>
@@ -816,12 +816,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Request Authenticator that is not 16 random octets, or one drawn from a predictable source. TestRFC2865RequestAuthenticatorRandom substitutes crypto/rand.Reader and asserts the authenticator equals the substituted octets byte for byte (a counter or constant goes red), and asserts two successive values differ; the width is the [AuthenticatorLen]byte type. Single-polarity marker on the row covers the missing negative.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L40" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865RequestAuthenticatorRandom</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -831,37 +831,37 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a Response Authenticator computed over anything but Code+ID+Length+RequestAuth+Attributes+Secret. TestRFC2865ResponseAuthenticatorMatchesTheFormula compares ResponseAuthenticator with an independent MD5 over exactly those fields (red on a wrong formula, with a non-degenerate attribute stream); TestRFC2865ResponseAuthenticatorCoversEveryNamedField mutates each named field and asserts VerifyResponseAuth rejects it.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L214" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestResponseAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L246" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestVerifyResponseAuth</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L99" title="internal/component/radius/rfc2865_response_auth_test.go" target="_blank" rel="noopener"><code>TestRFC2865ResponseAuthenticatorCoversEveryNamedField</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L206" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestResponseAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L240" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestVerifyResponseAuth</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L58" title="internal/component/radius/rfc2865_response_auth_test.go" target="_blank" rel="noopener"><code>TestRFC2865ResponseAuthenticatorMatchesTheFormula</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -871,7 +871,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after 3fa8b278a9. rfc/full/rfc2865.txt Section 4.2: &#39;The Response Authenticator field MUST contain the correct response for the pending Access-Request.  Invalid packets are silently discarded.&#39; TestClientAuthenticatorVerify&#39;s first reply is now signed with the correct secret and only its Response Authenticator byte 4 is flipped; the Message-Authenticator HMAC runs with the Request Authenticator substituted (RFC 2869 5.14) so it still verifies, and the test fatals unless the mock&#39;s verifyResponseMessageAuthenticator verdict on that reply is Accepted. Only VerifyResponseAuth can therefore discard it: attempts &gt;= 2 goes red if it is accepted (mutant: compare forced true, observed &#39;got 1 attempt&#39;, record 8bc5e1c3c3). Positive: the correctly signed retry is accepted (Code assertion; revert record). Isolation restored; the earlier weak finding (wrong-key reply also failed the HMAC) no longer applies.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L407" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientAuthenticatorVerify</code></a></td>
@@ -891,7 +891,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after BlastRADIUS (only change: Exchange takes a Server, buildResponse now signs non-accounting answers). TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort still leaves the first datagram unanswered and byte-compares Identifier, all 16 Request Authenticator octets, attributes and source addr:port of every retransmit against the first; the signed answer only lets the exchange complete under the default presence check, it does not touch what is compared. {single-polarity: positive} holds. TestClientRetransmit remains a floor assertion.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L200" title="internal/component/radius/rfc2865_client_test.go" target="_blank" rel="noopener"><code>TestClientRetransmit</code></a></td>
@@ -911,7 +911,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 5.1: &#39;It MUST be sent in Access-Request packets if available.&#39; The unchanged admin test reads the transmitted alice User-Name; the subscriber builder test requires subscriber@example.net exactly. The subscriber negative supplies an empty name with a usable PAP password, then reads a real Access-Request with User-Password and no User-Name. That retained credential proves omission did not merely suppress the whole packet. The new canonical ID changes only transport context for the same subscriber and leaves username values, credentials and all assertions unchanged. Both the available-name obligation and its absence condition remain covered. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L77" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestOmitsAnUnavailableUserName</code></a></td>
@@ -926,7 +926,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L219" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestUserName</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -936,22 +936,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a User-Password cipher not chained as MD5(S+RA) then MD5(S+c(i-1)). TestEncodeUserPasswordMultiBlock compares a 2-block ciphertext with one the test builds from the RFC recipe (red if block 2 is keyed on RA), TestEncodeUserPassword reverses block 1 with MD5(S+RA); the negatives assert the ciphertext changes with the secret and with the Request Authenticator.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L156" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865UserPasswordDependsOnSecret</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L35" title="internal/component/radius/rfc2865_attr_test.go" target="_blank" rel="noopener"><code>TestEncodeUserPassword</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L97" title="internal/component/radius/rfc2865_attr_test.go" target="_blank" rel="noopener"><code>TestEncodeUserPasswordMultiBlock</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -961,27 +961,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a password not null-padded to a multiple of 16, or longer than 128. TestEncodeUserPassword asserts len%16 == 0 and the decoded pad octets are 0; TestEncodeUserPasswordEmpty asserts 16; TestEncodeUserPasswordMultiBlock asserts 32 and the chain over the null-padded plaintext; TestRFC2865UserPasswordClamp asserts 128 for a 130-octet input. Single-polarity marker on the row.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L17" title="internal/component/radius/rfc2865_attr_test.go" target="_blank" rel="noopener"><code>TestEncodeUserPassword</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L52" title="internal/component/radius/rfc2865_attr_test.go" target="_blank" rel="noopener"><code>TestEncodeUserPasswordEmpty</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L75" title="internal/component/radius/rfc2865_attr_test.go" target="_blank" rel="noopener"><code>TestEncodeUserPasswordMultiBlock</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L175" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865UserPasswordClamp</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -991,7 +991,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive reads the Length octets EncodeTo writes on the wire (3, 8, 255 for 1/6/253-octet values, walking exactly to the packet end) and Decode reads Length 8 as &#34;netops&#34;. Negative: a Filter-Id &#34;netops&#34; with Length octet 6 (value-only count) is refused; a decoder counting only the Value would accept it and go red. The old round-trip units stay floor assertions.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L94" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865AttributeLengthBound</code></a></td>
@@ -1021,12 +1021,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L146" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L38" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAdminAccessRequestCarriesNoUnofferedServiceAttribute</code></a></td>
@@ -1036,7 +1036,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L117" title="internal/component/radius/rfc2869_unoffered_service_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC2869DictionaryCoversTheServicesZeOffers</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1046,7 +1046,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 1.1: &#39;A NAS MUST treat a RADIUS access-accept authorizing an unavailable service as an access-reject instead.&#39; All tagged admin and subscriber units were read. Admin Login-User and subscriber Framed-User with PPP are admitted; unoffered Service-Types and all six non-PPP Framed-Protocol values are refused. The framing cases keep Service-Type fixed, so another authorization guard cannot decide them first. Absent Service-Type remains admitted on both paths. The subscriber helper now supplies its existing L2TP canonical ID; credentials, server reply attributes, acceptance assertions and all four branches of TestRFC2865SubscriberServiceTypeAuthorization remain intact. The tests cover the Service-Type and framing authorization routes of this implemented capability; this retains the existing enforced verdict and adds no capability claim. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L231" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberServiceTypeAuthorization</code></a></td>
@@ -1096,7 +1096,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30 (rfc/full/rfc2865.txt:1693-1696, Section 5.6). Forbidden: honouring an Access-Accept whose Service-Type the NAS does not implement or does not know. On the L2TP LNS, TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection drives both halves of &#39;unknown or unsupported&#39;: Login-User 1 and Callback-Framed-User 4 (defined, not implemented) and 65535 (undefined), each alone in the Accept, and fails if the session comes up; the producer is doRADIUS calling radius.AcceptedServiceType(resp, ServiceTypeFramed) and answering respond(false). TestRFC2865SupportedServiceTypeIsHonored is the conforming input (Framed-User) and fails if a supported Service-Type is refused, ruling out a check that rejects every Accept. Buffers isolated: only Service-Type varies. Records: positive against AcceptedServiceType, negative against doRADIUS, both observed red (panic breaks, which prove reachability; the discriminating assertion is the per-value accept flag).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L86" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection</code></a></td>
@@ -1116,7 +1116,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L120" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestDecodeIgnoresAnAttributeHiddenInThePadding</code></a></td>
@@ -1126,7 +1126,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L137" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866LengthPaddingBoundaryIsTheLengthField</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L104" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestDecodeIgnoresOctetsOutsideTheLengthField</code></a></td>
@@ -1136,7 +1136,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L117" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866LengthPaddingIgnoredOnReception</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1146,22 +1146,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L173" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865EmptySharedSecretBuildsNoClient</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L179" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestExchangeRefusesAnEmptySharedSecret</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L168" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865EmptySharedSecretBuildsNoClient</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L159" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestExchangeAcceptsANonEmptySharedSecret</code></a></td>
@@ -1176,7 +1176,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L99" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccountingRequestDoesNotCarryTheAccessRequestCode</code></a></td>
@@ -1201,27 +1201,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L141" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865FailoverRegeneratesRequestAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L345" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestRetransmitToTheSameServerKeepsItsRequestAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L117" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865FailoverRegeneratesRequestAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L308" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestFailoverChangesTheRequestAuthenticatorWithTheIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1231,7 +1231,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: &#39;It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both).&#39; TestRADIUSAuthNASIPAddress reads Code 1 and the exact configured IPv4 address from the captured subscriber request. TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured sets neither identity leaf and still requires a nonempty NAS-Identifier with no invented address. The unchanged admin unit reads the wire and requires at least one NAS identity attribute. All requests retain usable PAP credentials, so failure to build a credential cannot substitute for the identity checks. The only subscriber fixture change is the canonical ID required before provider dispatch; packet and assertion inputs are unchanged. These cases retain the whole existing either/or identity obligation. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L50" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured</code></a></td>
@@ -1256,7 +1256,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: &#39;An Access-Request MUST NOT contain both a User-Password and a CHAP-Password.&#39; The full row also requires User-Password, CHAP-Password or State and explicitly permits an extension credential instead. All attached tests were read: subscriber PAP and CHAP packets carry their credentials; no-auth and short MS-CHAPv2 inputs put no request on the wire; valid MS-CHAPv2 carries its VSA and neither base credential. The unchanged admin PAP unit excludes CHAP-Password, and the EAP conversation requires EAP-Message without either base credential on every captured request and State after the initial request. Valid credentials and signed mock replies keep transport rejection from masking these assertions. Canonical IDs identify the original subscriber cases without changing methods, credential bytes, no-request checks or captured packet assertions. This retains the existing whole-row judgment, including its extension and exclusivity clauses. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go#L96" title="internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go" target="_blank" rel="noopener"><code>TestNoAuthIsAdmittedWithARADIUSClientConfigured</code></a></td>
@@ -1301,7 +1301,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The L2TP half is now proven at authradius handler.go doRADIUS: an Access-Challenge (State + Reply-Message) to PAP and CHAP-MD5 subscriber logins is refused with exactly one answer to PPP, and the same logins with an Access-Accept (Framed-User) are admitted, so the refusal is specific to the Challenge code. The admin PAP half was already enforced (ErrAuthRejected, chain stops).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L58" title="internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject</code></a></td>
@@ -1341,7 +1341,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_attribute_order_test.go#L101" title="internal/component/l2tp/plugins/authradius/rfc2865_attribute_order_test.go" target="_blank" rel="noopener"><code>TestRFC2865AttributeOrderIsObservableByPosition</code></a></td>
@@ -1366,7 +1366,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 5: &#39;Text of length zero (0) MUST NOT be sent; omit the entire attribute instead.&#39; All tagged units were read. The raw encoder pair omits an empty Filter-Id while retaining User-Name and retains a one-octet Filter-Id, isolating the zero-length condition. Admin and subscriber PAP paths also contrast nonempty User-Name with an empty one; their empty-name requests retain User-Password on the wire. Canonical IDs are added only to existing subscriber requests, so neither omission nor the permitted nonempty survivors changes. The exact absent attribute, retained packet and one-octet boundary assertions still discriminate the whole stated zero-length text rule. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L185" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberZeroLengthUserNameOmitted</code></a></td>
@@ -1376,7 +1376,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L282" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865ZeroLengthTextIsOmitted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L528" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestOneOctetAttributeIsNotOmitted</code></a></td>
@@ -1391,7 +1391,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L274" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865ZeroLengthTextIsOmitted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L511" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestZeroLengthAttributeIsOmitted</code></a></td>
@@ -1406,7 +1406,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30 (rfc/full/rfc2865.txt:1383-1385, Section 5, string data type). Forbidden: a string-typed attribute of zero octets on the wire. TestRFC2865ZeroLengthStringIsOmitted encodes State, Class, Proxy-State and CHAP-Challenge with empty values beside a User-Name through Packet.EncodeTo, decodes the wire and fails if the attribute is present or the attribute count is not 1. TestRFC2865OneOctetStringIsSent is the boundary control: the one-octet string 00 must reach the wire byte-equal, so an encoder that dropped every string, or every 0x00-valued one, goes red; it is labelled negative but is a conforming input, which is the only other polarity an emit-side MUST NOT has. Producer packet.go::EncodeTo omits any zero-length value at the wire boundary. Records observed red on both units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_zero_length_string_test.go#L55" title="internal/component/radius/rfc2865_zero_length_string_test.go" target="_blank" rel="noopener"><code>TestRFC2865OneOctetStringIsSent</code></a></td>
@@ -1426,7 +1426,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a packet shorter than its Length field. TestDecodeRefusesAPacketShorterThanItsLengthField sets Length to len+1 and requires Decode to error; the positive decodes an exact-length packet.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L147" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestDecodeRefusesAPacketShorterThanItsLengthField</code></a></td>
@@ -1446,7 +1446,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_authenticator_test.go#L419" title="internal/component/radius/rfc2865_authenticator_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminChapAttributes</code></a></td>
@@ -1466,12 +1466,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L281" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestRetransmitToTheSameServerKeepsItsIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L258" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestSuccessiveRequestsUseDifferentIdentifiers</code></a></td>
@@ -1486,7 +1486,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L434" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAttributeLookupDoesNotRequireContiguity</code></a></td>
@@ -1501,7 +1501,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Negative drives Access-Accept, Access-Reject and Access-Challenge each with Length 1 and with a Length 5 past the packet end, re-signed so the Response Authenticator verifies (asserted) and only the length is wrong; Client.Exchange returns an error with no packet (silent discard). Positive delivers Reject and Challenge with valid lengths and their Reply-Message. All three codes and both invalid-length shapes covered.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L462" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestResponseWithAnInvalidAttributeLengthIsDiscarded</code></a></td>
@@ -1531,7 +1531,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: failing on an embedded null. TestAttributeValueWithAnEmbeddedNullRoundTrips asserts the value with a null round-trips whole (red on truncation); TestAnEmbeddedNullDoesNotEndTheAttributeWalk asserts the following attribute is still decoded.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L494" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAnEmbeddedNullDoesNotEndTheAttributeWalk</code></a></td>
@@ -1551,7 +1551,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Quote is the Filter-Id sentence of 5.11. Forbidden: Filter-Id content changing protocol operation. TestCarrierAttributesDoNotAffectAnAccessReject asserts a Reject carrying Filter-Id stays a rejection; TestCarrierAttributesDoNotAffectAnAccessAccept asserts an Accept carrying it stays an accept. Question reported: ze uses Filter-Id as its admin profile carrier.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L563" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestCarrierAttributesDoNotAffectAnAccessReject</code></a></td>
@@ -1571,7 +1571,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: returning State modified or not at all. TestRadiusAdminStateIsReturnedUnmodified asserts each round&#39;s request carries that round&#39;s distinct State byte for byte (red on drop, rewrite or stale echo); TestRadiusAdminStateIsNotManufactured asserts no State when the challenge sent none.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_state_echo_test.go#L68" title="internal/component/radius/rfc2865_state_echo_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminStateIsNotManufactured</code></a></td>
@@ -1591,12 +1591,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Quote is the Class sentence of 5.25. Forbidden: interpreting Class locally. TestRadiusClassIsNotInterpretedLocally asserts an Accept whose only carrier is Class yields no profile and ErrAuthRejected; TestExtractRadiusConfigProfileAttrNeverClass asserts no configuration selects Class. Two tagged units (TestStateIsNotInterpretedLocally, TestRadiusAdminEapChallengeLoopCarriesState) prove the State rule of 5.24 instead, reported.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_config_test.go#L102" title="internal/component/radius/rfc2865_config_test.go" target="_blank" rel="noopener"><code>TestExtractRadiusConfigProfileAttrNeverClass</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L443" title="internal/component/radius/authenticator_eap_test.go" target="_blank" rel="noopener"><code>TestRadiusAdminEapChallengeLoopCarriesState</code></a></td>
@@ -1606,7 +1606,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_authenticator_test.go#L322" title="internal/component/radius/rfc2865_authenticator_test.go" target="_blank" rel="noopener"><code>TestRadiusClassIsNotInterpretedLocally</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L583" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestStateIsNotInterpretedLocally</code></a></td>
@@ -2412,7 +2412,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

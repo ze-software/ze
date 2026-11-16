@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 8 | of 23 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 23 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 8 | of 23 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 23 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 23 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 23 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 27 | 27 of 41 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 23 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 27 | 27 of 41 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 23 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 23 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 23 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 23 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 23 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 23 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 23 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: IP Encapsulating Security Payload. Ze is the ESP s
 
 **Area:** ESP
 
-**Proof:** 7 of 23 MUST proven
+**Test verification:** 7 of 23 MUST proven
 
 **Evidence:** unit 7
 
@@ -109,7 +109,7 @@ Included in automatic checks: IP Encapsulating Security Payload. Ze is the ESP s
 | Annotated (including scoped evidence) | 15 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **23** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: IP Encapsulating Security Payload. Ze is the ESP s
 
 ## Figures
 
-- **MUST bar**: Ze proven 7, Proof pending 2, Not built 14
-- **Overview bar**: Ze MUST proven 7, Proof pending 3, Not assessed 2, Not built 15
+- **MUST bar**: Ze verified 7, Tests awaiting verification 2, Not built 14
+- **Overview bar**: Ze MUST verified 7, Tests awaiting verification 3, Not assessed 2, Not built 15
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: IP Encapsulating Security Payload. Ze is the ESP s
 | Mandatory requirements complete | not complete |
 | MUST rows | 23 |
 | MUST rows kept (the MUST bar) | 23 |
-| Ze proven | 7 |
+| Ze verified | 7 |
 | OS verified | 0 |
-| Proof pending | 2 |
+| Tests awaiting verification | 2 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: IP Encapsulating Security Payload. Ze is the ESP s
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 4 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 1 |
+| SHOULD tests awaiting verification | 1 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 2 |
 | SHOULD not built | 1 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4303.json](../../../data/rfc/rfc4303.json).
 
@@ -210,9 +210,9 @@ Source: [data/rfc/rfc4303.json](../../../data/rfc/rfc4303.json).
 | [`RFC4303-3.4.4.1-2`](#rfc4303-3.4.4.1-2) If the default padding scheme (see Section 2.4) has been employed, the receiver SHOULD inspect the Padding field before removing the padding prior to passing the decrypted data to the next layer. (§3.4.4.1) | {gap} | Ze's Go performs no ESP packet processing. Both dataplane backends decrypt in a layer below Ze and remove the padding there: Linux XFRM for an SA installed through internal/component/ike/dataplane/xfrm_linux.go, and VPP's IPsec SAD for an SA installed through internal/component/ike/dataplane/vpp.go (vppBackend.InstallSA writes an ipsec_sad_entry_v3 whose fields and vppSAFlags flags carry no padding check). Ze installs no SA attribute on either backend that asks for the Padding bytes to be inspected, and nothing in this repository shows the kernel or VPP inspects them, so the SHOULD is recorded unmet rather than delegated |
 | [`RFC4303-3.4.4.2-1`](#rfc4303-3.4.4.2-1) Decrypts and integrity checks the ESP Payload Data, Padding, Pad Length, and Next Header, using the key, algorithm, algorithm mode, and cryptographic synchronization data (if any), indicated by the SA. (§3.4.4.2) | {gap}, no test | a gap in proof on one of the two IPsec dataplanes. The Linux path is the verified half: for a combined-mode SA, which internal/component/ike/dataplane/xfrm_linux.go::InstallSA installs with the AEAD algorithm and ICV length it negotiated, the kernel's ESP input (net/ipv4/esp4.c and net/ipv6/esp6.c, linux:CONFIG_INET_ESP, linux:CONFIG_INET6_ESP) decrypts and verifies the payload, padding, pad length and next header in one crypto_aead_decrypt call; no test covers it. The VPP half is unverified: the ze_vpp IPsec dataplane (internal/component/ike/dataplane/register_vpp.go, vpp.go::InstallSA, salt from vpp.go::vppCryptoKeyAndSalt) installs the SA in VPP, and no test shows VPP decrypts and verifies it |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC4303-1-1`](#rfc4303-1-1)
 
@@ -220,7 +220,7 @@ MUST be configurable via management interfaces. (§1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged after the R3 split: the row is now only the Section 1 clause 'MUST be configurable via management interfaces' (the IKE negotiation clause is the gap row RFC4303-1-2). Forbidden behaviour: the management interface refusing, or silently altering, an integrity-only ESP configuration. Positive: TestIPsecESPRequiresIntegrity drives esp + null cipher + sha256 through parseOSPFConfig/validateConfig and t.Fatalf on any refusal. Negative (R1(b), inputs pushed toward a refusal): TestRFC4303IntegrityOnlyESPIsConfigurable, for every integrity algorithm in ipsecAuthKeyLen x {cipher leaf omitted, explicit null}, validates and installs and asserts proto 50 (not AH), cipher null with no key, and the configured integrity algorithm and key length, so a validator requiring a cipher for ESP or accepting integrity-only for one algorithm only goes red. The old negative (null cipher with no integrity refused) proved RFC4303-3.2-1 and was removed from this row. Revert records on validateESPConfidentiality for both units observed red (positive recorded by this judge). Only the OSPFv3 manual-SA surface offers integrity-only ESP; IKE's absence is RFC4303-1-2.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4303IntegrityOnlyESPIsConfigurable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L119) | unit/verify | revert, verified |
 | positive | [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L124) | unit/verify | revert, verified |
@@ -231,7 +231,7 @@ Integrity-only ESP MUST be offered as a service selection option, e.g., it must 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-10 (independent closure auditor, spec-ipsec-esp-offer-requires-esn) after affa3d8684 and da3ff616f6. crypto/proposal.go::espProposalComplete changed only its doc comment; acceptESPEncryption unchanged. The responder now refuses an ESP offer with no ESN transform (RFC 7296 Section 3.3.3), which does not withdraw integrity-only ESP: Ze's own offer (wireESPOffer) carries ESN 0, so TestRFC4303IntegrityOnlyESPIsNegotiated still negotiates NULL+SHA256 end to end (engine package green under full tags, main-thread run). Tagged units unchanged; judgement stands. Prior judgement: Re-judged 2026-11-08 (independent auditor) after 67700fd37e. TestRFC4303IntegrityOnlyESPIsNegotiated changed only the initiatorFirstChildSA call (peer config argument dropped); the integrity-only proposal is still negotiated and installed as two SAs. Records are current. Prior judgement: Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc4303.txt Section 1: "Integrity-only ESP MUST be offered as a service selection option, e.g., it must be negotiable in SA management protocols and MUST be configurable via management interfaces." This row covers service selection and negotiation; the management-interface clause is separately listed as RFC4303-1-1, not newly audited here. Read all four tagged units and their helpers, then independently re-read the approved crypto-test strengthening. TestRFC4303IntegrityOnlyESPIsAccepted now enumerates SupportedESPIntegrityNames and resolves each entry with LookupESPIntegrity, including ESP-only SHA1 alongside SHA256/384/512; it requires a nonempty registry and pins the selected NULL ID, zero key length and unchanged integrity ID for every entry. This closes the discovered mismatch between its universal ESP claim and the former IKE-only enumeration without removing or weakening an assertion. TestRFC4303IntegrityOnlyESPIsNegotiated drives real IKE_SA_INIT/IKE_AUTH handlers, asserts the NULL/no-attribute plus SHA256 offer, established state and both installed Child-SA parameter sets, including no encryption key and 32-octet SHA256 keys. TestRFC4303VPPIntegrityOnlyESPIsInstalled asserts the exact emitted SAD cipher and integrity enums; this is the VPP API boundary, not observed packet forwarding. TestIntegrityOnlyESPRefusals supplies distinct negative bounds, asserting ErrProposalIncomplete for NULL/NONE and ErrNoProposalChosen for a keyed NULL offer or an unoffered NULL suite; these bounds do not themselves prove service availability. The positives do: refusing NULL cannot satisfy their exact acceptance assertions. In the changed acceptESPEncryption, FixedKeyOctets recognizes NULL with zero key octets, matching IDs are required and a nonzero wire Key Length is rejected; espProposalComplete independently excludes NULL/NONE. The service remains implemented and these assertions discriminate its loss. Read the native engine recording: the clean control names TestRFC4303IntegrityOnlyESPIsNegotiated as PASS; adding remote.ID == ENCR_NULL to the admission refusal makes the same unit FAIL with state = dead rather than established. That break directly removes the required service, unlike a generic producer panic. No tests were launched by this auditor; the corrected crypto unit's fresh native observation belongs to the discrimination repair, not an inferred result here.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIntegrityOnlyESPRefusals`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc4303_integrity_only_test.go#L59) | unit/verify | mutant, verified |
 | positive | [`TestRFC4303IntegrityOnlyESPIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc4303_integrity_only_test.go#L24) | unit/verify | mutant, verified |
@@ -244,7 +244,7 @@ The (outer) protocol header (IPv4, IPv6, or Extension) that immediately precedes
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged (was weak: the IKE Child SA producer was untagged). Both producers Ze fills are now covered. OSPFv3 manual SAs: TestRFC4303ESPPacketOnTheWireCarriesProtocol50 (netns, IPv6 Next Header 50 captured on the wire), negative TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH (null cipher + sha256, the AH-shaped input, still 50 on the wire), TestIPsecSAProtocolNumber; ipsecProtoNumber revert records observed red. IKE Child SA: TestRFC4301ChildSAIsInstalledAsESP (tag only, body unchanged, D-15) asserts Proto 50 on the inbound and the outbound SA createFirstChildSA installs; installChildSA is the one SAParams builder of the engine (callers: first Child SA and CREATE_CHILD_SA), revert record observed red. The IKE side is single-polarity by construction: protoESP is a constant and IKEv2 offers no input that selects another protocol, so the row's negative stays the OSPF one. The SAParams-to-kernel step (dataplane xfrmStateFromParams) is shared by both producers and proven on the wire by the OSPF probe; the VPP backend is asserted only at the SAParams boundary Ze owns.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4303IntegrityOnlyESPOnTheWireIsNotAH`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L195) | unit/verify | revert, verified |
 | positive | [`TestRFC4301ChildSAIsInstalledAsESP`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_esp_test.go#L20) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
@@ -257,23 +257,23 @@ The SPI value of zero (0) is reserved for local, implementation-specific use and
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 67700fd37e. TestInitiatorRefusesPeerSPIZero and TestInitiatorUsesPeerSPI changed only the initiatorFirstChildSA call (peer config argument dropped); the zero SPI is still refused with no SA installed and the peer's SPI is still the outbound SPI. Records are current. Prior judgement: Re-judged 2026-10-10 against RFC 4303 S2.1 "The SPI value of zero (0) is reserved for local, implementation-specific use and MUST NOT be sent on the wire." after e2e724cf57 changed TestResponderRefusesPeerSPIZero: it now asserts no first Child SA, an IKE_AUTH response with no SA payload and a NO_PROPOSAL_CHOSEN refusal, and no longer the IKE SA state, which RFC 7296 S2.21.2 governs and this row does not. The SPI is still isolated (same re-encrypted request as TestResponderUsesPeerSPI, which pins outbound 0x0a0b0c0d), and removing both refusals (selectAuthChildSA, createFirstChildSA) builds a Child SA on SPI 0 and reddens it. Every other producer unchanged and proven both ways: own SPI TestGenerateESPSPISkipsTheReservedZero (three zero draws, spi != 0 mutant recorded); peer SPI initiator SAr2, rekey request and rekey response refuse 0 with no Child SA and no ESP state and install exactly 0x0a0b0c0d; OSPF TestIPsecSPIZeroRefused refuses spi 0 and accepts 4294967295 (mutant recorded). Caveats, not gaps: TestGenerateESPSPI cannot fail on its own, and TestIPsecSPIBoundary's 255/256 pair tests the IANA 1..255 reservation, a neighbouring rule.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L272) | unit/verify | unproven |
+| negative | [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L272) | unit/verify | not verified |
 | negative | [`TestChildRekeyRequestRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L291) | unit/verify | revert, verified |
 | negative | [`TestChildRekeyResponseRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L345) | unit/verify | revert, verified |
 | negative | [`TestInitiatorRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L120) | unit/verify | revert, verified |
 | negative | [`TestResponderRefusesPeerSPIZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L191) | unit/verify | revert, verified |
 | negative | [`TestGenerateESPSPISkipsTheReservedZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_spi_test.go#L36) | unit/verify | mutant, verified |
-| negative | [`TestIPsecSPIBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L183) | unit/verify | unproven |
+| negative | [`TestIPsecSPIBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L183) | unit/verify | not verified |
 | negative | [`TestIPsecSPIZeroRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_spi_test.go#L20) | unit/verify | mutant, verified |
-| positive | [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L258) | unit/verify | unproven |
+| positive | [`TestGenerateESPSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L258) | unit/verify | not verified |
 | positive | [`TestChildRekeyRequestUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L317) | unit/verify | revert, verified |
 | positive | [`TestChildRekeyResponseUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L373) | unit/verify | revert, verified |
 | positive | [`TestInitiatorUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L149) | unit/verify | revert, verified |
 | positive | [`TestResponderUsesPeerSPI`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_peer_spi_test.go#L227) | unit/verify | revert, verified |
 | positive | [`TestGenerateESPSPISkipsTheReservedZero`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_spi_test.go#L37) | unit/verify | revert, verified |
-| positive | [`TestIPsecSPIBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L189) | unit/verify | unproven |
+| positive | [`TestIPsecSPIBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L189) | unit/verify | not verified |
 | positive | [`TestIPsecSPIZeroRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_spi_test.go#L21) | unit/verify | revert, verified |
 
 ### [`RFC4303-2.1-2`](#rfc4303-2.1-2)
@@ -282,7 +282,7 @@ The indication of whether source and destination address matching is required to
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged (was weak: the negotiation branch, the IKE Child SA, had no test). Manual-configuration branch unchanged: OSPFv3 TestRFC4303InboundESPSAKeyedOnConfiguredDestination plus the netns pair TestRFC4303InboundESPMapsByConfiguredDestination / TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA, buildIPsecSA revert records observed red. Negotiation branch: positive TestRFC4303InboundChildSAKeyedOnNegotiatedSPIAndLocalAddress (the single inbound SA carries the negotiated ChildInboundSPI, proto 50 and Dst = the negotiated local address, so a Src/Dst swap goes red); negative TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA on real XFRM in a rootless netns (control to negotiated 10.250.0.1: delivered, XfrmInNoStates +0; same SPI and packet to 10.250.0.3: not delivered, XfrmInNoStates +1). Judge re-ran it once under -race: body ran in the child namespace and passed; judge mutation (negative packet aimed at the negotiated address) went red on the not-delivered assertion, so the negative is not vacuous. installChildSA revert records observed red for both. The indication itself (destination matched, source not) is XFRM's (daddr, spi, proto) state lookup keyed on what Ze negotiated, so both branches are proven for every role Ze fills; VPP backend inbound lookup is asserted only at the SAParams boundary.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4303InboundESPToAnotherLocalAddressMapsToNoSA`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4303_inbound_key_linux_test.go#L59) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC4303InboundESPToUnconfiguredDestinationMapsToNoSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_probe_linux_test.go#L244) | unit/verify | revert, verified |
@@ -344,11 +344,11 @@ Note that although both confidentiality and integrity are optional, at least one
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-10 (independent closure auditor, spec-ipsec-esp-offer-requires-esn) after affa3d8684 and da3ff616f6. crypto/proposal.go::espProposalComplete changed only its doc comment, so the NULL/NONE refusal TestIntegrityOnlyESPRefusals asserts is byte-identical in behaviour; parseESPProposal and validateIPsecInterface unchanged. Tagged units unchanged; judgement stands. Prior judgement: Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc4303.txt Section 3.2: "Note that although both confidentiality and integrity are optional, at least one of these services MUST be selected, hence both algorithms MUST NOT be simultaneously NULL." Read every tagged cover: TestIntegrityOnlyESPRefusals and both tags in TestIPsecESPRequiresIntegrity. The IKE test supplies an otherwise complete matching NULL/NONE proposal and requires the specific ErrProposalIncomplete, not an arbitrary refusal; espProposalComplete checks exactly that forbidden pair before matching. Its retained mutant disables that exact predicate rather than an unrelated parser error. The OSPF test's negative config has a valid ESP protocol and nonreserved SPI and requires ErrIPsecAuthAlgo for NULL/no integrity; its separate positive config adds valid SHA256 and a 32-octet key and requires successful validation. Thus its two tags name distinct inputs and assertions, not one assertion counted twice. validateIPsecInterface rejects absent/unknown integrity before any SA install. The changed parseESPProposal still requires a hash for every non-AEAD cipher, including NULL, and validates an explicitly provided hash through HashImplementedESP; the change admits ESP-only SHA1, not absent integrity. Read matchOfferedESP/espProposalMatches as well: non-AEAD responder selection resolves a configured integrity algorithm and requires it in the peer offer. Both halves of the sentence express the same exclusion; confidentiality-only support is optional, not an additional acceptance obligation. Retain enforced for the exact prohibition. Evidence boundary retained from the earlier judgment: the tagged IKE assertion exercises initiator answer validation, not the config parser or responder refusal directly; those latter guards were read, not newly execution-proven here. No test run or fresh red/green observation is claimed by this audit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIntegrityOnlyESPRefusals`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc4303_integrity_only_test.go#L61) | unit/verify | mutant, verified |
-| negative | [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L108) | unit/verify | unproven |
-| positive | [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L128) | unit/verify | unproven |
+| negative | [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L108) | unit/verify | not verified |
+| positive | [`TestIPsecESPRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/config_ipsec_test.go#L128) | unit/verify | not verified |
 
 ### [`RFC4303-3.3.3-1`](#rfc4303-3.3.3-1)
 
@@ -380,9 +380,9 @@ A minimum window size of 32 packets MUST be supported when 32-bit sequence numbe
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: Ze unable to run a receive window of at least 32 on a 32-bit-sequence SA (e.g. installing a smaller window). TestChildSAReplayWindowDefault (engine/child_test.go) asserts ReplayWin == 64 on both installed SAs; a window below 32 fails it. Ze never negotiates ESN, so every SA uses 32-bit sequence numbers. Single-polarity marker present. The assertion is at SAParams; xfrmStateFromParams projects it to the kernel (xfrm_linux.go:132).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestChildSAReplayWindowDefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L333) | unit/verify | unproven |
+| positive | [`TestChildSAReplayWindowDefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L333) | unit/verify | not verified |
 
 ### [`RFC4303-3.4.3-2`](#rfc4303-3.4.3-2)
 
@@ -390,7 +390,7 @@ This service MUST NOT be enabled unless the ESP integrity service also is enable
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged. {single-polarity} rightly dropped: the OSPFv3 producer has a refusal path. Positive: TestRFC4303ESPReplayWindowCarriesIntegrity installs replay-window 64 with null and aes128 ciphers and asserts every SA has ReplayWin 64, AuthAlgo sha256 and a 32-octet key; IKE: TestChildSAReplayRequiresIntegrity asserts every installed Child SA with ReplayWin > 0 is AEAD or carries AuthAlgo+AuthKey (non-AEAD proposals always resolve an integrity transform, resolveESPTransforms). Negative: TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused, replay-window 64 with no integrity under no cipher, null and aes128, each refused ErrIPsecAuthAlgo by validateConfig, so anti-replay without integrity never reaches the installer. The refusal comes from the integrity-always-required check, which is exactly how Ze meets this MUST NOT; the input enables anti-replay without integrity, so it violates this requirement. Records: buildIPsecSA (positive) and validateIPsecInterface (negative) reverts observed red. Supplementary gap: the IKE negative (a non-AEAD proposal with no INTEG never installed) is structural, not tested.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4303ESPReplayWindowWithoutIntegrityIsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc4303_esp_test.go#L98) | unit/verify | revert, verified |
 | positive | [`TestChildSAReplayRequiresIntegrity`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L359) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
@@ -450,10 +450,10 @@ Use of an ESN MUST be negotiated by an SA management protocol. (§2.2.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: keying an SA with ESN that the SA management protocol did not negotiate. Negative: TestEsnInitiatorRefusesAnESNValueItNeverOffered requires verifyAcceptedOffer to return errAcceptedOfferESN for an answer selecting ESN (and for two ESN values), t.Fatalf otherwise. Positive: the offered non-ESN value is accepted and the offer is pinned to the single value. Ze never offers ESN and manual OSPFv3 SAs set none, so no un-negotiated ESN path exists.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L157) | unit/verify | unproven |
-| positive | [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L153) | unit/verify | unproven |
+| negative | [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L157) | unit/verify | not verified |
+| positive | [`TestEsnInitiatorRefusesAnESNValueItNeverOffered`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_esn_test.go#L153) | unit/verify | not verified |
 
 ### [`RFC4303-3.4.3-4`](#rfc4303-3.4.3-4)
 
@@ -461,9 +461,9 @@ a window size of 64 is preferred and SHOULD be employed as the default (§3.4.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour (SHOULD): a default window other than 64. TestChildSAReplayWindowDefault asserts ReplayWin == 64 on both IKE Child SAs with no window configured; any other default goes red. Single-polarity marker present. The OSPFv3 manual path defaults to no anti-replay, which RFC 4303 Section 3.3.3 advises for manually keyed SAs, so the default-window sentence binds the IKE path.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestChildSAReplayWindowDefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L336) | unit/verify | unproven |
+| positive | [`TestChildSAReplayWindowDefault`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/child_test.go#L336) | unit/verify | not verified |
 
 ## Requirement list review
 

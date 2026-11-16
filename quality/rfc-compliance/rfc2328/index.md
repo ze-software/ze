@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 66 | of 67 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 67 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 66 | of 67 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 67 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 67 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 67 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 0 | of 67 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 67 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 191 | 191 of 218 tests linked to requirements, 2 without a fault test and 0 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 191 | 191 of 218 tests linked to requirements, 2 without a fault test and 0 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 | Audit verdicts | 69 | of 67 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -26,9 +26,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 67 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 67 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 67 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 67 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 67 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 67 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 67 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -47,13 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -87,7 +87,7 @@ Included in automatic checks: OSPF Version 2
 
 **Area:** OSPFv2
 
-**Proof:** 58 of 67 MUST proven
+**Test verification:** 58 of 67 MUST proven
 
 **Evidence:** unit 58
 
@@ -102,7 +102,7 @@ Included in automatic checks: OSPF Version 2
 | Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **67** | every mandatory requirement appears in exactly one group above |
@@ -113,8 +113,8 @@ Included in automatic checks: OSPF Version 2
 
 ## Figures
 
-- **MUST bar**: Ze proven 58, Proof pending 9
-- **Overview bar**: Ze MUST proven 58, SHOULD proven 2, Proof pending 9, Not assessed 13
+- **MUST bar**: Ze verified 58, Tests awaiting verification 9
+- **Overview bar**: Ze MUST verified 58, SHOULD verified 2, Tests awaiting verification 9, Not assessed 13
 
 | Figure | Rows |
 |---|---|
@@ -123,9 +123,9 @@ Included in automatic checks: OSPF Version 2
 | Mandatory requirements complete | not complete |
 | MUST rows | 67 |
 | MUST rows kept (the MUST bar) | 67 |
-| Ze proven | 58 |
+| Ze verified | 58 |
 | OS verified | 0 |
-| Proof pending | 9 |
+| Tests awaiting verification | 9 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -135,19 +135,19 @@ Included in automatic checks: OSPF Version 2
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 15 |
-| SHOULD proven | 2 |
+| SHOULD verified | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 13 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc2328.json](../../../data/rfc/rfc2328.json).
 
@@ -242,9 +242,9 @@ Source: [data/rfc/rfc2328.json](../../../data/rfc/rfc2328.json).
 
 RFC 2328 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC2328-A.3.1-1`](#rfc2328-a.3.1-1)
 
@@ -252,10 +252,10 @@ The version number field must specify protocol version 2. (§8.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: accepting or emitting a Version other than 2. Red: TestOSPFHeaderRejectsBadVersionAndLength fails unless DecodeHeader returns ErrBadVersion for Version 3. Other polarity: TestOSPFHeaderRoundTrip fails unless every packet type written by WriteTo decodes, which needs the emitted Version octet to equal 2. One clause, both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFHeaderRejectsBadVersionAndLength`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_header_test.go#L153) | unit/verify | unproven |
-| positive | [`TestOSPFHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_header_test.go#L131) | unit/verify | unproven |
+| negative | [`TestOSPFHeaderRejectsBadVersionAndLength`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_header_test.go#L153) | unit/verify | not verified |
+| positive | [`TestOSPFHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_header_test.go#L131) | unit/verify | not verified |
 
 ### [`RFC2328-A.3.1-2`](#rfc2328-a.3.1-2)
 
@@ -263,7 +263,7 @@ The standard IP checksum of the entire contents of the packet, starting with the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. c20 judge: independent arithmetic (test-side RFC 1071 fold) for both sides. TestRFC2328PacketChecksumCoversHeaderExcludesAuth: with a simple password the generated field equals the reference over header+body excluding Auth, differs from the whole-packet sum, is unchanged by another password and moves with the Router ID. TestRFC2328PacketChecksumWrongRangeRefused: VerifyPacketChecksum refuses an Auth-included and a body-excluded checksum, accepts the correct one. Revert records PacketChecksum (+), VerifyPacketChecksum (-).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328PacketChecksumWrongRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_checksum_coverage_test.go#L61) | unit/verify | revert, verified |
 | negative | [`TestPacketVerifyChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_header_test.go#L100) | unit/verify | revert, verified |
@@ -276,14 +276,14 @@ This field is the checksum of the complete contents of the LSA, excepting the LS
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: (a) checksum covering LS age: TestOSPFLSAChecksumExcludesAge fails when the LS age octets are mutated and the LSA stops verifying, and TestOSPFLSAChecksum checks independent Fletcher sums over lsa[2:length] (not VerifyLSAChecksum's shared code); (b) an unchecked covered region: mutating Options must fail VerifyLSAChecksum; (c) accepting LS Checksum 0: TestRFC2328ZeroLSChecksumRejected solves the Fletcher sums to zero with the field zero, so only the zero rule can reject, and fails if VerifyLSAChecksum accepts it. Positive: the encoded LSA verifies with a non-zero backfilled checksum. Every clause has its assertion. Re-judged 2026-09-27 after the RFC905-x-6 tags moved here (J102). TestOSPFLSAChecksumExcludesAge now also carries the negative tag for the covered-octet mutation, clause (b). TestFletcherRFC905Vectors and TestFletcherIgnoresLSAge (ospf/types) add positives: the first pins 0x15ff over the window from Options, and the second shows LS Age mutation leaves the checksum unchanged. The verdict is unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFLSAChecksumExcludesAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L96) | unit/verify | unproven |
-| negative | [`TestRFC2328ZeroLSChecksumRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_test.go#L10) | unit/verify | unproven |
-| positive | [`TestOSPFLSAChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L72) | unit/verify | unproven |
-| positive | [`TestOSPFLSAChecksumExcludesAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L98) | unit/verify | unproven |
-| positive | [`TestFletcherIgnoresLSAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L46) | unit/verify | unproven |
-| positive | [`TestFletcherRFC905Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L26) | unit/verify | unproven |
+| negative | [`TestOSPFLSAChecksumExcludesAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L96) | unit/verify | not verified |
+| negative | [`TestRFC2328ZeroLSChecksumRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc2328_test.go#L10) | unit/verify | not verified |
+| positive | [`TestOSPFLSAChecksum`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L72) | unit/verify | not verified |
+| positive | [`TestOSPFLSAChecksumExcludesAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L98) | unit/verify | not verified |
+| positive | [`TestFletcherIgnoresLSAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L46) | unit/verify | not verified |
+| positive | [`TestFletcherRFC905Vectors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/checksum_test.go#L26) | unit/verify | not verified |
 
 ### [`RFC2328-13-1`](#rfc2328-13-1)
 
@@ -291,7 +291,7 @@ Validate the LSA's LS checksum. If the checksum turns out to be invalid, discard
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Both steps proven on the real wire path: TestRFC2328DiscardedLSAThenNextLSAProcessed encodes one LS Update (bad-checksum LSA, or LS type 6 with a valid Fletcher, then a good router-LSA) and dispatches it through the engine from an Exchange neighbor; the bad LSA is neither stored nor acknowledged and the next is installed and acknowledged. Red against the pre-fix producers (ReceiveUpdate returned on the first bad checksum; DecodeLSUpdate failed the whole packet on an unknown type). D-8 fix read at the producer: LSAIterator.Next advances at least 20 octets per pass and a truncated or short Length still ends the packet with an error (fuzzed 20 s each, iterator and DecodePacket); skipped LSAs count against # LSAs. The DecodeLSReq unit lost its 13-1 tag (LS Request decoder, D-15).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328BadLSChecksumDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L17) | unit/verify | revert, verified |
 | negative | [`TestRFC2328DiscardedLSAThenNextLSAProcessed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_lsupdate_discard_next_test.go#L91) | unit/verify | revert, verified |
@@ -304,7 +304,7 @@ AS-external-LSAs are not flooded into/throughout stub areas (§13)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. c20 judge: both clauses on the real flood path. Into: TestRFC2328ASExternalNotFloodedIntoStubArea, four-area ABR, Type-5 received on eth0 and self-originated, reaches the normal-area control eth3 and never leaves the stub eth1 or NSSA eth2, no stub/NSSA retransmission entry (red with eligibleInterface reverted). Throughout: TestRFC2328ASExternalFromStubInterfaceGoesNowhere, Type-5 from the stub/NSSA neighbor not installed and flooded out no interface, eth1 back included (red with shouldDropByArea reverted). Old helper-only units kept as supplementary. Helper rename by sed re-read: lsaFloodedOn consistent, no leftover.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFStubAreaDropsType5`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L248) | unit/verify | revert, verified |
 | negative | [`TestRFC2328ASExternalFromStubInterfaceGoesNowhere`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_stub_external_flood_test.go#L112) | unit/verify | revert, verified |
@@ -317,7 +317,7 @@ If the neighbor is in a lesser state than Exchange, the packet should be dropped
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Engine drop now exercised: LS Updates dispatched through eng.dispatch from an unknown neighbor, Init, and ExStart are not stored and draw no LS Ack or LS Update even after FlushDelayedAcks; the same packet after Exchange is installed and acknowledged. Disabling the AcceptsFlooding drop in handleLSUpdate turns all three negatives red. 2-Way (not reachable on point-to-point) stays on the neighbor-package AcceptsFlooding units, which gate the same call.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328FloodingRequiresExchangeOrHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L20) | unit/verify | revert, verified |
 | negative | [`TestRFC2328LSUpdateBelowExchangeDroppedByEngine`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_flood_state_gate_test.go#L83) | unit/verify | revert, verified |
@@ -330,7 +330,7 @@ If this neighbor is in a lesser state than Exchange, the Link State Acknowledgme
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 13-3. Negative: LS Acks from 2.2.2.2 in Init and in ExStart are each dropped with reason state (2) and transmit nothing. Positive: from Exchange the LS Ack removes the summary-LSA from the retransmission list (a later tick resends nothing). Records on handleLSAck and AcceptsFlooding.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328LSAckBelowExchangeDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_active_neighbor_test.go#L209) | unit/verify | revert, verified |
 | positive | [`TestRFC2328ActiveNeighborPacketsProcessed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_active_neighbor_test.go#L174) | unit/verify | revert, verified |
@@ -341,7 +341,7 @@ The LSA having the newer LS sequence number is more recent. See Section 12.1.6 f
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. c20 judge: order and signedness now discriminated. TestRFC2328FreshnessStepsAppliedInOrder pits an earlier step against a later one in both argument orders (sequence over checksum+MaxAge, unsigned 0x8001 over 0x7FFF against MaxAge, MaxAge over age, age > MaxAgeDiff, MaxSequenceNumber over InitialSequenceNumber signed); TestRFC2328LessRecentByEarlierStepRefused through ReceiveUpdate (past MinLSArrival) keeps the database copy against a lower sequence or smaller checksum at MaxAge. Matrix and Older-sequence units kept. Revert records both polarities on CompareHeaders; author overlays (order swaps, signed checksum, unsigned sequence) red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328LessRecentByEarlierStepRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_freshness_order_test.go#L55) | unit/verify | revert, verified |
 | negative | [`TestRFC2328OlderInstanceGetsDatabaseCopyBack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L51) | unit/verify | revert, verified |
@@ -354,10 +354,10 @@ If the database copy has LS age equal to MaxAge and LS sequence number equal to 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: acknowledging, or sending the database copy back for, an LSA received while the database copy is MaxAge at MaxSequenceNumber. Red: TestOSPFMaxSeqMaxAgeSilentDiscard installs a MaxSequenceNumber copy aged to MaxAge, receives an older instance, flushes delayed acks, and fails on any send. Other polarity: TestRFC2328OlderInstanceGetsDatabaseCopyBack fails if an ordinary more-recent copy is not sent back to the sender (so a blanket silent discard goes red). One clause, both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2328OlderInstanceGetsDatabaseCopyBack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L54) | unit/verify | unproven |
-| positive | [`TestOSPFMaxSeqMaxAgeSilentDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go#L19) | unit/verify | unproven |
+| negative | [`TestRFC2328OlderInstanceGetsDatabaseCopyBack`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_test.go#L54) | unit/verify | not verified |
+| positive | [`TestOSPFMaxSeqMaxAgeSilentDiscard`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go#L19) | unit/verify | not verified |
 
 ### [`RFC2328-13.3-1`](#rfc2328-13.3-1)
 
@@ -365,7 +365,7 @@ LSAs flooded out an adjacency are placed on the adjacency's Link state retransmi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. Clauses: (a) flooded LSAs go on the adjacency's retransmission list: TestOSPFFloodOutOtherInterfaces + (eth1 Full neighbor queued; record on queueRetransmit observed red) and TestOSPFFloodQueuesExchangeAndLoadingNeighbors - (2-Way and the receiving neighbor never queued; record on isFloodEligibleNeighborState observed red). (b) retransmitted until acknowledged, every configurable per-interface RxmtInterval: TestRFC2328RetransmitEveryConfiguredRxmtInterval parses a real OSPFv2 config (eth1 retransmit-interval 3, eth2 11, eth0 default), takes RxmtInterval from engine.lsdbTopology, floods via ReceiveUpdate and ticks RetransmitTick each second 1..24: + eth1 at 3,6,9,12 and eth2 at 11,22 (repeated, per interface); - nothing on any other second, so a hard-coded 5 s or a single retransmission fails, and after eth1's ack at 12 no eth1 resend at 15..24 while unacknowledged eth2 still resends at 22. Exact per-second set compared, buffers isolated (one LSA, one neighbor per interface). TestOSPFRetransmitTimer keeps its earlier default-interval pin. Records on RetransmitTick observed red for both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFFloodQueuesExchangeAndLoadingNeighbors`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L57) | unit/verify | revert, verified |
 | negative | [`TestRFC2328RetransmitEveryConfiguredRxmtInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_retransmit_interval_test.go#L19) | unit/verify | revert, verified |
@@ -379,7 +379,7 @@ The LSA's LS age must be incremented by InfTransDelay (which must be > 0) when i
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Clauses: LS age incremented by InfTransDelay and capped at MaxAge: TestRFC2328FloodIncrementsAgeByInfTransDelay (unchanged; records on floodCopy). The '(which must be > 0)' clause: TestRFC2328TransmitDelayMustBePositive + an OSPFv2 interface with transmit-delay 1 accepted by validateConfig, - transmit-delay 0 refused with ErrTransmitDelayZero (the config.go validateConfigAF check that production reaches through register.go validateConfig); each case its own single-interface config, so the refusal is this rule's and no other. Records on validateConfigAF observed red for both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328FloodIncrementsAgeByInfTransDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flood_age_test.go#L106) | unit/verify | revert, verified |
 | negative | [`TestRFC2328TransmitDelayMustBePositive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_transmit_delay_test.go#L14) | unit/verify | revert, verified |
@@ -392,11 +392,11 @@ An LSA's LS age is never incremented past the value MaxAge. LSAs having age MaxA
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: (a) LS age incremented past MaxAge: TestLSAgeAddSaturates fails unless MaxAge-10 plus 20 equals MaxAge exactly, and TestOSPFLSDBAgeToPurge fails unless the aged LSA sits at MaxAge; (b) a MaxAge LSA used in the routing calculation: TestOSPFGraphSkipsMaxAge fails if BuildGraph makes a router vertex of a MaxAge router-LSA. The fixture is isolated: BuildGraph (graph.go) turns a decodable non-MaxAge router-LSA into a vertex with no other filter, so only the age check can exclude it. Positive: age advances and saturation leaves DoNotAge untouched.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFGraphSkipsMaxAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_graph_test.go#L40) | unit/verify | unproven |
-| positive | [`TestOSPFLSDBAgeToPurge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_aging_test.go#L34) | unit/verify | unproven |
-| positive | [`TestLSAgeAddSaturates`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc2328_lsage_test.go#L39) | unit/verify | unproven |
+| negative | [`TestOSPFGraphSkipsMaxAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_graph_test.go#L40) | unit/verify | not verified |
+| positive | [`TestOSPFLSDBAgeToPurge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_aging_test.go#L34) | unit/verify | not verified |
+| positive | [`TestLSAgeAddSaturates`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/types/rfc2328_lsage_test.go#L39) | unit/verify | not verified |
 
 ### [`RFC2328-14-2`](#rfc2328-14-2)
 
@@ -404,7 +404,7 @@ A MaxAge LSA must be removed immediately from the router's link state database a
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. TestOSPFPurgeRetainedForExchangeOrLoading now drives Exchange and Loading each on a fresh database: the purged LSA is kept while that neighbor exists and removed once it leaves, so a guard holding for one state only goes red (record on hasExchangeOrLoadingForKey, the clause b guard). Clause a and the dedicated rfc2328_maxage_exchange_test pair unchanged; positives recorded on deletePurgedIfAcked.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFPurgeRetainedForExchangeOrLoading`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L384) | unit/verify | revert, verified |
 | negative | [`TestRFC2328MaxAgeKeptWhileNeighborInExchangeOrLoading`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_maxage_exchange_test.go#L36) | unit/verify | revert, verified |
@@ -417,7 +417,7 @@ Each newly received LSA must be acknowledged. This is usually done by sending Li
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor). SHIFTED by 6e063fb498 (tests: give ten assert-nothing tests a real assertion), whose hunks sit in untagged sibling tests and the import block. The tagged unit is byte-identical (gate-verified) and no helper it calls changed. Verdict stands. c20 judge: TestRFC2328NewerLSAAcknowledgedThroughReceiveUpdate reaches the ordinary newer-LSA ack through ReceiveUpdate, not hand-set flags: point-to-point, DROther and Backup (from the DR) each send an LS Ack carrying the header on eth0 after FlushDelayedAcks; the DR receiving from a DROther acks implicitly by flooding back out eth0. Negative TestOSPFDRRefloodsBackOutReceivingInterface (flooded back, implicit ack, no explicit ack, Table 19) now carries a judge-observed revert record on ackForReceive. Direct ack of unknown MaxAge held by TestOSPFUnknownMaxAgeNoCopyIsAckedAndDiscarded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFDRRefloodsBackOutReceivingInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go#L80) | unit/verify | revert, verified |
 | positive | [`TestOSPFAckDecisionTable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_decisions_test.go#L93) | unit/verify | revert, verified |
@@ -430,7 +430,7 @@ A self-originated LSA is detected when either 1) the LSA's Advertising Router is
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). The round 4 defect is fixed: flushReceivedSelfLSA now installs and refloods the received instance at MaxAge with its own sequence (Section 14.1 'while leaving its LS sequence number alone'), and TestOSPFSelfOriginatedNoLocalCopyFlush asserts the received sequence, MaxAge and a flood through ReceiveUpdate. Detection by Router ID and by network-LSA own interface address, and the three foreign negatives, in rfc2328_self_detect_test. Records on flushReceivedSelfLSA and handleSelfReceived.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328ForeignLSANotTakenAsSelfOriginated`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_self_detect_test.go#L86) | unit/verify | revert, verified |
 | positive | [`TestOSPFSelfOriginatedNoLocalCopyFlush`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_edges_test.go#L43) | unit/verify | revert, verified |
@@ -443,7 +443,7 @@ In most cases, the router must then advance the LSA's LS sequence number one pas
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). TestOSPFOriginateSelfReceivedHigherSeq now proves the new instance: database sequence received+1, LS age 0, and an LS Update carrying that sequence below MaxAge is flooded (Section 12.4: age set to 0, added to the database and flooded). Negative: an older self copy leaves the sequence unchanged. Records on handleSelfReceived.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328SelfReceivedOlderIsNotReoriginated`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_self_older_test.go#L17) | unit/verify | revert, verified |
 | positive | [`TestOSPFOriginateSelfReceivedHigherSeq`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_origination_test.go#L427) | unit/verify | revert, verified |
@@ -454,7 +454,7 @@ In all these cases, instead of updating the LSA, the LSA should be flushed from 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). Positive: a withdrawn summary received again at a higher sequence stays at MaxAge in the database with the received sequence (Section 14.1) and a MaxAge LS Update is reflooded; a network-LSA with an own address and another Advertising Router is flushed at MaxAge and reflooded. Negative: a still-originated router-LSA is re-originated at received+1 below MaxAge and never flooded at MaxAge. Records on flushReceivedSelfLSA and handleSelfReceived.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328SelfOriginatedStillWantedIsNotFlushed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_self_flush_test.go#L81) | unit/verify | revert, verified |
 | positive | [`TestRFC2328SelfOriginatedNoLongerWantedIsFlushed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_self_flush_test.go#L35) | unit/verify | revert, verified |
@@ -465,7 +465,7 @@ Look up the vertex W's LSA (router-LSA or network-LSA) in Area A's link state da
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. c20 judge: every skip clause and the continuation. TestRFC2328SPFExaminesNextLinkAfterSkip: root lists links to a missing router-LSA, a MaxAge router-LSA, a router with no link back, and a transit net with no network-LSA BEFORE 5.5.5.5, which is still reached at 10 with only 192.0.2.0/24 at 15 routed. TestRFC2328SPFSkipsMissingOrMaxAgeVertex isolates missing/MaxAge for router and network LSAs with a below-MaxAge control. Link-back clause by TestOSPFSPFShortestPath / TestOSPFTwoWayCheck. Revert records Compute (+), BuildGraph (-).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFTwoWayCheck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_test.go#L31) | unit/verify | revert, verified |
 | negative | [`TestRFC2328SPFSkipsMissingOrMaxAgeVertex`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_spf_vertex_lookup_test.go#L58) | unit/verify | revert, verified |
@@ -478,7 +478,7 @@ Intra-area and inter-area paths are always preferred over AS external paths. (b)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. All four orderings asserted: intra over external (route_test), inter-area at 100 over E1 and E2 at 1 (selectBestRoutes, both input orders), E1 over E2 regardless of metric (external_test), and among E2 the smallest advertised metric (7 via an ASBR 50 away) over 9 via an ASBR 1 away through ComputeExternal. Ranking inter-area below externals, or letting distance decide E2, turns the new units red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFExternalE1PreferredOverE2`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_external_test.go#L96) | unit/verify | revert, verified |
 | negative | [`TestRFC2328LowerPreferencePathRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_path_preference_test.go#L51) | unit/verify | revert, verified |
@@ -491,7 +491,7 @@ If the router is attached to multiple areas (i.e., it is an area border router),
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. TestOSPFInterAreaRoute now runs in non-backbone area 0.0.0.1 on a single-area router, so it installs only if the router is judged not to be an ABR; TestRFC2328NonABRUsesItsAreaSummaries likewise. Negative TestOSPFABRBackboneOnlyAcceptance: the ABR ignores the cheaper area-1 summary. Records on ComputeInterAreaWith, whose abr gate (interarea.go:131) is the clause.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFABRBackboneOnlyAcceptance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L76) | unit/verify | revert, verified |
 | positive | [`TestOSPFInterAreaRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L43) | unit/verify | revert, verified |
@@ -503,7 +503,7 @@ If the cost specified by the LSA is LSInfinity, or if the LSA's LS age is equal 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. Each skip has its own unit. LSInfinity: TestOSPFInterAreaLSInfinityDropped asserts v4SummaryReader yields no record for a summary whose own cost is LSInfinity and no route installs through an ABR 10 away. MaxAge: TestRFC2328InterAreaSkipsMaxAgeSummary, reachable ABR, no route. Self: TestRFC2328InterAreaSkipsSelfSummary, root vertex carries a next hop so only the AdvertisingRouter == Root skip (interarea.go:141) keeps it empty. Positive TestOSPFInterAreaRoute installs the conforming summary.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFInterAreaLSInfinityDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_interarea_test.go#L139) | unit/verify | revert, verified |
 | negative | [`TestRFC2328SummaryAdvertisingLSInfinitySkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_summary_lsinfinity_test.go#L40) | unit/verify | revert, verified |
@@ -518,7 +518,7 @@ If the cost specified by the LSA is LSInfinity, or if the LSA's LS age is equal 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First judgement 2026-10-21. RFC 2328 16.4 (1): If the cost specified by the LSA is LSInfinity, or if the LSA LS age is equal to MaxAge, then examine the next LSA; (2) self-originated, examine the next. Positive TestOSPFExternalE1Cost installs a conforming external through its ASBR (record ComputeExternalWith). Negative TestOSPFExternalLSInfinityDropped: v4ExternalReader yields no record for an LSA whose own cost is LSInfinity and nothing installs through an ASBR 10 away (record v4ExternalReader). Negative TestRFC2328ExternalSkipsMaxAgeAndSelf: a MaxAge external and one advertised by the root, whose ASBR entry is the root at cost 10, install nothing. The two skips share one unit and one revert record, so the record cannot say which assertion went red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFExternalLSInfinityDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_external_test.go#L62) | unit/verify | revert, verified |
 | negative | [`TestRFC2328ExternalSkipsMaxAgeAndSelf`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_test.go#L49) | unit/verify | revert, verified |
@@ -530,10 +530,10 @@ The 64-bit authentication field in the OSPF packet header must be equal to the 6
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a Simple-password packet whose 64-bit authentication field differs from the configured password. Red: TestRFC2328SimplePasswordMismatchDiscarded fails if a packet signed with 'badpass' is accepted, and fails unless the reason is exactly password-mismatch (isolated: the AuType matches). Other polarity: the same unit fails if the configured 'goodpass' is rejected. One clause, both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2328SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L99) | unit/verify | unproven |
-| positive | [`TestRFC2328SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L95) | unit/verify | unproven |
+| negative | [`TestRFC2328SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L99) | unit/verify | not verified |
+| positive | [`TestRFC2328SimplePasswordMismatchDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L95) | unit/verify | not verified |
 
 ### [`RFC2328-D.3-1`](#rfc2328-d.3-1)
 
@@ -541,7 +541,7 @@ The message digest appended to the OSPF packet is not actually considered part o
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment of RFC 2328 Appendix D.3: "The message digest appended to the OSPF packet is not actually considered part of the OSPF protocol packet: the message digest is not included in the OSPF header's packet length, although it is included in the packet's IP header length field." Read all three tagged units and the transport/signing boundary. SignVerifyCrypto asserts unchanged Packet Length and exact appended digest length; RejectsExtraTrailerBytes verifies exact framing and refuses one extra byte. The moved transport unit drives both SendPacket and SendPacketRouted with keyed MD5 and asserts exactly one 44+16-byte payload at the fake InterfaceHandle, OSPF length 44, and trailing digest equal to an independent padded-key MD5. Current production transport passes the signed payload unchanged to InterfaceHandle; Linux Send/SendRouted pass the complete payload to unix.Sendto on raw protocol-89 sockets. This proves the Ze-side socket-payload boundary; the tagged unit does not capture an actual IP header or execute the kernel. The old note's unqualified claim of observed IP length is not repeated. The moved transport unit retains exact payload, Packet Length and independent digest assertions. Verdict enforced at this transport boundary. Stored producer-halt records were read but not replayed; the SendPacket halt alone is reachability evidence and does not independently discriminate the routed branch. No checks ran.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L225) | unit/verify | revert, verified |
 | positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L47) | unit/verify | revert, verified |
@@ -553,7 +553,7 @@ Whenever an OSPF packet is accepted as authentic, the cryptographic sequence num
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). Positive: TestOSPFAuthReplay accepts 10, 11, 11 then rejects 10, true only if 11 was stored. New negative TestRFC2328FailedAuthenticationLeavesSequenceAlone: after a genuine Hello at 10, a Hello at 1000 with a wrong digest is digest-mismatch and the per-neighbor slot stays 10, then a genuine 12 verifies and is stored; a store before the digest check turns it red (record on verify). The off-row tag on TestNeighborDownResetsCryptoSeq is gone.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L117) | unit/verify | revert, verified |
 | negative | [`TestRFC2328FailedAuthenticationLeavesSequenceAlone`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_auth_failed_seq_test.go#L19) | unit/verify | revert, verified |
@@ -566,7 +566,7 @@ In addition, a non-decreasing sequence number is included in each OSPF protocol 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from D.3-2. Positive: five Hellos signed through the engine on eth0, across a key change, each carry a sequence not below the previous (record on signKey); AuType 2 accepts equal and higher sequences. Negative: Hellos at 5 and 10 below the last accepted 11 are discarded with reason replay although their digest verifies (record on verify).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L118) | unit/verify | revert, verified |
 | positive | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L134) | unit/verify | revert, verified |
@@ -578,7 +578,7 @@ The checksum field in the standard OSPF header is not calculated, but is instead
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Non-compliant behaviour: an AuType 2 packet whose standard-header Checksum is calculated rather than set to 0. TestOSPFPacketChecksumZeroForAuType2 encodes a cryptographic-auth Hello through WriteTo and fails ('AuType2 checksum = %#04x, want 0') on any non-zero field. Single-polarity positive per the row's marker: the rule is generate-side and there is no receive path to reject.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestOSPFPacketChecksumZeroForAuType2`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/checksum_test.go#L53) | unit/verify | revert, verified |
 
@@ -588,7 +588,7 @@ If the cryptographic sequence number found in the OSPF header (see Figure 18) is
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). TestOSPFAuthReplayPerNeighborAuType2, for MD5 and HMAC-SHA-256: after a Hello at 100, an LS Ack at 5 from the same neighbor is discarded as replay under either key (one per-neighbor slot, replaySlotFor), and LS Acks at 100 and 101 are accepted, so only 'less than' discards. Per-type slots or a <= comparison turn it red. Records on replaySlotFor.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFAuthReplayPerNeighborAuType2`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L225) | unit/verify | revert, verified |
 | positive | [`TestOSPFAuthReplayPerNeighborAuType2`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L233) | unit/verify | revert, verified |
@@ -599,11 +599,11 @@ Interface MTU should be set to 0 in Database Description packets sent over virtu
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a DD sent over a virtual link carrying a non-zero Interface MTU. Red: TestRFC2328VirtualLinkDBDescCarriesZeroMTU fails on any sent DD with InterfaceMTU != 0 over the MTU-less virtual interface, and TestRFC2328VirtualInterfaceHasNoMTU fails unless the engine-created virtual interface reports MTU 0 (so the DD stamps 0). Other polarity: the same units fail unless a real interface's DD carries 1500 and the real interface reports a non-zero MTU, so a blanket zero goes red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2328VirtualLinkDBDescCarriesZeroMTU`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L63) | unit/verify | unproven |
-| positive | [`TestRFC2328VirtualLinkDBDescCarriesZeroMTU`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L58) | unit/verify | unproven |
-| positive | [`TestRFC2328VirtualInterfaceHasNoMTU`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L32) | unit/verify | unproven |
+| negative | [`TestRFC2328VirtualLinkDBDescCarriesZeroMTU`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L63) | unit/verify | not verified |
+| positive | [`TestRFC2328VirtualLinkDBDescCarriesZeroMTU`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L58) | unit/verify | not verified |
+| positive | [`TestRFC2328VirtualInterfaceHasNoMTU`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_test.go#L32) | unit/verify | not verified |
 
 ### [`RFC2328-10.1-1`](#rfc2328-10.1-1)
 
@@ -611,7 +611,7 @@ Only one Database Description Packet is allowed outstanding at any one time. (§
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. TestOSPFDDRetransmit now requires the retransmitted DD to equal the outstanding one (sameDD), not merely be a DD. The dedicated pair TestRFC2328MasterHoldsOneOutstandingDD / TestRFC2328MasterSendsNoSecondDDWithoutAck is unchanged: a master with more than one DD of headers sends only DD n until acked. Records on resendLastDDLocked and handleExchangeDDLocked.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328MasterSendsNoSecondDDWithoutAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_outstanding_test.go#L118) | unit/verify | revert, verified |
 | negative | [`TestOSPFDuplicateDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L602) | unit/verify | revert, verified |
@@ -624,11 +624,11 @@ If an LSA cannot be found in the database, something has gone wrong with the Dat
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an LS Request for an LSA absent from the database not generating BadLSReq. Red: TestOSPFBadLSReqRestart fails on HandleLSReq != reasonBadLSReq, on state != exstart, and on the resent DD not being the initial I|M|MS DD. Other polarity: TestOSPFValidLSReqSendsLSUpdate and TestRFC2328KnownLSRequestDoesNotRestartExchange go red if a satisfiable request restarts the exchange (state change, exstart) or is not answered with one LS Update carrying that LSA. One clause, both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFValidLSReqSendsLSUpdate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L914) | unit/verify | unproven |
-| negative | [`TestRFC2328KnownLSRequestDoesNotRestartExchange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L121) | unit/verify | unproven |
-| positive | [`TestOSPFBadLSReqRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L741) | unit/verify | unproven |
+| negative | [`TestOSPFValidLSReqSendsLSUpdate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L914) | unit/verify | not verified |
+| negative | [`TestRFC2328KnownLSRequestDoesNotRestartExchange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_test.go#L121) | unit/verify | not verified |
+| positive | [`TestOSPFBadLSReqRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_nsm_test.go#L741) | unit/verify | not verified |
 
 ### [`RFC2328-C.3-1`](#rfc2328-c.3-1)
 
@@ -636,7 +636,7 @@ The interface output cost must always be greater than 0. (§C.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge). Explicit cost 0 stays refused (TestInterfaceCostAndTransmitDelayBoundary). The unset-cost gap is closed: TestRFC2328DefaultedInterfaceCostIsPositive resolves interfaces from config text with no cost leaf and reads interfaceCost, the one producer every consumer uses (instance.go Router-LSA and routing-table cost, ldp_sync.go, te_originate.go): 1 Gbit/s under 100 Gbit/s -> 100, and the inputs that divide to 0 (100 Gbit/s under a 1 Mbit/s reference, unknown speed) -> 1. Records: revert on interfaceCost (positive) and on DefaultMetric (negative); a mutant dropping DefaultMetric's MetricMin clamp would be sharper.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestInterfaceCostAndTransmitDelayBoundary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_config_interface_validate_test.go#L17) | unit/verify | revert, verified |
 | negative | [`TestRFC2328DefaultedInterfaceCostIsPositive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_cost_default_test.go#L38) | unit/verify | revert, verified |
@@ -649,7 +649,7 @@ One or more of the stub area's area border routers must advertise a default rout
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an ABR attached to a stub area not advertising a default route into it via a summary-LSA. Red: TestRFC2328StubAreaGetsDefaultSummary fails unless the stub area holds a Type 3 summary with Link State ID 0.0.0.0, mask 0.0.0.0 and the configured cost 5. Other polarity: TestRFC2328NormalAreaGetsNoDefaultSummary fails if a normal area receives one, and still checks the ordinary summary is originated. One clause, both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328NormalAreaGetsNoDefaultSummary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L53) | unit/verify | revert, verified |
 | positive | [`TestRFC2328StubAreaGetsDefaultSummary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L34) | unit/verify | revert, verified |
@@ -660,7 +660,7 @@ Support for receiving and sending IP multicast datagrams, along with the appropr
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child's own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 4.4: "Support for receiving and sending IP multicast datagrams, along with the appropriate lower-level protocol support, is required." TestOSPFTransportVethMulticastRoundTrip and TestOSPFTransportAllDRoutersReceive changed by the guard and by the CAP_NET_RAW probe failing instead of skipping (stronger); withVethPair's namespace/veth refusals likewise fail now. Bodies otherwise unchanged: the round trip reads IP_MULTICAST_IF and TTL 1, sends AllSPFRouters across a veth into a peer namespace and asserts receiving interface, source and exact payload; AllDRouters is received after join (positive control) and not received after leave. The namespace the lab builds now sits inside the child's own network namespace, which removes host-route and host-rp_filter influence without changing any assertion. Proves Ze's socket/send/receive boundary, not Linux forwarding (not required). Records (setMulticastOptions, leaveGroup reverts) current.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFMulticastMembershipRefusesForeignGroup`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L97) | unit/verify | revert, verified |
 | negative | [`TestOSPFTransportAllDRoutersReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_transport_integration_linux_test.go#L103) | unit/verify | revert, verified |
@@ -673,10 +673,10 @@ The router's IP protocol support must include the ability to divide a single IP 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a classful routing table (mask derived from address class) that cannot carry variable-length subnets or supernets. Red: TestRFC2328ClasslessPrefixesReachIPRIB fails unless 192.0.0.0/16 (a supernet of class-C networks), 192.0.2.0/24 and 192.0.2.128/25 (a variable-length subnet) each reach the IP Loc-RIB with its own next hop. Other polarity: TestRFC2328ClasslessWithdrawalPreservesOverlaps fails if withdrawing the /24 removes the /16 or the /25. Both the VLSM and the supernet clause have a prefix that a classful table would lose.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2328ClasslessWithdrawalPreservesOverlaps`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_classless_test.go#L51) | unit/verify | unproven |
-| positive | [`TestRFC2328ClasslessPrefixesReachIPRIB`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_classless_test.go#L34) | unit/verify | unproven |
+| negative | [`TestRFC2328ClasslessWithdrawalPreservesOverlaps`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_classless_test.go#L51) | unit/verify | not verified |
+| positive | [`TestRFC2328ClasslessPrefixesReachIPRIB`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_classless_test.go#L34) | unit/verify | not verified |
 
 ### [`RFC2328-4.4-3`](#rfc2328-4.4-3)
 
@@ -684,7 +684,7 @@ Indications must be passed from these protocols to OSPF as the network interface
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against RFC 2328 Section 4.4 lower-level protocol support: "Indications must be passed from these protocols to OSPF as the network interface goes up and down." Read all three tagged units and registration/dispatch producers. The moved transport positive requires opening eth0, matching up callback ifindex/name, no premature down, matching down callback and closed handle. The negative uses a non-enabled interface and requires no socket and zero callbacks. The separate engine positive builds the real transport over a fake backend, establishes a non-down neighbor on a point-to-point OSPF interface, then requires actual interface Down and neighbor down after HandleLinkDown and Point-to-point after HandleLinkUp. Thus transport callbacks alone cannot masquerade as delivery to OSPF. instance.go registers both engine callbacks; onInterfaceDown marks the running interface down and onInterfaceUp restarts it. The current transport unit still asserts these outcomes after its comment/directive drift. Verdict enforced. These are injected link indications, not a kernel carrier-event test. Existing records were read, not replayed or independently freshness-verified. No checks ran.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFTransportPassesNoIndicationForNonOSPFInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_link_test.go#L45) | unit/verify | revert, verified |
 | positive | [`TestRFC2328LinkIndicationsReachTheOSPFEngine`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_link_indication_test.go#L39) | unit/verify | revert, verified |
@@ -696,7 +696,7 @@ On these interfaces, the IP source should be set to any of the other IP addresse
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child's own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 8.1: "On these interfaces, the IP source should be set to any of the other IP addresses belonging to the router.  For this reason, there must be at least one IP address assigned to the router." Unit changes read: the guard; CAP_NET_RAW probe fails instead of skipping; and the positive now adds a link-scope route to the peer's 10.255.0.2/32 over the unnumbered device, because the child namespace has no host default route and loose rp_filter needs a route back to the reply's source. That route is what OSPF would install on a real unnumbered link; it has no preferred source, so it cannot supply the donor address, and it does not bear on the outgoing multicast's source, which the test still compares exactly: getsockopt IP_MULTICAST_IF == donor, and the peer reads the IP header source == 10.255.0.1 with the exact payload. The reply to AllSPFRouters must still arrive on the unnumbered device's socket, so the membership-on-the-borrower assertion is intact. The removed comment about Alpine's strict rp_filter described the old host and is correctly replaced. Negative TestOSPFRefusesDeviceWithoutRouterAddress: guard only; with no IPv4 address in the namespace and a kernel control proving the join works without one, the backend must refuse and name the missing address. Mutant records (multicastDevice ifindex->0; interfaceIPv4 error->nil) were re-recorded in d8427e4380 and are current per the gate. The setReversePath comment change is accurate to the new lab.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFRefusesDeviceWithoutRouterAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go#L101) | unit/verify | mutant, verified |
 | positive | [`TestOSPFUnnumberedSourcesFromDonorAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_unnumbered_source_linux_test.go#L26) | unit/verify | mutant, verified |
@@ -707,10 +707,10 @@ In order for the packet to be accepted at the IP level, it must pass a number of
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Each listed test has both polarities through deliverDatagram, the Linux receive path. IP checksum: the 'checksum' case fails if a datagram with a broken header checksum is delivered. Destination: accepted for the interface address, AllSPFRouters and AllDRouters (TestOSPFReceiveAcceptsValidIPv4Envelope fails if any is rejected or not delivered), 'destination' case fails if a foreign address is delivered. Protocol: 'protocol' case (17) fails if delivered, while the valid datagrams carry 89. Rejections also assert one drop recorded and nothing on recvCh.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFReceiveRejectsInvalidIPv4Envelope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_backend_linux_test.go#L158) | unit/verify | unproven |
-| positive | [`TestOSPFReceiveAcceptsValidIPv4Envelope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_backend_linux_test.go#L137) | unit/verify | unproven |
+| negative | [`TestOSPFReceiveRejectsInvalidIPv4Envelope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_backend_linux_test.go#L158) | unit/verify | not verified |
+| positive | [`TestOSPFReceiveAcceptsValidIPv4Envelope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_backend_linux_test.go#L137) | unit/verify | not verified |
 
 ### [`RFC2328-8.2-2`](#rfc2328-8.2-2)
 
@@ -718,7 +718,7 @@ The Area ID found in the OSPF header must be verified. If both of the following 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c10/c11). Case (1) as the prior judgement: Area-ID clause TestOSPFReceiveAcceptsMatchingAreaID + / TestOSPFReceiveDropsMismatchedAreaID -; source clause under the interface mask TestOSPFReceiveDropsOffNetworkSourceOnBroadcast -, TestOSPFReceiveAcceptsOnNetworkSourceOnBroadcast +, point-to-point skip TestOSPFReceiveAcceptsOffNetworkSourceOnPointToPoint +. Case (2), the gap of the prior verdict, now proven through engine.acceptsArea on an ABR fixture (eth0 transit 0.0.0.1, eth1 backbone, eth2 0.0.0.2, VL to 10.0.0.2 resolved): TestRFC2328VirtualLinkAreaIDAccepted + (backbone header from the VL endpoint on the Transit-area interface accepted); TestRFC2328VirtualLinkAreaIDRefused - with one assertion per clause, each discriminated by a targeted overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) of virtualLinkTargetLocked: dropping the backbone check -> red at the non-backbone 0.0.0.2 assertion; dropping the neighbor Router ID match -> red at the 9.9.9.9 assertion; dropping the Transit-area match -> red at the eth2 assertion. The recorded negative red is the panic stub; these mutants are the clause-level evidence. 'Receiving router must be an ABR' is structural: a configured virtual link attaches the router to the backbone, and no separate refusal path exists. Behaviour note (R42, documented in ospf-4-component-config.md): only the interface's first IPv4 address/prefix forms the OSPF interface, so a neighbour on a secondary subnet is dropped.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFReceiveDropsOffNetworkSourceOnBroadcast`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_source_test.go#L68) | unit/verify | revert, verified |
 | negative | [`TestOSPFReceiveDropsMismatchedAreaID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_receive_test.go#L77) | unit/verify | revert, verified |
@@ -734,7 +734,7 @@ The AuType specified in the packet must match the AuType specified for the assoc
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent judge) after both negatives moved to receiveEngineMetered (registry installed before openInterfaces, so the neighbor table knows eth0) and gained a control that the same Hello signed AuType 1 forms the neighbor on the same engine, which makes the 'no neighbor' assertion able to fail. RFC 2328 s8.2 quoted; Appendix D makes AuType per-interface, so comparing against the interface key chain's AuType (authStore.verify) is the RFC's associated value. Targeted overlays, observed: disabling only 'if h.AuType != keys[0].auType' reddens both null-into-password negatives (dropped 0, want 1); disabling only the no-key-chain non-Null refusal reddens TestRFC2328PasswordAuTypeIntoNullAreaDropped (dropped 0, want 1); renaming that reason to password-mismatch reddens both reason assertions, so the drop is attributed to the AuType check. Positive TestOSPFReceiveAcceptsMatchingAuType (AuType 1 into AuType 1, neighbor forms) unchanged. Residual, not a defect: TestOSPFReceiveDropsMismatchedAuType and TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType now carry the same input and assertions (one test under two tags); the reverse negative asserts no reason label; the recorded discrimination breaks are whole-body panics, weaker than the line overlays above.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328NullAuTypeIntoPasswordAreaDroppedForAuType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_autype_test.go#L48) | unit/verify | revert, verified |
 | negative | [`TestRFC2328PasswordAuTypeIntoNullAreaDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_autype_test.go#L78) | unit/verify | revert, verified |
@@ -747,7 +747,7 @@ The packet must be authenticated. (§8.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 8.2-3. Through the real dispatcher on a keyed-MD5 interface: a Hello signed with the configured key is not dropped and forms a neighbor; the same Hello signed with another key (AuType and Key ID matching) is dropped once and forms none, isolating the digest check. Records on auth_wiring.go::verifyPacket.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328UnauthenticatedPacketDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_packet_authenticated_test.go#L53) | unit/verify | revert, verified |
 | positive | [`TestRFC2328AuthenticatedPacketAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_packet_authenticated_test.go#L39) | unit/verify | revert, verified |
@@ -758,7 +758,7 @@ All other packet types are sent/received only on adjacencies. This means that th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 8.2-3. Negative: DD, LS Request, LS Update and LS Ack from 9.9.9.9 (no Hello) are each dropped with reason neighbor (4), create no neighbor, install nothing, transmit nothing. Positive: from the Exchange neighbor 2.2.2.2 the LS Update is installed and the LS Ack clears the retransmission, with no neighbor/state drops. Records on neighbor/table.go::AcceptsFlooding.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328NonHelloFromUnknownRouterDropped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_active_neighbor_test.go#L143) | unit/verify | revert, verified |
 | positive | [`TestRFC2328ActiveNeighborPacketsProcessed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_active_neighbor_test.go#L173) | unit/verify | revert, verified |
@@ -769,7 +769,7 @@ The router must also originate a network-LSA for the network node. (§9.1, §12.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the Designated Router for a network not originating its network-LSA. Red: TestRFC2328DROriginatesNetworkLSA fails unless OriginateFromTopology produces a network-LSA for eth1 (where 1.1.1.1 is DR) listing exactly [1.1.1.1 3.3.3.3]. Other polarity: TestRFC2328NonDROriginatesNoNetworkLSA fails if the Backup on eth0 originates one. One clause, both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328NonDROriginatesNoNetworkLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L408) | unit/verify | revert, verified |
 | positive | [`TestRFC2328DROriginatesNetworkLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L388) | unit/verify | revert, verified |
@@ -780,7 +780,7 @@ If the router is eligible to become Designated Router, it must periodically send
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. c20 judge: eligible router to every eligible neighbor (TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor) and DROther skipping priority-0 neighbors (negative TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor); DR and Backup sending to the priority-0 neighbor too (TestRFC2328NBMAHelloTargetsByRole dr/backup, red under an overlay gating priority-0 in every state). Ineligible-router clause: the subtest asserts a priority-0 DROther targets both DR and BDR; no producer branch reads the router's own priority (it sends to every eligible neighbor, a superset the sentence allows), so no targeted overlay exists; the assertion fails on any producer that drops DR or BDR from that router's targets, and the unit's revert record is observed red. Single positive for that clause is the sentence's own shape (no MUST NOT).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFNBMAPeriodicHelloSkipsIneligibleNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_test.go#L92) | unit/verify | revert, verified |
 | positive | [`TestOSPFNBMAEligibleRouterHellosEveryEligibleNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_test.go#L75) | unit/verify | revert, verified |
@@ -792,7 +792,7 @@ The interface state must be at least Waiting for any Hello Packets to be sent ou
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 9.5.1-1. Positive: Start brings an eligible NBMA interface to Waiting and a unicast Hello reaches the configured neighbor within 1.5 s while still Waiting. Negative: a stopped interface (Down) sends nothing over 2.5 s after Stop, which a Hello timer surviving InterfaceDown breaks; the never-started half is weaker but harmless. Records on iface.go Start and Stop.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328NBMANoHelloWhileDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_nbma_hello_state_test.go#L80) | unit/verify | revert, verified |
 | positive | [`TestRFC2328NBMAHelloSentOnceWaiting`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_nbma_hello_state_test.go#L49) | unit/verify | revert, verified |
@@ -803,7 +803,7 @@ Next, the values of the Network Mask, HelloInterval, and RouterDeadInterval fiel
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a Hello whose Network Mask, HelloInterval or RouterDeadInterval differs from the receiving interface. Red: TestRFC2328HelloMismatchRejectedAndNoTwoWayUnlisted mutates each of the three fields separately and fails unless ReceiveHello returns that field's drop reason and no neighbor is created (processing stopped). Other polarity: TestRFC2328HelloMatchingParametersAndTwoWay fails if a matching Hello is refused. Every listed field has its own case.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328HelloMismatchRejectedAndNoTwoWayUnlisted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_hello_test.go#L35) | unit/verify | revert, verified |
 | positive | [`TestRFC2328HelloMatchingParametersAndTwoWay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_hello_test.go#L16) | unit/verify | revert, verified |
@@ -814,7 +814,7 @@ If the router itself appears in this list, the neighbor state machine should be 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 10.5-1. Through Table.Hello: a Hello listing this router moves an Init neighbor to 2-way (broadcast, not DR/BDR) and a first-heard p2p neighbor to exstart; a Hello not listing it leaves a p2p neighbor in init over three Hellos and takes a 2-way neighbor back to init. Records on table.go::hello.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328HelloNotListingRouterRunsOneWayReceived`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_hello_twoway_test.go#L43) | unit/verify | revert, verified |
 | positive | [`TestRFC2328HelloListingRouterRunsTwoWayReceived`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_hello_twoway_test.go#L18) | unit/verify | revert, verified |
@@ -825,7 +825,7 @@ In states Loading and Full the slave must resend its last Database Description p
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 4 judge). Units changed only by added 10.6-2/10.6-3 tag lines. Positive TestRFC2328SlaveResendsLastDDInLoadingAndFull: in Loading and Full a duplicate of the master's last DD at 0 s and RouterDeadInterval-1 s draws exactly one packet, sameDD as the slave's last DD, state unchanged; TestRFC2328SlaveRepliesAndRepeatsOnDuplicate covers the Exchange duplicate. Negatives: a non-duplicate (Init DD 99, new DD 101) is SeqNumberMismatch to ExStart with an Init DD, never the last DD; out-of-sequence 101 in Exchange likewise. Records on resendLastDDLocked, sameDD, handleExchangeDDLocked.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328SlaveRepeatsOnlyForTheLastMasterDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_after_exchange_test.go#L103) | unit/verify | revert, verified |
 | negative | [`TestRFC2328SlaveRefusesOutOfSequenceDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go#L67) | unit/verify | revert, verified |
@@ -838,7 +838,7 @@ Database Description packets must be processed in sequence, as indicated by the 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). New TestRFC2328SlaveAcceptsAndAnswersNextDDInExchange: in Exchange the master's DD 100 after 99 is accepted (reason empty), the slave stores sequence 100 and stays in Exchange; negative DD 101 after 99 is SeqNumberMismatch to ExStart. Records on handleExchangeDDLocked for both.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328SlaveRefusesOutOfSequenceDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go#L68) | unit/verify | revert, verified |
 | positive | [`TestRFC2328SlaveAcceptsAndAnswersNextDDInExchange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_next_test.go#L19) | unit/verify | revert, verified |
@@ -850,7 +850,7 @@ The slave must send a Database Description Packet in reply. (§10.6)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). The Exchange-state reply is now asserted: DD 100 accepted as next in sequence draws exactly one slave DD with sequence 100, MS and I clear (record on handleExchangeDDLocked); the ExStart reply and the duplicate repeat stay pinned; an out-of-sequence DD draws a fresh Init DD, not a reply.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328SlaveRefusesOutOfSequenceDD`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_test.go#L70) | unit/verify | revert, verified |
 | positive | [`TestRFC2328SlaveAcceptsAndAnswersNextDDInExchange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/neighbor/rfc2328_dd_slave_next_test.go#L20) | unit/verify | revert, verified |
@@ -862,7 +862,7 @@ When an attempt is made to increment the sequence number past the maximum value 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged c18. Clauses: (1) flush by premature aging AND reflooding, (2) wait for ALL adjacent neighbors' acks, (3) then originate at InitialSequenceNumber. Positive TestRFC2328SequenceWrapFloodsFlushThenRestarts: the flush is decoded from LS Updates at MaxAge + MaxSequenceNumber out of eth0 AND eth1; after 2.2.2.2 and 3.3.3.3 both ack it is deleted; next origination is InitialSequenceNumber age 0 flooded out of both. Negative TestRFC2328SequenceWrapWaitsForEveryNeighbor (subtest per neighbor): one ack alone leaves it in the database, the next origination is the MaxAge instance at MaxSequenceNumber, and no InitialSequenceNumber instance is flooded, so a restart after the first ack goes red. Records: nextOwnSequenceForce and deletePurgedIfAcked, both polarities, observed red. Old flooding_test tags kept.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328SequenceWrapWaitsForAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L194) | unit/verify | revert, verified |
 | negative | [`TestRFC2328SequenceWrapWaitsForEveryNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_sequence_wrap_test.go#L100) | unit/verify | revert, verified |
@@ -875,7 +875,7 @@ An implementation of OSPF must be able to access individual pieces of an area da
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a lookup that ignores any element of the (LS type, Link State ID, Advertising Router) triple. + TestRFC2328LookupTellsApartLSAsSharingTwoElements: three LSAs from 4.4.4.4 (Router 4.4.4.4; Summary 4.4.4.4 differing only in type; Summary 9.9.9.9 differing only in LSID) each found by its own triple with its own sequence. - TestRFC2328LookupMissesWhenOneElementDiffers: a triple differing in LS type alone, LSID alone, or Advertising Router alone finds nothing. Records on lsdb.go::Lookup observed red; TestRFC2328LookupByTriple/NeedsFullTriple unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328LookupNeedsFullTriple`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L174) | unit/verify | revert, verified |
 | negative | [`TestRFC2328LookupMissesWhenOneElementDiffers`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_lookup_triple_test.go#L73) | unit/verify | revert, verified |
@@ -888,7 +888,7 @@ If a router advertises a summary-LSA for a destination which then becomes unreac
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 4 judge). lsdb units changed only by added 16.7-1 tag lines. spf/rfc2328_unreachable_summary_test drives OriginateSummaries with a real LSDB: an unreached destination's Type 3 goes to MaxAge and is reflooded, the reachable one stays; lsdb tests pin FlushStaleSummaryLSAs at MaxAge plus a MaxAge LS Update, and no flush for a kept key.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328AdvertisedSummaryNotFlushed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L288) | unit/verify | revert, verified |
 | negative | [`TestRFC2328SummaryKeptWhileDestinationReachable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_unreachable_summary_test.go#L120) | unit/verify | revert, verified |
@@ -901,7 +901,7 @@ If a router advertises an AS-external-LSA for a destination which then becomes u
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 12.4-1. From InjectExternal/WithdrawExternal with 2.2.2.2 in Exchange: the withdrawn 10.6.0.0/16 AS-external-LSA is at MaxAge in the database and a MaxAge instance is flooded to the neighbor; the still-redistributed 10.8.0.0/16 stays below MaxAge and is not flooded at MaxAge. Records on origination.go::PurgeExternal.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328ReachableExternalNotFlushed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_external_flush_test.go#L66) | unit/verify | revert, verified |
 | positive | [`TestRFC2328UnreachableExternalFlushed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_external_flush_test.go#L50) | unit/verify | revert, verified |
@@ -912,7 +912,7 @@ If a previously advertised entry has been deleted, or is no longer advertisable 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). New TestRFC2328SummaryFlushedWhenDeletedOrNoLongerAdvertisableToArea drives OriginateSummaries into a real LSDB: a deleted 10.20.0.0/24 goes to MaxAge and a MaxAge LS Update leaves eth1 while 10.10.0.0/24 stays; when area 0.0.0.2 turns totally stubby its 10.10.0.0/24 summary is flushed and reflooded on eth2 alone, area 0.0.0.1 keeps it below MaxAge with no MaxAge flood. lsdb pair keeps the kept-key negative. Records on FlushStaleSummaryLSAs.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328AdvertisedSummaryNotFlushed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L289) | unit/verify | revert, verified |
 | positive | [`TestRFC2328WithdrawnSummaryFlushedAtMaxAge`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L250) | unit/verify | revert, verified |
@@ -924,7 +924,7 @@ All of the router's links to the area must be described in a single router-LSA. 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: splitting the area's links over several router-LSAs, or omitting one. Red: TestRFC2328SingleRouterLSACarriesEveryLink fails unless exactly one router-LSA from 1.1.1.1 exists in the area and its body holds a transit link for each of the two interfaces. Other polarity: TestRFC2328RouterLSAExcludesOtherAreaLinks fails if an interface of area 0.0.0.1 is described in the backbone router-LSA, so 'links to the area' is bounded. One clause, both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328RouterLSAExcludesOtherAreaLinks`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L354) | unit/verify | revert, verified |
 | positive | [`TestRFC2328SingleRouterLSACarriesEveryLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L322) | unit/verify | revert, verified |
@@ -935,7 +935,7 @@ The router must then originate summary-LSAs into the newly attached area for all
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 4 judge). abr_summary units changed only by added 12.4.3-2 tag lines. rfc2328_newly_attached_area_test: real LSDB, area attached with no own Router-LSA gets the intra-area and inter-area summaries and none of its own routes; abr_summary pins one Type 3 per backbone intra-area route with mask and metric, and range handling. Records on summaryDesiredForArea, OriginateSummaries, applyAreaRanges.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328ABRComponentNeverEscapesRange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L103) | unit/verify | revert, verified |
 | negative | [`TestRFC2328NewlyAttachedAreaGetsNoSummaryOfItsOwnRoutes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_newly_attached_area_test.go#L106) | unit/verify | revert, verified |
@@ -948,7 +948,7 @@ In general, this information must be condensed before appearing in summary-LSAs.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). New TestRFC2328RangeCondensesSeveralNetworksIntoOneSummary: three /24 networks under 10.10.0.0/16 give exactly one Type 3 summary-LSA, at 10.10.0.0 with mask /16, so a per-component mask rewrite fails the count. Negative: a network outside the range keeps its own /24 summary beside the one range summary (count 2). Records on applyAreaRanges.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328ABRComponentNeverEscapesRange`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_abr_summary_test.go#L104) | unit/verify | revert, verified |
 | negative | [`TestRFC2328NetworkOutsideRangeKeepsOwnSummary`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_summary_flush_condense_test.go#L195) | unit/verify | revert, verified |
@@ -961,7 +961,7 @@ Remove the current database copy from all neighbors' Link state retransmission l
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC2328ReplacedInstanceLeavesSenderRetransmitList queues the old instance for 3.3.3.3, then the newer instance arrives FROM 3.3.3.3 so no flood can overwrite that entry; after install the list is empty for the key and a retransmit tick sends nothing on eth1. A no-op removeFromAllRetransmit turns it red while the older positive stays green. Negative: a duplicate leaves other lists intact (unchanged).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328DuplicateKeepsOtherRetransmitLists`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L144) | unit/verify | revert, verified |
 | positive | [`TestRFC2328ReplacedInstanceLeavesRetransmitLists`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L110) | unit/verify | revert, verified |
@@ -973,7 +973,7 @@ If the contents are different, the following pieces of the routing table must be
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. c21 judge (independent). Positive TestRFC2328ChangedContentsRecalculateEveryArea drives the production wiring (newEngine -> initSPF: lsdb.SetOnChange -> Computer.TriggerArea -> Run), nothing triggers by hand: a changed router-LSA and a changed network-LSA installed in area 0.0.0.1 each withdraw the neighbor stub 203.0.113.64/26 and move BOTH areas last-run stamps past the settled baseline; not-advertised ranges keep the ABR summary origination from triggering the backbone, so only the 13.2 whole-table behaviour recalculates area 0 (isolated). Judge re-ran the dirty-only Computer.Run overlay: both subtests red "area 0.0.0.0 was not recalculated"; record on TriggerArea observed red. Run is monolithic (every configured area, then summary and external steps), so the entire table follows. TestSPFRecalculatesEveryAreaOnOneAreaChange stays as unit-level supplement. Negative TestSPFRecalculationBoundedToConfiguredAreas bounds the recalculation to configured areas; 13.2 offers no refusal path (unchanged contents is a permission, not an obligation), so the row is judged on its positive, the negative held as supplementary.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSPFRecalculationBoundedToConfiguredAreas`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_recalc_test.go#L47) | unit/verify | revert, verified |
 | positive | [`TestRFC2328ChangedContentsRecalculateEveryArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_contents_change_recalc_test.go#L113) | unit/verify | revert, verified |
@@ -985,7 +985,7 @@ The best route to the destination described by the summary-LSA must be recalcula
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Through lsdb.Install and the engine's SetOnChange wiring to SPF: a new summary-LSA instance with metric 25 moves the inter-area route from 15 to 35, and an instance at LSInfinity removes the route. Records on spf/interarea.go::ComputeInterAreaWith.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328SummaryAtInfinityRemovesRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_summary_recalc_test.go#L91) | unit/verify | revert, verified |
 | positive | [`TestRFC2328ChangedSummaryRecalculatesRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_summary_recalc_test.go#L78) | unit/verify | revert, verified |
@@ -996,7 +996,7 @@ If there is already a database copy, and if the database copy was received via f
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. c20 judge: discard without ack and keep the earlier copy proven by TestRFC2328MinLSArrivalDiscardsWithoutAck (negative) and the elapsed case by TestRFC2328MinLSArrivalElapsedAccepts; the 'examine the next LSA' clause now by TestRFC2328TooSoonDiscardThenNextLSAExamined: one LS Update [too-soon 4.4.4.4, new 5.5.5.5], 4.4.4.4 keeps its sequence and is not flooded, 5.5.5.5 installed, flooded and the ONLY header acknowledged. Author overlay (continue->return on the TooSoon branch) red on the new unit only; revert record on ReceiveUpdate.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328MinLSArrivalDiscardsWithoutAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L44) | unit/verify | revert, verified |
 | positive | [`TestRFC2328MinLSArrivalElapsedAccepts`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L79) | unit/verify | revert, verified |
@@ -1008,7 +1008,7 @@ On non-broadcast networks, separate Link State Update packets must be sent, as u
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (round 5 judge). Positive: floodExcept on NBMA sends exactly one LS Update to each of 10.0.0.2 (Full) and 10.0.0.3 (Exchange). Negative: no send to AllSPFRouters, AllDRouters or the 2-Way 10.0.0.4. Both records now break flooding.go::floodExcept, the producer of this clause (the round 4 FlushDelayedAcks record on the negative is replaced).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328NBMANeverMulticastsNorReachesTwoWay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L469) | unit/verify | revert, verified |
 | positive | [`TestRFC2328NBMAUnicastsToEachAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L434) | unit/verify | revert, verified |
@@ -1019,7 +1019,7 @@ On non-broadcast networks, delayed Link State Acknowledgment packets must be uni
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First verdict 2026-10-21 (round 4 judge). Split from 13.3-3. A queued delayed ack on the NBMA interface flushes as exactly one LS Ack unicast to each of 10.0.0.2 (Full) and 10.0.0.3 (Exchange); nothing goes to AllSPFRouters, AllDRouters or the 2-Way 10.0.0.4. Records on flooding.go::FlushDelayedAcks.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328NBMANeverMulticastsNorReachesTwoWay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L470) | unit/verify | revert, verified |
 | positive | [`TestRFC2328NBMAUnicastsToEachAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L435) | unit/verify | revert, verified |
@@ -1030,10 +1030,10 @@ The cost of a virtual link is NOT configured. It is defined to be the cost of th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, c10/c11). Prior clauses unchanged: cost = intra-area path cost carried by the routing table entry (spf/TestRFC2328VirtualCostIsTransitPathCost), a cost change originates a new backbone router-LSA (TestRFC2328VirtualCostChangeOriginatesNewInstance, TestRFC2328VirtualCostChangeReoriginatesBackbone +, TestRFC2328VirtualUnusablePathWithdrawsBackboneLink -). The missing MUST clause 'The cost of a virtual link is NOT configured' now has negatives on both virtual-link lists through the operator path (config text -> config.ParseTreeWithYANG over ZeOSPFConfYANG -> ToPluginMap -> parseOSPFConfig): TestRFC2328VirtualLinkCostNotConfigurable (ospf areas area virtual-link) and TestRFC2328VirtualLinkCostNotConfigurableV3 (address-family ipv6, ospf-af-topology grouping), each accepting the link without cost (reaches cfg.VirtualLinks / cfg.V6.VirtualLinks) and refusing `cost 10` with an error naming cost. Their records are no-break declaration-only (the tool cannot mutate an embedded YANG file); the judge observed the red with an overlay mutants (go test -overlay, tree untouched, scratch/ospf-judge-mut) adding `leaf cost { type uint16; }` to both lists of ze-ospf-conf.yang: both units red at the refusal assertion.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2328VirtualLinkCostNotConfigurable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_cost_config_test.go#L69) | unit/verify | no-break without a fault test (declaration-only), which does not count as proof, verified |
-| negative | [`TestRFC2328VirtualLinkCostNotConfigurableV3`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_cost_config_test.go#L139) | unit/verify | no-break without a fault test (declaration-only), which does not count as proof, verified |
+| negative | [`TestRFC2328VirtualLinkCostNotConfigurable`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_cost_config_test.go#L69) | unit/verify | no-break without a fault test (declaration-only), so fault detection has not been verified, verified |
+| negative | [`TestRFC2328VirtualLinkCostNotConfigurableV3`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_cost_config_test.go#L139) | unit/verify | no-break without a fault test (declaration-only), so fault detection has not been verified, verified |
 | negative | [`TestRFC2328VirtualUnusablePathWithdrawsBackboneLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L98) | unit/verify | revert, verified |
 | positive | [`TestRFC2328VirtualCostChangeOriginatesNewInstance`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_cost_test.go#L30) | unit/verify | revert, verified |
 | positive | [`TestRFC2328VirtualCostChangeReoriginatesBackbone`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc2328_virtual_route_test.go#L67) | unit/verify | revert, verified |
@@ -1045,7 +1045,7 @@ Note that when there is a choice of vertices closest to the root, network vertic
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: choosing a router vertex before a network vertex at equal distance. Red: TestRFC2328EqualDistanceNetworkVertexFirst pushes two routers and one network at dist 10 and fails unless the first pop is the network vertex. Other polarity: TestRFC2328CloserRouterVertexBeforeFartherNetwork fails if the network-first preference overrides distance (router at 10 must pop before network at 11). Both over spfHeap, the SPF candidate list itself.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328CloserRouterVertexBeforeFartherNetwork`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_tiebreak_test.go#L25) | unit/verify | revert, verified |
 | positive | [`TestRFC2328EqualDistanceNetworkVertexFirst`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc2328_tiebreak_test.go#L10) | unit/verify | revert, verified |
@@ -1056,7 +1056,7 @@ Packets sent to these multicast addresses should never be forwarded; they are me
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: OSPF packets sent with a TTL other than 1. Red: TestOSPFSocketTTLIsOne first proves the kernel default is not 1, then fails unless IP_TTL and IP_MULTICAST_TTL both read back 1 after setMulticastOptions (which hard-codes 1, backend_linux.go:307-316). Other polarity: TestOSPFSocketTTLFailureIsAnError fails if a setsockopt failure is swallowed, so a socket cannot enter service with the default TTL.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFSocketTTLFailureIsAnError`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L58) | unit/verify | revert, verified |
 | positive | [`TestOSPFSocketTTLIsOne`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/transport/rfc2328_socket_linux_test.go#L30) | unit/verify | revert, verified |
@@ -1067,7 +1067,7 @@ Both the Designated Router and Backup Designated Router must be prepared to rece
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both halves now asserted. + TestOSPFElectedDRJoinsAllDRouters: priority 5 vs 2 -> StateDR and exactly one JoinAllDRouters(eth0), no leave; TestOSPFElectedBDRJoinsAllDRouters keeps the BDR join. - the same unit: priority dropped to 0, re-election -> DROther and LeaveAllDRouters(eth0); TestOSPFDROtherDoesNotJoinAllDRouters keeps the never-joined case. Records on iface.go::runElectionLocked observed red; author's overlay making membership BDR-only turned the DR positive red. Judge lint fix (unparam on the shared electWith helper): the unit's neighbour priority is 2, not 1; records re-recorded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFElectedDRJoinsAllDRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_alldrouters_test.go#L44) | unit/verify | revert, verified |
 | negative | [`TestOSPFDROtherDoesNotJoinAllDRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc2328_dr_test.go#L46) | unit/verify | revert, verified |
@@ -1080,7 +1080,7 @@ This field is not meaningful and must be zero for Type 4 summary-LSAs. (§A.4.4)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Sentence (A.4.4): the Network Mask 'must be zero for Type 4 summary-LSAs'. (a) Non-compliant behaviour: originating a Type 4 summary-LSA with a non-zero Network Mask. (b) TestRFC2328Type4SummaryMaskIsZero originates a Type 4 through OriginateSummary (origination.go, the only Type 4 producer) with mask 255.255.255.0 and fails on body.NetworkMask != 0.0.0.0 after decoding the stored LSA, so a producer that copied the caller's mask goes red. Negative: TestRFC2328Type3SummaryKeepsMask proves the zeroing is confined to Type 4 (a Type 3 keeps 255.255.255.0), so a producer that zeroed every summary mask goes red there. One clause, both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2328Type3SummaryKeepsMask`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L515) | unit/verify | revert, verified |
 | positive | [`TestRFC2328Type4SummaryMaskIsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc2328_flooding_test.go#L496) | unit/verify | revert, verified |

@@ -128,21 +128,21 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>4</strong><b>of 7 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3</strong><b>of 7 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>4</strong><b>of 7 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>3</strong><b>of 7 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 7 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 7 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 7 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 7 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>12</strong><b>12 of 23 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>12</strong><b>12 of 23 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 7 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 7 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 7 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 7 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 7 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 7 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 7 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -170,11 +170,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -186,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -194,7 +194,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -275,7 +275,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Large communities</p>
-<p><strong>Proof:</strong> 7 of 7 MUST proven</p>
+<p><strong>Test verification:</strong> 7 of 7 MUST proven</p>
 <p><strong>Evidence:</strong> functional 1, unit 6</p>
 <p><strong>Unmet:</strong> -</p>
 
@@ -301,7 +301,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -322,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8092:must">Ze proven 7</div>
+<div data-ze-rfc-bar="rfc8092:must">Ze verified 7</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8092:overview">Ze MUST proven 7, Not assessed 4</div>
+<div data-ze-rfc-bar="rfc8092:overview">Ze MUST verified 7, Not assessed 4</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -344,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc8092:must.kept">7</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc8092:must.ze-proven">7</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8092:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc8092:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -380,7 +380,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc8092:should.total">4</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc8092:should.proven">0</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -401,7 +401,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc8092:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc8092:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -416,7 +416,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -542,14 +542,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Gaps and untested MUSTs</h2>
 <p>RFC 8092 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc8092-3-1"><code>RFC8092-3-1</code></a></h3>
 <p>Duplicate BGP Large Community values MUST NOT be transmitted. (Section 3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc8092_large_community_egress_test.go::TestRFC8092PolicyAddOfPresentValueSentOnce, test/plugin/rfc8092-large-community-no-repeat-egress.ci moved. Re-judged 2026-11-02 by an independent auditor who authored none of the change. RFC 8092 Section 3: &#34;Duplicate BGP Large Community values MUST NOT be transmitted.&#34; The only edit to test/plugin/rfc8092-large-community-no-repeat-egress.ci since the last judgement is a965ee38fb, which names bgp-filter-community:egress in the bgp-level export chain: the receiver&#39;s egress community tag now runs only as that chain member, and checkCommunityMembers refuses the setting without it. The sent UPDATE and the expected receiver UPDATE hex are byte-identical: LARGE_COMMUNITY [65000:1:1 65000:3:3 65000:2:2], attribute length 36, with path attribute and message lengths shortened to match, so the test still fails if the writer transmits the duplicated values the tag appends. The egress member (evaluateCommunityFilter -&gt; egressFilter) still appends without a membership check, and normalizeTransmittedUpdate/compactLargeCommunities removes the repeats at write; the .ci&#39;s revert record was re-observed red against compactLargeCommunities in 5a77ebfd7e at the new unit sha. The Go units in rfc8092_large_community_egress_test.go and community_test.go are unchanged. Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_large_community_egress_test.go#L124" title="internal/component/bgp/reactor/rfc8092_large_community_egress_test.go" target="_blank" rel="noopener"><code>TestRFC8092WriteKeepsDistinctLargeCommunities</code></a></td>
@@ -559,7 +559,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L224" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunities</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_large_community_egress_test.go#L150" title="internal/component/bgp/reactor/rfc8092_large_community_egress_test.go" target="_blank" rel="noopener"><code>TestRFC8092PolicyAddOfPresentValueSentOnce</code></a></td>
@@ -574,7 +574,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L433" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesWriteToNoDuplicates</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc8092-large-community-no-repeat-egress.ci#L4" title="test/plugin/rfc8092-large-community-no-repeat-egress.ci" target="_blank" rel="noopener"><code>rfc8092-large-community-no-repeat-egress.ci</code></a></td>
@@ -589,7 +589,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (R34, D-8 fixed). Producer reactor/rfc8092_large_community.go::removeRedundantLargeCommunities, called from publishBase: scan first (pairwise up to 16 values, seeded 64k-bit stack filter with exact confirm above), rebuild only on a repeat, keeping first occurrences in order, the peer&#39;s flags and header width, length rewritten, other attributes copied unchanged. Positive TestRFC8092RedundantLargeCommunityRemovedBeforePropagation: 2 copies (1-octet length) and 23 values with 3 repeats (extended length, filter path): no error, ActionNone, published and forwarded attribute hold each value once in first-occurrence order. Negative TestRFC8092DistinctLargeCommunitiesKeptWhole: 3 and 22 distinct values (filter path) published octet-equal to the received body and forwarded whole. Both have observed-red revert records. A non-multiple-of-12 value stays treat-as-withdraw (publishBase not reached). Attribute-package tags on ParseLargeCommunities remain unproven secondary units.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go#L137" title="internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8092DistinctLargeCommunitiesKeptWhole</code></a></td>
@@ -599,7 +599,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L248" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesParse</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go#L102" title="internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8092RedundantLargeCommunityRemovedBeforePropagation</code></a></td>
@@ -609,7 +609,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L406" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesDeduplication</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -619,7 +619,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a canonical rendering with a leading zero (e.g. 065001) or a zero rendered as anything but a single 0 (00, empty). TestAppendText_LargeCommunityElement asserts exact strings: {0,0,0} -&gt; 0:0:0 goes red on either zero-clause violation, and 65001:100:200 and the 4294967295 case go red on any padding. LargeCommunity.String derives from AppendText. Single-polarity marker present.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8092_text_append_test.go#L41" title="internal/core/bgp/attribute/rfc8092_text_append_test.go" target="_blank" rel="noopener"><code>TestAppendText_LargeCommunityElement</code></a></td>
@@ -634,7 +634,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-10-02 (c33 judge): {single-polarity: positive} is valid: the rule only forbids rejection and the validator has no Global Administrator path to refuse. TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed asserts RFC7606ActionNone through ValidateUpdateRFC7606 for reserved 0, 65535 and 4294967295, AS_TRANS 23456, documentation 64496, private 4200000000 and unallocated 1000000, each in a well-formed 12-octet value with ORIGIN, AS_PATH and NEXT_HOP present, so only the Global Administrator varies.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L30" title="internal/component/bgp/message/rfc8092_error_handling_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityAnyGlobalAdministratorIsWellFormed</code></a></td>
@@ -644,7 +644,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L41" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityValidReservedASN</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -654,7 +654,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. rejudge 2026-10-02 (c33 judge): both clauses, both polarities. + TestRFC8092LargeCommunityLengthNotANonZeroMultipleOf12IsMalformed: lengths 0, 1, 11, 13, 23, 25 each draw TreatAsWithdraw with AttrCode 32 (zero and non-multiple). - TestRFC8092LargeCommunityNonZeroMultipleOf12IsNotMalformed: 12, 24, 36 (distinct values) draw ActionNone. HEAD units kept (length 10 / length 12). Judge break: validator condition replaced by length%12 &gt; 1 (accepts 0, 1, 13, 25) turns only the new + red; every HEAD unit stays green, which was the gap.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L77" title="internal/component/bgp/message/rfc8092_error_handling_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityNonZeroMultipleOf12IsNotMalformed</code></a></td>
@@ -664,7 +664,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L37" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityValidReservedASN</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_error_handling_test.go#L62" title="internal/component/bgp/message/rfc8092_error_handling_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityLengthNotANonZeroMultipleOf12IsMalformed</code></a></td>
@@ -674,7 +674,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L17" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityMalformedLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -684,7 +684,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent supplemental source rejudgment, 2026-10-06. RFC8092 Section 6: &#34;A BGP Large Communities attribute SHALL NOT be considered malformed due to presence of duplicate Large Community values.&#34; Read both tagged units: reactor TestRFC8092DuplicateLargeCommunityIsNotMalformed and attribute TestLargeCommunitiesDeduplication. The reactor supplies one complete 12-byte value twice in a properly bounded attribute and otherwise valid ORIGIN, ASN4 AS_SEQUENCE 65002 and NEXT_HOP; teValidationSession explicitly negotiates ASN4. It requires exact RFC7606ActionNone, no error and one retained LARGE_COMMUNITY attribute. The decoder carrier requires no error and the exact two distinct values from three inputs including one duplicate. These assertions fail duplicate-triggered reset, treat-as-withdraw or attribute discard without a neighboring malformed-length confound. Traced message validator registry code 32 -&gt; validateLargeCommunityAttr (nonzero multiple-of-12 only), enforceRFC7606 ActionNone -&gt; publishBase -&gt; removeRedundantLargeCommunities, and session_read.go continues non-error actions to delivery rather than dropping them. ParseLargeCommunities independently returns its deduplicated values. The existing single-positive annotation correctly avoids demanding a conforming duplicate-based rejection; malformed length is a different requirement. Current moved unit changes empty AS_PATH/rfc7311EBGPSession to a matching valid AS_SEQUENCE/ASN4 teValidationSession: fixture isolation repair in the current patch, not an assertion weakening or mere line movement. This judgment does not rejudge RFC8092-3-2 or carry forward its old D-8 finding as if unchanged; that separate row is outside this assignment. Prior enforced verdict retained; no tests or mutations run and no new defect found.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go#L28" title="internal/component/bgp/reactor/rfc8092_duplicate_not_malformed_test.go" target="_blank" rel="noopener"><code>TestRFC8092DuplicateLargeCommunityIsNotMalformed</code></a></td>
@@ -694,7 +694,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/community_test.go#L409" title="internal/core/bgp/attribute/community_test.go" target="_blank" rel="noopener"><code>TestLargeCommunitiesDeduplication</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -704,12 +704,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment: RFC8092 Section 6: &#34;A BGP UPDATE message with a malformed BGP Large Communities attribute SHALL be handled using the approach of &#34;treat-as-withdraw&#34; as described in Section 2 of [RFC7606].&#34; Current TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes asserts actual reactor handoff as withdrawn NLRI with no reachable NLRI/attributes, Established retained and no notification, paired with unchanged valid attribute/NLRI delivery. The caller-bypass mutation now fails that withdrawal oracle, not merely ValidateUpdateRFC7606 Action. The duplicate-values-as-malformed fault independently fails the valid duplicate carrier, providing legitimate admission discrimination; it does not create a new judgment for an unrequested duplicate requirement. Source and tagged consumers therefore protect the actual RFC7606 caller behavior, while unexecuted foreign FRR carriers remain pending. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L39" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityValidReservedASN</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go#L65" title="internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8092WellFormedLargeCommunityKeepsTheRoutes</code></a></td>
@@ -719,7 +719,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8092_test.go#L19" title="internal/component/bgp/message/rfc8092_test.go" target="_blank" rel="noopener"><code>TestRFC8092LargeCommunityMalformedLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go#L34" title="internal/component/bgp/reactor/rfc8092_treat_as_withdraw_test.go" target="_blank" rel="noopener"><code>TestRFC8092MalformedLargeCommunityWithdrawsTheRoutes</code></a></td>
@@ -890,7 +890,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

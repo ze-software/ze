@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 2 | of 13 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5 | of 13 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 2 | of 13 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 13 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 13 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 13 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 14 | 14 of 19 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 13 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 14 | 14 of 19 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 13 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 13 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 13 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 13 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 13 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 13 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 13 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: MRT Routing Information Export Format (RFC 6396): 
 
 **Area:** MRT
 
-**Proof:** 6 of 13 MUST proven
+**Test verification:** 6 of 13 MUST proven
 
 **Evidence:** unit 6
 
@@ -108,7 +108,7 @@ Included in automatic checks: MRT Routing Information Export Format (RFC 6396): 
 | Annotated (including scoped evidence) | 11 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **13** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: MRT Routing Information Export Format (RFC 6396): 
 
 ## Figures
 
-- **MUST bar**: Ze proven 6, Proof pending 1, Not built 6
-- **Overview bar**: Ze MUST proven 6, Proof pending 1, Not assessed 12, Not built 6
+- **MUST bar**: Ze verified 6, Tests awaiting verification 1, Not built 6
+- **Overview bar**: Ze MUST verified 6, Tests awaiting verification 1, Not assessed 12, Not built 6
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: MRT Routing Information Export Format (RFC 6396): 
 | Mandatory requirements complete | not complete |
 | MUST rows | 13 |
 | MUST rows kept (the MUST bar) | 13 |
-| Ze proven | 6 |
+| Ze verified | 6 |
 | OS verified | 0 |
-| Proof pending | 1 |
+| Tests awaiting verification | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: MRT Routing Information Export Format (RFC 6396): 
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 12 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 12 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc6396.json](../../../data/rfc/rfc6396.json).
 
@@ -198,9 +198,9 @@ Source: [data/rfc/rfc6396.json](../../../data/rfc/rfc6396.json).
 | [`RFC6396-5.1-1`](#rfc6396-5.1-1) New Type Codes MUST be allocated starting at 65. (§5.1) | {gap}, no test | the sentence binds the IANA registry that allocates MRT Type Codes, a role ze never fills, and its passive subject fits neither not-applicable shape; ze allocates no Type Code, so it has no behaviour to test |
 | [`RFC6396-B.1-1`](#rfc6396-b.1-1) The message string encoding MUST follow the UTF-8 transformation format [RFC3629]. (§B.1) | {gap}, no test | gap in proof: ze meets it by producing none of the deprecated informational types 0 to 4 whose message string this governs: its type table starts at OSPFv2 (11) (internal/mrt/types.go); no test asserts it |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC6396-4.2-1`](#rfc6396-4.2-1)
 
@@ -216,9 +216,9 @@ The TABLE_DUMP Type does not permit 4-byte Peer AS numbers, nor does it allow th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent supplemental source rejudgment, 2026-10-06. RFC6396 Section 4.2: "The TABLE_DUMP Type does not permit 4-byte Peer AS numbers, nor does it allow the AFI of the peer IP to differ from the AFI of the Prefix field. The TABLE_DUMP_V2 Type MUST be used in these situations." Read both current carriers, TestRibSubtype and TestDumpV2PeerWidthAndPrefixFamily. The latter drives actual Component.writeTableDumpV2/writePeerIndexTable and Writer/ReadFile using eight isolated combinations of peer IPv4/IPv6, prefix IPv4/IPv6 and ASN 65001/0x01020304. Every record header must be TypeTableDumpV2 before reader dispatch; both PIT and RIB counts must be one, with exact subtype, PIT width/address/ASN/BGP ID and RIB sequence/prefix/peer index/attributes. Thus subtype-only TestRibSubtype is supplementary, not mistaken for proving the Type. Ordinary same-family cases are genuine controls, and each mandatory V2 trigger is also isolated. The single-positive annotation is justified by the operational writer unconditionally emitting V2, not by inventing a legacy rejection obligation. Traced dumpRIB -> writeTableDumpV2 -> PIT/RIB writeHeader and reader readRecords -> dispatch TypeTableDumpV2 -> dispatchTDV2 -> non-nil PIT/RIB callbacks. TestDumpV2PeerWidthAndPrefixFamily has no current diff against HEAD; history includes 67a74ef4d4 and the integrated checkpoint, so its stale-unit is preexisting judgment debt rather than this mechanical edit. Prior producer keys retained with empty values for main to stamp. Existing prior note reports race, mutation and CLI observations; this source rejudgment neither reruns nor independently attests them. No new defect found for this requirement; no tests or canonical writes executed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRibSubtype`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L17) | unit/verify | unproven |
+| positive | [`TestRibSubtype`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L17) | unit/verify | not verified |
 | positive | [`TestDumpV2PeerWidthAndPrefixFamily`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_width_test.go#L20) | unit/verify | revert, verified |
 
 ### [`RFC6396-4.3.1-1`](#rfc6396-4.3.1-1)
@@ -227,7 +227,7 @@ The View Name is OPTIONAL and, if not present, the View Name Length MUST be set 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent MRTJudge 2026-10-02, rejudged changed checked-encoder call. RFC6396 section 4.3.1: The View Name is OPTIONAL and, if not present, the View Name Length MUST be set to 0. TestPeerIndexTableEmptyViewName asserts the actual encoded two octets at offset 4 are zero and decoded name empty; errors from the migrated encoder are checked. The production writePeerIndexTable passes an empty string; the additional dump-producer test inspected under 4.3.1-2 pins the entire emitted empty-name PIT body. Single-positive annotation is valid because no independently supplied absent-name length exists. Native record disables WritePeerIndexTable; enforcement rests on the zero-field assertion, not the panic.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L165) | unit/verify | revert, verified |
 
@@ -237,7 +237,7 @@ The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. (�
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent MRTJudge 2026-10-02. RFC6396 section 4.3.1: The View Name encoding MUST follow the UTF-8 transformation format [RFC3629]. TestRFC6396ViewNameUTF8 positively pins nonempty ASCII and multibyte UTF-8 literal octets and byte length on encode and independent decode; negative inputs isolate illegal leading byte, overlong form, surrogate, out-of-range code point and truncated sequence, requiring encoder error/zero count/untouched buffer and decoder error. Removing either utf8 validation fails the relevant negative assertions. TestRFC6396DumpProducerEmitsNoViewName reaches writeTableDumpV2/writePeerIndexTable and compares exact full PIT body, so invalid production name insertion cannot hide behind the old vacuous empty-string test. Retained empty-name tagged test is supplementary. Native records for both codec polarities and actual producer are present; their panic breaks prove reachability only, while the inspected assertions establish this verdict.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC6396ViewNameUTF8`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L99) | unit/verify | revert, verified |
 | positive | [`TestPeerIndexTableEmptyViewName`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L170) | unit/verify | revert, verified |
@@ -250,9 +250,9 @@ The RIB entry MRT records MUST immediately follow the PEER_INDEX_TABLE MRT recor
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a RIB entry record written before the PEER_INDEX_TABLE, or another record between them. internal/plugins/mrt/dump_test.go::TestDumpV2PeerIndexBeforeFirstRIBEntry drives the real writeTableDumpV2 path and asserts order[0] is (TABLE_DUMP_V2, PEER_INDEX_TABLE) and order[1] is (TABLE_DUMP_V2, RIB_IPV4_UNICAST); a late or missing PEER_INDEX_TABLE or an interleaved record turns it red. Single-polarity positive marker on the row. It drives one route only.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestDumpV2PeerIndexBeforeFirstRIBEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L213) | unit/verify | unproven |
+| positive | [`TestDumpV2PeerIndexBeforeFirstRIBEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L213) | unit/verify | not verified |
 
 ### [`RFC6396-4.3.4-1`](#rfc6396-4.3.4-1)
 
@@ -260,12 +260,12 @@ All AS numbers in the AS_PATH attribute MUST be encoded as 4-byte AS numbers. (�
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30. rib TestRFC6396TwoByteSessionRouteDumpsFourByteASPath drives a 2-byte-session UPDATE (AS_SEQ 65001 65002, 2-octet) through wireu.CollapseAS4Family, the RIB received-UPDATE entry (context stays ASN4=false), dumpRIBForMRT, the internal/mrt RIB writers and DecodeRIBRecord: the entry AS_PATH is 4-octet. Negative TestRFC6396FourByteSessionRouteDumpsASPathUnchanged: a 4-byte session path with AS 200000 is written octet-equal (no second widening, no narrowing). mrt TestDumpV2RIBEntryASPathIs4Byte (claim reworded to what it asserts) proves writeTableDumpV2 keeps a 4-byte path. Records observed red on revert of CollapseAS4Family, reconstructWireAttrs and writeTableDumpV2. Limit: the rib test composes the record with the same internal/mrt writers the MRT plugin calls rather than the plugin itself; the plugin half is the mrt unit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC6396FourByteSessionRouteDumpsASPathUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L115) | unit/verify | revert, verified |
-| negative | [`TestRFC6396RIBEntryASPathFourByteSessionUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L625) | unit/verify | unproven |
+| negative | [`TestRFC6396RIBEntryASPathFourByteSessionUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L625) | unit/verify | not verified |
 | positive | [`TestRFC6396TwoByteSessionRouteDumpsFourByteASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc6396_mrt_aspath_test.go#L99) | unit/verify | revert, verified |
-| positive | [`TestRFC6396RIBEntryASPathStoredFourByte`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L597) | unit/verify | unproven |
+| positive | [`TestRFC6396RIBEntryASPathStoredFourByte`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc6793_reconcile_test.go#L597) | unit/verify | not verified |
 | positive | [`TestDumpV2RIBEntryASPathIs4Byte`](https://github.com/ze-software/ze/blob/main/internal/plugins/mrt/rfc6396_dump_test.go#L244) | unit/verify | revert, verified |
 
 ### [`RFC6396-4.3.4-2`](#rfc6396-4.3.4-2)
@@ -290,7 +290,7 @@ Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype. (§4.4.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 6396 Section 4.4.2: "Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestOneBGPMessagePerBGP4MPRecord). One record per BGP message is still asserted on the parsed records. Verdict unchanged: enforced. Earlier judgement follows. RFC 6396 §4.4.2: "Only one BGP message SHALL be encoded in the BGP4MP_MESSAGE Subtype." In the surrounding paragraph the subtype is transparent to the actual message; the earlier paragraph includes marker, length and type. All three current tagged carriers now discriminate original-message boundaries: internal/plugins/mrt/rfc6396_component_test.go::TestOneBGPMessagePerBGP4MPRecord sends KEEPALIVE/unequal-length UPDATE/KEEPALIVE and demands exactly three byte-identical records; internal/component/bgp/reactor/rfc6396_wire_capture_test.go::TestRFC6396WireCaptureIgnoresSemanticSynthesis requires exactly one original packet despite two synthetic withdrawals or session reset; TestRFC6396WireMessagesNeverCoalesce requires the two unequal original packets while semantic delivery coalesces. Producers session_wire.go::observeReceivedWire and internal/plugins/mrt/component.go::OnBGPMessage observe/copy the complete original frame, not reconstructed semantic callbacks; internal/mrt/encode.go::WriteBGP4MPMessage writes one frame. Exact counts and bytes would reject merging, splitting, reconstruction or loss. The declared single positive polarity is justified for a producer cardinality invariant; these are not malformed-input rejection claims. This source judgment closes the prior one-call-only proof gap, not the separate AS4-width gap, nor a claim that runtime renewal has run. Post-lint rejudgment 2026-10-04: TestRFC6396WireMessagesNeverCoalesce retains unequal original frames, exact two-element byte equality and one semantic delivery; checked pipe closes cannot weaken those assertions. dispatchObservedWire now borrows an immutable seven-field epoch identity from Peer.runOnce and constructs call-local metadata before applying context ASN and actual transport/local-AS overrides. The changed cardinality carriers use recordSessionWire -> notifyWireMessage directly, not dispatchObservedWire; they must not claim proof of epoch identity. The untagged directional OPEN, migration and collision tests remain separate evidence.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC6396WireCaptureIgnoresSemanticSynthesis`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L48) | unit/verify | revert, verified |
 | positive | [`TestRFC6396WireMessagesNeverCoalesce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6396_wire_capture_test.go#L91) | unit/verify | revert, verified |
@@ -310,9 +310,9 @@ Fields which contain multi-octet numeric values are encoded in network octet ord
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent final source rejudgment after formatting. RFC 6396 section 1: "Fields which contain multi-octet numeric values are encoded in network octet order from most significant octet to least significant octet." The following sentence separately preserves routing-message field order; this row is the numeric-order sentence, not an assertion of every encapsulated protocol's semantics. Q1 yes: all three tagged units assert external network order rather than accepting a mutually wrong encoder/decoder roundtrip. internal/mrt/mrt_test.go::TestCommonHeaderRoundTrip checks the exact timestamp/type/subtype/length octets before decoding them. internal/mrt/rfc6396_wire_fields_test.go::TestRFC6396NumericFieldsUseExternalNetworkOrder independently constructs PIT name-length/count/AS2/AS4, RIB sequence/count/index/time/attribute-length and BGP4MP AS2/AS4/interface/AFI octets, compares writer output, then decodes the literals. internal/mrt/rfc6396_remaining_fields_test.go::TestRFC6396RemainingNumericFields independently pins ET microseconds, both FSM state fields and AS widths, RIB_GENERIC sequence/AFI, and TABLE_DUMP view/sequence/time/ASN/attribute-length under both address widths. Q2 yes by source: asymmetric values and exact lengths/bytes/decoded values reject endian reversal, missing fields and offset shifts; formatted multi-line conditionals retain their failures. No runtime execution or renewed discrimination is claimed. Q3 yes for numeric layout: independent expected buffers and structural lengths reach the intended fields. Opaque repeated attribute bytes are not evidence of BGP attribute validity and are not parsed as such by these MRT envelope readers. Q4 yes across the implemented base-RFC numeric envelope fields; the three carriers are complementary, not each whole-scope alone. RFC 8050 Path Identifiers and RFC 6397 geolocation are separately specified extensions. Read internal/mrt/encode.go numeric writers and internal/mrt/decode.go readers: their 16/32-bit numeric operations are big-endian, while address and message octets are copied unchanged. The declared single positive polarity is appropriate to an encoder layout invariant without an alternate-endianness mode to reject. This judgment does not erase the separate RFC6396-4.4.3-1 AS_PATH-width gap.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestCommonHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L24) | unit/verify | unproven |
+| positive | [`TestCommonHeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L24) | unit/verify | not verified |
 | positive | [`TestRFC6396RemainingNumericFields`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_remaining_fields_test.go#L13) | unit/verify | revert, verified |
 | positive | [`TestRFC6396NumericFieldsUseExternalNetworkOrder`](https://github.com/ze-software/ze/blob/main/internal/mrt/rfc6396_wire_fields_test.go#L14) | unit/verify | revert, verified |
 

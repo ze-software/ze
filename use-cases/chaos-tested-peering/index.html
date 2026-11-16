@@ -47,7 +47,7 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Use case</span>
     <h1 id="chaos-tested-bgp-peering">Chaos-Tested BGP Peering</h1>
-    <p>Use <code>le chaos run</code> before deployment to prove that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not.</p>
+    <p>Use <code>le chaos run</code> before deployment to check that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not.</p>
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
@@ -58,7 +58,7 @@
 <li><a href="#replay-and-shrink">Replay and shrink</a></li>
 <li><a href="#checks-before-deployment">Checks before deployment</a></li>
 </ol></details></nav><div class="doc-body">
-<p><strong>RFC completion:</strong> the <a href="../../quality/rfc-compliance/profiles/bgp-session-ops/">BGP session operations coverage page</a> shows how much of the RFC work behind this use case is proven by tests.</p>
+<p><strong>RFC completion:</strong> the <a href="../../quality/rfc-compliance/profiles/bgp-session-ops/">BGP session operations coverage page</a> shows which requirements have passed the recorded test checks for this use case.</p>
 <h2 id="start-from-a-validated-peer">Start from a validated peer</h2>
 <p>Build the intended peer or group with the <a href="../../guides/bgp-peering/">BGP peering guide</a>. Validate the configuration and run ordinary interop or lab checks first. Once those pass, chaos testing can check how the deployment recovers from faults.</p>
 <h2 id="run-one-complete-reproducible-scenario">Run one complete reproducible scenario</h2>
@@ -112,7 +112,7 @@ and dashboard modes.</p>
 <pre><code class="language-console">./le chaos run --replay run.ndjson
 ./le chaos run --shrink run.ndjson
 </code></pre>
-<p>Replay proves the failure is deterministic. Shrink removes unrelated events until the smallest useful reproduction remains. Keep the seed, event log, configuration, binary version, and final report together.</p>
+<p>Replay checks whether the failure repeats with the same input. Shrink removes unrelated events until the smallest useful reproduction remains. Keep the seed, event log, configuration, binary version, and final report together.</p>
 <h2 id="checks-before-deployment">Checks before deployment</h2>
 <p>Before accepting the peer configuration:</p>
 <ol>
@@ -161,7 +161,7 @@ and dashboard modes.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

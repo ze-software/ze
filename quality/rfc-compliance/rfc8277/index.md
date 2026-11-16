@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 9 | of 35 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 2 | of 35 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 9 | of 35 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 2 | of 35 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 35 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 35 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 57 | 57 of 69 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 35 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 57 | 57 of 69 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 35 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 35 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 35 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 35 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 35 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 35 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 35 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: Using BGP to Bind MPLS Labels to Address Prefixes
 
 **Area:** BGP Labeled Unicast
 
-**Proof:** 10 of 35 MUST proven
+**Test verification:** 10 of 35 MUST proven
 
 **Evidence:** unit 10
 
@@ -109,7 +109,7 @@ Included in automatic checks: Using BGP to Bind MPLS Labels to Address Prefixes
 | Annotated (including scoped evidence) | 26 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **35** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: Using BGP to Bind MPLS Labels to Address Prefixes
 
 ## Figures
 
-- **MUST bar**: Ze proven 10, Proof pending 1, Not built 24
-- **Overview bar**: Ze MUST proven 10, SHOULD proven 1, Proof pending 1, Not assessed 6, Not built 24
+- **MUST bar**: Ze verified 10, Tests awaiting verification 1, Not built 24
+- **Overview bar**: Ze MUST verified 10, SHOULD verified 1, Tests awaiting verification 1, Not assessed 6, Not built 24
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: Using BGP to Bind MPLS Labels to Address Prefixes
 | Mandatory requirements complete | not complete |
 | MUST rows | 35 |
 | MUST rows kept (the MUST bar) | 35 |
-| Ze proven | 10 |
+| Ze verified | 10 |
 | OS verified | 0 |
-| Proof pending | 1 |
+| Tests awaiting verification | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: Using BGP to Bind MPLS Labels to Address Prefixes
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 7 |
-| SHOULD proven | 1 |
+| SHOULD verified | 1 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 6 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc8277.json](../../../data/rfc/rfc8277.json).
 
@@ -234,9 +234,9 @@ Source: [data/rfc/rfc8277.json](../../../data/rfc/rfc8277.json).
 | [`RFC8277-3.2.2-2`](#rfc8277-3.2.2-2) A BGP speaker MUST NOT send multiple labels to a peer with which it has not exchanged the Multiple Labels Capability (§3.2.2) | {gap}, no test | no capability code 8 is ever exchanged (internal/core/bgp/capability/capability.go:68-78), and the egress path applies no label-count limit -- BuildLabeledUnicastNLRIBytes encodes every label in LabeledUnicastParams.Labels (internal/component/bgp/message/update_build_labeled.go:257) and the forwarding path copies a received multi-label NLRI verbatim (internal/component/bgp/reactor/filter_delta_handlers.go:241) |
 | [`RFC8277-3.2.2-3`](#rfc8277-3.2.2-3) It can decide not to propagate the route to the given peer. In that case, if a previous route with the same AFI, SAFI, and prefix (but with fewer labels) has already been propagated to that peer, that route MUST be withdrawn from that peer using the procedure of Section 2.4. (§3.2.2) | {gap}, no test | the changed-next-hop label-count decision and its paired withdrawal are not implemented. internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler replaces the next hop and retains the entire NLRI without a recipient label-count decision; internal/component/bgp/message/update_build_labeled.go::BuildLabeledUnicastNLRIBytes serializes the supplied stack without such a decision. No Multiple Labels Capability count is available. The unchanged-next-hop withdrawal gap remains separately recorded in RFC8277-3.2.1-4; neither branch is counted conformant. Recording this absent capability does not authorize its implementation. |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC8277-2-1`](#rfc8277-2-1)
 
@@ -252,10 +252,10 @@ Further, when advertising the binding of a single label to a prefix, the BGP spe
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c28 judge). Forbidden: a single-label binding transmitted in any layout other than the Section 2.2 one. All three transmitters now covered with whole-NLRI literals: LabeledUnicast.WriteTo by TestLabeledSingleLabelSection22Encoding (HEAD, require.Equal on the whole encoding), and UpdateBuilder.BuildLabeledUnicastNLRIBytes (plain and ADD-PATH) and buildVPNNLRIBytes by TestRFC8277BuilderLabelLayout (20 000641 0a, 00000007 20 000641 0a, 60 000641 <RD> 0a; recorded revert of WriteLabelValues; judge overlay dropping the S line of WriteLabelValues reds every case). {single-polarity: positive} is valid: a one-label stack has one layout and Length is computed from the input, so no input reaches a non-Section-2.2 encoding; the reason now names all three transmitters (correction paragraph in rfc/corrections/rfc8277.md). Residual: the HEAD WriteTo unit has no discrimination record of its own.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC8277BuilderLabelLayout`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8277_label_layout_test.go#L28) | unit/verify | revert, verified |
-| positive | [`TestLabeledSingleLabelSection22Encoding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L33) | unit/verify | unproven |
+| positive | [`TestLabeledSingleLabelSection22Encoding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L33) | unit/verify | not verified |
 
 ### [`RFC8277-2.1-1`](#rfc8277-2.1-1)
 
@@ -383,11 +383,11 @@ S: This 1-bit field MUST be set to one on transmission (§2.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c28 judge). Forbidden: a single label entry transmitted with S=0. Positive: TestRFC8277BuilderLabelLayout pins the one-label entry 000641 through both WriteLabelValues builders (labeled plain/ADD-PATH, VPN) as whole-NLRI literals, plus HEAD TestLabeledSingleLabelSection22Encoding for WriteTo. Genuine negative (R1(b)): TestRFC8277RelayedStackSBitRewritten hands WriteTo a lone entry 0x000640 with S=0, the relayed-entry input, and asserts 20 000641 0a. Judge overlays: dropping 'entry |= 1' in WriteLabelStack reds the negative (200006400a); dropping the S line of WriteLabelValues reds all five builder cases. The {single-polarity} marker is dropped (correction paragraph), records on both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8277RelayedStackSBitRewritten`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go#L30) | unit/verify | revert, verified |
 | positive | [`TestRFC8277BuilderLabelLayout`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8277_label_layout_test.go#L29) | unit/verify | revert, verified |
-| positive | [`TestLabeledSingleLabelSection22Encoding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L34) | unit/verify | unproven |
+| positive | [`TestLabeledSingleLabelSection22Encoding`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L34) | unit/verify | not verified |
 
 ### [`RFC8277-2.2-2`](#rfc8277-2.2-2)
 
@@ -403,16 +403,16 @@ Rsrv: This 3-bit field SHOULD be set to zero on transmission and MUST be ignored
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c29 judge), owner ruling 8(d). Reception (MUST ignore) unchanged from c28: TestLabeledRsrvIgnoredOnReceive and TestRFC8277RsrvIgnoredOnReceiveLabelStack. Transmission (SHOULD zero) now enforced for both originated and relayed stacks. Originated: TestRFC8277BuilderLabelLayout (WriteLabelValues, Rsrv 000). Relayed: clearLabelRsrv runs in publishBase, the ingest step every announcement passes before the RIB and both forward rails see it; SAFI 4 and 128 only, read-only scan first, copy only on a hit. Negatives TestRFC8277RsrvClearedOnRelay (Rsrv 111/101/001/110 to 000 over one label, a three-label stack then a second NLRI, ADD-PATH path id, SAFI 128 RD; framing and the received buffer unchanged) and TestRFC8277RsrvClearedOnTheReceivePath (through enforceRFC7606, no RFC 7606 action). Positive TestRFC8277ZeroRsrvRelayedZeroCopy asserts the same WireUpdate for a zero-Rsrv stack and a unicast NLRI. No bypass: the only non-publishBase exits of enforceRFC7606 are treat-as-withdraw (withdrawals carry the Section 2.4 Compatibility field, not a label stack) and session reset; originated stacks come from LabelEntriesFor (Rsrv 0). EVPN (SAFI 70) untouched. Three observed-red records (revert clearLabelRsrv).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8277RsrvClearedOnRelay`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_label_rsrv_test.go#L67) | unit/verify | revert, verified |
 | negative | [`TestRFC8277RsrvClearedOnTheReceivePath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_label_rsrv_test.go#L112) | unit/verify | revert, verified |
 | negative | [`TestRFC8277RsrvIgnoredOnReceiveLabelStack`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go#L28) | unit/verify | revert, verified |
-| negative | [`TestLabeledRsrvIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_test.go#L24) | unit/verify | unproven |
+| negative | [`TestLabeledRsrvIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_test.go#L24) | unit/verify | not verified |
 | positive | [`TestRFC8277BuilderLabelLayout`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8277_label_layout_test.go#L32) | unit/verify | revert, verified |
 | positive | [`TestRFC8277ZeroRsrvRelayedZeroCopy`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_label_rsrv_test.go#L130) | unit/verify | revert, verified |
 | positive | [`TestRFC8277RsrvIgnoredOnReceiveLabelStack`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_rsrv_stack_test.go#L27) | unit/verify | revert, verified |
-| positive | [`TestLabeledRsrvIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_test.go#L23) | unit/verify | unproven |
+| positive | [`TestLabeledRsrvIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/nlrisplit/rfc8277_test.go#L23) | unit/verify | not verified |
 
 ### [`RFC8277-2.3-1`](#rfc8277-2.3-1)
 
@@ -420,11 +420,11 @@ In all labels except the last (i.e., in all labels except the one immediately pr
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c28 judge). Forbidden: a non-last label entry transmitted with S=1. Positive: TestRFC8277BuilderLabelLayout pins 50 000640 000c80 0012c1 0a and 78 000640 000c81 <RD> 0a through WriteLabelValues; HEAD TestLabeledLabelStackSBitPlacement covers WriteTo built from values. Genuine negative (R1(b)): TestRFC8277RelayedStackSBitRewritten hands WriteTo entries 0x000641, 0x000c81, 0x0012c0 (S=1 mid-stack) and asserts the S bits are cleared. Judge overlay dropping 'entry &^= 1' in WriteLabelStack reds the negative only (50000641000c810012c10a) while the HEAD placement test stays green, so the new unit is what discriminates the relay path. Marker dropped, records on both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8277RelayedStackSBitRewritten`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go#L31) | unit/verify | revert, verified |
 | positive | [`TestRFC8277BuilderLabelLayout`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8277_label_layout_test.go#L30) | unit/verify | revert, verified |
-| positive | [`TestLabeledLabelStackSBitPlacement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L77) | unit/verify | unproven |
+| positive | [`TestLabeledLabelStackSBitPlacement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L77) | unit/verify | not verified |
 
 ### [`RFC8277-2.3-2`](#rfc8277-2.3-2)
 
@@ -432,11 +432,11 @@ In the last label, the S bit MUST be 1. (§2.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c28 judge). Forbidden: the last label entry transmitted with S=0. Positive: the builder stacks in TestRFC8277BuilderLabelLayout end 0012c1 and 000c81 (WriteLabelValues), HEAD TestLabeledLabelStackSBitPlacement for WriteTo. Genuine negative (R1(b)): TestRFC8277RelayedStackSBitRewritten gives the last entry 0x0012c0 (S=0) and the lone entry 0x000640, and asserts S=1 is transmitted. Judge overlay dropping 'entry |= 1' reds both subcases; dropping the WriteLabelValues S line reds both builder stacks. The negative shares its stack buffer with 2.3-1, but each break is isolated to its own octet and the whole NLRI is compared. Marker dropped, records on both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8277RelayedStackSBitRewritten`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_sbit_relay_test.go#L32) | unit/verify | revert, verified |
 | positive | [`TestRFC8277BuilderLabelLayout`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8277_label_layout_test.go#L31) | unit/verify | revert, verified |
-| positive | [`TestLabeledLabelStackSBitPlacement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L78) | unit/verify | unproven |
+| positive | [`TestLabeledLabelStackSBitPlacement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/labeled/rfc8277_test.go#L78) | unit/verify | not verified |
 
 ### [`RFC8277-2.4-1`](#rfc8277-2.4-1)
 
@@ -444,7 +444,7 @@ Upon reception, the value of the Compatibility field MUST be ignored. (§2.4)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8277): "Upon reception, the value of the Compatibility field MUST be ignored." a0589dd1d1 changed only the stub bridge.SetUpdateRouteSel callback's signature in TestVPNReflectorPeerDownEmitsOnlyRetainedNativeRoutes to accept the new trailing uint64 (source policy epoch), which the stub ignores. No input or assertion changed. Verdict unchanged: enforced. Earlier judgements are in this file's git history. Independent current-source rejudgment for minimal forwarding-feasibility fixture prerequisites: all 29 existing tests/units keys and all five code subjects were read and are retained. Labeled compatibility matrices still cover IPv4/IPv6, with/without ADD-PATH, zero/17 identifiers, prefix/RD siblings, exact native survivors and replacement identity; VPN promotion retains both its AFI/path matrices and original two compatibility loops. The changed fixture only supplies connected terminal routes for the exact advertised next hops, leaving every original announcement, withdrawal and assertion intact. The JSON/codec/SDK transport, route-server and reflector populations retain their separate native identity assertions. Verdict remains enforced. Existing revert records demonstrate producer reachability only; renewal must preserve their routes/producers and does not establish a normal-return semantic mutation or destination TCP proof. No new execution or red is claimed by this pending judgment.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestVPNWithdrawalJSONConsumersIgnoreCompatibility`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_vpn_consumer_test.go#L34) | unit/verify | revert, verified |
 | negative | [`TestLabeledWithdrawalEventIgnoresOtherCompatibilityValues`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/format/rfc8277_withdraw_event_test.go#L96) | unit/verify | revert, verified |
@@ -490,10 +490,10 @@ If [RFC7911] is not being used, UPDATE U2 MUST be interpreted as meaning that L2
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 8277 Section 2.5: "If [RFC7911] is not being used, UPDATE U2 MUST be interpreted as meaning that L2 is now bound to P at N1 and that L1 is no longer bound to P at N1. That is, the UPDATE U1 is implicitly withdrawn and is replaced by UPDATE U2." Read the full same-session, same-prefix, same-next-hop premise and both tagged carriers. TestLabeledImplicitWithdrawalNoAddPath positively requires exactly one received route and labels [200] after replacing [100]; its negative sends another prefix, requires two routes and the original prefix still bound to [200]. TestRFC8277VPNRelabelReplacesTheRoute sends SAFI-128 with fixed peer, RD, prefix, next hop and attributes, changing only label 100 to 200; it requires one stored route, lookup by the old labeled NLRI, an iteration returning only the new NLRI, and a second best-change naming that new NLRI. The post-lint vpnv4NLRI has removed only the constant /8 argument: length remains 96 and label/RD/prefix bytes remain unchanged. RouteKey strips label identity, insertOpaqueNoOp refuses the old-wire shortcut on relabel, and insertOpaque/setRouteNLRI stores the latest wire NLRI. Distinct same-prefix/different-prefix controls isolate implicit replacement and current assertions would fail on old-label retention or duplicate bindings. Existing enforced judgment is preserved after current source rejudgment; renew the existing VPN RouteKey discrimination record natively. This is no claim of generic VPN RS/RR withdrawal correctness; RFC8277-2.4-1 remains weak. Independent current-source rejudgment retains all three existing tests/units keys and the enforced verdict. The SAFI-4 same-session/prefix/next-hop label-100 to label-200 replacement and different-prefix control remain unchanged. The VPN carrier adds only the connected 10.0.0.1 prerequisite; it still requires one stored route, lookup through old-label identity, iteration carrying only the new label, and the second published best change naming the relabeled NLRI. RouteKey continues to omit label identity, while received storage and publication preserve the latest native route. The old note prefix saying RFC8277-2.4-1 remains weak is historical: that separate file currently records enforced, and this judgment does not alter it. Renew the existing RouteKey revert tuple with its reachability-only limitation. No normal-return mutation or fresh observation is claimed here.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestLabeledImplicitWithdrawalNoAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L97) | unit/verify | unproven |
-| positive | [`TestLabeledImplicitWithdrawalNoAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L96) | unit/verify | unproven |
+| negative | [`TestLabeledImplicitWithdrawalNoAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L97) | unit/verify | not verified |
+| positive | [`TestLabeledImplicitWithdrawalNoAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L96) | unit/verify | not verified |
 | positive | [`TestRFC8277VPNRelabelReplacesTheRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_vpn_route_key_test.go#L72) | unit/verify | revert, verified |
 
 ### [`RFC8277-2.5-2`](#rfc8277-2.5-2)
@@ -502,12 +502,12 @@ If I1 is the same as I2, UPDATE U2 MUST be interpreted as meaning that L2 is now
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath, internal/component/bgp/plugins/rib/rfc8277_test.go::TestLabeledImplicitWithdrawalAddPath#2, internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath moved. Independent post-edit judgment by AddPathProofReview, not the test author. RFC 8277 Section 2.5: "If I1 is the same as I2, UPDATE U2 MUST be interpreted as meaning that L2 is now bound to P at N1 and that L1 is no longer bound to P at N1." TestRFC8277AddPathSameNextHopKeepsIndependentLabels holds peer, prefix, next hop and MED fixed; a reused path 9 replaces [200] by exactly [300], leaves exactly two routes and path 7 at [100]. Its negative boundary uses a different identifier, retaining both routes and both labels. Existing TestLabeledImplicitWithdrawalAddPath and TestRFC8277AddPathLabelsBoundPerPath retain route-entry and binding isolation coverage. pathSet.setLabels binds only the named entry; the parent observed the new test fail with [200] instead of [300] when that producer retained the old handle, and pass in the complete RIB race run. Native records separately observe producer disabling; no generic best-path compliance is inferred.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8277AddPathSameNextHopKeepsIndependentLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go#L35) | unit/verify | revert, verified |
-| negative | [`TestLabeledImplicitWithdrawalAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L143) | unit/verify | unproven |
+| negative | [`TestLabeledImplicitWithdrawalAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L143) | unit/verify | not verified |
 | positive | [`TestRFC8277AddPathSameNextHopKeepsIndependentLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go#L34) | unit/verify | revert, verified |
-| positive | [`TestLabeledImplicitWithdrawalAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L142) | unit/verify | unproven |
+| positive | [`TestLabeledImplicitWithdrawalAddPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L142) | unit/verify | not verified |
 | positive | [`TestRFC8277AddPathLabelsBoundPerPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L199) | unit/verify | revert, verified |
 
 ### [`RFC8277-2.5-3`](#rfc8277-2.5-3)
@@ -516,7 +516,7 @@ If I1 is not the same as I2, U2 MUST be interpreted as meaning that L2 is now bo
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathLabelsBoundPerPath, internal/component/bgp/plugins/rib/rfc8277_test.go::TestRFC8277AddPathSameIdentifierRebinds moved. Independent post-edit judgment by AddPathProofReview, not the test author. RFC 8277 Section 2.5: "If I1 is not the same as I2, U2 MUST be interpreted as meaning that L2 is now bound to P at N1, but U2 MUST NOT be interpreted as meaning that L1 is no longer bound to P at N1." The new positive TestRFC8277AddPathSameNextHopKeepsIndependentLabels holds the same-next-hop premise that the earlier different-next-hop test did not isolate: path 9 binds [200] while path 7 keeps [100], including across relabel and targeted withdrawal. TestRFC8277AddPathSameIdentifierRebinds supplies the negative boundary: the SAME path 7 leaves one route with [200] alone. Both reach received UPDATE ingestion and per-path label storage. Parent observed the new positive fail with path 7 reading [200] when setLabels bound every update to the first entry; normal complete RIB race run passed. This closes both the formerly absent negative tag and the same-next-hop proof gap.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8277AddPathSameIdentifierRebinds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L245) | unit/verify | revert, verified |
 | positive | [`TestRFC8277AddPathSameNextHopKeepsIndependentLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_same_next_hop_test.go#L33) | unit/verify | revert, verified |
@@ -528,7 +528,7 @@ These two routes MUST be considered to be comparable, even if they specify diffe
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment of all four current tagged functions and five polarity covers against the complete RFC 8277 Section 3.1. The RFC states: These two routes MUST be considered to be comparable, even if they specify different labels. Its premise includes different BGP sessions or one ADD-PATH session with different path identifiers, and it states: The same applies to SAFI-128 routes. Read the current structured-receive/storage fixtures and the real CIDR/opaque route-identity, retained candidate aggregation, admission, best-path selection and stored-winner producers. TestLabeledRoutesWithDifferentLabelsAreComparable provides two iBGP session identities, two real independent connected host routes in a private Loc-RIB and the resolver over that same table, so neither received next hop depends on the advertised /8. Its unchanged original inputs require exactly two candidates, peer A/MED10 against the smaller-peer-address fallback and one best record. Its separate negative swaps only labels and requires the same peer, MED10, one best record and the winner's own new label200. The current positive semantic break skips MED elimination and fails the initial winner; the current negative semantic break incorrectly derives preference from the label and passes the initial arrangement before failing only the post-swap peer/MED assertions. TestRFC8277AddPathRoutesOnOneSessionAreComparable uses the same genuine reachability prerequisite, preserves labels100/200 and IDs7/9 with MED20/10, requires two stored paths and two candidates whichever ID-bearing key triggers the lookup, and elects path9/MED10 against path-ID fallback. Its current semantic label-preference break produces path7/MED20 from both keys after a clean pass. TestRFC8277VPNAddPathLabelsAreOneElection separately requires both differently labeled VPN paths for one RD/prefix from either ADD-PATH framing, path7/MED10 with its exact own label-bearing framed NLRI, replacement on relabel and path-specific Compatibility withdrawal. Its winner aligns with the lower-path-ID fallback, so it is not independently credited as a MED-bypass discriminator. Its freshly observed producer-panic record establishes reachability of the opaque gather, not an independent semantic label/selection fault. TestAddPathOpaqueMixedModeMeetInOneElection now supplies the distinct VPN cross-session aggregation boundary: plain and ADD-PATH peers for the same RD/prefix must both appear from both trigger framings, the plain LOCAL_PREF500 route wins with its own unframed NLRI, both triggers reach the same election and exactly one best record remains. Its current native semantic break stops opaque aggregation after the first contributing peer, before retaining another peer's paths; the clean unit passes and the mutated VPN sibling fails both exact candidate counts, observing one instead of two. This failure is independent of map order. The EVPN sibling is outside this RFC claim. Together the opaque same-session label-identity assertions and cross-session aggregation assertions cover the two SAFI-128 comparability premises without treating CIDR aggregation as evidence for the distinct opaque loop. These are bounded in-process comparison and identity proofs, not live VPN peer interoperability, all RFC4271 ranking criteria, send-path propagation, kernel/MPLS forwarding, VPP acceptance or full RFC8277 support. No test, expectation or original vector was removed or weakened.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestLabeledRoutesWithDifferentLabelsAreComparable`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc8277_test.go#L284) | unit/verify | mutant, verified |
 | positive | [`TestAddPathOpaqueMixedModeMeetInOneElection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/addpath_opaque_best_per_route_test.go#L117) | unit/verify | mutant, verified |
@@ -542,7 +542,7 @@ When a SAFI-4 or SAFI-128 route is propagated, if the Network Address of Next Ho
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudge after replacing the test-only applyNextHopMod helper with the live precomputeNextHop and applyFactsNextHop producers. RFC 8277 Section 3.2.1 says: When a SAFI-4 or SAFI-128 route is propagated, if the Network Address of Next Hop field is left unchanged, the Label field(s) MUST also be left unchanged. TestLabeledPropagationUnchangedNextHopKeepsLabels retains its SAFI-4 source bytes, empty modification-set assertion, complete MP_REACH byte equality, label/prefix equality and S-bit assertion. TestLabeledVPNPropagationUnchangedNextHopKeepsLabels retains its SAFI-128 source bytes, empty modification-set assertion, complete attribute equality, twelve-octet VPN next hop, label, Route Distinguisher and prefix assertions. precomputeNextHop selects nhModeNone for NextHopUnchanged, applyFactsNextHop records no operation for that mode, and mpReachNextHopHandler takes its unchanged-source keepOrDrop branch when neither a next-hop Set nor an NLRI replacement exists. These assertions would detect loss or alteration of the preserved source attribute; they do not merely assert successful construction. The positive-only annotation still describes this conditional preservation obligation correctly and now cites the live producers without obsolete line numbers. Changed-next-hop behavior belongs to Section 3.2.2 and is not claimed by these tests. This rejudge is by source inspection, not a claim that the newly owed mutant observations or an interoperability scenario ran. Retain the enforced verdict with no scope expansion; the main thread must refresh the changed units' native discrimination observations before committing them.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestLabeledPropagationUnchangedNextHopKeepsLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_test.go#L34) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestLabeledVPNPropagationUnchangedNextHopKeepsLabels`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_vpn_propagation_test.go#L30) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
@@ -601,7 +601,7 @@ Upon transmission, the Compatibility field SHOULD be set to 0x800000. (§2.4)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestWithdrawalCompatibilityOnSend`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_withdrawal_compatibility_test.go#L44) | unit/verify | mutant, verified |
 | positive | [`TestWithdrawalCompatibilityEveryWriter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8277_withdrawal_compatibility_test.go#L139) | unit/verify | revert, verified |

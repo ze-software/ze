@@ -1,8 +1,8 @@
 # Chaos-Tested BGP Peering
 
-Use `le chaos run` before deployment to prove that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not.
+Use `le chaos run` before deployment to check that a peer configuration converges, survives selected faults, and produces a reproducible failure record when it does not.
 
-**RFC completion:** the [BGP session operations coverage page](../../quality/rfc-compliance/profiles/bgp-session-ops/) shows how much of the RFC work behind this use case is proven by tests.
+**RFC completion:** the [BGP session operations coverage page](../../quality/rfc-compliance/profiles/bgp-session-ops/) shows which requirements have passed the recorded test checks for this use case.
 
 ## Start from a validated peer
 
@@ -81,7 +81,7 @@ When a scenario fails:
 ./le chaos run --shrink run.ndjson
 ```
 
-Replay proves the failure is deterministic. Shrink removes unrelated events until the smallest useful reproduction remains. Keep the seed, event log, configuration, binary version, and final report together.
+Replay checks whether the failure repeats with the same input. Shrink removes unrelated events until the smallest useful reproduction remains. Keep the seed, event log, configuration, binary version, and final report together.
 
 ## Checks before deployment
 

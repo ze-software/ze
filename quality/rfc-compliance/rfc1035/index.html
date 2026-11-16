@@ -128,11 +128,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>25</strong><b>of 27 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 27 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>25</strong><b>of 27 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 27 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 27 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 27 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>26</strong><b>26 of 85 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 27 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>26</strong><b>26 of 85 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -144,9 +144,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 27 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 27 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 27 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 27 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 27 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 27 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 27 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -174,11 +174,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -190,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -198,7 +198,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -279,7 +279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> DNS message behavior</p>
-<p><strong>Proof:</strong> 12 of 27 MUST proven</p>
+<p><strong>Test verification:</strong> 12 of 27 MUST proven</p>
 <p><strong>Evidence:</strong> functional 1, unit 11</p>
 <p><strong>Unmet:</strong> -</p>
 
@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>2</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -326,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc1035:must">Ze proven 12, Proof pending 13, Not assessed 2</div>
+<div data-ze-rfc-bar="rfc1035:must">Ze verified 12, Tests awaiting verification 13, Not assessed 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc1035:overview">Ze MUST proven 12, Proof pending 13, Not assessed 8</div>
+<div data-ze-rfc-bar="rfc1035:overview">Ze MUST verified 12, Tests awaiting verification 13, Not assessed 8</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -348,13 +348,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc1035:must.kept">27</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc1035:must.ze-proven">12</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc1035:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc1035:must.proof-pending">13</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -384,7 +384,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc1035:should.total">6</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc1035:should.proven">0</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -405,7 +405,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc1035:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc1035:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -420,7 +420,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -781,14 +781,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc1035-2.3.3-1"><code>RFC1035-2.3.3-1</code></a></h3>
 <p>For all parts of the DNS that are part of the official protocol, all comparisons between character strings (e.g., labels, domain names, etc.) are done in a case-insensitive manner (§2.3.3)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L58" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverNameCase</code></a></td>
@@ -798,7 +798,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L97" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L45" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverNameCase</code></a></td>
@@ -808,7 +808,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L54" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -818,17 +818,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L148" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_QueryNameCasePreservedInTheReply</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L133" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_QueryNameCasePreservedInTheReply</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -838,17 +838,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L159" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L144" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredTTLBoundedToASigned32BitPositive</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -858,17 +858,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L132" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L102" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -878,17 +878,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L204" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L179" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -898,17 +898,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L192" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L186" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameEncodedAsLengthPrefixedLabelsEndingAtRoot</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -918,22 +918,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L73" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredLabelBoundedTo63Octets</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L67" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L57" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredLabelBoundedTo63Octets</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L24" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></td>
@@ -948,27 +948,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L115" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredNameBoundedTo255WireOctets</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L65" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_limits_test.go#L134" title="internal/plugins/geodns/rfc1035_name_limits_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ConfiguredNameBoundedTo255WireOctets</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/parse/dns-name-too-long.ci#L43" title="test/parse/dns-name-too-long.ci" target="_blank" rel="noopener"><code>dns-name-too-long.ci</code></a></td>
 <td>functional/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -978,7 +978,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L70" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverNameCase</code></a></td>
@@ -988,7 +988,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L105" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L35" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverNameCase</code></a></td>
@@ -998,7 +998,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L59" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1008,17 +1008,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L110" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_name_case_test.go#L87" title="internal/plugins/geodns/rfc1035_name_case_test.go" target="_blank" rel="noopener"><code>TestRFC1035_NameComparisonIsCaseInsensitiveForLettersOnly</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1032,12 +1032,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L102" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ReservedZFieldIsZero</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L105" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverHeaderZ</code></a></td>
@@ -1047,7 +1047,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L69" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ReservedZFieldIsZero</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L94" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverHeaderZ</code></a></td>
@@ -1062,17 +1062,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L162" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_AuthoritativeAnswerBitOnEveryReply</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L253" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L137" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverClearsAA</code></a></td>
@@ -1082,12 +1082,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L117" title="internal/plugins/geodns/rfc1035_negative_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ResponseCodeByNameAndClient</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_header_test.go#L137" title="internal/core/dnsserver/rfc1035_header_test.go" target="_blank" rel="noopener"><code>TestRFC1035_AuthoritativeAnswerBitOnEveryReply</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L130" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverClearsAA</code></a></td>
@@ -1102,27 +1102,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L242" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L107" title="internal/plugins/geodns/rfc1035_negative_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ResponseCodeByNameAndClient</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/zones_test.go#L237" title="internal/plugins/as112/zones_test.go" target="_blank" rel="noopener"><code>TestZoneAnswer_ResponseCodeByNamePosition</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_negative_test.go#L102" title="internal/plugins/geodns/rfc1035_negative_test.go" target="_blank" rel="noopener"><code>TestRFC1035_ResponseCodeByNameAndClient</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1132,17 +1132,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L127" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L109" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RecordTTLIsA32BitUnsignedSecondCount</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1152,17 +1152,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L201" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RDLengthCountsTheRDataOctets</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_rr_test.go#L181" title="internal/plugins/geodns/rfc1035_rr_test.go" target="_blank" rel="noopener"><code>TestRFC1035_RDLengthCountsTheRDataOctets</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1172,7 +1172,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L232" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
@@ -1202,17 +1202,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L236" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L176" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1222,17 +1222,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L239" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L215" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1242,17 +1242,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L242" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L191" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_CompressionPointersInATruncatedDatagram</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1262,7 +1262,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L213" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDiscardsPointerLoop</code></a></td>
@@ -1272,7 +1272,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L372" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_InboundCompressionPointerUnderstood</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L158" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverUnderstandsPointers</code></a></td>
@@ -1282,7 +1282,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L352" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_InboundCompressionPointerUnderstood</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1296,12 +1296,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L164" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPBoundFollowsAdvertisedEDNSSize</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L297" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDatagramBound</code></a></td>
@@ -1311,7 +1311,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L97" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L264" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDatagramBound</code></a></td>
@@ -1321,7 +1321,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L83" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1331,17 +1331,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L195" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_StreamTransportNotTruncated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L127" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L282" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDatagramBound</code></a></td>
@@ -1351,12 +1351,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L106" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L107" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPReplyBoundedAndTruncated</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L271" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverDatagramBound</code></a></td>
@@ -1366,7 +1366,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_server_transport_test.go#L92" title="internal/plugins/geodns/rfc1035_server_transport_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UDPTruncatedTCPWholeOverRealSockets</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1376,12 +1376,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L49" title="internal/plugins/as112/rfc1035_port_test.go" target="_blank" rel="noopener"><code>TestRFC1035_DNSTransportsUseServerPort53</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L359" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverForwardsToServerPort53</code></a></td>
@@ -1391,7 +1391,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/as112/rfc1035_port_test.go#L26" title="internal/plugins/as112/rfc1035_port_test.go" target="_blank" rel="noopener"><code>TestRFC1035_DNSTransportsUseServerPort53</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L348" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverForwardsToServerPort53</code></a></td>
@@ -1411,7 +1411,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L390" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverStreamFraming</code></a></td>
@@ -1421,7 +1421,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L452" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L404" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverStreamFraming</code></a></td>
@@ -1431,7 +1431,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc1035_compression_test.go#L428" title="internal/plugins/geodns/rfc1035_compression_test.go" target="_blank" rel="noopener"><code>TestRFC1035_TCPRepliesCarryATwoOctetLengthPrefix</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1441,12 +1441,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L290" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_QueryOpcodeAnsweredNormally</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L428" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverInverseQueryNotImplemented</code></a></td>
@@ -1456,7 +1456,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc1035_handler_test.go#L241" title="internal/core/dnsserver/rfc1035_handler_test.go" target="_blank" rel="noopener"><code>TestRFC1035_UnsupportedOpcodeReturnsNotImplemented</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc1035_resolver_test.go#L441" title="internal/plugins/dnsresolver/rfc1035_resolver_test.go" target="_blank" rel="noopener"><code>TestRFC1035ResolverInverseQueryNotImplemented</code></a></td>
@@ -2093,7 +2093,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

@@ -128,21 +128,21 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>22</strong><b>of 22 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 22 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>22</strong><b>of 22 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 22 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 22 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 22 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 22 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 22 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>35</strong><b>35 of 81 tests linked to requirements, 0 without a fault test and 20 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>35</strong><b>35 of 81 tests linked to requirements, 0 without a fault test and 20 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 22 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 22 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 22 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 22 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 22 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 22 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 22 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -170,11 +170,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -186,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -194,7 +194,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -275,7 +275,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> AIGP attribute</p>
-<p><strong>Proof:</strong> 9 of 22 MUST proven</p>
+<p><strong>Test verification:</strong> 9 of 22 MUST proven</p>
 <p><strong>Evidence:</strong> unit 9</p>
 <p><strong>Unmet:</strong> -</p>
 
@@ -301,7 +301,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -321,9 +321,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7311:must">Ze proven 9, Proof pending 13</div>
+<div data-ze-rfc-bar="rfc7311:must">Ze verified 9, Tests awaiting verification 13</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7311:overview">Ze MUST proven 9, Proof pending 13, Not assessed 4</div>
+<div data-ze-rfc-bar="rfc7311:overview">Ze MUST verified 9, Tests awaiting verification 13, Not assessed 4</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -343,13 +343,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc7311:must.kept">22</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc7311:must.ze-proven">9</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7311:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc7311:must.proof-pending">13</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -379,7 +379,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc7311:should.total">4</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc7311:should.proven">0</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -400,7 +400,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc7311:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc7311:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -415,7 +415,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -701,19 +701,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Gaps and untested MUSTs</h2>
 <p>RFC 7311 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc7311-3-1"><code>RFC7311-3-1</code></a></h3>
 <p>The AIGP TLV is encoded as follows: - Type: 1 - Length: 11 - Value: Accumulated IGP Metric. The value field of the AIGP TLV is always 8 octets long (§3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30. TestRFC7311AIGPTLVLengthIsEleven: + WriteTo emits 01 000b and 8 value octets and ParseAIGP reads the metric back; - Type-1 TLVs of Length 12 and 10 are refused by ParseAIGP, the registered parser. Forbidden: accepting a Type-1 TLV whose Length is not 11. Records observed red (AIGPMetricOffset).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L101" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMalformedMetricWrongLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L21" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPTLVLengthIsEleven</code></a></td>
@@ -723,7 +723,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L20" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGP</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L20" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPTLVLengthIsEleven</code></a></td>
@@ -738,12 +738,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30. TestRFC7311AIGPValueIsWholeTLVSet: + a value of two whole TLVs parses into exactly those two; - one, two or three trailing octets that do not form a TLV are refused. Forbidden: accepting a value that is not a whole set of TLVs.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L89" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMalformedTruncatedValue</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L58" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPValueIsWholeTLVSet</code></a></td>
@@ -753,7 +753,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L52" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMultipleTLVs</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L57" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311AIGPValueIsWholeTLVSet</code></a></td>
@@ -768,7 +768,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 7311 Section 3 says: Any other AIGP TLVs in the AIGP attribute MUST be passed along unchanged if the AIGP attribute is passed along. The forwarding test still constructs a first metric of 100, a second Type-1 metric of 7 and an unknown Type-9 TLV, then applies a policy replacement that attempts to drop both later TLVs. Transparent and next-hop-self cases require the transmitted AIGP value to retain its full length and every octet after the first TLV, while the first metric is exactly 100 or 130. The fixture change pairs its deliberately built local OPEN with the same immutable settings snapshot as production; it preserves negotiated identity, current encoding contexts and the actual forward-to-socket assertions. applyFactsAIGP restores the received attribute after policy and changes only the first metric when next-hop-self requires accumulation. The codec units separately require exact unknown data and second-Type-1/unknown TLV parse-write round trips. ParseAIGP retains every TLV and WriteTo emits each unchanged value. A dropped or modified later TLV, unconditional attribute suppression, or incorrect first-metric edit fails these exact assertions.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go#L59" title="internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go" target="_blank" rel="noopener"><code>TestRFC7311OtherAIGPTLVsPassedAlongUnchanged</code></a></td>
@@ -778,7 +778,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L142" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestAIGPWriteToMultipleTLVs</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go#L58" title="internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go" target="_blank" rel="noopener"><code>TestRFC7311OtherAIGPTLVsPassedAlongUnchanged</code></a></td>
@@ -788,7 +788,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_test.go#L57" title="internal/core/bgp/attribute/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestParseAIGPMultipleTLVs</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_tlv_test.go#L85" title="internal/core/bgp/attribute/rfc7311_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311OtherAIGPTLVsSurviveTheCodec</code></a></td>
@@ -803,7 +803,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: keeping or passing along an AIGP whose transitive bit is set. TestRFC7606AIGPTransitiveIsDiscarded asserts Action==AttributeDiscard on code 26 with DiscardReasonMalformedValue and require.False(found) for AIGP after ApplyAttrDiscard, with ORIGIN, AS_PATH, NEXT_HOP intact; TestRFC7311AIGPTransitiveDiscardedOnReceive asserts the same through enforceRFC7606 with no error (discard, not reset). Positives with flags 0x80 assert RFC7606ActionNone and the AIGP bytes unchanged, so a codepoint-only check goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7311_aigp_test.go#L68" title="internal/component/bgp/message/rfc7311_aigp_test.go" target="_blank" rel="noopener"><code>TestRFC7606AIGPTransitiveIsDiscarded</code></a></td>
@@ -833,17 +833,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L241" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPConfiguredOriginationRejectsOutsideDomain</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L240" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPConfiguredOriginationRejectsOutsideDomain</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -853,17 +853,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: acting on, or passing along, a malformed AIGP, or escalating beyond ignoring it. TestAIGPReceiveValidatesEveryTLV (IBGP, AIGP enabled) appends a truncated trailing TLV and asserts require.Equal(!malformed, present) on the payload leaving enforceRFC7606 (the bytes passed along), require.NoError (quietly, no session reset) and the NLRI kept (route not withdrawn). The well-formed half (unknown TLV plus duplicate metric) keeps the metric, so a blanket AIGP strip goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L83" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPReceiveValidatesEveryTLV</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L82" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPReceiveValidatesEveryTLV</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -873,7 +873,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: judging an AIGP malformed for a repeated TLV type or an unknown TLV type. TestRFC7311DuplicateAndUnknownTLVsAreWellFormed parses two Type-1 TLVs and a Type-200 TLV with require.NoError, so rejecting either shape goes red; ParseAIGP and the receive validator validateAIGPAttr share AIGPMetricOffset. TestRFC7311MalformedVerdictIsForLengthOnly shows the malformed verdict exists (ErrMalformedValue on a Type-1 TLV of Length 8) and is lifted when only the length is repaired.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go#L80" title="internal/core/bgp/attribute/rfc7311_aigp_tlv_test.go" target="_blank" rel="noopener"><code>TestRFC7311MalformedVerdictIsForLengthOnly</code></a></td>
@@ -893,17 +893,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L45" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPSessionReceiveBoundary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L44" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPSessionReceiveBoundary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -913,17 +913,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an EBGP (non-confederation) session defaulting AIGP_SESSION to enabled. TestAIGPSessionReceiveBoundary case external-default (peer AS 65002, local 65001, AIGPSession nil) asserts require.Equal(false, present) for AIGP after enforceRFC7606, which goes red on an enabled default; external-enabled shows the item is honoured when set; internal-default keeps AIGP, so the check is not a blanket strip.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L47" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPSessionReceiveBoundary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L46" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPSessionReceiveBoundary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -933,7 +933,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L112" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPFinalWriterBoundary</code></a></td>
@@ -953,17 +953,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L49" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPSessionReceiveBoundary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L48" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPSessionReceiveBoundary</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -973,17 +973,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L135" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPOriginationControlsReachWire</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L134" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPOriginationControlsReachWire</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -993,17 +993,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L137" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPOriginationControlsReachWire</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L136" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPOriginationControlsReachWire</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1013,17 +1013,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L139" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPOriginationControlsReachWire</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L138" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPOriginationControlsReachWire</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1033,7 +1033,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L165" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
@@ -1053,7 +1053,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment on 2026-11-11 after the withdrawal builder signature migration. Read the complete RFC 7311, its short summary and derived requirement map, the prior verdict and discrimination entries, and all four currently tagged units. RFC 7311 Section 3.4.3: &#34;In all the computations discussed in this section, the AIGP value MUST be capped at its maximum unsigned value 0xffffffffffffffff.&#34; Q1: TestRFC7311DirectLinkCostNeverWrapsOrDisappears and TestAIGPForwardedMetricsReachFinalWire assert the actual final writer&#39;s finite and overflowing source additions, not merely a helper return. TestAIGPRecursiveDistanceUsesReceivedMetrics uses an actual RIB to assert exact recursive sums 330 and 530 and overflowing maximum. TestRFC7311RecursiveAIGPChangeReachesWire separately observes recursive-plus-terminal saturation and saturation only when the source&#39;s received 100 is added; each is followed by exact finite recovery to 507. Q2: wrapping addition, unconditional saturation, omitting the terminal cost or reusing the previous advertisement violates those exact values or the complete transition list. The producer-panic records show dependence on their named producers, not semantic mutation coverage. After this source audit, main renewed all sixteen changed-unit/polarity bindings across the six affected requirements in job-refusal-rfc7311-renew-20feecf3.log. The inspected log contains sixteen distinct recorded tuples; each follows a clean baseline PASS and the expected producer-disabled panic FAIL. Q3: valid TLVs, retained source bytes, unchanged-next-hop controls and finite recovery isolate arithmetic from parse refusal or dropped routes. The final writer requires actual frames, so absence is not success. Q4: the four units compose direct source addition, recursive received-BGP addition, terminal distance and final source addition. Add caps overflowing sums without wrapping; Resolve uses Add for every received BGP and terminal contribution, applyFactsAIGP uses Add for forwarding, and replayAIGP uses Add from the retained received metric. The two changed tests only unpack buildWithdrawalPayload&#39;s new error and assert success; their original inputs, nonzero guards, metrics, withdrawal bytes and writer assertions remain. This source auditor ran no tests, builds, proof records, check or stamp. The subsequently inspected main-thread renewals are separate execution evidence and add no live interoperability claim. The verdict is an independent judgment of the reviewed assertions and producers, with freshness and execution still owned by main.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L22" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></td>
@@ -1103,7 +1103,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L169" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
@@ -1123,7 +1123,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment on 2026-11-11 after the withdrawal builder signature migration. Read the complete RFC 7311, summary, derived row, prior verdict, current discrimination entries, all three tagged units and their producers. RFC 7311 Section 3.4.3: &#34;If R1&#39;s route to R2 is either (a) an IGP-learned route or (b) a static route that does not require recursive next hop resolution, then R1 MUST increase the value of the AIGP TLV by adding to A the distance from R1 to R2.&#34; This follows the next-hop-self condition and permits an IGP-computed or policy distance. Q1: TestAIGPForwardedMetricsReachFinalWire asserts final metric 130 from received 100 plus resolved 30, with announcement NLRI, while transparent forwarding retains 100 despite a policy replacement. TestAIGPRecursiveDistanceUsesReceivedMetrics proves the real resolver counts terminal 30 once and excludes BGP MED values 9000 and 8000. TestAIGPRecursiveStaticDistance separately proves recursive static distance 30, unresolved refusal and nonrecursive configured static distance 25. Q2: omitting or duplicating terminal distance, using a recursive route&#39;s preference metric, adding MED, or accumulating on an unchanged next hop fails these exact assertions. Existing producer-panic records establish dependence on applyFactsAIGP only; they are not described here as semantic mutation proofs. After this source audit, main renewed all sixteen affected unit/polarity bindings in job-refusal-rfc7311-renew-20feecf3.log, including this changed unit&#39;s pair for this requirement. The inspected log shows a clean baseline PASS followed by the expected producer-disabled panic FAIL for each distinct recorded tuple. Q3: valid announcement/TLV construction, exact final-writer route assertions, deliberately different MED/preference values and the transparent control isolate the obligation. The socket carrier&#39;s mocked resolved distance is not credited as resolver evidence; the separately tagged actual-RIB tests supply that boundary. Q4: the combined tests cover resolved interior and static distances under the conditional next-hop-self obligation. nhResolver.IGPMetric delegates to Resolve, whose non-BGP, nonrecursive route terminates with its distance counted once; aigpIncrement carries that result and applyFactsAIGP adds it to the received metric after egress edits. General and RS forwarding call this producer. The changed tagged unit only unpacks the builder error and asserts success, retaining every prior case and wire assertion. No tests, builds, proof records, check or stamp ran in this source audit. Main&#39;s subsequently inspected renewals are separate execution evidence; no additional interoperability is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L171" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
@@ -1133,12 +1133,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L15" title="internal/component/sysrib/rfc7311_metric_test.go" target="_blank" rel="noopener"><code>TestAIGPRecursiveDistanceUsesReceivedMetrics</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L64" title="internal/component/sysrib/rfc7311_metric_test.go" target="_blank" rel="noopener"><code>TestAIGPRecursiveStaticDistance</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L170" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
@@ -1148,12 +1148,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L14" title="internal/component/sysrib/rfc7311_metric_test.go" target="_blank" rel="noopener"><code>TestAIGPRecursiveDistanceUsesReceivedMetrics</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/sysrib/rfc7311_metric_test.go#L63" title="internal/component/sysrib/rfc7311_metric_test.go" target="_blank" rel="noopener"><code>TestAIGPRecursiveStaticDistance</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1163,7 +1163,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_processing_test.go#L173" title="internal/component/bgp/reactor/rfc7311_processing_test.go" target="_blank" rel="noopener"><code>TestAIGPForwardedMetricsReachFinalWire</code></a></td>
@@ -1183,7 +1183,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment on 2026-11-11 after the withdrawal builder signature migration. Read the complete RFC 7311, summary, derived row, prior verdict, discrimination entries, all four tagged units and their real forwarding producers. RFC 7311 Section 3.4.3: &#34;Then, when R1 changes the next hop of a route from R2 to R1, the AIGP TLV value MUST be increased by a non-zero amount.&#34; The preceding sentence describes a direct EBGP link on which no IGP is running. Q1: TestRFC7311DirectLinkCostNeverWrapsOrDisappears requires configured cost 7 to turn received 100 into final-wire 107 and verifies an exact route withdrawal for absent cost. TestAIGPForwardedMetricsReachFinalWire separately covers policy-link increment 7 with no IGP resolution and zero-cost refusal. TestRFC7311SourceLinkCostReachesRecipient enters general and RS cached forwarding with source costs 7 and 19, a deliberately different destination cost 43, no resolving IGP route, exact output metrics 107 and 119, unchanged-next-hop 100 controls and maximum boundaries. TestRFC7311UnknownCostWithdrawsUntilMetricRecovers checks both rails, unknown/zero costs and three advertisement histories; known distance 11 restores the original route as exactly 111 without another source UPDATE. Q2: using the destination cost, omitting or doubling the increment, dropping AIGP, or losing recovery fails exact wire values, prefix fields or frame counts. The panic/revert records prove producer dependence, not a semantic wrong-value mutation. After this source audit, main renewed all sixteen changed-unit/polarity bindings in job-refusal-rfc7311-renew-20feecf3.log, including both changed units&#39; pairs for this requirement. The inspected log shows a clean baseline PASS followed by the expected producer-disabled panic FAIL for each distinct recorded tuple. Q3: valid source TLVs, explicit accepting policies/send grants, no interior route, different source/destination costs and immutable source bytes isolate link-cost provenance. Never-advertised routes correctly emit no withdrawal; already-advertised routes must emit an exact pure withdrawal. Withholding is Ze&#39;s chosen refusal when it cannot meet the nonzero increment, not an RFC mandate to withdraw. Q4: sourceAIGPLinkMetric reads the received peer&#39;s settings, aigpIncrement uses that configured cost only for the direct received next hop when no usable resolved cost exists, and applyFactsAIGP preserves unchanged next hops or adds the known nonzero amount. General and RS callers use the same received source identity. Both migrated tagged tests retain all old inputs, guards, exact metrics and withdrawals while adding a builder success check. This source audit ran no tests, builds, proof records, check or stamp. Main&#39;s subsequently inspected renewals are separate execution evidence; no additional live interoperability is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7311_direct_link_test.go#L20" title="internal/component/bgp/reactor/rfc7311_direct_link_test.go" target="_blank" rel="noopener"><code>TestRFC7311DirectLinkCostNeverWrapsOrDisappears</code></a></td>
@@ -1233,7 +1233,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7311): &#34;Any change due to (a) in any of these values MUST trigger a new AIGP computation for that route.&#34; be95c10053 replaced lowLiveSettings with acceptingLiveSettings for source and destination: the same settings plus FinalAccept import and export policies with no refs (filter_chain_test.go acceptingPolicies). An accepting policy neither refuses nor rewrites, so the AIGP recomputation the test observes on the wire still comes from the producer. Assertions unchanged. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history. Maintenance rejudgment 2026-11-16 preserves the full current population: fourteen tagged covers, fourteen tests-map keys and fourteen units-map keys across seven top-level units, each retaining its base key and #2 key. The units read are TestAIGPDistanceChangeReselectsRetainedRoutes in rib/rfc7311_selection_test.go; TestAIGPReadvertisesFromReceivedGeneration in reactor/rfc7311_aigp_readvertise_test.go; TestRFC7311ExtendedNextHopCostRecovery and TestRFC7311RecursiveZeroCostRemainsAnnounced in reactor/rfc7311_cost_boundaries_test.go; TestRFC7311ReceivedRecursiveAIGPChangeReachesWire and TestRFC7311RecursiveAIGPChangeReachesWire in reactor/rfc7311_recursive_readvertise_test.go; and TestAIGPRecursiveDistanceUsesReceivedMetrics in sysrib/rfc7311_metric_test.go. The twelve existing reactor/sysrib discrimination observations retain their identities, producers and scopes. Their assertions still cover cache-independent received-generation wire replay (107 then 111); resolved recursive zero remaining an announcement, with initial-zero and positive-to-zero cases; negotiated 16/32-octet IPv6 next-hop recovery of IPv4 NLRI with exact withdrawal/MP_REACH/AIGP outcomes; automatically observed recursive saturation and finite-recovery wire transitions; established-session received AIGP-only replacement of immediate and deeper recursive BGP hops with an unchanged control route and retained original source attributes; and direct recursive-distance computations 330 then 530, unchanged recursion, explicit missing AIGP and saturation. The recursive-zero transition and extended-next-hop recovery cases explicitly call readvertiseAIGP, and the sysrib case explicitly invokes IGPMetric for the next computation; their scope remains those assertions. The automatic-trigger wire cases continue to use the production subscriber or established-session path. In the RIB selection fixture, aigpSelectionNextHopRoutes now installs actual connected terminal Loc-RIB routes and independently requires igpcost.Resolve to report them resolved; the original custom distance provider, received attributes, peer metadata and original winner/received-metric/unchanged-distance assertions remain. The additive recursive-aigp child uses actual igpcost.Resolve over its own Loc-RIB: received recursive AIGP 5 plus terminal cost 7 yields distance 12 and candidate total 22, beating the competing total 30. Changing only that recursive route&#39;s received AIGP to 30 yields distance 37 and candidate total 47, and the production runAIGPSelection subscriber must move the winner to the competing route without another candidate UPDATE or a manual selection call. Both peer RIB entries retain received metric 10. Reinserting the same recursive path reports no Loc-RIB change, preserves the winner and distances, and the final best-path check reports no change. The main session&#39;s job-ci-aigp-real-recursive-selection-3c324434.log reports PASS for this outer unit and its recursive-aigp child; this is scoped test-run evidence only. Main-thread native 7e9becde passed the clean unit then observed the recursive child fail only its B-winner wait at line 218 after normal-return suppression of all subscriber notifications; initial A selection remained intact. Native 491c612e passed clean then observed the original terminal unchanged-result assertion fail at line 142 after the sameBest branch falsely reported a change. Both records now use explicit hand-written semantic provenance; neither is a panic or interruption. Only the two RIB tuples were replaced; all twelve other record objects remain unchanged. This scoped renewal makes no full-suite-green claim.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7311_selection_test.go#L103" title="internal/component/bgp/plugins/rib/rfc7311_selection_test.go" target="_blank" rel="noopener"><code>TestAIGPDistanceChangeReselectsRetainedRoutes</code></a></td>
@@ -1313,7 +1313,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: running a Section 9.1.2.2 tie-breaker before the AIGP step. TestAIGPSelectsStoredRoutesBeforeASPath gives peer B the lower AIGP sum (20 plus 10) and the longer AS_PATH (3 versus 1); require.Equal(nhB, winner.NextHop) goes red if AS_PATH length, the first 9.1.2.2 tie-breaker, runs first. Negatives assert LOCAL_PREF (Section 9.1.1, not a tie-breaker) still wins before AIGP and that a missing AIGP is not metric zero. Maintenance rejudgment 2026-11-16 preserves both tagged covers of this same top-level unit, its base and #2 test keys, and its base and #2 unit-map keys. The full body and its compareBeforeMED/compareAIGP/checkRouteBestChange producers were read. Actual connected terminal routes now make each next hop independently resolvable in the Loc-RIB before candidate admission, while the original custom provider still returns costs 100 for A and 10 for B. The original positive case retains received metrics 5 and 20, equal LOCAL_PREF 100, and AS_PATH lengths 1 and 3: the required winner remains B with received AIGP 20 in both its best-change event and collected replay, rather than accumulated metric 30. The first negative replaces A with LOCAL_PREF 101 and no AIGP and requires A to win with AIGPPresent false; the second returns A to LOCAL_PREF 100 without AIGP and requires B to win, so absence cannot act as metric zero or survive to the shorter-AS_PATH criterion. The producer still compares LOCAL_PREF before the AIGP step and AIGP before AS_PATH. The fixture prerequisite adds reachability while preserving all of those original assertions and the full requirement scope. The additive recursive-aigp child belongs to the separate distance-reselection unit and creates no additional tag key for this ordering row. Main-thread native 4319577b passed clean then observed the first expected B-winner assertion fail at line 83 when numeric AIGP ranking was bypassed while presence ordering remained. Native aaca26ef passed clean, retained the numeric and LOCAL_PREF phases, then observed the named missing-AIGP winner assertion fail at line 99 when presence confinement was bypassed. Both failures returned normally; both records retain explicit hand-written semantic provenance. No full-suite-green claim is made.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7311_selection_test.go#L54" title="internal/component/bgp/plugins/rib/rfc7311_selection_test.go" target="_blank" rel="noopener"><code>TestAIGPSelectsStoredRoutesBeforeASPath</code></a></td>
@@ -1559,7 +1559,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

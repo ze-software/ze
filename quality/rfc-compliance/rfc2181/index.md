@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 9 | of 23 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 9 | of 23 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 9 | of 23 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 9 | of 23 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 23 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 23 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 31 | 31 of 38 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 23 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 31 | 31 of 38 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 23 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 23 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 23 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 23 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 23 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 23 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 23 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: Clarifications to the DNS Specification (RFC 2181)
 
 **Area:** DNS clarifications
 
-**Proof:** 12 of 23 MUST proven
+**Test verification:** 12 of 23 MUST proven
 
 **Evidence:** unit 12
 
@@ -108,7 +108,7 @@ Included in automatic checks: Clarifications to the DNS Specification (RFC 2181)
 | Annotated (including scoped evidence) | 14 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **23** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: Clarifications to the DNS Specification (RFC 2181)
 
 ## Figures
 
-- **MUST bar**: Ze proven 12, Proof pending 6, Not built 5
-- **Overview bar**: Ze MUST proven 12, SHOULD proven 1, Proof pending 6, Not assessed 46, Not built 5
+- **MUST bar**: Ze verified 12, Tests awaiting verification 6, Not built 5
+- **Overview bar**: Ze MUST verified 12, SHOULD verified 1, Tests awaiting verification 6, Not assessed 46, Not built 5
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: Clarifications to the DNS Specification (RFC 2181)
 | Mandatory requirements complete | not complete |
 | MUST rows | 23 |
 | MUST rows kept (the MUST bar) | 23 |
-| Ze proven | 12 |
+| Ze verified | 12 |
 | OS verified | 0 |
-| Proof pending | 6 |
+| Tests awaiting verification | 6 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: Clarifications to the DNS Specification (RFC 2181)
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 47 |
-| SHOULD proven | 1 |
+| SHOULD verified | 1 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 46 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc2181.json](../../../data/rfc/rfc2181.json).
 
@@ -242,9 +242,9 @@ Source: [data/rfc/rfc2181.json](../../../data/rfc/rfc2181.json).
 | [`RFC2181-10.1.1-1`](#rfc2181-10.1.1-1) Care must therefore be taken to be very clear whether the label, or the value (the canonical name) of a CNAME resource record is intended. (§10.1.1) | {gap}, no test | gap in proof: internal/plugins/geodns/record.go::recordKind meets it on the authoritative side, which authors no CNAME; no test shows the LAN resolver (internal/plugins/dnsresolver) and the stub (internal/component/resolve/dns) keep a CNAME's owner label and its canonical-name value apart when they follow an alias |
 | [`RFC2181-10.2-1`](#rfc2181-10.2-1) Note that while the value of a PTR record must not be an alias, there is no requirement that the process of resolving a PTR record not encounter any aliases. (§10.2) | {gap}, no test | gap in proof: internal/plugins/as112/server.go::answerQuery meets it, since the AS112 reverse zones answer NODATA with the SOA and never a PTR, and geodns authors no PTR record (internal/plugins/geodns/record.go::recordKind); no test asserts that ze serves no PTR whose value is an alias |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC2181-4.1-1`](#rfc2181-4.1-1)
 
@@ -252,7 +252,7 @@ To avoid these problems, servers when responding to queries using UDP must cause
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; each unit binds one listener on a free port of a single loopback address (127.0.0.2 in TestRFC2181ReplySourcedFromTheQueriedAddress, 127.0.0.1 in TestRFC2181_UDPReplySourceAndPort), where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: Re-judged 2026-09-30. TestRFC2181ReplySourcedFromTheQueriedAddress binds the listener to 127.0.0.2 and queries from 127.0.0.1, asserting reply source 127.0.0.2; a wildcard bind would source from 127.0.0.1, so the assertion discriminates (the earlier weak finding). Record: dnsserver Manager.bind revert observed red. {single-polarity} holds: every UDP listener binds one address and there is no explicit-source path to drive negatively.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2181ReplySourcedFromTheQueriedAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L58) | unit/verify | revert, verified |
 | positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L347) | unit/verify | revert, verified |
@@ -263,9 +263,9 @@ Replies to all queries must be directed to the port from which they were sent. (
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L352) | unit/verify | unproven |
+| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L352) | unit/verify | not verified |
 
 ### [`RFC2181-4.2-2`](#rfc2181-4.2-2)
 
@@ -273,9 +273,9 @@ For queries received by UDP the server must take note of the source port and use
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-15 (subagent, after 14d1c8f19c and 224b0ef514). The tagged unit changed only in its setup call: mgr.apply/applyListeners became reconcile(..., BindLenient), the policy the deleted wrappers passed; the unit binds one free loopback port, where lenient and strict bind alike, and every assertion line is byte-identical. Where this unit carries a revert record (TestDoTListener, TestDoHListener, TestRFC7858DoTNegotiatesOnlyBCP195Suites, the two RFC 2181 4.1-1 units), it was re-observed red today. Prior judgement re-read against the current body and stands: TestRFC2181_UDPReplySourceAndPort reads the reply on the client's own ephemeral socket and matches the query id; a reply sent to any other destination port never arrives and the read fails.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L357) | unit/verify | unproven |
+| positive | [`TestRFC2181_UDPReplySourceAndPort`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L357) | unit/verify | not verified |
 
 ### [`RFC2181-5.1-1`](#rfc2181-5.1-1)
 
@@ -283,7 +283,7 @@ The response must be marked as "truncated" if the entire RRSet will not fit in t
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2181TruncatedWhenRRSetDoesNotFit`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L60) | unit/verify | mutant, verified |
 | positive | [`TestRFC2181TruncatedWhenRRSetDoesNotFit`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L47) | unit/verify | mutant, verified |
@@ -294,9 +294,9 @@ Consequently the use of differing TTLs in an RRSet is hereby deprecated, the TTL
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC2181_RRSetEqualTTL drives answerQuestions for a three-address host and asserts every A record in the emitted RRSet carries the one configured TTL (120).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L399) | unit/verify | unproven |
+| positive | [`TestRFC2181_RRSetEqualTTL`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L399) | unit/verify | not verified |
 
 ### [`RFC2181-5.3.1-2`](#rfc2181-5.3.1-2)
 
@@ -304,7 +304,7 @@ However, where SIG records are being returned in the answer section, in response
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2181SectionSIGNotTheRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L291) | unit/verify | mutant, verified |
 | positive | [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L246) | unit/verify | mutant, verified |
@@ -315,7 +315,7 @@ Servers that receive responses containing SIG records in the authority section, 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L234) | unit/verify | mutant, verified |
 | positive | [`TestRFC2181SectionSIGNotTheRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L283) | unit/verify | mutant, verified |
@@ -326,7 +326,7 @@ Thus, they must not cache that SIG record in a way that would permit it to be re
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2181SectionSIGNotCached`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L323) | unit/verify | mutant, verified |
 | positive | [`TestRFC2181WholeSIGRRSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L256) | unit/verify | mutant, verified |
@@ -337,9 +337,9 @@ Servers must never merge RRs from a response with RRs in their cache to form an 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L234) | unit/verify | unproven |
+| positive | [`TestRFC2181_CacheReplacesRRSetNoMerge`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_test.go#L234) | unit/verify | not verified |
 | positive | [`TestRFC2181ResolverReplacesRRsetWhole`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L34) | unit/verify | mutant, verified |
 
 ### [`RFC2181-5.4-2`](#rfc2181-5.4-2)
@@ -348,7 +348,7 @@ If a response contains data that would form an RRSet with data in a server's cac
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-28 (independent auditor) after c532819895 added the resolver unit; the stub-cache units are byte-identical to the 2026-09-30 judgement and stand. Stub cache: an overlapping {B} replaces cached {A,B,C} with exactly {B} (no union, no remainder); AAAA of the same name and A of another name form no RRSet and stay whole. Resolver (lru.store, the path storeRRset uses): both arms of 'either ignore ... or discard the entire RRSet' are pinned by exact contents. A lower-ranked {192.0.2.9} over a live authoritative {.1,.2} leaves exactly {.1,.2} (ignore: catches merge and blind replace); an authoritative {.7} then leaves .7 alone (discard: catches merge and blind ignore). Negative: an AAAA put leaves the A RRset .7 in place. 'As appropriate' is decided by rank (RFC 2181 Section 5.4.1); equal or higher rank replaces. Records: stub put revert; resolver store merge mutant (positive) and keyOf qtype mutant (negative), all observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2181FormingAnRRSetDiscardsTheWholeCachedSet`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc2181_cache_rrset_test.go#L31) | unit/verify | revert, verified |
 | negative | [`TestRFC2181ResolverCacheIgnoresOrDiscards`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L95) | unit/verify | mutant, verified |
@@ -362,7 +362,7 @@ Trustworthiness shall be, in order from most to least: + Data from a primary zon
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2181HigherTrustReplacesLower`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L147) | unit/verify | mutant, verified |
 | positive | [`TestRFC2181AliasTargetNotAuthoritative`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L185) | unit/verify | mutant, verified |
@@ -382,7 +382,7 @@ However DNSSEC aware servers must still correctly set the AA bit in responses to
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2181ReplyAAClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_test.go#L361) | unit/verify | mutant, verified |
 | positive | [`TestRFC2181AuthoritativeReplySetsAA`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc2181_aa_test.go#L29) | unit/verify | mutant, verified |
@@ -401,7 +401,7 @@ It is hereby specified that a TTL value is an unsigned number, with a minimum va
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged (independent auditor) after 0bf856490c retagged the resolver high-bit paragraph to RFC2181-8-2. Section 8: "It is hereby specified that a TTL value is an unsigned number, with a minimum value of 0, and a maximum value of 2147483647." and "When transmitted, this value shall be encoded in the less significant 31 bits of the 32 bit TTL field, with the most significant, or sign, bit set to zero." geodns (unchanged units): TestRFC2181TTLTransmittedWithSignBitClear accepts configured TTL 0 and reads every packed A/NS/SOA TTL field back at default-ttl 2147483647 with the top bit clear; TestRFC2181_TTLSignBitBound positive keeps 2147483647 exactly and its negative refuses 2147483648 at parseTTL, the only source of a configured geodns TTL (default-ttl and per-host ttl). That is a genuine conforming/violating pair over both clauses. Resolver: the 8-1 negative now stands alone in this scope and is a conforming boundary input, not a violating one: a received 2147483647 with max-ttl raised to 2147483647 is answered and re-served from cache unchanged, which catches an off-by-one that treats the maximum as out of range (record: receivedTTL ttl >= ttlSignBit-1 mutant, observed red); it is a second positive in substance, and the row's violating-input negative is the geodns 2147483648 refusal. The resolver's transmit clause is held by receivedTTL's sign-bit check plus min with a limit the YANG bounds to 0..2147483647 (cache max-ttl and max-negative-ttl); a resolver relaying a sign-bit TTL would turn this same unit red through its RFC2181-8-2 assertion (0x80000001 answered as 0), but no 8-1-tagged assertion and no tagged test of the YANG range would, and the 8-2 record's break (false && sign check) leaves 8-1 met because the YANG-bounded cap still clears the bit. Finding recorded, verdict stands on the geodns pair plus the resolver unit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2181ResolverTTLBounds`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L141) | unit/verify | mutant, verified |
 | negative | [`TestRFC2181_TTLSignBitBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L239) | unit/verify | revert, verified |
@@ -438,7 +438,7 @@ The domain name used as the value of a NS resource record, or part of the value 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. TestRFC2181NSTargetIsNotAnAlias queries each NS target itself: a CNAME query returns no CNAME, an A query returns only A records owned by the target holding the configured addresses (an alias would answer a CNAME chain). Record: appendNS revert observed red. {single-polarity} holds: Ze serves no CNAME and no MX, so there is no alias to refuse.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2181NSTargetIsNotAnAlias`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L90) | unit/verify | revert, verified |
 | positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L439) | unit/verify | revert, verified |
@@ -449,9 +449,9 @@ This domain name must have as its value one or more address records. (§10.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC2181_NSCanonicalWithGlue asserts every synthesized NS target has an A record in the additional section of the same answer.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L456) | unit/verify | unproven |
+| positive | [`TestRFC2181_NSCanonicalWithGlue`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_server_test.go#L456) | unit/verify | not verified |
 
 ### [`RFC2181-11-1`](#rfc2181-11-1)
 
@@ -459,7 +459,7 @@ The length of any one label is limited to between 1 and 63 octets. A full domain
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. Both sides of each bound: a 63-octet label accepted by parseConfig, a 255-octet name accepted by checkName and packed by the codec; a 64-octet label, an EMPTY label (the D-8 defect, fixed in checkName with the section 11 quote) and a 256-octet name refused, and the codec refuses 256. Records: checkName revert, both polarities observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2181NameLimitsBothSidesOfEachBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L147) | unit/verify | revert, verified |
 | positive | [`TestRFC2181NameLimitsBothSidesOfEachBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_clarifications_test.go#L133) | unit/verify | revert, verified |
@@ -471,9 +471,9 @@ Implementations of the DNS protocols must not place any restrictions on the labe
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L272) | unit/verify | unproven |
+| positive | [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L272) | unit/verify | not verified |
 
 ### [`RFC2181-11-3`](#rfc2181-11-3)
 
@@ -481,9 +481,9 @@ DNS servers must not refuse to serve a zone because it contains labels that migh
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L261) | unit/verify | unproven |
+| positive | [`TestRFC2181_LabelsUnrestricted`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc2181_config_test.go#L261) | unit/verify | not verified |
 
 ### [`RFC2181-8-2`](#rfc2181-8-2)
 
@@ -491,7 +491,7 @@ Implementations should treat TTL values received with the most significant bit s
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2181ResolverTTLBounds`](https://github.com/ze-software/ze/blob/main/internal/plugins/dnsresolver/rfc2181_resolver_cache_test.go#L127) | unit/verify | mutant, verified |
 

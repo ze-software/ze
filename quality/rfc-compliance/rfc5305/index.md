@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 9 | of 14 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 14 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 9 | of 14 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 14 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 14 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 14 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 20 | 20 of 24 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 14 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 20 | 20 of 24 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 14 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 14 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 14 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 14 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 14 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 14 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 14 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: IS-IS Extensions for Traffic Engineering (TLV 22 e
 
 **Area:** IS-IS wide metrics and TE TLVs
 
-**Proof:** 8 of 14 MUST proven
+**Test verification:** 8 of 14 MUST proven
 
 **Evidence:** unit 8
 
@@ -109,7 +109,7 @@ Included in automatic checks: IS-IS Extensions for Traffic Engineering (TLV 22 e
 | Annotated (including scoped evidence) | 5 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **14** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: IS-IS Extensions for Traffic Engineering (TLV 22 e
 
 ## Figures
 
-- **MUST bar**: Ze proven 8, Proof pending 1, Not built 5
-- **Overview bar**: Ze MUST proven 8, Proof pending 1, Not assessed 8, Not built 5
+- **MUST bar**: Ze verified 8, Tests awaiting verification 1, Not built 5
+- **Overview bar**: Ze MUST verified 8, Tests awaiting verification 1, Not assessed 8, Not built 5
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: IS-IS Extensions for Traffic Engineering (TLV 22 e
 | Mandatory requirements complete | not complete |
 | MUST rows | 14 |
 | MUST rows kept (the MUST bar) | 14 |
-| Ze proven | 8 |
+| Ze verified | 8 |
 | OS verified | 0 |
-| Proof pending | 1 |
+| Tests awaiting verification | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: IS-IS Extensions for Traffic Engineering (TLV 22 e
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 8 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 8 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5305.json](../../../data/rfc/rfc5305.json).
 
@@ -195,9 +195,9 @@ Source: [data/rfc/rfc5305.json](../../../data/rfc/rfc5305.json).
 | [`RFC5305-3.3-2`](#rfc5305-3.3-2) If a router implements traffic engineering, it MUST include this sub- TLV on point-to-point adjacencies. (§3.3) | {gap}, no test | ze implements traffic engineering: its RSVP-TE plugin (internal/plugins/rsvpte) signals TE LSPs, yet its IS-IS originates TLV 22 with no TE sub-TLV (the encoder in internal/plugins/isis/lsdb/encode.go writes a zero sub-TLV length), so the condition holds for ze and the sub-TLV is not sent on point-to-point adjacencies |
 | [`RFC5305-4.3-1`](#rfc5305-4.3-1) If a router implements traffic engineering, it MUST include this TLV in its LSP. (§4.3) | {gap}, no test | ze implements traffic engineering: its RSVP-TE plugin (internal/plugins/rsvpte) signals TE LSPs, yet its IS-IS LSP carries no TLV 134, which is absent from the TLV type set in internal/plugins/isis/packet/tlv.go, so the condition holds for ze and the TLV is not sent |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC5305-3-1`](#rfc5305-3-1)
 
@@ -205,10 +205,10 @@ If a link is advertised with the maximum link metric (2^24 - 1), this link MUST 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a link advertised at 2^24-1 being walked by normal SPF. TestISISSPFMaxLinkMetricExcluded builds A-B at 16777215 and t.Errorf fires if B or C appears in the SPF result; the positive half proves 16777214 is still relaxed (B at 16777214, C at 16777224).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestISISSPFMaxLinkMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L316) | unit/verify | mutant, verified |
-| positive | [`TestISISSPFMaxLinkMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L315) | unit/verify | unproven |
+| positive | [`TestISISSPFMaxLinkMetricExcluded`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L315) | unit/verify | not verified |
 
 ### [`RFC5305-4-1`](#rfc5305-4-1)
 
@@ -216,7 +216,7 @@ If a prefix is advertised with a metric larger then MAX_PATH_METRIC (0xFE000000,
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. §4 excludes a prefix 'advertised with a metric larger then MAX_PATH_METRIC'. spf TestRFC5305PrefixAboveMaxPathMetricNotConsidered drives BuildRoutes: node 3 (distance 10) advertises 10.9.0.0/24 at 50 (positive, installed at 60 via node 3 alone); node 2 (distance 10) advertises the same prefix at 0xFE000001 and 10.8.0.0/24 only at 0xFFFFFFFF (negative, strictly larger than MAX_PATH_METRIC): one next hop at 60 and the lone prefix absent. The path ceiling in route.go (total >= MaxPathMetric after clampMetric) is the guard; recorded +/- on BuildRoutes. Closure rejudge 2026-10-02: TestISISMetricWidth's positive claim was narrowed to what its body asserts (node B at edge 10 stays in the Compute result while its over-ceiling prefix drops; 'installable' dropped) and re-recorded on spf.go::Compute; its negative (prefix at exactly MAX_PATH_METRIC absent from BuildRoutes) keeps its record on BuildRoutes.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5305PrefixAboveMaxPathMetricNotConsidered`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc5305_max_metric_order_test.go#L80) | unit/verify | revert, verified |
 | negative | [`TestISISMetricWidth`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/spf_test.go#L298) | unit/verify | revert, verified |
@@ -229,7 +229,7 @@ If a prefix is advertised from a higher level to a lower level (e.g., level 2 to
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: TestISISEngineLeakOrigination and spf TestISISLeakOriginationL1L2 gained only RFC2966-2-4 tag comments; bodies byte-identical. Clause 1: l2Derived enters L2 with UpDown false and hasLeak(IntoL1, l2Derived, true) is required; the engine L1 LSP decodes it with the bit set. Clause 2: alreadyDown (UpDown true in L1) must be absent from IntoL2, isolated by l1Only from the same node leaking up. Recorded red on spf/leak.go leakInto.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestISISEngineLeakOrigination`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb_wiring_test.go#L270) | unit/verify | revert, verified |
 | negative | [`TestISISRedistConsumerConnected`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/rfc5305_consumer_test.go#L169) | unit/verify | revert, verified |
@@ -259,7 +259,7 @@ The up/down bit SHALL be set to 0 when a prefix is first injected into IS-IS (Se
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5305ConnectedInjectionClearsUpDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/rfc5305_inject_test.go#L37) | unit/verify | revert, verified |
 | positive | [`TestRFC5305FirstInjectionClearsUpDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/redistribute/rfc5305_inject_test.go#L15) | unit/verify | revert, verified |
@@ -270,7 +270,7 @@ If there are no sub-TLVs associated with a prefix, the bit indicating the presen
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5305SubTLVsSetPresenceBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc5305_tlv_ipv4_presence_test.go#L39) | unit/verify | revert, verified |
 | positive | [`TestRFC5305NoSubTLVsClearsPresenceBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc5305_tlv_ipv4_presence_test.go#L24) | unit/verify | revert, verified |
@@ -281,7 +281,7 @@ Implementations MUST NOT inject a /32 prefix for the interface address into thei
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30 under OWNER RULING 2 (a receive-side ban: the positive is Ze processing the LSP that carries the address, the negative is Ze's handling of the address it knows: no /32). Setup: a peer L1 LSP with TLV 22 to the root carrying sub-TLV 6 (203.0.113.1), sub-TLV 8, TLV 134 and a TLV 128 prefix goes through packet.DecodePDU and lsdb.Receive, SPF runs into a real Loc-RIB. Positive TestRFC5305TEAddressesLeaveOnlyReachabilityRoutes: 198.51.100.0/24 installed via the neighbor and Loc-RIB Len == 1 (a /32 for the interface address would make it 2). Negative TestRFC5305TEAddressesInjectNoHostRoute: the BGP-LS builder decodes 203.0.113.1 as a link local address (so Ze holds the address the ban names), yet no 203.0.113.1/32 is in the Loc-RIB and no BGP-LS Prefix NLRI contains it. LIMIT, stated honestly: no Ze code path injects a /32 from sub-TLV 6 (spf/graph.go drops sub-TLVs), so no break of existing code can make the ban assertions red; the negative's observed red (linkAttribute disabled) comes from its decode precondition, and the positive's (BuildRoutes disabled) from the missing reachability route. The ban assertions are load-bearing only against future code that adds an injection. Accepted as enforced under R1(b): the input is forced to the exact trigger of the ban and the output complies.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5305TEAddressesInjectNoHostRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5305_no_host_route_test.go#L105) | unit/verify | revert, verified |
 | positive | [`TestRFC5305TEAddressesLeaveOnlyReachabilityRoutes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5305_no_host_route_test.go#L83) | unit/verify | revert, verified |
@@ -300,7 +300,7 @@ Implementations MUST NOT inject a /32 prefix for the neighbor address into their
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30 under OWNER RULING 2, same setup as RFC5305-3.2-1. Positive TestRFC5305TEAddressesLeaveOnlyReachabilityRoutes: with sub-TLV 8 (IPv4 neighbor address 203.0.113.2) on the received adjacency the Loc-RIB holds exactly 198.51.100.0/24 via the neighbor (Len == 1). Negative TestRFC5305TEAddressesInjectNoHostRoute: the BGP-LS builder decodes 203.0.113.2 as a link remote address, yet no 203.0.113.2/32 is in the Loc-RIB and no BGP-LS Prefix NLRI contains it. LIMIT: no Ze code path injects a /32 from sub-TLV 8, so no break of existing code reddens the ban assertions; the negative's observed red (linkAttribute disabled) comes from the decode precondition. Enforced under R1(b): input forced to the ban's trigger, output complies.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5305TEAddressesInjectNoHostRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5305_no_host_route_test.go#L106) | unit/verify | revert, verified |
 | positive | [`TestRFC5305TEAddressesLeaveOnlyReachabilityRoutes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5305_no_host_route_test.go#L84) | unit/verify | revert, verified |
@@ -319,7 +319,7 @@ Implementations MUST NOT inject a /32 prefix for the router ID into their forwar
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30 under OWNER RULING 2, same setup as RFC5305-3.2-1. Positive TestRFC5305TEAddressesLeaveOnlyReachabilityRoutes: with a TLV 134 router ID (203.0.113.9) in the received LSP the Loc-RIB holds exactly 198.51.100.0/24 (Len == 1). Negative TestRFC5305TEAddressesInjectNoHostRoute: bgplsBuilder.lsp exports 203.0.113.9 as node attribute 1028, yet no 203.0.113.9/32 is in the Loc-RIB (Ze's forwarding feed) and no BGP-LS Prefix NLRI contains it. LIMIT: no Ze code path injects a /32 from TLV 134, so no break of existing code reddens the ban assertions; the negative's observed red (bgplsBuilder.lsp disabled) comes from the export precondition. Enforced under R1(b): input forced to the ban's trigger, output complies.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5305TEAddressesInjectNoHostRoute`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5305_no_host_route_test.go#L107) | unit/verify | revert, verified |
 | positive | [`TestRFC5305TEAddressesLeaveOnlyReachabilityRoutes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5305_no_host_route_test.go#L85) | unit/verify | revert, verified |
@@ -338,11 +338,11 @@ Unknown sub-TLVs are to be ignored and skipped upon receipt. (§2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Unchanged on re-read: TestISISTLVIPv4RoundTrip lost only its RFC1195-5.2-4 comment tag. Forbidden behaviour: rejecting a TLV that carries unknown sub-TLVs, or not skipping them so the next entry misparses. TestISISTLV22RoundTrip (tlv_core_test.go) keeps entry0's three uninterpreted sub-TLVs opaque and then asserts entry1's metric equals types.MaxMetric, which goes red on a wrong skip; TestISISTLVIPv4RoundTrip (with-subtlv) goes red if a type-1 sub-TLV is rejected. Negative TestISISTLV22Truncated proves an overrunning length is not skipped as absent.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestISISTLV22Truncated`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc5305_tlv_core_test.go#L205) | unit/verify | unproven |
-| positive | [`TestISISTLV22RoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc5305_tlv_core_test.go#L185) | unit/verify | unproven |
-| positive | [`TestISISTLVIPv4RoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc5305_tlv_ipv4_test.go#L81) | unit/verify | unproven |
+| negative | [`TestISISTLV22Truncated`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc5305_tlv_core_test.go#L205) | unit/verify | not verified |
+| positive | [`TestISISTLV22RoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc5305_tlv_core_test.go#L185) | unit/verify | not verified |
+| positive | [`TestISISTLVIPv4RoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc5305_tlv_ipv4_test.go#L81) | unit/verify | not verified |
 
 ## Requirement list review
 

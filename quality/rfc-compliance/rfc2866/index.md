@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 15 | of 15 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 15 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 15 | of 15 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 15 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 15 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 15 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 0 | of 15 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 15 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 25 | 25 of 48 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 30 | 30 of 48 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -25,9 +25,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 15 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 15 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 15 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 15 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 15 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 15 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 15 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -46,13 +46,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -86,7 +86,7 @@ Included in automatic checks: ze is a RADIUS accounting client (NAS); the four g
 
 **Area:** RADIUS accounting
 
-**Proof:** 8 of 15 MUST proven
+**Test verification:** 8 of 15 MUST proven
 
 **Evidence:** functional 1, unit 7
 
@@ -101,7 +101,7 @@ Included in automatic checks: ze is a RADIUS accounting client (NAS); the four g
 | Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **15** | every mandatory requirement appears in exactly one group above |
@@ -110,8 +110,8 @@ Included in automatic checks: ze is a RADIUS accounting client (NAS); the four g
 
 ## Figures
 
-- **MUST bar**: Ze proven 8, Proof pending 7
-- **Overview bar**: Ze MUST proven 8, Proof pending 7, Not assessed 1
+- **MUST bar**: Ze verified 8, Tests awaiting verification 7
+- **Overview bar**: Ze MUST verified 8, Tests awaiting verification 7, Not assessed 1
 
 | Figure | Rows |
 |---|---|
@@ -120,9 +120,9 @@ Included in automatic checks: ze is a RADIUS accounting client (NAS); the four g
 | Mandatory requirements complete | not complete |
 | MUST rows | 15 |
 | MUST rows kept (the MUST bar) | 15 |
-| Ze proven | 8 |
+| Ze verified | 8 |
 | OS verified | 0 |
-| Proof pending | 7 |
+| Tests awaiting verification | 7 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -132,19 +132,19 @@ Included in automatic checks: ze is a RADIUS accounting client (NAS); the four g
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 1 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 1 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc2866.json](../../../data/rfc/rfc2866.json).
 
@@ -173,17 +173,17 @@ Source: [data/rfc/rfc2866.json](../../../data/rfc/rfc2866.json).
 
 RFC 2866 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC2866-3-2`](#rfc2866-3-2)
 
 The Request Authenticator field in Accounting-Request packets contains a one- way MD5 hash calculated over a stream of octets consisting of the Code + Identifier + Length + 16 zero octets + request attributes + shared secret (where + indicates concatenation). (§3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator reads the Accounting-Request datagram SendToServers put on the wire and asserts its 16 authenticator octets equal an independent MD5(Code+ID+Length+16 zeros+attributes+secret) over that datagram, and differ from the random authenticator in the Packet. Exact equality over the sent octets fails on any formula or ordering deviation in client.go. The tampering negative stays helper-level (shows secret, attribute and Code feed the hash); the wire positive is what discriminates.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator moved. TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator reads the Accounting-Request datagram SendToServers put on the wire and asserts its 16 authenticator octets equal an independent MD5(Code+ID+Length+16 zeros+attributes+secret) over that datagram, and differ from the random authenticator in the Packet. Exact equality over the sent octets fails on any formula or ordering deviation in client.go. The tampering negative stays helper-level (shows secret, attribute and Code feed the hash); the wire positive is what discriminates.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2866AccountingRequestAuthRejectsTampering`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L127) | unit/verify | revert, verified |
 | positive | [`TestRFC2866AccountingRequestAuthFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L84) | unit/verify | revert, verified |
@@ -195,10 +195,10 @@ This attribute is a unique Accounting ID to make it easy to match start and stop
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-14 by a reader who did not author the tests. Forbidden: two sessions whose records carry the same Acct-Session-Id in the log. Within one process: TestRFC2866AcctSessionIDUnique (1600 concurrent ids distinct) and TestRFC2866AcctSessionIDNoCollisionOnReusedKey. Across a restart: TestRFC2866AcctSessionIDUniqueAcrossRestart (two accountants built in turn give the same tunnel and session two ids on the Accounting-Start) and TestRFC2866AcctSessionIDUniqueWhenClockRepeats (same clock second: time digits equal, random digits differ, ids differ). Producer authradius/acct.go genSessionID, T-S-<boot tag>-N, the boot tag minted once by mintBootTag at first use from Unix seconds and 64 random bits; uniqueness across boots at one clock second is probabilistic over those 64 bits.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2866AcctSessionIDNoCollisionOnReusedKey`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L146) | unit/verify | unproven |
-| positive | [`TestRFC2866AcctSessionIDUnique`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L114) | unit/verify | unproven |
+| negative | [`TestRFC2866AcctSessionIDNoCollisionOnReusedKey`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L146) | unit/verify | not verified |
+| positive | [`TestRFC2866AcctSessionIDUnique`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L114) | unit/verify | not verified |
 | positive | [`TestRFC2866AcctSessionIDUniqueAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L321) | unit/verify | revert, verified |
 | positive | [`TestRFC2866AcctSessionIDUniqueWhenClockRepeats`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L344) | unit/verify | revert, verified |
 
@@ -208,7 +208,7 @@ If the Accounting-Request packet includes a Framed-IP-Address, that attribute MU
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (cont 5). Clause 1 (the attribute holds the user's address): TestAcctFramedIPAddressPresent, TestAcctFramedIPAddressIsSubscriberNotNAS, the unset/IPv6 negative and test/l2tp/radius-acct-wire.ci, unchanged. Clause 2, the gap of the prior weak verdict, is now proven and was a real defect: extractAuthMetadata took Framed-IP-Address 255.255.255.254 as a unicast address, the pool pinned it and accounting reported it. Fix (extract.go framedIPNASSelects) leaves FramedIP unset for 0xFFFFFFFE, and 0xFFFFFFFF stays refused by isValidSubscriberIP (limited broadcast), so the pool assigns; RFC 2865 Section 5.8 text checked; 0.0.0.0 is refused as unspecified. Positive TestRFC2866AccountingReportsTheAddressTheNASAssigned: both special values with a Framed-Pool keep the pool and leave FramedIP unset, and Start/Interim/Stop each carry exactly one Framed-IP-Address equal to the assigned 100.64.0.9. Negative TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress: neither value, alone or beside Session-Timeout, becomes the subscriber address. Both recorded red on extractAuthMetadata. The pool step between extraction and the accounting session (session-ip-assigned) is not driven by these units; the .ci covers IPCP-to-accounting end to end. Note: 0xFFFFFFFF ('the NAS Should allow the user to select') is handled as NAS-selects, journaled in plan/journal/field-carries-two-meanings.md; not this row's clause. Rejudge 2026-10-20: test/l2tp/radius-acct-wire.ci gained one config line, `accounting-port $PORT2` in its RADIUS server block (owner 2026-10-20: "Approve adding accounting-port"), because Q-8 'A' moved Accounting-Request to a per-server accounting-port defaulting to 1813 while the fixture answers both codes on $PORT2. No expect= directive, fixture argument or input changed; the unit still asserts the Accounting-Start Framed-IP-Address equals the IPCP-negotiated 10.99.7.10 as decoded by the server, so the verdict and its reasoning stand. RFC 2866 Section 4.1 re-read: "If the Accounting-Request packet includes a Framed-IP-Address, that attribute MUST contain the IP address of the user." Independent rejudge 2026-10-20 (closure reviewer, did not edit the .ci): git show b0f097d650 -- test/l2tp/radius-acct-wire.ci adds only `accounting-port $PORT2` beside `port $PORT2`; expect lines 114-124 are unchanged, and line 120 still requires the fixture to print that the Accounting-Start Framed-IP-Address matches the IPCP-negotiated 10.99.7.10. The seven Go units are untouched by that commit. RFC 2866 Section 4.1 read at rfc/full/rfc2866.txt line 423: "If the Accounting-Request packet includes a Framed-IP-Address, that attribute MUST contain the IP address of the user." Verdict enforced stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestAcctFramedIPAddressIsSubscriberNotNAS`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L56) | unit/verify | revert, verified |
 | negative | [`TestAcctFramedIPAddressOmittedWhenNotIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L79) | unit/verify | revert, verified |
@@ -225,7 +225,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (cont 6). Row corrected under R5 to the Section 5.13 legend line '1 Exactly one instance of this attribute MUST be present.' (verbatim), binding Acct-Status-Type and Acct-Session-Id; id kept because internal/le/rfc/quote_backfill_test.go pins it and the HEAD tags stay valid, which is honest: the id names the obligation the old span carried, narrowed. Positives: TestRFC2866AcctStatusTypePresent (count 1, right value, per status) and TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute (Start/Interim/Stop encoded and decoded: exactly one non-empty Acct-Status-Type and Acct-Session-Id, same session id). Negative TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute is genuine: the operator's attributes-exclude control is the only input that could drop either attribute; it refuses both names, and excluding every accepted name (derived from excludableAttributes) still leaves each exactly once. Recorded red on buildAcctPacket and parseAttributeExclusions. TestRFC2866AcctStatusTypeNeverOmitted still repeats the positive's presence check; the pair no longer depends on it.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2866AcctStatusTypeNeverOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L90) | unit/verify | revert, verified |
 | negative | [`TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L119) | unit/verify | revert, verified |
@@ -238,7 +238,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2866 Section 5.13 defines table entry 0 as 'This attribute MUST NOT be present'; the table assigns 0 to User-Password, CHAP-Password, Reply-Message, State and CHAP-Challenge. All four tagged units were read. The builder pair checks Start, Interim-Update and Stop after encode/decode, including every forbidden type embedded as text in each relayed text field while retaining that text whole. The provider-login pair sends real CHAP and PAP credentials to a live RADIUS server, confirms the credential attributes actually reached its Access-Request wire, and then checks both sessions' Start/Stop packets for all five forbidden types and every supplied credential or accept-state byte sequence. Required status, username and accounting-session-ID checks prevent empty output from satisfying the absence assertions. Canonical request IDs and matching metadata cleanup preserve the same login and lifecycle inputs. This retains the existing whole-table-entry verdict; the builder's TLV test remains supplementary to the real credential/accept-state path. Native discrimination refresh remains separate main-thread evidence.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L196) | unit/verify | revert, verified |
 | negative | [`TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L263) | unit/verify | revert, verified |
@@ -249,14 +249,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 For retransmissions where the contents are identical, the Identifier MUST remain unchanged. Note that if Acct-Delay-Time is included in the attributes of an Accounting-Request then the Acct-Delay-Time value will be updated when the packet is retransmitted, changing the content of the Attributes field and requiring a new Identifier and Request Authenticator. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after BlastRADIUS: both tagged units changed only by the Exchange(ctx, pkt, Server{...}) signature. Accounting answers are not subject to the presence check (requireMessageAuthenticator is Access-Request only) and buildResponse keeps them header-only. Clause 1: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier red on a changed Identifier for identical contents. Clause 2: TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator asserts a new Identifier and Request Authenticator when Acct-Delay-Time moves, each authenticator the Section 3 MD5 of its datagram. TestRFC2866AccountingDistinctRequestsDifferIdentifier is mislabeled: it proves RFC2866-4.1-4.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator moved. Rejudged 2026-10-28 after BlastRADIUS: both tagged units changed only by the Exchange(ctx, pkt, Server{...}) signature. Accounting answers are not subject to the presence check (requireMessageAuthenticator is Access-Request only) and buildResponse keeps them header-only. Clause 1: TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier red on a changed Identifier for identical contents. Clause 2: TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator asserts a new Identifier and Request Authenticator when Acct-Delay-Time moves, each authenticator the Section 3 MD5 of its datagram. TestRFC2866AccountingDistinctRequestsDifferIdentifier is mislabeled: it proves RFC2866-4.1-4.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2866AccountingDistinctRequestsDifferIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L225) | unit/verify | revert, verified |
 | positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L167) | unit/verify | revert, verified |
-| positive | [`TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_acct_delay_time_omit_test.go#L120) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L109) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_acct_delay_time_omit_test.go#L120) | unit/verify | revert, verified |
+| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L109) | unit/verify | revert, verified |
 
 ### [`RFC2866-3-4`](#rfc2866-3-4)
 
@@ -264,10 +264,10 @@ Octets outside the range of the Length field MUST be treated as padding and igno
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2866LengthPaddingBoundaryIsTheLengthField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L133) | unit/verify | unproven |
-| positive | [`TestRFC2866LengthPaddingIgnoredOnReception`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L112) | unit/verify | unproven |
+| negative | [`TestRFC2866LengthPaddingBoundaryIsTheLengthField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L133) | unit/verify | not verified |
+| positive | [`TestRFC2866LengthPaddingIgnoredOnReception`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L112) | unit/verify | not verified |
 
 ### [`RFC2866-3-5`](#rfc2866-3-5)
 
@@ -275,10 +275,10 @@ If the packet is shorter than the Length field indicates, it MUST be silently di
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: accepting a datagram shorter than its Length field. TestRFC2866ShortPacketSilentlyDiscarded overstates the Length by 8 and fails if the exchange completes; TestRFC2866HonestLengthIsAccepted shows the same server with an honest Length completes, isolating the length claim.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2866HonestLengthIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L181) | unit/verify | unproven |
-| positive | [`TestRFC2866ShortPacketSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L164) | unit/verify | unproven |
+| negative | [`TestRFC2866HonestLengthIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L181) | unit/verify | not verified |
+| positive | [`TestRFC2866ShortPacketSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L164) | unit/verify | not verified |
 
 ### [`RFC2866-4.1-2`](#rfc2866-4.1-2)
 
@@ -286,10 +286,10 @@ Any attribute valid in a RADIUS Access-Request or Access-Accept packet is valid 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: User-Password, CHAP-Password, Reply-Message or State in an Accounting-Request. TestRFC2866AcctForbiddenAttributesAbsent checks each of the four (and CHAP-Challenge) on Start, Interim-Update and Stop from buildAcctPacket; the negative shows the packet still carries User-Name, Acct-Session-Id and Acct-Status-Type, so an empty builder cannot pass. The permissive first clause obliges the sender nothing.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2866AcctForbiddenAttributesDoNotEmptyTheRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L67) | unit/verify | unproven |
-| positive | [`TestRFC2866AcctForbiddenAttributesAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L37) | unit/verify | unproven |
+| negative | [`TestRFC2866AcctForbiddenAttributesDoNotEmptyTheRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L67) | unit/verify | not verified |
+| positive | [`TestRFC2866AcctForbiddenAttributesAbsent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L37) | unit/verify | not verified |
 
 ### [`RFC2866-4.1-3`](#rfc2866-4.1-3)
 
@@ -297,23 +297,23 @@ Either NAS-IP-Address or NAS-Identifier MUST be present in a RADIUS Accounting-R
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: an Accounting-Request carrying neither NAS-IP-Address nor NAS-Identifier. TestRFC2866AcctNASIdentityAlwaysPresent fails on that for every status and every leaf combination, including neither leaf set; TestRFC2866AcctNASIdentityFallbackIsNarrow shows the fallback does not replace a configured identity.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2866AcctNASIdentityFallbackIsNarrow`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L126) | unit/verify | unproven |
-| positive | [`TestRFC2866AcctNASIdentityAlwaysPresent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L90) | unit/verify | unproven |
+| negative | [`TestRFC2866AcctNASIdentityFallbackIsNarrow`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L126) | unit/verify | not verified |
+| positive | [`TestRFC2866AcctNASIdentityAlwaysPresent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L90) | unit/verify | not verified |
 
 ### [`RFC2866-4.1-4`](#rfc2866-4.1-4)
 
 The Identifier field MUST be changed whenever the content of the Attributes field changes, and whenever a valid reply has been received for a previous request. (§4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Triggers now isolated: the Acct-Delay-Time retransmit (no reply received, attributes changed) asserts a new Identifier; TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes sends two records with byte-identical attribute fields, the second after a valid reply, and asserts distinct Identifiers. The rule is one-directional (MUST change on either trigger), so the two positives carry it; the NextID counter negative is a counter property, not a violating input.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator moved. Triggers now isolated: the Acct-Delay-Time retransmit (no reply received, attributes changed) asserts a new Identifier; TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes sends two records with byte-identical attribute fields, the second after a valid reply, and asserts distinct Identifiers. The rule is one-directional (MUST change on either trigger), so the two positives carry it; the NextID counter negative is a counter property, not a violating input.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2866IdentifierCounterCoversTheWholeSpace`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L234) | unit/verify | revert, verified |
-| positive | [`TestRFC2866IdentifierChangesForANewRequest`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L193) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L114) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L148) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2866IdentifierChangesForANewRequest`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L193) | unit/verify | revert, verified |
+| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L114) | unit/verify | revert, verified |
+| positive | [`TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L148) | unit/verify | revert, verified |
 
 ### [`RFC2866-5-2`](#rfc2866-5-2)
 
@@ -321,10 +321,10 @@ Servers and servers and clients MUST be able to deal with embedded nulls. (§5)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a null octet read as a terminator. TestRFC2866EmbeddedNullsSurviveTheWire round-trips a value with interior nulls through EncodeTo and Decode and compares bytes; TestRFC2866AllNullValueKeepsItsLength fails if an all-null value loses length. A strcpy-style cut goes red in both.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2866AllNullValueKeepsItsLength`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L314) | unit/verify | unproven |
-| positive | [`TestRFC2866EmbeddedNullsSurviveTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L289) | unit/verify | unproven |
+| negative | [`TestRFC2866AllNullValueKeepsItsLength`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L314) | unit/verify | not verified |
+| positive | [`TestRFC2866EmbeddedNullsSurviveTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L289) | unit/verify | not verified |
 
 ### [`RFC2866-5-3`](#rfc2866-5-3)
 
@@ -332,10 +332,10 @@ Text of length zero (0) MUST NOT be sent; omit the entire attribute instead. (§
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden behaviour: a text attribute of length zero on the wire. TestRFC2866AcctZeroLengthTextOmitted builds all three records for a session with no username and fails on a User-Name or any zero-length attribute; TestRFC2866AcctNonEmptyTextIsSent shows a non-empty User-Name is still sent.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2866AcctNonEmptyTextIsSent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L168) | unit/verify | unproven |
-| positive | [`TestRFC2866AcctZeroLengthTextOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L148) | unit/verify | unproven |
+| negative | [`TestRFC2866AcctNonEmptyTextIsSent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L168) | unit/verify | not verified |
+| positive | [`TestRFC2866AcctZeroLengthTextOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L148) | unit/verify | not verified |
 
 ### [`RFC2866-5.5-2`](#rfc2866-5.5-2)
 
@@ -343,11 +343,11 @@ The start and stop records for a given session MUST have the same Acct-Session-I
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2866AcctSessionIDDiffersBetweenSessions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L200) | unit/verify | unproven |
+| negative | [`TestRFC2866AcctSessionIDDiffersBetweenSessions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L200) | unit/verify | not verified |
 | positive | [`TestAccountingAddressFamiliesShareLifetime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go#L11) | unit/verify | revert, verified |
-| positive | [`TestRFC2866AcctSessionIDSameAcrossRecords`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L181) | unit/verify | unproven |
+| positive | [`TestRFC2866AcctSessionIDSameAcrossRecords`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L181) | unit/verify | not verified |
 
 ### [`RFC2866-5.5-3`](#rfc2866-5.5-3)
 
@@ -355,10 +355,10 @@ An Accounting-Request packet MUST have an Acct-Session-Id (§5.5)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2866AcctSessionIDNeverEmpty`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L236) | unit/verify | unproven |
-| positive | [`TestRFC2866AcctSessionIDPresentOnEveryRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L216) | unit/verify | unproven |
+| negative | [`TestRFC2866AcctSessionIDNeverEmpty`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L236) | unit/verify | not verified |
+| positive | [`TestRFC2866AcctSessionIDPresentOnEveryRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L216) | unit/verify | not verified |
 
 ## Requirement list review
 

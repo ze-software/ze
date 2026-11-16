@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 17 | of 31 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 31 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 17 | of 31 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 31 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 31 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 31 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 46 | 46 of 48 tests linked to requirements, 2 without a fault test and 0 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 31 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 46 | 46 of 48 tests linked to requirements, 2 without a fault test and 0 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 31 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 31 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 31 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 31 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 31 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 31 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 31 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: RADIUS/EAP, ze in the NAS (RADIUS client) role: 31
 
 **Area:** RADIUS/EAP
 
-**Proof:** 17 of 31 MUST proven
+**Test verification:** 17 of 31 MUST proven
 
 **Evidence:** unit 17
 
@@ -108,7 +108,7 @@ Included in automatic checks: RADIUS/EAP, ze in the NAS (RADIUS client) role: 31
 | Annotated (including scoped evidence) | 14 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **31** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: RADIUS/EAP, ze in the NAS (RADIUS client) role: 31
 
 ## Figures
 
-- **MUST bar**: Ze proven 17, Not built 14
-- **Overview bar**: Ze MUST proven 17, SHOULD proven 2, Not assessed 17, Not built 14
+- **MUST bar**: Ze verified 17, Not built 14
+- **Overview bar**: Ze MUST verified 17, SHOULD verified 2, Not assessed 17, Not built 14
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: RADIUS/EAP, ze in the NAS (RADIUS client) role: 31
 | Mandatory requirements complete | not complete |
 | MUST rows | 31 |
 | MUST rows kept (the MUST bar) | 31 |
-| Ze proven | 17 |
+| Ze verified | 17 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: RADIUS/EAP, ze in the NAS (RADIUS client) role: 31
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 19 |
-| SHOULD proven | 2 |
+| SHOULD verified | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 17 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc3579.json](../../../data/rfc/rfc3579.json).
 
@@ -231,9 +231,9 @@ Source: [data/rfc/rfc3579.json](../../../data/rfc/rfc3579.json).
 | [`RFC3579-4.3.6-4`](#rfc3579-4.3.6-4) The authenticating peer MUST refuse to renegotiate authentication, even if the renegotiation is from CHAP to EAP. (§4.3.6, restated in the same section for an EAP-capable peer) | {gap}, no test | ze's admin login has no renegotiation path, and its PPP NAS never negotiates EAP, so nothing refuses a renegotiation; spec-radius-admin-eap |
 | [`RFC3579-4.3.6-5`](#rfc3579-4.3.6-5) If EAP is negotiated but is not supported by the RADIUS proxy or server, then the server or proxy MUST respond with an Access-Reject. In these cases, a PPP NAS MUST send an LCP-Terminate and disconnect the peer. (§4.3.6) | {gap}, no test | ze's PPP NAS never negotiates EAP, so the branch that would send LCP-Terminate on an EAP-incapable server does not exist; spec-radius-admin-eap |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC3579-1-1`](#rfc3579-1-1)
 
@@ -241,11 +241,11 @@ This implies that a NAS that is unable to offer EAP service MUST NOT implement t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. + TestRFC3579EAPAttributesServeALiveEAPMethod: the NAS that implements EAP-Message offers EAP (admin login, auth-method eap-mschapv2 completes, every Access-Request carries EAP-Message; red when authenticateEAP is disabled). - TestRFC3579SubscriberNASRefusesEAPMessage: the L2TP subscriber NAS, which offers PPP peers no EAP, answers CoA-Request and Disconnect-Request carrying EAP-Message with NAK Error-Cause 401, no event, no teardown; adding EAP-Message to coaSupportedAttrs/disconnectSupportedAttrs turns it red (recorded at coa.go unsupportedAttr). The older dictionary units stay as declaration-only supplementary tags.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3579SubscriberNASRefusesEAPMessage`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L105) | unit/verify | revert, verified |
-| negative | [`TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L150) | unit/verify | no-break without a fault test (declaration-only), which does not count as proof, verified |
-| positive | [`TestRFC2869DictionaryCoversTheServicesZeOffers`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L110) | unit/verify | no-break without a fault test (declaration-only), which does not count as proof, verified |
+| negative | [`TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L150) | unit/verify | no-break without a fault test (declaration-only), so fault detection has not been verified, verified |
+| positive | [`TestRFC2869DictionaryCoversTheServicesZeOffers`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L110) | unit/verify | no-break without a fault test (declaration-only), so fault detection has not been verified, verified |
 | positive | [`TestRFC3579EAPAttributesServeALiveEAPMethod`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L550) | unit/verify | revert, verified |
 
 ### [`RFC3579-1-2`](#rfc3579-1-2)
@@ -262,7 +262,7 @@ This is interpreted to be a human readable string of characters, and MUST NOT af
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. negative compares verdict, profiles and source with and without a Notification carrying text; positive shows the message is delivered (logged, Notification Response sent) and not acted on
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRadiusAdminEapNotificationDoesNotSteerTheLogin`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L396) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapNotificationIsAnsweredAndLogged`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L359) | unit/verify | revert, verified |
@@ -281,7 +281,7 @@ Reception of a RADIUS Access-Reject packet MUST result in the NAS denying access
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Access-Reject returns aaa.ErrAuthRejected with no profiles; the negative carries an EAP-Success inside the Access-Reject and still denies
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRadiusAdminEapAccessRejectDeniesEvenCarryingEAPSuccess`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L455) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapAccessRejectDeniesAccess`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L430) | unit/verify | revert, verified |
@@ -300,7 +300,7 @@ In order to permit non-EAP aware RADIUS proxies to forward the Access-Request pa
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. positive compares User-Name to the Type-Data of the peer's EAP-Response/Identity read off the wire; negative checks every subsequent request (method Responses, not Identity) carries the same User-Name. Both clauses covered
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRadiusAdminEapUserNameRidesEverySubsequentRequest`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L109) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapUserNameIsThePeerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L74) | unit/verify | revert, verified |
@@ -311,7 +311,7 @@ While acting as a pass-through, the NAS MUST validate the EAP header fields (Cod
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (cont 5). The prior weak (Code and Identifier unproven) is closed and was a real defect: an Access-Challenge carrying EAP Code 0 was handed to the peer and answered. Fix in processEAPMessage pins Code 1 for an Access-Challenge only (Accept/Reject may carry Success/Failure), and new checkEAPResponseHeader requires Code 2 and the current Request's Identifier before forwarding; RFC 3579 Section 2.2 quotes above both, text checked. Length: the existing corruptEAPFrom pair. Code, server side: negative TestRFC3579NASRefusesANonRequestCodeInAChallenge rewrites only the Code octet (0,2,3,4,5,255) and asserts the infrastructure error naming the server's EAP header, not ErrAuthRejected, and exactly one Access-Request (nothing forwarded). Code+Identifier, peer side: positive TestRFC3579NASForwardsTheCurrentIdentifierBothWays pairs every Challenge's Request with the next Access-Request's Response (Code 2, same Identifier) over a full EAP-MSCHAPv2 login and the check admits a matching pair; negative TestRFC3579NASRefusesAResponseOffTheCurrentIdentifier drives checkEAPResponseHeader directly (Identifier 6/8 vs 7, Code 1, Code 4), since the in-process peer echoes the Identifier and cannot be driven off it. Ze ends the login on a mismatched Response rather than silently discarding it; with an in-process peer no other Response can arrive, so nothing is forwarded either way. Valid EAP-TLS/MSCHAPv2 flows stay green (race run 2026-09-30). All units recorded red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3579NASRefusesANonRequestCodeInAChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_eap_header_fields_test.go#L82) | unit/verify | revert, verified |
 | negative | [`TestRFC3579NASRefusesAResponseOffTheCurrentIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_eap_header_fields_test.go#L112) | unit/verify | revert, verified |
@@ -333,7 +333,7 @@ The NAS MUST make its access control decision based solely on the RADIUS Packet 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Access-Reject carrying EAP-Success denies (TestRadiusAdminEapDecisionFollowsTheRadiusCode) and Access-Accept carrying EAP-Failure at the identity round grants (TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes); both directions, fixture chosen so an early return on eapErr would go red
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L881) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapDecisionFollowsTheRadiusCode`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L603) | unit/verify | revert, verified |
@@ -344,7 +344,7 @@ The access control decision MUST NOT be based on the contents of the EAP packet 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. same pair as 2.6.3-1 read from the prohibition side: EAP content contradicting the code in either direction does not change the decision
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRadiusAdminEapDecisionFollowsTheRadiusCode`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L606) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapAcceptWithEapFailureStillAuthorizes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L885) | unit/verify | revert, verified |
@@ -363,7 +363,7 @@ In order to ensure the correct processing of RADIUS packets, the NAS MUST first 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. a concluding Access-Accept's EAP Notification (and, in the negative, an undecodable EAP-Message) reaches the log before the code decides; a loop that reads resp.Code first and returns would log nothing
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRadiusAdminEapProcessesAnUnparseableEAPMessageBeforeTheCode`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L260) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapProcessesTheEAPMessageBeforeTheCode`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L230) | unit/verify | revert, verified |
@@ -382,7 +382,7 @@ either NAS-Identifier, NAS-IP-Address or NAS-IPv6-Address attributes MUST be inc
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Row now quotes the MUST clause only (SHOULD half is RFC3579-3-2, {gap}). + TestRadiusAdminEapAccessRequestNamesTheNAS and TestRadiusAdminEapNamesTheNASWithoutASourceAddress: every Access-Request of the EAP conversation carries a non-empty NAS-Identifier, with and without a source address (one of the three suffices). - TestRadiusAdminEapWithNoNASIdentityIsNotSent: nasID empty and no IPv4 source -> Authenticate errors 'no NAS identity' and the server receives zero requests; observed red against the pre-fix exchange, which sent a zero-length NAS-Identifier. Producer exchange (authenticator.go) refuses before sending; NAS-IPv6-Address is never sent, so an IPv6-only source with no NAS-Identifier is refused, which is conservative, not non-conformant. Records at exchange observed red for all three units.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRadiusAdminEapWithNoNASIdentityIsNotSent`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L580) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapAccessRequestNamesTheNAS`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L292) | unit/verify | revert, verified |
@@ -394,7 +394,7 @@ If multiple EAP-Message attributes are contained within an Access-Request or Acc
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after BlastRADIUS moved the Message-Authenticator out of eapCredential into encodeRequest (insertMessageAuthenticatorFirst, placed before every other attribute, so it can never land inside the run). TestEAPMessageKeepsTheRunConsecutive: eapMessageValues requires each EAP-Message index to be first+count (red on any interleaving), three values for 600 octets, State the only other attribute and after the run. Split at 253 in order (join reproduces the packet) and receive-side concatenation around foreign attributes unchanged. Discrimination record re-taken on appendEAPMessage.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPMessageKeepsTheRunConsecutive`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_eap_test.go#L95) | unit/verify | revert, verified |
 | positive | [`TestEAPMessageConcatenatesOnTheWayIn`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_eap_test.go#L135) | unit/verify | revert, verified |
@@ -406,7 +406,7 @@ Multiple EAP packets MUST NOT be encoded within EAP-Message attributes contained
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. every sent Access-Request's EAP Length equals the whole run's octets, so a second packet riding along goes red; decoder refuses two separated runs in an Access-Challenge
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPMessageRefusesASecondRun`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_eap_test.go#L166) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapOneEAPPacketPerRadiusPacket`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L565) | unit/verify | revert, verified |
@@ -417,7 +417,7 @@ Therefore the Message-Authenticator attribute MUST be used to protect all Access
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28; negative renamed TestEAPRequestWithoutMessageAuthenticatorIsSigned. Forbidden: an EAP-bearing Access-Request on the wire without Message-Authenticator. encodeRequest now inserts it itself: the test builds an EAP request with none and requires it at offset HeaderLen+2 with a non-zero HMAC (red if insertMessageAuthenticatorFirst is skipped; revert recorded), and refuses a caller-supplied second one. Positive TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage has the mock server verify the HMAC. Ze sends only Access-Requests, so the Challenge/Accept/Reject clauses bind the server; Ze's receive side discards an unsigned EAP answer (RFC3579 3.1 verdict path).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPRequestWithoutMessageAuthenticatorIsSigned`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L749) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapAccessRequestIsSignedAndCarriesEAPMessage`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L392) | unit/verify | revert, verified |
@@ -428,7 +428,7 @@ A NAS supporting the EAP-Message attribute MUST calculate the correct value of t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. a forged challenge is discarded (retransmission observed, error is not a rejection); a verified challenge advances the conversation to a different second request
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRadiusAdminEapDiscardsUnauthenticatedChallenge`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L501) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapVerifiedChallengeIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L916) | unit/verify | revert, verified |
@@ -439,7 +439,7 @@ When present in an Access-Request packet, Message-Authenticator is an HMAC-MD5 [
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. SignMessageAuthenticator matches an openssl HMAC-MD5 vector over the Access-Request, and a 0xff placeholder yields the same digest, so the field hashes as sixteen zero octets
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSignMessageAuthenticatorZeroesTheSignatureField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L472) | unit/verify | revert, verified |
 | positive | [`TestSignMessageAuthenticatorMatchesRFC3579`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L438) | unit/verify | revert, verified |
@@ -450,7 +450,7 @@ The EAP-Message and Message-Authenticator attributes specified in this document 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. encodeRequest refuses an Accounting-Request carrying EAP-Message or Message-Authenticator, and the control without either encodes
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestAccountingRequestRefusesEAPAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L705) | unit/verify | revert, verified |
 | positive | [`TestAccountingRequestRefusesEAPAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L708) | unit/verify | revert, verified |
@@ -461,7 +461,7 @@ An Access-Request that contains either a User-Password or CHAP-Password or ARAP-
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after BlastRADIUS: the two encodeRequest tests no longer pass a Message-Authenticator placeholder because encodeRequest adds one to every Access-Request. TestAccessRequestRefusesTwoCredentialTypes still drives all six pairs of User-Password, CHAP-Password, ARAP-Password, EAP-Message and requires an error naming both types and zero octets; TestRFC3579EachCredentialTypeAloneEncodes encodes each alone, so the refusal is the pair's; TestRFC3579ARAPBesideEAPIsRefusedAtExchange shows no datagram reaches the server. Producer client.go oneCredentialType via encodeRequest.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestAccessRequestRefusesTwoCredentialTypes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L959) | unit/verify | revert, verified |
 | negative | [`TestRFC3579ARAPBesideEAPIsRefusedAtExchange`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_credential_types_test.go#L25) | unit/verify | revert, verified |
@@ -514,7 +514,7 @@ An authenticating peer expecting EAP to be negotiated for a session MUST NOT neg
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. a successful and a rejected eap-mschapv2 login put an EAP-Message and no User-Password or CHAP-Password on every request, and the rejection produces no weaker retry
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRadiusAdminEapDoesNotDowngradeAfterARejection`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L515) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapNeverSendsAPasswordCredential`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L483) | unit/verify | revert, verified |
@@ -549,7 +549,7 @@ The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-R
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after d12a30ef66). RFC 3579 Section 3: "The NAS-Port or NAS-Port-Id attributes SHOULD be included by the NAS in Access-Request packets"; every EAP-bearing Access-Request ze sends is an admin login's, built by (*radiusAuthenticator).exchange, which now appends NAS-Port-Id from AuthRequest.Service, and the only RADIUS-reaching logins name a channel (ssh/passwordauth.go "ssh", web/auth.go "web"; the API authenticates locally). The L2TP subscriber Access-Request is outside this RFC's scope because it never carries EAP-Message, and it sends NAS-Port anyway. The recorded discrimination breaks (exchange body replaced by panic) only fail the whole login, so they prove nothing about the attribute; auditor overlay mutants did: dropping the NAS-Port-Id append, or passing "" from Authenticate or authenticateEAP, turns the ssh/web EAP subtests and the PAP test red, and a constant "ssh" port turns the web and no-channel subtests red. The tagged negative (no channel, no attribute) checks RFC 2865 Section 5 more than this SHOULD, and its zero-length clause is discharged by EncodeTo, which drops empty attributes (an unconditional-append mutant survives as wire-equivalent); its real value is catching a fixed port. aaa-radius-admin.ci shows the mock server reading nas-port-id=ssh end to end, and web/auth_test.go TestWebLoginsNameTheWebChannel covers the web hand-off untagged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRadiusAdminEapAccessRequestNamesThePort`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L621) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminEapAccessRequestNamesThePort`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_nas_obligations_test.go#L617) | unit/verify | revert, verified |
@@ -562,7 +562,7 @@ Access-Challenge, Access-Accept, or Access-Reject packets including EAP-Message 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRadiusDiscardsEAPAnswerWithoutMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc3579_client_test.go#L78) | unit/verify | revert, verified |
 

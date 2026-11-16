@@ -3,7 +3,7 @@
 Ze provides tools for converting ExaBGP configurations and running existing ExaBGP plugins with ze as the BGP engine.
 <!-- source: internal/plugins/exabgp/main.go -- Run; internal/exabgp/migration/ -- config conversion; internal/exabgp/bridge/ -- plugin bridge -->
 
-**RFC completion:** the [BGP core coverage page](../../quality/rfc-compliance/profiles/bgp-core/) shows how much of the RFC work behind this use case is proven by tests.
+**RFC completion:** the [BGP core coverage page](../../quality/rfc-compliance/profiles/bgp-core/) shows which requirements have passed the recorded test checks for this use case.
 
 ## Config Migration
 

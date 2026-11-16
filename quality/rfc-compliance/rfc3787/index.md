@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 5 | of 5 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 5 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 5 | of 5 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 5 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 5 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 5 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 0 | of 5 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 5 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 17 | 17 of 17 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 17 | 17 of 17 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -25,9 +25,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 5 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 5 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 5 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 5 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 5 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 5 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 5 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -46,13 +46,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -86,7 +86,7 @@ Included in automatic checks: IS-IS interoperability guidelines: four MUST-level
 
 **Area:** IS-IS interoperability guidelines
 
-**Proof:** 5 of 5 MUST proven
+**Test verification:** 5 of 5 MUST proven
 
 **Evidence:** interop 1, unit 4
 
@@ -101,7 +101,7 @@ Included in automatic checks: IS-IS interoperability guidelines: four MUST-level
 | Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **5** | every mandatory requirement appears in exactly one group above |
@@ -110,8 +110,8 @@ Included in automatic checks: IS-IS interoperability guidelines: four MUST-level
 
 ## Figures
 
-- **MUST bar**: Ze proven 5
-- **Overview bar**: Ze MUST proven 5, Not assessed 3
+- **MUST bar**: Ze verified 5
+- **Overview bar**: Ze MUST verified 5, Not assessed 3
 
 | Figure | Rows |
 |---|---|
@@ -120,9 +120,9 @@ Included in automatic checks: IS-IS interoperability guidelines: four MUST-level
 | Mandatory requirements complete | complete |
 | MUST rows | 5 |
 | MUST rows kept (the MUST bar) | 5 |
-| Ze proven | 5 |
+| Ze verified | 5 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -132,19 +132,19 @@ Included in automatic checks: IS-IS interoperability guidelines: four MUST-level
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 3 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 3 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc3787.json](../../../data/rfc/rfc3787.json).
 
@@ -165,9 +165,9 @@ Source: [data/rfc/rfc3787.json](../../../data/rfc/rfc3787.json).
 
 RFC 3787 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC3787-x-1`](#rfc3787-x-1)
 
@@ -175,7 +175,7 @@ TLV 131 is not used, and MUST be ignored if received. (§3.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Receive path now driven: lsdb TestRFC1195UnknownTLVsFloodedUnchanged stores an LSP carrying TLV 131 via Flooder.ReceiveLSP (not refused) and floods it byte-identical with 131 present, so a receiver that refused, stripped or rewrote on 131 goes red. Packet TestISISIgnoreObsoleteTLVs131And133: DecodeTLVs returns no error and keeps 131 opaque (positive); the negative is the scope control, a recognized TLV 129 in the same region is still decoded to its NLPID, so a decoder that dropped the PDU content on meeting 131 goes red. Tag prose narrowed to 131 (sec 3.1). TLV 131 is an L2 LSP TLV, so no IIH input is owed. The 'recognized' constant loop cannot go red on any producer change and carries no weight here. Records: + ReceiveLSP, +/- DecodeTLVs.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestISISIgnoreObsoleteTLVs131And133`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_opaque_test.go#L60) | unit/verify | revert, verified |
 | positive | [`TestRFC1195UnknownTLVsFloodedUnchanged`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go#L24) | unit/verify | revert, verified |
@@ -187,7 +187,7 @@ TLV 133 is not used, and MUST be ignored. (§3.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30. Positive TestRFC3787TLV133IgnoredOnReceipt: an L2 LSP whose first TLV is TLV 133 (auth-type 1 + cleartext password) decodes, keeps TLV 133 as an opaque span, AuthTLVIndex returns -1 and VerifyPDU with no keys accepts it. Negative TestRFC3787TLV133NeverAuthenticates: under a cleartext key equal to TLV 133's password, VerifyPDU returns ErrAuthMissing; a receiver that honored TLV 133 as authentication would authenticate the LSP and go red. Recorded red on packet/tlv_opaque.go::AuthTLVIndex (both).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3787TLV133NeverAuthenticates`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc3787_tlv133_test.go#L69) | unit/verify | revert, verified |
 | positive | [`TestRFC3787TLV133IgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc3787_tlv133_test.go#L44) | unit/verify | revert, verified |
@@ -198,7 +198,7 @@ If not all devices in the IS-IS domain support wide metrics, narrow metrics MUST
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3787NarrowMetricStyleRefusesUnrepresentableMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc3787_metric_style_test.go#L194) | unit/verify | revert, verified |
 | positive | [`checkISISNarrowMetric`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_isis_narrow.go#L41) | interop/nightly | revert, verified |
@@ -211,7 +211,7 @@ IP capable routers MUST generate a Protocol Supported TLV, and MUST include the 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge) under OWNER RULING 2: for a generate row the positive proves what Ze generates and the negative proves Ze's handling of a peer PDU that lacks it. RFC 3787 section 9 names that handling itself: 'A router that does not include the Protocols Supported TLV may be assumed to be a pure OSI router'. Positive: circuit TestISISIIHOriginationTLVs (TLV 129 in sent LAN and P2P IIH), root TestRFC1195NodeProtocolsAcrossInterfaces (0xCC in every IIH and LSP 0), root TestRFC1195ISHTransmitReceive (ISH TLV 129 = 0xCC), circuit TestISISHelloTLV132RequiresInterfaceAddr (retagged positive, D-15: no IPv4 address still advertises 0xCC); records + on protocolsSupportedTLV. Negative: root TestRFC3787PeerWithoutIPProtocolsSupportedIsRejected dispatches a peer P2P IIH through the engine dispatcher with no TLV 129, TLV 129 CLNP-only, and TLV 129 IPv6-only, each with TLV 132 = 192.0.2.2 present, and requires the Up adjacency to resolve IPv4 to Unsupported with no address (RFC 1195 section 4.5 discard); read against circuit/ish.go receivedProtocols (absent -> ProtocolCLNP) and spf_wiring.go ResolveNextHop (no IPv4 bit -> Unsupported). Record - revert receivedProtocols; the author's semantic overlay (absent -> CLNP|IPv4) went red on no_TLV_129 with next hop 192.0.2.2. The CLNP-only and IPv6-only cases isolate the NLPID check from the presence check. Orphan x-2 negative record on TestISISHelloTLV132RequiresInterfaceAddr pruned (tag is now positive).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3787PeerWithoutIPProtocolsSupportedIsRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc3787_absence_test.go#L58) | unit/verify | revert, verified |
 | positive | [`TestISISHelloTLV132RequiresInterfaceAddr`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L233) | unit/verify | revert, verified |
@@ -225,7 +225,7 @@ For an implementation to interoperate in a such mixed environment, it MUST inclu
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge) under OWNER RULING 2. Positive circuit TestISISIIHOriginationTLVs requires exactly one TLV 132 whose value is the configured c0 00 02 01 in the sent LAN and P2P IIH (record + revert ipv4InterfaceAddrTLV). Negatives: circuit TestISISHelloTLV132RequiresInterfaceAddr (generation side: a circuit with no IPv4 omits TLV 132 rather than fabricating one; record - revert ipv4InterfaceAddrTLV) and NEW root TestRFC3787PeerWithoutIPInterfaceAddressHasNoNextHop (handling of absence: a peer IIH advertising 0xCC with no TLV 132, or TLV 132 with zero entries, still forms an Up adjacency, as RFC 3787 section 10 and RFC 1195 section 4.4 form adjacencies 'independent of the IP interface addresses', and ResolveNextHop answers not-found, inventing neither gateway nor rejection; record - revert spf_wiring.go ResolveNextHop, author's overlay returning an address-less on-link hop went red on both subtests). Read against ResolveNextHop: row.IPv4 empty -> continue -> (NextHop{}, false).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestISISHelloTLV132RequiresInterfaceAddr`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L227) | unit/verify | revert, verified |
 | negative | [`TestRFC3787PeerWithoutIPInterfaceAddressHasNoNextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc3787_absence_test.go#L95) | unit/verify | revert, verified |

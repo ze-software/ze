@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 6 | of 14 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3 | of 14 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 6 | of 14 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 14 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 14 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 14 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 8 | 8 of 16 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 14 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 8 | 8 of 16 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 14 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 14 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 14 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 14 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 14 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 14 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 14 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: OSPF inter-AS TE (RFC 5392): OSPFv2 Opaque-type-6;
 
 **Area:** OSPF inter-AS TE (OSPFv2)
 
-**Proof:** 5 of 14 MUST proven
+**Test verification:** 5 of 14 MUST proven
 
 **Evidence:** unit 5
 
@@ -109,7 +109,7 @@ Included in automatic checks: OSPF inter-AS TE (RFC 5392): OSPFv2 Opaque-type-6;
 | Annotated (including scoped evidence) | 8 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **14** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: OSPF inter-AS TE (RFC 5392): OSPFv2 Opaque-type-6;
 
 ## Figures
 
-- **MUST bar**: Ze proven 5, Proof pending 4, Not built 5
-- **Overview bar**: Ze MUST proven 5, Proof pending 4, Not assessed 18, Not built 5
+- **MUST bar**: Ze verified 5, Tests awaiting verification 4, Not built 5
+- **Overview bar**: Ze MUST verified 5, Tests awaiting verification 4, Not assessed 18, Not built 5
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: OSPF inter-AS TE (RFC 5392): OSPFv2 Opaque-type-6;
 | Mandatory requirements complete | not complete |
 | MUST rows | 14 |
 | MUST rows kept (the MUST bar) | 14 |
-| Ze proven | 5 |
+| Ze verified | 5 |
 | OS verified | 0 |
-| Proof pending | 4 |
+| Tests awaiting verification | 4 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: OSPF inter-AS TE (RFC 5392): OSPFv2 Opaque-type-6;
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 18 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 18 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5392.json](../../../data/rfc/rfc5392.json).
 
@@ -205,9 +205,9 @@ Source: [data/rfc/rfc5392.json](../../../data/rfc/rfc5392.json).
 | [`RFC5392-3.3.3-1`](#rfc5392-3.3.3-1) In OSPFv3 advertisements, the IPv6 Remote ASBR ID sub-TLV MUST be included if the neighboring ASBR has an IPv6 address. (§3.3.3) | {gap}, no test | OSPFv3 inter-AS TE (function code 13) is not implemented, so ze originates no OSPFv3 advertisement in which to require the IPv6 Remote ASBR ID (the type-24 codec exists but is only ever emitted into a v2 LSA) (internal/plugins/ospf/te.go:88-91) |
 | [`RFC5392-3.3.3-2`](#rfc5392-3.3.3-2) If the neighboring ASBR does not have an IPv6 address, the IPv4 Remote ASBR ID sub-TLV MUST be included instead. (§3.3.3) | {gap}, no test | ze implements no OSPFv3 Inter-AS-TE-v3 LSA, so the v3 IPv4-fallback rule has no origination path to bind (internal/plugins/ospf/te.go:88-91) |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC5392-3.2.1-4`](#rfc5392-3.2.1-4)
 
@@ -215,7 +215,7 @@ The Remote-AS-Number sub-TLV MUST be included in the Link TLV of both the Inter-
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Stale only from the added 3.3.1-2 tags; assertions unchanged. Every originated Inter-AS-TE-v2 Link TLV carries Remote-AS (sub-TLV 21), and a received one without it is skipped.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestTEReceiveType6MissingRemoteASSkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_test.go#L75) | unit/verify | revert, verified |
 | positive | [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L250) | unit/verify | revert, verified |
@@ -226,9 +226,9 @@ When only two octets are used for the AS number, as in current deployments, the 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a 2-octet AS number encoded with non-zero high-order octets in the 4-octet Remote AS Number field. Red on it: TestInterAsTERemoteAsTLV (packet/te_interas_test.go) encodes RemoteAS 65001 and asserts `body[8] != 0x00 || body[9] != 0x00` fatal on the wire bytes. Positive only, covered by the row's {single-polarity: positive} marker (uint32 big-endian encode cannot set the high octets for a 2-byte ASN).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestInterAsTERemoteAsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5392_te_interas_test.go#L29) | unit/verify | unproven |
+| positive | [`TestInterAsTERemoteAsTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5392_te_interas_test.go#L29) | unit/verify | not verified |
 
 ### [`RFC5392-3.1.2-1`](#rfc5392-3.1.2-1)
 
@@ -244,10 +244,10 @@ The Link ID sub-TLV [OSPF-TE] MUST NOT be used in the Link TLV of an Inter-AS-TE
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Stale only because RFC5392-3.3.1-2 tags were added in the same functions; assertions unchanged. Origination never emits Link ID in a type-6 Link TLV, and reception rejects one that carries it.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestTEReceiveMalformedNoEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_test.go#L52) | unit/verify | unproven |
-| positive | [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L245) | unit/verify | unproven |
+| negative | [`TestTEReceiveMalformedNoEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_test.go#L52) | unit/verify | not verified |
+| positive | [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L245) | unit/verify | not verified |
 
 ### [`RFC5392-3.2.1-2`](#rfc5392-3.2.1-2)
 
@@ -271,7 +271,7 @@ The Remote AS Number sub-TLV is REQUIRED in a Link TLV that advertises an inter-
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 5392 Section 3.3.1 ('The Remote AS Number sub-TLV is REQUIRED in a Link TLV that advertises an inter-AS TE link'). The positive checks that every originated inter-AS Link TLV carries sub-TLV 21 (record on buildInterASTELink). The negative checks that a received one without it is skipped and leaves no TED entry (record on validateReceivedTELink).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestTEReceiveType6MissingRemoteASSkipped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_test.go#L61) | unit/verify | revert, verified |
 | positive | [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L252) | unit/verify | revert, verified |
@@ -282,9 +282,9 @@ In OSPFv2 advertisements, the IPv4 Remote ASBR ID sub-TLV MUST be included if th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Stale only from the added 3.3.1-2 tags; the origination assertion of the IPv4 Remote ASBR ID sub-TLV 22 is unchanged (row keeps its single-polarity argument).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L254) | unit/verify | unproven |
+| positive | [`TestInterAsTEOriginateScopePolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L254) | unit/verify | not verified |
 
 ### [`RFC5392-3.3.2-2`](#rfc5392-3.3.2-2)
 
@@ -292,7 +292,7 @@ If the neighboring ASBR does not have an IPv4 address (not even an IPv4 TE Route
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Origination now driven: v6-only inter-as config (remote-as 65001, remote-asbr-ipv6 2001:db8::9) through teOriginateType6/buildInterASTELink; originated body holds the literal sub-TLV 00 18 00 10 + address, decode shows v6 ID present, no v4 ID, Remote AS 65001. Judge overlay dropping HasRemoteASBRv6 in buildInterASTELink turns it red. {single-polarity: positive} on the row; record observed red on buildInterASTELink.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestInterAsTEIPv6AsbrIdType24`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5392_te_interas_test.go#L91) | unit/verify | revert, verified |
 | positive | [`TestRFC5392OriginatedV6OnlyLinkCarriesIPv6RemoteASBRID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_v6_remote_asbr_origination_test.go#L15) | unit/verify | revert, verified |
@@ -319,10 +319,10 @@ Hellos MUST NOT be exchanged over the inter-AS link (§4) -- an interface carryi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by QF-2 after the row's trailing implementation note lost its parenthesis, so the quote ends at the §4 sub-span 'Hellos MUST NOT be exchanged over the inter-AS link'. Forbidden: an inter-AS interface that runs Hellos. TestRFC5392InterASInterfaceIsPassive asserts `!ic.Passive || active` fails the test when parseInterface leaves an inter-as interface active, with an intra-AS TE control. Enforced stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5392InterASInterfaceIsPassive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_interas_passive_test.go#L33) | unit/verify | revert, verified |
-| positive | [`TestInterASTEOriginatesWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L280) | unit/verify | unproven |
+| positive | [`TestInterASTEOriginatesWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L280) | unit/verify | not verified |
 
 ### [`RFC5392-4-2`](#rfc5392-4-2)
 
@@ -330,10 +330,10 @@ Hellos MUST NOT be exchanged over the inter-AS link, and consequently, an OSPF a
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by DF-OSPF-C (author of the fix; independent /ze-rfc-audit owed). Same producer as RFC5392-4-1: the forced-passive inter-AS interface is not in activeInterfaces, so no neighbor FSM runs and no adjacency forms. The negative TestRFC5392InterASInterfaceIsPassive now carries the rule; the positive TestInterASTEOriginatesWithoutNeighbor only shows origination needs no neighbor. REV-OSPF independent re-audit 2026-09-27: kept enforced on the same producer and assertion as RFC5392-4-1: no socket is opened on a passive interface, so no neighbor FSM and no adjacency.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5392InterASInterfaceIsPassive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_interas_passive_test.go#L36) | unit/verify | revert, verified |
-| positive | [`TestInterASTEOriginatesWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L283) | unit/verify | unproven |
+| positive | [`TestInterASTEOriginatesWithoutNeighbor`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5392_te_originate_test.go#L283) | unit/verify | not verified |
 
 ### [`RFC5392-4-3`](#rfc5392-4-3)
 
@@ -341,10 +341,10 @@ the ASBR MUST take precautions against excessive re- advertisements as described
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: re-advertising a changed inter-AS TE LSA without any precaution against excessive re-advertisement. Red on it: TestInterASTEReAdvertiseRateLimited (internal/plugins/ospf/lsdb/opaque_originate_test.go) originates a Type-6 LSA, changes its body within MinLSInterval and asserts `ok || h2.Sequence != h1.Sequence` fatal plus no extra LS Update send. Negative polarity: after MinLSInterval the changed body is re-advertised with the next sequence.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestInterASTEReAdvertiseRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5392_opaque_originate_test.go#L153) | unit/verify | unproven |
-| positive | [`TestInterASTEReAdvertiseRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5392_opaque_originate_test.go#L143) | unit/verify | unproven |
+| negative | [`TestInterASTEReAdvertiseRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5392_opaque_originate_test.go#L153) | unit/verify | not verified |
+| positive | [`TestInterASTEReAdvertiseRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc5392_opaque_originate_test.go#L143) | unit/verify | not verified |
 
 ## Requirement list review
 

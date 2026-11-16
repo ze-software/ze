@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 16 | of 23 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 23 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 16 | of 23 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 23 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 23 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 23 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 20 | 20 of 45 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 23 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 20 | 20 of 45 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 23 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 23 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 1 | of 23 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 1 | of 23 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 23 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 23 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 23 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: OSPF for IPv6 (OSPFv3)
 
 **Area:** OSPFv3 (partial, experimental)
 
-**Proof:** 6 of 23 MUST proven
+**Test verification:** 6 of 23 MUST proven
 
 **Evidence:** unit 6
 
@@ -108,7 +108,7 @@ Included in automatic checks: OSPF for IPv6 (OSPFv3)
 | Annotated (including scoped evidence) | 7 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **23** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: OSPF for IPv6 (OSPFv3)
 
 ## Figures
 
-- **MUST bar**: Ze proven 6, Proof pending 11, OS testing gap 1, Not built 5
-- **Overview bar**: Ze MUST proven 6, Proof pending 11, OS testing gap 1, Not assessed 23, Not built 5
+- **MUST bar**: Ze verified 6, Tests awaiting verification 11, OS testing gap 1, Not built 5
+- **Overview bar**: Ze MUST verified 6, Tests awaiting verification 11, OS testing gap 1, Not assessed 23, Not built 5
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: OSPF for IPv6 (OSPFv3)
 | Mandatory requirements complete | not complete |
 | MUST rows | 23 |
 | MUST rows kept (the MUST bar) | 23 |
-| Ze proven | 6 |
+| Ze verified | 6 |
 | OS verified | 0 |
-| Proof pending | 11 |
+| Tests awaiting verification | 11 |
 | OS testing gap | 1 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: OSPF for IPv6 (OSPFv3)
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 23 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 23 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5340.json](../../../data/rfc/rfc5340.json).
 
@@ -219,9 +219,9 @@ Source: [data/rfc/rfc5340.json](../../../data/rfc/rfc5340.json).
 | [`RFC5340-4.9-1`](#rfc5340-4.9-1) o Each of the multiple interfaces MUST be configured with the same Interface Instance ID to be considered on the same link. (§4.9) | {gap}, no test | ze has no notion of several interfaces sharing one link. Each configured interface is enrolled independently, keyed by its own name and OS ifindex (openInterface, instance.go:679-691; the Interface ID is interfaceIndex, interface_addr.go:107-123), and two interfaces on the same physical link with the same Instance ID form two separate adjacencies rather than one Active/Standby pair. Disclosed in docs/features/rfc-status.md RFC 5340 row |
 | [`RFC5340-4.9-2`](#rfc5340-4.9-2) If a Standby Interface goes down, then the link-local scope LSAs originated for the Standby Interfaces MUST be flushed on the Active Interface. (§4.9) | {gap}, no test | there is no Active/Standby interface model to flush from -- grep for "Standby" over internal/plugins/ospf finds no producer. A link-local scope Link-LSA is flushed only with its own interface's link store (v6OriginateLinkLSA / OriginateLinkSelf, origination_v6_link.go:58), never re-flushed onto a sibling interface. Disclosed in docs/features/rfc-status.md RFC 5340 row |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC5340-2.5-1`](#rfc5340-2.5-1)
 
@@ -229,10 +229,10 @@ On virtual links, a global scope IPv6 address MUST be used as the source address
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L557) | unit/verify | unproven |
-| positive | [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L521) | unit/verify | unproven |
+| negative | [`TestV6VirtualEndpointRequiresGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L557) | unit/verify | not verified |
+| positive | [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L521) | unit/verify | not verified |
 
 ### [`RFC5340-2.5-2`](#rfc5340-2.5-2)
 
@@ -256,10 +256,10 @@ a network-LSA MUST list all routers connected to the link (§2.8)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Network-LSA that omits a router attached to the link. TestRFC5340NetworkLSAListsAttachedRouters drives v6OriginateNetwork, decodes the installed Network-LSA and asserts got[self] (the DR) and got[full] (a Full neighbor), each red on omission; got[twoWay] false and Len 2 bound the list to the routers RFC 2328 12.4.2 counts as attached (fully adjacent), which RFC 5340 leaves unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5340NetworkLSAListsAttachedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L192) | unit/verify | unproven |
-| positive | [`TestRFC5340NetworkLSAListsAttachedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L189) | unit/verify | unproven |
+| negative | [`TestRFC5340NetworkLSAListsAttachedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L192) | unit/verify | not verified |
+| positive | [`TestRFC5340NetworkLSAListsAttachedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L189) | unit/verify | not verified |
 
 ### [`RFC5340-2.8-4`](#rfc5340-2.8-4)
 
@@ -267,10 +267,10 @@ a link-LSA MUST list all of a router's addresses on the link (§2.8)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Link-LSA that omits one of the router's addresses on the link. TestRFC5340LinkLSAListsLinkAddresses decodes the originated Link-LSA and asserts the link-local fe80::1 and both global prefixes 2001:db8:1::/64 and 2001:db8:2::/64, each red on omission; the eth1 half asserts each link's LSA carries its own link-local and prefix and not the other link's.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5340LinkLSAListsLinkAddresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L231) | unit/verify | unproven |
-| positive | [`TestRFC5340LinkLSAListsLinkAddresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L227) | unit/verify | unproven |
+| negative | [`TestRFC5340LinkLSAListsLinkAddresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L231) | unit/verify | not verified |
+| positive | [`TestRFC5340LinkLSAListsLinkAddresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L227) | unit/verify | not verified |
 
 ### [`RFC5340-4.1.2-2`](#rfc5340-4.1.2-2)
 
@@ -278,10 +278,10 @@ For IPv6, the IPv6 address appearing in the source of OSPF packets sent on the i
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a virtual link using anything but one of this router's own global IPv6 addresses as its IP interface address. TestV6VirtualEndpointResolvesGlobalAddress asserts v6ResolveVirtualEndpointLocked returns this router's global 2001:db8:1::1 as source (red on another address); TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress asserts that with only fe80::1 advertised the endpoint does not resolve (red if a link-local is adopted). The 'almost always a link-local' sentence is descriptive and states no obligation.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_vlink_test.go#L14) | unit/verify | unproven |
-| positive | [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L526) | unit/verify | unproven |
+| negative | [`TestRFC5340VirtualLinkRefusesLocalLinkLocalInterfaceAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_vlink_test.go#L14) | unit/verify | not verified |
+| positive | [`TestV6VirtualEndpointResolvesGlobalAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/virtual_link_test.go#L526) | unit/verify | not verified |
 
 ### [`RFC5340-4.2.1.1-1`](#rfc5340-4.2.1.1-1)
 
@@ -289,10 +289,10 @@ Before the Hello packet is sent on an interface, the interface's Interface ID MU
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Hello sent without this interface's own Interface ID. TestRFC5340HelloCarriesInterfaceID sends real Hellos through SendHello and the v6 encoder and asserts Interface ID 42 on eth0 and 43 on eth1 (red on a missing or shared value), and after a neighbor Hello carrying 99 asserts the next sent Hello still carries 42 (red if the neighbor's value is copied in).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5340HelloCarriesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L80) | unit/verify | unproven |
-| positive | [`TestRFC5340HelloCarriesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L74) | unit/verify | unproven |
+| negative | [`TestRFC5340HelloCarriesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L80) | unit/verify | not verified |
+| positive | [`TestRFC5340HelloCarriesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L74) | unit/verify | not verified |
 
 ### [`RFC5340-4.2.1.1-2`](#rfc5340-4.2.1.1-2)
 
@@ -300,10 +300,10 @@ Those that MUST be set correctly in Hello packets are as follows. The E-bit is s
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Hello whose E, N or DC bit does not follow the area type or the wish to suppress Hellos. TestRFC5340HelloOptionsBits sends Hellos through the real send path and asserts E set and N clear for a regular area, N set and E clear for NSSA, both clear for stub (both directions of each 'if and only if'), and DC zero in all three; ze has no demand-circuit support and never wishes to suppress Hellos, so DC clear is the only correct value.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5340HelloOptionsBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L123) | unit/verify | unproven |
-| positive | [`TestRFC5340HelloOptionsBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L119) | unit/verify | unproven |
+| negative | [`TestRFC5340HelloOptionsBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L123) | unit/verify | not verified |
+| positive | [`TestRFC5340HelloOptionsBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L119) | unit/verify | not verified |
 
 ### [`RFC5340-4.2.1.2-1`](#rfc5340-4.2.1.2-1)
 
@@ -311,7 +311,7 @@ Those that MUST be set correctly in Database Description packets are as follows.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (OSPF judge, continuations 3+4): TestRFC5340DBDescOptionsBits tags now claim only the DC-bit: DDs of a regular and a stub area carry DC clear (Ze suppresses no Hellos, so 'if and only if' requires clear), and neutral Options carrying DC handed to the encoder still yield DC clear. Revert records on encoder_v6.go::neutralToV6Options observed red. The 'set when suppressing' direction has no Ze path (no demand circuits).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5340DBDescOptionsBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L160) | unit/verify | revert, verified |
 | positive | [`TestRFC5340DBDescOptionsBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L154) | unit/verify | revert, verified |
@@ -330,9 +330,9 @@ The Next Header field of the immediately encapsulating IPv6 header MUST specify 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC5340TransportUsesOSPFProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/transport/rfc5340_linux_test.go#L13) | unit/verify | unproven |
+| positive | [`TestRFC5340TransportUsesOSPFProtocolNumber`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/transport/rfc5340_linux_test.go#L13) | unit/verify | not verified |
 
 ### [`RFC5340-4.2.2-3`](#rfc5340-4.2.2-3)
 
@@ -348,10 +348,10 @@ The version number field MUST specify protocol version 3 (§4.2.2)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFv3DecodeHeaderBounds`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/rfc5340_header_test.go#L80) | unit/verify | unproven |
-| positive | [`TestOSPFv3HeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/rfc5340_header_test.go#L31) | unit/verify | unproven |
+| negative | [`TestOSPFv3DecodeHeaderBounds`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/rfc5340_header_test.go#L80) | unit/verify | not verified |
+| positive | [`TestOSPFv3HeaderRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/rfc5340_header_test.go#L31) | unit/verify | not verified |
 
 ### [`RFC5340-4.9-1`](#rfc5340-4.9-1)
 
@@ -375,7 +375,7 @@ These fields are reserved. They SHOULD be set to 0 when sending protocol packets
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 after a comment-only spelling change (honoured to honored) in TestRFC5340ReservedHeaderOctetIgnoredOnReceive; its assertions are byte-identical. Receive: a Hello with Reserved 0xFF forms the neighbor (assert.Len 1), record on v3 DecodeHeader. Negative TestRFC5340ReservedOctetNeverReachesDecodedHeader: headers differing only in octet 15 decode identically. Send: TestRFC5340ReservedHeaderOctetZeroOnSend, record on EncodeHello. Earlier enforced judgement stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5340ReservedHeaderOctetZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_reserved_send_test.go#L29) | unit/verify | revert, verified |
 | negative | [`TestRFC5340ReservedOctetNeverReachesDecodedHeader`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/v3/packet/rfc5340_header_test.go#L173) | unit/verify | revert, verified |
@@ -388,12 +388,12 @@ Forwarding address A fully qualified IPv6 address (128 bits). Included in the LS
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 6af25a7a79). Appendix A.4.7: "It MUST NOT be set to the IPv6 Unspecified Address (0:0:0:0:0:0:0:0) or an IPv6 Link-Local Address (Prefix FE80/10)." and "While OSPFv3 routes are normally installed with link-local addresses, an OSPFv3 implementation advertising a forwarding address MUST advertise a global IPv6 address." 6af25a7a79 touched only rfc/discrimination/rfc5340.json: the translator negative's record moves from a panic of v6UsableForwardingAddress (reach only) to the mutant at interface_addr.go:73 dropping '!addr.IsLinkLocalUnicast() &&'. Line 73 at HEAD is that return statement, and with the link-local term gone fe80::2/fe80::3 pass every remaining term (Is6, not 4in6, not loopback, unspecified or multicast), so translatableForwardingAddressV6 admits it and the negative's 'no Type-5' assertion is the one that fails, as the author reports (red at :60/:77, not re-observed here). This closes the prior judge's note that the record proved reach, not the branch. Producers, tests and claims are byte-identical to the last judgement; tagged units pass at HEAD (go test -count=1). For -1: TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding asserts a global address is carried unchanged and fe80::2 yields no Type-5; the Unspecified half is pinned by TestRFC5340ForwardingAddressIsGlobal (:: refused, all-zero origination clears HasForwardingAddr), and translateNSSAV6 skips an all-zero forwarding address before the gate.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L56) | unit/verify | mutant, verified |
-| negative | [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L300) | unit/verify | unproven |
+| negative | [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L300) | unit/verify | not verified |
 | positive | [`TestRFC5340TranslatorNeverAdvertisesLinkLocalForwarding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L45) | unit/verify | revert, verified |
-| positive | [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L298) | unit/verify | unproven |
+| positive | [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L298) | unit/verify | not verified |
 
 ### [`RFC5340-A.4.7-2`](#rfc5340-a.4.7-2)
 
@@ -401,12 +401,12 @@ While OSPFv3 routes are normally installed with link-local addresses, an OSPFv3 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 6af25a7a79). Appendix A.4.7: "It MUST NOT be set to the IPv6 Unspecified Address (0:0:0:0:0:0:0:0) or an IPv6 Link-Local Address (Prefix FE80/10)." and "While OSPFv3 routes are normally installed with link-local addresses, an OSPFv3 implementation advertising a forwarding address MUST advertise a global IPv6 address." 6af25a7a79 touched only rfc/discrimination/rfc5340.json: the translator negative's record moves from a panic of v6UsableForwardingAddress (reach only) to the mutant at interface_addr.go:73 dropping '!addr.IsLinkLocalUnicast() &&'. Line 73 at HEAD is that return statement, and with the link-local term gone fe80::2/fe80::3 pass every remaining term (Is6, not 4in6, not loopback, unspecified or multicast), so translatableForwardingAddressV6 admits it and the negative's 'no Type-5' assertion is the one that fails, as the author reports (red at :60/:77, not re-observed here). This closes the prior judge's note that the record proved reach, not the branch. Producers, tests and claims are byte-identical to the last judgement; tagged units pass at HEAD (go test -count=1). For -2: TestRFC5340TranslatorAdvertisesGlobalForwarding asserts the translated forwarding address IsGlobalUnicast and that fe80::3 yields no Type-5; claims state no more than these assertions.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5340TranslatorAdvertisesGlobalForwarding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L74) | unit/verify | mutant, verified |
-| negative | [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L310) | unit/verify | unproven |
+| negative | [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L310) | unit/verify | not verified |
 | positive | [`TestRFC5340TranslatorAdvertisesGlobalForwarding`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_translate_test.go#L67) | unit/verify | revert, verified |
-| positive | [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L306) | unit/verify | unproven |
+| positive | [`TestRFC5340ForwardingAddressIsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L306) | unit/verify | not verified |
 
 ### [`RFC5340-A.4.8-1`](#rfc5340-a.4.8-1)
 
@@ -414,7 +414,7 @@ A global IPv6 address MUST be selected as forwarding address for NSSA-LSAs that 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge, ospf c13). Appendix A.4.8: 'A global IPv6 address MUST be selected as forwarding address for NSSA-LSAs that are to be propagated by NSSA area border routers.' The c12 gap is closed: NEW TestRFC5340NSSAForwardingAddressFromKernelInterface (linux, own user+net namespace) calls the production interfaceIPv6ForwardingAddress over a real dummy link: - a link with only fe80::1 and lo with only ::1 yield no address; + after adding 2001:db8:9::1 the lookup returns exactly that address. Judge overlay removing the v6UsableForwardingAddress filter from interfaceIPv6ForwardingAddress reds the negative ('ospffa0 with only fe80::1 yielded forwarding address fe80::1'); base green. The unit also caught a defect the author fixed: the lookup never loaded the iface backend (siblings at interface_addr.go:29/46 do), so it answered no address everywhere and a negative would have passed vacuously; EnsureBackend added. Selection across interfaces stays proven by the seam unit TestRFC5340NSSAForwardingAddressSelectsGlobal; propagation gating by TestRFC5340NSSAPropagationNeedsGlobalForwardingAddress (mutant records on v6OriginateNSSALSA). Residual: the kernel unit Skips where a dummy link cannot be created.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5340NSSAForwardingAddressFromKernelInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_fa_iface_linux_test.go#L68) | unit/verify | revert, verified |
 | negative | [`TestRFC5340NSSAForwardingAddressSelectsGlobal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_nssa_fa_select_test.go#L50) | unit/verify | revert, verified |
@@ -429,10 +429,10 @@ The interface output cost MUST always be greater than 0 (§C.3)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L433) | unit/verify | unproven |
-| positive | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L430) | unit/verify | unproven |
+| negative | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L433) | unit/verify | not verified |
+| positive | [`TestRFC5340IPv6InterfaceCostAndTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L430) | unit/verify | not verified |
 
 ### [`RFC5340-C.3-2`](#rfc5340-c.3-2)
 
@@ -440,7 +440,7 @@ InfTransDelay The estimated number of seconds it takes to transmit a Link State 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. The InfTransDelay check is split from the cost check: TestRFC5340IPv6InterfaceTransmitDelay accepts 1 and rejects 0 with ErrTransmitDelayZero, and its first validateConfig call is now the transmit-delay case, so the validateConfigAF revert record hits this clause. Age increment by InfTransDelay before transmission: TestRFC5340FloodIncrementsAgeByInfTransDelay (records floodCopy).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5340FloodIncrementsAgeByInfTransDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_flood_age_test.go#L73) | unit/verify | revert, verified |
 | negative | [`TestRFC5340IPv6InterfaceTransmitDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L487) | unit/verify | revert, verified |
@@ -453,10 +453,10 @@ HelloInterval The length of time, in seconds, between Hello packets that the rou
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a neighbor whose HelloInterval differs on the common link. TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink asserts ReceiveDecodedHello accepts a matching HelloInterval (empty reason) and drops DefaultHelloInterval+1 with reason hello-interval; accepting the mismatch turns it red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L496) | unit/verify | unproven |
-| positive | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L493) | unit/verify | unproven |
+| negative | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L496) | unit/verify | not verified |
+| positive | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L493) | unit/verify | not verified |
 
 ### [`RFC5340-C.3-4`](#rfc5340-c.3-4)
 
@@ -464,10 +464,10 @@ RouterDeadInterval After ceasing to hear a router's Hello packets, the number of
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a neighbor whose RouterDeadInterval differs on the common link. TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink asserts a matching RouterDeadInterval is accepted (empty reason) and DefaultDeadInterval+1 is dropped with reason dead-interval; accepting the mismatch turns it red. The 'multiple of the HelloInterval' clause is a lower-case should.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L501) | unit/verify | unproven |
-| positive | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L499) | unit/verify | unproven |
+| negative | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L501) | unit/verify | not verified |
+| positive | [`TestRFC5340HelloAndDeadIntervalMustMatchOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5340_test.go#L499) | unit/verify | not verified |
 
 ## Requirement list review
 

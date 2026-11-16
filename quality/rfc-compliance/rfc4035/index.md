@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 5 | of 108 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 9 | of 108 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 5 | of 108 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 9 | of 108 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 108 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 108 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 10 | 10 of 24 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 108 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 10 | 10 of 24 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 108 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 108 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 108 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 108 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 108 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 108 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 108 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: Protocol Modifications for the DNS Security Extens
 
 **Area:** DNSSEC protocol modifications
 
-**Proof:** 4 of 108 MUST proven
+**Test verification:** 4 of 108 MUST proven
 
 **Evidence:** unit 4
 
@@ -109,7 +109,7 @@ Included in automatic checks: Protocol Modifications for the DNS Security Extens
 | Annotated (including scoped evidence) | 103 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **108** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: Protocol Modifications for the DNS Security Extens
 
 ## Figures
 
-- **MUST bar**: Ze proven 4, Proof pending 10, Not built 94
-- **Overview bar**: Ze MUST proven 4, Proof pending 10, Not assessed 50, Not built 94
+- **MUST bar**: Ze verified 4, Tests awaiting verification 10, Not built 94
+- **Overview bar**: Ze MUST verified 4, Tests awaiting verification 10, Not assessed 50, Not built 94
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: Protocol Modifications for the DNS Security Extens
 | Mandatory requirements complete | not complete |
 | MUST rows | 108 |
 | MUST rows kept (the MUST bar) | 108 |
-| Ze proven | 4 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Proof pending | 10 |
+| Tests awaiting verification | 10 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: Protocol Modifications for the DNS Security Extens
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 50 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 50 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc4035.json](../../../data/rfc/rfc4035.json).
 
@@ -420,9 +420,9 @@ Source: [data/rfc/rfc4035.json](../../../data/rfc/rfc4035.json).
 | [`RFC4035-5.5-2`](#rfc4035-5.5-2) If the validation was being done to service a recursive query, the name server MUST return RCODE 2 to the originating client. (ยง5.5) | {gap}, no test | unmet: ze never does validation to service a recursive query: internal/component/resolve/dns/resolver.go::dnssecDecision inspects the upstream rcode alone, with no signature check, trust-anchor store, DS chain or NSEC proof anywhere in ze, and internal/plugins/dnsresolver/forward.go::upstreamQuery asks every upstream with the DO bit clear; DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined |
 | [`RFC4035-5.5-3`](#rfc4035-5.5-3) However, it MUST return the full response if and only if the original query had the CD bit set. (ยง5.5) | {gap}, no test | ze runs no local validator (internal/component/resolve/dns/resolver.go::dnssecDecision inspects the upstream rcode alone, with no signature check, trust-anchor store, DS chain or NSEC proof anywhere in ze, and internal/plugins/dnsresolver/forward.go::upstreamQuery asks every upstream with the DO bit clear); DNSSEC signing and validation are post-release work (commit 5ff4834b67, plan/post-release/features/spec-dns-resolver-dnssec-validation.md), and are not declined |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC4035-2.1-2`](#rfc4035-2.1-2)
 
@@ -622,7 +622,7 @@ A security-aware name server that receives a DNS query that does not include the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. The second arm is now covered: TestRFC4035DOClearQueryGetsNoDNSSECProcessing sends A, DNSKEY, RRSIG and NSEC queries with an OPT whose DO is clear and asserts no RRSIG/NSEC/DNSKEY in any section and the same Answer/Authority counts as the OPT-less query (the OPT-less arm stays in rfc4035_server_test.go). The comparison is by count, not content; content differences would not be DNSSEC processing, so this does not weaken the proof. Record: answerQuestions revert observed red. {single-polarity} holds: geodns has no DNSSEC path to drive with DO set.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC4035DOClearQueryGetsNoDNSSECProcessing`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_do_clear_test.go#L37) | unit/verify | revert, verified |
 | positive | [`TestRFC4035_NoDNSSECAdditionalProcessing`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_server_test.go#L164) | unit/verify | revert, verified |
@@ -633,10 +633,10 @@ The CD bit is controlled by resolvers; a security-aware name server MUST copy th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-28 after b505e144ab changed the unit: the only edit drops the removed trailing nil onPanic argument from Authoritative(nil, answerOne); every query and assertion is unchanged (RFC-approved in that commit). Judgement unchanged: TestRFC4035_CDCopiedADIgnored drives the real dnsserver.Authoritative harness: a CD=1 query must draw CD=1 and a CD=0 query CD=0, so both an always-clear and an always-set implementation go red
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC4035_CDCopiedADIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc4035_test.go#L56) | unit/verify | unproven |
-| positive | [`TestRFC4035_CDCopiedADIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc4035_test.go#L51) | unit/verify | unproven |
+| negative | [`TestRFC4035_CDCopiedADIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc4035_test.go#L56) | unit/verify | not verified |
+| positive | [`TestRFC4035_CDCopiedADIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc4035_test.go#L51) | unit/verify | not verified |
 
 ### [`RFC4035-3-9`](#rfc4035-3-9)
 
@@ -644,10 +644,10 @@ The AD bit is controlled by name servers; a security-aware name server MUST igno
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-28 after b505e144ab changed the unit: the only edit drops the removed trailing nil onPanic argument from Authoritative(nil, answerOne); every query and assertion is unchanged (RFC-approved in that commit). Judgement unchanged: the negative asserts an AD=1 query draws a reply with AD clear through the real harness; the positive's answer-equality half runs over the answerOne test stub, which cannot vary, so the AD-echo assertion is the discriminating one
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC4035_CDCopiedADIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc4035_test.go#L69) | unit/verify | unproven |
-| positive | [`TestRFC4035_CDCopiedADIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc4035_test.go#L62) | unit/verify | unproven |
+| negative | [`TestRFC4035_CDCopiedADIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc4035_test.go#L69) | unit/verify | not verified |
+| positive | [`TestRFC4035_CDCopiedADIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/dnsserver/rfc4035_test.go#L62) | unit/verify | not verified |
 
 ### [`RFC4035-3.1-1`](#rfc4035-3.1-1)
 
@@ -807,10 +807,10 @@ In this case, the name server MUST return an authoritative "no data" response sh
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. an apex DS query through geodns answerQuery under the real harness must return NOERROR, AA set, empty Answer, SOA in Authority, and no RA; an NXDOMAIN or REFUSED answer at the apex goes red; the negative pins that the no-data answer is not given for an out-of-zone name
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC4035_DSQueryIsAuthoritativeNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_server_test.go#L112) | unit/verify | unproven |
-| positive | [`TestRFC4035_DSQueryIsAuthoritativeNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_server_test.go#L85) | unit/verify | unproven |
+| negative | [`TestRFC4035_DSQueryIsAuthoritativeNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_server_test.go#L112) | unit/verify | not verified |
+| positive | [`TestRFC4035_DSQueryIsAuthoritativeNoData`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_server_test.go#L85) | unit/verify | not verified |
 
 ### [`RFC4035-3.1.5-2`](#rfc4035-3.1.5-2)
 
@@ -866,9 +866,9 @@ A security-aware name server MUST NOT set the AD bit in a response unless the na
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single polarity: asserts AD clear on both the OPT-less and DO-set geodns replies, and ze authenticates nothing, so any AD-setting path goes red
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC4035_NoDNSSECAdditionalProcessing`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_server_test.go#L177) | unit/verify | unproven |
+| positive | [`TestRFC4035_NoDNSSECAdditionalProcessing`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_server_test.go#L177) | unit/verify | not verified |
 
 ### [`RFC4035-3.1.6-4`](#rfc4035-3.1.6-4)
 
@@ -876,9 +876,9 @@ A security-aware name server's local policy MAY consider data from an authoritat
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single polarity: geodns serves zone data from the running configuration, not obtained by secure means, and the unit asserts it is never flagged authentic (AD clear) on either reply
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC4035_NoDNSSECAdditionalProcessing`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_server_test.go#L179) | unit/verify | unproven |
+| positive | [`TestRFC4035_NoDNSSECAdditionalProcessing`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_server_test.go#L179) | unit/verify | not verified |
 
 ### [`RFC4035-3.1.6-5`](#rfc4035-3.1.6-5)
 
@@ -886,9 +886,9 @@ A security-aware name server's local policy MAY consider data from an authoritat
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single polarity: no configuration marks local data authentic, and the unit asserts AD clear on the geodns replies whatever the query's DO bit
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC4035_NoDNSSECAdditionalProcessing`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_server_test.go#L182) | unit/verify | unproven |
+| positive | [`TestRFC4035_NoDNSSECAdditionalProcessing`](https://github.com/ze-software/ze/blob/main/internal/plugins/geodns/rfc4035_server_test.go#L182) | unit/verify | not verified |
 
 ### [`RFC4035-3.1.6-6`](#rfc4035-3.1.6-6)
 
@@ -952,7 +952,7 @@ A security-aware resolver MUST include an EDNS ([RFC2671]) OPT pseudo-RR with th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 25a0665638: the tests build the resolver with Servers: []string{addr} instead of Server: addr, and Resolver.query now asks each server in turn through queryServer, which sets SetEdns0(4096, validating) on every query (resolver.go:418) and applies dnssecDecision to every answer. With one server the tagged units drive the same path. DO is still required set in permissive and strict. Annotation finding (not a verdict change): its resolver.go:261 reference is stale; SetEdns0 is now at resolver.go:418, in queryServer. Prior judgement: Re-judged 2026-09-30. TestRFC4035SecurityAwareQueryInEveryValidatingMode now runs permissive AND strict (the earlier strict-only finding): the query carries an OPT with DO set in both. Record: Resolver.query revert observed red. {single-polarity} holds: an emitted field with no input to refuse.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC4035SecurityAwareQueryInEveryValidatingMode`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_security_aware_test.go#L45) | unit/verify | revert, verified |
 | positive | [`TestRFC4035_QueryCarriesEDNS0DOAndClearAD`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L60) | unit/verify | revert, verified |
@@ -963,9 +963,9 @@ A security-aware resolver MUST support a message size of at least 1220 octets (ย
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC4035_LargeUDPResponseAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L116) | unit/verify | unproven |
+| positive | [`TestRFC4035_LargeUDPResponseAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L116) | unit/verify | not verified |
 
 ### [`RFC4035-4.1-4`](#rfc4035-4.1-4)
 
@@ -973,7 +973,7 @@ MUST use the "sender's UDP payload size" field in the EDNS OPT pseudo-RR to adve
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 25a0665638: the tests build the resolver with Servers: []string{addr} instead of Server: addr, and Resolver.query now asks each server in turn through queryServer, which sets SetEdns0(4096, validating) on every query (resolver.go:418) and applies dnssecDecision to every answer. With one server the tagged units drive the same path. 4096 is still required in both validating modes and the ~2900-octet answer must still arrive whole. Annotation finding (not a verdict change): its resolver.go:261 reference is stale; SetEdns0 is now at resolver.go:418, in queryServer. Prior judgement: Re-judged 2026-09-30. Same unit: 4096 advertised in both validating modes, and a ~2900-octet uncompressed UDP answer is accepted whole (all 110 records), tying the advertised size to what the receive path accepts (the earlier finding). Record: query revert observed red. {single-polarity} holds.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC4035SecurityAwareQueryInEveryValidatingMode`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_security_aware_test.go#L52) | unit/verify | revert, verified |
 | positive | [`TestRFC4035_QueryCarriesEDNS0DOAndClearAD`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L70) | unit/verify | revert, verified |
@@ -1040,9 +1040,9 @@ A security-aware resolver MUST clear the AD bit when composing query messages (ย
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC4035_QueryCarriesEDNS0DOAndClearAD`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L75) | unit/verify | unproven |
+| positive | [`TestRFC4035_QueryCarriesEDNS0DOAndClearAD`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L75) | unit/verify | not verified |
 
 ### [`RFC4035-4.6-3`](#rfc4035-4.6-3)
 
@@ -1050,7 +1050,7 @@ A resolver MUST disregard the meaning of the CD and AD bits in a response unless
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 25a0665638: the tests build the resolver with Servers: []string{addr} instead of Server: addr, and Resolver.query now asks each server in turn through queryServer, which sets SetEdns0(4096, validating) on every query (resolver.go:418) and applies dnssecDecision to every answer. With one server the tagged units drive the same path. A SERVFAIL refused by DNSSEC policy is not an unansweredError, so it is not passed to a next server; the AD/CD assertions are unchanged. Prior judgement: Re-judged 2026-09-30. Both bits now: under strict validation a NOERROR answer with AD=1 CD=1 yields exactly the records of the clear answer (a resolver requiring or honouring AD would differ), and SERVFAIL with AD, CD or both is refused, so no response bit lets a failure through. Records: query (+) and dnssecDecision (-) reverts observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC4035ResponseCDAndADBitsChangeNothing`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_security_aware_test.go#L103) | unit/verify | revert, verified |
 | negative | [`TestRFC4035_ResponseADBitDisregarded`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L159) | unit/verify | revert, verified |
@@ -1095,10 +1095,10 @@ A security-aware stub resolver MUST support the DNSSEC RR types, at least to the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 25a0665638: the tests build the resolver with Servers: []string{addr} instead of Server: addr, and Resolver.query now asks each server in turn through queryServer, which sets SetEdns0(4096, validating) on every query (resolver.go:418) and applies dnssecDecision to every answer. With one server the tagged units drive the same path. The A+RRSIG and DNSSEC-only assertions are unchanged. Prior judgement: an A+RRSIG answer must return exactly the A record and a DNSSEC-only answer (RRSIG, NSEC, DNSKEY) must yield no records and no error, so mishandling either way goes red
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC4035_StubHandlesDNSSECRRTypes`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L219) | unit/verify | unproven |
-| positive | [`TestRFC4035_StubHandlesDNSSECRRTypes`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L208) | unit/verify | unproven |
+| negative | [`TestRFC4035_StubHandlesDNSSECRRTypes`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L219) | unit/verify | not verified |
+| positive | [`TestRFC4035_StubHandlesDNSSECRRTypes`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L208) | unit/verify | not verified |
 
 ### [`RFC4035-4.9.1-2`](#rfc4035-4.9.1-2)
 
@@ -1106,9 +1106,9 @@ A validating security-aware stub resolver MUST set the DO bit (ยง4.9.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC4035_QueryCarriesEDNS0DOAndClearAD`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L62) | unit/verify | unproven |
+| positive | [`TestRFC4035_QueryCarriesEDNS0DOAndClearAD`](https://github.com/ze-software/ze/blob/main/internal/component/resolve/dns/rfc4035_test.go#L62) | unit/verify | not verified |
 
 ### [`RFC4035-4.9.3-2`](#rfc4035-4.9.3-2)
 

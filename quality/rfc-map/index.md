@@ -6,10 +6,10 @@ The interactive graph is available on the [RFC map page](./).
 
 ## Recorded inputs
 
-RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: `51144d53e07356fa6544ec134b5775362ef3b249`. These inputs do not certify one release candidate.
+RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: `637f9c8f0baab8d688a823b1d333b99cf213f99a`. These inputs do not certify one release candidate.
 
-- RFC requirement ledger: `data/rfc-requirements.json`, SHA-256 `4c14987c62174d8008d6b579d733c62cdfd9e101ec2821ed00ec2704da91cd26`
-- Committed spec roadmap: `data/release-roadmap.json`, SHA-256 `6d37d3c96254ac403e04eda999155748a5787ed91055970907eda2e685b6035f`, revision `51144d53e07356fa6544ec134b5775362ef3b249`
+- RFC requirement ledger: `data/rfc-requirements.json`, SHA-256 `6338efdb4937be42e586823edb10bb23700803c639d734bba387692b1f5d9a56`
+- Committed spec roadmap: `data/release-roadmap.json`, SHA-256 `234b70f5fa71a12893a5b4162ed6f23a9a687345ae34a7b1dee6500a67248254`, revision `637f9c8f0baab8d688a823b1d333b99cf213f99a`
 - Proposed release layers: `website/data/rfc-release-layers.json`, SHA-256 `4718bc1578afc15183efee2fcbadd9f52ed5434b4fb57eeb61b980dbd928ac68`
 
 ## Proposed release layers

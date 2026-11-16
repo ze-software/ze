@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 4 | of 9 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 4 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 4 | of 9 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 4 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 21 | 21 of 25 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 21 | 21 of 25 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 9 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 9 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 9 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 9 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 9 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 9 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 9 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: IS-IS Generic Cryptographic Authentication (HMAC-S
 
 **Area:** IS-IS generic crypto authentication
 
-**Proof:** 6 of 9 MUST proven
+**Test verification:** 6 of 9 MUST proven
 
 **Evidence:** unit 6
 
@@ -108,7 +108,7 @@ Included in automatic checks: IS-IS Generic Cryptographic Authentication (HMAC-S
 | Annotated (including scoped evidence) | 5 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **9** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: IS-IS Generic Cryptographic Authentication (HMAC-S
 
 ## Figures
 
-- **MUST bar**: Ze proven 6, Proof pending 2, Not built 1
-- **Overview bar**: Ze MUST proven 6, SHOULD proven 1, Proof pending 2, Not assessed 2, Not built 1
+- **MUST bar**: Ze verified 6, Tests awaiting verification 2, Not built 1
+- **Overview bar**: Ze MUST verified 6, SHOULD verified 1, Tests awaiting verification 2, Not assessed 2, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: IS-IS Generic Cryptographic Authentication (HMAC-S
 | Mandatory requirements complete | not complete |
 | MUST rows | 9 |
 | MUST rows kept (the MUST bar) | 9 |
-| Ze proven | 6 |
+| Ze verified | 6 |
 | OS verified | 0 |
-| Proof pending | 2 |
+| Tests awaiting verification | 2 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: IS-IS Generic Cryptographic Authentication (HMAC-S
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 3 |
-| SHOULD proven | 1 |
+| SHOULD verified | 1 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 2 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5310.json](../../../data/rfc/rfc5310.json).
 
@@ -180,9 +180,9 @@ Source: [data/rfc/rfc5310.json](../../../data/rfc/rfc5310.json).
 |---|---|---|
 | [`RFC5310-3.2-6`](#rfc5310-3.2-6) Implementations that support the optional checksum for the Sequence Number PDUs and IS-IS HELLO PDUs MUST NOT include the Checksum TLV. (§3.2) | {gap}, no test | gap in proof: internal/plugins/isis/packet/tlv.go meets it, since ze implements no optional Checksum TLV (TLV 12) codec, so no SNP or IIH it builds carries one; no test asserts it |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC5310-3.2-1`](#rfc5310-3.2-1)
 
@@ -190,7 +190,7 @@ When calculating the CRYPTO_AUTH result for Sequence Number PDUs, Level 1 Sequen
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Now drives Level 1 SNPs, not LSPs. TestRFC5310Level1SNPUsesAreaString: signLevelPDU signs an L1 CSNP and PSNP that verify with areasecret under Key ID 1 and not with domainsecret under the same Key ID, and verifyFrame accepts them. TestRFC5310Level1SNPRefusesOtherStrings: the same CSNP/PSNP signed with the domain or link string, under Key ID 1 and under that string's own Key ID (2, 3), is rejected by verifyFrame while the area-signed copy is accepted, so a receiver that tried every configured chain goes red. Recorded red on signLevelPDU and verifyFrame.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5310Level1SNPRefusesOtherStrings`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L66) | unit/verify | revert, verified |
 | positive | [`TestRFC5310Level1SNPUsesAreaString`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L49) | unit/verify | revert, verified |
@@ -201,10 +201,10 @@ Level 2 Sequence Number PDUs shall use the domain authentication string, as in L
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestISISAuthLevelChainCrossUseL2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L270) | unit/verify | unproven |
-| positive | [`TestISISAuthEngineSignLevel`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L112) | unit/verify | unproven |
+| negative | [`TestISISAuthLevelChainCrossUseL2`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L270) | unit/verify | not verified |
+| positive | [`TestISISAuthEngineSignLevel`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_wiring_test.go#L112) | unit/verify | not verified |
 
 ### [`RFC5310-3.2-3`](#rfc5310-3.2-3)
 
@@ -212,7 +212,7 @@ IS-IS HELLO PDUs SHALL use the Link Level Authentication string (§3.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC5310HelloUsesLinkString: signHelloPDU signs a LAN and a P2P IIH that verify with iihsecret under Key ID 3 and not with areasecret under Key ID 3, and verifyFrame accepts them, so a sender using the area chain goes red. TestRFC5310HelloRefusesAreaAndDomainStrings: the IIHs signed with the area or domain string, under Key ID 3 and under their own Key IDs (1, 2), are rejected while the link-signed IIH is accepted. Recorded red on signHelloPDU and verifyFrame. The old self-consistent round trip and no-TLV-10 tags are gone.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5310HelloRefusesAreaAndDomainStrings`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L103) | unit/verify | revert, verified |
 | positive | [`TestRFC5310HelloUsesLinkString`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L86) | unit/verify | revert, verified |
@@ -223,7 +223,7 @@ The CRYPTO_AUTH result for the IS-IS HELLO PDUs SHALL be calculated after the PD
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity positive (no sign-before-pad path, no padding-disable option). Both IIH producers are now asserted: circuit TestISISHelloSignedOverPaddedPDU on the LAN IIH (sendLANHello) and TestRFC5310P2PHelloSignedOverPaddedPDU on the point-to-point IIH (sendP2PHello), each capturing the bytes handed to the CRYPTO_AUTH signer and requiring length MTU - LLC with Padding TLV 8 present, so signing before padding on either path goes red. Recorded + on hello.go padHello for the P2P unit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC5310P2PHelloSignedOverPaddedPDU`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L159) | unit/verify | revert, verified |
 | positive | [`TestISISHelloSignedOverPaddedPDU`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L72) | unit/verify | revert, verified |
@@ -242,10 +242,10 @@ An implementation MUST fill the authentication type and the length before the au
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity positive. (a) forbidden: computing the digest before the auth-type byte and TLV length are in place; (b) TestISISAuthHMACSHAApadPreimage recomputes HMAC-SHA-256 over the signed PDU (which carries the final type 3 byte and length) with the data region Apad-filled and asserts bytes.Equal(onWire, wantApad): a digest computed over a pre-image lacking the type or length differs and goes red. TestISISAuthSignVerifyHMACSHA256 pins AuthType 3 and value length 34 on every PDU class.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestISISAuthHMACSHAApadPreimage`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L234) | unit/verify | unproven |
-| positive | [`TestISISAuthSignVerifyHMACSHA256`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L161) | unit/verify | unproven |
+| positive | [`TestISISAuthHMACSHAApadPreimage`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L234) | unit/verify | not verified |
+| positive | [`TestISISAuthSignVerifyHMACSHA256`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L161) | unit/verify | not verified |
 
 ### [`RFC5310-3.4-2`](#rfc5310-3.4-2)
 
@@ -253,7 +253,7 @@ The authentication data for the IS-IS IIH PDUs MUST be computed after the IS-IS 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Same units as RFC5310-3.2-5: the LAN IIH (TestISISHelloSignedOverPaddedPDU) and the point-to-point IIH (TestRFC5310P2PHelloSignedOverPaddedPDU) are both handed to the signer already padded to MTU - LLC with Padding TLV 8, so authentication data computed before padding on either producer goes red. Single-polarity positive per the row. Recorded + on padHello.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC5310P2PHelloSignedOverPaddedPDU`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/rfc5303_sent_iih_test.go#L161) | unit/verify | revert, verified |
 | positive | [`TestISISHelloSignedOverPaddedPDU`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/runtime_test.go#L75) | unit/verify | revert, verified |
@@ -264,7 +264,7 @@ This document states that the remaining lifetime of the LSP MUST be set to zero 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity positive, now on the CRYPTO_AUTH path. New TestRFC5310LifetimeNotAuthenticated signs an LSP with HMAC-SHA-256 (type 3, Key ID 7), sets the Remaining Lifetime to 1, 600 and 0xFFFF with the Fletcher checksum recomputed, and requires VerifyPDU to accept each; a digest that covered the lifetime (lspAuthLayout not zeroing it) goes red. A changed sequence number is refused, so an accept-all verifier also goes red. Recorded red on auth_sign.go lspAuthLayout. The {single-polarity} marker holds (no lifetime-included path exists to refuse). Its prose still names TestISISAuthRotationOverlapAccepts, whose tag was removed: stale annotation text, not a coverage gap.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestISISAuthLSPChecksumAfterSign`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L391) | unit/verify | revert, verified |
 | positive | [`TestRFC5310LifetimeNotAuthenticated`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc5310_auth_lifetime_test.go#L17) | unit/verify | revert, verified |
@@ -275,7 +275,7 @@ To ensure greater security, the keys used should be changed periodically, and im
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge) on its positives, per the main-thread decision following the owner's BFD RFC5880-6.1-3 ruling (a capability MUST with no refusal path is proven by its positives). Every clause is proven: STORE more than one key, root TestISISAuthRotation requires verifyKeys to return both keys (len 2) before and after the send rollover; USE more than one key at the same time, packet TestISISAuthRotationOverlapAccepts verifies a PDU signed by either of two candidate keys, and root TestRFC5310NonSendingKeyStillUsed verifies with an accepted key that is not the sending key, while signKey moves from key 1 to key 2 in TestISISAuthRotation. Each fails with a one-key store (keys[:1] fails the new-key verify; a single-entry store fails len 2). Records: + revert acceptKeys (TestISISAuthRotation), + revert VerifyPDU (TestISISAuthRotationOverlapAccepts, recorded by this judge), - revert acceptKeys (TestRFC5310NonSendingKeyStillUsed). The negative tag on TestRFC5310NonSendingKeyStillUsed is kept as supplementary because the coverage ratchet holds it: it is a further positive, not a rejected violation, and no input drives the store toward one key.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5310NonSendingKeyStillUsed`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc5310_auth_scope_test.go#L122) | unit/verify | revert, verified |
 | positive | [`TestISISAuthRotationOverlapAccepts`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L662) | unit/verify | revert, verified |
@@ -287,7 +287,7 @@ The calculated data is compared with the received authentication data in the PDU
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 after the D-8 (R41) fix: verifyFrame now logs a Warn (RFC 5310 sec 3.5 quoted above it), rate-limited to one line per interface and level per 10 s by auth_warn.go authWarnLimiter, with the suppressed count on the next line; every failure still increments ze_isis_auth_failures_total. Both clauses now held. Discard: root TestRFC1195InvalidAuthLSPDiscardedAtReceive, TestRFC5310MismatchLogsAnErrorEvent and TestRFC5310MismatchWarnsRateLimited deliver the matching HMAC-SHA-256 L1 LSP and drop the one-octet-altered copy before the handler; packet TestISISAuthWrongKeyRejected and TestISISAuthKeyIDMismatchRejected refuse at VerifyPDU. Error event: TestRFC5310MismatchWarnsRateLimited runs the logger at Info (Debug hidden) and requires a WARN line naming level=l1 and the neighbor SNPA on the first mismatch, none 1 s later, and a second line with suppressed=1 after the interval (positive); the matching LSP logs no WARN (negative). A regression to Debug goes red at the assertion. Recorded + on auth_warn.go allow, - on verifyFrame.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195InvalidAuthLSPDiscardedAtReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_discard_rfc1195_test.go#L30) | unit/verify | revert, verified |
 | negative | [`TestISISAuthKeyIDMismatchRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L683) | unit/verify | revert, verified |

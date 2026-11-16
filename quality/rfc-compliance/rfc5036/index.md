@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 29 | of 91 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3 | of 91 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 29 | of 91 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 91 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 91 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 91 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 57 | 57 of 64 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 91 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 57 | 57 of 64 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 91 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 91 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 91 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 91 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 91 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 91 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 91 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: LDP Specification
 
 **Area:** LDP
 
-**Proof:** 29 of 91 MUST proven
+**Test verification:** 29 of 91 MUST proven
 
 **Evidence:** unit 29
 
@@ -109,7 +109,7 @@ Included in automatic checks: LDP Specification
 | Annotated (including scoped evidence) | 62 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **91** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: LDP Specification
 
 ## Figures
 
-- **MUST bar**: Ze proven 29, Proof pending 3, Not built 59
-- **Overview bar**: Ze MUST proven 29, Proof pending 3, Not assessed 3, Not built 60
+- **MUST bar**: Ze verified 29, Tests awaiting verification 3, Not built 59
+- **Overview bar**: Ze MUST verified 29, Tests awaiting verification 3, Not assessed 3, Not built 60
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: LDP Specification
 | Mandatory requirements complete | not complete |
 | MUST rows | 91 |
 | MUST rows kept (the MUST bar) | 91 |
-| Ze proven | 29 |
+| Ze verified | 29 |
 | OS verified | 0 |
-| Proof pending | 3 |
+| Tests awaiting verification | 3 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: LDP Specification
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 4 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 3 |
 | SHOULD not built | 1 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5036.json](../../../data/rfc/rfc5036.json).
 
@@ -323,9 +323,9 @@ Source: [data/rfc/rfc5036.json](../../../data/rfc/rfc5036.json).
 | [`RFC5036-A.1.7-1`](#rfc5036-a.1.7-1) Regardless of the Label Request procedure in use by the LSR, it MUST send a label request if the conditions in NH.13 hold (§A.1.7) | {gap}, no test | ze runs Downstream Unsolicited only; the Label Request, Release and Abort path is absent; plan/spec-ldp-label-request-path.md |
 | [`RFC5036-A.1-1`](#rfc5036-a.1-1) The requirement on an LDP implementation is that its event handling must have the effect specified by the algorithms. That is, an implementation need not follow exactly the steps specified by the algorithms as long as the effect is identical. (§A.1) | {gap}, no test | ze implements the Downstream Unsolicited, liberal-retention, independent-control subset and none of the Label Request, Release or Abort algorithms; plan/spec-ldp-label-request-path.md |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC5036-x-1`](#rfc5036-x-1)
 
@@ -333,10 +333,10 @@ Two octet unsigned integer containing the version number of the protocol. This v
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC5036PDUVersionOneAccepted reads the PDU header SendInit emits and checks Version 1, and decodes a Version 1 header; TestRFC5036PDUVersionOtherRejected checks versions 0, 2 and 65535 are refused by decodePDUHeader and that processDiscoveryPacket forms no adjacency from a version 2 Hello.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5036PDUVersionOtherRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L162) | unit/verify | unproven |
-| positive | [`TestRFC5036PDUVersionOneAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L135) | unit/verify | unproven |
+| negative | [`TestRFC5036PDUVersionOtherRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L162) | unit/verify | not verified |
+| positive | [`TestRFC5036PDUVersionOneAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L135) | unit/verify | not verified |
 
 ### [`RFC5036-x-2`](#rfc5036-x-2)
 
@@ -344,10 +344,10 @@ This field is reserved. It MUST be set to zero on transmission and ignored on re
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC5036HelloReservedBitsZeroOnTransmit checks the 14 reserved bits of the Common Hello Parameters TLV are zero from EncodeHello for all four T/R combinations; TestRFC5036HelloReservedBitsIgnoredOnReceipt sets every reserved bit and checks DecodeHello reads neither T nor R nor a changed hold time.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5036HelloReservedBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L209) | unit/verify | unproven |
-| positive | [`TestRFC5036HelloReservedBitsZeroOnTransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L187) | unit/verify | unproven |
+| negative | [`TestRFC5036HelloReservedBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L209) | unit/verify | not verified |
+| positive | [`TestRFC5036HelloReservedBitsZeroOnTransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L187) | unit/verify | not verified |
 
 ### [`RFC5036-x-3`](#rfc5036-x-3)
 
@@ -355,10 +355,10 @@ Two octet unsigned integer containing the version number of the protocol. This v
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC5036InitProtocolVersionOne reads the Initialization SendInit emits and checks Protocol Version 1, and drives processMessages to operational on version 1; TestRFC5036InitProtocolVersionOtherRejected checks versions 0, 2 and 65535 draw the Bad Protocol Version Notification, errBadVersion and no operational state. Re-judged 2026-10-02 (c29 judge): since the RULINGS R4 fix an accepted Initialization takes OPENSENT to OPENREC and only the peer's KeepAlive makes the session operational (RFC 5036 2.5.4), so the unit now appends the peer's KeepAlive to the PDU before asserting operational; the assertion is unchanged, and a rejected or unaccepted Initialization still fails it (processMessages errors before the KeepAlive, and keepaliveReceived refuses without initAccepted).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036InitProtocolVersionOtherRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L266) | unit/verify | revert, verified |
-| positive | [`TestRFC5036InitProtocolVersionOne`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L232) | unit/verify | unproven |
+| positive | [`TestRFC5036InitProtocolVersionOne`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L232) | unit/verify | not verified |
 
 ### [`RFC5036-2.5.1-1`](#rfc5036-2.5.1-1)
 
@@ -366,7 +366,7 @@ After the connection is established, if LSR1 is playing the active role, it init
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. The positive now drives runSession, the function startSessionForAdj runs on the connection ze dialed (ze is always the active LSR), with a silent peer: the first PDU on the wire must be ze's Initialization, carrying ze's LDP Identifier in the header and the peer's as receiver. It fails if runSession stops sending the Initialization, sends something else first, or waits for the peer (observed red with runSession broken). The negative is a consequence guard rather than a violating input: a session that never sent its own Initialization does not go operational on the peer's. The passive-role clause of the same RFC sentence is outside this row and recorded as a gap on RFC5036-2.5.1-3.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036SessionNotOperationalWithoutOwnInit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L437) | unit/verify | revert, verified |
 | positive | [`TestRFC5036ActiveRoleInitiatesNegotiation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L98) | unit/verify | revert, verified |
@@ -377,7 +377,7 @@ An LSR MUST arrange that its peer receive an LDP message from it at least every 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-15 after 22be149a08 changed runSession: its last statement now hands a non-nil end error to reportSessionEnd (problems.go), which logs INFO for a session ze stopped and otherwise raises doctor-ldp-session-ended and logs WARN; a nil issue queue (tests) yields ErrNotStarted, never a panic. It runs after Start returns, so the KeepAlive sender goroutine (waits on accepted, re-reads currentKeepalive()/3 each cycle, re-arms on KeepaliveChanged, SendKeepalive on each tick), the accepting KeepAlive in the on-init callback, the defer order and handleInit are unchanged, and both tagged units are byte-identical (the sessionparams file changed only in the helloTransportAddr helper, which the negative does not call). RFC 5036 Section 3.5.4.1: "An LSR MUST arrange that its peer receive an LDP message from it at least every KeepAlive Time period." Positive: runSession to operational with both sides at 1s and an empty LIB; each of the next three PDUs must be a KeepAlive and each gap at most 1s; the peer feeds ze's 1s KeepAlive Timer, which removes no assertion. Negative (dual-tagged with RFC5036-3.5.4.1-1): TestRFC5036KeepalivePacingFollowsNegotiatedTime has ze propose 60s and the peer 1s, then requires each of the next three PDUs within 1s of the previous; type is unchecked, which the row allows (any LDP message will do), and a sender pacing from the 60s proposal fails it. Row-quality: the first sentence duplicates RFC5036-3.5.4.1-1 verbatim.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036KeepalivePacingFollowsNegotiatedTime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L406) | unit/verify | revert, verified |
 | positive | [`TestRFC5036KeepalivesSentPeriodically`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L533) | unit/verify | revert, verified |
@@ -404,7 +404,7 @@ The receiving LSR MUST calculate the value of the KeepAlive Timer by using the s
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 after the units changed. TestRFC5036KeepaliveNegotiationAdoptsLower (ours 60s, peer 20s) and TestRFC5036KeepaliveNegotiationRefusesHigher (ours 30s, peer 180s) call the production handleInit and assert, in both directions, the negotiated KeepAlive Time (currentKeepalive) and the armed KeepAlive Timer (currentHoldTime, the holdTime field ReadLoop takes as its read deadline) equal the smaller value: 20s and 30s. A timer armed at a multiple of the negotiated time, or at either proposal regardless of size, fails one of the two. The tests read the field; they do not observe ReadLoop's deadline firing.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036KeepaliveNegotiationRefusesHigher`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L490) | unit/verify | revert, verified |
 | positive | [`TestRFC5036KeepaliveNegotiationAdoptsLower`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L470) | unit/verify | revert, verified |
@@ -415,7 +415,7 @@ Two octet unsigned non zero integer that indicates the number of seconds that th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-15 after 22be149a08 changed processMessages: the only change is in the received-Notification branch with the fatal bit set, which now logs at INFO instead of WARN and returns errPeerFatalNotification wrapped with the status and the referred message type. The Initialization case's KeepAlive Time zero check (initMsg.KeepaliveTime == 0 -> rejectInit(statusSessionRejectedBadKeepaliveTime, msgHdr.MessageID, errBadKeepaliveTime)), handleInit and both tagged units are byte-identical, so the judgement stands. RFC 5036 Section 3.5.3, KeepAlive Time: "Two octet unsigned non zero integer that indicates the number of seconds that the sending LSR proposes for the value of the KeepAlive Time." Negative: KeepAlive Time 0 yields Session Rejected/Bad KeepAlive Time referring to message id 7 of type Initialization, errBadKeepaliveTime (isolates this check), non-operational state, non-zero hold and keepalive. Positive: a 30s proposal plus the peer's KeepAlive reaches operational with negotiated and armed KeepAlive 30s and no Notification within 200ms.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036InitZeroKeepaliveTimeRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L365) | unit/verify | revert, verified |
 | positive | [`TestRFC5036InitNonZeroKeepaliveTimeAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L327) | unit/verify | revert, verified |
@@ -434,7 +434,7 @@ If LSR1 receives an Initialization message, it checks whether the session parame
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: through runSession in the active role, an acceptable peer Initialization (KeepAlive Time 30) is answered by a KeepAlive as the next PDU, and the peer's own KeepAlive then makes the session operational (awaitOperational; RFC 5036 2.5.4 OPENSENT -> OPENREC -> OPERATIONAL since the c29 R4 fix). Negative: nothing follows ze's Initialization for 300ms while the peer has sent none (the pre-fix unconditional establishment KeepAlive fails here, observed red against HEAD register.go), and an unacceptable Initialization (KeepAlive Time 0) draws a Notification, never a KeepAlive, and no operational state. The recorded break for the negative is rejectInit; the silence half was confirmed red by the judge with HEAD runSession overlaid. Re-judged 2026-10-02 (c29 judge): only the positive's tail changed, from an immediate operational check to the peer KeepAlive plus the same operational assertion.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036ActiveRoleNoKeepAliveWithoutAcceptableInit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L159) | unit/verify | revert, verified |
 | positive | [`TestRFC5036ActiveRoleAcceptableInitAnsweredWithKeepAlive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L129) | unit/verify | revert, verified |
@@ -445,7 +445,7 @@ If the session parameters are unacceptable, LSR1 sends a Session Rejected/Parame
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: through runSession, an Initialization with KeepAlive Time 0 draws Session Rejected/Bad KeepAlive Time (0x80000018, a Session Rejected parameters code of RFC 5036 section 3.9) naming the Initialization's id and type, then end of file on the peer end, and no operational state. The second case (Protocol Version 2) draws Bad Protocol Version, which section 3.5.1.2.1 names rather than a Session Rejected code; it proves the close, not this row's status code. Negative: an acceptable Initialization draws a KeepAlive and the connection stays open for a periodic KeepAlive. Only KeepAlive Time and Protocol Version are refusable today; Max PDU Length and advertisement-mode refusals are never owed by ze's acceptance rules.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036ActiveRoleAcceptableInitKeepsConnection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L242) | unit/verify | revert, verified |
 | positive | [`TestRFC5036ActiveRoleUnacceptableInitRejectedAndClosed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_establishment_test.go#L192) | unit/verify | revert, verified |
@@ -464,7 +464,7 @@ If LSR1 receives a KeepAlive message, LSR2 has accepted its proposed session par
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC5036 section 2.5.3 item 2.c: the live OpenReceivedKeepAliveEstablishesSession test first proves OPENREC after acceptable Initialization, then requires Operational on peer KeepAlive and timeout-only wire silence. OpenReceivedWaitsForPeerKeepAlive instead withholds that message, requires timeout (not EOF), and pins OPENREC. Reviewed processMessages, handleInit, keepaliveReceived, ReadLoop and runSession; acceptance is not inferred from TCP connect.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036OpenReceivedWaitsForPeerKeepAlive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L39) | unit/verify | revert, verified |
 | positive | [`TestRFC5036OpenReceivedKeepAliveEstablishesSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L13) | unit/verify | revert, verified |
@@ -475,7 +475,7 @@ When LSR1 has received both an acceptable Initialization message and a KeepAlive
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. The live positive requires acceptable Initialization followed by peer KeepAlive before Operational. Independent negative controls withhold KeepAlive or send it before any peer Initialization. The latter now requires fatal Shutdown 0x8000000a referencing KeepAlive 9, EOF and no recorded SessionUp after joining the worker; it no longer blesses premature KeepAlive silence. The former requires OPENREC and timeout-only silence. These distinguish both required peer messages.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036KeepAliveWithoutPeerInitializationNeverEstablishes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L56) | unit/verify | revert, verified |
 | negative | [`TestRFC5036OpenReceivedWaitsForPeerKeepAlive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L41) | unit/verify | revert, verified |
@@ -487,7 +487,7 @@ OPENREC Receive KeepAlive msg OPERATIONAL Receive Any other LDP msg NON EXISTENT
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently rejudged after the quotation-ending prose period changed TestRFC5036OpenReceivedOtherMessageRejected. RFC 5036 Section 2.5.4 says: "Note that a Shutdown message is implemented as a Notification message with a Status TLV indicating a fatal error." Its OPENREC table requires KeepAlive -> OPERATIONAL and any other LDP message -> NON EXISTENT with Error Notification and transport close (rfc/full/rfc5036.txt:884-927). Section 3.5.1.1 says: "When an LSR receives a Shutdown message during session initialization, it SHOULD transmit a Shutdown message and then close the transport connection." Section 2.5.3 also overrides message U-bit handling before establishment (lines 847-853). Q1 yes: the two tagged carriers assert these two table branches, not merely the implementation's current error return. Q2 yes by source analysis: TestRFC5036OpenReceivedOtherMessageRejected delegates to testInitializationOtherMessageRejected, whose twelve non-KeepAlive cases demand Notification/Status TLV, exact fatal Shutdown 0x8000000a, offending message ID/type, then actual EOF before test cleanup; after the worker exits they demand no SessionUp, no Operational state and no installed Mapping or Address. Removing refusal, sending another status, silently closing, or leaving the transport open fails an assertion. TestRFC5036OpenReceivedKeepAliveEstablishesSession requires OPENREC after the live Initialization exchange, then exact Operational state after a valid peer KeepAlive and timeout-only silence, which rejects data and EOF. Q3 yes: complete version-1 PDUs reach the type guard; Mapping, Address, Address Withdraw, Initialization and Shutdown have structured bodies, while other complete message headers deliberately exercise type rejection before body decoding. The guard in internal/plugins/ldp/session.go::processMessages (lines 457-495) precedes decoding and dispatch; body errors cannot satisfy the required Shutdown/referring-message/EOF combination, and unknown U=0/U=1 cannot bypass it. Q4 yes for this whole checklist row: both KeepAlive acceptance and all non-KeepAlive type classes, including Shutdown and both unknown U bits, are exercised. These are distinct polarity assertions: repository positive labels the refusal obligation's non-KeepAlive trigger, while negative is a genuinely conforming KeepAlive control, not a second malformed input. Producer chain: processMessages calls sendNotification and returns the rejection; ReadLoop propagates it; internal/plugins/ldp/register.go::runSession defers Session.Stop, whose close resets StateNonExistent. keepaliveReceived implements the accepted transition; handleInit establishes OPENREC and initAccepted. internal/plugins/ldp/wire.go::encodeNotification encodes the asserted status and offending reference. Test sources: internal/plugins/ldp/rfc5036_openrec_test.go:13-37,89-97,108-213; helpers readNotificationStatus, expectClosed, expectSilence and runSessionForTest were read. Existing discrimination records name keepaliveReceived for the negative carrier and processMessages for the positive carrier; their whole-producer panic breaks prove sensitivity only to those breaks, not each clause independently. No new execution or fingerprint calculation was performed in this audit; parent owns the already-queued positive-carrier native renewal. No whole-RFC or adjacent gap closure is claimed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036OpenReceivedKeepAliveEstablishesSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L17) | unit/verify | revert, verified |
 | positive | [`TestRFC5036OpenReceivedOtherMessageRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L89) | unit/verify | revert, verified |
@@ -498,7 +498,7 @@ OPENSENT Receive acceptable OPENREC Initialization msg Action: Transmit KeepAliv
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. OPENSENT common guard in Session.processMessages accepts only Initialization. OpenSentOtherMessageRejected uses twelve other types including KeepAlive, valid Shutdown/Mapping/Address and both unknown U bits; requires fatal Shutdown with offending reference, EOF, no SessionUp and no applied mapping/address. The live acceptable Initialization control requires a KeepAlive response and OPENREC, then peer KeepAlive reaches Operational without Notification or close (strict timeout). This judges both complete table branches, not solely non-establishment.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036OpenReceivedKeepAliveEstablishesSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L19) | unit/verify | revert, verified |
 | positive | [`TestRFC5036OpenSentOtherMessageRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_openrec_test.go#L101) | unit/verify | revert, verified |
@@ -509,7 +509,7 @@ Timeout NON EXISTENT Action: Transmit Shutdown msg and close transport connectio
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestReadLoopKeepaliveTrafficRestartsTimer`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_keepalive_expiry_test.go#L286) | unit/verify | revert, verified |
 | positive | [`TestReadLoopKeepaliveExpirySendsFatalNotification`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_keepalive_expiry_test.go#L260) | unit/verify | revert, verified |
@@ -521,10 +521,10 @@ A value of 0 means use the default, which is 15 seconds for Link Hellos and 45 s
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC5036HelloHoldTimeZeroUsesDefault checks Hold Time 0 keeps the adjacency with 15s for a Link Hello and 45s for a Targeted Hello and not expired; TestRFC5036HelloHoldTimeNonZeroNotDefaulted checks non-zero values below and above the default are used as sent.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5036HelloHoldTimeNonZeroNotDefaulted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L636) | unit/verify | unproven |
-| positive | [`TestRFC5036HelloHoldTimeZeroUsesDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L596) | unit/verify | unproven |
+| negative | [`TestRFC5036HelloHoldTimeNonZeroNotDefaulted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L636) | unit/verify | not verified |
+| positive | [`TestRFC5036HelloHoldTimeZeroUsesDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L596) | unit/verify | not verified |
 
 ### [`RFC5036-2.5.1-4`](#rfc5036-2.5.1-4)
 
@@ -564,7 +564,7 @@ An LSR MUST throttle its session setup retry attempts with an exponential backof
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036SetupRetryRefusedInsideDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L346) | unit/verify | revert, verified |
 | positive | [`TestRFC5036SetupRetryBackoffGrows`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L322) | unit/verify | revert, verified |
@@ -575,7 +575,7 @@ The session establishment setup attempt following a NAK'd Initialization message
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036SetupRetryRefusedInsideDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L348) | unit/verify | revert, verified |
 | positive | [`TestRFC5036SetupRetryBackoffGrows`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L324) | unit/verify | revert, verified |
@@ -586,7 +586,7 @@ An LSR MUST advertise the same transport address in all Hellos that advertise th
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036HelloTransportAddressNeverFollowsTheSocket`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L509) | unit/verify | revert, verified |
 | positive | [`TestRFC5036HellosCarryOneTransportAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L491) | unit/verify | revert, verified |
@@ -597,7 +597,7 @@ For each FEC for which the LSR is not the egress and no mapping exists, the LSR 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 under ruling R40. Forbidden: mapping a non-egress FEC with no existing mapping, and passing its label upstream, before a label from the downstream LSR arrives. TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel holds the negative: a non-egress FEC with only a third-party binding is not mapped and no label is sent upstream. TestRFC5036EgressFECMappedWithoutWaiting is the positive: the wait binds only non-egress FECs, so the egress FEC is mapped at once, and an implementation that refused every mapping goes red. The sentence is a prohibition; mapping a transit FEC once the downstream label arrives is not an obligation of this sentence, and transit mapping remains a Support-remaining gap of rfc5036. Re-read 2026-10-23: the positive unit now binds the egress FEC through mustEnsureLocal because LIB.EnsureLocal returns an error on label exhaustion; the assertions are unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L500) | unit/verify | revert, verified |
 | positive | [`TestRFC5036EgressFECMappedWithoutWaiting`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L471) | unit/verify | revert, verified |
@@ -768,7 +768,7 @@ The first four octets identify the LSR and MUST be a globally unique value. (§3
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-15 after 22be149a08 changed the positive TestRFC5036DistinctLSRIDFormsAdjacency: sendHello lost its logger and now returns the write error, and the test fails at once on it (approved by a ze-test-judge); before, a failed write was only logged at Debug and surfaced later as the read timeout, so no assertion was removed and the failure is now attributed to its cause. RFC 5036 Section 3.1: "The first four octets identify the LSR and MUST be a globally unique value." Global uniqueness is an operator property; what ze owns is that every LDP Identifier it sends carries the configured lsr-id and that it refuses its own identifier from the wire. Positive: a distinct-LSR Hello forms the adjacency, and the headers of the Hello sendHello puts on a real UDP socket and of the Initialization runSession sends on a session built by sessionConfigForAdj both carry the engine's 192.0.2.77. Negative (unit unchanged): a Hello carrying ze's own LSR ID forms no adjacency and fires no callback; processDiscoveryPacket's own-LSR-ID return precedes the new discard counting and is unchanged.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036OwnLSRIDFormsNoAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L441) | unit/verify | revert, verified |
 | positive | [`TestRFC5036DistinctLSRIDFormsAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L373) | unit/verify | revert, verified |
@@ -779,7 +779,7 @@ Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be retur
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 at HEAD 137c2dcfcf by an auditor who did not author dfe4e3aa8d. RFC 5036 Section 3.3: "Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored; if U is set (=1), the unknown TLV MUST be silently ignored and the rest of the message processed as if the unknown TLV did not exist." dfe4e3aa8d replaced errors.As into an otherwise unused *unknownTLVError with errors.AsType[*unknownTLVError], the same assertion over the same DecodeInit input. TestLDPInitUnknownTLVUClearNotifies: an Initialization whose second TLV is an unregistered type with U=0; DecodeInit must refuse with unknownTLVError, processMessages must answer an Unknown TLV Notification referring to message 7 of type Initialization, return nil, and leave the session in OpenSent, which is both clauses of the U=0 half (notification to the originator, whole message ignored). TestRFC5036UnknownTLVWithUBitClearIsRefused: the U=0 half on a Label Mapping, Notification refers to it, mapping not applied, session up. TestRFC5036UnknownTLVWithUBitSetIsSkipped (positive): U=1 unknown TLV skipped, mapping applied, nothing written. Re-probed at HEAD by go -overlay of skipTLV (tree untouched): skipping every unknown TLV whatever its U bit reddens both U=0 tests and leaves the positive green; refusing a U=1 unknown TLV reddens only the positive. That is a semantic break of the U-bit decision, stronger than the panic-body revert records on file. Not tagged here: the U=1 half on an Initialization is left to TestRFC5561UnknownCapabilityWithUBitSetIsIgnored, so the U=1 clause is proven on Label Mapping only through this row's tags.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestLDPInitUnknownTLVUClearNotifies`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_init_unknown_tlv_test.go#L26) | unit/verify | revert, verified |
 | negative | [`TestRFC5036UnknownTLVWithUBitClearIsRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L128) | unit/verify | revert, verified |
@@ -823,7 +823,7 @@ If an LSR receives a message containing a Hop Count TLV, it MUST check the hop c
 
 Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. The tagged HopCountWithinMaximumIsApplied and HopCountAboveMaximumDrawsLoopDetected correctly distinguish Label Mapping hop counts 4 and 5 at configured maximum 4, including callback data/suppression and exact advisory reply. But full RFC5036 section 3.4.4.1 covers received Label Request as well as Label Mapping. Session.processMessages groups MsgTypeLabelRequest among unhandled message types, without parsing/checking Hop Count. Both tagged tests send Mapping only, so they cannot detect this uncovered receive behavior. Renewed producer-halt records prove reachability, not whole-row enforcement.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036HopCountAboveMaximumDrawsLoopDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L203) | unit/verify | revert, verified |
 | positive | [`TestRFC5036HopCountWithinMaximumIsApplied`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L174) | unit/verify | revert, verified |
@@ -834,7 +834,7 @@ If so, it MUST behave as if the containing message has traversed a loop by sendi
 
 Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Prior enforcement overstated full RFC5036 section 3.4.4.1. The two tagged tests correctly prove Label Mapping count 5 above maximum 4 yields advisory Loop Detected with exact offending reference, no callback and Operational state, while count 4 is applied with timeout-only wire silence. But the RFC also covers Label Request containing Hop Count; Session.processMessages treats MsgTypeLabelRequest as unhandled and never checks its hop count or sends Loop Detected. Both tests send Mapping, leaving that receive case untested. Renewed producer-halt records do not close the semantic gap.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036HopCountWithinMaximumIsApplied`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L177) | unit/verify | revert, verified |
 | positive | [`TestRFC5036HopCountAboveMaximumDrawsLoopDetected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L206) | unit/verify | revert, verified |
@@ -901,7 +901,7 @@ For messages that have required parameters, the required parameters MUST appear 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC5036RequiredParametersInSpecifiedOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L334) | unit/verify | revert, verified |
 
@@ -919,7 +919,7 @@ Otherwise, Downstream Unsolicited MUST be used (§3.5.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. On non-ATM/non-Frame-Relay sessions, InitProposesDownstreamUnsolicited pins A=0 in the sent Common Session Parameters. InitOnDemandProposalKeepsDownstreamUnsolicited constructs A=1, confirms decoding, processes Initialization plus peer KeepAlive, requires Operational and strict timeout-only silence, then successfully sends and reads an unsolicited Mapping. handleInit retains Downstream Unsolicited regardless of peer A, and runSession advertises local bindings without a request.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L103) | unit/verify | revert, verified |
 | positive | [`TestRFC5036InitProposesDownstreamUnsolicited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L83) | unit/verify | revert, verified |
@@ -930,7 +930,7 @@ If the label advertisement discipline determined in this way is unacceptable to 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Reviewed the negative-only annotation: handleInit accepts Downstream Unsolicited for all supported IP sessions and has no unacceptable advertisement-mode policy. The A=1 control requires Operational, timeout-only silence rather than EOF, and a subsequent unsolicited Mapping. Thus the tested supported negotiation cannot spuriously reject an acceptable mode; no absent ATM/Frame Relay capability is claimed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L107) | unit/verify | revert, verified |
 
@@ -940,7 +940,7 @@ The configured maximum Path Vector length. MUST be 0 if Loop Detection is disabl
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection reads the Initialization ze sends and checks D=0 with PVLim 0; TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection gives EncodeInit a limit of 7 and checks 0 reaches the wire beside D=0 and 7 beside D=1.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L165) | unit/verify | revert, verified |
 | positive | [`TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L149) | unit/verify | revert, verified |
@@ -951,7 +951,7 @@ This field is reserved. It MUST be set to zero on transmission and ignored on re
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read both reserved-bit tests and EncodeInit/DecodeInit. Transmission requires all six reserved bits zero. Reception sets all six, requires neither A nor D set, processes Initialization plus peer KeepAlive to Operational, pins negotiated 30s and now requires a deadline timeout for silence (EOF fails). The initialization guard continues to accept the conforming message types; reserved bits do not change negotiation.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036InitReservedBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L215) | unit/verify | revert, verified |
 | positive | [`TestRFC5036InitReservedBitsZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L201) | unit/verify | revert, verified |
@@ -962,7 +962,7 @@ The receiving LSR MUST calculate the maximum PDU length for the session by using
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First judgment. Live InitMaxPDULengthTakesTheSmallerProposal preserves proposals 1000,255,100,0 and pins negotiated values 1000,4096,4096,4096, a KeepAlive response, OPENREC before peer KeepAlive, Operational afterward and timeout-only silence. Independent 8000 proposal control pins the unchanged local maximum 4096. Reviewed handleInit normalization at <=255 and minimum selection. This proves negotiation, not a separate promise about enforcing received PDU size.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L309) | unit/verify | revert, verified |
 | positive | [`TestRFC5036InitMaxPDULengthTakesTheSmallerProposal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L252) | unit/verify | revert, verified |
@@ -973,7 +973,7 @@ If the maximum PDU length determined this way is unacceptable to an LSR, it MUST
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. First judgment; negative-only annotation is supported by handleInit: no Max PDU proposal is unacceptable to this implementation after <=255 normalization and minimum selection. Four live cases require KeepAlive rather than Notification, exact negotiated maximum, OPENREC then peer-KeepAlive Operational, and a timeout rather than EOF. No fatal rejection branch for an unsupported policy is invented.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036InitMaxPDULengthTakesTheSmallerProposal`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L255) | unit/verify | revert, verified |
 
@@ -983,7 +983,7 @@ If there is no matching Hello adjacency, the LSR MUST send a Session Rejected/No
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC5036InitFromHelloAdjacencyAccepted checks an Initialization from the adjacency's LDP Identifier goes operational with no write; TestRFC5036InitWithoutHelloAdjacencyRejected checks another LSR ID and another label space each draw Session Rejected/No Hello referring to the Initialization and no session. Re-judged 2026-10-02 (c29 judge): since the RULINGS R4 fix an accepted Initialization takes OPENSENT to OPENREC and only the peer's KeepAlive makes the session operational (RFC 5036 2.5.4), so the unit now appends the peer's KeepAlive to the PDU before asserting operational; the assertion is unchanged, and a rejected or unaccepted Initialization still fails it (processMessages errors before the KeepAlive, and keepaliveReceived refuses without initAccepted).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036InitWithoutHelloAdjacencyRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L270) | unit/verify | revert, verified |
 | positive | [`TestRFC5036InitFromHelloAdjacencyAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L249) | unit/verify | revert, verified |
@@ -1034,7 +1034,7 @@ An LSR MUST arrange that its peer receive an LDP message from it at least every 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5036KeepalivePacingFollowsNegotiatedTime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L403) | unit/verify | revert, verified |
 | positive | [`TestRFC5036PeerHearsFromZeWithinKeepaliveTime`](https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L379) | unit/verify | revert, verified |

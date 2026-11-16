@@ -28,7 +28,7 @@ A Docker orchestrator launches Ze and one or more peer daemons on an isolated ne
 
 The shared suite’s 255 routing and network-service scenarios include eBGP/iBGP, 4-byte ASN, IPv6, Add-Path, Route Refresh, Graceful Restart, Route Server, standard and extended communities, MD5 auth, BGP Roles, EVPN, VPN, FlowSpec, multihop, BFD and BFD strict mode, update delay, ECMP, SRv6, RPKI, BMP, max-prefix, GTSM, AS112, VRRP against keepalived, and OSPF/IS-IS interop with FRR.
 
-- **Proves:** BGP session and route behavior observed through the peer daemons' own commands
+- **What this lab tests:** BGP session and route behavior observed through the peer daemons' own commands
 - **Peers:** Real FRR, BIRD, and GoBGP, in Docker containers
 - **Requires:** Docker on a kernel with Ze's required features; see the kernel setup in the interop guide
 - **Source:** [docs/architecture/testing/interop.md](https://ze-software.net/architecture/testing/interop/)

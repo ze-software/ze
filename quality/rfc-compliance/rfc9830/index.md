@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 70 | of 97 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 3 | of 97 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 70 | of 97 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 3 | of 97 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 97 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 97 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 148 | 148 of 229 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 97 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 148 | 148 of 229 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 97 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 97 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 97 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 97 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 97 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 97 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 97 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: BGP Extensions for SR Policy
 
 **Area:** BGP SR Policy
 
-**Proof:** 37 of 97 MUST proven
+**Test verification:** 37 of 97 MUST proven
 
 **Evidence:** unit 37
 
@@ -108,7 +108,7 @@ Included in automatic checks: BGP Extensions for SR Policy
 | Annotated (including scoped evidence) | 27 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **97** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: BGP Extensions for SR Policy
 
 ## Figures
 
-- **MUST bar**: Ze proven 37, Proof pending 36, Not built 24
-- **Overview bar**: Ze MUST proven 37, Proof pending 36, Not assessed 41, Not built 24
+- **MUST bar**: Ze verified 37, Tests awaiting verification 36, Not built 24
+- **Overview bar**: Ze MUST verified 37, Tests awaiting verification 36, Not assessed 41, Not built 24
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: BGP Extensions for SR Policy
 | Mandatory requirements complete | not complete |
 | MUST rows | 97 |
 | MUST rows kept (the MUST bar) | 97 |
-| Ze proven | 37 |
+| Ze verified | 37 |
 | OS verified | 0 |
-| Proof pending | 36 |
+| Tests awaiting verification | 36 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: BGP Extensions for SR Policy
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 41 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 41 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9830.json](../../../data/rfc/rfc9830.json).
 
@@ -329,9 +329,9 @@ Source: [data/rfc/rfc9830.json](../../../data/rfc/rfc9830.json).
 | [`RFC9830-5-7`](#rfc9830-5-7) In case of any error detected, either at the attribute or its TLV/sub-TLV level, the "treat-as-withdraw" strategy MUST be applied. (§5) | {gap}, no test | an error at the attribute or sub-TLV level produces no treat-as-withdraw. The RFC 7606 validator table has no entry for attribute 23 (internal/component/bgp/message/rfc7606.go:415-429), so the ParseTunnelEncap and SubTLVs errors (internal/core/bgp/attribute/tunnel_encap.go:43, :109) are only ever seen by a caller that chose to parse, never by the UPDATE validation path |
 | [`RFC9830-5-8`](#rfc9830-5-8) An SR Policy update that is determined not to be valid (and, therefore, malformed) based on the rules described in Section 4.2.1 MUST be handled by the "treat-as-withdraw" strategy. (§5) | {gap}, no test | an update failing the Section 4.2.1 NLRI length rule or the Tunnel Encapsulation rule is handled as treat-as-withdraw (the NLRI length (internal/component/bgp/plugins/nlri/srpolicy/split.go::judgeSRPolicySection, registered per family and read by internal/component/bgp/message/rfc7606.go::validateMPNLRISyntax) and the Tunnel Encapsulation attribute, present with exactly one Tunnel Type 15 TLV (internal/component/bgp/reactor/session_tunnel_encap.go::applyTunnelEncap)); the Route Target / NO_ADVERTISE criterion (RFC9830-4.2.1-4, RFC9830-4.2.1-5) is not evaluated, so an update failing only that criterion is never treat-as-withdraw |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC9830-2.1-1`](#rfc9830-2.1-1)
 
@@ -339,10 +339,10 @@ The AFI used MUST be IPv4(1) or IPv6(2) (§2.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830NLRIAddressFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L121) | unit/verify | unproven |
-| positive | [`TestRFC9830NLRIAddressFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L93) | unit/verify | unproven |
+| negative | [`TestRFC9830NLRIAddressFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L121) | unit/verify | not verified |
+| positive | [`TestRFC9830NLRIAddressFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L93) | unit/verify | not verified |
 
 ### [`RFC9830-2.1-2`](#rfc9830-2.1-2)
 
@@ -350,10 +350,10 @@ When AFI = 1, the value MUST be 96; when AFI = 2, the value MUST be 192. (§2.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NLRIAddressFamilies. Forbidden: a length octet other than 96 for AFI 1 or other than 192 for AFI 2. Red: assert.Equal(byte(96), v4[0]) and assert.Equal(byte(192), v6[0]) on EncodeNLRIHex output, with assert.Len on the 12/24-octet body. Negative: Parse(AFIIPv6, 12-octet body) require.ErrorIs ErrSRPolicyTruncated, and SplitSRPolicy refuses a 100-bit length.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830NLRIAddressFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L127) | unit/verify | unproven |
-| positive | [`TestRFC9830NLRIAddressFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L115) | unit/verify | unproven |
+| negative | [`TestRFC9830NLRIAddressFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L127) | unit/verify | not verified |
+| positive | [`TestRFC9830NLRIAddressFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L115) | unit/verify | not verified |
 
 ### [`RFC9830-2.1-3`](#rfc9830-2.1-3)
 
@@ -361,7 +361,7 @@ A BGP UPDATE message that carries the MP_REACH_NLRI or MP_UNREACH_NLRI attribute
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both halves now proven. MP_UNREACH_NLRI: TestRFC9830SRPolicyWithdrawalCarriesMandatoryAttributes (planBatchAttrs records, unchanged). MP_REACH_NLRI: TestRFC9830SRPolicyAnnounceCarriesMandatoryAttributes finds MP_REACH 00 01 49, ORIGIN 40/00 and the eBGP AS_PATH 40/02 01 0000FDE8 by attribute.AttrFind over the parsed path attribute section, iBGP MP_REACH and ORIGIN likewise; TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath forces the iBGP empty-path input (R1(b)) and requires AS_PATH present, flags 40, zero-length value. BuildPlugin is the producer the reactor's config send shares (peer_initial_sync.go). Judge break (overlay, update_build_plugin.go: drop every attribute appendASPath wrote on iBGP) turned the new negative red and the new positive green; the c32 author's probes cover dropped ORIGIN (positive red). Revert records on BuildPlugin for the two new units and the two HEAD tags of TestRFC9830UpdateCarriesMandatoryAttributes. Residual: the HEAD negative (LOCAL_PREF only on iBGP) proves attribute categorisation rather than presence of the mandatory set, supplementary here.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830UpdateCarriesMandatoryAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L185) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC9830SRPolicyIBGPAnnounceKeepsAnEmptyASPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_update_attrs_test.go#L90) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
@@ -376,7 +376,7 @@ This document specifies the use of the Tunnel Encapsulation Attribute with the S
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830TunnelTypeReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L202) | unit/verify | revert, verified |
 | positive | [`TestRFC9830TunnelTypeReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L201) | unit/verify | revert, verified |
@@ -387,9 +387,9 @@ A Tunnel Encapsulation Attribute MUST NOT contain more than one TLV of type "SR 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC9830SinglePolicyTLVPerAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L195) | unit/verify | unproven |
+| positive | [`TestRFC9830SinglePolicyTLVPerAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L195) | unit/verify | not verified |
 
 ### [`RFC9830-2.2-3`](#rfc9830-2.2-3)
 
@@ -397,7 +397,7 @@ A Tunnel Encapsulation Attribute MUST NOT contain more than one TLV of type "SR 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830TunnelTypeReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L204) | unit/verify | revert, verified |
 | positive | [`TestRFC9830TunnelTypeReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L203) | unit/verify | revert, verified |
@@ -408,12 +408,12 @@ If these sub-TLVs are present, a BGP speaker MUST ignore them (§2.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent whole-clause rejudgment against RFC 9830 §2.3: "The Tunnel Egress Endpoint and Color sub-TLVs of the Tunnel Encapsulation Attribute, as defined in [RFC9012], are not utilized for SR Policy encodings. Consequently, their values are not relevant within the context of the SR Policy SAFI NLRI. If these sub-TLVs are present, a BGP speaker MUST ignore them and MAY remove them from the Tunnel Encapsulation Attribute during propagation." The current summary has no partial/gap annotation for this requirement. All four current tags were read: both polarities in reactor TestRFC9830InapplicableSubTLVsIgnoredOnReceipt and attribute TestRFC9830EgressEndpointAndColorSubTLVsIgnored. The reactor's positive cases compare a clean policy with individually added endpoint and Color sub-TLVs on actual AFI 1/73 and 2/73 carriers, requiring no error, exactly RFC7606ActionNone, unchanged MP_REACH including its NLRI and next hop, one retained type-15 tunnel, and readable Preference 100. Its negative controls add duplicate endpoints or an endpoint with a one-octet value and require the same outcomes, catching erroneous application of unicast endpoint-count/value validation to an SR Policy. These inputs isolate applicability: teSub/teTLV encode their actual lengths, so the short endpoint has invalid endpoint content but intact sub-TLV and outer framing; teSRPolicyBody supplies a single type-15 TLV, correctly sized policy NLRI, ORIGIN, four-octet AS_SEQUENCE 65002 and an IPv4-format Route Target, with no legacy announcement. The attribute positive control reads equal Preference values with and without endpoint/Color; its separate negative control changes the applicable Preference from 4242 to 9999 and requires a changed result, excluding blanket disregard of all sub-TLVs. Round-trip equality additionally pins Ze's permitted retention choice. Source inspection confirms applyRFC7606 calls applyTunnelEncap and consumes both returned values; applyTunnelEncap identifies the policy from MP_REACH AFI/SAFI, and tunnelTLVLayout still validates framing but skips endpoint semantic/count checks when policy is true and assigns no meaning to Color. TunnelTLV.Preference consumes only type 12 with the required six-octet value; its readback is a codec assertion, not evidence of SRPM selection. processValidatedMessage forwards accepted announcements through onMessageReceived; notifyMessageReceiver caches the accepted WireUpdate before dispatch. teForwardedAttrs exercises that real receive/cache/ForwardUpdate path to an iBGP socket and a downstream processMessage consumer, both without the MED policy and with an actual MED=50 rebuild, asserting preserved attributes/MP_REACH, one announcement and no synthesized withdrawal. Ignoring these contents does not require erasing their wire bytes: byte retention is a conforming implementation choice under MAY, not an additional RFC MUST. Stored native records for this reactor cover name replacement of applyTunnelEncap by panic; those establish sensitivity to that producer halt only, not selective endpoint/Color discrimination. Historical records naming the former carry-test cover likewise do not extend current semantic proof. No checks, mutations, hashes or canonical edits were performed for this rejudgment. Credit is limited to the implemented receive, codec and cached propagation behavior demonstrated by these assertions; no separate route-server rail, SR Policy Manager, attribute-driven steering or dataplane proof is claimed, and absent consumers remain separately unimplemented scope. RFC9830-2.3-3 is not rejudged. No code map is needed for this enforced pending entry.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830InapplicableSubTLVsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L145) | unit/verify | revert, verified |
-| negative | [`TestRFC9830EgressEndpointAndColorSubTLVsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L304) | unit/verify | unproven |
+| negative | [`TestRFC9830EgressEndpointAndColorSubTLVsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L304) | unit/verify | not verified |
 | positive | [`TestRFC9830InapplicableSubTLVsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L144) | unit/verify | revert, verified |
-| positive | [`TestRFC9830EgressEndpointAndColorSubTLVsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L293) | unit/verify | unproven |
+| positive | [`TestRFC9830EgressEndpointAndColorSubTLVsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L293) | unit/verify | not verified |
 
 ### [`RFC9830-2.3-3`](#rfc9830-2.3-3)
 
@@ -421,7 +421,7 @@ Similarly, any other sub-TLVs, including those specified in [RFC9012], that do n
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent RFC 9830 Section 2.3 rejudgment retains enforced for ignoring sub-TLVs without explicitly defined applicability to the SR Policy SAFI; the same full sentence permits their removal during propagation. TestRFC9012MeaninglessSubTLVIgnoredNotRemoved proves the applicable Preference counter-control but is not the sole proof. TestRFC9830InapplicableSubTLVsIgnoredOnReceipt isolates well-framed VXLAN, Embedded Label Handling and UDP sub-TLVs on both SAFI 73 AFIs and requires exact no-action, intact MP_REACH and readable Preference. teForwardedAttrs traverses actual receive/cache/ForwardUpdate/Session output/downstream receipt with unchanged and MED-rebuilt cached forwarding. The corrected tag now describes those two cached modes rather than claiming the separate RS rail. applyTunnelEncap/tunnelTLVLayout ignore inapplicable semantics while retaining framing checks; Preference consumes only its applicable type. A native four-octet next hop on AFI-2 SR Policy remains legal under the independent wire-family contract. Preserving the bytes is a conforming choice, not a prohibition on the RFC’s MAY removal. No SRPM, dataplane, full-RFC or fresh selective execution claim is made.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830InapplicableSubTLVsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L147) | unit/verify | revert, verified |
 | negative | [`TestRFC9012MeaninglessSubTLVIgnoredNotRemoved`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L310) | unit/verify | revert, verified |
@@ -434,7 +434,7 @@ For the TLVs/sub-TLVs that are specified as single instance, only the first inst
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30, re-read after the RFC9012-13-7 tag lines left the unit (assertions unchanged). TestRFC9012DuplicateSingleInstanceSubTLVs: + with two Preference sub-TLVs Preference() returns the first (100); - the second value standing alone IS returned (200), so the choice is positional.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012DuplicateSingleInstanceSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L278) | unit/verify | revert, verified |
 | positive | [`TestRFC9012DuplicateSingleInstanceSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L264) | unit/verify | revert, verified |
@@ -445,9 +445,9 @@ For the TLVs/sub-TLVs that are specified as single instance, only the first inst
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30, re-read after the RFC9012-13-7 tag lines left the unit (assertions unchanged). TestRFC9012DuplicateSingleInstanceSubTLVs: the duplicate Preference parses without error, both sub-TLVs are enumerated and the attribute round-trips octet-equal, so the ignored instance is not treated as malformed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9012MalformedAttributeIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L156) | unit/verify | unproven |
+| negative | [`TestRFC9012MalformedAttributeIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L156) | unit/verify | not verified |
 | positive | [`TestRFC9012DuplicateSingleInstanceSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L270) | unit/verify | revert, verified |
 
 ### [`RFC9830-2.4.1-2`](#rfc9830-2.4.1-2)
@@ -456,10 +456,10 @@ The Preference sub-TLV is OPTIONAL; it MUST NOT appear more than once in the SR 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV. Forbidden: two Preference sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVPreference), 1) for a config naming preference twice. Negative: a config with no preference emits none (assert.Empty), so the count is real.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L268) | unit/verify | unproven |
-| positive | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L264) | unit/verify | unproven |
+| negative | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L268) | unit/verify | not verified |
+| positive | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L264) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.1-3`](#rfc9830-2.4.1-3)
 
@@ -467,10 +467,10 @@ Specifies the length of the value field (i.e., not including Type and Length fie
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV. Forbidden: a Preference length other than 6. Red: require.Len(value, 6) on a value srpSubs cut at the declared length (a wrong declared length also fails the walk's require.NoError), with the preference in value[2:6]. Negative (internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830PreferenceFlagsAndReservedIgnored): 4- and 8-octet values are not read.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L273) | unit/verify | unproven |
-| positive | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L251) | unit/verify | unproven |
+| negative | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L273) | unit/verify | not verified |
+| positive | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L251) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.1-4`](#rfc9830-2.4.1-4)
 
@@ -478,10 +478,10 @@ The Flags field MUST be set to zero on transmission (§2.4.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV. Forbidden: a non-zero Preference Flags octet on transmission. Red: assert.Equal(byte(0), value[0]) on the srpDirty encoding. Negative: assert.NotEqual(make([]byte, 6), value), preference 0xDEADBEEF beside it.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L260) | unit/verify | unproven |
-| positive | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L255) | unit/verify | unproven |
+| negative | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L260) | unit/verify | not verified |
+| positive | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L255) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.1-5`](#rfc9830-2.4.1-5)
 
@@ -489,14 +489,14 @@ The Flags field MUST be set to zero on transmission and MUST be ignored on recei
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.1: "The Flags field MUST be set to zero on transmission and MUST be ignored on receipt." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of Preference Flags now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-01-preference-flags changes buf[2] = 1 in buildPreferenceSubTLV and produces only the field diagnostics ["Preference Flags = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L25) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L454) | unit/verify | revert, verified |
-| negative | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L265) | unit/verify | unproven |
+| negative | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L265) | unit/verify | not verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L24) | unit/verify | revert, verified |
 | positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L453) | unit/verify | revert, verified |
-| positive | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L255) | unit/verify | unproven |
+| positive | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L255) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.1-6`](#rfc9830-2.4.1-6)
 
@@ -504,10 +504,10 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PreferenceSubTLV. Forbidden: a non-zero Preference RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]) on the srpDirty encoding. Negative: assert.NotEqual(make([]byte, 6), value).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L261) | unit/verify | unproven |
-| positive | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L257) | unit/verify | unproven |
+| negative | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L261) | unit/verify | not verified |
+| positive | [`TestRFC9830PreferenceSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L257) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.1-7`](#rfc9830-2.4.1-7)
 
@@ -515,14 +515,14 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.1: "This field MUST be set to zero on transmission and MUST be ignored on receipt." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of Preference RESERVED now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-02-preference-reserved changes buf[3] = 1 in buildPreferenceSubTLV and produces only the field diagnostics ["Preference RESERVED = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L27) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L456) | unit/verify | revert, verified |
-| negative | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L266) | unit/verify | unproven |
+| negative | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L266) | unit/verify | not verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L26) | unit/verify | revert, verified |
 | positive | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L455) | unit/verify | revert, verified |
-| positive | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L260) | unit/verify | unproven |
+| positive | [`TestRFC9830PreferenceFlagsAndReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L260) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.2-2`](#rfc9830-2.4.2-2)
 
@@ -530,10 +530,10 @@ The Binding SID sub-TLV is OPTIONAL; it MUST NOT appear more than once in the SR
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV. Forbidden: two Binding SID sub-TLVs. Red: assert.Len(srpAll(repeated, subTLVBindingSID), 1) for 'binding-sid mpls 24000 binding-sid null'. Negative: none configured, none emitted (assert.Empty).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L305) | unit/verify | unproven |
-| positive | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L301) | unit/verify | unproven |
+| negative | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L305) | unit/verify | not verified |
+| positive | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L301) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.2-4`](#rfc9830-2.4.2-4)
 
@@ -541,7 +541,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. inte
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Row narrowed to the two clauses ze produces: 6 with an SR-MPLS BSID, 2 with none (the 18-octet SRv6 clause split to RFC9830-2.4.2-12, a {gap}). TestRFC9830BindingSIDSubTLV asserts require.Len(withBSID, 6) from a binding-sid mpls config and require.Len(noBSID, 2) from binding-sid null, through the sub-TLV the config encoder emits; a constant-length or swapped encoder fails one of them. Revert records observed red for both tags (buildBindingSIDSubTLV, buildBindingSIDNullSubTLV). The label-width defect (spec-bgp-sr-policy-rfc-defects D2) will change buildBindingSIDSubTLV and stale the positive record
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L283) | unit/verify | revert, verified |
 | positive | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L281) | unit/verify | revert, verified |
@@ -552,7 +552,7 @@ The value MUST be 18 when a SRv6 BSID is present (§2.4.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent auditor, after 8d18d4c4c3). The earlier not-applicable verdict rested on the owner's 2026-10-11 decline of the type-13 SRv6 form; 8d18d4c4c3 records the owner's reversal, implements the form and removes the {feature-declined} annotation, so no_code_path no longer holds. RFC 9830 Section 2.4.2: "Length:  Specifies the length of the value field (i.e., not including Type and Length fields) in terms of octets.  The value MUST be 18 when a SRv6 BSID is present, 6 when an SR-MPLS BSID is present, or 2 when no BSID is present." Producer: srpolicy/config.go::buildBindingSIDSRv6SubTLV, reached from parseConfigRoute via 'binding-sid srv6 <ipv6-address>' (buildTunnelEncap writes at most one type-13 sub-TLV); receive rendering srpolicy/attr_json.go::bindingSIDToJSON reads type 13 by length (2, 6, 18, else malformed). TestRFC9830BindingSIDSRv6Encode asserts the whole Tunnel Encapsulation TLV octet for octet (0d12 0000 + 16-octet SID); its negative tag (SR-MPLS written at Length 6) shows 18 is not a constant but strictly exercises the neighbouring RFC9830-2.4.2-4 form. TestRFC9830BindingSIDSRv6Decode asserts a Length-18 sub-TLV renders as the SRv6 SID and a Length-20 one carrying the same 16 octets is malformed and never an SRv6 SID, a genuine violating input of this row. Overlay mutants (tags ze_core ze_bgp): encoder writes Length 16 (Encode red); decoder accepts any length >= 18 as SRv6 (Decode red); decoder rejects 18 (Decode red). All killed. Note: when 'binding-sid mpls' and 'binding-sid srv6' are both configured the MPLS form silently wins (Section 2.4.2 single-instance rule); not this row.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830BindingSIDSRv6Decode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go#L93) | unit/verify | revert, verified |
 | negative | [`TestRFC9830BindingSIDSRv6Encode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_bsid_srv6_test.go#L29) | unit/verify | revert, verified |
@@ -565,7 +565,7 @@ The unassigned bits in the Flags field MUST be set to zero upon transmission (§
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-only judgment of RFC9830-2.4.2-5 after removing its obsolete gap annotation. RFC9830 Section 2.4.2 states the whole sentence: "The unassigned bits in the Flags field MUST be set to zero upon transmission and MUST be ignored upon receipt." This row extracts the transmission conjunct only; the receive conjunct remains the separately judged RFC9830-2.4.2-6. Figure 5 assigns S/I to 0x80/0x40, leaving 0x3F unassigned. buildBindingSIDSubTLV now leaves Flags zero instead of writing 0x10, and buildBindingSIDNullSubTLV already leaves Flags zero. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission carries both -5 polarities: bsid[0]&0x3F must be zero beside the exact configured 0xFFFFF label, so an empty/all-zero payload cannot satisfy the pair. The actual pre-fix log job-enum-bsid-unassigned-before-4d050848.log fails precisely the Flags assertion. The repaired tagged test passes in job-enum-acl-bsid-repaired-race-f0d445d5.log, whose separate old-golden package failures are not erased. In semantic-observations-9r9vkava, clean selected baseline passes and rfc9830-tx-22-binding-sid-unassigned-flags restores only buf[2]=0x10; the observed sole tagged-unit failure is Binding SID unassigned Flags = 0x10 on transmission, want 0, with the single-TLV control passing. These executions precede only the new -5 tag comments; the assertion and producer behavior are unchanged, but fresh canonical tagged-unit/claim records remain parent-owned. This proves implemented TX zeroing, not exhaustive per-bit fault enumeration, S/I behavior, SRPM, dataplane, live FRR or full RFC conformance.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L29) | unit/verify | revert, verified |
 | positive | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L28) | unit/verify | revert, verified |
@@ -576,7 +576,7 @@ The unassigned bits in the Flags field MUST be set to zero upon transmission and
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent bounded new-row rejudgment. RFC9830 Section 2.4.2: "The unassigned bits in the Flags field MUST be set to zero upon transmission and MUST be ignored upon receipt." RFC9830 Figure 5 assigns only S/I (0x80/0x40), leaving mask 0x3F unassigned. buildBindingSIDSubTLV now leaves the zeroed Flags octet untouched; buildBindingSIDNullSubTLV already does so. The change removes the unconditional 0x10 write without changing label bits, framing, assigned S/I behavior or buffer allocation. New tagged TX assertions require bsid[0]&0x3F==0 beside label 0xFFFFF. The actual pre-fix job-enum-bsid-unassigned-before-4d050848.log fails exactly Binding SID unassigned Flags = 0x10; the repaired tagged unit passes in job-enum-acl-bsid-repaired-race-f0d445d5.log (that package run separately failed old Go goldens, so no full-package success is inferred). The current selected semantic baseline passes, and rfc9830-tx-22-binding-sid-unassigned-flags reinstates only buf[2]=0x10 and fails exactly the new Flags assertion while the single-TLV control passes. Existing tagged TestRFC9830ReceivedFieldsAreIgnoredNotRead contrasts 0x3F and zero with fixed label and exact Preference/round-trip controls. Supplementary actual-carrier rx-bsid-unassigned in semantic-observations-nsr9c7y4 rejects only policy type13 flags&0x3F: both AFIs fail the isolated ignored-octet-14 and combined-dirty receive-action assertion while clean and every other isolated leaf survive. That reactor witness is supplementary, not falsely claimed as a new RFC9830-2.4.2-6 reactor tag. TX zeroing and implemented BGP RX disregard are now observed; no Binding SID/SRPM interpretation is invented. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L31) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L205) | unit/verify | revert, verified |
@@ -589,10 +589,10 @@ RESERVED: 1 octet of reserved bits. MUST be set to zero on transmission (§2.4.2
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV. Forbidden: a non-zero Binding SID RESERVED octet. Red: assert.Equal(byte(0), withBSID[1]) and assert.Equal(byte(0), noBSID[1]). Negative: assert.NotEqual(make([]byte, 6), withBSID) beside label 0xFFFFF.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L298) | unit/verify | unproven |
-| positive | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L286) | unit/verify | unproven |
+| negative | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L298) | unit/verify | not verified |
+| positive | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L286) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.2-8`](#rfc9830-2.4.2-8)
 
@@ -600,7 +600,7 @@ RESERVED: 1 octet of reserved bits. MUST be set to zero on transmission and MUST
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.2: "MUST be set to zero on transmission and MUST be ignored on receipt." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of Binding SID RESERVED now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-03-binding-sid-reserved changes buf[3] = 1 in buildBindingSIDSubTLV and produces only the field diagnostics ["Binding SID RESERVED = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L33) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L458) | unit/verify | revert, verified |
@@ -615,10 +615,10 @@ Traffic Class (TC), S, and TTL (Total of 12 bits) are RESERVED and MUST be set t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830BindingSIDSubTLV. Forbidden: non-zero TC, S or TTL in the transmitted label stack entry. Red: assert.Equal(byte(0), withBSID[4]&0x0E) (TC), withBSID[4]&0x01 (S), withBSID[5] (TTL). Negative: the 20-bit label reads 0xFFFFF, so the zeroes are field layout, not a small label.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L295) | unit/verify | unproven |
-| positive | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L290) | unit/verify | unproven |
+| negative | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L295) | unit/verify | not verified |
+| positive | [`TestRFC9830BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L290) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.2-10`](#rfc9830-2.4.2-10)
 
@@ -626,7 +626,7 @@ Traffic Class (TC), S, and TTL (Total of 12 bits) are RESERVED and MUST be set t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.2: "Traffic Class (TC), S, and TTL (Total of 12 bits) are RESERVED and MUST be set to zero and MUST be ignored." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of Binding SID TC/S/TTL now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-04-binding-sid-tc changes buf[6] |= 2 in buildBindingSIDSubTLV and produces only the field diagnostics ["Binding SID TC and S = 0x02 on transmission, want 0"]. rfc9830-tx-05-binding-sid-s changes buf[6] |= 1 in buildBindingSIDSubTLV and produces only the field diagnostics ["Binding SID TC and S = 0x01 on transmission, want 0"]. rfc9830-tx-06-binding-sid-ttl changes buf[7] = 1 in buildBindingSIDSubTLV and produces only the field diagnostics ["Binding SID TTL = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L35) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L460) | unit/verify | revert, verified |
@@ -641,7 +641,7 @@ The Label field is validated by the SRPM but MUST NOT contain the reserved MPLS 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830BindingSIDLabelRange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L549) | unit/verify | revert, verified |
 | positive | [`TestRFC9830BindingSIDLabelRange`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L557) | unit/verify | revert, verified |
@@ -652,9 +652,9 @@ The value MUST be 26 when the SRv6 Endpoint Behavior and SID Structure is presen
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV. Forbidden: a length other than 18 without the Endpoint Behavior and SID Structure. Red: require.Len(value, 18). The 26 case has no producer (buildSRv6BindingSIDSubTLV never appends the structure), carried by the row's single-polarity annotation.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC9830SRv6BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L316) | unit/verify | unproven |
+| positive | [`TestRFC9830SRv6BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L316) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.3-4`](#rfc9830-2.4.3-4)
 
@@ -662,10 +662,10 @@ The unassigned bits in the Flags field MUST be set to zero upon transmission (§
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV. Forbidden: non-zero unassigned Flags bits on transmission (ze sets no assigned flag). Red: assert.Equal(byte(0), value[0]). Negative: assert.NotEqual(make([]byte, 18), value), SID octets non-zero.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SRv6BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L328) | unit/verify | unproven |
-| positive | [`TestRFC9830SRv6BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L323) | unit/verify | unproven |
+| negative | [`TestRFC9830SRv6BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L328) | unit/verify | not verified |
+| positive | [`TestRFC9830SRv6BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L323) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.3-5`](#rfc9830-2.4.3-5)
 
@@ -673,7 +673,7 @@ The unassigned bits in the Flags field MUST be set to zero upon transmission and
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.3: "The unassigned bits in the Flags field MUST be set to zero upon transmission and MUST be ignored upon receipt." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of SRv6 Binding SID unassigned Flags now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-07-srv6-binding-sid-unassigned-flags changes buf[2] = 1 in buildSRv6BindingSIDSubTLV and produces only the field diagnostics ["SRv6 Binding SID Flags = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L37) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L462) | unit/verify | revert, verified |
@@ -688,10 +688,10 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SRv6BindingSIDSubTLV. Forbidden: a non-zero RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]). Negative: assert.NotEqual(make([]byte, 18), value).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SRv6BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L329) | unit/verify | unproven |
-| positive | [`TestRFC9830SRv6BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L325) | unit/verify | unproven |
+| negative | [`TestRFC9830SRv6BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L329) | unit/verify | not verified |
+| positive | [`TestRFC9830SRv6BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L325) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.3-7`](#rfc9830-2.4.3-7)
 
@@ -699,7 +699,7 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.3: "This field MUST be set to zero on transmission and MUST be ignored on receipt." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of SRv6 Binding SID RESERVED now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-08-srv6-binding-sid-reserved changes buf[3] = 1 in buildSRv6BindingSIDSubTLV and produces only the field diagnostics ["SRv6 Binding SID RESERVED = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L39) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L464) | unit/verify | revert, verified |
@@ -714,9 +714,9 @@ The SRv6 Endpoint Behavior and SID Structure MUST NOT be included when the SRv6 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC9830SRv6BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L319) | unit/verify | unproven |
+| positive | [`TestRFC9830SRv6BindingSIDSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L319) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4-4`](#rfc9830-2.4.4-4)
 
@@ -724,10 +724,10 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a non-zero Segment List RESERVED octet on transmission. Red: assert.Equal(byte(0), value[0]). Negative: the following sub-TLVs are non-empty (require.NotEmpty(inner)) and the value is not blank.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L369) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L365) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L369) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L365) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4-5`](#rfc9830-2.4.4-5)
 
@@ -735,7 +735,7 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.4: "This field MUST be set to zero on transmission and MUST be ignored on receipt." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of both MPLS and SRv6 Segment List RESERVED now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-09-segment-list-reserved changes payload[0] = 1 in buildSegmentListSubTLV and produces only the field diagnostics ["Segment List RESERVED = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L41) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L466) | unit/verify | revert, verified |
@@ -750,10 +750,10 @@ The Weight sub-TLV is OPTIONAL; it MUST NOT appear more than once inside the Seg
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a second Weight sub-TLV in one Segment List. Red: require.Len(weights, 1) on the srpDirty encoding, and require.Error on parseConfigRoute for 'segment-list weight 1 weight 2 ...', so the config path cannot produce a second one.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L393) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L374) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L393) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L374) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4.1-3`](#rfc9830-2.4.4.1-3)
 
@@ -761,10 +761,10 @@ Specifies the length of the value field (i.e., not including Type and Length fie
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a Weight length other than 6 (e.g. the 8-octet total). Red: require.Len(weight, 6) on a value cut at the declared length, srpSegSubs require.NoError on the walk, and assert.Len(value, 1+8+8+28) on the whole segment list.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L390) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L378) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L390) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L378) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4.1-4`](#rfc9830-2.4.4.1-4)
 
@@ -772,10 +772,10 @@ The Flags field MUST be set to zero on transmission (§2.4.4.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a non-zero Weight Flags octet. Red: assert.Equal(byte(0), weight[0]). Negative: assert.NotEqual(make([]byte, 6), weight), weight 0xCAFEBABE.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L386) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L382) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L386) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L382) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4.1-5`](#rfc9830-2.4.4.1-5)
 
@@ -783,7 +783,7 @@ The Flags field MUST be set to zero on transmission and MUST be ignored on recei
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.4.1: "The Flags field MUST be set to zero on transmission and MUST be ignored on receipt." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of both nested Weight Flags now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-10-weight-flags changes wbuf[2] = 1 in buildSegmentListSubTLV and produces only the field diagnostics ["Weight Flags = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L43) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L468) | unit/verify | revert, verified |
@@ -798,10 +798,10 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentListSubTLV. Forbidden: a non-zero Weight RESERVED octet on transmission. Red: assert.Equal(byte(0), weight[1]) on the srpDirty encoding. Negative: assert.NotEqual(make([]byte, 6), weight) with weight[2:6] pinned to 0xCAFEBABE, so the zero is written, not a blank buffer.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L387) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L384) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L387) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentListSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L384) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4.1-7`](#rfc9830-2.4.4.1-7)
 
@@ -809,7 +809,7 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.4.1: "This field MUST be set to zero on transmission and MUST be ignored on receipt." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of both nested Weight RESERVED now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-11-weight-reserved changes wbuf[3] = 1 in buildSegmentListSubTLV and produces only the field diagnostics ["Weight RESERVED = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L45) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L470) | unit/verify | revert, verified |
@@ -824,10 +824,10 @@ Specifies the length of the value field (i.e., not including Type and Length fie
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV. Forbidden: a Type A length other than 6 (e.g. the 8-octet total). Red: require.Len(value, 6) on a value srpSegSubs cut at the declared length. Negative: assert.Len(inner, 3), which a length of 8 breaks by swallowing the Type B sub-TLV header that follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L423) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L409) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L423) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L409) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4.2.1-2`](#rfc9830-2.4.4.2.1-2)
 
@@ -835,10 +835,10 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV. Forbidden: a non-zero Type A RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]). Negative: assert.NotEqual(make([]byte, 6), value) with the label pinned to 0xFFFFF.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L420) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L412) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L420) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L412) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4.2.1-3`](#rfc9830-2.4.4.2.1-3)
 
@@ -846,7 +846,7 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.4.2.1: "This field MUST be set to zero on transmission and MUST be ignored on receipt." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of Type A RESERVED now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-12-type-a-reserved changes buf[3] = 1 in buildSegmentTypeA and produces only the field diagnostics ["Type A RESERVED = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L47) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L472) | unit/verify | revert, verified |
@@ -861,10 +861,10 @@ The S bit MUST be zero upon transmission (§2.4.4.2.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV. Forbidden: S bit set in the transmitted Type A label stack entry. Red: assert.Equal(byte(0), value[4]&0x01). Negative: assert.Equal(uint32(0xFFFFF), label), so every label bit is set beside the clear S bit and the zero is not a blank low octet.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L418) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L414) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L418) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L414) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4.2.1-5`](#rfc9830-2.4.4.2.1-5)
 
@@ -872,7 +872,7 @@ The S bit MUST be zero upon transmission and MUST be ignored upon reception. (§
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.4.2.1: "The S bit MUST be zero upon transmission and MUST be ignored upon reception." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of Type A S now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-13-type-a-s changes buf[6] |= 1 in buildSegmentTypeA and produces only the field diagnostics ["Type A S bit = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L49) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L474) | unit/verify | revert, verified |
@@ -887,10 +887,10 @@ The value MUST be 26 when the SRv6 Endpoint Behavior and SID Structure is presen
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: a length other than 26 with the Endpoint Behavior and SID Structure, or other than 18 without it. Red: require.Len(value, 26) on the srpDirty segment and require.Len(bare[0], 18) on the bare type-b segment; both clauses have an assertion and the pair shows the length tracks the content.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L446) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L444) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L446) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L444) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4.2.2-2`](#rfc9830-2.4.4.2.2-2)
 
@@ -898,10 +898,10 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: a non-zero Type B RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]) and assert.Equal(byte(0), bare[0][1]), with and without the structure. Negative: assert.NotEqual(make([]byte, 26), value) and value[2] pinned to 0xFC.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L452) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L449) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L452) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L449) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4.2.2-3`](#rfc9830-2.4.4.2.2-3)
 
@@ -909,7 +909,7 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.4.2.2: "This field MUST be set to zero on transmission and MUST be ignored on receipt." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of Type B RESERVED now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-14-type-b-reserved changes buf[3] = 1 in buildSegmentTypeB and produces only the field diagnostics ["Type B RESERVED = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L51) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L476) | unit/verify | revert, verified |
@@ -924,10 +924,10 @@ The SRv6 Endpoint Behavior and SID Structure MUST NOT be included when the SRv6 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: the Endpoint Behavior and SID Structure encoded without an SRv6 SID. Red: require.Error on parseSegmentList and on parseConfigRoute for 'segment endpoint-behavior ...' with no preceding type-b srv6 SID, the only route to a structure ze has. Positive: the structure follows a 16-octet SID (assert.Equal(byte(0xEF), value[17])).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L472) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L469) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L472) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L469) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4.2.3-1`](#rfc9830-2.4.4.2.3-1)
 
@@ -935,11 +935,11 @@ The unassigned bits in the Flags field MUST be set to zero upon transmission (§
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeASubTLV and TestRFC9830SegmentTypeBSubTLV. Forbidden: any unassigned Segment Flags bit set on transmission. Red: assert.Equal(byte(0), value[0]) on Type A and assert.Equal(byte(0), value[0]&^byte(0x10)) on Type B. Negative: the Type B Flags octet is 0x10 (the assigned B-Flag, bit 3 per Figure 13) and not zero, and 0 without the structure, so the assertion is on which bits are set, not on a blank byte.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L459) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L426) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L456) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L459) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentTypeASubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L426) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L456) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4.2.3-2`](#rfc9830-2.4.4.2.3-2)
 
@@ -947,7 +947,7 @@ The unassigned bits in the Flags field MUST be set to zero upon transmission and
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.4.2.3: "The unassigned bits in the Flags field MUST be set to zero upon transmission and MUST be ignored upon receipt." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of Type A and Type B unassigned Flags now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-15-type-a-unassigned-flags changes buf[2] = 1 in buildSegmentTypeA and produces only the field diagnostics ["Type A Flags = 0x01 on transmission, want 0"]. rfc9830-tx-16-type-b-unassigned-flags changes buf[2] |= 1 in buildSegmentTypeB and produces only the field diagnostics ["Type B unassigned Flags bits = 0x01 on transmission, want 0", "Type B Flags (B-Flag only) = 11, want 10"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L53) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L478) | unit/verify | revert, verified |
@@ -962,7 +962,7 @@ If B-Flag appears with Segment Type A, it MUST be ignored. (§2.4.4.2.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment: RFC9830 Section 2.4.4.2.3: "If B-Flag appears with Segment Type A, it MUST be ignored." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. The source-mapped rx-typea-b mutant is bounded to nested Type A value[0]&0x10. Both AFIs fail their isolated Type A B-bit victim and combined dirty input at the receive-action assertion; unchanged B=0 controls and valid Type B B=1/structure controls pass. This is the receive-only obligation: no missing transmit conjunct is invented, and assigned Type B B is not rejected. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L480) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReceivedFieldsAreIgnoredNotRead`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L217) | unit/verify | revert, verified |
@@ -975,10 +975,10 @@ Reserved: 2 octets of reserved bits. This field MUST be set to zero on transmiss
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830SegmentTypeBSubTLV. Forbidden: non-zero Reserved octets in the Endpoint Behavior and SID Structure on transmission. Red: assert.Equal([]byte{0x00, 0x00}, value[20:22]). Negative: endpoint behavior 0xFFFF at value[18:20] and structure 32/16/16/64 at value[22:26], so the zeros are written at the right offset.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L465) | unit/verify | unproven |
-| positive | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L463) | unit/verify | unproven |
+| negative | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L465) | unit/verify | not verified |
+| positive | [`TestRFC9830SegmentTypeBSubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L463) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.4.2.4-3`](#rfc9830-2.4.4.2.4-3)
 
@@ -990,7 +990,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 		buf[23] = 1
 	} in buildSegmentTypeB and produces only the field diagnostics ["SRv6 Endpoint Behavior Reserved = 0001, want 0000"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L55) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L482) | unit/verify | revert, verified |
@@ -1069,10 +1069,10 @@ The Priority sub-TLV is OPTIONAL; it MUST NOT appear more than once in the SR Po
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV. Forbidden: two Priority sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVPriority), 1) for a config naming priority twice. Negative (control): a config with no priority emits none (assert.Empty), so the instance is counted rather than always written; a violating output cannot be built from a conforming encoder.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830PrioritySubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L352) | unit/verify | unproven |
-| positive | [`TestRFC9830PrioritySubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L349) | unit/verify | unproven |
+| negative | [`TestRFC9830PrioritySubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L352) | unit/verify | not verified |
+| positive | [`TestRFC9830PrioritySubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L349) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.6-4`](#rfc9830-2.4.6-4)
 
@@ -1080,10 +1080,10 @@ Length: Specifies the length of the value field (i.e., not including Type and Le
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV and TestRFC9830PriorityLengthIsValueLength. Forbidden: a Priority length other than 2 (e.g. the 4-octet total). Red: require.Len(value, 2) on a value cut at the declared length, and assert.Equal([]byte{15, 2, 255, 0}, only[4:]) pinning the length octet itself.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830PriorityLengthIsValueLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L526) | unit/verify | unproven |
-| positive | [`TestRFC9830PrioritySubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L340) | unit/verify | unproven |
+| negative | [`TestRFC9830PriorityLengthIsValueLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L526) | unit/verify | not verified |
+| positive | [`TestRFC9830PrioritySubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L340) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.6-5`](#rfc9830-2.4.6-5)
 
@@ -1091,10 +1091,10 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830PrioritySubTLV. Forbidden: a non-zero Priority RESERVED octet on transmission. Red: assert.Equal(byte(0), value[1]). Negative: assert.NotEqual([]byte{0,0}, value) with value[0] pinned to 255, so the zero is written and the fields are not transposed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830PrioritySubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L346) | unit/verify | unproven |
-| positive | [`TestRFC9830PrioritySubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L344) | unit/verify | unproven |
+| negative | [`TestRFC9830PrioritySubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L346) | unit/verify | not verified |
+| positive | [`TestRFC9830PrioritySubTLV`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L344) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.6-6`](#rfc9830-2.4.6-6)
 
@@ -1102,7 +1102,7 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent TX-completion rejudgment. RFC9830 Section 2.4.6: "This field MUST be set to zero on transmission and MUST be ignored on receipt." TestRFC9830ReservedFieldsIgnoredOnReceipt uses valid route-target/ASN4 carriers for both SAFI-73 AFIs, exact no-action and one-attribute assertions before real cache/export/downstream announcement, and nonzero meaningful neighbors. Renewed receive-source-mapped-assessment.json maps actual teSRPolicyValue offsets to immutable mutant/log victim names; its corrected receive victims, not original classifier false flags, are credited. Selective overvalidation of Priority RESERVED now fails the intended receive-action assertion while clean and structurally valid B=1 controls survive. The corrected 14-case aggregate is 34 isolated victim leaves plus 28 all-ignored-fields failures and 56 clean controls, not 62 isolated field tests. The missing transmission counterfactual is now executed: rfc9830-tx-19-priority-reserved changes buf[3] = 1 in buildPrioritySubTLV and produces only the field diagnostics ["Priority RESERVED = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L57) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L484) | unit/verify | revert, verified |
@@ -1117,10 +1117,10 @@ The SR Policy Candidate Path Name sub-TLV is OPTIONAL; it MUST NOT appear more t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: two Candidate Path Name sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVCandidatePathNam), 1) for a config naming the candidate path twice. Negative (control): an unnamed candidate path emits none (assert.Empty); a violating output cannot be built from a conforming encoder.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L514) | unit/verify | unproven |
-| positive | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L507) | unit/verify | unproven |
+| negative | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L514) | unit/verify | not verified |
+| positive | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L507) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.7-6`](#rfc9830-2.4.7-6)
 
@@ -1128,10 +1128,10 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: a non-zero Candidate Path Name RESERVED octet on transmission. Red: assert.Equal(byte(0), value[0]) in the loop case for 'primary'. Negative: require.Len(value, 1+len(want)) and assert.Equal(want, string(value[1:])), so the zero is a separate written octet ahead of the whole name.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L503) | unit/verify | unproven |
-| positive | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L496) | unit/verify | unproven |
+| negative | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L503) | unit/verify | not verified |
+| positive | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L496) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.7-7`](#rfc9830-2.4.7-7)
 
@@ -1141,7 +1141,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 		buf[3] = 1
 	} in buildNameSubTLV and produces only the field diagnostics ["Candidate Path Name RESERVED = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L59) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L486) | unit/verify | revert, verified |
@@ -1156,10 +1156,10 @@ The SR Policy Name sub-TLV is OPTIONAL; it MUST NOT appear more than once in the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: two SR Policy Name sub-TLVs in one encoding. Red: assert.Len(srpAll(repeated, subTLVPolicyName), 1) for a config naming the policy twice. Negative (control): an unnamed policy emits none (assert.Empty); a violating output cannot be built from a conforming encoder.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L515) | unit/verify | unproven |
-| positive | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L508) | unit/verify | unproven |
+| negative | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L515) | unit/verify | not verified |
+| positive | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L508) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.8-6`](#rfc9830-2.4.8-6)
 
@@ -1167,10 +1167,10 @@ RESERVED: 1 octet of reserved bits. This field MUST be set to zero on transmissi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go::TestRFC9830NameSubTLVs. Forbidden: a non-zero SR Policy Name RESERVED octet on transmission. Red: assert.Equal(byte(0), value[0]) in the loop case for 'alpha'. Negative: assert.NotEqual(make([]byte, 6), ...) and assert.Equal(want, string(value[1:])), so the zero is written ahead of the whole name.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L504) | unit/verify | unproven |
-| positive | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L497) | unit/verify | unproven |
+| negative | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L504) | unit/verify | not verified |
+| positive | [`TestRFC9830NameSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_test.go#L497) | unit/verify | not verified |
 
 ### [`RFC9830-2.4.8-7`](#rfc9830-2.4.8-7)
 
@@ -1180,7 +1180,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 		buf[3] = 1
 	} in buildNameSubTLV and produces only the field diagnostics ["Policy Name RESERVED = 0x01 on transmission, want 0"]. Current TestRFC9830FieldsToIgnoreAreZeroOnTransmission traverses config parsing/buildTunnelEncap, pins zero/mask fields beside the configured Preference, labels, SID, Weight, endpoint behavior/structure, Priority and names, and keeps the positive neighbors intact. Only that tagged unit fails under each TX fault; TestRFC9830SinglePolicyTLVPerAttribute passes. The selected baseline unit passes without overlays. Both clauses are therefore independently discriminated, replacing the prior TX-evidence hold; the earlier RX mapping limitations are unchanged. This is executed host semantic evidence, not a canonical native discrimination renewal. Native recording/stamping and the five FRR scenarios remain parent-owned and are not declared verified here. No SRPM, dataplane, absent encoding form, full-RFC, or exhaustive-per-bit claim follows.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830FieldsToIgnoreAreZeroOnTransmission`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/srpolicy/rfc9830_transmit_zero_test.go#L61) | unit/verify | revert, verified |
 | negative | [`TestRFC9830ReservedFieldsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L488) | unit/verify | revert, verified |
@@ -1219,7 +1219,7 @@ The SR Policy NLRI MUST include a distinguisher, Color, and Endpoint field (§4.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-23 (independent auditor, after 5d4afb0c4e and 9242dcd57b). RFC 9830 Section 4.2.1: "The SR Policy NLRI MUST include a distinguisher, Color, and Endpoint field that implies that the length of the NLRI MUST be either 12 or 24 octets (depending on the address family of the Endpoint)." TestRFC9830NLRILengthReceiveVerdicts changed only in what its unwalkable and Section 5.2 cases expect on the wire (3/9 with the MP attribute, via srMPAttrError and srRequireReset with an exact want), not in the two tags of this row: the positive still requires 12 octets under AFI 1 and 24 under AFI 2, with and without ADD-PATH, accepted through processMessage with no RFC 7606 action and dispatched byte-identical; the negative still requires 13 and 24 octets under AFI 1 and 12 and 25 under AFI 2 (too long, or too short to hold an IPv6 Endpoint), alone or beside a well-formed NLRI, to be treated as withdrawn with the session Established, nothing written, and the received body never dispatched. Producer: the registered srpolicy nlrisyntax Judge reached from rfc7606.go validateMPNLRISyntax. Ran green. Verdict stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L196) | unit/verify | revert, verified |
 | positive | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L185) | unit/verify | revert, verified |
@@ -1230,7 +1230,7 @@ the length of the NLRI MUST be either 12 or 24 octets (depending on the address 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L197) | unit/verify | revert, verified |
 | positive | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L186) | unit/verify | revert, verified |
@@ -1257,7 +1257,7 @@ The Tunnel Encapsulation Attribute MUST be attached to the BGP UPDATE message (�
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L475) | unit/verify | revert, verified |
 | positive | [`TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L481) | unit/verify | revert, verified |
@@ -1268,7 +1268,7 @@ The Tunnel Encapsulation Attribute MUST be attached to the BGP UPDATE message an
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 9450048187. RFC 9830 Section 4.2.1: 'The Tunnel Encapsulation Attribute MUST be attached to the BGP UPDATE message and MUST have a Tunnel Type TLV set to SR Policy (code point is 15).' First clause: rfc9830_tunnel_receive_test.go::TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed requires an AFI 1/2 SAFI 73 UPDATE with NLRI and no attribute 23 to be treat-as-withdraw through processMessage, and the same NLRI with one type-15 TLV to be delivered unchanged. Second clause: TestRFC9830SRPolicyTunnelTypeNot15IsMalformed attaches attribute 23 whose only TLV is VXLAN (8) or 0xFFFE and requires treat-as-withdraw with the session kept, and requires the type-15 TLV in the same position to be delivered unchanged. The recorded breaks replace all of applyTunnelEncap with a panic, which shows reachability only, so the auditor ran a targeted mutant through a go test overlay: disabling only the '!= 15' check in applyTunnelEncap (session_tunnel_encap.go, 'non-SR-Policy tunnel type on SAFI 73') turns TestRFC9830SRPolicyTunnelTypeNot15IsMalformed red ('vxlan: the malformed UPDATE was dispatched as received'), so the tagged negative discriminates the type-15 rule itself; an over-rejecting producer fails the type-15 positive.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830SRPolicyTunnelTypeNot15IsMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L525) | unit/verify | revert, verified |
 | negative | [`TestRFC9830SRPolicyWithoutTunnelEncapIsMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L474) | unit/verify | revert, verified |
@@ -1337,10 +1337,10 @@ A BGP node MUST NOT alter the SR Policy information carried in the Tunnel Encaps
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9012AllSubTLVsPropagate`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L194) | unit/verify | unproven |
-| positive | [`TestRFC9012AllSubTLVsPropagate`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L180) | unit/verify | unproven |
+| negative | [`TestRFC9012AllSubTLVsPropagate`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L194) | unit/verify | not verified |
+| positive | [`TestRFC9012AllSubTLVsPropagate`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L180) | unit/verify | not verified |
 
 ### [`RFC9830-5-1`](#rfc9830-5-1)
 
@@ -1348,7 +1348,7 @@ A BGP speaker MUST perform the following syntactic validation of the SR Policy N
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L198) | unit/verify | revert, verified |
 | positive | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L187) | unit/verify | revert, verified |
@@ -1359,7 +1359,7 @@ When the error determined allows for the router to skip the malformed NLRI(s) an
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L214) | unit/verify | revert, verified |
 | positive | [`TestRFC7606Section52MPUnreachOnlyNotEscalated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_mpunreach_only_test.go#L49) | unit/verify | revert, verified |
@@ -1371,7 +1371,7 @@ Alternately, the router MUST perform "session reset" when the session is only be
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L199) | unit/verify | revert, verified |
 | positive | [`TestRFC9830NLRILengthReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_nlri_receive_test.go#L213) | unit/verify | revert, verified |
@@ -1414,10 +1414,10 @@ A BGP implementation MUST NOT perform semantic verification of such fields nor c
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. internal/core/bgp/attribute/rfc9830_test.go::TestRFC9830NoSemanticVerification. ParseTunnelEncap is the only receive parser of attribute 23 (wire.go knownAttrParsers) and Preference the only field ze consumes. Forbidden: refusing, or not using, an SR Policy update because a field value is semantically wrong. Red: require.NoError(ParseTunnelEncap), require.NoError(SubTLVs) with assert.Len(stlvs, 5), assert.Equal(uint32(4242), pref) and the byte-identical round trip, over weight 0, reserved label 3, a SID structure totalling 255, ENLP 99 and an empty segment list. Negative: framing errors are still refused (require.Error twice), so the skip is limited to field semantics. A verification with no observable effect cannot be asserted; every effect it could have is.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9830NoSemanticVerification`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L348) | unit/verify | unproven |
-| positive | [`TestRFC9830NoSemanticVerification`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L336) | unit/verify | unproven |
+| negative | [`TestRFC9830NoSemanticVerification`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L348) | unit/verify | not verified |
+| positive | [`TestRFC9830NoSemanticVerification`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9830_test.go#L336) | unit/verify | not verified |
 
 ## Requirement list review
 

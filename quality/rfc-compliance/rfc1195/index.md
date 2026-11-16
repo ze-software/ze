@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 29 | of 41 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5 | of 41 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 29 | of 41 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 41 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 41 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 41 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 61 | 61 of 85 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 41 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 61 | 61 of 85 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 41 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 41 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 41 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 41 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 41 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 41 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 41 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: Integrated IS-IS for IP routing. The checklist rec
 
 **Area:** Integrated IS-IS for IPv4
 
-**Proof:** 25 of 41 MUST proven
+**Test verification:** 25 of 41 MUST proven
 
 **Evidence:** unit 25
 
@@ -109,7 +109,7 @@ Included in automatic checks: Integrated IS-IS for IP routing. The checklist rec
 | Annotated (including scoped evidence) | 12 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **41** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: Integrated IS-IS for IP routing. The checklist rec
 
 ## Figures
 
-- **MUST bar**: Ze proven 25, Proof pending 9, Not built 7
-- **Overview bar**: Ze MUST proven 25, Proof pending 9, Not assessed 1, Not built 7
+- **MUST bar**: Ze verified 25, Tests awaiting verification 9, Not built 7
+- **Overview bar**: Ze MUST verified 25, Tests awaiting verification 9, Not assessed 1, Not built 7
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: Integrated IS-IS for IP routing. The checklist rec
 | Mandatory requirements complete | not complete |
 | MUST rows | 41 |
 | MUST rows kept (the MUST bar) | 41 |
-| Ze proven | 25 |
+| Ze verified | 25 |
 | OS verified | 0 |
-| Proof pending | 9 |
+| Tests awaiting verification | 9 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: Integrated IS-IS for IP routing. The checklist rec
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 1 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 1 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc1195.json](../../../data/rfc/rfc1195.json).
 
@@ -217,9 +217,9 @@ Source: [data/rfc/rfc1195.json](../../../data/rfc/rfc1195.json).
 | [`RFC1195-8-1`](#rfc1195-8-1) Type = 2 indicates that the external information field contains an autonomous system number tag, to be applied to subsequent IP external reachability information entries. In this case, this "inter-domain routing protocol information" entry must contain precisely one 2 octet AS number. The AS tag is associated with subsequent IP External Reachability entries, until the end of the LSP, or until the next occurence of the Inter-Domain Routing Protocol Information field. (§A.2) | {gap}, no test | ze originates no Inter-Domain Routing Protocol Information field: internal/plugins/isis/lsdb/origination.go emits no TLV 131, spf/graph.go consumes none, and packet.DecodeTLVs keeps a received TLV 131 opaque for unchanged flooding; Section 5.2 makes the field optional and no owner decision declines it (the earlier “owner decision” text had no primary source), so no AS tag entry is ever written and the row is a gap |
 | [`RFC1195-8-2`](#rfc1195-8-2) Type = 0 is reserved (must not be sent, and must be ignored on receipt). (Section A.2) | {gap}, no test | ze originates no Inter-Domain Routing Protocol Information field: internal/plugins/isis/lsdb/origination.go emits no TLV 131, spf/graph.go consumes none, and packet.DecodeTLVs keeps a received TLV 131 opaque for unchanged flooding; Section 5.2 makes the field optional and no owner decision declines it (the earlier “owner decision” text had no primary source); ze sends no type 0 and interprets no received type, so both clauses hold by construction, but no test is tagged to this row |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC1195-5.2-1`](#rfc1195-5.2-1)
 
@@ -227,7 +227,7 @@ The "Protocols Supported" field identifies the protocols which are supported by 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (TestISISIIHOriginationTLVs claim block changed: its RFC3787 tags were split; this row's tag and the unit body are unchanged). Single-polarity positive per the row (Ze is unconditionally IP-capable). TestISISIIHOriginationTLVs asserts TLV 129 in the decoded sent L1 LAN IIH and P2P IIH; root TestRFC1195NodeProtocolsAcrossInterfaces asserts TLV 129 with NLPID 0xCC in each interface's IIH and LSP number 0; root TestRFC1195ISHTransmitReceive the ISH on a point-to-point circuit; lsdb TestISISOriginateOnAdjacencyUp LSP fragment 0. Every place the sentence names is asserted. Recorded + on circuit/hello.go protocolsSupportedTLV (three units); the lsdb unit carries no record of its own. Re-read 2026-09-30 by judge after TestISISIIHOriginationTLVs gained a TLV 132 value assertion (RFC3787-10-1); its TLV 129 assertions in the LAN and P2P IIH are unchanged, so the verdict stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestISISIIHOriginationTLVs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/circuit/hello_test.go#L177) | unit/verify | revert, verified |
 | positive | [`TestISISOriginateOnAdjacencyUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc1195_origination_test.go#L122) | unit/verify | revert, verified |
@@ -240,7 +240,7 @@ In Link State Packets, this field contains a list of one or more IP addresses co
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity positive per the row. Closure rejudge 2026-10-02: the tag on packet TestISISTLVIPv4InterfaceAddr was removed (decode-only, it cannot reach Originate or levelState, so it never proved that the router includes the field); its revert record on tlv_ipv4.go::DecodeIPv4InterfaceAddrTLV is left as an orphan in rfc/discrimination/rfc1195.json. The verdict rests, unchanged, on root TestRFC1195SameInterfaceAddressesBothLevels (L1L2 engine, two circuits, fragment 0's TLV 132 at each level must be exactly {192.0.2.9, 198.51.100.9}; recorded + on lsdb_wiring.go levelState) and lsdb TestISISOriginateOnAdjacencyUp (recorded + on origination.go Originate).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestISISOriginateOnAdjacencyUp`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc1195_origination_test.go#L110) | unit/verify | revert, verified |
 | positive | [`TestRFC1195SameInterfaceAddressesBothLevels`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L321) | unit/verify | revert, verified |
@@ -251,7 +251,7 @@ Where a single router operates as both a level 1 and a level 2 router, it is req
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity positive per the row annotation (no per-level divergence path to drive a refusal). TestRFC1195SameInterfaceAddressesBothLevels runs an L1L2 engine with two circuits on the connected-prefix test backend and requires the TLV 132 set of its own fragment 0 at Level 1 and at Level 2 to equal exactly {192.0.2.9, 198.51.100.9}; a producer that dropped or added an address at one level goes red. Recorded red on lsdb_wiring.go levelState. The old tag on TestISISEngineOriginateOnAdjacencyUp, which compared nothing, is gone. Re-judged 2026-09-30: TestRFC1195SameInterfaceAddressesBothLevels changed only by an added RFC1195-5.2-2 tag comment.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC1195SameInterfaceAddressesBothLevels`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L320) | unit/verify | revert, verified |
 
@@ -261,10 +261,10 @@ Bit 7 of this field (marked I/E) indicates the metric type (internal or external
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: a leaked internal L2 entry is decoded with ExternalMetric false. Negative: a producer asking for ExternalMetric on an internal prefix still emits TLV 128 with bit 0x40 clear. Both would fail if the originator set I/E.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1195InternalOriginatorClearsExternalMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L410) | unit/verify | unproven |
-| positive | [`TestRFC1195NarrowLeakedMetricClamps`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L311) | unit/verify | unproven |
+| negative | [`TestRFC1195InternalOriginatorClearsExternalMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L410) | unit/verify | not verified |
+| positive | [`TestRFC1195NarrowLeakedMetricClamps`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L311) | unit/verify | not verified |
 
 ### [`RFC1195-5.3.4-2`](#rfc1195-5.3.4-2)
 
@@ -272,10 +272,10 @@ IP Internal Reachability Information -- IP addresses within the routing domain r
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30: TestRFC1195PseudonodeCannotInheritRouterPrefixes gained only the RFC1195-5.3.5-2 and RFC1195-3.4-2 tag comments; the body is byte-identical. The unit fails if the pseudonode LSP carries TLV 128 while the router LSP carries the narrow internal prefix (routerTypes[128] required), and the pseudonode's TLV 22 member entry is the positive. Positive and negative tags sit on the one assertion; the input is the violation attempt.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1195PseudonodeCannotInheritRouterPrefixes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L446) | unit/verify | unproven |
-| positive | [`TestRFC1195PseudonodeCannotInheritRouterPrefixes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L445) | unit/verify | unproven |
+| negative | [`TestRFC1195PseudonodeCannotInheritRouterPrefixes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L446) | unit/verify | not verified |
+| positive | [`TestRFC1195PseudonodeCannotInheritRouterPrefixes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L445) | unit/verify | not verified |
 
 ### [`RFC1195-5.3.5-2`](#rfc1195-5.3.5-2)
 
@@ -283,7 +283,7 @@ IP External Reachability Information -- IP addresses outside the routing domain 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30 (routing phase-8 judge). TestRFC1195PseudonodeCannotInheritRouterPrefixes originates a Level 2 router LSP carrying a narrow external prefix (203.0.113.0/24, External+ExternalMetric) so the router LSP holds TLV 130 (the unit requires routerTypes[130]), then a pseudonode LSP from the same system into the same LSDB; every pseudonode TLV is decoded and TLV 130 there is t.Fatalf. Positive: the pseudonode exists and carries the member neighbor in TLV 22 (neighborSeen). Negative: inputs forced toward the violation (the originating router holds TLV 130 in the same LSDB) and the pseudonode still has none; one assertion wearing both tags, as for RFC1195-5.3.4-2, valid because the input is the violation attempt. Producer OriginatePseudonode builds only from Members, so there is no input that selects a TLV 130. Records are body-panic reverts on lsdb/pseudonode.go::OriginatePseudonode (coarse, but the assertion itself is the discriminator).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195PseudonodeCannotInheritRouterPrefixes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L448) | unit/verify | revert, verified |
 | positive | [`TestRFC1195PseudonodeCannotInheritRouterPrefixes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L447) | unit/verify | revert, verified |
@@ -294,7 +294,7 @@ The inter- domain routing protocol information field is not included in pseudono
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30. Positive: TestRFC1195PseudonodeCannotInheritRouterPrefixes decodes every pseudonode TLV and fails on type 131. {single-polarity: positive} checked: packet/tlv.go has no TLV 131 constant and no Go producer writes type 131, so no input can drive a producer toward placing it and no refusal path exists; no HEAD negative on the row. Level MUST NOT over 'is not included in pseudonode LSPs' (no keyword) is a D-3 call, accepted. Record: revert on OriginatePseudonode, observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC1195PseudonodeCannotInheritRouterPrefixes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L449) | unit/verify | revert, verified |
 
@@ -304,7 +304,7 @@ Each entry must contain a default metric (§5.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. The TLV 135 tag on packet TestISISTLVIPv4RoundTrip (RFC 5305 extended reachability, not an RFC 1195 entry) is gone, which was the only reason for weak. Positive TestRFC1195OriginatedExternalEntriesCarryDefaultMetric decodes every TLV 130 entry the Originator emits and requires the configured default metric (7 internal type, 33 external type), so an originator that dropped or zeroed it goes red. Negative TestRFC1195ExternalEntryWithoutDefaultMetricRefused removes the default metric octet from a TLV 130 entry: requireNoDefaultMetricRefused requires ErrLength and the route falls back to the competing entry (winner 2, metric 160). Both recorded red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195ExternalEntryWithoutDefaultMetricRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L71) | unit/verify | revert, verified |
 | positive | [`TestRFC1195OriginatedExternalEntriesCarryDefaultMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L82) | unit/verify | revert, verified |
@@ -315,10 +315,10 @@ Note: If this sum results in a metric value greater than 63 (the maximum value t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: L1 path 50+40 leaked to L2 with metric 63. Negative: 10+5 preserved as 15. Both fail if the clamp is removed or applied wrongly.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1195NarrowLeakedMetricBelowCeiling`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L319) | unit/verify | unproven |
-| positive | [`TestRFC1195NarrowLeakedMetricClamps`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L310) | unit/verify | unproven |
+| negative | [`TestRFC1195NarrowLeakedMetricBelowCeiling`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L319) | unit/verify | not verified |
+| positive | [`TestRFC1195NarrowLeakedMetricClamps`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L310) | unit/verify | not verified |
 
 ### [`RFC1195-3.9-1`](#rfc1195-3.9-1)
 
@@ -326,7 +326,7 @@ If a packet is received which contains invalid authentication information, then 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. New root TestRFC1195InvalidAuthLSPDiscardedAtReceive drives the real dispatcher with the engine's verify hook (setKeyStore, HMAC-SHA-256 area chain): the signed L1 LSP reaches the L1 LSP handler exactly once (positive), and the same LSP with one digest octet (offset 32, past the 2-octet Key ID) flipped never reaches it (negative), so the entire PDU is dropped before any LSDB, adjacency or SNP handler. Only the digest differs, so the buffer isolates the auth rule. A receive path that verified and ignored the result goes red; +/- recorded red on auth_wiring.go verifyFrame. Packet units (VerifyPDU error on a flipped bit, accept on valid) remain as the codec-level half.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195InvalidAuthLSPDiscardedAtReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/auth_discard_rfc1195_test.go#L28) | unit/verify | revert, verified |
 | negative | [`TestISISAuthConstantTimeCompare`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/auth_verify_test.go#L611) | unit/verify | revert, verified |
@@ -339,7 +339,7 @@ Any codes in a received PDU that are not recognised shall be ignored and, for th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Clause 'ignored': packet TestISISUnknownTLVPassthrough decodes TLVs 199/250 with no error and re-encodes the region byte-for-byte (prose now cites sec 5.2, matching the row). Clause 'forwarded LSPs passed on unchanged': new lsdb TestRFC1195UnknownTLVsFloodedUnchanged stores an LSP carrying 131/199/250 via Flooder.ReceiveLSP and after FloodTick requires the LAN circuit to send bytes.Equal to the received raw PDU, each unknown TLV present, and nothing back on the arrival circuit; a flood that rebuilt or stripped the LSP goes red. Both recorded red (ReceiveLSP, DecodeTLVs). {single-polarity: positive} holds: there is no reject path for an unrecognized code.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC1195UnknownTLVsFloodedUnchanged`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/unknown_tlv_flood_rfc1195_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestISISUnknownTLVPassthrough`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/tlv_opaque_test.go#L16) | unit/verify | revert, verified |
@@ -374,10 +374,10 @@ In a pure IP routing domain, all routers must be IP-capable (Section 1.4)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1195IPv6SelectionDoesNotRemoveIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L204) | unit/verify | unproven |
-| positive | [`TestRFC1195PureIPAdvertisesIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L191) | unit/verify | unproven |
+| negative | [`TestRFC1195IPv6SelectionDoesNotRemoveIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L204) | unit/verify | not verified |
+| positive | [`TestRFC1195PureIPAdvertisesIPv4`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L191) | unit/verify | not verified |
 
 ### [`RFC1195-3.2-2`](#rfc1195-3.2-2)
 
@@ -385,7 +385,7 @@ In general, the same [IP address, subnet mask] pair may be announced in level 1 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-31 by an auditor who authored neither the test nor its producer, after a third carrier was tagged. RFC 1195 Section 3.2: "In this case (assuming the entry is not superceded by a manually configured entry), then only one such entry shall be included in the level 2 LSP. The metric value(s) announced in level 2 LSPs correspond to the minimum of the metric value(s) that would be calculated for each of the level 1 LSP entries." The same section says directly reachable addresses "are treated exactly the same as addresses received in level 1 LSPs". New positive internal/plugins/isis/rfc1195_level2_reach_test.go::TestRFC1195Level2OneEntryPerPrefix runs the started engine, stores connected 172.30.0.0/24 at 10 and 192.0.2.0/24 at 50, applies a level 1 leak of both at 20, then decodes the stored level 2 LSP and requires exactly [10] and exactly [20] TLV 135 metrics: a duplicate or a non-minimum metric fails, and each case makes a different side win. Producer lsdb_wiring.go::level2Reachability, called for level 2 from the LSP state build; an observed red is recorded under a hand-written break that keeps every direct entry ([50 20] for 192.0.2.0/24). Earlier judgment of the other two carriers stands. Forbidden: more than one L2 entry for a prefix several L1 routers announce, or an L2 metric above the minimum. metricLeak fails unless exactly one L2 entry for the prefix is originated; TestRFC1195SpecificLeakCollapsesDuplicatePrefix (two routers, 20 and 9) and TestRFC1195SpecificLeakKeepsOnlyMinimum (three routers, 20, 12 and 9, cheapest not first in system-id order) each require metric 9. Distinct inputs, so no longer one assertion with two tags; a first-seen or last-seen leak producer fails the three-router case. No refusal path exists for an originator. Negative carries an observed-red record on leakInto; the positive has none but reads red on the same breaks.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195SpecificLeakKeepsOnlyMinimum`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L123) | unit/verify | revert, verified |
 | positive | [`TestRFC1195Level2OneEntryPerPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_level2_reach_test.go#L50) | unit/verify | mutant, verified |
@@ -405,10 +405,10 @@ The reserved field must contain "00 00", as specified in GOSIP version 2.0. (Sec
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Encoder emits the GOSIP NET with reserved octets zero; ParseNET and DecodeISH refuse either nonzero reserved octet with ErrNETReserved.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1195ISHGOSIPReservedRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_ish_test.go#L39) | unit/verify | unproven |
-| positive | [`TestRFC1195ISHGOSIPReservedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_ish_test.go#L15) | unit/verify | unproven |
+| negative | [`TestRFC1195ISHGOSIPReservedRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_ish_test.go#L39) | unit/verify | not verified |
+| positive | [`TestRFC1195ISHGOSIPReservedZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_ish_test.go#L15) | unit/verify | not verified |
 
 ### [`RFC1195-3.3-2`](#rfc1195-3.3-2)
 
@@ -416,10 +416,10 @@ IEEE 802 addresses, if used, must appear in IEEE canonical format (Section 3.3)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1195ISHDoesNotReverseIdentifierBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_ish_test.go#L84) | unit/verify | unproven |
-| positive | [`TestRFC1195ISHCanonicalIEEEIdentifier`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_ish_test.go#L60) | unit/verify | unproven |
+| negative | [`TestRFC1195ISHDoesNotReverseIdentifierBits`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_ish_test.go#L84) | unit/verify | not verified |
+| positive | [`TestRFC1195ISHCanonicalIEEEIdentifier`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_ish_test.go#L60) | unit/verify | not verified |
 
 ### [`RFC1195-3.4-1`](#rfc1195-3.4-1)
 
@@ -427,10 +427,10 @@ When an external route using external metrics must be used, the lowest value of 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1195ExternalMetricWithdrawalRecomputesWinner`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L159) | unit/verify | unproven |
-| positive | [`TestRFC1195ExternalMetricBeforeExitCost`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L148) | unit/verify | unproven |
+| negative | [`TestRFC1195ExternalMetricWithdrawalRecomputesWinner`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L159) | unit/verify | not verified |
+| positive | [`TestRFC1195ExternalMetricBeforeExitCost`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L148) | unit/verify | not verified |
 
 ### [`RFC1195-3.10-1`](#rfc1195-3.10-1)
 
@@ -438,7 +438,7 @@ The Dijkstra calculation must calculate routes to each distinct IP reachability 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195NoRouteForUnreachedReachabilityEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc1195_route_test.go#L64) | unit/verify | revert, verified |
 | positive | [`TestRFC1195RouteForEachReachabilityEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc1195_route_test.go#L29) | unit/verify | revert, verified |
@@ -449,10 +449,10 @@ If level 2 routes must be used, then routes within the routing domain (specifica
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged after a comment-only edit above TestRFC1195ExternalReachabilityWithInternalMetric (its RFC1195-7-4 tag moved away); the body is unchanged. A costly internal-metric L2 prefix (163) beats a cheap external-metric one in the installed Loc-RIB; an external TLV with an internal metric is not penalized (3, 2). Both fail if metric type is ignored.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1195ExternalReachabilityWithInternalMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L178) | unit/verify | unproven |
-| positive | [`TestRFC1195InternalMetricOutranksExternal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L169) | unit/verify | unproven |
+| negative | [`TestRFC1195ExternalReachabilityWithInternalMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L178) | unit/verify | not verified |
+| positive | [`TestRFC1195InternalMetricOutranksExternal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L169) | unit/verify | not verified |
 
 ### [`RFC1195-3.10-3`](#rfc1195-3.10-3)
 
@@ -460,7 +460,7 @@ However, the default metric must always be available. (Section 3.10)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a reachability entry used with no default metric. The default metric octet has no S (unsupported) bit in the 12-octet TLV 128/130 layout, so an entry lacking it can only arrive as a short entry, and the length refusal is this rule's own refusal. TestRFC1195InternalEntryWithoutDefaultMetricRefused asserts DecodeNarrowIPReachTLV returns ErrLength for the entry with its first octet removed while the complete entry decodes with metric 9, and the full LSDB/SPF path keeps the competing route (3 then 2,160); a floor(len/12) decoder goes red. Positive TestRFC1195RouteForEachReachabilityEntry: SPF uses each entry's own default metric. Both units carry observed-red revert records.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195InternalEntryWithoutDefaultMetricRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L60) | unit/verify | revert, verified |
 | positive | [`TestRFC1195RouteForEachReachabilityEntry`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc1195_route_test.go#L32) | unit/verify | revert, verified |
@@ -479,7 +479,7 @@ This implies that all IS-IS routers, including IP-only routers, must be able to 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (independent judge) under OWNER RULING 2, which names this row: an accept-on-reception obligation is proven by acceptance (positive) and by how Ze handles the absent or wrong form (negative), and 'refusing non-OSI encapsulation is that negative'. Positive transport TestRFC1195ParseFrameOSIEncapsulation: an 802.3 length + LLC FE/FE/03 frame is accepted and the PDU and source MAC come back intact. Negative TestRFC1195ParseFrameRefusesNonOSIEncapsulation (prose reworded, D-15; body unchanged): an Ethernet II ethertype yields ErrNotISO and a SNAP LLC yields ErrBadLLC, each with a nil PDU, so a frame lacking the normal OSI encapsulation is never read as an IS-IS PDU. Read against transport/frame.go ParseFrame. Records +/- revert ParseFrame, both observed red. The earlier weak verdict called the refusal a neighbouring strictness property; the owner ruled it is this row's negative.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195ParseFrameRefusesNonOSIEncapsulation`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/transport/rfc1195_frame_test.go#L50) | unit/verify | revert, verified |
 | positive | [`TestRFC1195ParseFrameOSIEncapsulation`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/transport/rfc1195_frame_test.go#L33) | unit/verify | revert, verified |
@@ -490,7 +490,7 @@ However, IP-capable routers must be able to interact correctly with other router
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30. New root units drive the engine path (dispatched P2P IIH -> adjacency table -> engineNextHopResolver) with a fake iface backend. Positive TestRFC1195MultiAddressNeighborForwarding: a neighbor listing the TLV 132 maximum of 63 addresses forms an Up adjacency and resolves to its own first address, on-link via the arrival interface, so a receiver that refused, truncated or mis-read a 63-address list goes red. Negative TestRFC1195MultiAddressNeighborRenumbered: the same neighbor re-sends a different 63-address list and no address of the old list survives as the next hop; forwarding to an address the neighbor no longer assigns (sec 4.2: each Hello carries the interface's current list) is an incorrect interaction and is rejected. Producer circuit/runtime.go helloInput takes the first decoded TLV 132 address per Hello; +/- recorded on it. The older packet units (63-address decode, truncated TLV refused) remain as codec cover.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195InterfaceAddrTLVTruncatedAddressRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_tlv_ipv4_test.go#L54) | unit/verify | revert, verified |
 | negative | [`TestRFC1195MultiAddressNeighborRenumbered`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L157) | unit/verify | revert, verified |
@@ -503,7 +503,7 @@ IP-capable IS-IS routers therefore must be able to forward IP packets over exist
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor after the userns conversion. The unit's only change since the last verdict is userns.Enter(t) as its first statement (the child re-runs the whole body in its own user, network and mount namespace; a child failure or skip propagates to the parent, and a child that ran nothing fails it) plus removal of EPERM/EACCES skips, so a refused privilege now fails instead of skipping. Assertions are byte-identical. Section 4.4: 'IP-capable IS-IS routers therefore must be able to forward IP packets over existing adjacencies to routers with which they share physical connectivity, even when the IP address of the adjacent interface of the neighboring router is on a different logical IP subnet.' Re-read all four units. Root TestRFC1195OffSubnetNeighborIsOnLinkNextHop (positive) and TestRFC1195OffSubnetNeighborNotResolvedBySubnet (negative) pin ResolveNextHop's Up-adjacency circuit with OnLink. TestFIBOnLinkAdjacencyAndUnsupportedPrefix drives Loc-RIB, sysrib's JSON event and the real FIB writer into a netns and reads the kernel's own RouteGet decision: an off-subnet 192.0.2.2 gateway on the 172.31.254.0/24 link is installed with RTNH_F_ONLINK (single and multipath), and clearing only OnLink flips the decision to the covering route's gateway with no ONLINK flag, so a writer that drops the mark goes red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L37) | unit/verify | mutant, verified |
 | negative | [`TestRFC1195OffSubnetNeighborNotResolvedBySubnet`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_neighbor_addresses_test.go#L202) | unit/verify | revert, verified |
@@ -516,7 +516,7 @@ All IS-IS routers are therefore required to transmit and receive ISO 9542 ISH pa
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent scoped source rejudgment after the raw CircuitID API adaptation. RFC 1195 Section 4.4 states: 'All IS-IS routers are therefore required to transmit and receive ISO 9542 ISH packets on point-to-point links.' TestRFC1195ISHTransmitReceive drives a configured P2P circuit, requires an ISH addressed to AllESs before the IIH, decodes its configured NET and IPv4 capability, dispatches a valid peer ISH through production handling, and requires one initializing IPv4 adjacency without bypassing the subsequent three-way handshake. TestRFC1195ISHVethTransport uses the actual AF_PACKET transport at both ends of an isolated veth pair, sends the encoded ISH through SendISH, filters the peer ifindex, requires exact AllESs destination and PDU bytes, and decodes the NET and holding time. Its sole edit discards CircuitInfo's added identity result; all inputs and assertions remain unchanged. Removing SendISH, corrupting its delivery, or removing P2P receive processing would fail those assertions. TestRFC1195ISHRejectsCorruptionAndWrongCircuit rejects corrupted P2P discovery and discovery on broadcast circuits. TestRFC1195ISHConfiguredPassword and TestRFC1195ISHWrongPassword retain the configured per-link-password send/receive and missing/wrong-password controls. TestRFC1195NeighborWithoutISHStillFormsAdjacency is supplementary IIH-only interoperability coverage, not the refusal proof for the mandatory transmit/receive capability. No claim or requirement scope changed. The tuple edit originally staled the veth unit's observation. ROOT then re-recorded that positive through the official revert route: the named unit passed its clean run and failed after SendISH was disabled through an overlay, with no skip; both VMs stopped. The reviewer read job-isis-raw-identity-rfc1195-own-kernel-record-157545f6.log and the native updated discrimination record. Both runs used Ze's own runtime system, module release 7.3.0-ze and kernel SHA256 e3b00fe91d5ce09cd4133f4d455e9295e815df9da6aac25a4039befa8a41caec. This fresh observation proves the tagged veth transport claim's dependence on SendISH, not additional protocol or whole-RFC conformance.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195ISHRejectsCorruptionAndWrongCircuit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L324) | unit/verify | revert, verified |
 | negative | [`TestRFC1195NeighborWithoutISHStillFormsAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_ish_absence_test.go#L43) | unit/verify | revert, verified |
@@ -531,10 +531,10 @@ Thus, the value of the "protocols supported" field must be identical on every li
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Enabling IPv6 on one interface gives identical NLPIDs in both IIHs and the LSP; after reload no stale IPv6 capability remains on the unchanged circuit. Re-judged 2026-09-30 (twice): TestRFC1195NodeProtocolsAcrossInterfaces changed only by added RFC1195-5.2-1 and RFC3787-x-2 tag comments.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1195NodeProtocolsReload`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L171) | unit/verify | unproven |
-| positive | [`TestRFC1195NodeProtocolsAcrossInterfaces`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L135) | unit/verify | unproven |
+| negative | [`TestRFC1195NodeProtocolsReload`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L171) | unit/verify | not verified |
+| positive | [`TestRFC1195NodeProtocolsAcrossInterfaces`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/protocol_rfc1195_test.go#L135) | unit/verify | not verified |
 
 ### [`RFC1195-4.5-1`](#rfc1195-4.5-1)
 
@@ -542,14 +542,14 @@ There may be times when a dual router has to forward an IP packet to an OSI-only
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor after the userns conversion. The unit's only change since the last verdict is userns.Enter(t) as its first statement (the child re-runs the whole body in its own user, network and mount namespace; a child failure or skip propagates to the parent, and a child that ran nothing fails it) plus removal of EPERM/EACCES skips, so a refused privilege now fails instead of skipping. Assertions are byte-identical. Section 4.5: 'There may be times when a dual router has to forward an IP packet to an OSI-only router, or forward an OSI packet to an IP-only router. In this case the packet must be discarded.' IP half: TestRFC1195OSINeighborIsTerminalIPv4NextHop and TestRFC1195NeighborProtocolTransitions (unchanged) pin that an OSI-only neighbor yields no usable IPv4 next hop; TestRFC1195CapabilityChangesInstalledRouteDisposition fails unless the installed route becomes Unreachable and returns to unicast. TestFIBOnLinkAdjacencyAndUnsupportedPrefix installs a usable default as positive control, then the Unreachable route, and fails unless the kernel answers EHOSTUNREACH for 203.0.113.9 instead of the default; withdrawing it must restore the same default gateway, so neither a disappearing route nor a stale discard passes. OSI half: Ze forwards no CLNP packets.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L39) | unit/verify | mutant, verified |
-| negative | [`TestRFC1195NeighborProtocolTransitions`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_adjacency_protocol_test.go#L56) | unit/verify | unproven |
-| negative | [`TestRFC1195CapabilityChangesInstalledRouteDisposition`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L496) | unit/verify | unproven |
+| negative | [`TestRFC1195NeighborProtocolTransitions`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_adjacency_protocol_test.go#L56) | unit/verify | not verified |
+| negative | [`TestRFC1195CapabilityChangesInstalledRouteDisposition`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L496) | unit/verify | not verified |
 | positive | [`TestFIBOnLinkAdjacencyAndUnsupportedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/fib/kernel/rfc1195_onlink_integration_linux_test.go#L38) | unit/verify | mutant, verified |
-| positive | [`TestRFC1195OSINeighborIsTerminalIPv4NextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_adjacency_protocol_test.go#L39) | unit/verify | unproven |
-| positive | [`TestRFC1195CapabilityChangesInstalledRouteDisposition`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L495) | unit/verify | unproven |
+| positive | [`TestRFC1195OSINeighborIsTerminalIPv4NextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_adjacency_protocol_test.go#L39) | unit/verify | not verified |
+| positive | [`TestRFC1195CapabilityChangesInstalledRouteDisposition`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L495) | unit/verify | not verified |
 
 ### [`RFC1195-5.3.4-3`](#rfc1195-5.3.4-3)
 
@@ -557,7 +557,7 @@ Bit 7 of this field is reserved, and must be set to zero on transmission and ign
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Row corrected (rfc/corrections/rfc1195.md) to the Section 5.3.4 bit-7 sentence of the DELAY/EXPENSE/ERROR octets, verbatim at rfc1195.txt line 2365; default-metric bit 8 is RFC 2966 sec 2's up/down bit (extraction site 5.3.4:3 excluded cross-document). Transmit: TestRFC1195NarrowMetricReservedTransmit encodes 0xff/0x6a/0xc7 and pins 0xbf/0x2a/0x87, so bit 7 (0x40) is cleared while S and the six-bit value survive; an encoder that passed bit 7 through goes red. Receive: TestRFC1195NarrowMetricReservedReceive sets 0x40 on all three octets and requires the decoded entry equal the clean one (63, 0x80, 7), so a decoder that kept bit 7 goes red. Recorded red on WriteTo and DecodeNarrowIPReachTLV.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195NarrowMetricReservedReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_tlv_narrow_ipv4_test.go#L32) | unit/verify | revert, verified |
 | positive | [`TestRFC1195NarrowMetricReservedTransmit`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/packet/rfc1195_tlv_narrow_ipv4_test.go#L14) | unit/verify | revert, verified |
@@ -568,7 +568,7 @@ The entries shall be sorted into ascending LSPID order (the LSP number octet of 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §B.1, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: SNP entries in any order but ascending LSPID with the LSP number least significant. TestRFC1195CSNPEntriesAscending asserts the exact order [20.0, 20.1, 30.0, 40.0] from reverse inserts; TestRFC1195PSNPEntriesAscendingAcrossLists asserts [request, ack-only, ack] where list order would be (30, 10, 20). Enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195PSNPEntriesAscendingAcrossLists`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc1195_snp_test.go#L59) | unit/verify | revert, verified |
 | positive | [`TestRFC1195CSNPEntriesAscending`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/lsdb/rfc1195_snp_test.go#L31) | unit/verify | revert, verified |
@@ -579,7 +579,7 @@ However, a full update must be done periodically to ensure recovery from data co
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Obligation: a periodic full update recovers what incremental processing missed. TestRFC1195PeriodicSPFRecoversMissedUpdate: a foreign metric change stored with no trigger leaves the route stale at 11, and the aging timer's refresh repairs it to 15. TestRFC1195PeriodicSPFRemovesMissedWithdrawal: a silently withdrawn prefix stays installed (asserted) until ageOnce's periodic pass removes it. Two separate inputs (changed metric, withdrawal); both go red if the periodic pass stops running SPF. The negative is recorded red on refreshOwnLSPs. The 'studies suggest' clause is descriptive and carries no obligation.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195PeriodicSPFRemovesMissedWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L172) | unit/verify | revert, verified |
 | positive | [`TestRFC1195PeriodicSPFRecoversMissedUpdate`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L331) | unit/verify | revert, verified |
@@ -590,9 +590,9 @@ The 8 octet system identifiers which specify IP reachability entries must always
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §C.1.1, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: an IP reachability entry whose identifier collides with a router's system identifier. TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix gives router B a System ID spelling 10.4.0.0/24 and asserts 3 settled router vertices, B at metric 10, C at 15 through B, and one prefix route at 11: a merged identifier space changes the vertex count. TestRFC1195PrefixCannotBridgeDisconnectedRouters asserts a lookalike prefix does not make a disconnected router's 198.51.100.0/24 reachable. Enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1195PrefixCannotBridgeDisconnectedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc1195_route_test.go#L142) | unit/verify | unproven |
+| negative | [`TestRFC1195PrefixCannotBridgeDisconnectedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc1195_route_test.go#L142) | unit/verify | not verified |
 | positive | [`TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc1195_route_test.go#L93) | unit/verify | revert, verified |
 
 ### [`RFC1195-7-4`](#rfc1195-7-4)
@@ -601,7 +601,7 @@ IP-capable level 2 routers must keep level 2 internal IP routes separate from le
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: L2 internal and external routes compared as one set. TestRFC1195InternalMetricOutranksExternal: the internal route at cost 163 beats an external-metric route at cost 2, so merging the sets by cost goes red. TestRFC1195ExternalSetRetainedBesideInternal: after the internal route is withdrawn the external set is still there and installs at its external metric 1, not the internal sum 2, so discarding or folding the external set into internal-metric arithmetic goes red. Negative recorded red on spf/route.go better. The old negative (external TLV with internal metric) no longer carries this tag.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195ExternalSetRetainedBesideInternal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_selection_test.go#L134) | unit/verify | revert, verified |
 | positive | [`TestRFC1195InternalMetricOutranksExternal`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_spf_test.go#L170) | unit/verify | revert, verified |
@@ -612,9 +612,9 @@ Each entry made to TENT must be marked as being either an End System or a router
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §C.1.4, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: a TENT entry not marked end system versus router, so an end system (a reachability entry) is used as a transit router. TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix asserts the settled set holds 3 routers only and the entry is reached through its advertising router; TestRFC1195PrefixCannotBridgeDisconnectedRouters asserts a prefix leaf does not bridge to a disconnected router's prefix. Enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC1195PrefixCannotBridgeDisconnectedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc1195_route_test.go#L143) | unit/verify | unproven |
+| negative | [`TestRFC1195PrefixCannotBridgeDisconnectedRouters`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc1195_route_test.go#L143) | unit/verify | not verified |
 | positive | [`TestRFC1195ReachabilityEntryIsALeafKeyedByPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/spf/rfc1195_route_test.go#L97) | unit/verify | revert, verified |
 
 ### [`RFC1195-7-6`](#rfc1195-7-6)
@@ -623,7 +623,7 @@ The password shall be configured on a per-link, per-area, and per- domain basis.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §D.2, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: one password shared across link, area and domain scopes. TestRFC1195PasswordScopesResolved asserts three distinct chains iih/area/domain with distinct key ids; TestRFC1195PasswordScopesDoNotLeak asserts eth1 resolves no eth0 link chain at either level and the L2 chain is not the L1 chain. Enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195PasswordScopesDoNotLeak`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_auth_test.go#L71) | unit/verify | revert, verified |
 | positive | [`TestRFC1195PasswordScopesResolved`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_auth_test.go#L49) | unit/verify | revert, verified |
@@ -634,7 +634,7 @@ Specifically, when this form of authentication is used: - IS-IS Hello and 9542 I
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Every PDU class of the row now has both polarities. IS-IS Hello, L1/L2 LSP and L1/L2 CSNP/PSNP: auth_rfc1195_test.go TestRFC1195PDUClassSignedWithItsScope and TestRFC1195PDUClassRefusedUnderOtherScopes (recorded on signLevelPDU). ISO 9542 IS Hello, the clause the earlier verdict found missing: TestRFC1195ISHCarriesPerLinkPassword configures distinct link, area and domain cleartext passwords, requires the transmitted ISH to verify with the link password and with neither other, and a link-password peer ISH to initialize; TestRFC1195ISHRefusesAreaAndDomainPasswords requires a peer ISH carrying the area or domain password to create no adjacency state. Recorded red on signISHPDU and verifyISHFrame.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195PDUClassRefusedUnderOtherScopes`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_auth_test.go#L132) | unit/verify | revert, verified |
 | negative | [`TestRFC1195ISHRefusesAreaAndDomainPasswords`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_ish_scope_test.go#L69) | unit/verify | revert, verified |
@@ -647,7 +647,7 @@ Also, each of these three passwords shall be configured with: (i) "Transmit Pass
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-27 by TOOL-4 after the row's citation moved from §8 to §D.2, the annex subsection the heading reader now reads; the text and the tagged units are unchanged since QF-2 judged them the same day, so QF-2's reading stands. Forbidden: several transmit passwords, or a receive set of one. TestRFC1195OneTransmitPasswordManyReceivePasswords asserts sign key 1 only and a receive set of two that verifies both; TestRFC1195KeyOutsideReceiveSetRefused asserts a key outside the set is refused and the transmit key alone does not verify a key-2 PDU. Enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC1195KeyOutsideReceiveSetRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_auth_test.go#L230) | unit/verify | revert, verified |
 | positive | [`TestRFC1195OneTransmitPasswordManyReceivePasswords`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc1195_auth_test.go#L204) | unit/verify | revert, verified |

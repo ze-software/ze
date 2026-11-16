@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 35 | of 53 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 8 | of 53 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 35 | of 53 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 8 | of 53 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 53 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 126 | 126 of 134 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 126 | 126 of 134 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -21,7 +21,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 1 | of 53 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 1 | of 53 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 9 | of 53 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 53 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 53 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 53 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 53 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 53 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 53 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 53 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | bad | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | bad | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level), not checked | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -101,7 +101,7 @@ No entry in the public support list, so its summary declares `| Support | - |` a
 | Annotated (including scoped evidence) | 15 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 3 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 1 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 1 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level), not checked** | **53** | every mandatory requirement appears in exactly one group above |
@@ -112,12 +112,12 @@ No entry in the public support list, so its summary declares `| Support | - |` a
 
 **No test and no annotation (3):** [`RFC9190-2.2-1`](#rfc9190-2.2-1), [`RFC9190-5.6-3`](#rfc9190-5.6-3), [`RFC9190-5.6-4`](#rfc9190-5.6-4)
 
-**Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):** [`RFC9190-2.3-1`](#rfc9190-2.3-1)
+**Partial test coverage (subset of annotated; zero whole-requirement credit) (1):** [`RFC9190-2.3-1`](#rfc9190-2.3-1)
 
 ## Figures
 
-- **MUST bar**: Ze proven 42, Proof pending 1, Not assessed 3, Not built 7
-- **Overview bar**: Ze MUST proven 42, SHOULD proven 2, Proof pending 1, Not assessed 44, Not built 7
+- **MUST bar**: Ze verified 42, Tests awaiting verification 1, Not assessed 3, Not built 7
+- **Overview bar**: Ze MUST verified 42, SHOULD verified 2, Tests awaiting verification 1, Not assessed 44, Not built 7
 
 | Figure | Rows |
 |---|---|
@@ -126,9 +126,9 @@ No entry in the public support list, so its summary declares `| Support | - |` a
 | Mandatory requirements complete | not complete |
 | MUST rows | 53 |
 | MUST rows kept (the MUST bar) | 53 |
-| Ze proven | 42 |
+| Ze verified | 42 |
 | OS verified | 0 |
-| Proof pending | 1 |
+| Tests awaiting verification | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 3 |
@@ -138,19 +138,19 @@ No entry in the public support list, so its summary declares `| Support | - |` a
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 43 |
-| SHOULD proven | 2 |
+| SHOULD verified | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 41 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9190.json](../../../data/rfc/rfc9190.json).
 
@@ -184,7 +184,7 @@ Source: [data/rfc/rfc9190.json](../../../data/rfc/rfc9190.json).
 | `RFC9190-2.1.9-1` | Implementations MUST NOT set the L bit in unfragmented messages (§2.1.9) | MUST NOT | 2.1.9 | **positive:** `unit/verify` [`TestEAPTLSKeepsTheLengthBitOnAFragmentedMessage`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L147). **negative:** `unit/verify` [`TestEAPTLSSetsNoLengthBitOnAnUnfragmentedMessage`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L73) |
 | `RFC9190-2.1.9-2` | they MUST accept unfragmented messages with and without the L bit set (§2.1.9) | MUST | 2.1.9 | **positive:** `unit/verify` [`TestEAPTLSAcceptsAnUnfragmentedMessageWithAndWithoutTheLengthBit`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L204). **negative:** `unit/verify` [`TestEAPTLSRefusesAnUnfragmentedMessageThatContradictsItself`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L246) |
 | `RFC9190-2.2-1` | Unauthenticated information MUST NOT be used for accounting purposes or to give authorization (§2.2) | MUST NOT | 2.2 | **positive:** no positive test. **negative:** no negative test |
-| `RFC9190-2.3-1` | When EAP-TLS is used with TLS version 1.3, the Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface [RFC5705] (for TLS 1.3, this is defined in Section 7.5 of [RFC8446]). (§2.3) | SHALL | 2.3 | **positive:** `unit/verify` [`TestRFC9190MSKIsTheExportUnderTheRFCLabel`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L159). **negative:** `unit/verify` [`TestRFC9190MSKIsNotThePreTLS13Derivation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L209). **{partial}:** tested "Key_Material"; gap "Method-Id"; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
+| `RFC9190-2.3-1` | When EAP-TLS is used with TLS version 1.3, the Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface [RFC5705] (for TLS 1.3, this is defined in Section 7.5 of [RFC8446]). (§2.3) | SHALL | 2.3 | **positive:** `unit/verify` [`TestRFC9190MSKIsTheExportUnderTheRFCLabel`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L159). **negative:** `unit/verify` [`TestRFC9190MSKIsNotThePreTLS13Derivation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L209). **{partial}:** tested "Key_Material"; gap "Method-Id"; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
 | `RFC9190-2.3-2` | Note that the key derivation MUST use the length values given above. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRFC9190KeyMaterialIsOneFullLengthExport`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L502). **negative:** `unit/verify` [`TestRFC9190KeysAreNotAShorterExport`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L530) |
 | `RFC9190-2.3-3` | If an implementation intends to use only a part of the output of the TLS-Exporter function, then it MUST ask for the full output and then only use the desired part. (§2.3) | MUST | 2.3 | **positive:** `unit/verify` [`TestRFC9190KeyMaterialIsOneFullLengthExport`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L507). **negative:** `unit/verify` [`TestRFC9190KeysAreNotAShorterExport`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L534) |
 | `RFC9190-2.3-4` | Method-Id = TLS-Exporter("EXPORTER_EAP_TLS_Method-Id", Type, 64) Session-Id = Type \|\| Method-Id (§2.3) | SHALL | 2.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** split 2026-10-11 from RFC9190-2.3-1, whose SHALL names Key_Material and Method-Id together; Ze derives only Key_Material (internal/core/eap/eap_tls.go::exportEAPTLSKeys), and no non-test code exports EXPORTER_EAP_TLS_Method-Id or builds a Session-Id; implementing it needs the owner's scope |
@@ -260,7 +260,7 @@ Source: [data/rfc/rfc9190.json](../../../data/rfc/rfc9190.json).
 | Requirement | State | Reason |
 |---|---|---|
 | [`RFC9190-2.2-1`](#rfc9190-2.2-1) Unauthenticated information MUST NOT be used for accounting purposes or to give authorization (§2.2) | no test | no test carries this requirement id |
-| [`RFC9190-2.3-1`](#rfc9190-2.3-1) When EAP-TLS is used with TLS version 1.3, the Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface [RFC5705] (for TLS 1.3, this is defined in Section 7.5 of [RFC8446]). (§2.3) | {partial}, Partial proof; remaining gap | tested "Key_Material"; gap "Method-Id"; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys |
+| [`RFC9190-2.3-1`](#rfc9190-2.3-1) When EAP-TLS is used with TLS version 1.3, the Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface [RFC5705] (for TLS 1.3, this is defined in Section 7.5 of [RFC8446]). (§2.3) | {partial}, Partial test coverage | tested "Key_Material"; gap "Method-Id"; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys |
 | [`RFC9190-2.3-4`](#rfc9190-2.3-4) Method-Id = TLS-Exporter("EXPORTER_EAP_TLS_Method-Id", Type, 64) Session-Id = Type \|\| Method-Id (§2.3) | {gap}, no test | split 2026-10-11 from RFC9190-2.3-1, whose SHALL names Key_Material and Method-Id together; Ze derives only Key_Material (internal/core/eap/eap_tls.go::exportEAPTLSKeys), and no non-test code exports EXPORTER_EAP_TLS_Method-Id or builds a Session-Id; implementing it needs the owner's scope |
 | [`RFC9190-5.6-1`](#rfc9190-5.6-1) When peer authentication is not used, EAP-TLS server implementations MUST take care to limit network access appropriately for unauthenticated peers (§5.6) | {gap}, no test | RFC 9190 Section 5.6 binds the server only when peer authentication is not used. ze always requires a client certificate: internal/core/eap/eap_tls.go::newTLSMethod sets ClientAuth to RequireAndVerifyClientCert, or to RequireAnyClientCert with clientChainVerifier verifying the chain when intermediates are configured, and the operator has no leaf that lowers it. Classifying this conditional obligation is the owner's, and no decision is recorded, so it stays a gap |
 | [`RFC9190-5.6-2`](#rfc9190-5.6-2) implementations MUST use resumption with caution to ensure that a resumed session is not granted more privilege than was intended for the original session (§5.6) | {gap}, no test | RFC 9190 Section 5.6 binds the server only when peer authentication is not used. ze always requires a client certificate: internal/core/eap/eap_tls.go::newTLSMethod sets ClientAuth to RequireAndVerifyClientCert, or to RequireAnyClientCert with clientChainVerifier verifying the chain when intermediates are configured, and the operator has no leaf that lowers it. Classifying this conditional obligation is the owner's, and no decision is recorded, so it stays a gap; resumption authorization itself is held by RFC9190-5.7-1 and RFC9190-5.7-2 |
@@ -270,9 +270,9 @@ Source: [data/rfc/rfc9190.json](../../../data/rfc/rfc9190.json).
 | [`RFC9190-5.8-2`](#rfc9190-5.8-2) Note that the privacy-friendly usernames also MUST NOT include substrings that can be used to relate the identity to a specific user. (§5.8) | {gap}, no test | RFC 9190 Section 5.8 binds the peer only if anonymous NAIs are not used. ze always sends one: internal/core/eap/nai.go::anonymousNAI answers @realm, or the fixed username anonymous when the identity carries no valid realm. Classifying this conditional obligation is the owner's, and no decision is recorded, so it stays a gap |
 | [`RFC9190-5.8-3`](#rfc9190-5.8-3) Similarly, privacy-friendly usernames MUST NOT be formed by a fixed mapping that stays the same across multiple different authentications. (§5.8) | {gap}, no test | RFC 9190 Section 5.8 binds the peer only if anonymous NAIs are not used. ze always sends one: internal/core/eap/nai.go::anonymousNAI answers @realm, or the fixed username anonymous when the identity carries no valid realm. Classifying this conditional obligation is the owner's, and no decision is recorded, so it stays a gap |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC9190-1-1`](#rfc9190-1-1)
 
@@ -280,7 +280,7 @@ Therefore, implementations MUST limit the maximum TLS version they use to 1.3, u
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLSVersionCapLeavesTLS12Reachable`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_version_cap_test.go#L111) | unit/verify | revert, verified |
 | positive | [`TestEAPTLSCapsBothRolesAtTLS13`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_version_cap_test.go#L52) | unit/verify | revert, verified |
@@ -291,7 +291,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13AuthenticatorRefusesAClientHelloOfferingEarlyData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L430) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L145) | unit/verify | revert, verified |
@@ -302,7 +302,7 @@ EAP-TLS servers MUST NOT send an early_data extension (§2.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L317) | unit/verify | revert, verified |
 
@@ -312,7 +312,7 @@ clients MUST NOT send an EndOfEarlyData message (§2.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L149) | unit/verify | revert, verified |
 
@@ -322,7 +322,7 @@ Post-handshake authentication MUST NOT be used in EAP-TLS (§2.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L321) | unit/verify | revert, verified |
 
@@ -332,7 +332,7 @@ Clients MUST NOT send a "post_handshake_auth" extension (§2.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L154) | unit/verify | revert, verified |
 
@@ -342,7 +342,7 @@ Servers MUST NOT request post-handshake client authentication (§2.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L326) | unit/verify | revert, verified |
 
@@ -352,7 +352,7 @@ When EAP-TLS is used with TLS version 1.3, the formatting and processing of the 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L345) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L307) | unit/verify | revert, verified |
@@ -363,7 +363,7 @@ The EAP-TLS server MUST authenticate with a certificate (§2.1.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLSAuthenticatorWithoutACertificateIsRefused`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L232) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13AuthenticatorAuthenticatesWithItsCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L206) | unit/verify | revert, verified |
@@ -374,7 +374,7 @@ Pre-Shared Key (PSK) authentication SHALL NOT be used except for resumption. (§
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13PSKTheAuthenticatorDidNotIssueIsNotUsed`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L642) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13PSKIsUsedToResumeATicketTheAuthenticatorIssued`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L612) | unit/verify | revert, verified |
@@ -385,7 +385,7 @@ To enable resumption when using EAP-TLS with TLS 1.3, the EAP-TLS server MUST se
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L60) | unit/verify | revert, verified |
 | negative | [`TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L355) | unit/verify | revert, verified |
@@ -397,7 +397,7 @@ Note that TLS 1.3 [RFC8446] limits the ticket lifetime to a maximum of 604800 se
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L110) | unit/verify | revert, verified |
 
@@ -407,7 +407,7 @@ The NewSessionTicket message MUST NOT include an "early_data" extension (§2.1.2
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L117) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L330) | unit/verify | revert, verified |
@@ -418,7 +418,7 @@ If the "early_data" extension is received, then it MUST be ignored (§2.1.2)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestEAPTLS13PeerOffersNoEarlyDataFromATicketThatPermitsIt`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L459) | unit/verify | revert, verified |
 
@@ -428,7 +428,7 @@ When EAP-TLS is used with TLS version 1.3, EAP-TLS SHALL use a resumption mechan
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L360) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L121) | unit/verify | revert, verified |
@@ -439,7 +439,7 @@ The "psk_dh_ke" key exchange mode MUST be used for resumption unless the deploym
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L66) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L158) | unit/verify | revert, verified |
@@ -451,7 +451,7 @@ If the EAP-TLS peer authenticates successfully, the EAP-TLS server MUST send an 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L335) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L295) | unit/verify | revert, verified |
@@ -462,7 +462,7 @@ If the EAP-TLS server authenticates successfully, the EAP-TLS peer MUST send an 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L341) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13EachEndAnswersWithRecordsOfTheNegotiatedVersion`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L301) | unit/verify | revert, verified |
@@ -473,7 +473,7 @@ Whenever an implementation encounters a fatal error condition, it MUST send an a
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13CompletedExchangeCarriesNoAlert`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L455) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13FatalErrorSendsATLSAlert`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L377) | unit/verify | revert, verified |
@@ -484,7 +484,7 @@ EAP-TLS peer and server implementations supporting TLS 1.3 MUST support anonymou
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13AuthenticatorRefusesAnAnonymousPeerWithARevokedCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cached_authorization_test.go#L24) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13AuthenticatorAcceptsAnAnonymousNAI`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L259) | unit/verify | revert, verified |
@@ -495,7 +495,7 @@ A client supporting TLS 1.3 MUST NOT send its username (or any other permanent i
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPMSCHAPv2PeerSendsItsConfiguredIdentity`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L237) | unit/verify | revert, verified |
 | positive | [`TestEAPTLSPeerDropsTheUsernameTheCertificateCarries`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cert_nai_test.go#L373) | unit/verify | revert, verified |
@@ -507,7 +507,7 @@ Note that the NAI MUST be a UTF-8 string as defined by the grammar in Section 2.
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestNAIGrammarMatchesRFC7542Section22`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L182) | unit/verify | revert, verified |
 | positive | [`TestEAPTLSPeerAnonymizesEveryConfiguredIdentity`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L131) | unit/verify | revert, verified |
@@ -518,7 +518,7 @@ When EAP-TLS is used with TLS version 1.3, the EAP-TLS peer and EAP-TLS server S
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13PeerHoldingACertificateSendsIt`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L518) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13AuthenticatorTreatsAnEmptyCertificateListAsTerminal`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L362) | unit/verify | revert, verified |
@@ -529,7 +529,7 @@ Implementations MUST NOT set the L bit in unfragmented messages (§2.1.9)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLSSetsNoLengthBitOnAnUnfragmentedMessage`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L73) | unit/verify | revert, verified |
 | positive | [`TestEAPTLSKeepsTheLengthBitOnAFragmentedMessage`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L147) | unit/verify | revert, verified |
@@ -540,7 +540,7 @@ they MUST accept unfragmented messages with and without the L bit set (§2.1.9)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLSRefusesAnUnfragmentedMessageThatContradictsItself`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L246) | unit/verify | revert, verified |
 | positive | [`TestEAPTLSAcceptsAnUnfragmentedMessageWithAndWithoutTheLengthBit`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L204) | unit/verify | revert, verified |
@@ -557,11 +557,11 @@ No test carries RFC9190-2.2-1, so there is no linked test.
 
 When EAP-TLS is used with TLS version 1.3, the Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface [RFC5705] (for TLS 1.3, this is defined in Section 7.5 of [RFC8446]). (§2.3)
 
-Records cover only part of this requirement: tested "Key_Material"; gap "Method-Id"; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys; they do not prove the whole requirement.
+Records cover only part of this requirement: tested "Key_Material"; gap "Method-Id"; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys; they do not verify the whole requirement.
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9190MSKIsNotThePreTLS13Derivation`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L209) | unit/verify | mutant, verified |
 | positive | [`TestRFC9190MSKIsTheExportUnderTheRFCLabel`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L159) | unit/verify | mutant, verified |
@@ -572,7 +572,7 @@ Note that the key derivation MUST use the length values given above. (§2.3)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9190KeysAreNotAShorterExport`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L530) | unit/verify | revert, verified |
 | positive | [`TestRFC9190KeyMaterialIsOneFullLengthExport`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L502) | unit/verify | revert, verified |
@@ -583,7 +583,7 @@ If an implementation intends to use only a part of the output of the TLS-Exporte
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9190KeysAreNotAShorterExport`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L534) | unit/verify | revert, verified |
 | positive | [`TestRFC9190KeyMaterialIsOneFullLengthExport`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L507) | unit/verify | revert, verified |
@@ -602,7 +602,7 @@ When EAP-TLS is used with TLS version 1.3, the EAP-TLS peers and EAP- TLS server
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13AuthenticatorAbortsAClientHelloWithoutSignatureAlgorithms`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L248) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13BothRolesMeetTheRFC8446MandatoryToImplementSet`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L203) | unit/verify | revert, verified |
@@ -613,7 +613,7 @@ In EAP-TLS with TLS 1.3, only cipher suites with confidentiality SHALL be suppor
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLSAuthenticatorRefusesSuitesWithoutConfidentiality`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L109) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13PeerOffersOnlySuitesWithConfidentiality`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L50) | unit/verify | revert, verified |
@@ -624,14 +624,14 @@ To provide a protected success result indication and to decrease the uncertainty
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEAPTLS12SendsNoProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L289) | unit/verify | unproven |
-| negative | [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L254) | unit/verify | unproven |
-| negative | [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L567) | interop/nightly | unproven |
+| negative | [`TestEAPTLS12SendsNoProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L289) | unit/verify | not verified |
+| negative | [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L254) | unit/verify | not verified |
+| negative | [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L567) | interop/nightly | not verified |
 | positive | [`TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L397) | unit/verify | revert, verified |
-| positive | [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L156) | unit/verify | unproven |
-| positive | [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L561) | interop/nightly | unproven |
+| positive | [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L156) | unit/verify | not verified |
+| positive | [`checkResponderEAPTLS13`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L561) | interop/nightly | not verified |
 
 ### [`RFC9190-2.5-2`](#rfc9190-2.5-2)
 
@@ -639,10 +639,10 @@ The EAP-TLS server MUST NOT send an encrypted TLS record with application data 0
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L248) | unit/verify | unproven |
-| positive | [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L164) | unit/verify | unproven |
+| negative | [`TestEAPTLS13RefusedClientGetsNoSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L248) | unit/verify | not verified |
+| positive | [`TestEAPTLS13SendsProtectedSuccessIndication`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L164) | unit/verify | not verified |
 
 ### [`RFC9190-5.4-1`](#rfc9190-5.4-1)
 
@@ -650,7 +650,7 @@ When EAP-TLS is used with TLS 1.3, the revocation status of all the certificates
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13ResumptionStillNeedsARevocationSource`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L220) | unit/verify | revert, verified |
 | negative | [`TestEAPTLS12CompletesWithNoRevocationList`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L323) | unit/verify | revert, verified |
@@ -661,7 +661,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | positive | [`TestEAPTLS13RefusesARevokedServerCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L128) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13RefusesAStaleRevocationList`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L235) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13RefusesAnUncheckableChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L206) | unit/verify | revert, verified |
-| positive | [`checkResponderEAPTLS13RevokedClient`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L604) | interop/nightly | unproven |
+| positive | [`checkResponderEAPTLS13RevokedClient`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L604) | interop/nightly | not verified |
 
 ### [`RFC9190-5.4-2`](#rfc9190-5.4-2)
 
@@ -669,7 +669,7 @@ EAP-TLS servers supporting TLS 1.3 MUST implement Certificate Status Requests (O
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13StaplesNothingWhenTheCertificateCarriesNoResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L198) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13StaplesTheConfiguredOCSPResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L163) | unit/verify | revert, verified |
@@ -680,7 +680,7 @@ When an EAP-TLS peer uses Certificate Status Requests to check the revocation st
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestCertificateStatusAcceptsADelegatedResponder`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L562) | unit/verify | revert, verified |
 | negative | [`TestEAPTLS13PeerCompletesWithAValidStapledStatus`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L252) | unit/verify | revert, verified |
@@ -702,7 +702,7 @@ EAP-TLS peer implementations MUST also support checking for certificate revocati
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L278) | unit/verify | revert, verified |
 | positive | [`TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L248) | unit/verify | revert, verified |
@@ -714,7 +714,7 @@ An EAP peer MUST use a secure transport to verify the revocation status of the s
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPostAuthenticationCheckReadsAnHTTPSResponder`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L348) | unit/verify | revert, verified |
 | positive | [`TestPostAuthenticationCheckRefusesAnInsecureResponderURL`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L323) | unit/verify | revert, verified |
@@ -757,7 +757,7 @@ Authorization during resumption MUST be based on such cached data. (§5.7)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L95) | unit/verify | revert, verified |
 | negative | [`TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L286) | unit/verify | revert, verified |
@@ -770,7 +770,7 @@ Any security policies for authorization MUST be followed also for resumption (§
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13RefusesAResumptionAgainstAReplacedTrustAnchor`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L187) | unit/verify | revert, verified |
 | negative | [`TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L279) | unit/verify | revert, verified |
@@ -783,7 +783,7 @@ The EAP-TLS server or EAP client MUST cache data during the initial full handsha
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13ResumptionAuthorizesOnTheCachedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cached_authorization_test.go#L54) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13ResumptionRefusesARevokedClientChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L240) | unit/verify | revert, verified |
@@ -794,7 +794,7 @@ If cached data cannot be retrieved securely, resumption MUST NOT be done (§5.7)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L292) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L100) | unit/verify | revert, verified |
@@ -805,7 +805,7 @@ As suggested in [RFC8446], EAP-TLS peers MUST NOT store resumption PSKs or ticke
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13RefusesATicketPastTheSection57Lifetime`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L130) | unit/verify | revert, verified |
 | negative | [`TestEAPTLSPeerDropsAStoredTicketAtTheSection57Ceiling`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L318) | unit/verify | revert, verified |
@@ -817,7 +817,7 @@ If any authorization, accounting, or policy decisions were made with information
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L283) | unit/verify | revert, verified |
 | positive | [`TestEAPTLS13RefusesAResumptionWhoseCachedCertificateExpired`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L154) | unit/verify | revert, verified |
@@ -853,7 +853,7 @@ EAP-TLS implementations MUST mitigate known attacks (§5.10)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9190MitigationDropsBytesPipelinedBehindTheStart`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L953) | unit/verify | revert, verified |
 | negative | [`TestRFC9190MitigationOffersNoFiniteFieldDHGroup`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L831) | unit/verify | revert, verified |
@@ -878,7 +878,7 @@ When the client certificate contains an NAI as subject name or alternative subje
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLSPeerKeepsTheAnonymousFallbackWhenNoCertificateNAIIsUsable`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cert_nai_test.go#L284) | unit/verify | revert, verified |
 | negative | [`TestEAPTLSPeerPrefersTheConfiguredRealmOverTheCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cert_nai_test.go#L350) | unit/verify | revert, verified |
@@ -892,7 +892,7 @@ Following [RFC7542], it is RECOMMENDED to omit the username (i.e., the NAI is @r
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestEAPTLS13PeerSendsTheFixedUsernameWhenTheIdentityHasNoRealm`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L100) | unit/verify | revert, verified |
 

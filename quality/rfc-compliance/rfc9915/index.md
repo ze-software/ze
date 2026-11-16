@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 6 | of 126 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 79 | of 126 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 6 | of 126 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 79 | of 126 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 126 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 97 | 97 of 97 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 97 | 97 of 97 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -21,7 +21,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 1 | of 126 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 1 | of 126 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 37 | of 126 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 126 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 126 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 3 | of 126 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 3 | of 126 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 126 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 126 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 126 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | bad | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | bad | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: DHCPv6 client of the iface-dhcp plugin; RFC 8415 t
 
 **Area:** DHCPv6
 
-**Proof:** 85 of 126 MUST proven
+**Test verification:** 85 of 126 MUST proven
 
 **Evidence:** unit 85
 
@@ -108,7 +108,7 @@ Included in automatic checks: DHCPv6 client of the iface-dhcp plugin; RFC 8415 t
 | Annotated (including scoped evidence) | 120 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 1 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 1 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **126** | every mandatory requirement appears in exactly one group above |
@@ -117,12 +117,12 @@ Included in automatic checks: DHCPv6 client of the iface-dhcp plugin; RFC 8415 t
 
 **Annotated (including scoped evidence) (120):** [`RFC9915-7.2-1`](#rfc9915-7.2-1), [`RFC9915-7.2-3`](#rfc9915-7.2-3), [`RFC9915-10-1`](#rfc9915-10-1), [`RFC9915-11-1`](#rfc9915-11-1), [`RFC9915-11-2`](#rfc9915-11-2), [`RFC9915-11.2-1`](#rfc9915-11.2-1), [`RFC9915-11.2-2`](#rfc9915-11.2-2), [`RFC9915-11.2-3`](#rfc9915-11.2-3), [`RFC9915-11.2-4`](#rfc9915-11.2-4), [`RFC9915-11.2-5`](#rfc9915-11.2-5), [`RFC9915-11.3-1`](#rfc9915-11.3-1), [`RFC9915-11.4-1`](#rfc9915-11.4-1), [`RFC9915-12-1`](#rfc9915-12-1), [`RFC9915-12-2`](#rfc9915-12-2), [`RFC9915-14.1-1`](#rfc9915-14.1-1), [`RFC9915-14.1-2`](#rfc9915-14.1-2), [`RFC9915-14.2-1`](#rfc9915-14.2-1), [`RFC9915-14.2-2`](#rfc9915-14.2-2), [`RFC9915-15-1`](#rfc9915-15-1), [`RFC9915-15-2`](#rfc9915-15-2), [`RFC9915-16-1`](#rfc9915-16-1), [`RFC9915-16-2`](#rfc9915-16-2), [`RFC9915-16.1-1`](#rfc9915-16.1-1), [`RFC9915-16.2-1`](#rfc9915-16.2-1), [`RFC9915-16.3-1`](#rfc9915-16.3-1), [`RFC9915-16.4-1`](#rfc9915-16.4-1), [`RFC9915-16.5-1`](#rfc9915-16.5-1), [`RFC9915-16.6-1`](#rfc9915-16.6-1), [`RFC9915-16.7-1`](#rfc9915-16.7-1), [`RFC9915-16.8-1`](#rfc9915-16.8-1), [`RFC9915-16.9-1`](#rfc9915-16.9-1), [`RFC9915-16.10-1`](#rfc9915-16.10-1), [`RFC9915-16.10-2`](#rfc9915-16.10-2), [`RFC9915-16.10-3`](#rfc9915-16.10-3), [`RFC9915-16.11-2`](#rfc9915-16.11-2), [`RFC9915-16.12-1`](#rfc9915-16.12-1), [`RFC9915-16.13-1`](#rfc9915-16.13-1), [`RFC9915-16.14-1`](#rfc9915-16.14-1), [`RFC9915-18-1`](#rfc9915-18-1), [`RFC9915-18.2-1`](#rfc9915-18.2-1), [`RFC9915-18.2.1-1`](#rfc9915-18.2.1-1), [`RFC9915-18.2.1-2`](#rfc9915-18.2.1-2), [`RFC9915-18.2.1-3`](#rfc9915-18.2.1-3), [`RFC9915-18.2.1-4`](#rfc9915-18.2.1-4), [`RFC9915-18.2.1-5`](#rfc9915-18.2.1-5), [`RFC9915-18.2.1-6`](#rfc9915-18.2.1-6), [`RFC9915-18.2.1-7`](#rfc9915-18.2.1-7), [`RFC9915-18.2.2-1`](#rfc9915-18.2.2-1), [`RFC9915-18.2.2-2`](#rfc9915-18.2.2-2), [`RFC9915-18.2.2-3`](#rfc9915-18.2.2-3), [`RFC9915-18.2.2-4`](#rfc9915-18.2.2-4), [`RFC9915-18.2.3-1`](#rfc9915-18.2.3-1), [`RFC9915-18.2.3-2`](#rfc9915-18.2.3-2), [`RFC9915-18.2.4-1`](#rfc9915-18.2.4-1), [`RFC9915-18.2.4-2`](#rfc9915-18.2.4-2), [`RFC9915-18.2.4-4`](#rfc9915-18.2.4-4), [`RFC9915-18.2.4-5`](#rfc9915-18.2.4-5), [`RFC9915-18.2.4-6`](#rfc9915-18.2.4-6), [`RFC9915-18.2.4-7`](#rfc9915-18.2.4-7), [`RFC9915-18.2.6-1`](#rfc9915-18.2.6-1), [`RFC9915-18.2.6-2`](#rfc9915-18.2.6-2), [`RFC9915-18.2.6-3`](#rfc9915-18.2.6-3), [`RFC9915-18.2.6-4`](#rfc9915-18.2.6-4), [`RFC9915-18.2.7-1`](#rfc9915-18.2.7-1), [`RFC9915-18.2.7-2`](#rfc9915-18.2.7-2), [`RFC9915-18.2.7-3`](#rfc9915-18.2.7-3), [`RFC9915-18.2.7-4`](#rfc9915-18.2.7-4), [`RFC9915-18.2.7-5`](#rfc9915-18.2.7-5), [`RFC9915-18.2.7-6`](#rfc9915-18.2.7-6), [`RFC9915-18.2.7-7`](#rfc9915-18.2.7-7), [`RFC9915-18.2.7-8`](#rfc9915-18.2.7-8), [`RFC9915-18.2.8-1`](#rfc9915-18.2.8-1), [`RFC9915-18.2.8-2`](#rfc9915-18.2.8-2), [`RFC9915-18.2.8-3`](#rfc9915-18.2.8-3), [`RFC9915-18.2.8-4`](#rfc9915-18.2.8-4), [`RFC9915-18.2.8-5`](#rfc9915-18.2.8-5), [`RFC9915-18.2.8-6`](#rfc9915-18.2.8-6), [`RFC9915-18.2.9-1`](#rfc9915-18.2.9-1), [`RFC9915-18.2.9-2`](#rfc9915-18.2.9-2), [`RFC9915-18.2.9-3`](#rfc9915-18.2.9-3), [`RFC9915-18.2.9-4`](#rfc9915-18.2.9-4), [`RFC9915-18.2.9-5`](#rfc9915-18.2.9-5), [`RFC9915-18.2.10-1`](#rfc9915-18.2.10-1), [`RFC9915-18.2.10.1-1`](#rfc9915-18.2.10.1-1), [`RFC9915-18.2.10.1-3`](#rfc9915-18.2.10.1-3), [`RFC9915-18.2.10.5-1`](#rfc9915-18.2.10.5-1), [`RFC9915-18.2.11-1`](#rfc9915-18.2.11-1), [`RFC9915-18.2.11-2`](#rfc9915-18.2.11-2), [`RFC9915-18.2.12-3`](#rfc9915-18.2.12-3), [`RFC9915-18.2.12-4`](#rfc9915-18.2.12-4), [`RFC9915-18.3.5-1`](#rfc9915-18.3.5-1), [`RFC9915-20.2-1`](#rfc9915-20.2-1), [`RFC9915-20.3-3`](#rfc9915-20.3-3), [`RFC9915-20.3-4`](#rfc9915-20.3-4), [`RFC9915-21-1`](#rfc9915-21-1), [`RFC9915-21.4-2`](#rfc9915-21.4-2), [`RFC9915-21.6-3`](#rfc9915-21.6-3), [`RFC9915-21.6-4`](#rfc9915-21.6-4), [`RFC9915-21.7-1`](#rfc9915-21.7-1), [`RFC9915-21.7-2`](#rfc9915-21.7-2), [`RFC9915-21.9-1`](#rfc9915-21.9-1), [`RFC9915-21.15-1`](#rfc9915-21.15-1), [`RFC9915-21.15-2`](#rfc9915-21.15-2), [`RFC9915-21.16-1`](#rfc9915-21.16-1), [`RFC9915-21.17-1`](#rfc9915-21.17-1), [`RFC9915-21.17-2`](#rfc9915-21.17-2), [`RFC9915-21.17-3`](#rfc9915-21.17-3), [`RFC9915-21.22-2`](#rfc9915-21.22-2), [`RFC9915-21.23-1`](#rfc9915-21.23-1), [`RFC9915-21.23-2`](#rfc9915-21.23-2), [`RFC9915-21.23-5`](#rfc9915-21.23-5), [`RFC9915-21.23-6`](#rfc9915-21.23-6), [`RFC9915-21.23-7`](#rfc9915-21.23-7), [`RFC9915-21.24-3`](#rfc9915-21.24-3), [`RFC9915-21.24-4`](#rfc9915-21.24-4), [`RFC9915-21.25-2`](#rfc9915-21.25-2), [`RFC9915-21.25-3`](#rfc9915-21.25-3), [`RFC9915-21.25-4`](#rfc9915-21.25-4), [`RFC9915-22.3-1`](#rfc9915-22.3-1), [`RFC9915-A-1`](#rfc9915-a-1)
 
-**Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):** [`RFC9915-18.2.10.1-1`](#rfc9915-18.2.10.1-1)
+**Partial test coverage (subset of annotated; zero whole-requirement credit) (1):** [`RFC9915-18.2.10.1-1`](#rfc9915-18.2.10.1-1)
 
 ## Figures
 
-- **MUST bar**: Ze proven 85, OS testing gap 3, Not built 38
-- **Overview bar**: Ze MUST proven 85, OS testing gap 3, Not built 38
+- **MUST bar**: Ze verified 85, OS testing gap 3, Not built 38
+- **Overview bar**: Ze MUST verified 85, OS testing gap 3, Not built 38
 
 | Figure | Rows |
 |---|---|
@@ -131,9 +131,9 @@ Included in automatic checks: DHCPv6 client of the iface-dhcp plugin; RFC 8415 t
 | Mandatory requirements complete | not complete |
 | MUST rows | 126 |
 | MUST rows kept (the MUST bar) | 126 |
-| Ze proven | 85 |
+| Ze verified | 85 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 3 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -143,19 +143,19 @@ Included in automatic checks: DHCPv6 client of the iface-dhcp plugin; RFC 8415 t
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 0 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 0 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9915.json](../../../data/rfc/rfc9915.json).
 
@@ -250,7 +250,7 @@ Source: [data/rfc/rfc9915.json](../../../data/rfc/rfc9915.json).
 | `RFC9915-18.2.9-4` | MUST process an included INF_MAX_RT option. (§18.2.9) | MUST | 18.2.9 | **positive:** no positive test. **negative:** no negative test. **{gap}:** stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md |
 | `RFC9915-18.2.9-5` | The client ignoring an Advertise message MUST NOT restart the Solicit retransmission timer. (§18.2.9) | MUST NOT | 18.2.9 | **positive:** `unit/verify` [`TestDHCPv6LinkOneDatagramPerExchange`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_link_linux_test.go#L109). **negative:** no negative test. **{single-polarity}:** the retransmission timer is the client's own, so no input restarts it |
 | `RFC9915-18.2.10-1` | The client MUST process any SOL_MAX_RT option (§18.2.10) | MUST | 18.2.10 | **positive:** `unit/verify` [`TestRFC9915Section2124SolMaxRTRange`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L181). **negative:** no negative test. **{single-polarity}:** applying a valid SOL_MAX_RT has no wrong input but the out-of-range one, row RFC9915-21.24-3 |
-| `RFC9915-18.2.10.1-1` | The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862], which does list some exceptions, on each of the received addresses in any IAs on which it has not performed duplicate address detection during processing of any of the previous Reply messages from the server. (§18.2.10.1) | MUST | 18.2.10.1 | **positive:** `unit/verify` [`TestRFC9915DuplicateAddressDeclinedOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L36). **positive:** `unit/verify` [`TestRFC9915Section182101DuplicateAddressDeclined`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L97). **negative:** `unit/verify` [`TestRFC9915Section182101UniqueAddressKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L184). **{partial}:** tested "The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862]"; gap "on each of the received addresses in any IAs"; the tested span holds on the kernel (netlink) iface backend, whose DAD outcome the client reads and acts on; on the VPP backend, which reports no DAD outcome for the leased addresses, internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::dadUnreported drops every received address from the DAD poll undeclined, so no received address there is checked for duplicates; VPP DAD is owned by plan/release/fixes/spec-dhcpv6-dad-on-vpp.md. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
+| `RFC9915-18.2.10.1-1` | The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862], which does list some exceptions, on each of the received addresses in any IAs on which it has not performed duplicate address detection during processing of any of the previous Reply messages from the server. (§18.2.10.1) | MUST | 18.2.10.1 | **positive:** `unit/verify` [`TestRFC9915DuplicateAddressDeclinedOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L36). **positive:** `unit/verify` [`TestRFC9915Section182101DuplicateAddressDeclined`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L97). **negative:** `unit/verify` [`TestRFC9915Section182101UniqueAddressKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L184). **{partial}:** tested "The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862]"; gap "on each of the received addresses in any IAs"; the tested span holds on the kernel (netlink) iface backend, whose DAD outcome the client reads and acts on; on the VPP backend, which reports no DAD outcome for the leased addresses, internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::dadUnreported drops every received address from the DAD poll undeclined, so no received address there is checked for duplicates; VPP DAD is owned by plan/release/fixes/spec-dhcpv6-dad-on-vpp.md. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
 | `RFC9915-18.2.10.1-3` | Addresses obtained from an IA Address option MUST NOT be used to form an implicit prefix with a length other than 128. (§18.2.10.1) | MUST NOT | 18.2.10.1 | **positive:** `unit/verify` [`TestDHCPv6LeaseHeldAcrossFiveRenewals`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L415). **negative:** no negative test. **{single-polarity}:** the prefix length is a constant ze installs, so no input yields another length |
 | `RFC9915-18.2.10.5-1` | As a counterexample, a client that previously received an NTP server address from the DHCP server and does not receive it anymore MUST stop using the configured NTP server address. (§18.2.10.5) | MUST | 18.2.10.5 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze takes no NTP server address from DHCPv6: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only, and the lease internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes carries no NTP servers; the DNS case the sentence illustrates is met, because setV6Resolvers in internal/plugins/iface/dhcp/resolv_linux.go withdraws servers a Reply no longer carries; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 "ok", which left the NTP server option out of the current work) |
 | `RFC9915-18.2.11-1` | The message MUST be dropped if it doesn't pass the validation, as explained in Section 16.11, particularly in cases where the authentication is missing or fails. (§18.2.11) | MUST | 18.2.11 | **positive:** no positive test. **negative:** `unit/verify` [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L40). **{single-polarity}:** ze accepts no Reconfigure at all, so no validated Reconfigure exists to assert positively |
@@ -314,7 +314,7 @@ Source: [data/rfc/rfc9915.json](../../../data/rfc/rfc9915.json).
 | [`RFC9915-18.2.7-5`](#rfc9915-18.2.7-5) Any leases for the IAs the client wishes to continue to use MUST NOT be added to the IAs. (§18.2.7) | {gap}, no test | gap in proof: ze meets it because internal/plugins/iface/dhcp/dhcp_v6_linux.go::shutdown sends Release only on Stop, when ze keeps no lease, so no lease it wishes to keep is added to the IAs; no test asserts it |
 | [`RFC9915-18.2.7-8`](#rfc9915-18.2.7-8) For a delegated prefix, this means the prefix MUST have been advertised with a Preferred Lifetime and a Valid Lifetime of 0 in a Router Advertisement message as described in part (e) of Section 5.5.3 of [RFC4862]; also see requirement L-13 in Section 4.3 of [RFC7084]. (§18.2.7) | {gap}, no test | the owner left delegated-prefix use out of the current work (plan/post-release/features/spec-dhcpv6-client-0-umbrella.md, Q5), but neither Section 18.2.7 nor a title above it names that feature and no sentence makes it optional, so the row takes the gap outlet. ze advertises no delegated prefix: internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes the IA_PD prefix as a dhcp-acquired event, and its subscribers, handleDHCPLeaseEvent in internal/component/iface/register.go and syncWorker.handleDHCPEvent in internal/plugins/ntp/ntp.go, send no Router Advertisement from it, so the Release follows no advertisement with lifetimes of 0; no test asserts it |
 | [`RFC9915-18.2.9-4`](#rfc9915-18.2.9-4) MUST process an included INF_MAX_RT option. (§18.2.9) | {gap}, no test | stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md |
-| [`RFC9915-18.2.10.1-1`](#rfc9915-18.2.10.1-1) The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862], which does list some exceptions, on each of the received addresses in any IAs on which it has not performed duplicate address detection during processing of any of the previous Reply messages from the server. (§18.2.10.1) | {partial}, Partial proof; remaining gap | tested "The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862]"; gap "on each of the received addresses in any IAs"; the tested span holds on the kernel (netlink) iface backend, whose DAD outcome the client reads and acts on; on the VPP backend, which reports no DAD outcome for the leased addresses, internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::dadUnreported drops every received address from the DAD poll undeclined, so no received address there is checked for duplicates; VPP DAD is owned by plan/release/fixes/spec-dhcpv6-dad-on-vpp.md |
+| [`RFC9915-18.2.10.1-1`](#rfc9915-18.2.10.1-1) The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862], which does list some exceptions, on each of the received addresses in any IAs on which it has not performed duplicate address detection during processing of any of the previous Reply messages from the server. (§18.2.10.1) | {partial}, Partial test coverage | tested "The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862]"; gap "on each of the received addresses in any IAs"; the tested span holds on the kernel (netlink) iface backend, whose DAD outcome the client reads and acts on; on the VPP backend, which reports no DAD outcome for the leased addresses, internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::dadUnreported drops every received address from the DAD poll undeclined, so no received address there is checked for duplicates; VPP DAD is owned by plan/release/fixes/spec-dhcpv6-dad-on-vpp.md |
 | [`RFC9915-18.2.10.5-1`](#rfc9915-18.2.10.5-1) As a counterexample, a client that previously received an NTP server address from the DHCP server and does not receive it anymore MUST stop using the configured NTP server address. (§18.2.10.5) | {gap}, no test | ze takes no NTP server address from DHCPv6: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::requestOptions requests DNS Recursive Name Server and SOL_MAX_RT only, and the lease internal/plugins/iface/dhcp/dhcp_v6_linux.go::effect publishes carries no NTP servers; the DNS case the sentence illustrates is met, because setV6Resolvers in internal/plugins/iface/dhcp/resolv_linux.go withdraws servers a Reply no longer carries; owed after the first release (owner decision 2026-10-19, plan/post-release/features/spec-dhcpv6-client-0-umbrella.md Q5 "ok", which left the NTP server option out of the current work) |
 | [`RFC9915-18.2.11-2`](#rfc9915-18.2.11-2) Once the client has received a Reconfigure, the client proceeds with the message exchange (retransmitting the Renew, Rebind, or Information-request message if necessary); the client MUST ignore any additional Reconfigure messages until the exchange is complete. (§18.2.11) | {gap}, no test | Reconfigure is in scope by owner decision 2026-10-19 and not yet implemented: ze is never willing to accept Reconfigure messages: internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit sends no Reconfigure Accept option, and internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::replyMatcher discards every Reconfigure; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-4-reconfigure.md |
 | [`RFC9915-18.2.12-3`](#rfc9915-18.2.12-3) If the client has only obtained network information using Information-request/Reply message exchanges, the client MUST initiate an Information-request/Reply message exchange as described in Section 18.2.6. (§18.2.12) | {gap}, no test | stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md |
@@ -336,9 +336,9 @@ Source: [data/rfc/rfc9915.json](../../../data/rfc/rfc9915.json).
 | [`RFC9915-21.25-3`](#rfc9915-21.25-3) A DHCP client MUST ignore any INF_MAX_RT option values that are less than 60 or more than 86400. (§21.25) | {gap}, no test | stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md |
 | [`RFC9915-21.25-4`](#rfc9915-21.25-4) If a DHCP client receives a message containing an INF_MAX_RT option that has a valid value for INF_MAX_RT, the client MUST set its internal INF_MAX_RT parameter to the value contained in the INF_MAX_RT option. (§21.25) | {gap}, no test | stateless DHCPv6 is in scope by owner decision 2026-10-19 and not yet implemented: every exchange the client starts is a Solicit, Request, Renew, Rebind, Decline or Release (internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildSolicit, internal/plugins/iface/dhcp/dhcp_v6_exchange_linux.go::buildFromLease), so no Information-request, INF_MAX_RT or Information Refresh Time state exists; disclosed by its own annotation, which the derived ledger lists under Unmet; plan/spec-dhcpv6-client-3-stateless.md |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC9915-6.3-1`](#rfc9915-6.3-1)
 
@@ -346,7 +346,7 @@ If the client uses a delegated prefix to configure addresses on interfaces on it
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915DelegatedLifetimeBound`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_delegated_lifetime_test.go#L105) | unit/verify | mutant, verified |
 | positive | [`TestRFC9915DelegatedLifetimeBound`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_delegated_lifetime_test.go#L49) | unit/verify | mutant, verified |
@@ -357,7 +357,7 @@ In particular, if the delegated prefix or a prefix derived from it is advertised
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915AdvertisedLifetimeExpired`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L305) | unit/verify | mutant, verified |
 | positive | [`TestRFC9915AdvertisedLifetimeBound`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L136) | unit/verify | mutant, verified |
@@ -368,7 +368,7 @@ A client that has delegated any of the address space received through DHCP Prefi
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915NoReleaseWhileDelegated`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_release_linux_test.go#L22) | unit/verify | mutant, verified |
 | positive | [`TestRFC9915NoReleaseWhileDelegated`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_release_linux_test.go#L18) | unit/verify | mutant, verified |
@@ -403,7 +403,7 @@ Clients and servers MUST treat DUIDs as opaque values and MUST only compare DUID
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section1610ReplyValidation`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L209) | unit/verify | revert, verified |
 
@@ -413,7 +413,7 @@ Clients and servers MUST NOT restrict DUIDs to the types defined in this documen
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section163AdvertiseValidation`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L92) | unit/verify | revert, verified |
 
@@ -471,7 +471,7 @@ The hardware type MUST be a valid hardware type assigned by IANA; see [IANA-HARD
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1824RenewAtT1CarriesLease`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L363) | unit/verify | revert, verified |
 
@@ -481,7 +481,7 @@ The IAID uniquely identifies the IA and MUST be chosen to be unique among the IA
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestDHCPv6PDLengthRequestsDelegatedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L341) | unit/verify | revert, verified |
 
@@ -491,7 +491,7 @@ For any given use of an IA by the client, the IAID for that IA MUST be consisten
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section12IAIDStable`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L384) | unit/verify | revert, verified |
 
@@ -501,7 +501,7 @@ A DHCPv6 client MUST limit the rate of DHCP messages it transmits or retransmits
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section141PerInterfaceRateLimit`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L238) | unit/verify | revert, verified |
 
@@ -511,7 +511,7 @@ For a device that has multiple interfaces, the limit MUST be enforced on a per-i
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section141LimitIsPerInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L361) | unit/verify | revert, verified |
 
@@ -521,7 +521,7 @@ When T1 and/or T2 values are set to 0, the client MUST choose a time to avoid me
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section142ZeroTimersChosenByClient`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L783) | unit/verify | revert, verified |
 
@@ -531,7 +531,7 @@ In particular, it MUST NOT transmit immediately. (§14.2)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section142ZeroTimersChosenByClient`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L784) | unit/verify | revert, verified |
 
@@ -541,7 +541,7 @@ The client MUST update an "elapsed-time" value within an Elapsed Time option (se
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section15ElapsedTimeUpdated`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L61) | unit/verify | revert, verified |
 
@@ -559,7 +559,7 @@ Clients, relay agents, and servers MUST NOT discard messages that contain unknow
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1610ReplyValidation`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L205) | unit/verify | revert, verified |
 
@@ -569,7 +569,7 @@ A client or server MUST discard any received DHCP messages with an unknown messa
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section1610ReplyValidation`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L206) | unit/verify | revert, verified |
 
@@ -579,7 +579,7 @@ A client MUST leave the transaction ID unchanged in retransmissions of a message
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section15ElapsedTimeUpdated`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L62) | unit/verify | revert, verified |
 
@@ -589,7 +589,7 @@ Clients MUST discard any received Solicit messages. (§16.2)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L29) | unit/verify | revert, verified |
 
@@ -599,7 +599,7 @@ Clients MUST discard any received Advertise message that meets any of the follow
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section163AdvertiseValidation`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L88) | unit/verify | revert, verified |
 
@@ -609,7 +609,7 @@ Clients MUST discard any received Request messages. (§16.4)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L30) | unit/verify | revert, verified |
 
@@ -619,7 +619,7 @@ Clients MUST discard any received Confirm messages. (§16.5)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L31) | unit/verify | revert, verified |
 
@@ -629,7 +629,7 @@ Clients MUST discard any received Renew messages. (§16.6)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L32) | unit/verify | revert, verified |
 
@@ -639,7 +639,7 @@ Clients MUST discard any received Rebind messages. (§16.7)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L33) | unit/verify | revert, verified |
 
@@ -649,7 +649,7 @@ Clients MUST discard any received Decline messages. (§16.8)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L34) | unit/verify | revert, verified |
 
@@ -659,7 +659,7 @@ Clients MUST discard any received Release messages. (§16.9)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L35) | unit/verify | revert, verified |
 
@@ -669,7 +669,7 @@ Clients MUST discard any received Reply message that meets any of the following 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section1610ReplyValidation`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L207) | unit/verify | revert, verified |
 
@@ -679,7 +679,7 @@ If the client included a Client Identifier option (see Section 21.2) in the orig
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section1610ReplyValidation`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L208) | unit/verify | revert, verified |
 
@@ -697,7 +697,7 @@ Clients MUST discard any Reconfigure message that meets any of the following con
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L39) | unit/verify | revert, verified |
 
@@ -707,7 +707,7 @@ Clients MUST discard any received Information-request messages. (§16.12)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L36) | unit/verify | revert, verified |
 
@@ -717,7 +717,7 @@ Clients MUST discard any received Relay-forward messages. (§16.13)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L37) | unit/verify | revert, verified |
 
@@ -727,7 +727,7 @@ Clients and servers MUST discard any received Relay-reply messages. (§16.14)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L38) | unit/verify | revert, verified |
 
@@ -737,7 +737,7 @@ The client MUST NOT be using any of the addresses or delegated prefixes for whic
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1825ExpiryRemovesAndSolicits`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L487) | unit/verify | revert, verified |
 
@@ -747,7 +747,7 @@ The client SHOULD be suspicious of the Reconfigure message (they may be faked), 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L42) | unit/verify | revert, verified |
 
@@ -757,7 +757,7 @@ The client MUST include a Client Identifier option (see Section 21.2) to identif
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1821SolicitContents`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L148) | unit/verify | revert, verified |
 
@@ -767,7 +767,7 @@ The client MUST include an Elapsed Time option (see Section 21.9) to indicate ho
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1821SolicitContents`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L149) | unit/verify | revert, verified |
 
@@ -777,7 +777,7 @@ The client MUST include an Option Request option (ORO) (see Section 21.7) to req
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1821FirstSolicitRTAboveIRT`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L91) | unit/verify | revert, verified |
 
@@ -787,7 +787,7 @@ The client MUST NOT include any other options in the Solicit message, except as 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1821SolicitContents`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L150) | unit/verify | revert, verified |
 
@@ -797,7 +797,7 @@ Also, the first RT MUST be selected to be strictly greater than IRT by choosing 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1821FirstSolicitRTAboveIRT`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L92) | unit/verify | revert, verified |
 
@@ -807,7 +807,7 @@ A client MUST collect valid Advertise messages for the first RT seconds, unless 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1821AdvertiseSelection`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L276) | unit/verify | revert, verified |
 
@@ -825,7 +825,7 @@ The client MUST include the identifier of the destination server in a Server Ide
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1822RequestContents`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L185) | unit/verify | revert, verified |
 
@@ -835,7 +835,7 @@ The client MUST include a Client Identifier option (see Section 21.2) to identif
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1822RequestContents`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L186) | unit/verify | revert, verified |
 
@@ -845,7 +845,7 @@ The client MUST include an Elapsed Time option (see Section 21.9) to indicate ho
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1822RequestContents`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L187) | unit/verify | revert, verified |
 
@@ -855,7 +855,7 @@ The client MUST include an Option Request option (see Section 21.7) to request t
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1822RequestContents`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L188) | unit/verify | revert, verified |
 
@@ -865,7 +865,7 @@ The client MUST include a Client Identifier option (see Section 21.2) to identif
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section18212ConfirmOnMove`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L617) | unit/verify | revert, verified |
 
@@ -875,7 +875,7 @@ The client MUST include an Elapsed Time option (see Section 21.9) to indicate ho
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1823ConfirmRetransmission`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L726) | unit/verify | revert, verified |
 
@@ -885,7 +885,7 @@ The first Confirm message from the client on the interface MUST be delayed by a 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDHCPv6ConfirmStopDuringDelay`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L914) | unit/verify | revert, verified |
 | positive | [`TestRFC9915Section18212ConfirmOnMove`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L618) | unit/verify | revert, verified |
@@ -896,7 +896,7 @@ However, as the client SHOULD renew/ rebind all IAs from the server at the same 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1824EarliestT1AcrossIAs`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L808) | unit/verify | revert, verified |
 
@@ -914,7 +914,7 @@ The client MUST include a Server Identifier option (see Section 21.3) in the Ren
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1824RenewAtT1CarriesLease`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L359) | unit/verify | revert, verified |
 
@@ -924,7 +924,7 @@ The client MUST include a Client Identifier option (see Section 21.2) to identif
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1824RenewAtT1CarriesLease`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L360) | unit/verify | revert, verified |
 
@@ -934,7 +934,7 @@ The client MUST include an Elapsed Time option (see Section 21.9) to indicate ho
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1824RenewAtT1CarriesLease`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L361) | unit/verify | revert, verified |
 
@@ -944,7 +944,7 @@ The client MUST NOT include addresses and prefixes in any IA option that the cli
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section1824RenewOmitsExpiredLeases`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L309) | unit/verify | revert, verified |
 
@@ -986,7 +986,7 @@ The client MUST include a Server Identifier option (see Section 21.3) in the Ren
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1827ReleaseContents`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L276) | unit/verify | revert, verified |
 
@@ -996,7 +996,7 @@ The client MUST include a Client Identifier option (see Section 21.2) to identif
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1827ReleaseContents`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L277) | unit/verify | revert, verified |
 
@@ -1006,7 +1006,7 @@ The client MUST include an Elapsed Time option (see Section 21.9) to indicate ho
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1827ReleaseContents`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L278) | unit/verify | revert, verified |
 
@@ -1016,7 +1016,7 @@ The leases to be released MUST be included in the IAs. (§18.2.7)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1827ReleaseContents`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L279) | unit/verify | revert, verified |
 
@@ -1034,7 +1034,7 @@ The client MUST stop using all of the leases being released before the client be
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestDHCPv6ReleaseOnStop`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L650) | unit/verify | revert, verified |
 
@@ -1044,7 +1044,7 @@ For an address, this means the address MUST have been removed from the interface
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestDHCPv6ReleaseOnStop`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L651) | unit/verify | revert, verified |
 
@@ -1062,7 +1062,7 @@ The Decline message is not used in prefix delegation; thus, the client MUST NOT 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section182101DuplicateAddressDeclined`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L98) | unit/verify | revert, verified |
 
@@ -1072,7 +1072,7 @@ The client MUST include a Server Identifier option (see Section 21.3) in the Dec
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section182101DuplicateAddressDeclined`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L99) | unit/verify | revert, verified |
 
@@ -1082,7 +1082,7 @@ The client MUST include a Client Identifier option (see Section 21.2) to identif
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section182101DuplicateAddressDeclined`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L100) | unit/verify | revert, verified |
 
@@ -1092,7 +1092,7 @@ The client MUST include an Elapsed Time option (see Section 21.9) to indicate ho
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section182101DuplicateAddressDeclined`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L101) | unit/verify | revert, verified |
 
@@ -1102,7 +1102,7 @@ The addresses to be declined MUST be included in the IAs. (§18.2.8)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section182101DuplicateAddressDeclined`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L102) | unit/verify | revert, verified |
 
@@ -1112,7 +1112,7 @@ The client MUST NOT use any of the addresses it is declining as the source addre
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915DuplicateAddressDeclinedOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L37) | unit/verify | revert, verified |
 | positive | [`TestRFC9915Section182101DuplicateAddressDeclined`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L103) | unit/verify | revert, verified |
@@ -1123,7 +1123,7 @@ The client MUST process any SOL_MAX_RT option (§18.2.9)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section163AdvertiseValidation`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L90) | unit/verify | revert, verified |
 
@@ -1133,7 +1133,7 @@ The client MUST ignore any Advertise message that contains no addresses (IA Addr
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section163AdvertiseValidation`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L89) | unit/verify | revert, verified |
 
@@ -1143,7 +1143,7 @@ MUST process an included SOL_MAX_RT option and (§18.2.9)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section163AdvertiseValidation`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L91) | unit/verify | revert, verified |
 
@@ -1161,7 +1161,7 @@ The client ignoring an Advertise message MUST NOT restart the Solicit retransmis
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestDHCPv6LinkOneDatagramPerExchange`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_link_linux_test.go#L109) | unit/verify | revert, verified |
 
@@ -1171,7 +1171,7 @@ The client MUST process any SOL_MAX_RT option (§18.2.10)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section2124SolMaxRTRange`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L181) | unit/verify | revert, verified |
 
@@ -1179,11 +1179,11 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862], which does list some exceptions, on each of the received addresses in any IAs on which it has not performed duplicate address detection during processing of any of the previous Reply messages from the server. (§18.2.10.1)
 
-Records cover only part of this requirement: tested "The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862]"; gap "on each of the received addresses in any IAs"; the tested span holds on the kernel (netlink) iface backend, whose DAD outcome the client reads and acts on; on the VPP backend, which reports no DAD outcome for the leased addresses, internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::dadUnreported drops every received address from the DAD poll undeclined, so no received address there is checked for duplicates; VPP DAD is owned by plan/release/fixes/spec-dhcpv6-dad-on-vpp.md; they do not prove the whole requirement.
+Records cover only part of this requirement: tested "The client MUST perform duplicate address detection as per Section 5.4 of [RFC4862]"; gap "on each of the received addresses in any IAs"; the tested span holds on the kernel (netlink) iface backend, whose DAD outcome the client reads and acts on; on the VPP backend, which reports no DAD outcome for the leased addresses, internal/plugins/iface/dhcp/dhcp_v6_attach_linux.go::dadUnreported drops every received address from the DAD poll undeclined, so no received address there is checked for duplicates; VPP DAD is owned by plan/release/fixes/spec-dhcpv6-dad-on-vpp.md; they do not verify the whole requirement.
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section182101UniqueAddressKept`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L184) | unit/verify | revert, verified |
 | positive | [`TestRFC9915DuplicateAddressDeclinedOnTheLink`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_dad_integration_linux_test.go#L36) | unit/verify | revert, verified |
@@ -1195,7 +1195,7 @@ Addresses obtained from an IA Address option MUST NOT be used to form an implici
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestDHCPv6LeaseHeldAcrossFiveRenewals`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L415) | unit/verify | revert, verified |
 
@@ -1213,7 +1213,7 @@ The message MUST be dropped if it doesn't pass the validation, as explained in S
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L40) | unit/verify | revert, verified |
 
@@ -1231,7 +1231,7 @@ The client MUST include any IAs assigned to the interface that may have moved to
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section18212NoMoveNoConfirm`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L695) | unit/verify | revert, verified |
 | positive | [`TestRFC9915Section18212ConfirmOnMove`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L619) | unit/verify | revert, verified |
@@ -1242,7 +1242,7 @@ If the client has any valid delegated prefixes obtained from the DHCP server, th
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915LinkChangeWithoutDownSendsNothing`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc9915_dhcp_v6_link_move_integration_linux_test.go#L100) | unit/verify | mutant, verified |
 | negative | [`TestRFC9915Section18212NoMoveNoRebind`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L447) | unit/verify | revert, verified |
@@ -1263,7 +1263,7 @@ However, a client MUST rate- limit such initiation attempts to avoid flooding a 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section18212MoveRebindRateLimited`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_attach_linux_test.go#L493) | unit/verify | revert, verified |
 
@@ -1273,7 +1273,7 @@ The Reply with lifetimes of 0 constitutes an explicit notification to the client
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section182101ValidZeroDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L735) | unit/verify | revert, verified |
 
@@ -1315,7 +1315,7 @@ In a message sent by a server to a client, the client MUST use the values in the
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1824RenewAtT1CarriesLease`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L362) | unit/verify | revert, verified |
 
@@ -1325,7 +1325,7 @@ In a message sent by a server to a client, the client MUST use the values in the
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestDHCPv6LeaseHeldAcrossFiveRenewals`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L416) | unit/verify | revert, verified |
 
@@ -1335,7 +1335,7 @@ The client MUST discard any addresses for which the preferred lifetime is greate
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section216PreferredAboveValidDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L753) | unit/verify | revert, verified |
 
@@ -1345,7 +1345,7 @@ A client MUST include an Option Request option in a Solicit, Request, Renew, Reb
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section217OptionRequestEveryMessage`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L223) | unit/verify | revert, verified |
 
@@ -1355,7 +1355,7 @@ The Option Request option MUST NOT include the following option codes: (§21.7)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section217OptionRequestEveryMessage`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L224) | unit/verify | revert, verified |
 
@@ -1365,7 +1365,7 @@ A client MUST include an Elapsed Time option in messages to indicate how long th
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section217OptionRequestEveryMessage`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L226) | unit/verify | revert, verified |
 
@@ -1423,7 +1423,7 @@ The client MUST discard any prefixes for which the preferred lifetime is greater
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section2122PrefixPreferredAboveValidDiscarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L335) | unit/verify | revert, verified |
 
@@ -1441,7 +1441,7 @@ A client MUST NOT request this option in the Option Request option in any other 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section217OptionRequestEveryMessage`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L225) | unit/verify | revert, verified |
 
@@ -1475,7 +1475,7 @@ A DHCP client MUST ignore any SOL_MAX_RT option values that are less than 60 or 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section2124SolMaxRTRange`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L179) | unit/verify | revert, verified |
 
@@ -1485,7 +1485,7 @@ If a DHCP client receives a message containing a SOL_MAX_RT option that has a va
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section2124SolMaxRTRange`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_exchange_linux_test.go#L180) | unit/verify | revert, verified |
 
@@ -1519,7 +1519,7 @@ Because of the opportunity for attack through the Reconfigure message, a DHCP cl
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9915Section16ClientDiscardsOtherMessageTypes`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L41) | unit/verify | revert, verified |
 
@@ -1529,7 +1529,7 @@ Legacy implementations MAY support them, but implementations conformant to this 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9915Section1821SolicitContents`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_messages_linux_test.go#L151) | unit/verify | revert, verified |
 

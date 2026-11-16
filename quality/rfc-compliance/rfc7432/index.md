@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 12 | of 103 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 103 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 12 | of 103 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 103 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 103 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 103 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 38 | 38 of 42 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 103 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 38 | 38 of 42 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 103 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 103 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 103 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 103 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 103 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 103 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 103 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: BGP MPLS-Based Ethernet VPN (EVPN)
 
 **Area:** EVPN
 
-**Proof:** 11 of 103 MUST proven
+**Test verification:** 11 of 103 MUST proven
 
 **Evidence:** unit 11
 
@@ -109,7 +109,7 @@ Included in automatic checks: BGP MPLS-Based Ethernet VPN (EVPN)
 | Annotated (including scoped evidence) | 91 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **103** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: BGP MPLS-Based Ethernet VPN (EVPN)
 
 ## Figures
 
-- **MUST bar**: Ze proven 11, Proof pending 2, Not built 90
-- **Overview bar**: Ze MUST proven 11, Proof pending 2, Not assessed 17, Not built 90
+- **MUST bar**: Ze verified 11, Tests awaiting verification 2, Not built 90
+- **Overview bar**: Ze MUST verified 11, Tests awaiting verification 2, Not assessed 17, Not built 90
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: BGP MPLS-Based Ethernet VPN (EVPN)
 | Mandatory requirements complete | not complete |
 | MUST rows | 103 |
 | MUST rows kept (the MUST bar) | 103 |
-| Ze proven | 11 |
+| Ze verified | 11 |
 | OS verified | 0 |
-| Proof pending | 2 |
+| Tests awaiting verification | 2 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: BGP MPLS-Based Ethernet VPN (EVPN)
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 17 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 17 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7432.json](../../../data/rfc/rfc7432.json).
 
@@ -378,9 +378,9 @@ Source: [data/rfc/rfc7432.json](../../../data/rfc/rfc7432.json).
 | [`RFC7432-13.1-7`](#rfc7432-13.1-7) The packet MUST be encapsulated in the P2MP LSP label stack. (§13.1) | {gap}, no test | ze forwards no EVPN traffic, so no split-horizon, flooding or BUM encapsulation procedure runs: ze implements no EVPN data plane: it holds no MAC-VRF, bridge table or BUM replication, and internal/component/sysrib/sysrib.go::processEvent installs no forwarding state for an EVPN route (docs/architecture/wire/nlri-evpn.md, BGP control-plane role). ze fills the PE role on the control plane, originating EVPN routes through internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams, and no decision of Thomas's declines this procedure, so it is owed work |
 | [`RFC7432-17.3-3`](#rfc7432-17.3-3) When the MAC entry on the PE ages out, the PE MUST withdraw the MAC address from BGP (§17.3) | {gap}, no test | ze learns no MAC address and keeps no MAC table or IP-to-MAC binding: MAC/IP Advertisement routes are only those configuration or the API supplies (internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute), so no learning, ageing or binding change drives an advertisement, a withdrawal or an ARP/ND entry. ze implements no EVPN data plane: it holds no MAC-VRF, bridge table or BUM replication, and internal/component/sysrib/sysrib.go::processEvent installs no forwarding state for an EVPN route (docs/architecture/wire/nlri-evpn.md, BGP control-plane role). ze fills the PE role on the control plane, originating EVPN routes through internal/component/bgp/plugins/nlri/evpn/config.go::parseConfigRoute and internal/component/bgp/plugins/nlri/evpn/encode.go::l2vpnRouteToEVPNParams, and no decision of Thomas's declines this procedure, so it is owed work |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC7432-7.9-1`](#rfc7432-7.9-1)
 
@@ -412,10 +412,10 @@ The Ethernet Segment Identifier (ESI) MUST be set to the 10-octet value describe
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 7432 Section 8.1.1: "The Ethernet Segment Identifier (ESI) MUST be set to the 10-octet value described in Section 5." 238bdb62e9 unexported the EVPN route types; TestEVPNESIIsTenOctets now asserts the parsed type is *evpnType4 where it asserted *EVPNType4, the same type renamed. The ten-octet ESI length and value assertions are unchanged. Verdict unchanged: enforced. Earlier judgement follows. row now quotes the §8.1.1 sentence that the ESI MUST be the 10-octet value of §5 (the extraction maps 8.1.1:2 here). types_test.go::TestEVPNESIIsTenOctets decodes and re-encodes a 10-octet ESI on the Ethernet Segment and Ethernet A-D routes and asserts the following field starts after octet ten; the negatives cut the ESI to nine octets and assert ErrEVPNTruncated. ESI is a [10]byte, so no origination path can produce another width
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEVPNESIIsTenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L443) | unit/verify | unproven |
-| positive | [`TestEVPNESIIsTenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L403) | unit/verify | unproven |
+| negative | [`TestEVPNESIIsTenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L443) | unit/verify | not verified |
+| positive | [`TestEVPNESIIsTenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L403) | unit/verify | not verified |
 
 ### [`RFC7432-8.2.1-1`](#rfc7432-8.2.1-1)
 
@@ -431,7 +431,7 @@ The MPLS label in the NLRI MUST be set to 0. (§8.2.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-24 by an independent auditor (authored none of it). RFC 7432 Section 8.2.1, rfc/full/rfc7432.txt:1146: "The MPLS label in the NLRI MUST be set to 0." (the Ethernet A-D per ES route). STALE because a4fe1b70f3 moved generic attribute encoding (ORIGIN, MED, LOCAL_PREF and the rest) out of parseConfigRoute into the central config dispatcher; parseConfigRoute now emits only the merged extended communities. The label path is untouched: parseConfigRoute still calls l2vpnRouteToEVPNParams and then message.ValidateEVPNOriginationMode on params.NLRI, whose MAX-ET Type 1 branch refuses nlris[24]|nlris[25]|nlris[26] != 0 (update_build_evpn.go:260). Positives TestConfiguredEVPNPerESRoute and TestOriginEthernetADPerESUsesTypeOneRD compare the whole NLRI byte for byte, ending in the three zero label octets. Fresh overlay mutant 2026-10-24 (go test -overlay, the zero-label condition replaced by false, every other check kept): TestConfiguredEVPNRefusesInvalidPerESRoute goes red ("An error is expected but got nil") and TestConfiguredEVPNPerESRoute stays green, so the negative's "label 100" input is refused by this rule, not by its missing ESI. TestOriginEthernetADPerESRefusesLabelStack is byte-identical and its 2026-10-18 mutant result stands. Both config carriers pass on the tree.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestConfiguredEVPNRefusesInvalidPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L54) | unit/verify | revert, verified |
 | negative | [`TestOriginEthernetADPerESRefusesLabelStack`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L69) | unit/verify | revert, verified |
@@ -452,7 +452,7 @@ If All-Active redundancy mode is desired, then the "Single-Active" bit in the fl
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 7432 Section 8.2.1: "If All-Active redundancy mode is desired, then the "Single-Active" bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value." Two producer changes since the last judgement. a4fe1b70f3 moved generic attribute encoding out of evpn/config.go::parseConfigRoute to the central dispatcher; parseConfigRoute still merges its own and the configured extended communities and calls message.ValidateEVPNOriginationMode with params.RedundancyMode, so the ESI Label flag and label check on the config path is the same. 238bdb62e9 only renamed ParseESIString to parseESIString in encode.go::l2vpnRouteToEVPNParams, whose redundancy-mode placement guards are unchanged. The tagged carriers are byte-identical. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-18 (independent auditor, after 0411b53e91). RFC 7432 Section 8.2.1: "If All-Active redundancy mode is desired, then the "Single-Active" bit in the flags of the ESI Label extended community MUST be set to 0 and the MPLS label in that Extended Community MUST be set to a valid MPLS label value." Stale only because 0411b53e91 replaced the redundancy-mode argument with a routeIntent struct (redundancyMode plus overlayIndex) through parseL2VPNArgs, l2vpnRouteToEVPNParams, parseConfigRoute and EncodeRoute; the new overlay-index guard refuses only a named selector on a non-ip-prefix route and never touches the Ethernet A-D path. The tagged test units did not change. Both clauses stay proven as before (flag and valid-label refusals with exact text, flag-0 bytes and labels 16/1048575 accepted). Fresh overlay mutants (tags ze_core ze_bgp): parseConfigRoute passing an intent without the mode reddens TestConfiguredEVPNRefusesPerESRedundancyMismatch; EncodeRoute passing an intent without the mode reddens TestOriginPerESRedundancyModeRefused; l2vpnRouteToEVPNParams dropping intent.redundancyMode reddens both; parseL2VPNArgs mapping single-active to all-active reddens TestOriginPerESRedundancyModeAccepted, TestOriginPerESRedundancyModeRefused and TestConfiguredEVPNRefusesPerESRedundancyMismatch. The message-package tests (TestRFC7432ESILabelRedundancyAccepted/Refused) are untouched by the change. Earlier open item unchanged: the config-path positive is only the untagged test/encode/evpn-per-es-redundancy-mode.ci, and the bgp-evpn-gobgp interop still owes its red proof.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7432ESILabelRedundancyRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go#L61) | unit/verify | revert, verified |
 | negative | [`TestConfiguredEVPNRefusesPerESRedundancyMismatch`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go#L84) | unit/verify | revert, verified |
@@ -490,7 +490,7 @@ If Single-Active redundancy mode is desired, then the "Single-Active" bit in the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 7432 Section 8.2.1: "If Single-Active redundancy mode is desired, then the "Single-Active" bit in the flags of the ESI Label extended community MUST be set to 1" Same producer changes as RFC7432-8.2.1-4: a4fe1b70f3 moved generic attribute encoding out of parseConfigRoute, which still validates the merged extended communities against the redundancy mode, and 238bdb62e9 renamed parseESIString in l2vpnRouteToEVPNParams. Single-Active flag-1 assertions unchanged. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-18 (independent auditor, after 0411b53e91). RFC 7432 Section 8.2.1: "If Single-Active redundancy mode is desired, then the "Single-Active" bit in the flags of the ESI Label extended community MUST be set to 1 and the ESI label SHOULD be set to a valid MPLS label value." Only the MUST is the row. Stale only because 0411b53e91 replaced the redundancy-mode argument with a routeIntent struct (redundancyMode plus overlayIndex) through parseL2VPNArgs, l2vpnRouteToEVPNParams, parseConfigRoute and EncodeRoute; the new overlay-index guard refuses only a named selector on a non-ip-prefix route and never touches the Ethernet A-D path. The tagged test units did not change. Fresh overlay mutants (tags ze_core ze_bgp): parseConfigRoute passing an intent without the mode reddens TestConfiguredEVPNRefusesPerESRedundancyMismatch; EncodeRoute passing an intent without the mode reddens TestOriginPerESRedundancyModeRefused; l2vpnRouteToEVPNParams dropping intent.redundancyMode reddens both; parseL2VPNArgs mapping single-active to all-active reddens TestOriginPerESRedundancyModeAccepted, TestOriginPerESRedundancyModeRefused and TestConfiguredEVPNRefusesPerESRedundancyMismatch. The message-package tests (TestRFC7432ESILabelRedundancyAccepted/Refused) are untouched by the change. Earlier open item unchanged: the config-path positive is only the untagged test/encode/evpn-per-es-redundancy-mode.ci, and the bgp-evpn-gobgp interop still owes its red proof.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7432ESILabelRedundancyRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_esi_label_redundancy_test.go#L68) | unit/verify | revert, verified |
 | negative | [`TestConfiguredEVPNRefusesPerESRedundancyMismatch`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_redundancy_mode_test.go#L86) | unit/verify | revert, verified |
@@ -512,7 +512,7 @@ The Route Distinguisher (RD) MUST be a Type 1 RD [RFC4364]. (§8.1.1). `message.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. update_build_evpn_rfc7432_test.go: TestRFC7432EthernetSegmentOriginationAccepted builds an ES route with a Type 1 RD; TestRFC7432EthernetSegmentOriginationRefused asserts ErrEVPNOrigination and no UPDATE for Type 0 and Type 2 RDs, isolated with a valid ES-Import RT
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7432EthernetSegmentOriginationRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L67) | unit/verify | revert, verified |
 | positive | [`TestRFC7432EthernetSegmentOriginationAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L54) | unit/verify | revert, verified |
@@ -523,7 +523,7 @@ The BGP advertisement that advertises the Ethernet Segment route MUST also carry
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. ES-Import presence proven by the HEAD units; the ESI-Label-substitute clause now proven: TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel builds a Type 4 route with ES-Import (extended communities exactly it) and refuses ESI Label 0x06/0x01 (same type octet, asserted) alone or with an RT via ErrEVPNOrigination, no UPDATE.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7432EthernetSegmentRouteNeedsESImportNotESILabel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_es_import_test.go#L23) | unit/verify | revert, verified |
 | negative | [`TestRFC7432EthernetSegmentOriginationRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L73) | unit/verify | revert, verified |
@@ -560,10 +560,10 @@ The encoding of a MAC address MUST be the 6-octet MAC address specified by [802.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7432 §9.2.1: "The MAC Address Length field is in bits, and it is set to 48. MAC address length values other than 48 bits are outside the scope of this document. The encoding of a MAC address MUST be the 6-octet MAC address specified by [802.1Q] and [802.1D-REV]." Read its sole tagged carrier internal/component/bgp/plugins/nlri/evpn/types_test.go::TestEVPNMACAddressLength and repaired shared helper evpnT2Body. The positive now supplies a complete Type-2 MAC-only route including mandatory Label1 00 01 01, requires decoded MAC 00:11:22:33:44:55, then independently pins the output length octet to 48 and the exact six MAC octets. The negative cases change only MAC length to 0/32/47/49/64/255 and require ErrEVPNInvalidAddress, preserving a valid zero-length optional IP field and label. types.go::parseEVPNType2 checks 48 before copying six bytes, and EVPNType2.WriteTo always emits 48 and the six-byte MAC. Thus the assertions implement the RFC's six-octet format, fail on altered width/content, isolate the MAC rule after the label repair, and cover the whole selected encoding obligation. One positive and one negative tag refer to distinct subcases, not the same assertion twice. Rejecting out-of-scope widths is a local validation boundary, not an invented RFC requirement for future MAC formats. Prior enforced judgment remains enforced after independent semantic rereading; no runtime execution or new discrimination record is claimed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEVPNMACAddressLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L318) | unit/verify | unproven |
-| positive | [`TestEVPNMACAddressLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L296) | unit/verify | unproven |
+| negative | [`TestEVPNMACAddressLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L318) | unit/verify | not verified |
+| positive | [`TestEVPNMACAddressLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L296) | unit/verify | not verified |
 
 ### [`RFC7432-9.2.1-2`](#rfc7432-9.2.1-2)
 
@@ -611,7 +611,7 @@ For ARP and ND purposes, the IP Address Length field MUST be set to 32 for an IP
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7432 §10: "For ARP and ND purposes, the IP Address Length field MUST be set to 32 for an IPv4 address or 128 for an IPv6 address." Independently reread both current tagged carriers after the parent repaired their shared fixture. internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go::TestRFC7432MACIPSenderUsesBitLengths pins the sender's raw octet 31 to 32/128, exact IPv4/IPv6 address octets, complete length and mandatory Label1=100 bytes. types_test.go::TestEVPNIPAddressLength separately accepts literal IPv4/IPv6 layouts with the exact decoded address and refuses non-0/32/128 lengths with ErrEVPNInvalidAddress. Its evpnT2Body now includes valid mandatory Label1 bytes 00 01 01 after the IP field; the former missing-label confound is gone. The absent-IP control is permitted by §9.2.1, not an exception to §10's present-IP obligation. Producers types.go::NewEVPNType2/EVPNType2.WriteTo choose bit lengths independently of parseEVPNType2's literal 0/32/128 branches. Exact raw sender expectations distinguish bits from octets, while parser negatives vary the tested length and retain valid surrounding fields. Current tags are two positive and one negative, backed by distinct conforming and invalid-length cases. The entire selected length obligation is now enforced at source level; no new runtime success or observed producer-break red is asserted. This fixture repair does not authorize EVPN forwarding or label-allocation features.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEVPNIPAddressLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L377) | unit/verify | revert, verified |
 | positive | [`TestRFC7432MACIPSenderUsesBitLengths`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_ip_length_send_test.go#L13) | unit/verify | revert, verified |
@@ -1103,7 +1103,7 @@ Support of this route is REQUIRED. (§8.2.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7432 §8.2.1: "This section describes the procedures used to construct the Ethernet A-D per ES route, which is used for fast convergence (as discussed above) and for advertising the ESI label used for split-horizon filtering (as discussed in Section 8.3). Support of this route is REQUIRED." Within the established explicit BGP control-plane role, current positive carriers demonstrate actual route support rather than only malformed-label rejection: internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute checks the entire MAX-ET Type-1 NLRI plus configured RT/ESI Label bytes; internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD checks the complete NLRI in an actual UPDATE MP_REACH and decodes it; internal/component/bgp/reactor/rfc7432_session_validation_evpn_test.go::TestEVPNIngressPreservesPerESZeroLabel requires exact unchanged ingress NLRI and action None. Producers evpn/config.go::parseConfigRoute, encode.go::EncodeRoute/l2vpnRouteToEVPNParams, message/update_build_evpn.go::BuildEVPN/ValidateEVPNOrigination and session_validation.go::enforceRFC7606 support those paths. Removing the route or changing its layout fails these assertions. Current single-polarity annotation is semantically justified: malformed label/RD cases are neighboring obligations, not a negative of route support. It does not waive any runtime proof, invent an owner exception, or claim PE fast-convergence, split-horizon, automatic ESI/label allocation or undisclosed whole EVPN support.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestConfiguredEVPNPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L34) | unit/verify | revert, verified |
 | positive | [`TestOriginEthernetADPerESUsesTypeOneRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L13) | unit/verify | revert, verified |
@@ -1115,7 +1115,7 @@ The Route Distinguisher (RD) MUST be a Type 1 RD [RFC4364]. (§8.2.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 7432 §8.2.1: "The Route Distinguisher (RD) MUST be a Type 1 RD [RFC4364]. The value field comprises an IP address of the PE (typically, the loopback address) followed by a number unique to the PE." The selected row is the Type-1 format obligation. Read all four carriers: internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go::TestConfiguredEVPNPerESRoute pins complete Type-1 RD bytes; TestConfiguredEVPNRefusesInvalidPerESRoute includes an otherwise guarded per-ES route with AS-specific RD; internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go::TestOriginEthernetADPerESUsesTypeOneRD pins RD=1 in the encoded and MP_REACH-carried NLRI; TestOriginEthernetADPerESRefusesASTypeRD demands refusal/nil output for per-ES and permits the same AS-specific format for per-EVI. RT and ESI Label are present, so missing-community rejection cannot mask the RD error. evpn/config.go::parseConfigRoute and encode.go::EncodeRoute both reach message/update_build_evpn.go::ValidateEVPNOrigination, which checks RD type before label/community checks for MAX-ET. Removing the type check would violate the negative pair. This proves required RD type within configured control-plane origination, not automatic PE-owned RD allocation/uniqueness or a new multihoming role; no runtime claim.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestConfiguredEVPNRefusesInvalidPerESRoute`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L55) | unit/verify | revert, verified |
 | negative | [`TestOriginEthernetADPerESRefusesASTypeRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L34) | unit/verify | revert, verified |
@@ -1144,7 +1144,7 @@ This label is referred to as the ESI label and MUST be distributed by all PEs wh
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. update_build_evpn_rfc7432_test.go::TestRFC7432PerESRouteDistributesESILabel: a per-ES A-D route with the ESI Label community (flags 0, All-Active) and an RT builds an UPDATE carrying both; without the ESI Label community it is refused with ErrEVPNOrigination while the RT is present, so the RT rule cannot trip first
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7432PerESRouteDistributesESILabel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L91) | unit/verify | revert, verified |
 | positive | [`TestRFC7432PerESRouteDistributesESILabel`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7432_update_build_evpn_test.go#L85) | unit/verify | revert, verified |
@@ -1187,7 +1187,7 @@ The encoding of an IP address MUST be either 4 octets for IPv4 or 16 octets for 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7432Type2IPAddressOctetsShort`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L92) | unit/verify | revert, verified |
 | positive | [`TestRFC7432Type2IPAddressOctets`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_type2_ip_test.go#L28) | unit/verify | revert, verified |
@@ -1206,7 +1206,7 @@ The BGP advertisement for the Inclusive Multicast Ethernet Tag route MUST also c
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. origination_test.go and bgp_routes_evpn_test.go: IMET with target:65000:100 emits the exact RT bytes; IMET with no extended community, or only a Route Origin (subtype 0x03), is refused
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestConfiguredEVPNIMETRefusesMissingRouteTarget`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc7432_bgp_routes_evpn_test.go#L83) | unit/verify | revert, verified |
 | negative | [`TestOriginInclusiveMulticastRefusesMissingRouteTarget`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc7432_origination_test.go#L59) | unit/verify | revert, verified |

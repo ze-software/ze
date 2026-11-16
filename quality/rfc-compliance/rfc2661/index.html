@@ -128,11 +128,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>64</strong><b>of 95 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>28</strong><b>of 95 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>64</strong><b>of 95 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>28</strong><b>of 95 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 95 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 95 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>203</strong><b>203 of 212 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 95 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>203</strong><b>203 of 212 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -144,9 +144,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 95 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 95 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>1</strong><b>of 95 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>1</strong><b>of 95 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 95 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 95 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 95 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -174,11 +174,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -190,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -198,7 +198,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -279,7 +279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> L2TPv2</p>
-<p><strong>Proof:</strong> 89 of 95 MUST proven</p>
+<p><strong>Test verification:</strong> 89 of 95 MUST proven</p>
 <p><strong>Evidence:</strong> functional 5, unit 84</p>
 <p><strong>Unmet:</strong> RFC2661-4.2-2, RFC2661-9.5-2</p>
 
@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -327,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc2661:must">Ze proven 89, Proof pending 3, OS testing gap 1, Not built 2</div>
+<div data-ze-rfc-bar="rfc2661:must">Ze verified 89, Tests awaiting verification 3, OS testing gap 1, Not built 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc2661:overview">Ze MUST proven 89, SHOULD proven 2, Proof pending 3, OS testing gap 1, Not assessed 6, Not built 2</div>
+<div data-ze-rfc-bar="rfc2661:overview">Ze MUST verified 89, SHOULD verified 2, Tests awaiting verification 3, OS testing gap 1, Not assessed 6, Not built 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -349,13 +349,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc2661:must.kept">95</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc2661:must.ze-proven">89</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc2661:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc2661:must.proof-pending">3</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -385,7 +385,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc2661:should.total">8</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc2661:should.proven">2</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -406,7 +406,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc2661:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc2661:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -421,7 +421,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -1446,14 +1446,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc2661-x-1"><code>RFC2661-x-1</code></a></h3>
 <p>All reserved bits MUST be set to 0 on outgoing messages and ignored on incoming messages. (§3.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Send clause: TestRFC2661ReservedHeaderBitsSentZero masks every reserved bit of the control header and of all 16 data-header shapes (red on any reserved bit emitted 1); the .ci reads the SCCRP header off the wire. Receive clause: TestRFC2661ReservedHeaderBitsIgnoredOnReceive sets every reserved bit on a control and a data header and asserts ParseMessageHeader returns the identical struct with no error; ParseMessageHeader is the receive entry and no other receive path re-tests the flag word. The wrong single-polarity marker is gone.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/l2tp/rfc2661-emitted-control-shape.ci moved. Send clause: TestRFC2661ReservedHeaderBitsSentZero masks every reserved bit of the control header and of all 16 data-header shapes (red on any reserved bit emitted 1); the .ci reads the SCCRP header off the wire. Receive clause: TestRFC2661ReservedHeaderBitsIgnoredOnReceive sets every reserved bit on a control and a data header and asserts ParseMessageHeader returns the identical struct with no error; ParseMessageHeader is the receive entry and no other receive path re-tests the flag word. The wrong single-polarity marker is gone.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L58" title="internal/component/l2tp/rfc2661_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2661ReservedHeaderBitsIgnoredOnReceive</code></a></td>
@@ -1473,17 +1473,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L27" title="test/l2tp/rfc2661-emitted-control-shape.ci" target="_blank" rel="noopener"><code>rfc2661-emitted-control-shape.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2661-4.1-1"><code>RFC2661-4.1-1</code></a></h3>
 <p>Reserved bits MUST be set to 0. An AVP received with a reserved bit set to 1 MUST be treated as an unrecognized AVP. (§4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after the unparam edit to writeAVPProxyAuthenID (avp_compound.go), which drops the mandatory parameter and always writes the M-bit clear, as RFC 2661 Section 4.4.5 says: &#34;The M-bit for this AVP MUST be set to 0.&#34; Every caller passed false, so the emitted bytes are unchanged. TestAVPCatalogRoundTrip changed only by dropping that false argument from its ProxyAuthenID case; it still writes every catalog AVP, reads it back and fails when FlagReserved is set on the written AVP, so the send clause stays pinned. The receive clause is unchanged: TestRFC2661ReservedAVPBitTreatedAsUnrecognized (ICRQ, M=0 ignored, M=1 one CDN) and TestUnrecognizedMandatoryAVPInHelloClearsTunnel (HELLO, M=1 clears the tunnel, M=0 changes nothing). Producer re-read: AVPIterator.Next sets FlagReserved|FlagUnrecognized. Discrimination records are unchanged. No test was run for this source-only rejudgment.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/l2tp/rfc2661-emitted-control-shape.ci moved. Independent rejudgment after the unparam edit to writeAVPProxyAuthenID (avp_compound.go), which drops the mandatory parameter and always writes the M-bit clear, as RFC 2661 Section 4.4.5 says: &#34;The M-bit for this AVP MUST be set to 0.&#34; Every caller passed false, so the emitted bytes are unchanged. TestAVPCatalogRoundTrip changed only by dropping that false argument from its ProxyAuthenID case; it still writes every catalog AVP, reads it back and fails when FlagReserved is set on the written AVP, so the send clause stays pinned. The receive clause is unchanged: TestRFC2661ReservedAVPBitTreatedAsUnrecognized (ICRQ, M=0 ignored, M=1 one CDN) and TestUnrecognizedMandatoryAVPInHelloClearsTunnel (HELLO, M=1 clears the tunnel, M=0 changes nothing). Producer re-read: AVPIterator.Next sets FlagReserved|FlagUnrecognized. Discrimination records are unchanged. No test was run for this source-only rejudgment.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_avp_test.go#L107" title="internal/component/l2tp/rfc2661_avp_test.go" target="_blank" rel="noopener"><code>TestAVPIteratorReservedBits</code></a></td>
@@ -1508,17 +1508,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L29" title="test/l2tp/rfc2661-emitted-control-shape.ci" target="_blank" rel="noopener"><code>rfc2661-emitted-control-shape.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2661-4.1-2"><code>RFC2661-4.1-2</code></a></h3>
 <p>The Message Type AVP MUST be the first AVP in a message, immediately following the control message header (defined in section 3.1). (§4.4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Positive TestRFC2661EveryEmittedMessageOpensWithMessageType reads the first AVP of all ten body writers plus the HELLO; these are the eleven non-test sites that write a Message Type AVP (SCCRQ, SCCRP, SCCCN, StopCCN, ICRQ, ICRP, ICCN, OCRQ, OCRP, CDN, HELLO). Negative TestReactor_MalformedSCCRQCreatesNoTunnel: an SCCRQ with Host Name first is refused and creates no tunnel. Text duplicates RFC2661-4.4.1-2.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/l2tp/rfc2661-emitted-control-shape.ci moved. Positive TestRFC2661EveryEmittedMessageOpensWithMessageType reads the first AVP of all ten body writers plus the HELLO; these are the eleven non-test sites that write a Message Type AVP (SCCRQ, SCCRP, SCCCN, StopCCN, ICRQ, ICRP, ICCN, OCRQ, OCRP, CDN, HELLO). Negative TestReactor_MalformedSCCRQCreatesNoTunnel: an SCCRQ with Host Name first is refused and creates no tunnel. Text duplicates RFC2661-4.4.1-2.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_test.go#L256" title="internal/component/l2tp/rfc2661_reactor_test.go" target="_blank" rel="noopener"><code>TestReactor_MalformedSCCRQCreatesNoTunnel</code></a></td>
@@ -1538,7 +1538,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/rfc2661-emitted-control-shape.ci#L24" title="test/l2tp/rfc2661-emitted-control-shape.ci" target="_blank" rel="noopener"><code>rfc2661-emitted-control-shape.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1548,7 +1548,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (cont 8, D-8 fix). Scope checked against RFC 2661 section 4.1: a message associated with a particular session ends that session, the tunnel only for tunnel-scoped messages (4.1-4). Producer: parseSingleAVPMessage wraps errUnrecognizedMandatoryAVP for IETF and vendor M=1; handleWEN/handleSLI tear down that session with CDN (quote above each). + TestRFC2661UnrecognizedMandatoryAVPInWENOrSLITerminatesSession (WEN, SLI x IETF 200 / vendor 9999: exactly one CDN, session gone; failing-first observed before the fix), + TestRFC2661UnrecognizedMandatoryAVPInEverySessionParserTerminatesSession (OCRQ, ICRP, OCRP, ICCN, OCCN x IETF/vendor: one CDN, 0 sessions), + TestSession_UnknownMandatoryAVP now asserts MsgCDN and 0 sessions (earlier overstatement fixed), + TestUnrecognizedMandatoryIETFAVPInICRQTerminatesSession. - TestRFC2661UnrecognizedMandatoryAVPInWENOrSLIEndsOnlyThatSession: two sessions, M=1 gives one CDN never StopCCN, tunnel established and the sibling session kept (the over-reaction polarity), M=0 sends nothing. Every tagged unit has an observed-red record. CDN not tabled: a received CDN ends the session whatever it carries. Residual supplementary positive at session_fsm_test.go (well-formed ICRQ accepted) has no record.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L576" title="internal/component/l2tp/rfc2661_session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_UnknownMandatoryAVP</code></a></td>
@@ -1598,7 +1598,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestUnrecognizedMandatoryAVPInHelloClearsTunnel drives handleMessage with a HELLO on an established tunnel holding one session, for a vendor AVP, an undefined IETF type and a reserved-bit AVP: M=1 sends one StopCCN, clears the session and closes the tunnel; M=0 sends nothing and keeps both. This closes the &#39;(and all sessions within)&#39; clause the earlier verdict found missing. TestTunnelSCCCNUnknownMandatoryAVP_StopCCN keeps the SCCCN case; TestTunnelInitiatorHandshake is the clean-exchange positive. Producer checked: parseHello/handleHello (Error Code 8), parseSCCCN/parseStopCCN/parseSCCRP branch on FlagUnrecognized, handleStopCCN now closes on a malformed StopCCN.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_initiator_test.go#L255" title="internal/component/l2tp/rfc2661_tunnel_initiator_test.go" target="_blank" rel="noopener"><code>TestTunnelSCCCNUnknownMandatoryAVP_StopCCN</code></a></td>
@@ -1628,7 +1628,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2661RetransmitBackoffDoubles ticks 1ns before and at 1s, 3s and 7s: a constant 1s interval fires before the 3s deadline and goes red, a missing retransmit goes red. Single-polarity marker accepted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L516" title="internal/component/l2tp/rfc2661_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2661RetransmitBackoffDoubles</code></a></td>
@@ -1648,12 +1648,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden = a backoff cap under 8 s. reliable_seq_test.go::TestBackoffCapAtLeast8Seconds asserts DefaultRTimeoutCap&gt;=8s and that newTunnel (the reactor&#39;s construction path) yields engine rtimeoutCap&gt;=8s; lowering the constant or the default wiring goes red. Row carries single-polarity.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_seq_test.go#L94" title="internal/component/l2tp/rfc2661_reliable_seq_test.go" target="_blank" rel="noopener"><code>TestBackoffCapAtLeast8Seconds</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1663,7 +1663,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2661RetransmitExhaustionClearsTunnel drives reactor.handleTick with dead-peer detection off, an unanswered HELLO and one established session: after each of the DefaultMaxRetransmit retransmissions the tunnel stays established with its session, and the tick past the budget leaves the tunnel closed with zero sessions (StopCCN logged). TestTickMaxAttempts proves the engine signal on both sides. The 5.8-3 tag on TestPeerTeardownWithdrawsSubscriberRoute, whose body asserted only OnSessionDown, is gone. Configurability is judged under RFC2661-5.8-8.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L417" title="internal/component/l2tp/rfc2661_reliable_test.go" target="_blank" rel="noopener"><code>TestTickMaxAttempts</code></a></td>
@@ -1693,17 +1693,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden = a retransmit carrying the stale Nr, or a new Ns. reliable_test.go::TestTickRetransmit asserts retransmit Nr==1 (updated) and Ns==0 (unchanged); either violation goes red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L342" title="internal/component/l2tp/rfc2661_reliable_test.go" target="_blank" rel="noopener"><code>TestTickRetransmit</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L339" title="internal/component/l2tp/rfc2661_reliable_test.go" target="_blank" rel="noopener"><code>TestTickRetransmit</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1713,17 +1713,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden = a duplicate reprocessed, or a duplicate not acknowledged. reliable_test.go::TestOnReceiveDuplicate asserts Class==ClassDuplicate, Delivered empty (ignored from processing) and NeedsZLB true after the piggyback cleared it (MUST be acknowledged). The piggyback/ZLB alternative is permissive.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L148" title="internal/component/l2tp/rfc2661_reliable_test.go" target="_blank" rel="noopener"><code>TestOnReceiveDuplicate</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reliable_test.go#L146" title="internal/component/l2tp/rfc2661_reliable_test.go" target="_blank" rel="noopener"><code>TestOnReceiveDuplicate</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1733,7 +1733,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2661PeerWindowOfFourAccepted goes through newWindow (and so clampPeerRWS) with peer RWS 4: available(0)==4 and available(3)==1 go red on any clamp below 4; available(4)==0 proves the &#39;before backing off&#39; half of the sentence&#39;s parenthetical. The old negative on TestWindowPeerRWSZero proves the neighbouring RWS=0 rule and is not counted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L547" title="internal/component/l2tp/rfc2661_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2661PeerWindowOfFourAccepted</code></a></td>
@@ -1763,7 +1763,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2661ClosedTunnelKeptForRetransmissionInterval drives the reactor&#39;s reapExpiredLocked on a StopCCN-closed tunnel built with the reactor&#39;s ReliableConfig: kept at 31s-1ns, reaped at 31s. TestPostTeardownAckRetention proves the engine still acknowledges a retransmitted StopCCN during retention, so both &#39;maintained&#39; and &#39;operated&#39; are asserted.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L572" title="internal/component/l2tp/rfc2661_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2661ClosedTunnelKeptForRetransmissionInterval</code></a></td>
@@ -1803,7 +1803,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L198" title="internal/component/l2tp/rfc2661_session_initiator_test.go" target="_blank" rel="noopener"><code>TestWriteICCNBodyHiddenAVP33</code></a></td>
@@ -1818,7 +1818,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sender: TestRFC2661SCCRQCarriesSection61AVPs asserts all five AVPs in writeSCCRQBody with and without the optional AVPs. Receiver: one case per missing AVP answered with StopCCN and no tunnel (unit and .ci), positive with every AVP. The §7.1 clearing now rows as RFC2661-7.1-1.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go#L45" title="internal/component/l2tp/rfc2661_reactor_sccrq_mandatory_avp_test.go" target="_blank" rel="noopener"><code>TestSCCRQMissingMandatoryAVPIsAnswered</code></a></td>
@@ -1858,7 +1858,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Sender: TestRFC2661SCCRPCarriesSection62AVPs asserts all five AVPs in writeSCCRPBody with and without Challenge/Response. Receiver: TestSCCRPMissingMandatoryAVPTearsTheTunnelDown covers four members, TestRFC2661SCCRPWithoutMessageTypeRefused the fifth with a paired accept. Correction accepted: the state-table &#39;not acceptable&#39; transition has no sentence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L269" title="internal/component/l2tp/rfc2661_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2661SCCRPWithoutMessageTypeRefused</code></a></td>
@@ -1888,7 +1888,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Cleanup: TestRFC2661CDNCleansUpAndSendsNothing (session removed, one session-down, one kernel teardown for the established case only) and TestRFC2661CDNCleansUpSilently (tags merged from retired 6.12-1). &#39;does not send back any indication&#39;: the send-queue assertion now closes the cwnd-1 confound the earlier verdict named, and TestRFC2661CDNCleansUpSilently asserts nothing but a ZLB goes back. Negative TestSession_CDN_UnknownSessionDropped accepted as the &#39;specific call&#39; scope.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L383" title="internal/component/l2tp/rfc2661_session_fsm_test.go" target="_blank" rel="noopener"><code>TestSession_CDN_UnknownSessionDropped</code></a></td>
@@ -1928,7 +1928,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRFC2661StopCCNClearsSessionsSilently clears an established and a wait-connect session and now asserts sendQueue does not grow beside no datagram and nextSendSeq unchanged, which removes the cwnd-1 confound the earlier verdict named: a CDN handleStopCCN enqueued behind the unacknowledged ICRP now turns it red. Clearing also held by TestSession_StopCCN_CascadeSessions, and TestStopCCNQueuesAllTeardowns is the negative.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_fsm_test.go#L837" title="internal/component/l2tp/rfc2661_session_fsm_test.go" target="_blank" rel="noopener"><code>TestStopCCNQueuesAllTeardowns</code></a></td>
@@ -1953,7 +1953,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Tags merged from retired RFC2661-24.10-1 (same sentence, section 5.3). Sender: TestRFC2661LocalIDsNeverZero (tunnel ID across the 0xFFFF wrap, session ID over 2^20 draws). Receiver, tunnel: TestRFC2661PeerZeroTunnelIDRefused, TestSCCRQWithZeroAssignedTunnelIDIsAnswered (StopCCN code 3, no tunnel) against TestSCCRQWithNonZeroAssignedTunnelIDEstablishes, the .ci over the wire both ways, and TestParseSCCRP_Rejects against TestTunnelInitiatorHandshake for the SCCRP half. Receiver, session: TestSession_SIDBoundary_Zero/MaxUint16.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L320" title="internal/component/l2tp/rfc2661_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2661PeerZeroTunnelIDRefused</code></a></td>
@@ -2013,7 +2013,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L19" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661HeaderFlagWord</code></a></td>
@@ -2028,7 +2028,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L77" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661ControlHeaderWithoutSequenceRefused</code></a></td>
@@ -2048,7 +2048,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L23" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661HeaderFlagWord</code></a></td>
@@ -2063,7 +2063,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L25" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661HeaderFlagWord</code></a></td>
@@ -2078,7 +2078,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L95" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661UnknownVersionRefused</code></a></td>
@@ -2098,7 +2098,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L114" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661KnownVersionAccepted</code></a></td>
@@ -2122,7 +2122,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L641" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661UnrecognizedOptionalAVPIgnored</code></a></td>
@@ -2146,7 +2146,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L210" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661WrittenAVPFlags</code></a></td>
@@ -2166,7 +2166,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_type_test.go#L31" title="internal/component/l2tp/rfc2661_message_type_test.go" target="_blank" rel="noopener"><code>TestUnknownMessageTypeClearsTunnelWhenMandatory</code></a></td>
@@ -2186,7 +2186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L202" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661WrittenAVPFlags</code></a></td>
@@ -2201,7 +2201,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged (independent auditor). The prior weak finding (the tagged walk never reached the PAP realm ICCN, where Ze writes a Random Vector beside the one AVP it hides) is resolved by the new tag on rfc2661_iccn_proxy_flags_test.go::TestRFC2661ProxyICCNAVPFlags. Section 4.4.1, Random Vector: &#34;This AVP MUST NOT be hidden (the H-bit MUST be 0).&#34; The unit walks every AVP of the PAP-with-secret and CHAP proxy ICCNs built by newICCNProxy and writeICCNBody and fails on any H=1 AVP other than Proxy Authen Response (AVP 33, which Section 4.4.5 lets be hidden: &#34;This AVP may be hidden (the H-bit may be 0 or 1).&#34;), so a hidden Random Vector, Message Type, Tx Connect Speed, Framing Type or AVP 26 to 32 reddens it; it also requires the Random Vector and AVP 33 present, so it cannot pass vacuously. Producer read: writeAVPRandomVector writes FlagMandatory only; writeAVPHidden is called only for AVP 33 in writeICCNProxyPAP. The mutant record adding the H bit on the Random Vector header is observed red. TestRFC2661WrittenAVPFlags still covers every other emitted body. {single-polarity} accepted: avp.go::skipHiddenAVP refuses every hidden AVP on receipt, so no receive-side input distinguishes the MUST-NOT-hide set.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_iccn_proxy_flags_test.go#L42" title="internal/component/l2tp/rfc2661_iccn_proxy_flags_test.go" target="_blank" rel="noopener"><code>TestRFC2661ProxyICCNAVPFlags</code></a></td>
@@ -2221,7 +2221,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged (independent auditor). The prior weak finding (no tagged unit reached writeAVPRandomVector, so a Random Vector with M=0 in the PAP realm ICCN stayed green) is resolved by the new tag on rfc2661_iccn_proxy_flags_test.go::TestRFC2661ProxyICCNAVPFlags. Section 4.4.1, Random Vector: &#34;The M-bit for this AVP MUST be set to 1.&#34; The unit builds both proxy ICCNs through the real producers (newICCNProxy then writeICCNBody: PAP with a shared secret, and CHAP), walks every AVP and compares its M bit to the Section 4.4 definition (rfc2661MandatoryBit for Message Type, Tx Connect Speed, Framing Type; Random Vector M=1, AVPs 26 to 33 M=0), fails on an AVP absent from both tables, and requires the PAP body to carry the Random Vector and AVP 33, so the walk cannot pass by not reaching the proxy path. Producer read: writeAVPRandomVector writes FlagMandatory; the mutant record replacing FlagMandatory by 0 on that line is observed red. TestRFC2661WrittenAVPFlags (the ten writers) and TestRFC2661HelloAVPMandatoryBits (HELLO) still cover every other emitted body. {single-polarity} accepted: a sender obligation with no receiver refusal in the RFC.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_iccn_proxy_flags_test.go#L38" title="internal/component/l2tp/rfc2661_iccn_proxy_flags_test.go" target="_blank" rel="noopener"><code>TestRFC2661ProxyICCNAVPFlags</code></a></td>
@@ -2246,7 +2246,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L664" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661ResultCodeMessageUTF8</code></a></td>
@@ -2261,7 +2261,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L433" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661CallCapabilitiesChecked</code></a></td>
@@ -2281,7 +2281,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L477" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661BearerCapabilitiesEmitted</code></a></td>
@@ -2296,7 +2296,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tiebreaker_test.go#L45" title="internal/component/l2tp/rfc2661_tiebreaker_test.go" target="_blank" rel="noopener"><code>TestTieBreakerWinnerKeepsItsTunnel</code></a></td>
@@ -2316,7 +2316,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tiebreaker_test.go#L72" title="internal/component/l2tp/rfc2661_tiebreaker_test.go" target="_blank" rel="noopener"><code>TestTieBreakerUnequalKeepsOneTunnel</code></a></td>
@@ -2336,7 +2336,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 79e3205310 (LAC realm relay). writeICCNBody now takes an *iccnProxy, and a realm call&#39;s ICCN carries AVPs 26 to 33 and, toward a remote with a shared secret, a Random Vector (AVP 36) ahead of a hidden AVP 33 (iccn_proxy.go writeICCNProxyAVPs, writeAVPRandomVector). TestRFC2661WrittenAVPFlags still walks only writeICCNBody(buf, 64000, 1, nil), and its tag comments were narrowed to &#39;these writers&#39;. The change does not reach this row: the Tie Breaker, the one M=0 AVP of Section 4.4 proper that Ze emits, is still compared to rfc2661MandatoryBit (false) over the SCCRQ writer, and the record is current. The annotation&#39;s split holds: AVPs 26 to 33 are RFC2661-4.4.5-7 (M=0 for AVP 33 is also asserted in TestWriteICCNBodyHiddenAVP33). Prior judgement: Forbidden = an M=0-defined AVP (Tie Breaker, the one Ze emits) sent with M=1. message_rfc2661_test.go::TestRFC2661WrittenAVPFlags compares the emitted M bit to rfc2661MandatoryBit (false for Tie Breaker) over the SCCRQ writer that emits it. Row carries single-polarity.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L207" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661WrittenAVPFlags</code></a></td>
@@ -2351,7 +2351,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L445" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661HostNameAtLeastOneOctet</code></a></td>
@@ -2371,7 +2371,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L211" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661HeaderTunnelIDNeverWrong</code></a></td>
@@ -2391,7 +2391,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L206" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661HeaderTunnelIDNeverWrong</code></a></td>
@@ -2411,7 +2411,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L243" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661StopCCNRepeatsFirstAssignedTunnelID</code></a></td>
@@ -2431,7 +2431,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L316" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661AnsweringSideVerifiesChallengeResponse</code></a></td>
@@ -2451,7 +2451,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L395" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661HeaderSessionIDNeverWrong</code></a></td>
@@ -2471,7 +2471,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L391" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661HeaderSessionIDNeverWrong</code></a></td>
@@ -2491,7 +2491,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L425" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661CallCapabilitiesChecked</code></a></td>
@@ -2511,7 +2511,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L429" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661CallCapabilitiesChecked</code></a></td>
@@ -2531,7 +2531,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L100" title="internal/component/l2tp/rfc2661_lower_layer_linux_test.go" target="_blank" rel="noopener"><code>TestSequencingRequiredReachesKernelSession</code></a></td>
@@ -2551,7 +2551,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L118" title="internal/component/l2tp/rfc2661_session_initiator_test.go" target="_blank" rel="noopener"><code>TestWriteICCNBodyProxyAVPs</code></a></td>
@@ -2566,7 +2566,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L119" title="internal/component/l2tp/rfc2661_session_initiator_test.go" target="_blank" rel="noopener"><code>TestWriteICCNBodyProxyAVPs</code></a></td>
@@ -2581,7 +2581,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L120" title="internal/component/l2tp/rfc2661_session_initiator_test.go" target="_blank" rel="noopener"><code>TestWriteICCNBodyProxyAVPs</code></a></td>
@@ -2596,7 +2596,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L121" title="internal/component/l2tp/rfc2661_session_initiator_test.go" target="_blank" rel="noopener"><code>TestWriteICCNBodyProxyAVPs</code></a></td>
@@ -2611,7 +2611,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L122" title="internal/component/l2tp/rfc2661_session_initiator_test.go" target="_blank" rel="noopener"><code>TestWriteICCNBodyProxyAVPs</code></a></td>
@@ -2626,7 +2626,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L123" title="internal/component/l2tp/rfc2661_session_initiator_test.go" target="_blank" rel="noopener"><code>TestWriteICCNBodyProxyAVPs</code></a></td>
@@ -2641,7 +2641,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_session_initiator_test.go#L124" title="internal/component/l2tp/rfc2661_session_initiator_test.go" target="_blank" rel="noopener"><code>TestWriteICCNBodyProxyAVPs</code></a></td>
@@ -2656,7 +2656,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L462" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661CallErrorsReservedZero</code></a></td>
@@ -2671,7 +2671,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L491" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661CallNeedsEstablishedTunnel</code></a></td>
@@ -2691,7 +2691,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L72" title="internal/component/l2tp/rfc2661_lower_layer_linux_test.go" target="_blank" rel="noopener"><code>TestKernelSessionRequestedOnlyOnceEstablished</code></a></td>
@@ -2711,7 +2711,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L319" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661AnsweringSideVerifiesChallengeResponse</code></a></td>
@@ -2731,7 +2731,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L313" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661AnsweringSideVerifiesChallengeResponse</code></a></td>
@@ -2751,7 +2751,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L282" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661InitiatorWithoutSecretRefusesChallenge</code></a></td>
@@ -2771,7 +2771,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L393" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661HeaderSessionIDNeverWrong</code></a></td>
@@ -2791,7 +2791,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L209" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661HeaderTunnelIDNeverWrong</code></a></td>
@@ -2811,7 +2811,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L102" title="internal/component/l2tp/rfc2661_lower_layer_linux_test.go" target="_blank" rel="noopener"><code>TestSequencingRequiredReachesKernelSession</code></a></td>
@@ -2831,7 +2831,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L139" title="internal/component/l2tp/rfc2661_lower_layer_linux_test.go" target="_blank" rel="noopener"><code>TestLACKernelSessionFollowsPeerSequencing</code></a></td>
@@ -2851,7 +2851,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L141" title="internal/component/l2tp/rfc2661_lower_layer_linux_test.go" target="_blank" rel="noopener"><code>TestLACKernelSessionFollowsPeerSequencing</code></a></td>
@@ -2871,7 +2871,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L519" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661StopCCNAcknowledged</code></a></td>
@@ -2891,7 +2891,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L602" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661AckNotWithheldUnderFlowControl</code></a></td>
@@ -2915,7 +2915,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L379" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661MandatoryAVPSetsParsed</code></a></td>
@@ -2935,7 +2935,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L382" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661MandatoryAVPSetsParsed</code></a></td>
@@ -2955,7 +2955,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_reactor_test.go#L1315" title="internal/component/l2tp/rfc2661_reactor_test.go" target="_blank" rel="noopener"><code>TestDeadPeerZLBAckKeepsTunnelUp</code></a></td>
@@ -2970,7 +2970,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L492" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661HelloShape</code></a></td>
@@ -2985,7 +2985,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L494" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661HelloShape</code></a></td>
@@ -3000,7 +3000,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L385" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661MandatoryAVPSetsParsed</code></a></td>
@@ -3020,7 +3020,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L389" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661MandatoryAVPSetsParsed</code></a></td>
@@ -3040,7 +3040,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L392" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661MandatoryAVPSetsParsed</code></a></td>
@@ -3060,7 +3060,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L421" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661CallCapabilitiesChecked</code></a></td>
@@ -3080,7 +3080,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L396" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661MandatoryAVPSetsParsed</code></a></td>
@@ -3100,7 +3100,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L399" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661MandatoryAVPSetsParsed</code></a></td>
@@ -3120,7 +3120,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L402" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661MandatoryAVPSetsParsed</code></a></td>
@@ -3140,7 +3140,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L407" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661MandatoryAVPSetsParsed</code></a></td>
@@ -3160,7 +3160,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L410" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661MandatoryAVPSetsParsed</code></a></td>
@@ -3180,7 +3180,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L768" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661SLIUpdatesACCM</code></a></td>
@@ -3200,7 +3200,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L414" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661MandatoryAVPSetsParsed</code></a></td>
@@ -3220,7 +3220,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). Adds the §7.2.1 idle row &#39;idle Receive SCCRP Send StopCCN Clean up idle&#39; (D-8 fixed in handleSCCRP, producer read: parse the SCCRP, adopt its Assigned Tunnel ID when it parses, clearImproperSequence). + TestRFC2661StraySCCRPInIdleSendsStopCCN: one StopCCN addressed to TID 5, tunnel closed, WARN logged; failing-first observed. Existing units unchanged: + TestRFC2661OutOfOrderSCCRQOrSCCRPClearsControlConnection, TestRFC2661OutOfOrderSCCCNClearsControlConnection, TestRFC2661InvalidOrMalformedMessageClearsControlConnection; - TestRFC2661InSequenceSCCRQAndSCCRPKeepControlConnection. Every unit carries an observed-red record. By main-thread decision an SCCRP whose header names a tunnel ID Ze never allocated stays dropped at the reactor (no tunnel state; answering would reflect to an unauthenticated source), disclosed in docs/architecture/wire/l2tp.md.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_obligations_test.go#L475" title="internal/component/l2tp/rfc2661_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2661InvalidOrMalformedMessageClearsControlConnection</code></a></td>
@@ -3265,7 +3265,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_protocol_version_test.go#L93" title="internal/component/l2tp/rfc2661_protocol_version_test.go" target="_blank" rel="noopener"><code>TestSCCRQAtTheSupportedProtocolVersionEstablishes</code></a></td>
@@ -3285,7 +3285,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L539" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661LocalTerminationSendsStopCCN</code></a></td>
@@ -3305,7 +3305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L575" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661OriginatorCleansUpOnStopCCN</code></a></td>
@@ -3325,7 +3325,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L798" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661OCRQAnsweredWithOCRP</code></a></td>
@@ -3345,7 +3345,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L709" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661CDNCleansUpSilently</code></a></td>
@@ -3365,7 +3365,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L742" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661LACSendsCDNOnDisconnect</code></a></td>
@@ -3380,7 +3380,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L541" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661LocalTerminationSendsStopCCN</code></a></td>
@@ -3395,7 +3395,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_lower_layer_linux_test.go#L167" title="internal/component/l2tp/rfc2661_lower_layer_linux_test.go" target="_blank" rel="noopener"><code>TestControlSocketKeepsUDPChecksums</code></a></td>
@@ -3410,7 +3410,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_message_test.go#L116" title="internal/component/l2tp/rfc2661_message_test.go" target="_blank" rel="noopener"><code>TestRFC2661KnownVersionAccepted</code></a></td>
@@ -3430,7 +3430,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L829" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661UDPEncapsulationOffered</code></a></td>
@@ -3449,7 +3449,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read RFC 2661 Section 5.8 and the current producer chain after ExtractParameters gained independent PPP LCP parsing. This requirement owns the configurable reliable-delivery retransmission budget, not the separate 5.8-3 clearing obligation. ExtractParameters still parses max-retransmit into Parameters.MaxRetransmit, tunnelDefaults and reliableConfig still carry it to both tunnel constructors, and ReliableEngine.Tick still exhausts that budget. TestRFC2661ConfiguredMaxRetransmitClearsTunnel sets two before creating the tunnel, disables HELLO dead-peer detection, asserts Established through each allowed retransmission, and Closed after the next deadline. A fixed five fails the positive assertion; premature clearing fails the distinct negative assertions. TestConfig_MaxRetransmit separately asserts default five and an explicit nine; TestReloadAppliesMaxRetransmit asserts an explicit eight reaches reactor and new-tunnel defaults. The new PPP LCP parse does not alter this reliable-delivery setting or the existing tagged assertions.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go#L81" title="internal/component/l2tp/rfc2661_retransmit_exhaustion_test.go" target="_blank" rel="noopener"><code>TestRFC2661ConfiguredMaxRetransmitClearsTunnel</code></a></td>
@@ -4291,7 +4291,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

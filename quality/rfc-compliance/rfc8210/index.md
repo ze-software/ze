@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 24 | of 59 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5 | of 59 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 24 | of 59 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 59 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 59 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 59 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 45 | 45 of 91 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 59 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 45 | 45 of 91 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 59 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 3 | of 59 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 59 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 59 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 59 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 59 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 59 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: RPKI to Router Protocol, Version 1
 
 **Area:** RPKI RTR v1
 
-**Proof:** 12 of 59 MUST proven
+**Test verification:** 12 of 59 MUST proven
 
 **Evidence:** unit 12
 
@@ -109,7 +109,7 @@ Included in automatic checks: RPKI to Router Protocol, Version 1
 | Annotated (including scoped evidence) | 35 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **59** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: RPKI to Router Protocol, Version 1
 
 ## Figures
 
-- **MUST bar**: Ze proven 12, Proof pending 17, Not built 27
-- **Overview bar**: Ze MUST proven 12, SHOULD proven 6, Not owed 3, Proof pending 17, Not assessed 19, Not built 29
+- **MUST bar**: Ze verified 12, Tests awaiting verification 17, Not built 27
+- **Overview bar**: Ze MUST verified 12, SHOULD verified 6, Not owed 3, Tests awaiting verification 17, Not assessed 19, Not built 29
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: RPKI to Router Protocol, Version 1
 | Mandatory requirements complete | not complete |
 | MUST rows | 59 |
 | MUST rows kept (the MUST bar) | 56 |
-| Ze proven | 12 |
+| Ze verified | 12 |
 | OS verified | 0 |
-| Proof pending | 17 |
+| Tests awaiting verification | 17 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: RPKI to Router Protocol, Version 1
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 3 |
 | SHOULD / MAY rows | 27 |
-| SHOULD proven | 6 |
+| SHOULD verified | 6 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 19 |
 | SHOULD not built | 2 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc8210.json](../../../data/rfc/rfc8210.json).
 
@@ -286,9 +286,9 @@ Source: [data/rfc/rfc8210.json](../../../data/rfc/rfc8210.json).
 | [`RFC8210-9.2-9`](#rfc8210-9.2-9) Certification authorities which issue rpki-rtr server certificates MUST support the DNS-ID identifier type (§9.2) | {gap}, no test | the obligation binds certification authorities, but its subject carries a which clause, so no exclusion shape the gate accepts fits; ze serves no rpki-rtr endpoint and its own CA (internal/component/pki/ca.go) issues certificates only for Ze's internal listeners, never an rpki-rtr server certificate, so the obligation has no producer and no test |
 | [`RFC8210-2-1`](#rfc8210-2-1) While a cache is receiving updates, new incoming data and implicit deletes are associated with the new serial but MUST NOT be sent until the fetch is complete (§2) | {gap}, no test | the obligation binds a cache's transmission, but its sentence opens with a clause and takes no exclusion shape the gate accepts; ze is the router, sends no payload data to any party, and stages a received delta until End of Data (pendingVRPs in internal/component/bgp/plugins/rpki/rtr_session.go), so the obligation has no producer and no test |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC8210-5-1`](#rfc8210-5-1)
 
@@ -296,13 +296,13 @@ Reserved fields (marked "zero" in PDU diagrams) MUST be zero on transmission and
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt, internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRReservedOctetsIgnoredOnReceipt#2 moved. Re-read 2026-10-30 (independent judge) after commit 60e9406387 changed only comments in these units (RFC6810 tags removed, VALIDATES prose rewritten; no assertion line changed). RFC 8210 Section 5 reads 'Reserved fields (marked "zero" in PDU diagrams) MUST be zero on transmission and MUST be ignored on receipt.' Transmit: TestWriteResetQueryZeroesReservedOverGarbage writes a Reset Query over a 0xFF buffer and asserts octets 2-3 are zero, the specified fields are real and octet 8 is untouched, so a writer that inherits residue goes red (TestWriteResetQuery alone writes over a zero buffer and could not); TestWriteSerialQuery is the negative, octets 2-3 of a Serial Query carry the Session ID 0x1234 and are not zeroed. writeResetQuery takes the version as a parameter and zeroes regardless of it, so the rtrVersionMax buffers prove the same write a version 1 session makes. Receipt: TestReservedPrefixFieldsPreserveValidation runs a version 1 session whose IPv4 and IPv6 Prefix PDUs carry 0xFF in every reserved octet and asserts the route validates Valid; TestRTRReservedOctetsIgnoredOnReceipt sends a Cache Reset with 0xFFFF in its reserved octets 2-3 over TCP and asserts the sync still ends with errRtrCacheResetReceivedWillDo and serial 0, while its negative shows the same 0xFFFF in a Cache Response is adopted as the Session ID, so the receiver ignores only reserved fields. Both clauses and both polarities hold.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestWriteSerialQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L32) | unit/verify | unproven |
+| negative | [`TestWriteSerialQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L32) | unit/verify | not verified |
 | negative | [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L492) | unit/verify | revert, verified |
-| positive | [`TestReservedPrefixFieldsPreserveValidation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_pdu_reserved_test.go#L77) | unit/verify | unproven |
-| positive | [`TestWriteResetQueryZeroesReservedOverGarbage`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_pdu_reserved_test.go#L52) | unit/verify | unproven |
-| positive | [`TestWriteResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L16) | unit/verify | unproven |
+| positive | [`TestReservedPrefixFieldsPreserveValidation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_pdu_reserved_test.go#L77) | unit/verify | not verified |
+| positive | [`TestWriteResetQueryZeroesReservedOverGarbage`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_pdu_reserved_test.go#L52) | unit/verify | not verified |
+| positive | [`TestWriteResetQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L16) | unit/verify | not verified |
 | positive | [`TestRTRReservedOctetsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L471) | unit/verify | revert, verified |
 
 ### [`RFC8210-5.1-1`](#rfc8210-5.1-1)
@@ -311,11 +311,11 @@ The remaining bits in the Flags field are reserved for future use. In protocol v
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden on receipt: letting reserved Flags bits affect acceptance or the announce/withdraw decision. TestParsePrefixPDUFlagsHighBitsIgnored (rtr_pdu_test.go) asserts 0xFF is accepted (require.NoError) and read as announce, and 0xFE is accepted and read as withdraw (assert.False announce), so a parser that validated or read the high bits goes red; negative TestReservedPrefixFieldsPreserveValidation repeats the withdrawal case through handlePDU for IPv4 and IPv6. Transmit clause: Ze writes only Reset Query, Serial Query and Error Report PDUs (rtr_pdu.go), none of which carries a Flags field, so there is no producer that could violate it.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReservedPrefixFieldsPreserveValidation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_pdu_reserved_test.go#L78) | unit/verify | unproven |
-| negative | [`TestParsePrefixPDUFlagsHighBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L331) | unit/verify | unproven |
-| positive | [`TestParsePrefixPDUFlagsHighBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L322) | unit/verify | unproven |
+| negative | [`TestReservedPrefixFieldsPreserveValidation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_pdu_reserved_test.go#L78) | unit/verify | not verified |
+| negative | [`TestParsePrefixPDUFlagsHighBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L331) | unit/verify | not verified |
+| positive | [`TestParsePrefixPDUFlagsHighBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L322) | unit/verify | not verified |
 
 ### [`RFC8210-5.1-2`](#rfc8210-5.1-2)
 
@@ -323,10 +323,10 @@ Max Length: An 8-bit unsigned integer denoting the longest prefix allowed by the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-10-30 (independent judge) after commit 60e9406387 removed the RFC6810-5.1-1 tags from these units; no assertion line changed. RFC 8210 Section 5.1 reads 'Max Length:  An 8-bit unsigned integer denoting the longest prefix allowed by the Prefix element.  This MUST NOT be less than the Prefix Length element.' Negative: TestParseIPv4PrefixMaxLenLessThanPrefixLen builds a version 1 (rtrVersionMin) IPv4 Prefix PDU with prefix length 24, a valid value, and max length 16, and asserts parseIPv4Prefix errors with 'invalid', so the buffer isolates the Max Length rule. Positive: TestParseIPv4Prefix accepts a version 1 PDU with max length 24 over prefix length 8 and pins the VRP's ASN, prefix and max length. The check sits in parsePrefixPDU, which the IPv6 parser shares; removing the maxLen < prefixLen test turns the negative red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseIPv4PrefixMaxLenLessThanPrefixLen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L121) | unit/verify | unproven |
-| positive | [`TestParseIPv4Prefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L50) | unit/verify | unproven |
+| negative | [`TestParseIPv4PrefixMaxLenLessThanPrefixLen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L121) | unit/verify | not verified |
+| positive | [`TestParseIPv4Prefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L50) | unit/verify | not verified |
 
 ### [`RFC8210-5.1-3`](#rfc8210-5.1-3)
 
@@ -414,10 +414,10 @@ An Error Report PDU MUST NOT be sent for an Error Report PDU. (§5.11)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: answering an Error Report with an Error Report. TestRTRErrorReportIsNotAnswered writes an Error Report with version 99 (which would otherwise draw Unsupported Protocol Version) into readLoop and asserts the cache side's one-byte io.ReadFull ends in io.EOF, so any reply byte goes red. Negative TestASPAProviderListErrorOnWire: a malformed ASPA PDU does draw an Error Report (report[1] == pduErrorRpt, code 9, the encapsulated PDU echoed), so a router that never sent Error Reports goes red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestASPAProviderListErrorOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L148) | unit/verify | unproven |
-| positive | [`TestRTRErrorReportIsNotAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L186) | unit/verify | unproven |
+| negative | [`TestASPAProviderListErrorOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L148) | unit/verify | not verified |
+| positive | [`TestRTRErrorReportIsNotAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L186) | unit/verify | not verified |
 
 ### [`RFC8210-5.11-2`](#rfc8210-5.11-2)
 
@@ -441,9 +441,9 @@ The diagnostic text is optional; if not present, the Length of Error Text field 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a nonzero Length of Error Text on a report carrying no diagnostic text. TestASPAProviderListErrorOnWire reads the transmitted Error Report and asserts the uint32 after the encapsulated PDU is 0 (assert.Equal uint32(0)). Row carries {single-polarity: positive}: writeErrorReport takes no text, so no input produces a report with text to contrast.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestASPAProviderListErrorOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L149) | unit/verify | unproven |
+| positive | [`TestASPAProviderListErrorOnWire`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L149) | unit/verify | not verified |
 
 ### [`RFC8210-6-1`](#rfc8210-6-1)
 
@@ -459,11 +459,11 @@ Expire Interval: This parameter tells the router how long it can continue to use
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: using VRPs or ASPAs after the Expire Interval measured from the last completed End of Data. TestRTRDataExpiryAndRenewal (synctest) asserts the payloads still validate at expire-1s (assertLive) and, after a renewal and an incomplete response, that at the lease deadline cache.Validate is NotFound and aspaCache.isProvider false ("expired payloads still authorize routes"), with both consumers notified; the negatives assert a completed EOD renews (assertLive after renewal), an incomplete response neither renews nor publishes, and TestRTRSerialDeltaCannotRenewAnElapsedLease asserts a serial EOD after the deadline returns errRtrDataExpired and publishes nothing even with the expiry timer stopped. The quote now carries the Expire Interval definition sentence, which names the parameter the MUST NOT refers to and adds no obligation.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRDataExpiryAndRenewal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go#L14) | unit/verify | unproven |
-| negative | [`TestRTRSerialDeltaCannotRenewAnElapsedLease`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go#L93) | unit/verify | unproven |
-| positive | [`TestRTRDataExpiryAndRenewal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go#L13) | unit/verify | unproven |
+| negative | [`TestRTRDataExpiryAndRenewal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go#L14) | unit/verify | not verified |
+| negative | [`TestRTRSerialDeltaCannotRenewAnElapsedLease`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go#L93) | unit/verify | not verified |
+| positive | [`TestRTRDataExpiryAndRenewal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_expire_test.go#L13) | unit/verify | not verified |
 
 ### [`RFC8210-7-1`](#rfc8210-7-1)
 
@@ -471,9 +471,9 @@ A router MUST start each transport connection by issuing either a Reset Query or
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a transport connection on which the router does not speak first with a Reset or Serial Query. TestFirstPDUOnConnectionIsAQuery accepts the connection at a real listener and require.NoError on io.ReadFull of the first PDU (a silent router times out), then asserts buf[1] == pduResetQuery for a fresh session and pduSerialQuery for a resuming one. Row carries {single-polarity: positive}.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestFirstPDUOnConnectionIsAQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L505) | unit/verify | unproven |
+| positive | [`TestFirstPDUOnConnectionIsAQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L505) | unit/verify | not verified |
 
 ### [`RFC8210-7-2`](#rfc8210-7-2)
 
@@ -489,10 +489,10 @@ The cache may reply with a version 0 response. In this case, the router MUST eit
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: after a version 0 reply to the router's query, continuing at the router's own version (neither downgrading nor terminating). TestRTRUnknownNegotiationVersion "unsupported v0": the cache sends a version 0 Cache Response, and the test asserts syncOnce returns errRtrUnsupportedProtocol and the cache's trailing read reaches io.EOF (require.ErrorIs got.err io.EOF), so a router that kept the stream open or loaded the v0 reply goes red. Ze supports no version 0, so terminating is the branch it takes. Negative TestRFC8210V1CacheResponseIsNotTerminated: a reply at the router's own version keeps s.version, publishes its VRP (Validate Valid), and draws no trailing bytes (assert.Empty), so a check that terminated on every Cache Response goes red. The quote now carries the conditioning sentence (the cache replies with a version 0 response).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8210V1CacheResponseIsNotTerminated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_version_test.go#L23) | unit/verify | revert, verified |
-| positive | [`TestRTRUnknownNegotiationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L226) | unit/verify | unproven |
+| positive | [`TestRTRUnknownNegotiationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L226) | unit/verify | not verified |
 
 ### [`RFC8210-5.2-1`](#rfc8210-5.2-1)
 
@@ -500,7 +500,7 @@ If the router receives a Serial Notify PDU during the initial startup period whe
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent same-scope rejudgment after reading RFC 8210 Sections 5.2 and 7, the Section 5.8 prerequisite, both complete tagged test units and the current readLoop, checkStreamSequence, checkResponseIdentity and handlePDU paths. Section 5.2 requires initial-negotiation Serial Notify to be ignored even for an unexpected protocol version; Section 7 explains that neither its Session ID nor serial is useful before negotiation completes. The complete requirement quote, MUST level, existing enforced verdict and all four original covers (the two polarities on each of two test units) remain unchanged. TestRTRStartupSerialNotifyOfAnyVersionIsIgnored sends an actual version-99 Serial Notify carrying Session ID 0xBEEF and serial 999 through net.Pipe/readLoop before a valid Cache Response and End of Data. It requires readLoop success, EOF rather than any response byte, final Session ID 7 from the Cache Response and final serial 5 from End of Data. Its paired control sends version-99 Cache Response in the same startup window and requires errRtrUnsupportedProtocol plus an Error Report of type 10/code 4; the exemption cannot be widened to every startup PDU. The fixture correction changes only the End of Data Session ID from zero to 7, matching the opening Cache Response as Section 5.8 requires; it does not change the EOD serial 5, notify bytes, unsupported-version control or assertions. This removes a different identity error that would otherwise confound the intended successful sequence. The bounded cache script and joined net.Pipe cleanup are retained. TestSerialNotifyIgnoredDuringStartup separately calls handlePDU with the supported version and requires no error, no completion, no adopted Session ID or serial, and unchanged idle state/version. Its Cache Response control must adopt the offered Session ID and advance the exchange, rejecting a blanket ignore-all implementation. The handler delegates identity checks, then exempts Serial Notify from initial unsupported-version refusal and returns without modifying session data; the stream sequence check does not reject that control PDU before it reaches the handler. The current four discrimination records retain their original requirement, units, polarities, revert route and RTRSession.handlePDU producer. Main receipts c37ecb67 and c2575cdd for the stream unit, and 733c8d68 and fa2111e5 for the direct-handler unit, each show the named clean baseline PASS followed by the intentional producer-disable panic red and the exact recorded polarity. These observations establish that the named units reach the producer; they are not normal-return semantic mutations and do not individually isolate the Serial Notify exemption. No new discrimination credit or broader protocol claim is inferred. The two independent handwritten 8210bis observations and the six existing RFC6810 version-0 unimplemented judgments remain separate; this rejudgment changes neither their scope nor their verdicts.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRTRStartupSerialNotifyOfAnyVersionIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L292) | unit/verify | revert, verified |
 | negative | [`TestSerialNotifyIgnoredDuringStartup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L444) | unit/verify | revert, verified |
@@ -521,7 +521,7 @@ The router MUST choose the most preferred, by configuration, cache or set of cac
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read RFC 8210 Section 4: 'The router MUST choose the most preferred, by configuration, cache or set of caches so that the operator may control load on their caches and the Global RPKI.' Forbidden: selecting a cache other than the most preferred one that answers. TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers (unit unchanged) lists the standby (preference 200) first and the preferred (10) second, waits for the preferred accept and fails if the standby accepts within 500ms; its failover subtest has the next cache in preference order carry the load when the preferred refuses. New unit TestCacheGroupCacheResetFromPreferredReloadsIt goes through the real config path, rpkiPlugin.startSessions, with the preference 20 cache written first: positive, the preference 10 cache receives Reset, Serial, Reset and its reload (192.0.3.0/24 AS64501) becomes Valid; negative, requireNoQuery on the preference 20 cache for 500ms after that reload and its 203.0.113.0/24 stays NotFound. A config-order pass would query the preference 20 cache first and never reach the three preferred queries, and a Cache Reset handed to the less-preferred cache would query it, so both go red. Positive and negative are distinct assertions. The 'or set of caches' alternative is a permission, not a forbidden behaviour.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestCacheGroupCacheResetFromPreferredReloadsIt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L443) | unit/verify | revert, verified |
 | negative | [`TestCacheGroupLoadsFromTheMostPreferredCacheThatAnswers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L33) | unit/verify | revert, verified |
@@ -534,9 +534,9 @@ To limit the length of time a cache must keep the data necessary to generate inc
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a router that never re-polls. TestRunPollsOnRefreshAfterSuccessRetryAfterFailure (cacheGroup.Run against a real listener, refresh 1s, retry 7200s) waits for a second accept (waitAccept fails the test if none arrives) and asserts it comes within 30s, and that the queries are a Reset Query then a Serial Query. Row carries {single-polarity: positive}.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRunPollsOnRefreshAfterSuccessRetryAfterFailure`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_poll_test.go#L25) | unit/verify | unproven |
+| positive | [`TestRunPollsOnRefreshAfterSuccessRetryAfterFailure`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_poll_test.go#L25) | unit/verify | not verified |
 
 ### [`RFC8210-8.3-1`](#rfc8210-8.3-1)
 
@@ -544,7 +544,7 @@ Regardless of how this state arose, the cache replies with a Cache Reset to tell
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet, internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRCacheResetReloadsTheWholeSet#2 moved. Re-read 2026-10-30 (independent judge) after commit 60e9406387 removed the RFC6810-6.3-1 tags and rewrote the VALIDATES line of TestCacheResetTriggersResetQuery; no assertion line changed. Judges the MUST: RFC 8210 Section 8.3, 'If there are no more-preferred caches, it MUST issue a Reset Query and get an entire new load from the cache.' TestRTRCacheResetReloadsTheWholeSet runs one configured cache over TCP: queries on the wire are Reset, Serial, Reset after the Cache Reset, the reload's 192.0.2.0/24 becomes Valid and the old 10.0.0.0/24 NotFound, so the load replaces rather than merges; its negative answers the Serial Query with data and sees Serial Queries and a merged delta. TestCacheGroupCacheResetFromPreferredReloadsIt drives two parsed caches through startSessions where the Cache Reset comes from the most preferred: the same Reset, Serial, Reset sequence in the same round, the new set replaces the old, and the preference 20 cache gets no query and its VRP never validates. TestCacheResetTriggersResetQuery pins the session state: a Cache Reset ends the sync with errRtrCacheResetReceivedWillDo and clears the serial, a Serial Notify leaves it. Both the Reset Query and the entire-new-load halves are asserted.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestCacheGroupCacheResetFromPreferredReloadsIt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L441) | unit/verify | revert, verified |
 | negative | [`TestRTRCacheResetReloadsTheWholeSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L338) | unit/verify | revert, verified |
@@ -559,12 +559,12 @@ Errors which are considered fatal MUST cause the session to be dropped. (§12)
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession, internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRFatalErrorReportDropsTheSession#2 moved. Forbidden: keeping the session after a fatal Error Report. TestRTRFatalErrorReportDropsTheSession drives codes 0,1,3,5,6,7,8 over TCP: each fails syncOnce and the cache's Read returns io.EOF (red if the router keeps reading). Negative: a fatal code 0 followed by a full load on the same connection publishes nothing (VRP NotFound, Synced false), red for a router that logs and continues. Code 4 is dispatched by handlePDU's downgrade branch, which also closes the transport; its EOF is asserted under TestRTRUnknownVersionErrorReportIsNotAnswered (code 4) and the downgrade tests, not in this unit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestIsFatalError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L200) | unit/verify | unproven |
+| negative | [`TestIsFatalError`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_pdu_test.go#L200) | unit/verify | not verified |
 | negative | [`TestRTRFatalErrorReportDropsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L172) | unit/verify | revert, verified |
 | positive | [`TestRTRFatalErrorReportDropsTheSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L143) | unit/verify | revert, verified |
-| positive | [`TestHandlePDUVersionDowngrade`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L83) | unit/verify | unproven |
+| positive | [`TestHandlePDUVersionDowngrade`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L83) | unit/verify | not verified |
 
 ### [`RFC8210-8.2-1`](#rfc8210-8.2-1)
 
@@ -580,7 +580,7 @@ Caches and routers MUST implement unprotected transport over TCP using a port, r
 
 Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/plugins/rpki/rfc8210_rpki_config_test.go::TestParseRPKIConfigDefaults moved. Re-read 2026-10-30 (independent judge) after commit 60e9406387 removed the RFC6810-7-1 tags from these units; no assertion line changed. RFC 8210 Section 9 reads 'Caches and routers MUST implement unprotected transport over TCP using a port, rpki-rtr (323); see Section 14.' Single-polarity positive, as the row's annotation argues: there is no non-conforming input that a router implementing the transport refuses. TestParseRPKIConfigDefaults asserts a trusted-network cache-server with no port parses to 323. TestRTRUnprotectedTCPFromConfig parses the same entry, asserts port 323, moves only the port to an unprivileged listener, starts the plugin's sessions, and asserts the cache reads a clear-text Reset Query (version byte and PDU type at offsets 0 and 1, so a TLS ClientHello would fail), the plugin syncs and the served VRP validates Valid. A config path that dropped plain TCP or another default port goes red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestParseRPKIConfigDefaults`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rpki_config_test.go#L88) | unit/verify | mutant, verified |
 | positive | [`TestRTRUnprotectedTCPFromConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_transport_test.go#L25) | unit/verify | revert, verified |
@@ -599,10 +599,10 @@ If available to the operator, caches and routers MUST use one of the following m
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: using an unprotected stream when the operator has configured a protected transport. TestRTRTLSAuthenticatedCache asserts the RTR exchange completes over TLS 1.2 and 1.3 (observed state.Version, queryType, published VRP and ASPA); negative TestRTRTLSNoPlaintextFallback offers a plaintext RTR server at the TLS address and assertRTRTLSRefused asserts syncOnce errors, zero RTR query bytes reach the peer on any connection, and nothing is published, so a plaintext fallback goes red. Availability is the operator's configuration; the refusal of a cache with neither tls nor trusted-network sits in untagged TestRTRTLSConfigRejectsUnsafeTransport and is RFC8210-3-1's concern.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRTLSNoPlaintextFallback`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L182) | unit/verify | unproven |
-| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L34) | unit/verify | unproven |
+| negative | [`TestRTRTLSNoPlaintextFallback`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L182) | unit/verify | not verified |
+| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L34) | unit/verify | not verified |
 
 ### [`RFC8210-9.1-1`](#rfc8210-9.1-1)
 
@@ -626,10 +626,10 @@ Client routers using TLS transport MUST present client-side certificates to auth
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a TLS session in which the router presents no client certificate, or not the configured one. The fixture server uses RequireAndVerifyClientCert, and TestRTRTLSAuthenticatedCache asserts the cache received the configured leaf (bytes.Equal chain[0].Raw) and both intermediates, so a router sending no certificate fails the handshake (t.Fatalf on syncOnce) and one sending another goes red. Negative TestRTRTLSRejectsUnusableClientIdentity: missing CA, missing certificate, missing or mismatched key, wrong EKU and missing IP SAN all go through assertRTRTLSRefused, with a working alternate identity present so a silent substitution goes red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRTLSRejectsUnusableClientIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L136) | unit/verify | unproven |
-| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L35) | unit/verify | unproven |
+| negative | [`TestRTRTLSRejectsUnusableClientIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L136) | unit/verify | not verified |
+| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L35) | unit/verify | not verified |
 
 ### [`RFC8210-9.2-2`](#rfc8210-9.2-2)
 
@@ -637,10 +637,10 @@ Certificates used to authenticate client routers in this protocol MUST include a
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: authenticating to the cache with a router certificate that carries no iPAddress SAN. Negative TestRTRTLSRejectsUnusableClientIdentity "missing IP SAN" installs a client-auth certificate without an IP SAN and asserts assertRTRTLSRefused (syncOnce error, zero query bytes); the fixture server does not check IP SANs, so the refusal is Ze's and a Ze that sent the certificate would sync and go red. Positive TestRTRTLSAuthenticatedCache presents the fixture router certificate (issued with an iPAddress SAN) and asserts it is the one the cache received; it does not assert the SAN content itself.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRTLSRejectsUnusableClientIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L137) | unit/verify | unproven |
-| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L36) | unit/verify | unproven |
+| negative | [`TestRTRTLSRejectsUnusableClientIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L137) | unit/verify | not verified |
+| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L36) | unit/verify | not verified |
 
 ### [`RFC8210-9.2-3`](#rfc8210-9.2-3)
 
@@ -656,10 +656,10 @@ Routers MUST also verify the cache's TLS server certificate, using subjectAltNam
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a cache certificate without verifying it against the dNSName reference. Negative TestRTRTLSRejectsUnauthenticatedCaches "wrong DNS" (server-name other.rtr.test) and "CN only" (no dNSName SAN) both go through assertRTRTLSRefused: syncOnce error, zero query bytes, nothing published, so a router that skipped name verification goes red. Positive TestRTRTLSAuthenticatedCache: a trusted certificate whose dNSName matches syncs and publishes VRP and ASPA.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRTLSRejectsUnauthenticatedCaches`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L94) | unit/verify | unproven |
-| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L37) | unit/verify | unproven |
+| negative | [`TestRTRTLSRejectsUnauthenticatedCaches`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L94) | unit/verify | not verified |
+| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L37) | unit/verify | not verified |
 
 ### [`RFC8210-9.2-5`](#rfc8210-9.2-5)
 
@@ -667,10 +667,10 @@ rpki-rtr implementations which use TLS MUST NOT use Common Name (CN-ID) identifi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: authenticating a cache by its Common Name. Negative TestRTRTLSRejectsUnauthenticatedCaches "CN only" issues a server certificate whose CN matches the reference and has no DNS SAN, and assertRTRTLSRefused asserts it is refused, so a CN fallback goes red. Positive TestRTRTLSAuthenticatedCache: a certificate whose CN differs from the reference but whose DNS-ID matches authenticates, so a CN check that overrode DNS-ID goes red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRTLSRejectsUnauthenticatedCaches`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L95) | unit/verify | unproven |
-| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L38) | unit/verify | unproven |
+| negative | [`TestRTRTLSRejectsUnauthenticatedCaches`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L95) | unit/verify | not verified |
+| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L38) | unit/verify | not verified |
 
 ### [`RFC8210-9.2-6`](#rfc8210-9.2-6)
 
@@ -702,11 +702,11 @@ If data from multiple caches are held, implementations MUST NOT distinguish betw
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied, internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRValidationIgnoresWhichCacheSupplied#2 moved. Re-read 2026-10-30 (independent judge) after commit 60e9406387 removed the RFC6810-8-2 tags and rewrote the VALIDATES line of TestValidationDoesNotDistinguishCacheSource; no assertion line changed. RFC 8210 Section 10 reads 'If data from multiple caches are held, implementations MUST NOT distinguish between data sources when performing validation of BGP announcements.' Ze holds one cache's set at a time (the group's End of Data replaces it), so the reachable form of the rule is that validation is blind to which configured cache supplied the data. TestRTRValidationIgnoresWhichCacheSupplied starts the plugin's sessions twice, the VRP served by the preferred cache and then by the standby with the preferred refused, and asserts the Valid, Invalid and NotFound triple is identical and pins each member, so weighting, marking or wildcarding by source goes red. TestValidationDoesNotDistinguishCacheSource adds the held-together case on the shared ROACache: two batches standing for two caches each validate Valid and an origin mismatch is Invalid on content alone.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestValidationDoesNotDistinguishCacheSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_roa_cache_test.go#L157) | unit/verify | unproven |
+| negative | [`TestValidationDoesNotDistinguishCacheSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_roa_cache_test.go#L157) | unit/verify | not verified |
 | negative | [`TestRTRValidationIgnoresWhichCacheSupplied`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L558) | unit/verify | revert, verified |
-| positive | [`TestValidationDoesNotDistinguishCacheSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_roa_cache_test.go#L152) | unit/verify | unproven |
+| positive | [`TestValidationDoesNotDistinguishCacheSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_roa_cache_test.go#L152) | unit/verify | not verified |
 | positive | [`TestRTRValidationIgnoresWhichCacheSupplied`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L555) | unit/verify | revert, verified |
 
 ### [`RFC8210-4-2`](#rfc8210-4-2)
@@ -731,7 +731,7 @@ Retry Interval: This parameter tells the router how long to wait before retrying
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestCacheGroupFullRoundWaitsForRetryInterval`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L565) | unit/verify | revert, verified |
 | positive | [`TestCacheGroupFullRoundWaitsForRetryInterval`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L564) | unit/verify | revert, verified |
@@ -742,7 +742,7 @@ When a router receives this, the router SHOULD attempt to connect to any more-pr
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read RFC 8210 Section 8.3, 'When a router receives this, the router SHOULD attempt to connect to any more-preferred caches in its cache list.', together with Section 6, 'The router SHOULD NOT retry sooner than indicated by this parameter.' TestRTRCacheResetReturnsToPreferredCache changed under a ze-test-judge approval: the old round 2 re-asked a cache that had just failed, which Section 6 rules out and poll now refuses. Rounds now: (1) the preferred cache loads and announces a 2s Retry Interval; (2) it answers its Serial Query with No Data Available, and the standby loads by Reset Query, replacing the preferred set (held states checked); (3) the standby answers Serial Query with Cache Reset, the preferred cache is inside its Retry Interval and receives no query, the standby receives the 8.3 Reset Query, the held set is retained, and poll's returned delay must be at most 2s, so the attempt on the more-preferred cache is scheduled for the first moment Section 6 allows; (4) the next round sends the preferred cache a Reset Query, a partial preferred load does not replace the held set, and after End of Data the old-only prefix is NotFound, the shared prefix rejects the old origin and accepts the new, the new-only prefix is Valid, with no further standby query. Starting rounds at the holder, or returning the standby's Refresh or Retry Interval after the Cache Reset, fails the test. Positive (preferred Reset Query and its set used) and negative (standby authorization not retained, standby not queried) are distinct assertions. Revert records on poll re-recorded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRTRCacheResetReturnsToPreferredCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L220) | unit/verify | revert, verified |
 | positive | [`TestRTRCacheResetReturnsToPreferredCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L219) | unit/verify | revert, verified |
@@ -753,7 +753,7 @@ If the router has never issued a successful query against a particular cache, it
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess, internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess#2 moved. TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess: a cacheGroup whose only cache refuses every connection returns 600s (rtrIntervalRetryDefault) from poll; negative: after one successful sync whose EOD sets Retry 30, a failed poll waits 30s, so the default governs only before the first success. Run repeats poll, which is the periodic retry.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L690) | unit/verify | revert, verified |
 | positive | [`TestRTRRetriesAtTheDefaultRetryIntervalBeforeAnySuccess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L683) | unit/verify | revert, verified |
@@ -780,11 +780,11 @@ If either party receives a PDU containing an unrecognized Protocol Version (neit
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRUnknownVersionErrorReportIsNotAnswered moved. Forbidden: accepting an unrecognized-version PDU, terminating without a report, or answering an unknown-version Error Report. TestRTRUnknownNegotiationVersion: v99 PDU yields errRtrUnsupportedProtocol plus Error Report code 4 then EOF; v2 completes. New negative TestRTRUnknownVersionErrorReportIsNotAnswered: a v99 Error Report with code 0 and code 4 fails the sync and the cache's io.ReadFull of one byte ends in io.EOF, so any reply byte goes red (the exception clause, guarded by handlePDU's Error Report exemption and readLoop's hdr.Type != pduErrorRpt).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRTRUnknownVersionErrorReportIsNotAnswered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L204) | unit/verify | revert, verified |
-| negative | [`TestRTRUnknownNegotiationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L225) | unit/verify | unproven |
-| positive | [`TestRTRUnknownNegotiationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L224) | unit/verify | unproven |
+| negative | [`TestRTRUnknownNegotiationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L225) | unit/verify | not verified |
+| positive | [`TestRTRUnknownNegotiationVersion`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L224) | unit/verify | not verified |
 
 ### [`RFC8210-9.2-8`](#rfc8210-9.2-8)
 
@@ -792,10 +792,10 @@ o The client router MUST set its "reference identifier" to the DNS name of the r
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: using a reference identifier other than the cache DNS name (the connected IP, or any name the certificate carries). Negative TestRTRTLSRejectsUnauthenticatedCaches: 'wrong DNS' (server-name other.rtr.test vs cert cache.rtr.test) and 'IP SAN only' (connect to 127.0.0.1, cert has only that IP SAN) both go red via assertRTRTLSRefused (syncOnce error, zero query bytes, nothing published). Positive TestRTRTLSDNSAddressIsTheReference: omitted server-name uses the configured cache DNS name, asserting state.ServerName == localhost and a published VRP.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRTLSRejectsUnauthenticatedCaches`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L97) | unit/verify | unproven |
-| positive | [`TestRTRTLSDNSAddressIsTheReference`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L221) | unit/verify | unproven |
+| negative | [`TestRTRTLSRejectsUnauthenticatedCaches`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L97) | unit/verify | not verified |
+| positive | [`TestRTRTLSDNSAddressIsTheReference`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L221) | unit/verify | not verified |
 
 ### [`RFC8210-10-2`](#rfc8210-10-2)
 
@@ -803,7 +803,7 @@ A client may hold data from multiple caches but MUST keep the data marked as to 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden by RFC 8210 Section 10, 'A client may hold data from multiple caches but MUST keep the data marked as to source, as later updates MUST affect the correct data.': an update from one cache applied to another cache's data. Two units. TestRTRCacheSwitchKeepsSerialBasesSeparate: both caches share Session ID and serial; after switching 2 to 3 to 2 the query sequence must be Reset, Serial, Reset (cache 3), Reset (cache 2), so cache 2 is never Serial-queried against cache 3's base, and each round only the selected cache's prefix and ASPA provider validate, so a merge or reuse goes red. TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData (re-judged 2026-10-27 by the closer, who wrote none of its tests): feeds two sessions of one cacheGroup through handlePDU; the new cache's staged withdraw of the old cache's VRP and ASPA leaves the old set intact (require after every PDU, ROA count 2), its End of Data leaves exactly its own VRP and ASPA (count 1, both old ASPAs gone), and a later delta withdraw from the old cache ends in errRtrDataExpired with the new cache's VRP still Valid. The source mark is the shared rtrDataLease generation; a stale-generation delta reaching the store, a merge at End of Data, or a staged PDU reaching the store each fail an assertion.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L633) | unit/verify | revert, verified |
 | negative | [`TestRTRCacheSwitchKeepsSerialBasesSeparate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L127) | unit/verify | revert, verified |
@@ -848,10 +848,10 @@ a CN field may be present in the server certificate's subject name but MUST NOT 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: authenticating a cache by its CN. Negative TestRTRTLSRejectsUnauthenticatedCaches 'CN only' (CN cache.rtr.test, no DNS SAN) is refused via assertRTRTLSRefused. Positive TestRTRTLSAuthenticatedCache: a cert whose CN is not-the-cache-reference.invalid but whose DNS-ID matches authenticates, so a CN check is not used either way.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRTLSRejectsUnauthenticatedCaches`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L96) | unit/verify | unproven |
-| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L39) | unit/verify | unproven |
+| negative | [`TestRTRTLSRejectsUnauthenticatedCaches`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L96) | unit/verify | not verified |
+| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L39) | unit/verify | not verified |
 
 ### [`RFC8210-8.1-2`](#rfc8210-8.1-2)
 
@@ -859,9 +859,9 @@ When a transport connection is first established, the router MUST send either a 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a new transport on which the router sends nothing first, or something other than a Reset/Serial Query. TestFirstPDUOnConnectionIsAQuery requires io.ReadFull of the first PDU to succeed and asserts buf[1] == pduResetQuery (fresh) and == pduSerialQuery (resuming). Row carries {single-polarity: positive}.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestFirstPDUOnConnectionIsAQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L508) | unit/verify | unproven |
+| positive | [`TestFirstPDUOnConnectionIsAQuery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L508) | unit/verify | not verified |
 
 ### [`RFC8210-8.4-1`](#rfc8210-8.4-1)
 
@@ -869,10 +869,10 @@ When a router receives this kind of error, the router SHOULD attempt to connect 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: after No Data Available with no other cache, stopping, sending Serial Queries, or not repeating the Reset Query until a usable load arrives. TestNoDataAvailableKeepsResetQueryMode runs a single-session cacheGroup (no other cache), the cache answers two queries with Error Report code 2, and the test asserts three consecutive queries are pduResetQuery each within 4s at a 1s retry (a router that stopped hits t.Fatal, one that sent a Serial Query fails assert.Equal); the negative asserts that once a complete load is published the next query is pduSerialQuery, which pins the 'until it gets a new usable load' bound. The widened quote adds the SHOULD failover sentence only as the condition's context; this row judges its MUST.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestNoDataAvailableKeepsResetQueryMode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L334) | unit/verify | unproven |
-| positive | [`TestNoDataAvailableKeepsResetQueryMode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L333) | unit/verify | unproven |
+| negative | [`TestNoDataAvailableKeepsResetQueryMode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L334) | unit/verify | not verified |
+| positive | [`TestNoDataAvailableKeepsResetQueryMode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_test.go#L333) | unit/verify | not verified |
 
 ### [`RFC8210-2-1`](#rfc8210-2-1)
 
@@ -888,11 +888,11 @@ A Relying Party, e.g., router or other client, MUST have a trust relationship wi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read 2026-10-30 (independent judge) after commit 60e9406387 removed the RFC6810-7-1 tag from TestRTRUnprotectedTCPFromConfig; no assertion line changed, and the TLS units are unchanged. RFC 8210 Section 3 reads 'A Relying Party, e.g., router or other client, MUST have a trust relationship with, and a trusted transport channel to, any cache(s) it uses.' TLS path: TestRTRTLSAuthenticatedCache completes a mutually authenticated handshake under the named CA over TLS 1.2 and 1.3 and only then publishes the cache's VRP and ASPA; TestRTRTLSRejectsUnauthenticatedCaches shows an issuer outside the named CA, wrong DNS-ID, CN-only, IP-SAN-only and one-way TLS each refused before any record is published. Unprotected path: TestRTRUnprotectedTCPFromConfig syncs and uses data from a cache declared trusted-network, and its negative shows cache-server {} and trusted-network false refused by parseRPKIConfig, the declaration being the only difference from the accepted entry. Both the trust relationship and the trusted channel are asserted on both transports.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRTLSRejectsUnauthenticatedCaches`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L93) | unit/verify | unproven |
+| negative | [`TestRTRTLSRejectsUnauthenticatedCaches`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L93) | unit/verify | not verified |
 | negative | [`TestRTRUnprotectedTCPFromConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_transport_test.go#L61) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L33) | unit/verify | unproven |
+| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L33) | unit/verify | not verified |
 | positive | [`TestRTRUnprotectedTCPFromConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_transport_test.go#L26) | unit/verify | revert, verified |
 
 ### [`RFC8210-8.1-3`](#rfc8210-8.1-3)
@@ -901,7 +901,7 @@ In all other cases, the router lacks the necessary data for fast resynchronizati
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData, internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#2, internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#3, internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#4, internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go::TestRTRResetQueryWithoutFastResyncData#5 moved. TestRTRResetQueryWithoutFastResyncData records the first query on the wire in each lacking-data case: no remembered session, expired lease (serial 42 held), cache switch (standby holds serial 42 over a current lease, so only startFullSync forces the Reset), and version downgrade (v2 Serial answered with code 4 at v1, retried as v1 Reset). Negative: same cache with a current lease opens with a Serial Query carrying Session ID 7 and serial 42. Each case isolated from the others.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8210ResetQueryFallback`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_resync_test.go#L81) | unit/verify | revert, verified |
 | negative | [`TestRTRResetQueryWithoutFastResyncData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rtr_session_rfc8210_test.go#L448) | unit/verify | revert, verified |
@@ -914,10 +914,10 @@ o Support for the DNS-ID identifier type (that is, the dNSName identity in the s
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a TLS client that cannot authenticate the cache by DNS-ID (dNSName SAN). Positive TestRTRTLSAuthenticatedCache: a DNS-ID cert with a differing CN syncs and publishes VRP and ASPA. Negative TestRTRTLSRejectsUnauthenticatedCaches: wrong DNS, CN only, IP SAN only are refused (assertRTRTLSRefused). The server-implementation clause binds a role Ze does not fill: Ze has no RTR cache server (only rtr_session.go and rtr_pdu.go, both client-side).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRTRTLSRejectsUnauthenticatedCaches`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L92) | unit/verify | unproven |
-| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L32) | unit/verify | unproven |
+| negative | [`TestRTRTLSRejectsUnauthenticatedCaches`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L92) | unit/verify | not verified |
+| positive | [`TestRTRTLSAuthenticatedCache`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_tls_test.go#L32) | unit/verify | not verified |
 
 ### [`RFC8210-10-3`](#rfc8210-10-3)
 
@@ -925,7 +925,7 @@ The client SHOULD attempt to maintain at least one set of data, regardless of wh
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L635) | unit/verify | revert, verified |
 | positive | [`TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L634) | unit/verify | revert, verified |
@@ -936,7 +936,7 @@ If a client loses connectivity to a cache it is using or otherwise decides to sw
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L637) | unit/verify | revert, verified |
 | positive | [`TestCacheSwitchWindowKeepsPreviousSetUntilEndOfData`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L636) | unit/verify | revert, verified |
@@ -947,7 +947,7 @@ When a router receives this kind of error, the router SHOULD attempt to connect 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestNoDataAvailableMovesToNextCacheInPreferenceOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L721) | unit/verify | revert, verified |
 | positive | [`TestNoDataAvailableMovesToNextCacheInPreferenceOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc8210_rtr_preference_test.go#L720) | unit/verify | revert, verified |

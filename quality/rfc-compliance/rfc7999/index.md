@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 4 | of 4 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 4 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 4 | of 4 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 4 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 4 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 4 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 0 | of 4 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 4 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 18 | 18 of 39 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 18 | 18 of 39 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 | Audit verdicts | 7 | of 4 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -26,9 +26,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 4 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 4 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 4 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 4 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 4 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 4 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 4 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -47,13 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -87,7 +87,7 @@ Included in automatic checks: BLACKHOLE Community (65535:666, 0xFFFF029A): four 
 
 **Area:** BLACKHOLE community
 
-**Proof:** 4 of 4 MUST proven
+**Test verification:** 4 of 4 MUST proven
 
 **Evidence:** interop 2, unit 2
 
@@ -102,7 +102,7 @@ Included in automatic checks: BLACKHOLE Community (65535:666, 0xFFFF029A): four 
 | Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **4** | every mandatory requirement appears in exactly one group above |
@@ -111,8 +111,8 @@ Included in automatic checks: BLACKHOLE Community (65535:666, 0xFFFF029A): four 
 
 ## Figures
 
-- **MUST bar**: Ze proven 4
-- **Overview bar**: Ze MUST proven 4, SHOULD proven 3, Not assessed 9
+- **MUST bar**: Ze verified 4
+- **Overview bar**: Ze MUST verified 4, SHOULD verified 3, Not assessed 9
 
 | Figure | Rows |
 |---|---|
@@ -121,9 +121,9 @@ Included in automatic checks: BLACKHOLE Community (65535:666, 0xFFFF029A): four 
 | Mandatory requirements complete | complete |
 | MUST rows | 4 |
 | MUST rows kept (the MUST bar) | 4 |
-| Ze proven | 4 |
+| Ze verified | 4 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -133,19 +133,19 @@ Included in automatic checks: BLACKHOLE Community (65535:666, 0xFFFF029A): four 
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 12 |
-| SHOULD proven | 3 |
+| SHOULD verified | 3 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 9 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7999.json](../../../data/rfc/rfc7999.json).
 
@@ -174,9 +174,9 @@ Source: [data/rfc/rfc7999.json](../../../data/rfc/rfc7999.json).
 
 RFC 7999 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC7999-3.1-2`](#rfc7999-3.1-2)
 
@@ -184,13 +184,13 @@ In a bilateral peering relationship, use of the BLACKHOLE community MUST be agre
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 (independent auditor, second pass after TestAnnounceUnicastWithBlackholeCommunityNarrowsToAgreedPeers was added). RFC 7999 Section 3.1: "In a bilateral peering relationship, use of the BLACKHOLE community MUST be agreed upon by the two networks before advertising it." Both origination verbs and re-advertisement are gated and each is proven both ways. send bgp blackhole (handleAnnounceBlackhole): TestAnnounceBlackholeReachesAnAgreedPeer and TestAnnounceBlackholeReachesAMemberOfADynamicGroup assert the agreed session gets a batch carrying 65535:666; TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree asserts the unagreed peer is outside the selector while the agreed one is served; TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup asserts refusal with no batch. send bgp unicast ... community 65535:666 (handleAnnounceUnicast, `sel, err = agreedSelector(...)`): TestAnnounceUnicastWithBlackholeCommunityMeetsTheSameGate asserts refusal and no batch when nobody agreed; TestAnnounceUnicastWithBlackholeCommunityNarrowsToAgreedPeers asserts, with 192.0.2.1 agreed and 192.0.2.2 not, one batch carrying 65535:666 whose selector matches 192.0.2.1 and not 192.0.2.2. The auditor verified the mutant that drops the narrowed selector (`_, err = agreedSelector(...)`, a one-line diff applied by go test -overlay) turns only that unit red, every other announce unit green; the stored records are agreedSelector reverts. Re-advertisement (filter_community egressFilter, blackholeReadvertiseRefused): TestRFC7999ReadvertiseWithheldWithoutAgreement and TestRFC7999ReadvertiseReachesAgreedAndExemptDestinations. Residual weakness, not a gap: the refusal units assert require.Error without errors.Is errNoAgreedPeer.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go#L116) | unit/verify | unproven |
-| negative | [`TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go#L329) | unit/verify | unproven |
+| negative | [`TestAnnounceBlackholeIsWithheldFromAPeerThatDidNotAgree`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go#L116) | unit/verify | not verified |
+| negative | [`TestAnnounceBlackholeIsWithheldFromASessionOutsideTheGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go#L329) | unit/verify | not verified |
 | negative | [`TestRFC7999ReadvertiseReachesAgreedAndExemptDestinations`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_readvertise_test.go#L76) | unit/verify | revert, verified |
-| positive | [`TestAnnounceBlackholeReachesAMemberOfADynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go#L301) | unit/verify | unproven |
-| positive | [`TestAnnounceBlackholeReachesAnAgreedPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go#L102) | unit/verify | unproven |
+| positive | [`TestAnnounceBlackholeReachesAMemberOfADynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go#L301) | unit/verify | not verified |
+| positive | [`TestAnnounceBlackholeReachesAnAgreedPeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go#L102) | unit/verify | not verified |
 | positive | [`TestAnnounceUnicastWithBlackholeCommunityMeetsTheSameGate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go#L159) | unit/verify | revert, verified |
 | positive | [`TestAnnounceUnicastWithBlackholeCommunityNarrowsToAgreedPeers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/cmd/announce/rfc7999_blackhole_agreement_test.go#L174) | unit/verify | revert, verified |
 | positive | [`TestRFC7999ReadvertiseWithheldWithoutAgreement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_readvertise_test.go#L57) | unit/verify | revert, verified |
@@ -201,16 +201,16 @@ BGP speakers in a bilateral peering relationship using the BLACKHOLE community M
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. Equal-/24 and covered-/32 positives require exact Blackhole on best-change and Loc-RIB; longer-/25 authorization and outside-prefix negatives require exact type 0. Dynamic group tests require the matching group rule, peer override precedence, and event-carried group identity reaching Loc-RIB. coveredByAuthorized, blackholeRouteTypeForBest and checkBestPathChange produce the type consumed by sysrib and the kernel discard builder. checkRFC7999Blackhole assertion 4 requires a real kernel discard and assertion 5 positively requires forwarding for the unauthorized prefix, after both foreign sessions and all destination routes exist. Q1-Q4 pass for the authorization clause with agreement held true; the dynamic fixture is consumer-boundary rather than eBGP-admission evidence. Stored panic records establish reachability only. No checks were run; live FRR/BIRD/Linux and VPP acceptance and changed-unit proof maintenance remain pending. Fixture maintenance retains the complete existing tagged population, verdict, requirement text, claims and producing code. blackholeRIB and blackholeMemberRIB now install a real connected 192.168.1.1/32 prerequisite for the unchanged next hop, retaining every route-type and Loc-RIB assertion; the focused helper-caller baseline 9cb0c4f9 passed. The structured dynamic-group positive required a separate independently judged correction: its former NEXT_HOP equaled its announced 10.0.0.1/32 destination and could not be selected consistently with RFC 4271 Section 9.1.2. It now uses independent NEXT_HOP 192.168.1.1 with a real connected prerequisite; destination, group ix, member, authorization, community, agreement, both claims and exact group/Blackhole assertions remain unchanged. Main dynamic baseline 8b9dd509 passed. The two existing structured-positive observations, one for each Section 3.3 requirement, were replaced through the native recorder with a HAND_WRITTEN semantic mutant in the same blackholeRouteTypeForBest producer: only the received peer-group identity passed to LookupPeerConfig is replaced with an empty string. The group-only configuration then returns ordinary type 0 normally; the existing tagged unit cleanly passed before each break and failed its exact expected Blackhole 0x6 versus actual 0x0 assertion under each break. Native receipts are 1c34d564 for RFC7999-3.3-1 and 6afaf4eb for RFC7999-3.3-2. This is an explicit provenance change from whole-producer revert/panic to claim-directed normal-return mutant, not a completed replay of the old revert. The interrupted revert attempt exited 137 after recorder termination and recorded no evidence; the injected panic can strand the caller peerMu reader before fixture cleanup requests its writer, which is an artificial proof-harness cleanup interaction rather than a production normal-return failure. Other retained coveredByAuthorized panic records retain only their original reachability meaning. No fresh live interop, Linux/VPP or other unexecuted-carrier acceptance is claimed; every existing foreign carrier remains in scope.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7999BlackholeRefusedUnderALongerAuthorizedPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go#L50) | unit/verify | revert, verified |
-| negative | [`TestBlackholeNotStampedOutsideAuthorization`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L184) | unit/verify | unproven |
-| negative | [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L840) | interop/nightly | unproven |
+| negative | [`TestBlackholeNotStampedOutsideAuthorization`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L184) | unit/verify | not verified |
+| negative | [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L840) | interop/nightly | not verified |
 | positive | [`TestRFC7999BlackholeHonoredOnAnEqualAuthorizedPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_equal_cover_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestBlackholeGroupIdentityArrivesOnAStructuredEvent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go#L30) | unit/verify | mutant, verified |
-| positive | [`TestBlackholeRouteTypeStampedOnBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L102) | unit/verify | unproven |
-| positive | [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L324) | unit/verify | unproven |
-| positive | [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L839) | interop/nightly | unproven |
+| positive | [`TestBlackholeRouteTypeStampedOnBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L102) | unit/verify | not verified |
+| positive | [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L324) | unit/verify | not verified |
+| positive | [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L839) | interop/nightly | not verified |
 
 ### [`RFC7999-3.3-2`](#rfc7999-3.3-2)
 
@@ -218,17 +218,17 @@ BGP speakers in a bilateral peering relationship using the BLACKHOLE community M
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment of every current cover including checkRFC7999Blackhole. RFC 7999 Section 3.3: BGP speakers in a bilateral peering relationship using the BLACKHOLE community MUST only accept and honor BGP announcements carrying the BLACKHOLE community under the two following conditions: The announced prefix is covered by an equal or shorter prefix that the neighboring network is authorized to advertise. The receiving party agreed to honor the BLACKHOLE community on the particular BGP session. The row includes both bullets: equal/covered positives require exact Blackhole; outside and too-short announced-prefix negatives require type 0 despite agreement. Authorized/no-community internal config requires type 0; dynamic group membership and peer-rule precedence have distinct outcomes, and the structured consumer must retain ix and install Blackhole. The synthetic empty-community map is not user config-parser proof: prefixes-only defaults agreement. The interop scenario instead explicitly agrees only 65001:666 for BIRD sending 65535:666; assertion 6 requires a gateway route, while assertion 4 requires discard for the authorized/agreed FRR route and assertion 5 isolates authorization. blackholeRouteTypeForBest scopes the decision to the winning session and blackholeRouteType requires both conditions before sysrib/FIB consumption. Q1-Q4 pass over the combined population; group-membership negative alone is not agreement-isolated. Stored coveredByAuthorized HALTs prove reachability only. No checks ran; current live foreign/Linux/VPP acceptance and changed-unit proof maintenance remain pending. Fixture maintenance retains the complete existing tagged population, verdict, requirement text, claims and producing code. blackholeRIB and blackholeMemberRIB now install a real connected 192.168.1.1/32 prerequisite for the unchanged next hop, retaining every route-type and Loc-RIB assertion; the focused helper-caller baseline 9cb0c4f9 passed. The structured dynamic-group positive required a separate independently judged correction: its former NEXT_HOP equaled its announced 10.0.0.1/32 destination and could not be selected consistently with RFC 4271 Section 9.1.2. It now uses independent NEXT_HOP 192.168.1.1 with a real connected prerequisite; destination, group ix, member, authorization, community, agreement, both claims and exact group/Blackhole assertions remain unchanged. Main dynamic baseline 8b9dd509 passed. The two existing structured-positive observations, one for each Section 3.3 requirement, were replaced through the native recorder with a HAND_WRITTEN semantic mutant in the same blackholeRouteTypeForBest producer: only the received peer-group identity passed to LookupPeerConfig is replaced with an empty string. The group-only configuration then returns ordinary type 0 normally; the existing tagged unit cleanly passed before each break and failed its exact expected Blackhole 0x6 versus actual 0x0 assertion under each break. Native receipts are 1c34d564 for RFC7999-3.3-1 and 6afaf4eb for RFC7999-3.3-2. This is an explicit provenance change from whole-producer revert/panic to claim-directed normal-return mutant, not a completed replay of the old revert. The interrupted revert attempt exited 137 after recorder termination and recorded no evidence; the injected panic can strand the caller peerMu reader before fixture cleanup requests its writer, which is an artificial proof-harness cleanup interaction rather than a production normal-return failure. Other retained coveredByAuthorized panic records retain only their original reachability meaning. No fresh live interop, Linux/VPP or other unexecuted-carrier acceptance is claimed; every existing foreign carrier remains in scope.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7999BlackholeNotHonoredOutsideTheAuthorizedPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go#L37) | unit/verify | revert, verified |
-| negative | [`TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L156) | unit/verify | unproven |
-| negative | [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L357) | unit/verify | unproven |
-| negative | [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L842) | interop/nightly | unproven |
+| negative | [`TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L156) | unit/verify | not verified |
+| negative | [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L357) | unit/verify | not verified |
+| negative | [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L842) | interop/nightly | not verified |
 | positive | [`TestRFC7999BlackholeHonoredForTheEqualAuthorizedPrefix`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_cover_test.go#L13) | unit/verify | revert, verified |
 | positive | [`TestBlackholeGroupIdentityArrivesOnAStructuredEvent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_dynamic_test.go#L33) | unit/verify | mutant, verified |
-| positive | [`TestBlackholeRouteTypeStampedOnBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L105) | unit/verify | unproven |
-| positive | [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L327) | unit/verify | unproven |
-| positive | [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L841) | interop/nightly | unproven |
+| positive | [`TestBlackholeRouteTypeStampedOnBestPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L105) | unit/verify | not verified |
+| positive | [`TestBlackholeRuleForDynamicGroup`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L327) | unit/verify | not verified |
+| positive | [`checkRFC7999Blackhole`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L841) | interop/nightly | not verified |
 
 ### [`RFC7999-3.3-4`](#rfc7999-3.3-4)
 
@@ -236,7 +236,7 @@ An operator MUST ensure that origin validation techniques (such as the one descr
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: origin validation rejecting a legitimate BLACKHOLE announcement. internal/component/bgp/plugins/rpki/blackhole_decision_test.go::TestBlackholeSurvivesLengthOnlyInvalid: a /32 Invalid only by maxLength with BLACKHOLE must be Accept (Error if not). Negative ::TestBlackholeDoesNotSurviveAWrongOrigin keeps a wrong-origin BLACKHOLE rejected, delimiting 'legitimate'. The exemption is operator opt-in (blackholeDecisionPlugin(t, true)), matching the sentence binding the operator.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestBlackholeDoesNotSurviveAWrongOrigin`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go#L80) | unit/verify | revert, verified |
 | positive | [`TestBlackholeSurvivesLengthOnlyInvalid`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc7999_blackhole_decision_test.go#L60) | unit/verify | revert, verified |
@@ -247,13 +247,13 @@ A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOU
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 by an independent auditor who authored none of the change. RFC 7999 Section 3.2: "A BGP speaker receiving an announcement tagged with the BLACKHOLE community SHOULD add the NO_ADVERTISE or NO_EXPORT community as defined in [RFC1997], or a similar community, to prevent propagation of the prefix outside the local AS." The only edit to test/plugin/community-blackhole-noexport-forked.ci since the last judgement is ca5abaf0db, which rewrites the two comment lines above option=env:var=ze_log_bgp_filter_community:value=info to say the forked plugin also receives the dotted key; the option line itself and every input, expect, reject and requirement-tag line are unchanged. The other four tagged units are byte-identical to the last judgement. What the file proves is unchanged: the forked bgp-filter-community answers the ingress chain member and the stored route carries both 65535:666 and 65535:65281. Verdict unchanged: enforced. This is a source rejudgment; the .ci was not re-run by this auditor.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7999RouteWithoutBlackholeGainsNoPropagationCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go#L46) | unit/verify | revert, verified |
-| positive | [`TestRFC7999BlackholeFieldHasReader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go#L42) | unit/verify | unproven |
+| positive | [`TestRFC7999BlackholeFieldHasReader`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go#L42) | unit/verify | not verified |
 | positive | [`TestRFC7999ReceivedBlackholeRouteGainsThePropagationCommunity`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go#L25) | unit/verify | revert, verified |
-| positive | [`community-blackhole-noexport-forked.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-blackhole-noexport-forked.ci#L10) | functional/verify | unproven |
-| positive | [`community-blackhole-noexport.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-blackhole-noexport.ci#L6) | functional/verify | unproven |
+| positive | [`community-blackhole-noexport-forked.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-blackhole-noexport-forked.ci#L10) | functional/verify | not verified |
+| positive | [`community-blackhole-noexport.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/community-blackhole-noexport.ci#L6) | functional/verify | not verified |
 
 ### [`RFC7999-3.2-2`](#rfc7999-3.2-2)
 
@@ -261,10 +261,10 @@ The community to prevent propagation SHOULD be chosen according to the operator'
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive TestRFC7999PropagationCommunityFollowsTheOperatorLeaf: each leaf value puts exactly its community on a received BLACKHOLE route. Negative TestRFC7999PropagationCommunityIsNeverForced: the unchosen community is absent under each value, and leaf none or unset leaves the route unchanged, so no fixed default is forced. Revert records on blackholeGuardCommunity for both.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7999PropagationCommunityIsNeverForced`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go#L84) | unit/verify | revert, verified |
-| positive | [`TestBlackholeGuardNoAdvertise`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go#L63) | unit/verify | unproven |
+| positive | [`TestBlackholeGuardNoAdvertise`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_guard_test.go#L63) | unit/verify | not verified |
 | positive | [`TestRFC7999PropagationCommunityFollowsTheOperatorLeaf`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_community/rfc7999_blackhole_propagation_test.go#L64) | unit/verify | revert, verified |
 
 ### [`RFC7999-4-1`](#rfc7999-4-1)
@@ -273,12 +273,12 @@ Without an explicit configuration directive set by the operator, network element
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-03 by an independent auditor who authored none of 816ce1ce4c, 2cbd255ba4, 2e5c2d012a, d22b811ce4 or 1a2ccaeef8 (phase 5 of spec-filter-wire-0-umbrella, the per-peer text filter chain deleted). RFC 7999 Section 4 read: "Without an explicit configuration directive set by the operator, network elements SHOULD NOT discard traffic destined towards IP prefixes that are tagged with the BLACKHOLE community." The moved unit TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement dropped only the out.Update != "" half of its no-change check, because d22b811ce4 removed the text Update field from the filter protocol: an answer can no longer carry a change there, so the remaining len(out.Sets) == 0 with Action accept is the whole of what an accept can change. Positive still: a modify matching only 65001:100 answers accept with no set for the 65535:666 route; negative TestBlackholeCommunityRewritesNextHopWhenAgreed still requires modify with exactly next-hop set "192.0.2.1". RIB carriers byte-identical. Ran the tagged units under ./le job run at HEAD (-tags ze_bgp, -v): PASS (scratch audit-p5-units-v.log). Verdict unchanged: enforced. Fixture maintenance retains all four existing tagged covers and the enforced verdict. The two RIB covers still assert exact ordinary type 0 on the best-change and Loc-RIB rails, with unchanged route bytes, configuration and claims. Their shared blackholeRIB helper now supplies a real connected 192.168.1.1/32 prerequisite for their unchanged next hop; focused baseline 9cb0c4f9 passed those covers. The two filter_modify covers and their existing matchCond.matches revert/panic observations remain unchanged and in scope; this maintenance adds no fresh filter execution or normal-return discrimination credit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestBlackholeCommunityRewritesNextHopWhenAgreed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go#L165) | unit/verify | revert, verified |
 | positive | [`TestBlackholeCommunityLeavesNextHopAloneWithoutAgreement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/filter_modify/rfc7999_match_test.go#L191) | unit/verify | revert, verified |
-| positive | [`TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L159) | unit/verify | unproven |
-| positive | [`TestBlackholeNotStampedWithoutAgreement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L133) | unit/verify | unproven |
+| positive | [`TestBlackholeNotStampedWhenNoCommunityAgreedButAuthorizationExists`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L159) | unit/verify | not verified |
+| positive | [`TestBlackholeNotStampedWithoutAgreement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7999_rib_blackhole_wiring_test.go#L133) | unit/verify | not verified |
 
 ## Requirement list review
 

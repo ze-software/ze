@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 29 | of 71 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5 | of 71 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 29 | of 71 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 71 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 71 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 59 | 59 of 86 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 59 | 59 of 86 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -21,7 +21,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 2 | of 71 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 2 | of 71 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 26 | of 71 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 | Audit verdicts | 21 | of 71 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 71 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 71 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 9 | of 71 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 9 | of 71 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 71 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 71 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 71 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | bad | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | bad | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: Dynamic Host Configuration Protocol
 
 **Area:** DHCPv4
 
-**Proof:** 21 of 71 MUST proven
+**Test verification:** 21 of 71 MUST proven
 
 **Evidence:** unit 21
 
@@ -109,7 +109,7 @@ Included in automatic checks: Dynamic Host Configuration Protocol
 | Annotated (including scoped evidence) | 42 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 2 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 2 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **71** | every mandatory requirement appears in exactly one group above |
@@ -118,12 +118,12 @@ Included in automatic checks: Dynamic Host Configuration Protocol
 
 **Annotated (including scoped evidence) (42):** [`RFC2131-4.3-1`](#rfc2131-4.3-1), [`RFC2131-4.3-2`](#rfc2131-4.3-2), [`RFC2131-4.3-3`](#rfc2131-4.3-3), [`RFC2131-4.3.5-1`](#rfc2131-4.3.5-1), [`RFC2131-4.3.2-2`](#rfc2131-4.3.2-2), [`RFC2131-4.3.3-1`](#rfc2131-4.3.3-1), [`RFC2131-4.2-1`](#rfc2131-4.2-1), [`RFC2131-2-1`](#rfc2131-2-1), [`RFC2131-3.1-1`](#rfc2131-3.1-1), [`RFC2131-3.1-2`](#rfc2131-3.1-2), [`RFC2131-3.1-3`](#rfc2131-3.1-3), [`RFC2131-3.1-4`](#rfc2131-3.1-4), [`RFC2131-3.2-1`](#rfc2131-3.2-1), [`RFC2131-3.1-6`](#rfc2131-3.1-6), [`RFC2131-3.1-7`](#rfc2131-3.1-7), [`RFC2131-4.1-4`](#rfc2131-4.1-4), [`RFC2131-4.1-5`](#rfc2131-4.1-5), [`RFC2131-4.1-7`](#rfc2131-4.1-7), [`RFC2131-4.1-15`](#rfc2131-4.1-15), [`RFC2131-4.1-8`](#rfc2131-4.1-8), [`RFC2131-4.1-9`](#rfc2131-4.1-9), [`RFC2131-3.4-1`](#rfc2131-3.4-1), [`RFC2131-2-4`](#rfc2131-2-4), [`RFC2131-3.5-1`](#rfc2131-3.5-1), [`RFC2131-3.1-8`](#rfc2131-3.1-8), [`RFC2131-4.3.1-1`](#rfc2131-4.3.1-1), [`RFC2131-4.3.1-3`](#rfc2131-4.3.1-3), [`RFC2131-4.3.1-5`](#rfc2131-4.3.1-5), [`RFC2131-4.3.1-7`](#rfc2131-4.3.1-7), [`RFC2131-4.4.1-1`](#rfc2131-4.4.1-1), [`RFC2131-4.4.2-1`](#rfc2131-4.4.2-1), [`RFC2131-4.4.2-2`](#rfc2131-4.4.2-2), [`RFC2131-4.4.3-1`](#rfc2131-4.4.3-1), [`RFC2131-3.2-3`](#rfc2131-3.2-3), [`RFC2131-4.4-1`](#rfc2131-4.4-1), [`RFC2131-4.4-2`](#rfc2131-4.4-2), [`RFC2131-4.4-3`](#rfc2131-4.4-3), [`RFC2131-3-2`](#rfc2131-3-2), [`RFC2131-3.6-1`](#rfc2131-3.6-1), [`RFC2131-4.1-16`](#rfc2131-4.1-16), [`RFC2131-4.4.1-4`](#rfc2131-4.4.1-4), [`RFC2131-4.3.1-10`](#rfc2131-4.3.1-10)
 
-**Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (2):** [`RFC2131-4.1-7`](#rfc2131-4.1-7), [`RFC2131-4.1-15`](#rfc2131-4.1-15)
+**Partial test coverage (subset of annotated; zero whole-requirement credit) (2):** [`RFC2131-4.1-7`](#rfc2131-4.1-7), [`RFC2131-4.1-15`](#rfc2131-4.1-15)
 
 ## Figures
 
-- **MUST bar**: Ze proven 21, Proof pending 13, OS testing gap 9, Not built 28
-- **Overview bar**: Ze MUST proven 21, SHOULD proven 3, Proof pending 13, OS testing gap 9, Not assessed 35, Not built 28
+- **MUST bar**: Ze verified 21, Tests awaiting verification 13, OS testing gap 9, Not built 28
+- **Overview bar**: Ze MUST verified 21, SHOULD verified 3, Tests awaiting verification 13, OS testing gap 9, Not assessed 35, Not built 28
 
 | Figure | Rows |
 |---|---|
@@ -132,9 +132,9 @@ Included in automatic checks: Dynamic Host Configuration Protocol
 | Mandatory requirements complete | not complete |
 | MUST rows | 71 |
 | MUST rows kept (the MUST bar) | 71 |
-| Ze proven | 21 |
+| Ze verified | 21 |
 | OS verified | 0 |
-| Proof pending | 13 |
+| Tests awaiting verification | 13 |
 | OS testing gap | 9 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -144,19 +144,19 @@ Included in automatic checks: Dynamic Host Configuration Protocol
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 38 |
-| SHOULD proven | 3 |
+| SHOULD verified | 3 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 35 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc2131.json](../../../data/rfc/rfc2131.json).
 
@@ -199,8 +199,8 @@ Source: [data/rfc/rfc2131.json](../../../data/rfc/rfc2131.json).
 | `RFC2131-4.1-4` | If the options in a DHCP message extend into the 'sname' and 'file' fields, the 'option overload' option MUST appear in the 'options' field, with value 1, 2 or 3, as specified in RFC 1533. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze puts no option in sname or file, so the condition does not arise on any path traced -- the server's buildReply and buildNak (internal/plugins/dhcpserver/handler.go) leave both fields zero and write every option through safeAppendOption inside the options field, and the client's messages are serialised by the vendored dhcpv4 library, which holds no option overload writer -- but no test asserts that a ze reply carries no option in sname or file, so this is a gap in testing until one does |
 | `RFC2131-4.1-5` | The options in the 'sname' and 'file' fields (if in use as indicated by the 'options overload' option) MUST begin with the first octet of the field, MUST be terminated by an 'end' option, and MUST be followed by 'pad' options to fill the remainder of the field. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze puts no option in sname or file, so the condition does not arise on any path traced -- the server's buildReply and buildNak (internal/plugins/dhcpserver/handler.go) leave both fields zero and write every option through safeAppendOption inside the options field, and the client's messages are serialised by the vendored dhcpv4 library, which holds no option overload writer -- but no test asserts that a ze reply carries no option in sname or file, so this is a gap in testing until one does |
 | `RFC2131-4.1-6` | Any individual option in the 'options', 'sname' and 'file' fields MUST be entirely contained in that field. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestOptionsContainedWithinTheirField`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L495). **positive:** `unit/verify` [`TestRFC2131EveryReplyOptionContainedInItsField`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_identity_options_test.go#L90). **negative:** `unit/verify` [`TestOptionsContainedWithinTheirField`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L518). **negative:** `unit/verify` [`TestRFC2131EveryReplyOptionContainedInItsField`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_identity_options_test.go#L110) |
-| `RFC2131-4.1-7` | The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestOverloadFieldsCarryOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L102). **positive:** `unit/verify` [`TestOverloadInterpretationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L134). **negative:** `unit/verify` [`TestOverloadInterpretationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L153). **{partial}:** tested "The options in the 'options' field MUST be interpreted first"; gap "so that any 'option overload' options may be interpreted"; the client reads the options field first but never honours option overload: internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire hands each reply to the vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52, so an option a server places in an overloaded field is lost. The server meets the whole sentence, proven by the tags, through internal/plugins/dhcpserver/options.go::findOption. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). TestOverloadFieldsCarryOptions gained only a setup step: it reserves and binds the requested address for the client before sending the overloaded INIT-REBOOT, because segment.initReboot now stays silent for a client with no record (RFC 2131 Section 4.3.2). The assertions are unchanged: message type 53 and requested address 50 placed in file and/or sname under option 52 values 1, 2 and 3 must be found, and the request must draw a DHCPACK for that address. The binding does not make the positive pass without reading the overloaded fields: with 53 unread parseMsgType answers 0 and serve returns nil. The {partial} scope, its Tested and Gap spans and the client-side gap (internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire, nclient4 never consulting option 52) are unchanged, and records on options.go::findOption are current. Partial stands. Prior judgement: Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 2131 Section 4.1: "The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted." Tested: The options in the 'options' field MUST be interpreted first. Server: findOption walks the options field before file and sname; TestOverloadInterpretationOrder (positive, options copy wins under 52=3), TestOverloadFieldsCarryOptions (positive, 52 honoured) and the negative (a 52 inside file opens no sname) discriminate it, with revert records on every cover and the earlier overlay mutants. Client: FromBytes reads only the options field for options, so the order clause holds there too. Gap: so that any 'option overload' options may be interpreted. Producer internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire passes each reply to vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52 (no build-time patch), so the client loses options a server places in an overloaded field. |
-| `RFC2131-4.1-15` | The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestOverloadFieldsCarryOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L95). **positive:** `unit/verify` [`TestOverloadInterpretationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L142). **negative:** `unit/verify` [`TestOverloadAbsentFieldsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L176). **{partial}:** tested "The 'file' field MUST be interpreted next"; gap "followed by the 'sname' field"; the split is by role, not by clause: the client meets neither clause, because internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire hands each reply to the vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52. The tested span is proven for the server role only, through internal/plugins/dhcpserver/options.go::findOption, which interprets file and then sname as option overload indicates. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). TestOverloadFieldsCarryOptions gained only the reservation and binding setup an INIT-REBOOT now needs (segment.initReboot is silent for a client with no record); its assertions that file is read under 52=1/3 and sname under 2/3 are unchanged, and TestOverloadInterpretationOrder and TestOverloadAbsentFieldsIgnored are untouched. The {partial} scope (Tested 'The file field MUST be interpreted next', Gap 'followed by the sname field', server role only through options.go::findOption; the client meets neither clause through dhcp_v4_exchange_linux.go::acquire) is unchanged, and records on findOption are current. Partial stands. Prior judgement: Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 2131 Section 4.1: "The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field." Tested: The 'file' field MUST be interpreted next, proven for the server role only: findOption reads file under 52=1/3 then sname under 2/3; positives TestOverloadFieldsCarryOptions and TestOverloadInterpretationOrder (file copy wins over sname under 52=3), negatives TestOverloadAbsentFieldsIgnored (no 52, 52=1 leaves sname, 52=2 leaves file unread), revert records on every cover. Gap: followed by the 'sname' field, and per the reason the client meets neither clause: the split is by role, not clause, a limit of the selector model owned by journal row field-carries-two-meanings. Producer internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire passes each reply to vendored nclient4, whose dhcpv4 FromBytes never consults option 52. partial is the only verdict the gate allows that is true: enforced is refused on a partial row, unimplemented needs a {gap} that forbids the server tags, and weak/wrong would misdescribe tests that discriminate. Zero whole-requirement credit. |
+| `RFC2131-4.1-7` | The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestOverloadFieldsCarryOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L102). **positive:** `unit/verify` [`TestOverloadInterpretationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L134). **negative:** `unit/verify` [`TestOverloadInterpretationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L153). **{partial}:** tested "The options in the 'options' field MUST be interpreted first"; gap "so that any 'option overload' options may be interpreted"; the client reads the options field first but never honours option overload: internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire hands each reply to the vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52, so an option a server places in an overloaded field is lost. The server meets the whole sentence, proven by the tags, through internal/plugins/dhcpserver/options.go::findOption. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). TestOverloadFieldsCarryOptions gained only a setup step: it reserves and binds the requested address for the client before sending the overloaded INIT-REBOOT, because segment.initReboot now stays silent for a client with no record (RFC 2131 Section 4.3.2). The assertions are unchanged: message type 53 and requested address 50 placed in file and/or sname under option 52 values 1, 2 and 3 must be found, and the request must draw a DHCPACK for that address. The binding does not make the positive pass without reading the overloaded fields: with 53 unread parseMsgType answers 0 and serve returns nil. The {partial} scope, its Tested and Gap spans and the client-side gap (internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire, nclient4 never consulting option 52) are unchanged, and records on options.go::findOption are current. Partial stands. Prior judgement: Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 2131 Section 4.1: "The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted." Tested: The options in the 'options' field MUST be interpreted first. Server: findOption walks the options field before file and sname; TestOverloadInterpretationOrder (positive, options copy wins under 52=3), TestOverloadFieldsCarryOptions (positive, 52 honoured) and the negative (a 52 inside file opens no sname) discriminate it, with revert records on every cover and the earlier overlay mutants. Client: FromBytes reads only the options field for options, so the order clause holds there too. Gap: so that any 'option overload' options may be interpreted. Producer internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire passes each reply to vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52 (no build-time patch), so the client loses options a server places in an overloaded field. |
+| `RFC2131-4.1-15` | The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestOverloadFieldsCarryOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L95). **positive:** `unit/verify` [`TestOverloadInterpretationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L142). **negative:** `unit/verify` [`TestOverloadAbsentFieldsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L176). **{partial}:** tested "The 'file' field MUST be interpreted next"; gap "followed by the 'sname' field"; the split is by role, not by clause: the client meets neither clause, because internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire hands each reply to the vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52. The tested span is proven for the server role only, through internal/plugins/dhcpserver/options.go::findOption, which interprets file and then sname as option overload indicates. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). TestOverloadFieldsCarryOptions gained only the reservation and binding setup an INIT-REBOOT now needs (segment.initReboot is silent for a client with no record); its assertions that file is read under 52=1/3 and sname under 2/3 are unchanged, and TestOverloadInterpretationOrder and TestOverloadAbsentFieldsIgnored are untouched. The {partial} scope (Tested 'The file field MUST be interpreted next', Gap 'followed by the sname field', server role only through options.go::findOption; the client meets neither clause through dhcp_v4_exchange_linux.go::acquire) is unchanged, and records on findOption are current. Partial stands. Prior judgement: Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 2131 Section 4.1: "The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field." Tested: The 'file' field MUST be interpreted next, proven for the server role only: findOption reads file under 52=1/3 then sname under 2/3; positives TestOverloadFieldsCarryOptions and TestOverloadInterpretationOrder (file copy wins over sname under 52=3), negatives TestOverloadAbsentFieldsIgnored (no 52, 52=1 leaves sname, 52=2 leaves file unread), revert records on every cover. Gap: followed by the 'sname' field, and per the reason the client meets neither clause: the split is by role, not clause, a limit of the selector model owned by journal row field-carries-two-meanings. Producer internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire passes each reply to vendored nclient4, whose dhcpv4 FromBytes never consults option 52. partial is the only verdict the gate allows that is true: enforced is refused on a partial row, unimplemented needs a {gap} that forbids the server tags, and weak/wrong would misdescribe tests that discriminate. Zero whole-requirement credit. |
 | `RFC2131-4.1-8` | The client MUST adopt a retransmission strategy that incorporates a randomized exponential backoff algorithm to determine the delay between retransmissions. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze's client retransmits on a doubling timeout with no randomization -- the acquiring exchange builds its client with no ClientOpt (internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go, nclient4Exchanger.acquire), so DORA runs the vendored defaults of a 5 second timeout over 3 tries (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:32, 35, 183) through retryFn, which only doubles the timeout between tries (client.go:649-669); the extending DHCPREQUEST is outside this gap, sent once per attempt on the section 4.4.5 schedule (internal/plugins/iface/dhcp/dhcp_v4_linux.go, v4NextAttempt) |
 | `RFC2131-4.1-9` | A DHCP client MUST choose 'xid's in such a way as to minimize the chance of using an 'xid' identical to one used by another client. (§4.1) | MUST | 4.1 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** vendored insomniacslk/dhcp dhcpv4 and nclient4, vendor/github.com/insomniacslk/dhcp; internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::nclient4Exchanger.acquire and internal/plugins/iface/dhcp/dhcp_v4_linux.go::DHCPClient.v4ExtendRequest build every client message through the library's dhcpv4.New, which draws the xid from GenerateTransactionIDWithContext (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4packet.go, random bytes from the vendored u-root uio/rand); ze writes no xid |
 | `RFC2131-4.1-10` | DHCP clients MUST use the IP address provided in the 'server identifier' option for any unicast requests to the DHCP server. (§4.1) | MUST | 4.1 | **positive:** `unit/verify` [`TestDHCPv4RenewIsUnicastToServer`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L419). **negative:** `unit/verify` [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L489) |
@@ -292,8 +292,8 @@ Source: [data/rfc/rfc2131.json](../../../data/rfc/rfc2131.json).
 | [`RFC2131-3.1-7`](#rfc2131-3.1-7) If the client detects that the address is already in use (e.g., through the use of ARP), the client MUST send a DHCPDECLINE message to the server and restarts the configuration process. (§3.1, §3.2) | {gap}, no test | ze's client installs the ACKed address without checking it is free and has no DHCPDECLINE path -- installV4Lease goes straight from the ACK to ReplaceAddressWithLifetime (internal/plugins/iface/dhcp/dhcp_v4_linux.go) with no probe of the address, and neither ze nor the vendored nclient4 client contains a DECLINE producer, so an address found in use is kept rather than declined |
 | [`RFC2131-4.1-4`](#rfc2131-4.1-4) If the options in a DHCP message extend into the 'sname' and 'file' fields, the 'option overload' option MUST appear in the 'options' field, with value 1, 2 or 3, as specified in RFC 1533. (§4.1) | {gap}, no test | ze puts no option in sname or file, so the condition does not arise on any path traced -- the server's buildReply and buildNak (internal/plugins/dhcpserver/handler.go) leave both fields zero and write every option through safeAppendOption inside the options field, and the client's messages are serialised by the vendored dhcpv4 library, which holds no option overload writer -- but no test asserts that a ze reply carries no option in sname or file, so this is a gap in testing until one does |
 | [`RFC2131-4.1-5`](#rfc2131-4.1-5) The options in the 'sname' and 'file' fields (if in use as indicated by the 'options overload' option) MUST begin with the first octet of the field, MUST be terminated by an 'end' option, and MUST be followed by 'pad' options to fill the remainder of the field. (§4.1) | {gap}, no test | ze puts no option in sname or file, so the condition does not arise on any path traced -- the server's buildReply and buildNak (internal/plugins/dhcpserver/handler.go) leave both fields zero and write every option through safeAppendOption inside the options field, and the client's messages are serialised by the vendored dhcpv4 library, which holds no option overload writer -- but no test asserts that a ze reply carries no option in sname or file, so this is a gap in testing until one does |
-| [`RFC2131-4.1-7`](#rfc2131-4.1-7) The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted. (§4.1) | {partial}, Partial proof; remaining gap | tested "The options in the 'options' field MUST be interpreted first"; gap "so that any 'option overload' options may be interpreted"; the client reads the options field first but never honours option overload: internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire hands each reply to the vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52, so an option a server places in an overloaded field is lost. The server meets the whole sentence, proven by the tags, through internal/plugins/dhcpserver/options.go::findOption |
-| [`RFC2131-4.1-15`](#rfc2131-4.1-15) The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field. (§4.1) | {partial}, Partial proof; remaining gap | tested "The 'file' field MUST be interpreted next"; gap "followed by the 'sname' field"; the split is by role, not by clause: the client meets neither clause, because internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire hands each reply to the vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52. The tested span is proven for the server role only, through internal/plugins/dhcpserver/options.go::findOption, which interprets file and then sname as option overload indicates |
+| [`RFC2131-4.1-7`](#rfc2131-4.1-7) The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted. (§4.1) | {partial}, Partial test coverage | tested "The options in the 'options' field MUST be interpreted first"; gap "so that any 'option overload' options may be interpreted"; the client reads the options field first but never honours option overload: internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire hands each reply to the vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52, so an option a server places in an overloaded field is lost. The server meets the whole sentence, proven by the tags, through internal/plugins/dhcpserver/options.go::findOption |
+| [`RFC2131-4.1-15`](#rfc2131-4.1-15) The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field. (§4.1) | {partial}, Partial test coverage | tested "The 'file' field MUST be interpreted next"; gap "followed by the 'sname' field"; the split is by role, not by clause: the client meets neither clause, because internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire hands each reply to the vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52. The tested span is proven for the server role only, through internal/plugins/dhcpserver/options.go::findOption, which interprets file and then sname as option overload indicates |
 | [`RFC2131-4.1-8`](#rfc2131-4.1-8) The client MUST adopt a retransmission strategy that incorporates a randomized exponential backoff algorithm to determine the delay between retransmissions. (§4.1) | {gap}, no test | ze's client retransmits on a doubling timeout with no randomization -- the acquiring exchange builds its client with no ClientOpt (internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go, nclient4Exchanger.acquire), so DORA runs the vendored defaults of a 5 second timeout over 3 tries (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go:32, 35, 183) through retryFn, which only doubles the timeout between tries (client.go:649-669); the extending DHCPREQUEST is outside this gap, sent once per attempt on the section 4.4.5 schedule (internal/plugins/iface/dhcp/dhcp_v4_linux.go, v4NextAttempt) |
 | [`RFC2131-4.1-9`](#rfc2131-4.1-9) A DHCP client MUST choose 'xid's in such a way as to minimize the chance of using an 'xid' identical to one used by another client. (§4.1) | no test | no test carries this requirement id; annotated {lower-layer}: vendored insomniacslk/dhcp dhcpv4 and nclient4, vendor/github.com/insomniacslk/dhcp; internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::nclient4Exchanger.acquire and internal/plugins/iface/dhcp/dhcp_v4_linux.go::DHCPClient.v4ExtendRequest build every client message through the library's dhcpv4.New, which draws the xid from GenerateTransactionIDWithContext (vendor/github.com/insomniacslk/dhcp/dhcpv4/dhcpv4packet.go, random bytes from the vendored u-root uio/rand); ze writes no xid |
 | [`RFC2131-3.4-1`](#rfc2131-3.4-1) The server SHOULD check the network address in a DHCPINFORM message for consistency, but MUST NOT check for an existing lease. (§3.4) | {gap}, no test | ze's server answers no DHCPINFORM, though RFC 2131 Section 4.3.5 has the server respond to one with a DHCPACK -- handle (internal/plugins/dhcpserver/handler.go) dispatches DISCOVER, REQUEST, RELEASE and DECLINE, and msgInform falls to the default branch, which returns nil; this stays an open gap until the server answers DHCPINFORM and a test shows the answer is built without consulting the lease table |
@@ -316,9 +316,9 @@ Source: [data/rfc/rfc2131.json](../../../data/rfc/rfc2131.json).
 | [`RFC2131-4.4.1-4`](#rfc2131-4.4.1-4) If the 'xid' of an arriving DHCPOFFER message does not match the 'xid' of the most recent DHCPDISCOVER message, the DHCPOFFER message must be silently discarded. Any arriving DHCPACK messages must be silently discarded. (§4.4.1) | no test | no test carries this requirement id; annotated {lower-layer}: vendored insomniacslk/dhcp dhcpv4 and nclient4, vendor/github.com/insomniacslk/dhcp; internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::nclient4Exchanger.acquire reads the DISCOVER answer through client.DiscoverOffer, whose receiveLoop delivers a message only to the pending exchange keyed by its TransactionID and whose IsMessageType(dhcpv4.MessageTypeOffer) matcher skips any other type (vendor/github.com/insomniacslk/dhcp/dhcpv4/nclient4/client.go); ze reads no reply bytes in SELECTING |
 | [`RFC2131-4.3.1-10`](#rfc2131-4.3.1-10) The server must also choose an expiration time for the lease, as follows: (§4.3.1) | {gap}, no test | the first rule of the list is not followed -- a DHCPDISCOVER from a client that already holds a binding and requests no lease time is answered by handleDiscover through buildReply (internal/plugins/dhcpserver/handler.go), which writes the configured subnet LeaseTimeSec into option 51 rather than the expiration time previously assigned to that address, so every OFFER restarts the lease duration |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC2131-4.3-1`](#rfc2131-4.3-1)
 
@@ -326,9 +326,9 @@ Server identifier MUST MUST MUST (§4.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). RFC 2131 Table 3 marks the server identifier MUST in DHCPOFFER, DHCPACK and DHCPNAK. The only change in TestServerIdentifierInEveryReply is want = serverAddr(h) instead of h.serverIP; it still requires option 54 in OFFER, ACK and NAK to equal the device address, four octets. buildReply and buildNak still append option 54 unconditionally (safeAppendOption at handler.go:148 and :253), and segment.serverID withholds the whole reply rather than sending one without 54, so {single-polarity} still holds. Annotation finding (not a verdict change): its line references handler.go:246 and handler.go:349 are stale, buildReply is now at handler.go:122 and buildNak at handler.go:237. Prior judgement: single-polarity positive: option 54 in OFFER, ACK and NAK must equal the server address, so omitting or mis-setting it goes red
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestServerIdentifierInEveryReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L171) | unit/verify | unproven |
+| positive | [`TestServerIdentifierInEveryReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L171) | unit/verify | not verified |
 
 ### [`RFC2131-4.3-2`](#rfc2131-4.3-2)
 
@@ -336,9 +336,9 @@ IP address lease time MUST (§4.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity positive: the OFFER's option 51 must be four octets equal to the configured lease seconds
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestLeaseTimeInOfferAndAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L196) | unit/verify | unproven |
+| positive | [`TestLeaseTimeInOfferAndAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L196) | unit/verify | not verified |
 
 ### [`RFC2131-4.3-3`](#rfc2131-4.3-3)
 
@@ -346,9 +346,9 @@ IP address lease time MUST MUST (DHCPREQUEST) (§4.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity positive: the ACK answering a DHCPREQUEST must carry option 51 equal to the configured lease seconds
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestLeaseTimeInOfferAndAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L200) | unit/verify | unproven |
+| positive | [`TestLeaseTimeInOfferAndAck`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L200) | unit/verify | not verified |
 
 ### [`RFC2131-4.3-4`](#rfc2131-4.3-4)
 
@@ -356,10 +356,10 @@ IP address lease time MUST MUST (DHCPREQUEST) MUST NOT (§4.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only serverAddr(h) replaces h.serverIP in the SELECTING request; every assertion is unchanged. The NAK request (ciaddr 192.168.1.50, requested 10.9.9.9, no server identifier) now reaches segment.initReboot, not a ciaddr path, and an address in no subnet of the segment still draws a DHCPNAK, which the test asserts by message type before checking option 51 is absent. Stale comment (not a verdict change): 'ciaddr places the client on our subnet' no longer describes why the server NAKs. Prior judgement: positive: the NAK's option walk holds no 51; negative: a REQUEST carrying option 51 that is NAKed still yields a NAK without 51
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L335) | unit/verify | unproven |
-| positive | [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L247) | unit/verify | unproven |
+| negative | [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L335) | unit/verify | not verified |
+| positive | [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L247) | unit/verify | not verified |
 
 ### [`RFC2131-4.3-5`](#rfc2131-4.3-5)
 
@@ -367,10 +367,10 @@ Requested IP address MUST NOT MUST NOT MUST NOT (§4.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only serverAddr(h) replaces h.serverIP; OFFER, ACK and NAK are still walked for option 50 after requests that carry it, and TestReplyOmitsClientOnlyOptions keeps the bare-request positive. Prior judgement: positive: no OFFER/ACK/NAK carries option 50; negative: requests carrying option 50 still draw OFFER/ACK/NAK without it
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L314) | unit/verify | unproven |
-| positive | [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L226) | unit/verify | unproven |
+| negative | [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L314) | unit/verify | not verified |
+| positive | [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L226) | unit/verify | not verified |
 
 ### [`RFC2131-4.3-6`](#rfc2131-4.3-6)
 
@@ -378,10 +378,10 @@ Client identifier MUST NOT MUST NOT (§4.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only serverAddr(h) replaces h.serverIP; OFFER and ACK are still required to carry no option 61 after requests that carry it, and the NAK (Table 3: MAY) is still correctly left unasserted. Prior judgement: positive: neither OFFER nor ACK carries option 61; negative: requests carrying option 61 still draw OFFER/ACK without it. The NAK column (MAY) is correctly left unasserted
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L329) | unit/verify | unproven |
-| positive | [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L241) | unit/verify | unproven |
+| negative | [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L329) | unit/verify | not verified |
+| positive | [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L241) | unit/verify | not verified |
 
 ### [`RFC2131-4.3-7`](#rfc2131-4.3-7)
 
@@ -389,10 +389,10 @@ Parameter request list MUST NOT MUST NOT MUST NOT (§4.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only serverAddr(h) replaces h.serverIP; no OFFER, ACK or NAK may carry option 55, after a bare request and after one carrying 55. Prior judgement: positive: no OFFER/ACK/NAK carries option 55; negative: requests carrying option 55 still draw replies without it
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L318) | unit/verify | unproven |
-| positive | [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L230) | unit/verify | unproven |
+| negative | [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L318) | unit/verify | not verified |
+| positive | [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L230) | unit/verify | not verified |
 
 ### [`RFC2131-4.3-8`](#rfc2131-4.3-8)
 
@@ -400,10 +400,10 @@ Maximum message size MUST NOT MUST NOT MUST NOT (§4.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only serverAddr(h) replaces h.serverIP; no OFFER, ACK or NAK may carry option 57, after a bare request and after one carrying 57. Prior judgement: positive: no OFFER/ACK/NAK carries option 57; negative: requests carrying option 57 still draw replies without it
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L322) | unit/verify | unproven |
-| positive | [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L234) | unit/verify | unproven |
+| negative | [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L322) | unit/verify | not verified |
+| positive | [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L234) | unit/verify | not verified |
 
 ### [`RFC2131-4.3-9`](#rfc2131-4.3-9)
 
@@ -411,10 +411,10 @@ All others MAY MAY MUST NOT (§4.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only serverAddr(h) replaces h.serverIP; both polarities still require every NAK option code to be 53 or 54, which goes red on any 'All others' option (and is stricter than Table 3 on 56, 60 and 61, as recorded before). Prior judgement: positive and negative both require every NAK option code to be 53 or 54, so any option Table 3 marks 'All others' goes red. The assertion is stricter than Table 3: it would also go red on the Message option (56, SHOULD), Client identifier (61, MAY) and Vendor class identifier (60, MAY), which Table 3 allows in a DHCPNAK
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L339) | unit/verify | unproven |
-| positive | [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L251) | unit/verify | unproven |
+| negative | [`TestReplyDoesNotEchoClientOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L339) | unit/verify | not verified |
+| positive | [`TestReplyOmitsClientOnlyOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L251) | unit/verify | not verified |
 
 ### [`RFC2131-4.3.5-1`](#rfc2131-4.3.5-1)
 
@@ -430,7 +430,7 @@ If 'giaddr' is 0x0 in the DHCPREQUEST message, the client is on the same subnet 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestNakBroadcastWhenGiaddrZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L26) | unit/verify | revert, verified |
 | positive | [`TestNakBroadcastWhenGiaddrZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L25) | unit/verify | revert, verified |
@@ -449,7 +449,7 @@ Otherwise, the server MUST send the DHCPNAK message to the IP address of the BOO
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). RFC 2131 Section 3.2: 'Otherwise, the server MUST send the DHCPNAK message to the IP address of the BOOTP relay agent, as recorded in giaddr.' TestNakDeliveredToRelayAgent changed only serverAddr(h) for h.serverIP in its two REQUESTs. The relayed SELECTING REQUEST with no requested address reaches segment.selecting, whose owner is the shim device address, and draws a NAK; responseAddr must send it to 192.168.1.254:67, and the same NAK with giaddr zero must not go to a relay. Records on register.go::responseAddr (positive and negative) are current. Prior judgement: positive relays a SELECTING REQUEST with giaddr 192.168.1.254 and asserts responseAddr gives 192.168.1.254:67 for the resulting NAK; negative asserts the same NAK with giaddr zero goes to 255.255.255.255:68, not to a relay
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestNakDeliveredToRelayAgent`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_nak_relay_test.go#L20) | unit/verify | revert, verified |
 | positive | [`TestNakDeliveredToRelayAgent`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_nak_relay_test.go#L19) | unit/verify | revert, verified |
@@ -460,7 +460,7 @@ If the DHCP server has no record of this client, then it MUST remain silent (§4
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestInitRebootNoRecordSilent`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L905) | unit/verify | revert, verified |
 | positive | [`TestInitRebootNoRecordSilent`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L897) | unit/verify | revert, verified |
@@ -479,7 +479,7 @@ A server with multiple network addresses MUST be prepared to to accept any of it
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSelectingAcceptsAnyOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_identity_options_test.go#L363) | unit/verify | revert, verified |
 | positive | [`TestSelectingAcceptsAnyOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_identity_options_test.go#L352) | unit/verify | revert, verified |
@@ -490,7 +490,7 @@ To accommodate potentially incomplete network connectivity, a server MUST choose
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestServerIdentifierIsSegmentAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_identity_options_test.go#L314) | unit/verify | revert, verified |
 | positive | [`TestServerIdentifierIsSegmentAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_identity_options_test.go#L291) | unit/verify | revert, verified |
@@ -509,7 +509,7 @@ If the client does not provide a 'client identifier' option, the server MUST use
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). RFC 2131 Section 4.2: 'If the client does not provide a client identifier option, the server MUST use the contents of the chaddr field to identify the client.' The cited producer handler.go::handle no longer exists: segment.serve calls extractMAC (pkt[28:28+hlen]) once and keys discover, request, release and decline on it, and no path reads option 61. The two tagged units are unchanged in their assertions: one chaddr with a different xid and flags draws the same offered address, chaddrs differing in the first or last octet draw different ones. Records on extractMAC are current for both units. Code map moved from handler.go::handle to segment.go::serve. Prior judgement: Re-judged 2026-10-18 (independent auditor, after ef8666639d). RFC 2131 Section 4.2: "If the client does not provide a 'client identifier' option, the server MUST use the contents of the 'chaddr' field to identify the client." ef8666639d only deletes the stale comment line above TestRFC2131ChaddrContentsIdentifyTheClient that the previous verdict asked removed; no assertion changed. The server reads no option 61 and handle keys every message type on extractMAC (pkt[28:28+hlen]). Overlay mutants on handler.go extractMAC, run under ./le job run: keying on xid reds TestRFC2131ChaddrContentsIdentifyTheClient and TestChaddrIdentifiesClientWithoutClientIdentifier; keying on all but the last chaddr octet reds TestRFC2131ChaddrContentsIdentifyTheClient. Positive (same chaddr, different xid and flags, one client) and negative (one chaddr octet differs, two clients) are distinct assertions.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2131ChaddrContentsIdentifyTheClient`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_identity_options_test.go#L53) | unit/verify | revert, verified |
 | positive | [`TestRFC2131ChaddrContentsIdentifyTheClient`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_identity_options_test.go#L38) | unit/verify | revert, verified |
@@ -529,7 +529,7 @@ If the client uses a 'client identifier' in one message, it MUST use that same i
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L512) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RenewCarriesClientID`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L459) | unit/verify | revert, verified |
@@ -572,7 +572,7 @@ No test carries RFC2131-3.1-4, so there is no linked test.
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L507) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RebindAcceptsAnyServerOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L386) | unit/verify | revert, verified |
@@ -607,7 +607,7 @@ If the lease expires before the client receives a DHCPACK, the client moves to I
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDHCPv4ExpiresOnTimeOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L543) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RenewsRepeatedlyOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L325) | unit/verify | revert, verified |
@@ -618,10 +618,10 @@ The first four octets of the 'options' field of the DHCP message contain the (de
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. positive reads octets 236..239 of OFFER, ACK and NAK and pins 0x63825363; negative replaces the cookie with 0xDEADBEEF and asserts h.handle returns nil
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestMagicCookieRequiredAndEmitted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L434) | unit/verify | unproven |
-| positive | [`TestMagicCookieRequiredAndEmitted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L426) | unit/verify | unproven |
+| negative | [`TestMagicCookieRequiredAndEmitted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L434) | unit/verify | not verified |
+| positive | [`TestMagicCookieRequiredAndEmitted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L426) | unit/verify | not verified |
 
 ### [`RFC2131-4.1-3`](#rfc2131-4.1-3)
 
@@ -629,10 +629,10 @@ The last option must always be the 'end' option. (§4.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. positive walks each OFFER/ACK/NAK option by its length octets and requires reaching End (255); negative fills a request's options with 0x01 so it carries no End, and requires the reply to be End-terminated
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestReplyOptionsTerminatedByEnd`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L474) | unit/verify | unproven |
-| positive | [`TestReplyOptionsTerminatedByEnd`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L456) | unit/verify | unproven |
+| negative | [`TestReplyOptionsTerminatedByEnd`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L474) | unit/verify | not verified |
+| positive | [`TestReplyOptionsTerminatedByEnd`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L456) | unit/verify | not verified |
 
 ### [`RFC2131-4.1-4`](#rfc2131-4.1-4)
 
@@ -656,7 +656,7 @@ Any individual option in the 'options', 'sname' and 'file' fields MUST be entire
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only serverAddr(h) replaces h.serverIP in the truncated-request case of TestOptionsContainedWithinTheirField; the OFFER/ACK walk and the receiver-side overrun refusal are unchanged. Records on safeAppendOption and parseOptionAddr are current. Prior judgement: positive: TestRFC2131EveryReplyOptionContainedInItsField walks OFFER, ACK and the separately built DHCPNAK by length octets to End inside the options field and requires sname/file all zero with no option 52; TestOptionsContainedWithinTheirField keeps the OFFER/ACK walk. negative: a 300-octet bootfile; judge overlay removing the 255 guard in safeAppendOption reddens it ('option code 98 at offset 555 declares length 98, overrunning the options field'). Receiver side: TestOptionsContainedWithinTheirField negative, an overrunning received option is not read past the field. Config refuses bootfile-bios/uefi over 255 (TestParsePXEConfigInvalid)
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2131EveryReplyOptionContainedInItsField`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_identity_options_test.go#L110) | unit/verify | revert, verified |
 | negative | [`TestOptionsContainedWithinTheirField`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L518) | unit/verify | revert, verified |
@@ -667,11 +667,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted. (§4.1)
 
-Records cover only part of this requirement: tested "The options in the 'options' field MUST be interpreted first"; gap "so that any 'option overload' options may be interpreted"; the client reads the options field first but never honours option overload: internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire hands each reply to the vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52, so an option a server places in an overloaded field is lost. The server meets the whole sentence, proven by the tags, through internal/plugins/dhcpserver/options.go::findOption; they do not prove the whole requirement.
+Records cover only part of this requirement: tested "The options in the 'options' field MUST be interpreted first"; gap "so that any 'option overload' options may be interpreted"; the client reads the options field first but never honours option overload: internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire hands each reply to the vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52, so an option a server places in an overloaded field is lost. The server meets the whole sentence, proven by the tags, through internal/plugins/dhcpserver/options.go::findOption; they do not verify the whole requirement.
 
 Audit verdict: partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). TestOverloadFieldsCarryOptions gained only a setup step: it reserves and binds the requested address for the client before sending the overloaded INIT-REBOOT, because segment.initReboot now stays silent for a client with no record (RFC 2131 Section 4.3.2). The assertions are unchanged: message type 53 and requested address 50 placed in file and/or sname under option 52 values 1, 2 and 3 must be found, and the request must draw a DHCPACK for that address. The binding does not make the positive pass without reading the overloaded fields: with 53 unread parseMsgType answers 0 and serve returns nil. The {partial} scope, its Tested and Gap spans and the client-side gap (internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire, nclient4 never consulting option 52) are unchanged, and records on options.go::findOption are current. Partial stands. Prior judgement: Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 2131 Section 4.1: "The options in the 'options' field MUST be interpreted first, so that any 'option overload' options may be interpreted." Tested: The options in the 'options' field MUST be interpreted first. Server: findOption walks the options field before file and sname; TestOverloadInterpretationOrder (positive, options copy wins under 52=3), TestOverloadFieldsCarryOptions (positive, 52 honoured) and the negative (a 52 inside file opens no sname) discriminate it, with revert records on every cover and the earlier overlay mutants. Client: FromBytes reads only the options field for options, so the order clause holds there too. Gap: so that any 'option overload' options may be interpreted. Producer internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire passes each reply to vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52 (no build-time patch), so the client loses options a server places in an overloaded field.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOverloadInterpretationOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L153) | unit/verify | revert, verified |
 | positive | [`TestOverloadFieldsCarryOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L102) | unit/verify | revert, verified |
@@ -681,11 +681,11 @@ Audit verdict: partial (the tests enforce only the declared tested scope; the wh
 
 The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field. (§4.1)
 
-Records cover only part of this requirement: tested "The 'file' field MUST be interpreted next"; gap "followed by the 'sname' field"; the split is by role, not by clause: the client meets neither clause, because internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire hands each reply to the vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52. The tested span is proven for the server role only, through internal/plugins/dhcpserver/options.go::findOption, which interprets file and then sname as option overload indicates; they do not prove the whole requirement.
+Records cover only part of this requirement: tested "The 'file' field MUST be interpreted next"; gap "followed by the 'sname' field"; the split is by role, not by clause: the client meets neither clause, because internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire hands each reply to the vendored nclient4, whose dhcpv4 FromBytes reads sname and file as strings and never consults option 52. The tested span is proven for the server role only, through internal/plugins/dhcpserver/options.go::findOption, which interprets file and then sname as option overload indicates; they do not verify the whole requirement.
 
 Audit verdict: partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). TestOverloadFieldsCarryOptions gained only the reservation and binding setup an INIT-REBOOT now needs (segment.initReboot is silent for a client with no record); its assertions that file is read under 52=1/3 and sname under 2/3 are unchanged, and TestOverloadInterpretationOrder and TestOverloadAbsentFieldsIgnored are untouched. The {partial} scope (Tested 'The file field MUST be interpreted next', Gap 'followed by the sname field', server role only through options.go::findOption; the client meets neither clause through dhcp_v4_exchange_linux.go::acquire) is unchanged, and records on findOption are current. Partial stands. Prior judgement: Rejudged 2026-10-30 (independent auditor) after the row gained a {partial} scope. RFC 2131 Section 4.1: "The 'file' field MUST be interpreted next (if the 'option overload' option indicates that the 'file' field contains DHCP options), followed by the 'sname' field." Tested: The 'file' field MUST be interpreted next, proven for the server role only: findOption reads file under 52=1/3 then sname under 2/3; positives TestOverloadFieldsCarryOptions and TestOverloadInterpretationOrder (file copy wins over sname under 52=3), negatives TestOverloadAbsentFieldsIgnored (no 52, 52=1 leaves sname, 52=2 leaves file unread), revert records on every cover. Gap: followed by the 'sname' field, and per the reason the client meets neither clause: the split is by role, not clause, a limit of the selector model owned by journal row field-carries-two-meanings. Producer internal/plugins/iface/dhcp/dhcp_v4_exchange_linux.go::acquire passes each reply to vendored nclient4, whose dhcpv4 FromBytes never consults option 52. partial is the only verdict the gate allows that is true: enforced is refused on a partial row, unimplemented needs a {gap} that forbids the server tags, and weak/wrong would misdescribe tests that discriminate. Zero whole-requirement credit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOverloadAbsentFieldsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L176) | unit/verify | revert, verified |
 | positive | [`TestOverloadFieldsCarryOptions`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_overload_test.go#L95) | unit/verify | revert, verified |
@@ -713,7 +713,7 @@ DHCP clients MUST use the IP address provided in the 'server identifier' option 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L489) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RenewIsUnicastToServer`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L419) | unit/verify | revert, verified |
@@ -732,7 +732,7 @@ The remaining bits of the flags field are reserved for future use. They MUST be 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-30 by an independent auditor (authored none of the userns spec commits d8427e4380, b00e3c6710, 68b723ec4f, 7d11a51269). userns.Enter (internal/test/userns/userns_linux.go) re-executes the one test in a new user+net+mount namespace and returns false in the parent only after the child's own PASS line; a child failure, a zero-exit failure or a child that selected nothing fails the parent, and a child skip skips it, so the guard cannot turn a red into a green. Section 2: "The remaining bits of the flags field are reserved for future use.  They MUST be set to zero by clients and ignored by servers and relay agents." Both client units changed only by the guard and the build tag (integration dropped); sfSetupLab and the assertions are unchanged. TestRFC2131ClientSetsReservedFlagsBitsToZero reads the real client's DISCOVER (positive, bits 1-15 zero) and, after an OFFER with flags 0xffff, the REQUEST with the same xid (negative, bits 1-15 zero). TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero binds from an ACK with flags 0xffff, identifies the renewing REQUEST by ciaddr == the bound address, and asserts bits 1-15 zero. Server side unchanged: TestFlagsReservedBitsIgnored (flags 0 vs 0x7fff, reply unicast to yiaddr:68 either way). Every clause covered on both producer paths; records against clearReservedFlags, v4ExtendRequest and responseAddr are panic reverts, current per the gate.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestFlagsReservedBitsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L563) | unit/verify | revert, verified |
 | negative | [`TestRFC2131ClientRenewalSetsReservedFlagsBitsToZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_flags_integration_linux_test.go#L164) | unit/verify | revert, verified |
@@ -762,11 +762,11 @@ T1 MUST be earlier than T2 (§4.4.5)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestShortLeaseTimeRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L650) | unit/verify | unproven |
+| negative | [`TestShortLeaseTimeRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L650) | unit/verify | not verified |
 | negative | [`TestV4ServerTimersHonoredWhenOrdered`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go#L83) | unit/verify | revert, verified |
-| positive | [`TestRenewalTimersOrderedWithinLease`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L623) | unit/verify | unproven |
+| positive | [`TestRenewalTimersOrderedWithinLease`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L623) | unit/verify | not verified |
 | positive | [`TestV4ServerTimersHonoredWhenOrdered`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go#L82) | unit/verify | revert, verified |
 
 ### [`RFC2131-4.4.5-3`](#rfc2131-4.4.5-3)
@@ -775,11 +775,11 @@ T2, which, in turn, MUST be earlier than the time at which the client's lease wi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-09 (independent auditor) after ae8ad2d589 (D-9: offerDNS lowers dnsOffer.leaseSec to shortLeaseSec 60 while the subnet's dns-source list reaches received with nothing usable) and 728c515223 (test edit). RFC 2131 Section 4.4.5: "T1 MUST be earlier than T2, which, in turn, MUST be earlier than the time at which the client's lease will expire." Server: buildOfferedReply writes option 51 from offer.leaseSec and T2 = offer.leaseSec*7/8 from the same value. TestRenewalTimersOrderedWithinLease now gives each of the 60/3600/86400/604800 cases an explicit configured-only dns-source list, pins option 51 to that lease (leaseOf, Fatalf on mismatch), and asserts T2 strictly below the lease the OFFER actually carries rather than the configured input; a fifth D-9 case (configured 86400, default list) pins option 51 to 60 and asserts T2 < 60, so a T2 computed from the configured lease while option 51 is shortened goes red. Negative unchanged: TestShortLeaseTimeRejected requires parseConfig to refuse lease-time 0 (config bound 60..604800, and D-9 only lowers a lease above 60, so no reply can carry a lease of 0). Client half (TestV4ServerTimersHonoredWhenOrdered over v4LeaseTimers: server T2 99 s and 95 s in a 100 s lease used, T2 at 100 s falls back to lease - lease/8) is unchanged and its revert records are current.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestShortLeaseTimeRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L655) | unit/verify | unproven |
+| negative | [`TestShortLeaseTimeRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L655) | unit/verify | not verified |
 | negative | [`TestV4ServerTimersHonoredWhenOrdered`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go#L85) | unit/verify | revert, verified |
-| positive | [`TestRenewalTimersOrderedWithinLease`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L627) | unit/verify | unproven |
+| positive | [`TestRenewalTimersOrderedWithinLease`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L627) | unit/verify | not verified |
 | positive | [`TestV4ServerTimersHonoredWhenOrdered`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go#L84) | unit/verify | revert, verified |
 
 ### [`RFC2131-3.1-8`](#rfc2131-3.1-8)
@@ -796,7 +796,7 @@ A server or relay agent sending or relaying a DHCP message directly to a DHCP cl
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOfferReachesClientHardware`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L98) | unit/verify | revert, verified |
 | positive | [`TestOfferReachesClientHardware`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_delivery_test.go#L97) | unit/verify | revert, verified |
@@ -815,7 +815,7 @@ No test carries RFC2131-4.3.1-1, so there is no linked test.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only newDHCPHandler lost its server-address argument in TestUnconfiguredParametersOmitted; the configured-value positive tag in it and TestRFC2131ConfiguredParameterValuesReturned (positive and negative, records on buildReply current) are unchanged. Prior judgement: positive: requested subnet mask, router, DNS and domain name each equal the configured bytes exactly (DNS now byte for byte, closing the length-only gap); negative: a request suggesting other values for all four still gets the configured ones, so a server echoing client-suggested values goes red. {single-polarity} correctly removed from the row
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2131ConfiguredParameterValuesReturned`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_identity_options_test.go#L185) | unit/verify | revert, verified |
 | positive | [`TestRFC2131ConfiguredParameterValuesReturned`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_identity_options_test.go#L170) | unit/verify | revert, verified |
@@ -835,10 +835,10 @@ The server MUST NOT return a value for that parameter, (§4.3.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-08 (independent auditor) after 10e9995d31 and 47f14d5ede moved DHCP serving into segment.serve (segment.go) and turned dhcpHandler.handle into a test shim (segment_test.go) that builds a one-subnet segment whose device holds serverAddr(h) and calls segment.serve, the same function serveRequests and serveMulti call (register.go). Only newDHCPHandler lost its server-address argument; the bare handler still has no router, DNS or domain name, and both polarities (bare DISCOVER, and one whose parameter request list names 3, 6 and 15) still require no such option in the OFFER. Prior judgement: Forbidden: returning a value for a parameter the server has no value for (neither configured nor a Host Requirements default). TestUnconfiguredParametersOmitted builds a handler with no router, DNS or domain name configured; the negative tag sends a DISCOVER whose parameter request list explicitly names optRouter, optDNS and optDomainName and asserts askedCodes[code] is false for each, so any emitted option for them (including an empty or zero-valued one, since replyOptionCodes records presence by code) goes red. The positive tag asserts the same absence for an unrequested DISCOVER. None of the three has a Host Requirements default, so the ELSE branch applies.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestUnconfiguredParametersOmitted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L702) | unit/verify | unproven |
-| positive | [`TestUnconfiguredParametersOmitted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L688) | unit/verify | unproven |
+| negative | [`TestUnconfiguredParametersOmitted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L702) | unit/verify | not verified |
+| positive | [`TestUnconfiguredParametersOmitted`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L688) | unit/verify | not verified |
 
 ### [`RFC2131-4.3.1-5`](#rfc2131-4.3.1-5)
 
@@ -854,10 +854,10 @@ The server MUST include each requested parameter only once unless explicitly all
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a requested parameter included more than once in a reply (no option ze emits is one the options document allows to repeat). TestEachParameterEmittedOnce counts every option code in the OFFER and ACK with replyOptionCounts and fails on n != 1 (positive); the negative tag sends a DISCOVER whose parameter request list repeats router, DNS and subnet mask, carries a second PRL and an echoed router option, to both a plain and a PXE server, and fails on any option count other than 1, so a duplicated parameter goes red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEachParameterEmittedOnce`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L764) | unit/verify | unproven |
-| positive | [`TestEachParameterEmittedOnce`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L743) | unit/verify | unproven |
+| negative | [`TestEachParameterEmittedOnce`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L764) | unit/verify | not verified |
+| positive | [`TestEachParameterEmittedOnce`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L743) | unit/verify | not verified |
 
 ### [`RFC2131-4.3.1-7`](#rfc2131-4.3.1-7)
 
@@ -905,7 +905,7 @@ This message MUST be broadcast to the 0xffffffff IP broadcast address. (§4.3.2)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L499) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RebindAcceptsAnyServerOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L372) | unit/verify | revert, verified |
@@ -916,7 +916,7 @@ If the client is given a new network address, it MUST NOT continue using the pre
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDHCPv4RenewsRepeatedlyOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L324) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RenewalMovesToNewAddressOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L569) | unit/verify | revert, verified |
@@ -927,7 +927,7 @@ The client MUST NOT include a 'server identifier' in the DHCPREQUEST message. (�
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L493) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RenewIsUnicastToServer`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L432) | unit/verify | revert, verified |
@@ -938,7 +938,7 @@ The client MUST NOT include a 'server identifier' in the DHCPREQUEST message. (�
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDHCPv4ExtendIgnoresServerEchoesOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L503) | unit/verify | revert, verified |
 | positive | [`TestDHCPv4RebindAcceptsAnyServerOnVeth`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_lease_maintenance_integration_linux_test.go#L382) | unit/verify | revert, verified |
@@ -981,7 +981,7 @@ The DHCP server SHOULD check 'ciaddr' for correctness before replying to the DHC
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRebindingChecksCiaddr`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L874) | unit/verify | revert, verified |
 | positive | [`TestRebindingChecksCiaddr`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_test.go#L862) | unit/verify | revert, verified |
@@ -992,7 +992,7 @@ In both RENEWING and REBINDING states, if the client receives no response to its
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestV4RetransmitSchedule`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go#L36) | unit/verify | revert, verified |
 | positive | [`TestV4RetransmitSchedule`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_v4_timers_linux_test.go#L32) | unit/verify | revert, verified |
@@ -1003,7 +1003,7 @@ One particular option - the "DHCP message type" option - must be included in eve
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestMessageTypeInEveryReply`](https://github.com/ze-software/ze/blob/main/internal/plugins/dhcpserver/rfc2131_msgtype_test.go#L28) | unit/verify | revert, verified |
 
@@ -1013,7 +1013,7 @@ A client with multiple network interfaces must use DHCP through each interface i
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC2131ClientRunsDHCPOnEachInterfaceIndependently`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc2131_dhcp_multiiface_integration_linux_test.go#L63) | unit/verify | revert, verified |
 

@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 12 | of 50 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 6 | of 50 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 12 | of 50 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 6 | of 50 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 50 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 50 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 31 | 31 of 40 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 50 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 31 | 31 of 40 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 50 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 50 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 50 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 50 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 50 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 50 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 50 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: IP Flow Information Export / IPFIX (RFC 7011): exp
 
 **Area:** IPFIX
 
-**Proof:** 12 of 50 MUST proven
+**Test verification:** 12 of 50 MUST proven
 
 **Evidence:** unit 12
 
@@ -108,7 +108,7 @@ Included in automatic checks: IP Flow Information Export / IPFIX (RFC 7011): exp
 | Annotated (including scoped evidence) | 38 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **50** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: IP Flow Information Export / IPFIX (RFC 7011): exp
 
 ## Figures
 
-- **MUST bar**: Ze proven 12, Proof pending 6, Not built 32
-- **Overview bar**: Ze MUST proven 12, Proof pending 6, Not assessed 7, Not built 32
+- **MUST bar**: Ze verified 12, Tests awaiting verification 6, Not built 32
+- **Overview bar**: Ze MUST verified 12, Tests awaiting verification 6, Not assessed 7, Not built 32
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: IP Flow Information Export / IPFIX (RFC 7011): exp
 | Mandatory requirements complete | not complete |
 | MUST rows | 50 |
 | MUST rows kept (the MUST bar) | 50 |
-| Ze proven | 12 |
+| Ze verified | 12 |
 | OS verified | 0 |
-| Proof pending | 6 |
+| Tests awaiting verification | 6 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: IP Flow Information Export / IPFIX (RFC 7011): exp
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 7 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 7 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7011.json](../../../data/rfc/rfc7011.json).
 
@@ -256,9 +256,9 @@ Source: [data/rfc/rfc7011.json](../../../data/rfc/rfc7011.json).
 | [`RFC7011-11.3-4`](#rfc7011-11.3-4) IPFIX Exporting Processes and Collecting Processes MUST use non-NULL ciphersuites for authentication, integrity, and confidentiality (Section 11.3) | {gap}, no test | the exporter uses no ciphersuite at all; internal/plugins/flowexport/sender.go::NewSender opens a plain UDP socket and Send writes cleartext IPFIX Messages |
 | [`RFC7011-11-1`](#rfc7011-11-1) To prevent man-in-the-middle attacks from impostor Exporting or Collecting Processes, the acceptance of data from an unauthorized Exporting Process, or the export of data to an unauthorized Collecting Process, mutual authentication MUST be used for both TLS and DTLS. (Section 11) | {gap}, no test | the exporter has no DTLS or TLS and therefore no mutual authentication; internal/plugins/flowexport/sender.go::NewSender opens a plain UDP socket |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC7011-3.1-1`](#rfc7011-3.1-1)
 
@@ -266,9 +266,9 @@ The value of this field is 0x000a for the current version (Section 3.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Message Header whose Version is not 0x000a. TestRFC7011VersionIsIPFIX asserts the first two octets WriteMessageHeader writes are 0x000a and the Version constant is 0x000a, red on any other value. Single-polarity marker: the version is a compile-time constant with no path to another value.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC7011VersionIsIPFIX`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L102) | unit/verify | unproven |
+| positive | [`TestRFC7011VersionIsIPFIX`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L102) | unit/verify | not verified |
 
 ### [`RFC7011-3.3.1-1`](#rfc7011-3.3.1-1)
 
@@ -276,10 +276,10 @@ For security reasons, the padding octet(s) MUST be composed of octets with value
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a padding octet that is not zero. TestRFC7011PaddingIsZero asserts the 3 padding octets after a 53-octet IPv4 flow record are 0; TestRFC7011PaddingZeroedOverGarbage pre-fills the buffer with 0xFF and asserts the same octets are 0, red if writeFlowDataSet skips the zeroing. The IPv6 flow Set shares writeFlowDataSet, and the counter Set (32-octet records) never pads.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7011PaddingZeroedOverGarbage`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L149) | unit/verify | unproven |
-| positive | [`TestRFC7011PaddingIsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L137) | unit/verify | unproven |
+| negative | [`TestRFC7011PaddingZeroedOverGarbage`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L149) | unit/verify | not verified |
+| positive | [`TestRFC7011PaddingIsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L137) | unit/verify | not verified |
 
 ### [`RFC7011-3.3.1-2`](#rfc7011-3.3.1-2)
 
@@ -287,9 +287,9 @@ The padding length MUST be shorter than any allowable record in this Set. (Secti
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: padding as long as or longer than a record of the Set. TestRFC7011PaddingShorterThanRecord asserts the padding is > 0, < FlowRecordSize and <= 3 octets, red otherwise. Single-polarity marker: 4-octet alignment padding cannot reach the smallest record.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC7011PaddingShorterThanRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L161) | unit/verify | unproven |
+| positive | [`TestRFC7011PaddingShorterThanRecord`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L161) | unit/verify | not verified |
 
 ### [`RFC7011-3.4.1-1`](#rfc7011-3.4.1-1)
 
@@ -297,7 +297,7 @@ Each Template Record is given a unique Template ID in the range 256 to 65535. (S
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity row. TestRFC7011TemplateIDsUniqueInSession reads the Template ID of all three Template Sets one Transport Session carries (counter, IPv4 flow, IPv6 flow) and requires each >= 256 and all three distinct, so setting FlowTemplateID to 256 goes red (recorded). The exporter emits no other Template.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC7011TemplateIDsUniqueInSession`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/integral_rfc7011_test.go#L84) | unit/verify | revert, verified |
 | positive | [`TestRFC7011TemplateIDAbove255`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L174) | unit/verify | revert, verified |
@@ -316,10 +316,10 @@ When the Enterprise bit is set to 0, the corresponding Information Element appea
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an Enterprise Number following a field specifier whose E bit is 0. TestRFC7011NoEnterpriseNumberWhenEClear asserts each of the counter, flow4 and flow6 templates is exactly 8 + 4 x fieldCount octets (red if any specifier carries 4 more octets) and that bit 15 is clear in every specifier; TestIPFIXTemplateSet pins the counter Template Set. Single-polarity marker: no code path sets E.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestIPFIXTemplateSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_template_test.go#L9) | unit/verify | revert, verified |
-| positive | [`TestRFC7011NoEnterpriseNumberWhenEClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L198) | unit/verify | unproven |
+| positive | [`TestRFC7011NoEnterpriseNumberWhenEClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L198) | unit/verify | not verified |
 
 ### [`RFC7011-3.2-2`](#rfc7011-3.2-2)
 
@@ -351,7 +351,7 @@ Since UDP provides no method for reliable transmission of Templates, Exporting P
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC7011EachActiveTemplateRetransmittedEveryInterval counts the counter Template and the flow Templates separately over seven half-interval exports (0..1800 s) and requires exactly one send per elapsed 600 s interval, four in all, so a single resend, no resend, or a flow Template never refreshed goes red (recorded). The same exact count forbids a resend at a half interval. The old negative (no resend at +2 s) tests over-sending, not this MUST, and carries no record; the new unit carries both directions. The flow count is of EncodeFlowTemplate calls; that one call sends both 257 and 258 is shown by the 8.2-1 rollback unit, which reads three Template messages.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7011TemplateNotRetransmittedBeforeInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_test.go#L46) | unit/verify | revert, verified |
 | positive | [`TestRFC7011EachActiveTemplateRetransmittedEveryInterval`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_template_refresh_test.go#L43) | unit/verify | revert, verified |
@@ -363,7 +363,7 @@ The Template retransmission interval MUST be configurable via, for example, the 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC7011ConfiguredRefreshDrivesRetransmit sets template-refresh 30 s and requires counter and flow resends at 30 s and not at 29 s; TestRFC7011ConfiguredRefreshOverridesDefault sets 900 s and requires no resend at 600 or 899 s, so an exporter hard-coding 600 s goes red (both recorded). The config parse into CollectorConfig.TemplateRefresh is the existing TestRFC7011TemplateRefreshConfigurable.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7011ConfiguredRefreshOverridesDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_template_refresh_test.go#L109) | unit/verify | revert, verified |
 | negative | [`TestRFC7011TemplateRefreshRangeRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_test.go#L87) | unit/verify | revert, verified |
@@ -376,7 +376,7 @@ Template Withdrawals (Section 8.1) MUST NOT be sent by Exporting Processes expor
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive TestRFC7011UDPExporterSendsNoTemplateWithdrawal: the real IPFIX encoders over a real UDP socket through start, first flows and a 600 s refresh; every Template Record the collector walks has Field Count > 0, 256 and 257 are defined, none has Field Count 0. Negative (R1(b)) TestRFC7011UDPExporterReloadSendsNoTemplateWithdrawal: drives the exporter toward withdrawal (reload to another Observation Domain replacing every Template, in configure's order; then collector removal with straggling snapshot/flows into stopped exporters) and asserts no Field Count 0 record and zero datagrams after removal. Records: revert of BuildCounterTemplate (+) and buildFlowTemplate (-), both panic reverts; the tests replicate configure's start-then-stop order rather than calling the configure closure, which stays untested for this rule.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7011UDPExporterReloadSendsNoTemplateWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_withdrawal_test.go#L201) | unit/verify | revert, verified |
 | positive | [`TestRFC7011UDPExporterSendsNoTemplateWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_withdrawal_test.go#L161) | unit/verify | revert, verified |
@@ -403,9 +403,9 @@ Reduced-size encoding MUST NOT be applied to any other data type defined in [RFC
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a reduced-size length on an address or dateTime IE. TestRFC7011NoReducedSizeForAddressOrTimestamp walks the counter, flow4 and flow6 templates and asserts IPv4 address IEs at 4, IPv6 at 16, dateTimeSeconds at 4 and dateTimeMilliseconds at 8 octets, red on any reduced length; every other exported IE is integral, for which reduced size is permitted. Single-polarity marker: no path applies reduced-size encoding.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC7011NoReducedSizeForAddressOrTimestamp`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L227) | unit/verify | unproven |
+| positive | [`TestRFC7011NoReducedSizeForAddressOrTimestamp`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_test.go#L227) | unit/verify | not verified |
 
 ### [`RFC7011-3.3.1-3`](#rfc7011-3.3.1-3)
 
@@ -413,7 +413,7 @@ The record types MUST NOT be mixed within a Set (Section 3.3.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7011RecordTypesNotMixedInSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L120) | unit/verify | revert, verified |
 | positive | [`TestRFC7011OneRecordTypePerSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L88) | unit/verify | revert, verified |
@@ -456,7 +456,7 @@ Integral data types -- unsigned8, unsigned16, unsigned32, unsigned64, signed8, s
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both Data Record paths now proven. Per-flow path: the three existing units (recorded). Counter path writeCounterRecord: TestRFC7011CounterRecordIntegralsNetworkByteOrder compares the whole record to the big-endian concatenation of ingressInterface, octetTotalCount, packetTotalCount, egressInterface and the two dateTimeSeconds, each built from distinct octets; TestRFC7011CounterRecordIntegralsNeverLittleEndian requires no byte-reversed field (both recorded, writeCounterRecord).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7011CounterRecordIntegralsNeverLittleEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/integral_rfc7011_test.go#L55) | unit/verify | revert, verified |
 | negative | [`TestRFC7011IntegralNeverLittleEndian`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L187) | unit/verify | revert, verified |
@@ -470,7 +470,7 @@ Address types -- macAddress, ipv4Address, and ipv6Address -- MUST be encoded the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an ipv4Address or ipv6Address not written as 4 or 16 octets in network byte order. TestRFC7011AddressOctetsNetworkByteOrder asserts the IPv4 record opens with 0a010203 0a040506 and the IPv6 record with the 16-octet source then destination in network order, and that each Set payload is the record size; TestRFC7011IPv4NeverWidenedToSixteenOctets asserts an IPv4 flow is neither encoded at the IPv6 width nor carries an IPv4-mapped 16-octet form. Ze exports no macAddress IE, so that clause has no producer.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7011IPv4NeverWidenedToSixteenOctets`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L231) | unit/verify | revert, verified |
 | positive | [`TestRFC7011AddressOctetsNetworkByteOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L202) | unit/verify | revert, verified |
@@ -537,7 +537,7 @@ Since there is no guarantee of the ordering of exported IPFIX Messages across SC
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Counter Template: TestRFC7011CounterTemplateExportTimeIsSendTime pins its Export Time to the send second. Ordering: TestRFC7011TemplateRefreshAfterClockRollbackKeepsOrder steps the clock back with synctest and requires the refreshed counter 256 and flow 257, 258 Templates to carry an Export Time not before the earlier action, so removing either max(now, templateExportTime) clamp goes red (both recorded). The exporter sends no Template Withdrawals.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7011TemplateExportTimeNeverRegresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L265) | unit/verify | revert, verified |
 | negative | [`TestRFC7011TemplateRefreshAfterClockRollbackKeepsOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_template_time_test.go#L35) | unit/verify | revert, verified |
@@ -550,7 +550,7 @@ An Exporting Process MUST NOT export a Data Set described by a new Template in a
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7011StaleSnapshotClampedToTemplateTime`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L308) | unit/verify | revert, verified |
 | positive | [`TestRFC7011DataExportTimeNotBeforeTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L286) | unit/verify | revert, verified |
@@ -561,7 +561,7 @@ If a new Template and a Data Set described by it appear in the same IPFIX Messag
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7011DataSetNeverPrecedesTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L500) | unit/verify | revert, verified |
 | positive | [`TestRFC7011TemplateSetPrecedesDataSet`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/ipfix/rfc7011_export_test.go#L483) | unit/verify | revert, verified |
@@ -588,7 +588,7 @@ It MUST be possible to configure both the Exporting and Collecting Processes to 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7011CollectorPortOutOfRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_config_test.go#L74) | unit/verify | revert, verified |
 | positive | [`TestRFC7011CollectorPortConfigurable`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_config_test.go#L20) | unit/verify | revert, verified |
@@ -615,9 +615,9 @@ Exporting Processes exporting IPFIX Messages via UDP MUST include a valid UDP ch
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an IPFIX UDP datagram sent without a valid UDP checksum. TestRFC7011UDPChecksumEnabledOnSenderSocket (Linux) reads the socket NewSender dials and asserts SO_NO_CHECK clear for IPv4 and UDP_NO_CHECK6_TX clear for IPv6, red if either is set, so the kernel writes the checksum. Single-polarity marker: NewSender never sets either option.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC7011UDPChecksumEnabledOnSenderSocket`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_sender_linux_test.go#L38) | unit/verify | unproven |
+| positive | [`TestRFC7011UDPChecksumEnabledOnSenderSocket`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_sender_linux_test.go#L38) | unit/verify | not verified |
 
 ### [`RFC7011-10.3.3-1`](#rfc7011-10.3.3-1)
 
@@ -625,10 +625,10 @@ The maximum size of exported messages MUST be configured such that the total pac
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7011MaxDatagramSizeOutOfRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_datagram_test.go#L56) | unit/verify | unproven |
-| positive | [`TestRFC7011MaxDatagramSizeConfigured`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_datagram_test.go#L23) | unit/verify | unproven |
+| negative | [`TestRFC7011MaxDatagramSizeOutOfRangeRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_datagram_test.go#L56) | unit/verify | not verified |
+| positive | [`TestRFC7011MaxDatagramSizeConfigured`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowexport/rfc7011_datagram_test.go#L23) | unit/verify | not verified |
 
 ### [`RFC7011-10.4.1-1`](#rfc7011-10.4.1-1)
 

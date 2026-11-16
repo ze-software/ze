@@ -57,7 +57,7 @@
 <li><a href="#first-time-setup">First-time setup</a></li>
 <li><a href="#runtime-kernel-requirements">Runtime Kernel Requirements</a></li>
 <li><a href="#hardware-drivers">Hardware drivers</a></li>
-<li><a href="#vpn-kernel-proof">VPN Kernel Proof</a></li>
+<li><a href="#vpn-kernel-tests">VPN Kernel Tests</a></li>
 <li><a href="#l2tp-kernel-support">L2TP Kernel Support</a></li>
 <li><a href="#build-an-image">Build an image</a></li>
 <li><a href="#test-in-qemu">Test in QEMU</a>
@@ -379,11 +379,11 @@ its own tools, normally udev.</p>
 <p>The design is in
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/appliance/kernel-profiles.md" target="_blank" rel="noopener">Hardware kernel profiles</a>,
 "Built in or loadable" and "Loading driver modules on the device".</p>
-<h2 id="vpn-kernel-proof">VPN Kernel Proof</h2>
+<h2 id="vpn-kernel-tests">VPN Kernel Tests</h2>
 <p><code>./le test qemu vpn-kernel</code> boots Ze's docker-host image with its own
 kernel and base, on the host's native architecture. It uses the shared
 Docker lab transport: KVM on Linux or HVF on macOS, never a stock guest or
-foreign-architecture emulation. This is a manual kernel proof, not a check
+foreign-architecture emulation. This is a manual kernel test, not a check
 of the default appliance image's packaged config.</p>
 <!-- source: internal/le/test/qemu/vpnproof.go -- runVPNKernelHere -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab -->
@@ -410,7 +410,7 @@ result is implied by the command's presence.</p>
 <h2 id="l2tp-kernel-support">L2TP Kernel Support</h2>
 <p>Ze's L2TP LNS path needs kernel PPPoL2TP support in the appliance runtime
 kernel: <code>CONFIG_PPP</code>, <code>CONFIG_PPPOL2TP</code>, <code>CONFIG_L2TP</code>, and
-<code>CONFIG_L2TP_V3</code>. The shared runtime proof kernel also keeps <code>CONFIG_PPPOE</code>
+<code>CONFIG_L2TP_V3</code>. The shared runtime test kernel also keeps <code>CONFIG_PPPOE</code>
 built in for PPPoE evidence. The appliance image boots this kernel, so every
 image carries these options. To fill the cache before a build, on an amd64
 host:</p>
@@ -453,16 +453,16 @@ can be used.</p>
 <!-- source: internal/appliance/kernelbuilder/driver.go -- Build -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 <p>On a Linux runner with QEMU, <code>xl2tpd</code>, <code>pppd</code>, <code>/dev/ppp</code>, and PPPoL2TP kernel
-support, the deployment proof target builds an L2TP-enabled appliance image and
+support, the deployment test target builds an L2TP-enabled appliance image and
 drives a real LAC against it:</p>
 <pre><code class="language-bash">./le test deployment gokrazy-l2tp-ppp
 </code></pre>
-<p>The proof image is built from a temporary gokrazy instance config so the normal
-appliance config is left unchanged. It disables IPv6CP in that proof image
+<p>The test image is built from a temporary gokrazy instance config so the normal
+appliance config is left unchanged. It disables IPv6CP in that test image
 because the current static L2TP pool is IPv4-only. Set
 <code>ZE_GOKRAZY_SKIP_BUILD=1</code> to run against an existing <code>tmp/gokrazy/ze.img</code> that
-was already built with the L2TP proof template, the proof runtime environment,
-and an L2TP-capable kernel: skip-build bypasses the proof's check of the
+was already built with the L2TP test template, the test runtime environment,
+and an L2TP-capable kernel: skip-build bypasses the test's check of the
 runtime kernel cache, and an image whose kernel lacks PPPoL2TP crash-loops at
 first boot instead of serving.</p>
 <!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
@@ -570,7 +570,7 @@ so an administrator knows which entry to allow (see
 <p>Use the exact <code>.img</code> path printed by the named build's <code>image ready:</code> line.
 Named builds write into the selected appliance directory, normally
 <code>~/.config/ze/appliances/edge-01/</code>; <code>tmp/gokrazy/ze.img</code> belongs to other build
-and proof workflows. Set <code>ZE_IMAGE</code> to the named image you just built, verify
+and test workflows. Set <code>ZE_IMAGE</code> to the named image you just built, verify
 its accompanying <code>.sha256</code> file, and identify the target device before writing.</p>
 <!-- source: internal/appliance/cmd_build.go -- buildOne -->
 <!-- source: internal/appliance/resolve.go -- ResolveDir, AppliancePath -->
@@ -1417,7 +1417,7 @@ health-window rollback.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

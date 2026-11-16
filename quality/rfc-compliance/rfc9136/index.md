@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 4 | of 14 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 2 | of 14 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 4 | of 14 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 2 | of 14 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 14 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 14 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 7 | 7 of 16 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 14 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 7 | 7 of 16 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 14 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 14 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 14 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 14 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 14 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 14 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 14 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: EVPN IP Prefix / RT-5 (RFC 9136): full RT-5 wire c
 
 **Area:** EVPN IP Prefix (RT-5)
 
-**Proof:** 3 of 14 MUST proven
+**Test verification:** 3 of 14 MUST proven
 
 **Evidence:** unit 3
 
@@ -108,7 +108,7 @@ Included in automatic checks: EVPN IP Prefix / RT-5 (RFC 9136): full RT-5 wire c
 | Annotated (including scoped evidence) | 10 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **14** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: EVPN IP Prefix / RT-5 (RFC 9136): full RT-5 wire c
 
 ## Figures
 
-- **MUST bar**: Ze proven 3, Proof pending 3, Not built 8
-- **Overview bar**: Ze MUST proven 3, Proof pending 3, Not assessed 6, Not built 8
+- **MUST bar**: Ze verified 3, Tests awaiting verification 3, Not built 8
+- **Overview bar**: Ze MUST verified 3, Tests awaiting verification 3, Not assessed 6, Not built 8
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: EVPN IP Prefix / RT-5 (RFC 9136): full RT-5 wire c
 | Mandatory requirements complete | not complete |
 | MUST rows | 14 |
 | MUST rows kept (the MUST bar) | 14 |
-| Ze proven | 3 |
+| Ze verified | 3 |
 | OS verified | 0 |
-| Proof pending | 3 |
+| Tests awaiting verification | 3 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: EVPN IP Prefix / RT-5 (RFC 9136): full RT-5 wire c
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 6 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 6 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9136.json](../../../data/rfc/rfc9136.json).
 
@@ -195,9 +195,9 @@ Source: [data/rfc/rfc9136.json](../../../data/rfc/rfc9136.json).
 | [`RFC9136-3.2-3`](#rfc9136-3.2-3) The encoding of a MAC address MUST be the 6-octet MAC address specified by [IEEE-802.1Q]. (S3.2, Table 1) | {gap}, no test | ze neither encodes nor decodes the EVPN Router's MAC Extended Community, so it encodes no MAC address in the 6-octet form this row requires; owed with the MAC overlay index |
 | [`RFC9136-3.2-4`](#rfc9136-3.2-4) The route MUST be treat as withdraw in case of an invalid MAC address. (S3.2, Table 1) | {gap}, no test | ze does not interpret the EVPN Router's MAC Extended Community, so a route carrying an invalid MAC address is not treated as withdraw; owed with the MAC overlay index |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC9136-3.1-1`](#rfc9136-3.1-1)
 
@@ -205,14 +205,14 @@ A test reads unproven when no record shows it failing after a deliberate fault. 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c31 judge). RFC 9136 Section 3.1: "The Length field of the BGP EVPN NLRI for an EVPN IP Prefix route MUST be either 34 (if IPv4 addresses are carried) or 58 (if IPv6 addresses are carried)." Send: evpn rfc9136_length_test.go::TestRFC9136IPPrefixRouteSentWithLength34Or58 (EncodeNLRIHex type5, IPv4 with and without label -> 05 22 + 34 octets, IPv6 -> 05 3A + 58) and ::TestRFC9136IPPrefixRouteNeverSentWithAnotherLength (two labels refused, nothing encoded). Receive: ::TestRFC9136IPPrefixRouteReceivedWithAnotherLengthIsRefused (Length 33/35/57/59 -> ErrorIs ErrEVPNInvalidAddress) beside the HEAD 34/58 decode positives. The InProcessRouteEncoder path (encode.go EncodeRoute) builds type 5 with exactly one label and shares (*EVPNType5).WriteTo, so the same Length holds there by construction; it is not driven by these units. Judge overlay: the parse guard reduced to `len(data) < 34` turns only the receive negative red. Records on buildEVPNFromParams (+/-) and parseEVPNType5 (-).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9136IPPrefixRouteNeverSentWithAnotherLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go#L53) | unit/verify | revert, verified |
 | negative | [`TestRFC9136IPPrefixRouteReceivedWithAnotherLengthIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go#L71) | unit/verify | revert, verified |
-| negative | [`TestEVPNType5InvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L205) | unit/verify | unproven |
+| negative | [`TestEVPNType5InvalidLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L205) | unit/verify | not verified |
 | positive | [`TestRFC9136IPPrefixRouteSentWithLength34Or58`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_length_test.go#L22) | unit/verify | revert, verified |
-| positive | [`TestEVPNType5IPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L142) | unit/verify | unproven |
-| positive | [`TestEVPNType5IPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L177) | unit/verify | unproven |
+| positive | [`TestEVPNType5IPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L142) | unit/verify | not verified |
+| positive | [`TestEVPNType5IPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L177) | unit/verify | not verified |
 
 ### [`RFC9136-3.1-2`](#rfc9136-3.1-2)
 
@@ -220,10 +220,10 @@ IP prefix and gateway IP address MUST be from the same IP address family (S3.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestEVPNType5RoundTripIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L884) | unit/verify | unproven |
-| positive | [`TestEVPNType5RoundTripIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L915) | unit/verify | unproven |
+| positive | [`TestEVPNType5RoundTripIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L884) | unit/verify | not verified |
+| positive | [`TestEVPNType5RoundTripIPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L915) | unit/verify | not verified |
 
 ### [`RFC9136-3.1-3`](#rfc9136-3.1-3)
 
@@ -231,9 +231,9 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity positive (row marker). (a) forbidden: decoding the RD or the Ethernet Tag ID at other than the RFC 7432 layout (8-octet RD, 4-octet tag after the 10-octet ESI); (b) TestEVPNType5IPv4 assert.Equal("0:65000:100", evpn.RD().String()) and assert.Equal(uint32(10), evpn.EthernetTag()) go red on a misplaced or misdecoded field. Only a type-0 RD is driven; RD type decoding is the shared ParseRouteDistinguisher.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestEVPNType5IPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L144) | unit/verify | unproven |
+| positive | [`TestEVPNType5IPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L144) | unit/verify | not verified |
 
 ### [`RFC9136-3.1-4`](#rfc9136-3.1-4)
 
@@ -241,7 +241,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sing
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 9136 Section 3.1: "* The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of "Overlay Index" in Section 3.2). It MUST be all bytes zero otherwise." 238bdb62e9 only renamed ParseESIString to parseESIString in the cited encode.go::l2vpnRouteToEVPNParams; the overlay-index guard and the ESI handling the verdict rests on are unchanged, and the tagged carriers are byte-identical. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-19 (independent auditor, after 4283f8d2e3). Verdict stands: enforced. RFC 9136 Section 3.1: "The Ethernet Segment Identifier MUST be a non-zero 10-octet identifier if the ESI is used as an Overlay Index (see the definition of "Overlay Index" in Section 3.2).  It MUST be all bytes zero otherwise." No producer change since 0411b53e91 (git log over internal/component/bgp/plugins/nlri/evpn and update_text_evpn.go shows only 4283f8d2e3, which touches internal/le/interoplab/bgp/check_extras.go alone). checkOverlayIndex is unchanged and still the only gate before newEVPNType5, whose two non-test callers (plugin.go buildEVPNFromParams, encode.go l2vpnRouteToEVPNParams) both call it first. Tagged units pass at HEAD (go test -run 'TestRFC9136Overlay|EVPNType5ESIGateway' over nlri/evpn and cmd/update, ok). Interop, closing the prior note's owed item: 4283f8d2e3 makes bgp-evpn-gobgp originate through update text ('... ip-prefix rd 1:1 esi 00:01:02:03:04:05:06:07:08:09 etag 0 prefix 10.77.0.0/24 overlay-index esi label 0', internal/le/interoplab/bgp/helper.go:202, path parseEVPNSection -> buildEVPNFromParams -> checkOverlayIndex) and wait for GoBGP's JSON NLRI to read "esi":"ESI_ARBITRARY | 01:02:03:04:05:06:07:08:09","etag":0,"prefix":"10.77.0.0/24","gateway":"0.0.0.0". bgp-evpn-frr now only asserts FRR keyed the route [5]:[0]:[24]:[10.77.0.0] (FRR 10.3.1 prints no type-5 ESI), so FRR proves acceptance, not the octets. Both scenarios reported 1 passed in the commit body; not re-run by this judge. Red recorded in the commit body: a GOFLAGS overlay passing ESI{} to newEVPNType5 in buildEVPNFromParams made bgp-evpn-gobgp fail its assertion 3 (GoBGP read esi single-homed), so the interop discriminates the non-zero-when-index clause at a second implementation. The zero-otherwise clause and every refusal remain unit-proven only (TestRFC9136OverlayIndexESIRefusedOtherwise, four mutants each red on its own subtest per the 2026-10-18 note); an interop peer cannot observe a route Ze refuses to send, so no interop negative is owed. The interop check is untagged reach/goal evidence and adds no tag; it carries no discrimination record of its own under ./le rfc discriminate-record, only the commit-body red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9136OverlayIndexESIRefusedOtherwise`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go#L83) | unit/verify | revert, verified |
 | positive | [`TestRFC9136OverlayIndexESINonZeroOnlyAsIndex`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go#L44) | unit/verify | revert, verified |
@@ -252,11 +252,11 @@ The value MUST NOT be greater than 128. (S3.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: accepting an IP Prefix Length above 128; (b) TestEVPNType5PrefixLengthTooLong/ipv6 require.ErrorIs(err, ErrEVPNInvalidPrefix) on length 129 goes red if parseEVPNType5 accepts it; positive TestEVPNType5IPv6 decodes 64. The send side cannot exceed 128 (netip.Prefix). The ipv4 subtest's tag (33 > 32) proves the non-normative 'can be set to a value between 0 and 32' sentence, not this MUST NOT: a misplaced tag, listed as a finding.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEVPNType5PrefixLengthTooLong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L235) | unit/verify | unproven |
-| positive | [`TestEVPNType5IPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L143) | unit/verify | unproven |
-| positive | [`TestEVPNType5IPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L178) | unit/verify | unproven |
+| negative | [`TestEVPNType5PrefixLengthTooLong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L235) | unit/verify | not verified |
+| positive | [`TestEVPNType5IPv4`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L143) | unit/verify | not verified |
+| positive | [`TestEVPNType5IPv6`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/types_test.go#L178) | unit/verify | not verified |
 
 ### [`RFC9136-3.1-6`](#rfc9136-3.1-6)
 
@@ -264,7 +264,7 @@ The GW IP field MUST be all bytes zero if it is not used as an Overlay Index. (S
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 9136 Section 3.1: "The GW IP field MUST be all bytes zero if it is not used as an Overlay Index." 238bdb62e9 only renamed ParseESIString to parseESIString in the cited encode.go::l2vpnRouteToEVPNParams; the GW IP handling and overlay-index guard are unchanged, and the tagged carriers are byte-identical. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-19 (independent auditor, after 4283f8d2e3). Verdict stands: enforced. RFC 9136 Section 3.1: "The GW IP Address field is a 4- or 16-octet field (IPv4 or IPv6) and will encode a valid IP address as an Overlay Index for the IP prefixes.  The GW IP field MUST be all bytes zero if it is not used as an Overlay Index." No producer change since 0411b53e91 (git log over internal/component/bgp/plugins/nlri/evpn and update_text_evpn.go shows only 4283f8d2e3, which touches internal/le/interoplab/bgp/check_extras.go alone). checkOverlayIndex is unchanged and still the only gate before newEVPNType5, whose two non-test callers (plugin.go buildEVPNFromParams, encode.go l2vpnRouteToEVPNParams) both call it first. Tagged units pass at HEAD (go test -run 'TestRFC9136Overlay|EVPNType5ESIGateway' over nlri/evpn and cmd/update, ok). Interop, closing the prior note's owed item: 4283f8d2e3 makes bgp-evpn-gobgp originate through update text ('... ip-prefix rd 1:1 esi 00:01:02:03:04:05:06:07:08:09 etag 0 prefix 10.77.0.0/24 overlay-index esi label 0', internal/le/interoplab/bgp/helper.go:202, path parseEVPNSection -> buildEVPNFromParams -> checkOverlayIndex) and wait for GoBGP's JSON NLRI to read "esi":"ESI_ARBITRARY | 01:02:03:04:05:06:07:08:09","etag":0,"prefix":"10.77.0.0/24","gateway":"0.0.0.0". bgp-evpn-frr now only asserts FRR keyed the route [5]:[0]:[24]:[10.77.0.0] (FRR 10.3.1 prints no type-5 ESI), so FRR proves acceptance, not the octets. Both scenarios reported 1 passed in the commit body; not re-run by this judge. The GoBGP needle includes "gateway":"0.0.0.0", so GoBGP reads an all-zero IPv4 GW IP under overlay-index esi: positive interop evidence for this MUST. The recorded red broke the ESI only; no red was forced on the gateway (for example passing a non-zero gateway past checkOverlayIndex), so the interop's discrimination of the GW IP clause is unproven and the needle's gateway half is a positive-only observation. That does not lower the verdict, which rests on the unit proof: TestRFC9136OverlayIndexESINonZeroOnlyAsIndex pins GW 00000000 under none and esi, TestRFC9136OverlayIndexESIRefusedOtherwise refuses gateway 10.1.2.1 under esi, none and no keyword, three mutants red on their own subtests (2026-10-18 note).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9136OverlayIndexESIRefusedOtherwise`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go#L95) | unit/verify | revert, verified |
 | positive | [`TestRFC9136OverlayIndexESINonZeroOnlyAsIndex`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/evpn/rfc9136_overlay_index_test.go#L50) | unit/verify | revert, verified |

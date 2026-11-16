@@ -2,7 +2,7 @@
 
 A route-server performance test is simple in outline: create a route source, connect it to a device under test, watch a monitor peer, and publish how many routes arrived and how long convergence took.
 
-**RFC completion:** the [BGP core coverage page](../../quality/rfc-compliance/profiles/bgp-core/) shows how much of the RFC work behind this use case is proven by tests.
+**RFC completion:** the [BGP core coverage page](../../quality/rfc-compliance/profiles/bgp-core/) shows which requirements have passed the recorded test checks for this use case.
 
 AMS-IX used ExaBGP as a lightweight BGP route source. bgperf formalised the same idea with tester, target, and monitor containers. Ze can run that setup with `le perf`: Ze supplies the sender and receiver, the target is any BGP speaker you want to test, and the output is a repeatable report instead of a stopwatch and screenshots.
 
@@ -233,7 +233,7 @@ Job Snijders' `bgp-performance` repository is a bgperf2-based performance suite.
 
 Ze's automated performance evidence already wires sender, DUT, and receiver the same way.
 
-| File | What it proves |
+| File | What it tests |
 | --- | --- |
 | `internal/perf/cli/cmd_run.go` | `le perf send` accepts DUT, sender, receiver, repeat, warmup, JSON, output, family, MP, and batch flags |
 | `internal/perf/result.go` | JSON results include convergence, throughput, latency percentiles, withdrawal time, lost routes, seed, family, and repeat metadata |

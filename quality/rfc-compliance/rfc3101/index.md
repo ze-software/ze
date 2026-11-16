@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 27 | of 28 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 28 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 27 | of 28 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 28 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 28 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 28 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 64 | 64 of 106 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 28 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 64 | 64 of 106 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 28 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 28 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 28 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 28 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 28 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 28 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 28 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: Ze implements NSSA area operation, Type-7 external
 
 **Area:** OSPF NSSA
 
-**Proof:** 15 of 28 MUST proven
+**Test verification:** 15 of 28 MUST proven
 
 **Evidence:** unit 15
 
@@ -109,7 +109,7 @@ Included in automatic checks: Ze implements NSSA area operation, Type-7 external
 | Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **28** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: Ze implements NSSA area operation, Type-7 external
 
 ## Figures
 
-- **MUST bar**: Ze proven 15, Proof pending 12, Not built 1
-- **Overview bar**: Ze MUST proven 15, SHOULD proven 2, Proof pending 13, Not assessed 4, Not built 1
+- **MUST bar**: Ze verified 15, Tests awaiting verification 12, Not built 1
+- **Overview bar**: Ze MUST verified 15, SHOULD verified 2, Tests awaiting verification 13, Not assessed 4, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: Ze implements NSSA area operation, Type-7 external
 | Mandatory requirements complete | not complete |
 | MUST rows | 28 |
 | MUST rows kept (the MUST bar) | 28 |
-| Ze proven | 15 |
+| Ze verified | 15 |
 | OS verified | 0 |
-| Proof pending | 12 |
+| Tests awaiting verification | 12 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: Ze implements NSSA area operation, Type-7 external
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 7 |
-| SHOULD proven | 2 |
+| SHOULD verified | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 1 |
+| SHOULD tests awaiting verification | 1 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 4 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc3101.json](../../../data/rfc/rfc3101.json).
 
@@ -204,9 +204,9 @@ Source: [data/rfc/rfc3101.json](../../../data/rfc/rfc3101.json).
 |---|---|---|
 | [`RFC3101-3.2-3`](#rfc3101-3.2-3) The network mask and the external route tag are set to the range's configured values.  The forwarding address is set to 0.0.0.0. (§3.2) | {gap}, no test | Type-7 address-range aggregation (the §2.2 MAY and §3.2 step (3)) is not implemented and no owner decision declines it, so no aggregate Type-5 LSA with a 0.0.0.0 forwarding address is generated; internal/plugins/ospf/nssa.go::translateNSSA translates each P-bit Type-7 LSA with a non-zero forwarding address into its own Type-5 LSA |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC3101-2.1-1`](#rfc3101-2.1-1)
 
@@ -214,7 +214,7 @@ To support the NSSA option an additional check must be made in the function that
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. TestOSPFNSSANbitMismatch keeps its positive (N set, E clear accepted) and negative (E set dropped DropReasonOptionsE); the unit changed only by an appended x-1 case. With the option tests' matching-accepted and mismatch-dropped-on-every-area-type pair, the received N/E agreement check is proven for every area type.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L66) | unit/verify | revert, verified |
 | negative | [`TestRFC3101HelloOptionsMismatchDroppedOnEveryAreaType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_options_test.go#L56) | unit/verify | revert, verified |
@@ -227,10 +227,10 @@ both NSSA neighbors must agree on the setting of the "N" bit or the OSPF neighbo
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Unchanged assertions in TestOSPFNSSANbitMismatch: N-agreeing Hello accepted, N-clear Hello on an NSSA interface dropped before adjacency, so disagreement on N prevents the adjacency.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L57) | unit/verify | unproven |
-| positive | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L48) | unit/verify | unproven |
+| negative | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L57) | unit/verify | not verified |
+| positive | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L48) | unit/verify | not verified |
 
 ### [`RFC3101-x-1`](#rfc3101-x-1)
 
@@ -238,7 +238,7 @@ Therefore, if the N-bit is set in the options field, the E-bit must be clear. (�
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Negative now isolates the pairing: an NSSA Hello with N set (agreeing with the area) AND E set is refused DropReasonOptionsE, so only the N-implies-E-clear rule can refuse it. TestRFC3101NSSAHelloWithNAndESetRefused pins the same on receive, and the positive reads the sent Options octet with N set and E clear. The old accept-tag that wore the 2.1-1 hat was removed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFNSSANbitMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_nssa_test.go#L75) | unit/verify | revert, verified |
 | negative | [`TestRFC3101NSSAHelloWithNAndESetRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/iface/rfc3101_hello_options_test.go#L99) | unit/verify | revert, verified |
@@ -250,10 +250,10 @@ To support NSSAs the link- state database must therefore be expanded to contain 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an LSDB that cannot hold Type-7. lsdb/nssa_test.go TestOSPFType7Origination requires the originated route under LSTypeNSSA in the NSSA area store (require.True line 38) and asserts it is absent from the AS-wide Type-5 store (line 52). Received Type-7 storage is covered under RFC3101-x-4.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFType7Origination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L49) | unit/verify | unproven |
-| positive | [`TestOSPFType7Origination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L33) | unit/verify | unproven |
+| negative | [`TestOSPFType7Origination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L49) | unit/verify | not verified |
+| positive | [`TestOSPFType7Origination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L33) | unit/verify | not verified |
 
 ### [`RFC3101-2.3-4`](#rfc3101-2.3-4)
 
@@ -261,7 +261,7 @@ The Type field in the LSA header is 7. (Section 2.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Quote is item 1 of RFC 3101 Section 2.3's list ('Type-7 LSAs are identical to Type-5 LSAs except for the following'), the item dropped beside RFC3101-2.3-2. The positive checks h.Type, the stored LSA's wire type octet and the decoded header type are all 7. The negative originates the same route as Type-5: its type octet is 5, and its body is byte-identical to the Type-7 body, so only the type field separates them, as the list says.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3101Type5HeaderTypeIsNot7`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_type7_header_type_test.go#L69) | unit/verify | revert, verified |
 | positive | [`TestRFC3101Type7HeaderTypeIs7`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_type7_header_type_test.go#L33) | unit/verify | revert, verified |
@@ -272,7 +272,7 @@ Type-7 LSAs are only flooded within the originating NSSA. (§2.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. TestOSPFType7FloodScope negative now also refuses an interface of ANOTHER NSSA, where only the area check can refuse it, beside the backbone case. With the ReceiveUpdate-driven flood-scope pair (flooded within NSSA 0.0.0.1, never into 0.0.0.2 or the backbone), 'only flooded within the originating NSSA' is enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFType7FloodScope`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L92) | unit/verify | revert, verified |
 | negative | [`TestRFC3101Type7NotFloodedIntoAnotherNSSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_type7_flood_scope_test.go#L70) | unit/verify | revert, verified |
@@ -285,10 +285,10 @@ An NSSA internal AS boundary router must set the P-bit in the LSA header's optio
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a propagate-wanted Type-7 with P clear. lsdb/nssa_test.go TestOSPFType7Origination asserts OptionNP set when propagate=true (line 39) and clear when propagate=false (line 63).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFType7Origination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L57) | unit/verify | unproven |
-| positive | [`TestOSPFType7Origination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L35) | unit/verify | unproven |
+| negative | [`TestOSPFType7Origination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L57) | unit/verify | not verified |
+| positive | [`TestOSPFType7Origination`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_test.go#L35) | unit/verify | not verified |
 
 ### [`RFC3101-2.4-2`](#rfc3101-2.4-2)
 
@@ -296,12 +296,12 @@ If the P-bit is set, the forwarding address must be non-zero; otherwise it may b
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (OSPF judge, continuations 3+4): TestOSPFv3NSSADefaultPBitFollowsForwardingAddress now carries a 2.4-2 negative (was a misplaced 2.4-4 tag): a P-set default keeps its non-zero forwarding address beside P and is flushed, not originated P-set without one, once the address is lost. The lsdb TestOSPFNSSAPBitBoundaryPolicy pair and TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress are unchanged. Prior judgement: Forbidden: a P-set Type-7 with a zero forwarding address. lsdb/nssa_pbit_test.go TestOSPFNSSAPBitBoundaryPolicy asserts the P-set, zero-FA request is not originated (LookupLSA exists -> Fatal, line 27) and a P-set, non-zero-FA request keeps P (line 37); origination_v6_nssa_default_test.go TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress asserts no v3 P-set default without a usable address (line 175). The 'may be 0.0.0.0' clause is a permission and has no forbidden behaviour.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFNSSAPBitBoundaryPolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go#L23) | unit/verify | unproven |
+| negative | [`TestOSPFNSSAPBitBoundaryPolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go#L23) | unit/verify | not verified |
 | negative | [`TestOSPFv3NSSADefaultPBitFollowsForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L191) | unit/verify | revert, verified |
-| negative | [`TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L171) | unit/verify | unproven |
-| positive | [`TestOSPFNSSAPBitBoundaryPolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go#L32) | unit/verify | unproven |
+| negative | [`TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L171) | unit/verify | not verified |
+| positive | [`TestOSPFNSSAPBitBoundaryPolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go#L32) | unit/verify | not verified |
 
 ### [`RFC3101-2.4-3`](#rfc3101-2.4-3)
 
@@ -309,10 +309,10 @@ When an NSSA border router originates both a Type-5 LSA and a Type-7 LSA for the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: P set on a Type-7 whose network this router also originates as Type-5. lsdb/nssa_pbit_test.go TestOSPFNSSAPBitBoundaryPolicy asserts P clear after OriginateExternal for the same network (line 49) and P set with no self Type-5 (line 37).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFNSSAPBitBoundaryPolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go#L42) | unit/verify | unproven |
-| positive | [`TestOSPFNSSAPBitBoundaryPolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go#L34) | unit/verify | unproven |
+| negative | [`TestOSPFNSSAPBitBoundaryPolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go#L42) | unit/verify | not verified |
+| positive | [`TestOSPFNSSAPBitBoundaryPolicy`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_pbit_test.go#L34) | unit/verify | not verified |
 
 ### [`RFC3101-2.4-4`](#rfc3101-2.4-4)
 
@@ -320,7 +320,7 @@ The Type-7 default LSA originated by an NSSA border router must have the P-bit c
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (OSPF judge, continuations 3+4): positives TestOSPFNSSABorderRouterDefaultsEveryArea (v4) and TestOSPFv3NSSABorderRouterOriginatesDefault (v6) assert the border router's Type-7 default is P-clear; negative TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport pushes every P-set trigger (NSSA default-originate plus a retained default import from an nssa-propagate source) and asserts applyNSSADefaults still installs the default P-clear. The misplaced install-rule negatives moved to RFC3101-2.5-1. Judge-run overlay mutants in applyNSSADefaults: ABR taking the internal-router propagate decision (line 152 'if !isABR' -> 'if true') reds the negative; 'propagate := true' reds both positives. Four stale 2.4-4 records remain for units that lost the tag (orphans, not gate-named).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3101BorderRouterDefaultStaysPClearUnderPropagatingImport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_border_default_pbit_test.go#L23) | unit/verify | revert, verified |
 | positive | [`TestOSPFNSSABorderRouterDefaultsEveryArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go#L38) | unit/verify | revert, verified |
@@ -332,15 +332,15 @@ NSSA border routers must originate an LSA for the default destination into all t
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkNSSADefault moved. Re-judged against current committed source. RFC 3101 Section 2.4 requires NSSA border routers to originate a default into every directly attached NSSA; Sections 2.4 and 2.7 distinguish regular Type-7 defaults from no-summary Type-3 defaults. TestOSPFNSSABorderRouterDefaultsEveryArea configures backbone plus regular and no-summary NSSAs, calls applyNSSADefaults, and requires the regular area's default LSID. TestOSPFNSSANoSummaryDefaultInjection exercises OriginateSummaries and requires the actual no-summary default LSA and decoded metric. TestOSPFNSSAType3SummaryImport independently distinguishes the regular and no-summary policy results. TestOSPFv3NSSABorderRouterOriginatesDefault requires the 0x2007 NSSA-LSA with a zero-length prefix through the shared reconciler. applyNSSADefaults iterates configured attached NSSAs; wantsType7Default grants the ABR default without an operator gate, while OriginateSummaries supplies the no-summary default. Removing either producer branch fails its positive assertion. TestOSPFNSSAInternalRouterOriginatesNoBorderDefault is the clean non-ABR applicability control. The additional v3 internal-router negative lacks a usable forwarding address, so it is not credited as an independent discriminator for this requirement. checkNSSADefault still waits for Full and requires the exact selected, destination-selected, installed OSPF default and its active FIB next hop in one FRR route entry through requireRouteInstalledVia. Its new removal of Docker's competing default restores that topology without relaxing the assertion. Its new first-epoch capture is additive: finish joins nativeErr with capture errors and cannot turn a failed default assertion into success. The Type-5 exclusion observation concerns a separate requirement and is not substituted for the default assertion. The unchanged unit controls plus preserved installed-route assertion enforce this requirement. This audit is a source rejudgment, not a new runtime or mutation result.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFNSSAInternalRouterOriginatesNoBorderDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go#L53) | unit/verify | unproven |
-| negative | [`TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L173) | unit/verify | unproven |
-| positive | [`checkNSSADefault`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1369) | interop/nightly | unproven |
-| positive | [`TestOSPFNSSABorderRouterDefaultsEveryArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go#L32) | unit/verify | unproven |
-| positive | [`TestOSPFv3NSSABorderRouterOriginatesDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L62) | unit/verify | unproven |
-| positive | [`TestOSPFNSSANoSummaryDefaultInjection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L128) | unit/verify | unproven |
-| positive | [`TestOSPFNSSAType3SummaryImport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L103) | unit/verify | unproven |
+| negative | [`TestOSPFNSSAInternalRouterOriginatesNoBorderDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go#L53) | unit/verify | not verified |
+| negative | [`TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L173) | unit/verify | not verified |
+| positive | [`checkNSSADefault`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1369) | interop/nightly | not verified |
+| positive | [`TestOSPFNSSABorderRouterDefaultsEveryArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go#L32) | unit/verify | not verified |
+| positive | [`TestOSPFv3NSSABorderRouterOriginatesDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L62) | unit/verify | not verified |
+| positive | [`TestOSPFNSSANoSummaryDefaultInjection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L128) | unit/verify | not verified |
+| positive | [`TestOSPFNSSAType3SummaryImport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L103) | unit/verify | not verified |
 
 ### [`RFC3101-2.4-7`](#rfc3101-2.4-7)
 
@@ -348,7 +348,7 @@ A Type-7 default LSA may be installed by NSSA border routers if and only if its 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 against RFC 3101 Section 2.4 text. Producer ComputeExternalWith (spf/external.go) skips a Type-7 default on an NSSA border router when rec.Pref == prefType7P0 (P-bit clear), so a P-set default proceeds to externalCandidateFrom. TestOSPFNSSABorderRouterDefaultPBit: positive subtest 'P-bit set' with summaries imported requires exactly one route, 0.0.0.0/0; negative subtest 'P-bit clear', same inputs except the P-bit, asserts no route. Both directions of 'if and only if' are pinned with only the P-bit varied, so dropping the P-clear skip reddens the negative and skipping every default reddens the positive. The Section 2.5 summary-suppression skip is held apart (summaries imported in both subtests). Revert records on ComputeExternalWith are whole-body panics; the clause-level discrimination was judged by reading.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFNSSABorderRouterDefaultPBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_external_nssa_test.go#L143) | unit/verify | revert, verified |
 | positive | [`TestOSPFNSSABorderRouterDefaultPBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_external_nssa_test.go#L102) | unit/verify | revert, verified |
@@ -359,7 +359,7 @@ Else if the destination is a Type-7 default route (destination ID = DefaultDesti
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 after TestOSPFNSSABorderRouterDefaultPBit gained RFC3101-2.4-7 tags; its assertions are unchanged. ComputeExternalWith performs both step (3) skips for a border router: P-clear default (prefType7P0) and NoSummary policy. v4 and v6: positive 'summary import suppressed' asserts no route for a P-set default; the 'P-bit clear' subtest in the same unit asserts no route for a P-clear default with summaries imported; negative 'P-bit set' requires the one default route; TestOSPF(v3)NSSANonBorderRouterInstallsPClearDefault shows a non-border router installs a P-clear default under suppression, so both conditions bind a border router only. Removing either skip or the border-router guard reddens a distinct assertion. Records are whole-body reverts of ComputeExternalWith.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFv3NSSABorderRouterDefaultPBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go#L81) | unit/verify | revert, verified |
 | negative | [`TestOSPFv3NSSANonBorderRouterInstallsPClearDefault`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_install_gate_v6_test.go#L119) | unit/verify | revert, verified |
@@ -374,10 +374,10 @@ When the interface whose IP address is the LSA's forwarding address transitions 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged after c356b97d17, which moved metric and tag from the retired redistribute leaves to an External argument (staticExternal: metric 33, type 2, tag). Forbidden: keeping a Type-7 whose forwarding interface went Down. TestNSSAImportReoriginatesAfterForwardingInterfaceDown asserts after onInterfaceDown(a) a live Type-7 at Sequence.Next() with interface b's forwarding address, P still set, and metric 33 and tag 91 carried through the re-origination; when no address remains, MaxAge. TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent asserts an unrelated Down leaves sequence and address unchanged and a withdrawn import is not replayed. The External source changes no forwarding-address or re-origination assertion.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go#L167) | unit/verify | unproven |
-| positive | [`TestNSSAImportReoriginatesAfterForwardingInterfaceDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go#L126) | unit/verify | unproven |
+| negative | [`TestNSSAImportIgnoresUnrelatedDownAndWithdrawnIntent`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go#L167) | unit/verify | not verified |
+| positive | [`TestNSSAImportReoriginatesAfterForwardingInterfaceDown`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go#L126) | unit/verify | not verified |
 
 ### [`RFC3101-2.5-2`](#rfc3101-2.5-2)
 
@@ -385,12 +385,12 @@ Since the flooding scope of a Type-7 LSA is restricted to the originating NSSA, 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: taking a Type-7's ASBR entry from another area. nssa_scope_test.go TestNSSAASBRUsesOriginatingArea asserts own-area cost 15 via 192.0.2.9 despite a cheaper backbone entry (line 105); TestNSSAASBRRejectsOtherArea asserts no route when the ASBR is reachable only outside the NSSA, with and without forwarding address (line 120); spf/external_nssa_recalc_test.go repeats both through Computer.Run.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestNSSAASBRRejectsOtherArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_scope_test.go#L112) | unit/verify | unproven |
-| negative | [`TestNSSAExternalCalculationDropsLostASBR`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go#L67) | unit/verify | unproven |
-| positive | [`TestNSSAASBRUsesOriginatingArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_scope_test.go#L93) | unit/verify | unproven |
-| positive | [`TestNSSAExternalCalculationRunsOnType7Change`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go#L44) | unit/verify | unproven |
+| negative | [`TestNSSAASBRRejectsOtherArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_scope_test.go#L112) | unit/verify | not verified |
+| negative | [`TestNSSAExternalCalculationDropsLostASBR`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go#L67) | unit/verify | not verified |
+| positive | [`TestNSSAASBRUsesOriginatingArea`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_scope_test.go#L93) | unit/verify | not verified |
+| positive | [`TestNSSAExternalCalculationRunsOnType7Change`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go#L44) | unit/verify | not verified |
 
 ### [`RFC3101-2.5-3`](#rfc3101-2.5-3)
 
@@ -398,11 +398,11 @@ For a Type-5 LSA the matching routing table entry must specify an intra-area or 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Type-5 forwarding address resolved through an NSSA, stub, or external route. nssa_scope_test.go TestExternalForwardingScopeRejectsIneligiblePaths asserts no route for the NSSA-area, external-path-type and stub cases (line 173). Positives: inter-area in the backbone (TestExternalForwardingScopeAcceptsEligiblePaths line 140) and intra-area in two Type-5 capable areas (spf/external_nssa_test.go TestExternalForwardingPreservesInternalPreferenceAndECMP lines 238-239).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestExternalForwardingScopeRejectsIneligiblePaths`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_scope_test.go#L148) | unit/verify | unproven |
-| positive | [`TestExternalForwardingScopeAcceptsEligiblePaths`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_scope_test.go#L128) | unit/verify | unproven |
-| positive | [`TestExternalForwardingPreservesInternalPreferenceAndECMP`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_external_nssa_test.go#L240) | unit/verify | unproven |
+| negative | [`TestExternalForwardingScopeRejectsIneligiblePaths`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_scope_test.go#L148) | unit/verify | not verified |
+| positive | [`TestExternalForwardingScopeAcceptsEligiblePaths`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_scope_test.go#L128) | unit/verify | not verified |
+| positive | [`TestExternalForwardingPreservesInternalPreferenceAndECMP`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_external_nssa_test.go#L240) | unit/verify | not verified |
 
 ### [`RFC3101-2.5-4`](#rfc3101-2.5-4)
 
@@ -410,10 +410,10 @@ For a Type-7 LSA the matching routing table entry must specify an intra-area pat
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Type-7 forwarding address resolved outside an intra-area path of its own NSSA. nssa_scope_test.go TestExternalForwardingScopeRejectsIneligiblePaths asserts no route for a backbone route, an inter-area route and a stub-area route (line 173); TestExternalForwardingScopeAcceptsEligiblePaths asserts the own-NSSA intra-area route resolves (line 140).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestExternalForwardingScopeRejectsIneligiblePaths`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_scope_test.go#L149) | unit/verify | unproven |
-| positive | [`TestExternalForwardingScopeAcceptsEligiblePaths`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_scope_test.go#L129) | unit/verify | unproven |
+| negative | [`TestExternalForwardingScopeRejectsIneligiblePaths`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_scope_test.go#L149) | unit/verify | not verified |
+| positive | [`TestExternalForwardingScopeAcceptsEligiblePaths`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_scope_test.go#L129) | unit/verify | not verified |
 
 ### [`RFC3101-2.5-5`](#rfc3101-2.5-5)
 
@@ -421,10 +421,10 @@ This calculation must be run when Type-7 LSAs are processed during the AS extern
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the external calculation skipping Type-7 LSAs. spf/external_nssa_recalc_test.go TestNSSAExternalCalculationRunsOnType7Change asserts Computer.Run adds the Type-7 route at cost 15 and changes it to 19 on a Type-7 metric change (lines 50, 61); TestNSSAExternalCalculationDropsLostASBR asserts removal when the NSSA loses the ASBR (line 84).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestNSSAExternalCalculationDropsLostASBR`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go#L66) | unit/verify | unproven |
-| positive | [`TestNSSAExternalCalculationRunsOnType7Change`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go#L43) | unit/verify | unproven |
+| negative | [`TestNSSAExternalCalculationDropsLostASBR`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go#L66) | unit/verify | not verified |
+| positive | [`TestNSSAExternalCalculationRunsOnType7Change`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_external_nssa_recalc_test.go#L43) | unit/verify | not verified |
 
 ### [`RFC3101-3.1-1`](#rfc3101-3.1-1)
 
@@ -432,7 +432,7 @@ All NSSA border routers must set the E-bit in the Type-1 router-LSAs of their di
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Tags removed from the single-area TestOSPFASBRBitFromNSSAType7, correctly: it proves a Type-7 originator is an ASBR, not the border-router E-bit. What remains is the OSPFv2 multi-area pair, the border-router pair and the OSPFv3 pair, all with records on NSSABorderEBit. Each asserts the E-bit in every non-stub area of an NSSA border router, and clear with no NSSA attached.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3101NoNSSAAttachedEBitClearEverywhere`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_areas_test.go#L75) | unit/verify | revert, verified |
 | negative | [`TestRFC3101NSSABorderRouterSetsEBit`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_border_ebit_test.go#L48) | unit/verify | revert, verified |
@@ -447,10 +447,10 @@ In order for OSPF's summary routing to not be obscured by an NSSA's Type-7 AS-ex
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a border router unable to import Type-3 summaries into an NSSA. spf/area_type_test.go TestOSPFNSSAType3SummaryImport asserts a regular NSSA keeps the inter-area Type-3 (line 88) and a no-summary NSSA suppresses it (line 99), proving the import is optional and supported.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFNSSAType3SummaryImport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L96) | unit/verify | unproven |
-| positive | [`TestOSPFNSSAType3SummaryImport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L85) | unit/verify | unproven |
+| negative | [`TestOSPFNSSAType3SummaryImport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L96) | unit/verify | not verified |
+| positive | [`TestOSPFNSSAType3SummaryImport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L85) | unit/verify | not verified |
 
 ### [`RFC3101-3.1-2`](#rfc3101-3.1-2)
 
@@ -458,7 +458,7 @@ An NSSA border router whose NSSA's NSSATranslatorRole is set to Candidate must m
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent judge, after 12454d4ac5). Section 3.1: "An NSSA border router whose NSSA's NSSATranslatorRole is set to Candidate must maintain a list of the NSSA's border routers that are reachable both over the NSSA and as ASBRs over the AS's transit topology." The row quotes the span through 'reachable both over the NSSA'. electNSSATranslator (nssa.go) still skips a border router for which reach.RouterReachable(list.nssa, r) is false, before any Nt or Router ID test, so an unreached router can disable nothing. The election now takes a translatorList (border = B-bit routers, nt = B|Nt routers, transit areas) and skips self explicitly; the reachability filter is unchanged in substance. TestRFC3101UnreachableBorderRouterIsNotListed / TestRFC3101ReachableBorderRouterIsListed remain an isolated pair: fixedReachability with asbr nil answers ASBRReachableIn true everywhere, so only NSSA reachability differs (1 vs 0 Type-5). Hand mutation: dropping the RouterReachable check turns the positive to 0. Both pass at HEAD. Finding (no verdict change): the tags on TestOSPFNSSATranslatorElection (positive/negative) and TestOSPFNSSANoTranslateWhenNotElected assert the Router-ID/Nt election rule under reachEvery, which is RFC3101-3.1-4's content, not list membership; the unreachable-higher assertion inside TestOSPFNSSATranslatorElection is untagged. The isolating pair carries the row. Records for all five units are panic-route reverts, which red any unit calling the producer; they do not by themselves prove this condition.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFNSSANoTranslateWhenNotElected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_test.go#L289) | unit/verify | revert, verified |
 | negative | [`TestOSPFNSSATranslatorElection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_test.go#L83) | unit/verify | revert, verified |
@@ -472,7 +472,7 @@ An NSSA border router whose NSSA's NSSATranslatorRole is set to Candidate must m
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent judge, after 12454d4ac5); was unimplemented. Section 3.1: "An NSSA border router whose NSSA's NSSATranslatorRole is set to Candidate must maintain a list of the NSSA's border routers that are reachable both over the NSSA and as ASBRs over the AS's transit topology." Producer: electNSSATranslator requires, after NSSA reachability, asbrReachedOverTransit(reach, list.transit, r), which asks ReachabilitySnapshot.ASBRReachableIn per area; transitAreas(cfg) is the backbone plus every regular (AreaTypeNormal) area, excluding stub and NSSA. ASBRReachableIn answers only for an ASBR routing-table entry of that area with finite metric and a next hop; intraAreaBorderRouters creates one for an intra-area router whose router-LSA sets E, and inter-area entries come from Type-4 summaries in the backbone. RFC3101-3.1-1 (E-bit in every non-stub area, enforced v2 and v3) makes a listed border router appear as an ASBR in the backbone, as the RFC intends ('This allows other NSSA border routers to see their ASBR status across the AS's transit topology'). Both conditions are ANDed, matching 'both over the NSSA and as ASBRs'. TestRFC3101TransitASBRReachabilityDecidesListing (reached over NSSA in all cases): no ASBR entry -> 1, ASBR entry only in the NSSA -> 1, ASBR entry in the backbone -> 0. Hand mutants: removing the transit check reds case 1, counting the NSSA as transit reds case 2, an empty transit set reds case 3 (the fixture's backbone has no area-type, so it also proves the default resolves to normal). TestASBRReachableIn (spf, untagged) covers the per-area, no-next-hop and ABR-kind exclusions. Limits (no verdict change): the tagged unit uses the fixedReachability seam, so the real SPF -> ASBRReachableIn chain is proven only by reading plus the untagged spf test; no OSPFv3 test drives translateNSSAV6 with a transit-unreached border router. Defect in the population: TestRFC3101BorderRouterNotReachedAsASBROverTransitIsNotListed still carries an rfcgap.Demonstrate tag and PASSES as 'gap RFC3101-3.1-5 stands', a false claim: its fixture translatorListCase leaves fixedReachability.asbr nil, which answers ASBRReachableIn true in every area, so 10.0.6.9 IS an ASBR over transit there despite the comment ('sets no E-bit, so no transit area reaches it as an ASBR'), and Ze correctly lists it (0 Type-5). It contradicts the producer and must be deleted or rewritten with an empty asbr map before stamping.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3101TransitASBRReachabilityDecidesListing`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_translator_election_test.go#L55) | unit/verify | revert, verified |
 | positive | [`TestRFC3101TransitASBRReachabilityDecidesListing`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_translator_election_test.go#L50) | unit/verify | revert, verified |
@@ -483,7 +483,7 @@ If there exists another border router in this list whose router-LSA has bit Nt s
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-19 (independent judge, after 12454d4ac5); was unimplemented (disclosed deviation, owner reversal #31 of 2026-10-18). Section 3.1: "If there exists another border router in this list whose router-LSA has bit Nt set or who has a higher router ID, then its NSSATranslatorState is disabled.  Otherwise its NSSATranslatorState is elected." And: "However, when an NSSA border router has its NSSATranslatorState enabled, it sets bit Nt in the router-LSA it originates into the NSSA." Producer: for each listed member r (B-bit router-LSA in the NSSA, reached over the NSSA, ASBR over transit, r != self) electNSSATranslator returns disabled if r is in list.nt (B|Nt) or bytes.Compare(r, self) > 0 (unsigned big-endian Router ID, correct tie-break); otherwise elected, including with no other candidate, which matches 'Otherwise its NSSATranslatorState is elected'. Nt origination: nssaTranslatorEnabled is true only for role always on an NSSA, used by setConfig (OSPFv2 ntAreas) and v6NSSATranslatorArea (OSPFv3); the LSDB adds the ABR check. So a candidate, elected or not, leaves Nt clear and a higher-Router-ID 'translate never' border router now disables the candidate. TestRFC3101ElectionRuleDisablesCandidate: lower-RID Nt-set member -> 0, higher-RID Nt-clear member -> 0, lower-RID Nt-clear member -> 1. Hand mutants: dropping the Nt test reds case 1, dropping or inverting the Router ID test reds case 2 (and 3 when inverted). TestRFC3101OnlyAlwaysRoleSetsNtBit (untagged) pins the Nt decision. OSPFv3: shared electNSSATranslator; TestOSPFv6NSSAHigherBorderRouterDisablesCandidate (untagged) drives translateNSSAV6 for the higher-RID case only; the v6 Nt-member case has no test. Defect in the population: TestRFC3101HigherRouterIDWithoutNtDisablesCandidate (rfc3101_translator_list_test.go) still wraps a correct RFC assertion in rfcgap.Demonstrate and now FAILS 'gap RFC3101-3.1-4 closed'; its doc comment ('disclosed deviation', 'which Ze does not produce') is false at HEAD. It duplicates case 2 of TestRFC3101ElectionRuleDisablesCandidate. All carriers pass at HEAD except that stale demo.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3101ElectionRuleDisablesCandidate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_translator_election_test.go#L79) | unit/verify | revert, verified |
 | positive | [`TestRFC3101ElectionRuleDisablesCandidate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_translator_election_test.go#L73) | unit/verify | revert, verified |
@@ -494,7 +494,7 @@ The newly originated Type-5 LSA will describe the same network and have the same
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Tags removed from the withdrawal case and TestOSPFNSSAPbitNotTranslated, which test eligibility rather than the copied fields. What remains: the positive TestOSPFNSSATranslation asserts mask, metric, path type, tag, forwarding address and advertising router, and TestRFC3101TranslatedType5FollowsSourceFields changes every field of the Type-7 and requires each to follow. A translator that kept stale or default values fails it.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3101TranslatedType5FollowsSourceFields`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_translation_test.go#L19) | unit/verify | revert, verified |
 | positive | [`TestOSPFNSSATranslation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_test.go#L145) | unit/verify | revert, verified |
@@ -513,7 +513,7 @@ the calculating router has the highest router ID amongst NSSA translators that h
 
 Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Owner decision D-12: translator = router whose Router-LSA in the NSSA carries the B-bit (nssaABRs/nssaABRsV6 with B), equivalent = same destination and mask, same metric, same non-zero forwarding address (equivalentType5, equivalentType5V6 over lsdb.HigherRIDTranslatorExternals). TestRFC3101TranslatorYieldsOnlyToEquivalentType5 and its V6 twin assert the yield for an equivalent Type-5 and translation for a different metric, forwarding address, mask, or a non-translator advertiser; TestOSPFNSSAHigherRIDType5Suppresses and lsdb TestOSPFHigherRIDType5Exists keep the higher-RID ordering. Weak because the clause 'and that are reachable over area 0 and the NSSA' is neither implemented nor tested: the translator set is read from the NSSA LSDB, not from per-area SPF reachability.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFHigherRIDType5Exists`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_nssa_higher_rid_test.go#L29) | unit/verify | revert, verified |
 | negative | [`TestOSPFNSSAHigherRIDType5Suppresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go#L135) | unit/verify | revert, verified |
@@ -530,11 +530,11 @@ Implementations must provide a vehicle for setting the P-bit when external route
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged after c356b97d17. The P-bit vehicle is still config: externalPropagate (redist_wiring.go) reads the per-source nssa-propagate leaf (config.go, default false); External carries only metric, type and tag, never P. TestNSSAPerSourcePropagationEnabled parses nssa-propagate true for static and asserts P set on the imported route and the default, plus metric 33 and tag 77; TestNSSAPerSourcePropagationDisabled asserts P clear for explicit false (connected) and an unconfigured source (bgp), which is the RFC's P-clear default; TestNSSAPerSourcePropagationCannotOverrideType5 asserts P clear with a Type-5 twin.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestNSSAPerSourcePropagationCannotOverrideType5`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go#L249) | unit/verify | unproven |
-| negative | [`TestNSSAPerSourcePropagationDisabled`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go#L227) | unit/verify | unproven |
-| positive | [`TestNSSAPerSourcePropagationEnabled`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go#L202) | unit/verify | unproven |
+| negative | [`TestNSSAPerSourcePropagationCannotOverrideType5`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go#L249) | unit/verify | not verified |
+| negative | [`TestNSSAPerSourcePropagationDisabled`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go#L227) | unit/verify | not verified |
+| positive | [`TestNSSAPerSourcePropagationEnabled`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_import_lifecycle_test.go#L202) | unit/verify | not verified |
 
 ### [`RFC3101-x-4`](#rfc3101-x-4)
 
@@ -542,7 +542,7 @@ For NSSAs the ExternalRoutingCapability area configuration parameter must be set
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an NSSA area that discards Type-7. lsdb/area_capability_rfc3101_test.go TestRFC3101NSSAAreaAcceptsType7 fails if a received Type-7 is not installed in an NSSA area; TestRFC3101NormalAreaRejectsType7 fails if the same LSA is installed in a normal area.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3101NormalAreaRejectsType7`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_area_capability_test.go#L55) | unit/verify | revert, verified |
 | positive | [`TestRFC3101NSSAAreaAcceptsType7`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/lsdb/rfc3101_area_capability_test.go#L45) | unit/verify | revert, verified |
@@ -553,7 +553,7 @@ Additionally there must be a way of configuring the metric of the default LSA th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 6, judge): both halves proven on a border router through config. Type-7 half: TestRFC3101BorderRouterDefaultCarriesConfiguredMetric (continuation 5). Type-3 half (no-summary NSSA, s2.7): TestRFC3101BorderRouterType3DefaultCarriesConfiguredMetric (config JSON default-cost 77 and 5000 on two no-summary NSSAs -> setConfig -> SPF run -> the self-originated Type-3 default, mask 0, carries 77 and 5000) and negative TestRFC3101BorderRouterType3DefaultMetricIsNotBorrowed (unconfigured sibling carries DefaultAreaCost, not 77). Revert records on applyAreaTypePolicy observed red for both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3101BorderRouterDefaultMetricIsNotBorrowed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_border_default_cost_test.go#L73) | unit/verify | revert, verified |
 | negative | [`TestOSPFNSSADefaultMetricIsNotFixed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_default_cost_test.go#L55) | unit/verify | revert, verified |
@@ -568,14 +568,14 @@ When OSPF's summary routes are not imported, the default LSA originated by an NS
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a no-summary NSSA default that is not a Type-3. spf/area_type_test.go TestOSPFNSSANoSummaryDefaultInjection requires the Type-3 default through OriginateSummaries (line 133); origination_v6_nssa_default_test.go TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA asserts no NSSA-LSA default in the no-summary NSSA (line 101) and the inter-area default (line 112). Negatives: a regular NSSA gets no Type-3 default (area_type_test.go lines 94, 154).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L99) | unit/verify | unproven |
-| negative | [`TestOSPFNSSANoSummaryDefaultInjection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L149) | unit/verify | unproven |
-| negative | [`TestOSPFNSSAType3SummaryImport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L90) | unit/verify | unproven |
-| positive | [`TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L105) | unit/verify | unproven |
-| positive | [`TestOSPFNSSANoSummaryDefaultInjection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L126) | unit/verify | unproven |
-| positive | [`TestOSPFNSSAType3SummaryImport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L101) | unit/verify | unproven |
+| negative | [`TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L99) | unit/verify | not verified |
+| negative | [`TestOSPFNSSANoSummaryDefaultInjection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L149) | unit/verify | not verified |
+| negative | [`TestOSPFNSSAType3SummaryImport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L90) | unit/verify | not verified |
+| positive | [`TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L105) | unit/verify | not verified |
+| positive | [`TestOSPFNSSANoSummaryDefaultInjection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L126) | unit/verify | not verified |
+| positive | [`TestOSPFNSSAType3SummaryImport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L101) | unit/verify | not verified |
 
 ### [`RFC3101-2.7-3`](#rfc3101-2.7-3)
 
@@ -583,7 +583,7 @@ When summary routes are imported into the NSSA, the default LSA originated by an
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Type-3 default into an NSSA that imports summaries. spf/area_type_test.go TestOSPFNSSANoSummaryDefaultInjection/regular asserts no summary default through OriginateSummaries (line 154), TestOSPFNSSAType3SummaryImport asserts it through applyAreaTypePolicy (line 94), and the v3 test asserts no inter-area default (line 121). Negatives show the ban is conditional on import (area_type_test.go lines 107, 133).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFv3NSSANoSummaryDefaultUsesSummaryLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L108) | unit/verify | revert, verified |
 | negative | [`TestOSPFNSSANoSummaryDefaultInjection`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/spf/rfc3101_area_type_test.go#L130) | unit/verify | revert, verified |

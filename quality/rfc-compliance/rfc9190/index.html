@@ -128,15 +128,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>35</strong><b>of 53 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8</strong><b>of 53 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>35</strong><b>of 53 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>8</strong><b>of 53 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 53 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>126</strong><b>126 of 134 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>126</strong><b>126 of 134 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>1</strong><b>of 53 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-bad"><span>Partial test coverage</span><strong>1</strong><b>of 53 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>9</strong><b>of 53 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
 </div>
 <h3>Neutral</h3>
@@ -144,9 +144,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 53 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 53 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 53 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 53 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 53 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 53 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 53 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -174,11 +174,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -190,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -198,7 +198,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -301,7 +301,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>3</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>1</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -320,13 +320,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p class="rfc-id-list"><strong>Positive and negative tests (35):</strong> <a href="#rfc9190-1-1"><code>RFC9190-1-1</code></a>, <a href="#rfc9190-2.1-2"><code>RFC9190-2.1-2</code></a>, <a href="#rfc9190-2.1-8"><code>RFC9190-2.1-8</code></a>, <a href="#rfc9190-2.1.1-1"><code>RFC9190-2.1.1-1</code></a>, <a href="#rfc9190-2.1.1-2"><code>RFC9190-2.1.1-2</code></a>, <a href="#rfc9190-2.1.2-1"><code>RFC9190-2.1.2-1</code></a>, <a href="#rfc9190-2.1.3-1"><code>RFC9190-2.1.3-1</code></a>, <a href="#rfc9190-2.1.3-2"><code>RFC9190-2.1.3-2</code></a>, <a href="#rfc9190-2.1.4-1"><code>RFC9190-2.1.4-1</code></a>, <a href="#rfc9190-2.1.4-2"><code>RFC9190-2.1.4-2</code></a>, <a href="#rfc9190-2.1.4-3"><code>RFC9190-2.1.4-3</code></a>, <a href="#rfc9190-2.1.8-1"><code>RFC9190-2.1.8-1</code></a>, <a href="#rfc9190-2.1.8-2"><code>RFC9190-2.1.8-2</code></a>, <a href="#rfc9190-2.1.8-3"><code>RFC9190-2.1.8-3</code></a>, <a href="#rfc9190-2.1.8-4"><code>RFC9190-2.1.8-4</code></a>, <a href="#rfc9190-2.1.9-1"><code>RFC9190-2.1.9-1</code></a>, <a href="#rfc9190-2.1.9-2"><code>RFC9190-2.1.9-2</code></a>, <a href="#rfc9190-2.3-2"><code>RFC9190-2.3-2</code></a>, <a href="#rfc9190-2.3-3"><code>RFC9190-2.3-3</code></a>, <a href="#rfc9190-2.4-1"><code>RFC9190-2.4-1</code></a>, <a href="#rfc9190-2.4-2"><code>RFC9190-2.4-2</code></a>, <a href="#rfc9190-2.5-1"><code>RFC9190-2.5-1</code></a>, <a href="#rfc9190-2.5-2"><code>RFC9190-2.5-2</code></a>, <a href="#rfc9190-5.4-1"><code>RFC9190-5.4-1</code></a>, <a href="#rfc9190-5.4-2"><code>RFC9190-5.4-2</code></a>, <a href="#rfc9190-5.4-3"><code>RFC9190-5.4-3</code></a>, <a href="#rfc9190-5.4-4"><code>RFC9190-5.4-4</code></a>, <a href="#rfc9190-5.4-5"><code>RFC9190-5.4-5</code></a>, <a href="#rfc9190-5.7-1"><code>RFC9190-5.7-1</code></a>, <a href="#rfc9190-5.7-2"><code>RFC9190-5.7-2</code></a>, <a href="#rfc9190-5.7-3"><code>RFC9190-5.7-3</code></a>, <a href="#rfc9190-5.7-4"><code>RFC9190-5.7-4</code></a>, <a href="#rfc9190-5.7-5"><code>RFC9190-5.7-5</code></a>, <a href="#rfc9190-5.7-6"><code>RFC9190-5.7-6</code></a>, <a href="#rfc9190-5.10-1"><code>RFC9190-5.10-1</code></a></p>
 <p class="rfc-id-list"><strong>Annotated (including scoped evidence) (15):</strong> <a href="#rfc9190-2.1-3"><code>RFC9190-2.1-3</code></a>, <a href="#rfc9190-2.1-4"><code>RFC9190-2.1-4</code></a>, <a href="#rfc9190-2.1-5"><code>RFC9190-2.1-5</code></a>, <a href="#rfc9190-2.1-6"><code>RFC9190-2.1-6</code></a>, <a href="#rfc9190-2.1-7"><code>RFC9190-2.1-7</code></a>, <a href="#rfc9190-2.1.2-2"><code>RFC9190-2.1.2-2</code></a>, <a href="#rfc9190-2.1.2-3"><code>RFC9190-2.1.2-3</code></a>, <a href="#rfc9190-2.1.2-4"><code>RFC9190-2.1.2-4</code></a>, <a href="#rfc9190-2.3-1"><code>RFC9190-2.3-1</code></a>, <a href="#rfc9190-2.3-4"><code>RFC9190-2.3-4</code></a>, <a href="#rfc9190-5.6-1"><code>RFC9190-5.6-1</code></a>, <a href="#rfc9190-5.6-2"><code>RFC9190-5.6-2</code></a>, <a href="#rfc9190-5.8-1"><code>RFC9190-5.8-1</code></a>, <a href="#rfc9190-5.8-2"><code>RFC9190-5.8-2</code></a>, <a href="#rfc9190-5.8-3"><code>RFC9190-5.8-3</code></a></p>
 <p class="rfc-id-list"><strong>No test and no annotation (3):</strong> <a href="#rfc9190-2.2-1"><code>RFC9190-2.2-1</code></a>, <a href="#rfc9190-5.6-3"><code>RFC9190-5.6-3</code></a>, <a href="#rfc9190-5.6-4"><code>RFC9190-5.6-4</code></a></p>
-<p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc9190-2.3-1"><code>RFC9190-2.3-1</code></a></p>
+<p class="rfc-id-list"><strong>Partial test coverage (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc9190-2.3-1"><code>RFC9190-2.3-1</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc9190:must">Ze proven 42, Proof pending 1, Not assessed 3, Not built 7</div>
+<div data-ze-rfc-bar="rfc9190:must">Ze verified 42, Tests awaiting verification 1, Not assessed 3, Not built 7</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc9190:overview">Ze MUST proven 42, SHOULD proven 2, Proof pending 1, Not assessed 44, Not built 7</div>
+<div data-ze-rfc-bar="rfc9190:overview">Ze MUST verified 42, SHOULD verified 2, Tests awaiting verification 1, Not assessed 44, Not built 7</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -346,13 +346,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc9190:must.kept">53</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc9190:must.ze-proven">42</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc9190:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc9190:must.proof-pending">1</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -382,7 +382,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc9190:should.total">43</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc9190:should.proven">2</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -403,7 +403,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc9190:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc9190:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -418,7 +418,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -671,7 +671,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC9190-2.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L159" title="internal/core/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC9190MSKIsTheExportUnderTheRFCLabel</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L209" title="internal/core/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC9190MSKIsNotThePreTLS13Derivation</code></a></span></div>
-</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;Key_Material&#34;; gap &#34;Method-Id&#34;; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement</p></td>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;Key_Material&#34;; gap &#34;Method-Id&#34;; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc9190-2.3-2">RFC9190-2.3-2</code></td><td colspan="3"><span class="rfc-subject">Note that the key derivation MUST use the length values given above. (§2.3)</span></td></tr>
 <tr><td></td>
@@ -1355,7 +1355,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>no test carries this requirement id</td>
 </tr>
 <tr><td><a href="#rfc9190-2.3-1"><code>RFC9190-2.3-1</code></a> When EAP-TLS is used with TLS version 1.3, the Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface [RFC5705] (for TLS 1.3, this is defined in Section 7.5 of [RFC8446]). (§2.3)</td>
-<td>{partial}, Partial proof; remaining gap</td>
+<td>{partial}, Partial test coverage</td>
 <td>tested &#34;Key_Material&#34;; gap &#34;Method-Id&#34;; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys</td>
 </tr>
 <tr><td><a href="#rfc9190-2.3-4"><code>RFC9190-2.3-4</code></a> Method-Id = TLS-Exporter(&#34;EXPORTER_EAP_TLS_Method-Id&#34;, Type, 64) Session-Id = Type || Method-Id (§2.3)</td>
@@ -1394,14 +1394,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc9190-1-1"><code>RFC9190-1-1</code></a></h3>
 <p>Therefore, implementations MUST limit the maximum TLS version they use to 1.3, unless later versions are explicitly enabled by the administrator. (§1)</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_version_cap_test.go#L111" title="internal/core/eap/rfc9190_version_cap_test.go" target="_blank" rel="noopener"><code>TestEAPTLSVersionCapLeavesTLS12Reachable</code></a></td>
@@ -1421,7 +1421,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L430" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorRefusesAClientHelloOfferingEarlyData</code></a></td>
@@ -1441,7 +1441,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L317" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest</code></a></td>
@@ -1456,7 +1456,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L149" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth</code></a></td>
@@ -1471,7 +1471,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L321" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest</code></a></td>
@@ -1486,7 +1486,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L154" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerClientHelloOffersNoEarlyDataOrPostHandshakeAuth</code></a></td>
@@ -1501,7 +1501,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L326" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorConfigSendsNoEarlyDataOrPostHandshakeRequest</code></a></td>
@@ -1516,7 +1516,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L345" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></td>
@@ -1536,7 +1536,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L232" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorWithoutACertificateIsRefused</code></a></td>
@@ -1556,7 +1556,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L642" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PSKTheAuthenticatorDidNotIssueIsNotUsed</code></a></td>
@@ -1576,7 +1576,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L60" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode</code></a></td>
@@ -1601,7 +1601,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L110" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems</code></a></td>
@@ -1616,7 +1616,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L117" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesASessionTicketTheNextExchangeRedeems</code></a></td>
@@ -1636,7 +1636,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L459" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerOffersNoEarlyDataFromATicketThatPermitsIt</code></a></td>
@@ -1651,7 +1651,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L360" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionOffRunsAFullHandshakeAndStillIssuesATicket</code></a></td>
@@ -1671,7 +1671,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L66" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13IssuesNoTicketToAClientThatOffersNoPSKMode</code></a></td>
@@ -1696,7 +1696,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L335" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></td>
@@ -1716,7 +1716,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L341" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12EachEndAnswersWithRecordsOfTheNegotiatedVersion</code></a></td>
@@ -1736,7 +1736,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L455" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletedExchangeCarriesNoAlert</code></a></td>
@@ -1756,7 +1756,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cached_authorization_test.go#L24" title="internal/core/eap/rfc9190_cached_authorization_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorRefusesAnAnonymousPeerWithARevokedCertificate</code></a></td>
@@ -1776,7 +1776,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L237" title="internal/core/eap/rfc9190_nai_test.go" target="_blank" rel="noopener"><code>TestEAPMSCHAPv2PeerSendsItsConfiguredIdentity</code></a></td>
@@ -1801,7 +1801,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L182" title="internal/core/eap/rfc9190_nai_test.go" target="_blank" rel="noopener"><code>TestNAIGrammarMatchesRFC7542Section22</code></a></td>
@@ -1821,7 +1821,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_tls_layer_test.go#L518" title="internal/core/eap/rfc9190_tls_layer_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerHoldingACertificateSendsIt</code></a></td>
@@ -1841,7 +1841,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L73" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSSetsNoLengthBitOnAnUnfragmentedMessage</code></a></td>
@@ -1861,7 +1861,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_fragmentation_test.go#L246" title="internal/core/eap/rfc9190_fragmentation_test.go" target="_blank" rel="noopener"><code>TestEAPTLSRefusesAnUnfragmentedMessageThatContradictsItself</code></a></td>
@@ -1882,11 +1882,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC9190-2.2-1, so there is no linked test.</p>
 <h3><a href="#rfc9190-2.3-1"><code>RFC9190-2.3-1</code></a></h3>
 <p>When EAP-TLS is used with TLS version 1.3, the Key_Material and Method-Id SHALL be derived from the exporter_secret using the TLS exporter interface [RFC5705] (for TLS 1.3, this is defined in Section 7.5 of [RFC8446]). (§2.3)</p>
-<p>Records cover only part of this requirement: tested &#34;Key_Material&#34;; gap &#34;Method-Id&#34;; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys; they do not prove the whole requirement.</p>
+<p>Records cover only part of this requirement: tested &#34;Key_Material&#34;; gap &#34;Method-Id&#34;; Ze derives Key_Material from the TLS exporter and cuts the MSK and EMSK from it, while no non-test code exports EXPORTER_EAP_TLS_Method-Id, so the Method-Id half is the gap RFC9190-2.3-4 records at internal/core/eap/eap_tls.go::exportEAPTLSKeys; they do not verify the whole requirement.</p>
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_msk_label_test.go#L209" title="internal/core/eap/rfc5216_msk_label_test.go" target="_blank" rel="noopener"><code>TestRFC9190MSKIsNotThePreTLS13Derivation</code></a></td>
@@ -1906,7 +1906,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L530" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestRFC9190KeysAreNotAShorterExport</code></a></td>
@@ -1926,7 +1926,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_handshake_rules_test.go#L534" title="internal/core/eap/rfc9190_handshake_rules_test.go" target="_blank" rel="noopener"><code>TestRFC9190KeysAreNotAShorterExport</code></a></td>
@@ -1950,7 +1950,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L248" title="internal/core/eap/rfc9190_cipher_suites_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13AuthenticatorAbortsAClientHelloWithoutSignatureAlgorithms</code></a></td>
@@ -1970,7 +1970,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cipher_suites_test.go#L109" title="internal/core/eap/rfc9190_cipher_suites_test.go" target="_blank" rel="noopener"><code>TestEAPTLSAuthenticatorRefusesSuitesWithoutConfidentiality</code></a></td>
@@ -1990,22 +1990,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L289" title="internal/core/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS12SendsNoProtectedSuccessIndication</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L254" title="internal/core/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusedClientGetsNoSuccessIndication</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L567" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></td>
 <td>interop/nightly</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L397" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumedExchangeStillSendsTheSuccessIndication</code></a></td>
@@ -2015,12 +2015,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L156" title="internal/core/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13SendsProtectedSuccessIndication</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L561" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13</code></a></td>
 <td>interop/nightly</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2030,17 +2030,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L248" title="internal/core/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusedClientGetsNoSuccessIndication</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_test.go#L164" title="internal/core/eap/rfc9190_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13SendsProtectedSuccessIndication</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2050,7 +2050,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L220" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionStillNeedsARevocationSource</code></a></td>
@@ -2100,7 +2100,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/ipsec/checkers.go#L604" title="internal/le/interoplab/ipsec/checkers.go" target="_blank" rel="noopener"><code>checkResponderEAPTLS13RevokedClient</code></a></td>
 <td>interop/nightly</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -2110,7 +2110,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L198" title="internal/core/eap/rfc9190_ocsp_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13StaplesNothingWhenTheCertificateCarriesNoResponse</code></a></td>
@@ -2130,7 +2130,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L562" title="internal/core/eap/rfc9190_ocsp_test.go" target="_blank" rel="noopener"><code>TestCertificateStatusAcceptsADelegatedResponder</code></a></td>
@@ -2205,7 +2205,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L278" title="internal/component/ike/engine/rfc9190_postauth_test.go" target="_blank" rel="noopener"><code>TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood</code></a></td>
@@ -2230,7 +2230,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L348" title="internal/component/ike/engine/rfc9190_postauth_test.go" target="_blank" rel="noopener"><code>TestPostAuthenticationCheckReadsAnHTTPSResponder</code></a></td>
@@ -2266,7 +2266,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L95" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13TicketIsNotRedeemableUnderAnotherPeeringsKey</code></a></td>
@@ -2296,7 +2296,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L187" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesAResumptionAgainstAReplacedTrustAnchor</code></a></td>
@@ -2326,7 +2326,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cached_authorization_test.go#L54" title="internal/core/eap/rfc9190_cached_authorization_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13ResumptionAuthorizesOnTheCachedChain</code></a></td>
@@ -2346,7 +2346,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L292" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></td>
@@ -2366,7 +2366,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_refusal_test.go#L130" title="internal/core/eap/rfc9190_resumption_refusal_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13RefusesATicketPastTheSection57Lifetime</code></a></td>
@@ -2391,7 +2391,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_resumption_test.go#L283" title="internal/core/eap/rfc9190_resumption_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13CompletesAResumptionWithAnUnrevokedChain</code></a></td>
@@ -2428,7 +2428,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_attack_mitigation_test.go#L953" title="internal/core/eap/rfc9190_attack_mitigation_test.go" target="_blank" rel="noopener"><code>TestRFC9190MitigationDropsBytesPipelinedBehindTheStart</code></a></td>
@@ -2518,7 +2518,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_cert_nai_test.go#L284" title="internal/core/eap/rfc9190_cert_nai_test.go" target="_blank" rel="noopener"><code>TestEAPTLSPeerKeepsTheAnonymousFallbackWhenNoCertificateNAIIsUsable</code></a></td>
@@ -2553,7 +2553,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_nai_test.go#L100" title="internal/core/eap/rfc9190_nai_test.go" target="_blank" rel="noopener"><code>TestEAPTLS13PeerSendsTheFixedUsernameWhenTheIdentityHasNoRealm</code></a></td>
@@ -2894,7 +2894,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

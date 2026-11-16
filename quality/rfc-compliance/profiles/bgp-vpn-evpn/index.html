@@ -127,9 +127,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="profile/bgp-vpn-evpn/required:must">Ze proven 29, Proof pending 8, Not built 165</div>
+<div data-ze-rfc-bar="profile/bgp-vpn-evpn/required:must">Ze verified 29, Tests awaiting verification 8, Not built 165</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="profile/bgp-vpn-evpn/required:overview">Ze MUST proven 29, SHOULD proven 1, Proof pending 8, Not assessed 53, Not built 165</div>
+<div data-ze-rfc-bar="profile/bgp-vpn-evpn/required:overview">Ze MUST verified 29, SHOULD verified 1, Tests awaiting verification 8, Not assessed 53, Not built 165</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -149,13 +149,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="profile/bgp-vpn-evpn/required:must.kept">202</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="profile/bgp-vpn-evpn/required:must.ze-proven">29</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="profile/bgp-vpn-evpn/required:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="profile/bgp-vpn-evpn/required:must.proof-pending">8</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -185,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="profile/bgp-vpn-evpn/required:should.total">54</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="profile/bgp-vpn-evpn/required:should.proven">1</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -206,7 +206,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="profile/bgp-vpn-evpn/required:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="profile/bgp-vpn-evpn/required:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -221,7 +221,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 </section>
 <section><h2>Tree</h2>
 <p>The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows &#34;requirements not reviewed&#34; instead of a bar.</p>
@@ -237,13 +237,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="../../rfc4659/">RFC 4659</a> (cycle with rfc4364, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950)</td>
 <td>BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN</td>
-<td><div data-ze-rfc-bar="rfc4659:must">Ze proven 3, Proof pending 2, Not built 13</div></td>
-<td><div data-ze-rfc-bar="rfc4659:overview">Ze MUST proven 3, Proof pending 2, Not assessed 6, Not built 13</div></td>
+<td><div data-ze-rfc-bar="rfc4659:must">Ze verified 3, Tests awaiting verification 2, Not built 13</div></td>
+<td><div data-ze-rfc-bar="rfc4659:overview">Ze MUST verified 3, Tests awaiting verification 2, Not assessed 6, Not built 13</div></td>
 </tr>
 <tr><td><a href="../../rfc8277/">RFC 8277</a> (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8950)</td>
 <td>Using BGP to Bind MPLS Labels to Address Prefixes</td>
-<td><div data-ze-rfc-bar="rfc8277:must">Ze proven 10, Proof pending 1, Not built 24</div></td>
-<td><div data-ze-rfc-bar="rfc8277:overview">Ze MUST proven 10, SHOULD proven 1, Proof pending 1, Not assessed 6, Not built 24</div></td>
+<td><div data-ze-rfc-bar="rfc8277:must">Ze verified 10, Tests awaiting verification 1, Not built 24</div></td>
+<td><div data-ze-rfc-bar="rfc8277:overview">Ze MUST verified 10, SHOULD verified 1, Tests awaiting verification 1, Not assessed 6, Not built 24</div></td>
 </tr>
 </tbody>
 </table>
@@ -255,8 +255,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc4684/">RFC 4684</a></td>
 <td>Constrained Route Distribution for Border Gateway Protocol/MultiProtocol Label Switching (BGP/MPLS) Internet Protocol (IP) Virtual Private Networks (VPNs)</td>
-<td><div data-ze-rfc-bar="rfc4684:must">Ze proven 2, Not built 4</div></td>
-<td><div data-ze-rfc-bar="rfc4684:overview">Ze MUST proven 2, Not assessed 4, Not built 4</div></td>
+<td><div data-ze-rfc-bar="rfc4684:must">Ze verified 2, Not built 4</div></td>
+<td><div data-ze-rfc-bar="rfc4684:overview">Ze MUST verified 2, Not assessed 4, Not built 4</div></td>
 </tr>
 <tr><td><a href="../../rfc4761/">RFC 4761</a></td>
 <td>Virtual Private LAN Service (VPLS) Using BGP for Auto-Discovery and Signaling</td>
@@ -278,8 +278,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc7432/">RFC 7432</a></td>
 <td>BGP MPLS-Based Ethernet VPN</td>
-<td><div data-ze-rfc-bar="rfc7432:must">Ze proven 11, Proof pending 2, Not built 90</div></td>
-<td><div data-ze-rfc-bar="rfc7432:overview">Ze MUST proven 11, Proof pending 2, Not assessed 17, Not built 90</div></td>
+<td><div data-ze-rfc-bar="rfc7432:must">Ze verified 11, Tests awaiting verification 2, Not built 90</div></td>
+<td><div data-ze-rfc-bar="rfc7432:overview">Ze MUST verified 11, Tests awaiting verification 2, Not assessed 17, Not built 90</div></td>
 </tr>
 </tbody>
 </table>
@@ -291,8 +291,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc9136/">RFC 9136</a></td>
 <td>IP Prefix Advertisement in Ethernet VPN (EVPN)</td>
-<td><div data-ze-rfc-bar="rfc9136:must">Ze proven 3, Proof pending 3, Not built 8</div></td>
-<td><div data-ze-rfc-bar="rfc9136:overview">Ze MUST proven 3, Proof pending 3, Not assessed 6, Not built 8</div></td>
+<td><div data-ze-rfc-bar="rfc9136:must">Ze verified 3, Tests awaiting verification 3, Not built 8</div></td>
+<td><div data-ze-rfc-bar="rfc9136:overview">Ze MUST verified 3, Tests awaiting verification 3, Not assessed 6, Not built 8</div></td>
 </tr>
 </tbody>
 </table>
@@ -347,7 +347,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

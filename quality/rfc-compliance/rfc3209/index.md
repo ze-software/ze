@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 19 | of 59 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 6 | of 59 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 19 | of 59 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 6 | of 59 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 59 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 59 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 53 | 53 of 59 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 59 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 53 | 53 of 59 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 59 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 59 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 2 | of 59 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 2 | of 59 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 59 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 59 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 59 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: RSVP-TE (RFC 3209): PATH/RESV signaling, ERO, LABE
 
 **Area:** RSVP-TE
 
-**Proof:** 23 of 59 MUST proven
+**Test verification:** 23 of 59 MUST proven
 
 **Evidence:** unit 23
 
@@ -109,7 +109,7 @@ Included in automatic checks: RSVP-TE (RFC 3209): PATH/RESV signaling, ERO, LABE
 | Annotated (including scoped evidence) | 40 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **59** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: RSVP-TE (RFC 3209): PATH/RESV signaling, ERO, LABE
 
 ## Figures
 
-- **MUST bar**: Ze proven 23, Proof pending 2, OS testing gap 2, Not built 32
-- **Overview bar**: Ze MUST proven 23, Proof pending 3, OS testing gap 2, Not assessed 2, Not built 32
+- **MUST bar**: Ze verified 23, Tests awaiting verification 2, OS testing gap 2, Not built 32
+- **Overview bar**: Ze MUST verified 23, Tests awaiting verification 3, OS testing gap 2, Not assessed 2, Not built 32
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: RSVP-TE (RFC 3209): PATH/RESV signaling, ERO, LABE
 | Mandatory requirements complete | not complete |
 | MUST rows | 59 |
 | MUST rows kept (the MUST bar) | 59 |
-| Ze proven | 23 |
+| Ze verified | 23 |
 | OS verified | 0 |
-| Proof pending | 2 |
+| Tests awaiting verification | 2 |
 | OS testing gap | 2 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: RSVP-TE (RFC 3209): PATH/RESV signaling, ERO, LABE
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 3 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 1 |
+| SHOULD tests awaiting verification | 1 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 2 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc3209.json](../../../data/rfc/rfc3209.json).
 
@@ -264,9 +264,9 @@ Source: [data/rfc/rfc3209.json](../../../data/rfc/rfc3209.json).
 | [`RFC3209-5.4-1`](#rfc3209-5.4-1) When the links between neighbors are numbered, then Hellos MUST be run on each link and the previously described mechanisms apply. (S5.4) | {gap}, no test | Ze speaks no RSVP Hello; plan/spec-rsvpte-hello-extension.md |
 | [`RFC3209-5.4-2`](#rfc3209-5.4-2) When the links are unnumbered, link failure detection MUST be provided by some means other than Hellos (S5.4) | {gap}, no test | Ze speaks no RSVP Hello; plan/spec-rsvpte-hello-extension.md |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC3209-4.6.1-1`](#rfc3209-4.6.1-1)
 
@@ -274,7 +274,7 @@ A test reads unproven when no record shows it failing after a deliberate fault. 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-18 (independent auditor, after c85342c940). Section 4.6.1.1 LSP_TUNNEL_IPv4 Session Object diagram: the 16 bits before Tunnel ID are "MUST be zero". TestRSVPSessionObjectEncoding changed only by the deleted RFC3209-4.6.1-2 tag line; its body is identical and still encodes into a zeroed buffer, so alone it would not discriminate a skipped write. TestRFC3209SessionReservedZeroOverDirtyBuffer carries the verdict: it prefills 0xFF and asserts buf[8:10] zero, the header 0,16,1,7, the endpoint and Tunnel ID, so encodeSessionIPv4 (internal/plugins/rsvpte/wire.go) dropping buf[8]=0, buf[9]=0 goes red. Single polarity as annotated: no decoder reads the field.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC3209SessionReservedZeroOverDirtyBuffer`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/literals_rfc_test.go#L59) | unit/verify | revert, verified |
 | positive | [`TestRSVPSessionObjectEncoding`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L341) | unit/verify | revert, verified |
@@ -285,9 +285,9 @@ Class = SENDER_TEMPLATE, LSP_TUNNEL_IPv4 C-Type = 7 0 1 2 3 0 1 2 3 4 5 6 7 8 9 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.6.2.1 diagram: the field before LSP ID is "MUST be zero". TestRSVPSenderTemplateReservedZeroOnSend prefills 0xAA, asserts buf[8],buf[9]==0 and the whole 12-octet object, and that nothing past it was written, so an encodeSenderTemplate that skips or corrupts the reserved write goes red. Single polarity: the decoder does not read the field.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRSVPSenderTemplateReservedZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L371) | unit/verify | unproven |
+| positive | [`TestRSVPSenderTemplateReservedZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L371) | unit/verify | not verified |
 
 ### [`RFC3209-4.6.1-2`](#rfc3209-4.6.1-2)
 
@@ -303,7 +303,7 @@ To establish an LSP tunnel the sender creates a Path message with a LABEL_REQUES
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.2.4: "To establish an LSP tunnel the sender creates a Path message with a LABEL_REQUEST object." TestRFC3209IngressPathCarriesLabelRequest reads the PATH the ingress engine sends and asserts LABEL_REQUEST with L3PID 0x0800; TestRFC3209IngressPathNeverWithoutLabelRequest asserts it on the originated PATH, two refreshes and the make-before-break PATH. TestBuildPathRoundTrip proves buildPath appends the object; TestRFC3209NoLabelWithoutLabelRequest proves the neighbouring receiver rule.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209NoLabelWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L222) | unit/verify | mutant, verified |
 | negative | [`TestRFC3209IngressPathNeverWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L55) | unit/verify | revert, verified |
@@ -316,10 +316,10 @@ The label for a sender MUST immediately follow the FILTER_SPEC for that sender i
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEngineResvWithoutLabelRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L465) | unit/verify | unproven |
-| positive | [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L75) | unit/verify | unproven |
+| negative | [`TestEngineResvWithoutLabelRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L465) | unit/verify | not verified |
+| positive | [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L75) | unit/verify | not verified |
 
 ### [`RFC3209-4.1-2`](#rfc3209-4.1-2)
 
@@ -327,10 +327,10 @@ Labels MAY be carried in Resv messages (S4.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRSVPLabelObject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L301) | unit/verify | unproven |
-| positive | [`TestRSVPLabelObject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L300) | unit/verify | unproven |
+| negative | [`TestRSVPLabelObject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L301) | unit/verify | not verified |
+| positive | [`TestRSVPLabelObject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_test.go#L300) | unit/verify | not verified |
 
 ### [`RFC3209-4.3.4-1`](#rfc3209-4.3.4-1)
 
@@ -338,7 +338,7 @@ The node determines whether it is topologically adjacent to the abstract node de
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Closure rejudge 2026-10-02: TestEngineTransitForwarding changed only in its positive claim, which named nextHopFromERO (gone) and now names the current producer, routing.go resolveExplicitPath, which skips the leading local subobjects and, when the next node is in the second abstract node, returns the ERO from that subobject on; the body still asserts the PATH is relayed to the egress with a one-hop ERO beginning at the egress. Positive re-recorded on resolveExplicitPath (observed red). Negatives TestRFC3209TransitNotAdjacentToSecondSubobject (no route to the strict second subobject: no next hop, nothing forwarded, no state, PathErr 24/2) and TestEngineTransitNoUsableERONextHop, both recorded on resolveExplicitPath.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEngineTransitNoUsableERONextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_test.go#L511) | unit/verify | revert, verified |
 | negative | [`TestRFC3209TransitNotAdjacentToSecondSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L88) | unit/verify | revert, verified |
@@ -350,7 +350,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Clos
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). The missing input is now covered: TestRFC3209TransitRefusesForeignFirstSubobject sends a first subobject 10.0.0.77/32 that does not contain this node; the transit forwards nothing, keeps no state, and answers PathErr 24/4 to the previous hop, which a blind pop would fail. Positive TestRFC3209TransitEvaluatesFirstEROSubobject.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209TransitNoFirstEROSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L145) | unit/verify | mutant, verified |
 | negative | [`TestRFC3209TransitRefusesForeignFirstSubobject`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L71) | unit/verify | revert, verified |
@@ -402,7 +402,7 @@ In Resv messages they MUST appear after the associated FILTER_SPEC and prior to 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: LABEL or RECORD_ROUTE placed before its FILTER_SPEC or after a subsequent one. TestRFC3209ResvLabelFollowsFilterSpec asserts objs[filter+1]==LABEL and objs[filter+2]==RECORD_ROUTE; TestRFC3209LabelFollowsFilterSpec asserts exactly one FILTER_SPEC and label==filter+1; TestRFC3209ResvNeverCarriesSenderTemplate asserts no LABEL/RRO precedes the FILTER_SPEC. buildResv emits one sender per RESV, so both clauses are pinned.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209ResvNeverCarriesSenderTemplate`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L58) | unit/verify | revert, verified |
 | positive | [`TestRFC3209ResvLabelFollowsFilterSpec`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/repairs_rfc2205_test.go#L47) | unit/verify | revert, verified |
@@ -414,7 +414,7 @@ The ordering of these objects is not important, so an implementation MUST be pre
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC3209ObjectsAcceptedInAnyOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L187) | unit/verify | mutant, verified |
 
@@ -448,7 +448,7 @@ This field is reserved. It MUST be set to zero on transmission and MUST be ignor
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Clause 1 (zero on transmission): TestRFC3209LabelRequestReservedZeroOnSend prefills 0xFF and asserts buf[4:6]=={0,0}. Clause 2 (ignored on receipt): TestRFC3209LabelRequestReservedIgnoredOnReceipt decodes reserved 0xFFFF and asserts NoError and L3PID 0x0800, red if the decoder refuses or misreads it.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209LabelRequestReservedIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L62) | unit/verify | revert, verified |
 | positive | [`TestRFC3209LabelRequestReservedZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L49) | unit/verify | revert, verified |
@@ -499,7 +499,7 @@ A receiver that accepts a LABEL_REQUEST object MUST include a LABEL object in Re
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC3209EgressResvCarriesLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L30) | unit/verify | revert, verified |
 
@@ -509,7 +509,7 @@ If a LABEL_REQUEST object was not present in the Path message, a node MUST NOT i
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209NoLabelWithoutLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L221) | unit/verify | mutant, verified |
 | positive | [`TestRFC3209LabelFollowsLabelRequest`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L205) | unit/verify | mutant, verified |
@@ -520,7 +520,7 @@ A node that sends a LABEL_REQUEST object MUST be ready to accept and correctly p
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209IngressRefusesResvWithoutLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L74) | unit/verify | mutant, verified |
 | positive | [`TestRFC3209IngressProcessesResvLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L48) | unit/verify | mutant, verified |
@@ -531,7 +531,7 @@ A node which receives and forwards a Path message each with a LABEL_REQUEST obje
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a relayed PATH whose LABEL_REQUEST L3PID is not the received one. TestRFC3209TransitCopiesL3PID sends L3PID 0x86DD and asserts fwd.LabelRequest.L3PID==0x86DD, red if the transit substitutes its local default 0x0800 (register.go, reroute.go). Single polarity is declared on the row.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC3209TransitCopiesL3PID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_engine_label_test.go#L106) | unit/verify | revert, verified |
 
@@ -549,7 +549,7 @@ The Length MUST be at least 4, and MUST be a multiple of 4. (S4.3.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Send: TestRFC3209EROSubobjectLengthOnSend asserts lengths {8,20,8}, each >=4 and %4==0, red on a short or non-multiple Length. Receive: TestRFC3209EROSubobjectLengthShortRefused asserts decodeERO refuses Length 3 with errShortERO.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209EROSubobjectLengthShortRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L87) | unit/verify | revert, verified |
 | positive | [`TestRFC3209EROSubobjectLengthOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L70) | unit/verify | revert, verified |
@@ -560,7 +560,7 @@ The path between a strict node and its preceding node MUST include only network 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209StrictHopThroughOutsideNodeRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_explicit_hops_test.go#L81) | unit/verify | revert, verified |
 | positive | [`TestRFC3209StrictHopReachedDirectly`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_explicit_hops_test.go#L60) | unit/verify | revert, verified |
@@ -571,7 +571,7 @@ Each subobject in this series MUST denote an abstract node that is a subset of t
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209InteriorHopLeavingAbstractNodeRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_explicit_hops_test.go#L146) | unit/verify | revert, verified |
 | positive | [`TestRFC3209InteriorHopStaysInAbstractNode`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_explicit_hops_test.go#L118) | unit/verify | revert, verified |
@@ -582,7 +582,7 @@ The length MUST always be a multiple of 4, and at least 4. (S4.4.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Send: TestRFC3209RROSubobjectLengthOnSend asserts lengths {8,8,20}, each >=4 and %4==0. Receive: TestRFC3209RROSubobjectLengthShortRefused asserts decodeRRO refuses Length 3 with errShortRRO.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209RROSubobjectLengthShortRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L116) | unit/verify | revert, verified |
 | positive | [`TestRFC3209RROSubobjectLengthOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L99) | unit/verify | revert, verified |
@@ -593,7 +593,7 @@ The newly added subobject MUST be this router's IP address. (S4.4.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Now proven at the engine, not the helper: TestRFC3209EngineRecordsOwnAddress drives a transit through handlePacket and reads the RRO head of the relayed PATH and the relayed RESV as the router's own 10.0.0.5, rest in order; TestRFC3209EngineNeverRecordsNeighborAddress asserts the head is neither the next hop nor the previous hop.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209RRONoSubobjectWithoutOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L24) | unit/verify | revert, verified |
 | negative | [`TestRFC3209EngineNeverRecordsNeighborAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L137) | unit/verify | revert, verified |
@@ -606,7 +606,7 @@ A node MUST NOT push on a Label Record subobject without also pushing on an IPv4
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209RRONoLabelRecordWithoutAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L43) | unit/verify | mutant, verified |
 | positive | [`TestRFC3209RROLabelRecordFollowsAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_rro_test.go#L32) | unit/verify | mutant, verified |
@@ -617,7 +617,7 @@ If the newly added subobject causes the RRO to be too big to fit in a Path (or R
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). Path direction now covered: TestRFC3209PathRRODroppedWhenTooBig (32 subobjects in, PATH forwarded without RRO, path state installed) and TestRFC3209PathRROKeptWhenItFits (31 in, 32 out headed by this router); the Resv direction was already covered. 'Too big' is realised as maxRecordRouteHops (32), the bound that keeps the RRO inside the fixed encode buffer (wire.go); that threshold is a model choice, not the message size.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209RROKeptWhenItFits`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L63) | unit/verify | revert, verified |
 | negative | [`TestRFC3209PathRROKeptWhenItFits`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L183) | unit/verify | revert, verified |
@@ -630,9 +630,9 @@ A received Path message without an RRO indicates that the sender node no longer 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-29 (routing child, continuation judge). Row widened to the verbatim trigger plus ban; the tests already drive the trigger. TestRFC3209PathRROWithdrawal: after a Path without an RRO, the next relayed RESV and a sendResv refresh carry no RRO, at transit and egress. Negative TestRFC3209PathRROForwarded keeps the RRO while the PATH requests it, so an always-drop implementation goes red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC3209PathRROForwarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L330) | unit/verify | unproven |
+| negative | [`TestRFC3209PathRROForwarded`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L330) | unit/verify | not verified |
 | positive | [`TestRFC3209PathRROWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L285) | unit/verify | mutant, verified |
 
 ### [`RFC3209-4.6.2-2`](#rfc3209-4.6.2-2)
@@ -649,7 +649,7 @@ The Length MUST always be a multiple of 4 and MUST be at least 8. (S4.7.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Send: TestRFC3209SessionAttributeLengthOnSend asserts header Length >=8 and %4==0 for names of 0 to 5 octets. Receive: TestRFC3209SessionAttributeLengthShortRefused asserts decodeSessionAttr refuses a body under the fixed four octets (Length below 8) for both C-Types.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209SessionAttributeLengthShortRefused`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L141) | unit/verify | revert, verified |
 | positive | [`TestRFC3209SessionAttributeLengthOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/wire_rfc3209_test.go#L127) | unit/verify | revert, verified |
@@ -676,7 +676,7 @@ All RSVP routers, whether they support the SESSION_ATTRIBUTE object or not, SHAL
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC3209SessionAttributeNotInserted`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L195) | unit/verify | revert, verified |
 | positive | [`TestRFC3209SessionAttributeRelayedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_relay_test.go#L165) | unit/verify | revert, verified |
@@ -815,7 +815,7 @@ When an ingress node with an established path wants to change that path, it form
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-29 (routing child). TestRFC3209ReroutePathKeepsSessionNewLSPID reads the emitted make-before-break PATH: SESSION equal to the original and to the PSB, same sender, new LSP_ID. TestRFC3209RerouteNeverReusesLSPID: two successive reroutes give three distinct LSP_IDs under one SESSION.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestSEAdmissionDistinctSessionsDoNotShare`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_admission_se_test.go#L38) | unit/verify | revert, verified |
 | negative | [`TestRFC3209RerouteNeverReusesLSPID`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L211) | unit/verify | revert, verified |
@@ -828,7 +828,7 @@ On receipt of the Path message, the egress node sends a Resv message with the ST
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-08 after the tagged units shifted byte-identical; re-read against rfc/full/rfc3209.txt and the current producers. Section 4.6.4: "On receipt of the Path message, the egress node sends a Resv message with the STYLE Shared Explicit toward the ingress node." TestRFC3209EgressResvStyleIsSharedExplicit drives a PATH into an egress engine through handlePacket and asserts the STYLE of the RESV it sends is 0x12. TestBuildResvRoundTrip proves the builder encodes SE when asked.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestBuildResvRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_build_test.go#L80) | unit/verify | revert, verified |
 | positive | [`TestRFC3209EgressResvStyleIsSharedExplicit`](https://github.com/ze-software/ze/blob/main/internal/plugins/rsvpte/rfc3209_signaling_test.go#L227) | unit/verify | revert, verified |

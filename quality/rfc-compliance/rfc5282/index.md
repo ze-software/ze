@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 19 | of 19 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 19 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 19 | of 19 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 19 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 19 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 19 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 0 | of 19 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 19 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 50 | 50 of 50 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 50 | 50 of 50 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -25,9 +25,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 19 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 19 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 19 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 19 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 19 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 19 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 19 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -46,13 +46,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -86,7 +86,7 @@ Included in automatic checks: Using AEAD Algorithms with the IKEv2 Encrypted Pay
 
 **Area:** IKEv2 AEAD algorithms
 
-**Proof:** 19 of 19 MUST proven
+**Test verification:** 19 of 19 MUST proven
 
 **Evidence:** unit 19
 
@@ -101,7 +101,7 @@ Included in automatic checks: Using AEAD Algorithms with the IKEv2 Encrypted Pay
 | Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **19** | every mandatory requirement appears in exactly one group above |
@@ -110,8 +110,8 @@ Included in automatic checks: Using AEAD Algorithms with the IKEv2 Encrypted Pay
 
 ## Figures
 
-- **MUST bar**: Ze proven 19
-- **Overview bar**: Ze MUST proven 19, Not assessed 11
+- **MUST bar**: Ze verified 19
+- **Overview bar**: Ze MUST verified 19, Not assessed 11
 
 | Figure | Rows |
 |---|---|
@@ -120,9 +120,9 @@ Included in automatic checks: Using AEAD Algorithms with the IKEv2 Encrypted Pay
 | Mandatory requirements complete | complete |
 | MUST rows | 19 |
 | MUST rows kept (the MUST bar) | 19 |
-| Ze proven | 19 |
+| Ze verified | 19 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -132,19 +132,19 @@ Included in automatic checks: Using AEAD Algorithms with the IKEv2 Encrypted Pay
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 11 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 11 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5282.json](../../../data/rfc/rfc5282.json).
 
@@ -187,9 +187,9 @@ Source: [data/rfc/rfc5282.json](../../../data/rfc/rfc5282.json).
 
 RFC 5282 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC5282-3-1`](#rfc5282-3-1)
 
@@ -197,7 +197,7 @@ There are no alignment requirements on the length of the Padding field; the reci
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a receiver refusing a message for its Padding length (0..255). Red: TestRFC5282AEADReceiveAcceptsAnyPaddingTo255 fatals 'decryptAndParse = %v, want the message accepted' for every length 0..255. Negative TestRFC5282AEADReceiveRefusesATruncatedInnerPayload bounds it (expectRefused).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282AEADReceiveRefusesATruncatedInnerPayload`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L291) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADReceiveAcceptsAnyPaddingTo255`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L255) | unit/verify | revert, verified |
@@ -208,7 +208,7 @@ The Initialization Vector (IV) MUST be eight octets. (§3.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an IV other than eight octets. Sender: TestRFC5282AEADSendIVIsEightOctets opens ze's LastSentMsg with the first 8 octets as IV and asserts gotIVOctets == 8. Receiver: TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets expectRefused for 7 and 9. The IV length is the shared ikeIVOctets for GCM and CCM.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282AEADReceiveRefusesAnIVThatIsNotEightOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L358) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADSendIVIsEightOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L314) | unit/verify | revert, verified |
@@ -219,7 +219,7 @@ The IV MUST be chosen by the encryptor in a manner that ensures that the same IV
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an IV repeated under one key. Red: TestRFC5282AEADSendIVIsUniquePerKey fatals on any repeat over 512 builds under one SA; TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage fatals when two byte-identical builds share an IV.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282AEADSendIVDoesNotRepeatForARepeatedMessage`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L413) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADSendIVIsUniquePerKey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L381) | unit/verify | revert, verified |
@@ -230,7 +230,7 @@ The AES GCM ICV consists solely of the AES GCM Authentication Tag. Implementatio
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: not supporting the 16 octet AES GCM ICV. Red: TestRFC5282AEADSendICVIsSixteenOctets asserts len(raw)==prefix+IV+plaintext+16 and expectOneDelete on the receiver; TestRFC5282AEADReceiveRefusesADamagedICV proves the 16 octets are verified (flipped and stripped ICV refused).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282AEADReceiveRefusesADamagedICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L467) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADSendICVIsSixteenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L440) | unit/verify | revert, verified |
@@ -241,7 +241,7 @@ The AES GCM ICV consists solely of the AES GCM Authentication Tag. Implementatio
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: supporting an AES GCM ICV other than 16, 8, 12. Red: TestRFC5282AEADRefusesAForbiddenICVLength fatals if OpenIKEAEAD(ENCR_AES_GCM_16) accepts a real 13, 14 or 15 octet ICV sealing; TestRFC5282AEADOpensTheFullLengthICV keeps 16 open. Lengths below 12 are not constructed (stdlib limit); ze's only GCM transform (20) fixes the tag at 16, so no other length is reachable.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282AEADOpensTheFullLengthICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L81) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADRefusesAForbiddenICVLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L53) | unit/verify | revert, verified |
@@ -252,7 +252,7 @@ Implementations MUST support ICV sizes of 8 octets and 16 octets. (§3.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: not supporting AES CCM ICVs of 8 and 16. Red: TestRFC5282CCMSupportsTheEightAndSixteenOctetICV establishes under CCM8 and CCM16, measures the ICV (t.Errorf on mismatch) and expectOneDelete; TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV refuses a flipped ICV bit and a flipped ciphertext bit at each size.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282CCMVerifiesTheEightAndSixteenOctetICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L228) | unit/verify | revert, verified |
 | positive | [`TestRFC5282CCMSupportsTheEightAndSixteenOctetICV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L195) | unit/verify | revert, verified |
@@ -263,7 +263,7 @@ AES CCM provides an encrypted ICV. Implementations MUST support ICV sizes of 8 o
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 5282 Section 3.2 forbids AES CCM ICV lengths other than 8, 12 and 16 octets; Section 7.2 assigns those sizes to Transform IDs 14, 15 and 16. TestRFC5282CCMRefusesEveryOtherICVLength asserts each CCM ID's exact AEADICVOctets result and actual sealed expansion, then requires ErrDecryptionFailed and no plaintext for authentic CCM ciphertexts with each other primitive-supported ICV size (4, 6, 10 and 14). These inputs retain valid key, salt, nonce and associated data, so they isolate the forbidden ICV size rather than corrupted or truncated tags. TestRFC5282CCMSupportsTheThreePermittedICVLengths is the non-blanket-refusal control: all three permitted sizes seal with exact expansion and open to the original plaintext. The profile constrains CCM, not unrelated AEAD registry entries. Native rfc record observed the positive unit fail at its exact metadata assertion for all three IDs when generated gomu selector internal/component/ike/crypto/aead.go:120:5#1 removed the AEADICVOctets guard negation, producing zero and ErrUnsupportedAlgorithm for registered CCM IDs. That observed break proves metadata discrimination, not a separate observation of forbidden-size acceptance or external peer interoperability.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282CCMSupportsTheThreePermittedICVLengths`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_ccm_test.go#L81) | unit/verify | revert, verified |
 | positive | [`TestRFC5282CCMRefusesEveryOtherICVLength`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_ccm_test.go#L25) | unit/verify | mutant, verified |
@@ -274,7 +274,7 @@ When this default nonce format is used, both the encryptor and decryptor constru
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Encryptor: TestRFC5282AEADSendSealsUnderSaltThenIV opens the real initiator IKE_AUTH request and responder response with an independent stdlib AES-GCM under salt||IV and refuses IV||salt (same length, order alone); SealIKEAEAD (crypto/aead.go) is the only seal site. Decryptor: TestRFC5282AEADNonceIsSaltThenIV accepts salt||IV, TestRFC5282AEADRefusesAReversedNonce refuses the reversed nonce. The ikeAEADNonce record is a whole-producer panic (reach); discrimination read from the independent-oracle assertions.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282AEADRefusesAReversedNonce`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L519) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADSendSealsUnderSaltThenIV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_send_test.go#L92) | unit/verify | revert, verified |
@@ -286,7 +286,7 @@ For the use of AES GCM with the IKEv2 Encrypted Payload, this default nonce form
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an AES GCM nonce other than 12 octets. Red: TestRFC5282AEADNonceIsTwelveOctets asserts len(nonce)==12 and expectOneDelete; TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets refuses 11 and 13. Sender side: the nonce size is fixed once in newIKEAEAD (salt+ikeIVOctets, checked by newAESGCM) and shared by SealIKEAEAD and OpenIKEAEAD, and Go's AEAD panics on a wrong-length nonce, so a sender-only length change is not reachable without reddening the receive units.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282AEADRefusesANonceThatIsNotTwelveOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L564) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADNonceIsTwelveOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L537) | unit/verify | revert, verified |
@@ -297,7 +297,7 @@ When this default nonce format is used, both the encryptor and decryptor constru
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an AES CCM nonce not built as salt||IV. Encryptor: TestRFC5282CCMNonceIsSaltThenIV opens ze's own sent message with an independent CCM under the 3 salt octets then the wire IV (fatal on failure). Decryptor: TestRFC5282CCMRefusesAReversedNonce refuses IV||salt.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282CCMRefusesAReversedNonce`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L291) | unit/verify | revert, verified |
 | positive | [`TestRFC5282CCMNonceIsSaltThenIV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L256) | unit/verify | revert, verified |
@@ -308,7 +308,7 @@ For the use of AES CCM with the IKEv2 Encrypted Payload, this default nonce form
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an AES CCM nonce other than 11 octets. Red: TestRFC5282CCMNonceIsElevenOctets asserts len(nonce)==11 and expectOneDelete; TestRFC5282CCMRefusesANonceThatIsNotElevenOctets refuses 10 and 12. Sender length is fixed by the shared newIKEAEAD (ccm.New with salt+IV), so a sender-only change is not reachable without reddening these.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282CCMRefusesANonceThatIsNotElevenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L339) | unit/verify | mutant, verified |
 | positive | [`TestRFC5282CCMNonceIsElevenOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_ccm_sk_test.go#L312) | unit/verify | mutant, verified |
@@ -319,7 +319,7 @@ The associated data (A) MUST consist of the partial contents of the IKEv2 messag
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Sender: TestRFC5282AEADSendAssociatedDataRunsThroughTheSKHeader pins DataOffset 32 on both ends' real messages and opens them under raw[:32] with an independent AES-GCM, not under raw[:31] nor the fixed header alone; auth.go buildSKMessageAEADWithMsgID is the only seal site. Receiver: TestRFC5282AEADAssociatedDataCoversAnInterveningPayload accepts the span over an intervening payload, TestRFC5282AEADRefusesAnAlteredInterveningPayload refuses an altered one.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282AEADRefusesAnAlteredInterveningPayload`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L617) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADSendAssociatedDataRunsThroughTheSKHeader`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_send_test.go#L118) | unit/verify | revert, verified |
@@ -331,7 +331,7 @@ The Initialization Vector and Ciphertext fields shown in Figure 1 (above) MUST N
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Sender: TestRFC5282AEADSendAssociatedDataExcludesTheIVAndCiphertext opens both ends' real messages under the span stopping before the IV and refuses AAD covering the IV and IV+ciphertext. Receiver: TestRFC5282AEADAssociatedDataExcludesTheIVAndCiphertext accepts, TestRFC5282AEADRefusesAssociatedDataCoveringTheIV refuses.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282AEADRefusesAssociatedDataCoveringTheIV`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L662) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADSendAssociatedDataExcludesTheIVAndCiphertext`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_send_test.go#L150) | unit/verify | revert, verified |
@@ -343,7 +343,7 @@ When AES GCM or AES CCM is used with the IKEv2 Encrypted Payload, the SK_ai and 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both ciphers the clause names are now proven. AES GCM: TestRFC5282AEADIntegrityKeysAreZeroOctets (zero-length SK_ai/SK_ar, SK_ei at the prf+ offset right after SK_d). AES CCM: new TestRFC5282CCMIntegrityKeysAreZeroOctets derives every CCM Transform ID (8/12/16) at 128 and 256 bits and asserts SK_ai/SK_ar zero octets AND SK_ei/SK_er at stream offsets 32 and 32+(n+3) computed independently of the producer, so a derivation that returned empty slices while still consuming integrity material turns red. Negative: TestRFC5282NonAEADIntegrityKeysAreDerived (non-AEAD keeps its integrity keys). Records: DeriveSKKeys revert observed red on all three units (panic reverts; the offset assertions are what discriminate a mis-cut stream).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282NonAEADIntegrityKeysAreDerived`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L153) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADIntegrityKeysAreZeroOctets`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L123) | unit/verify | revert, verified |
@@ -355,7 +355,7 @@ The size of each of the SK_ei and SK_er encryption keys includes additional salt
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Both bullets proven. AES GCM bullet: TestRFC5282AEADEncryptionKeysCarryTheirSalt (20/36 octets, key-then-salt round trip). AES CCM bullet: new TestRFC5282CCMEncryptionKeysCarryTheirSalt, every CCM ID at 128/256 bits: SK_ei and SK_er are exactly cipher key + 3 octets (19/35), and a SealIKEAEAD output is opened by a ccm instance built in the test from key[:n] with nonce = trailing 3 salt octets || 8-octet IV, which is the RFC 4309 Section 7.1 KEYMAT format and Section 4 nonce; a 4-octet GCM salt or salt-first layout fails the length or the open. Negative: TestRFC5282NonAEADEncryptionKeysCarryNoSalt. Records: SealIKEAEAD and encKeyMaterialLen reverts observed red. Residual: the opener uses ze's own internal/core/ccm package, so it checks the key split, not the CCM primitive itself.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282NonAEADEncryptionKeysCarryNoSalt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L230) | unit/verify | mutant, verified |
 | positive | [`TestRFC5282AEADEncryptionKeysCarryTheirSalt`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L169) | unit/verify | revert, verified |
@@ -367,7 +367,7 @@ Because the AES supports three key lengths, the Key Length attribute MUST be spe
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. AES GCM: TestRFC5282AEADProposalCarriesTheKeyLengthAttribute (IKE and ESP rails, exactly one attribute), TestRFC5282AEADOfferWithoutAKeyLengthIsRefused (ErrKeyLengthMissing). AES CCM: TestRFC5282AEADCCMProposalCarriesTheKeyLengthAttribute asserts IDs 14/15/16 x 128/256 each carry exactly one Key Length attribute of the key size from buildWireIKEProposals; ESP does not offer CCM (ipsec.EncryptionImplementedESP excludes it). Residual observation: the receive-side refusal names CCM in keyLengthRequired but only a GCM offer is driven.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282AEADOfferWithoutAKeyLengthIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L258) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADCCMProposalCarriesTheKeyLengthAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_send_test.go#L265) | unit/verify | revert, verified |
@@ -379,7 +379,7 @@ The Key Length attribute MUST have a value of 128, 192, or 256 (§7.3)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282AEADKeyLengthRefusesEveryOtherValue`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L297) | unit/verify | revert, verified |
 | positive | [`TestRFC5282AEADKeyLengthAcceptsTheThreeValues`](https://github.com/ze-software/ze/blob/main/internal/component/ike/crypto/rfc5282_aead_test.go#L277) | unit/verify | revert, verified |
@@ -390,7 +390,7 @@ This document updates [RFC4306] to require that when an authenticated encryption
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-10 (independent closure auditor, spec-ipsec-esp-offer-requires-esn) after affa3d8684 and da3ff616f6. engine/responder.go::espProposalMatches now refuses an offer whose usable types miss ENCR or ESN, before the encryption comparison. Both responder tests build their offer with aeadSAi2, which already carries ENCR AES-GCM-256 and ESN 0, so the new mask passes for both: the negative is still refused only because of the HMAC-SHA256 INTEG beside the AEAD cipher, and the positive still pins Proposal Num 3 and an answer with one AES-GCM ENCR and no INTEG. The AEAD integrity branch is unchanged. Records: the responder negative's revert record on espProposalMatches was re-observed after the change (uncommitted re-record carried with this closure). Retain enforced. Prior judgement: Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc5282.txt Section 8: "This document updates [RFC4306] to require that when an authenticated encryption algorithm is selected as the encryption algorithm for any SA (IKE or ESP), an integrity algorithm MUST NOT be selected for that SA." Read all six tagged tests, their fixtures and the producing selectors. The IKE positive requires AUTH_NONE and zero integrity key length, then an actually established AEAD handshake with empty SK_ai and SK_ar; its negative adds only HMAC-SHA256 to the otherwise valid AES-GCM offer and requires refusal. The ESP initiator positive pins both AES-GCM and AUTH_NONE despite a configured hash; its negative adds only the non-NONE integrity transform to that same valid offer. The responder positive drives selectResponderESP with a complete hand-built AES-GCM/ESN proposal, pins the accepted peer proposal number and an answer containing exactly one AES-GCM encryption transform and zero integrity transforms; its negative requires ErrNoProposalChosen and no accepted proposal number for the same offer plus HMAC-SHA256. These independent conforming controls prevent reject-all success, and the malformed offers introduce no unrelated missing transform or bad key length. Both SA kinds and both ESP selection paths are represented, rather than only IKE. The changed matchESP now independently refuses AEAD with non-NONE integrity, checks remote/local integrity equality, resolves any non-NONE ESP integrity and returns the peer proposal; the first guard plus equality both protect this negative input. resolveESPTransforms still builds AUTH_NONE for AEAD. The responder's espProposalMatches accepts absent integrity or an offered NONE alternative for AEAD, and the selected answer omits integrity; accepting a NONE alternative is not selecting a non-NONE algorithm. IKE selection compares against localIKEProposals' AUTH_NONE through acceptIntegrity. Tests exercise AES-GCM, while the shared ID/property-based guards cover the admitted AEAD family by source reading, not per-cipher execution proof. Retain enforced. Existing whole-function revert records demonstrate reachability only, not that each individual guard is necessary; any fresh discriminatory observations belong to the native record repair and are not fabricated by this judgment. No tests were run by this auditor.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282AEADESPOfferWithIntegrityIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_send_test.go#L248) | unit/verify | mutant, verified |
 | negative | [`TestRFC5282AEADOfferWithIntegrityIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_sk_test.go#L773) | unit/verify | revert, verified |
@@ -405,7 +405,7 @@ This document further updates [RFC4306] to require that if all of the encryption
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently re-judged 2026-10-28 after the ba03d7c2c7 ESP cipher change, from rfc/full/rfc5282.txt Section 8: "This document further updates [RFC4306] to require that if all of the encryption algorithms in any proposal are authenticated encryption algorithms, then the proposal MUST NOT propose any integrity transforms." Read all four tagged units and the test wrappers forwarding to wireIKEOffer and espProposalWire. The IKE and ESP positives each offer one AES-GCM cipher while retaining a configured SHA256 hash, so an incorrect unconditional integrity emitter has a real transform to emit. Each asserts exactly zero Type 3 transforms, not merely AUTH_NONE: an explicit NONE transform would fail. The IKE positive additionally requires ENCR, PRF and DH; the ESP positive requires ENCR and ESN, so an empty or truncated proposal cannot satisfy absence vacuously. The separate AES-CBC controls require exactly one Type 3 on each rail, testing the boundary of the AEAD condition rather than permitting unconditional omission. The native builders currently emit one encryption transform per proposal, so 'all' is the sole cipher, not an untested multi-cipher conjunction within a proposal. wireIKEOffer guards the integrity append with !enc.IsAEAD; the changed espProposalWire still guards it with !p.Encryption.IsAEAD(), now looking up non-AEAD integrity through lookupESPIntegrity. Reading the property and registry producers confirms AES-GCM and ChaCha20-Poly1305 are AEAD while NULL and 3DES are not; the new ESP-only hash lookup does not move the append outside that guard. Retain enforced for proposal construction on both IKE and ESP rails. The tagged executions are AES-GCM/AES-CBC examples, not a runtime enumeration of every cipher or a packet-capture proof. Existing revert records show dependency on the builders, not independent proof of every conditional; new native record observations are a separate deliverable. No tests were run by this auditor.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5282NonAEADIKEProposalKeepsItsIntegrityTransform`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_proposal_test.go#L74) | unit/verify | revert, verified |
 | negative | [`TestRFC5282NonAEADESPProposalKeepsItsIntegrityTransform`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5282_aead_send_test.go#L212) | unit/verify | mutant, verified |

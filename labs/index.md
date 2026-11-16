@@ -25,7 +25,7 @@ Labs run against real third-party daemons (xl2tpd, accel-ppp, strongSwan), or bo
 `Daemon` `Docker` `QEMU`
 
 - Ze as LNS vs real **xl2tpd**/pppd LAC
-- FRR proves **BGP redistribution** from a live PPP session
+- FRR tests **BGP redistribution** from a live PPP session
 
 ### [PPPoE Interop](https://ze-software.net/labs/pppoe-interop/)
 
@@ -41,7 +41,7 @@ Labs run against real third-party daemons (xl2tpd, accel-ppp, strongSwan), or bo
 - Ze as IKE initiator vs real **strongSwan**/charon
 - FRR **redistribute** scenarios over the tunnel
 
-### [VLAN QoS Wire-Level Proof](https://ze-software.net/labs/vlan-qos/)
+### [VLAN QoS Packet Tests](https://ze-software.net/labs/vlan-qos/)
 
 `Daemon` `AF_PACKET`
 

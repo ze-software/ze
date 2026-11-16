@@ -39,9 +39,9 @@ This format suits a kernel API wrapper or package integration test. A `.ci` tran
 
 ## Docker interop
 
-Docker interop proves protocol behavior against real implementations. Ze runs BGP scenarios against FRR, BIRD, GoBGP, OpenBGPD, RustyBGP, freeRouter, and related peers. Other labs cover IPsec, L2TP, PPPoE, deployment, and live checks where the target behavior depends on an external daemon or service.
+Docker interop tests protocol behavior against real implementations. Ze runs BGP scenarios against FRR, BIRD, GoBGP, OpenBGPD, RustyBGP, freeRouter, and related peers. Other labs cover IPsec, L2TP, PPPoE, deployment, and live checks where the target behavior depends on an external daemon or service.
 
-| Evidence | Command | What it proves |
+| Evidence | Command | What it tests |
 | --- | --- | --- |
 | BGP interop | `./le test integration interop` | Ze exchanges real protocol messages with third-party BGP daemons. |
 | IPsec interop | `./le test integration interop-ipsec` | strongSwan and Ze agree on the deployed behavior. |

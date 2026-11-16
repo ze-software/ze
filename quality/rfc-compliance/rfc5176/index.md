@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 29 | of 30 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 30 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 29 | of 30 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 30 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 30 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 30 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 0 | of 30 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 30 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 82 | 82 of 98 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 82 | 82 of 98 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -25,9 +25,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 30 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 30 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 30 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 30 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 30 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 30 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 30 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -46,13 +46,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -86,7 +86,7 @@ Included in automatic checks: RADIUS Dynamic Authorization Extensions (CoA/Disco
 
 **Area:** RADIUS CoA and Disconnect Message
 
-**Proof:** 26 of 30 MUST proven
+**Test verification:** 26 of 30 MUST proven
 
 **Evidence:** unit 26
 
@@ -101,7 +101,7 @@ Included in automatic checks: RADIUS Dynamic Authorization Extensions (CoA/Disco
 | Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **30** | every mandatory requirement appears in exactly one group above |
@@ -112,8 +112,8 @@ Included in automatic checks: RADIUS Dynamic Authorization Extensions (CoA/Disco
 
 ## Figures
 
-- **MUST bar**: Ze proven 26, Proof pending 4
-- **Overview bar**: Ze MUST proven 26, SHOULD proven 1, Proof pending 4
+- **MUST bar**: Ze verified 26, Tests awaiting verification 4
+- **Overview bar**: Ze MUST verified 26, SHOULD verified 1, Tests awaiting verification 4
 
 | Figure | Rows |
 |---|---|
@@ -122,9 +122,9 @@ Included in automatic checks: RADIUS Dynamic Authorization Extensions (CoA/Disco
 | Mandatory requirements complete | not complete |
 | MUST rows | 30 |
 | MUST rows kept (the MUST bar) | 30 |
-| Ze proven | 26 |
+| Ze verified | 26 |
 | OS verified | 0 |
-| Proof pending | 4 |
+| Tests awaiting verification | 4 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -134,19 +134,19 @@ Included in automatic checks: RADIUS Dynamic Authorization Extensions (CoA/Disco
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 1 |
-| SHOULD proven | 1 |
+| SHOULD verified | 1 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 0 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5176.json](../../../data/rfc/rfc5176.json).
 
@@ -190,9 +190,9 @@ Source: [data/rfc/rfc5176.json](../../../data/rfc/rfc5176.json).
 
 RFC 5176 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC5176-3.5-1`](#rfc5176-3.5-1)
 
@@ -200,10 +200,10 @@ This value is used to authenticate packets between the Dynamic Authorization Cli
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-29, re-judged after the RFC5176-3.5-2 tags were dropped from the doc comments; the test bodies are unchanged. (a) forbidden: acting on a request whose Authenticator does not authenticate it. (b) TestCoAListenerInvalidAuth fails if a zero-authenticator CoA-Request gets any response; TestCoAListenerUnknownSession asserts a correctly signed request is processed (CoA-NAK 503).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestCoAListenerInvalidAuth`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L316) | unit/verify | unproven |
-| positive | [`TestCoAListenerUnknownSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L401) | unit/verify | unproven |
+| negative | [`TestCoAListenerInvalidAuth`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L316) | unit/verify | not verified |
+| positive | [`TestCoAListenerUnknownSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L401) | unit/verify | not verified |
 
 ### [`RFC5176-3.3-1`](#rfc5176-3.3-1)
 
@@ -211,7 +211,7 @@ The combination of NAS and session identification attributes included in a CoA-R
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against RFC 5176 Section 3 (the complete combination MUST match; otherwise NAK), current coa.go selectors and every tagged unit. Existing MatchedIdentificationSucceeds, UnmatchedIdentificationIsNAKed and NoSessionIdNotActedOn distinguish real CoA/Disconnect ACK/teardown from 503/no event/no teardown. ReplayReturnsCachedResponse now seeds the live accountant and still requires two ACKs but exactly one teardown. New RegisteredSubscriberAllSelectorsMustMatch sends an exact registry Acct-Session-Id plus conflicting User-Name or NAS-Port, requiring signed CoA-NAK 503 and unchanged installed rate. OldAccountingIdentityCannotSelectNewIncarnation and DisconnectOldAccountingIdentityCannotTerminateNewIncarnation keep the tuple/other selectors valid while changing only the full issued identity; they require signed 503, unchanged shaping and zero teardown. LiveAccountingOwnerIdentitySurvivesRegistryMiss supplies the actual current accountant ID alongside a different registry ID and requires signed ACK plus an installed 20M rate, preventing refusal of every fallback. Admission refuses unsupported identification types before matching; sessionSelectorsMatch intersects every occurrence of the three implemented selectors on both registry and complete-accountant fallback routes. Removing either intersection or restoring numeric-prefix matching makes exact outcome assertions fail. This judges the whole included-combination clause, not a claim to support the eleven refused types. Native proof freshness is a separate main-thread gate.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestCoAOldAccountingIdentityCannotSelectNewIncarnation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L36) | unit/verify | mutant, verified |
 | negative | [`TestDisconnectOldAccountingIdentityCannotTerminateNewIncarnation`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L60) | unit/verify | mutant, verified |
@@ -228,7 +228,7 @@ The Authenticator field in a Response packet (e.g., Disconnect-ACK, Disconnect-N
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. The oracle is no longer the producer: TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5 reads CoA-ACK, CoA-NAK, Disconnect-ACK and Disconnect-NAK raw off the socket and compares the Authenticator field with an MD5 the test computes over Code, Identifier, Length, the sent Request Authenticator, the response attributes and the secret. The {single-polarity: positive} annotation holds: the NAS only emits responses.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L206) | unit/verify | revert, verified |
 | positive | [`TestRFC5176ResponseAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L66) | unit/verify | revert, verified |
@@ -239,12 +239,12 @@ The Authenticator field MUST be calculated in the same way as is specified for a
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: a Request Authenticator not computed as RFC 2866 specifies (MD5 over Code+Identifier+Length+16 zero octets+attributes+secret). (b) TestRFC5176CoARequestAuthenticatorMatchesTheFormula compares AccountingRequestAuth with an independent MD5 in the test over non-zero wire octets; TestRFC5176CoARequestAuthenticatorCoversEveryNamedField refuses changed Code, Identifier, attribute and secret; packet_test.go refuses a corrupted byte.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestVerifyCoARequestAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L358) | unit/verify | unproven |
-| negative | [`TestRFC5176CoARequestAuthenticatorCoversEveryNamedField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L218) | unit/verify | unproven |
-| positive | [`TestVerifyCoARequestAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L352) | unit/verify | unproven |
-| positive | [`TestRFC5176CoARequestAuthenticatorMatchesTheFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L183) | unit/verify | unproven |
+| negative | [`TestVerifyCoARequestAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L358) | unit/verify | not verified |
+| negative | [`TestRFC5176CoARequestAuthenticatorCoversEveryNamedField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L218) | unit/verify | not verified |
+| positive | [`TestVerifyCoARequestAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L352) | unit/verify | not verified |
+| positive | [`TestRFC5176CoARequestAuthenticatorMatchesTheFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L183) | unit/verify | not verified |
 
 ### [`RFC5176-2.3-1`](#rfc5176-2.3-1)
 
@@ -252,7 +252,7 @@ Packets received with an invalid Code field MUST be silently discarded. (§2.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: answering or acting on a packet whose Code is not CoA-Request or Disconnect-Request. (b) TestRFC5176InvalidCodeDiscarded: sendRawCoAPacketExpectNoResponse for a correctly signed Code 44 packet; the CoA-Request with the same attributes is answered. One invalid value exercises the whitelist in handlePacket.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176InvalidCodeDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L143) | unit/verify | revert, verified |
 | positive | [`TestRFC5176InvalidCodeDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L140) | unit/verify | revert, verified |
@@ -263,7 +263,7 @@ A Dynamic Authorization Server implementing this specification MUST be capable o
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-14 by a reader who did not author the tests. (a) forbidden: failing to detect a duplicate with the same source IP, source UDP port and Identifier. + TestRFC5176DuplicateIsSameSourcePortAndIdentifier: one socket sends the same octets twice, the second answer is byte-identical to the first and the session is torn down once. - TestRFC5176DifferentSourcePortIsNotADuplicate: the same octets from a second socket are processed afresh (two teardowns). - TestRFC5176DuplicateRequestAnsweredFromCache: on one socket a new Identifier is processed afresh. - TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh: same triple with a new Request Authenticator is processed afresh and replaces the entry, and a discarded stale copy leaves it. Producer coa.go coaReplayKey{source netip.AddrPort, identifier} with cachedReplay comparing the Authenticator.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176DifferentSourcePortIsNotADuplicate`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L246) | unit/verify | revert, verified |
 | negative | [`TestRFC5176DuplicateRequestAnsweredFromCache`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L166) | unit/verify | revert, verified |
@@ -277,7 +277,7 @@ Octets outside the range of the Length field MUST be treated as padding and igno
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: reading octets past Length as attributes, or processing a datagram shorter than its Length. (b) TestRFC5176LengthFieldGovernsTheOctetsRead asserts a request with eight trailing octets is ACKed, and a datagram four octets short of its Length gets no response.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176LengthFieldGovernsTheOctetsRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L342) | unit/verify | revert, verified |
 | positive | [`TestRFC5176LengthFieldGovernsTheOctetsRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L340) | unit/verify | revert, verified |
@@ -288,7 +288,7 @@ The Dynamic Authorization Server MUST use the source IP address of the RADIUS UD
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176SharedSecretChosenBySourceAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L367) | unit/verify | revert, verified |
 | positive | [`TestRFC5176SharedSecretChosenBySourceAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L364) | unit/verify | revert, verified |
@@ -299,7 +299,7 @@ In CoA-Request and Disconnect-Request packets, all attributes MUST be treated as
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against the complete Section 2.3 Attributes paragraph, including mandatory attributes, changes that cannot be carried out, and unsupported attribute types/values for BOTH CoA and Disconnect. Existing UnsupportedAttributeNAKed and CoAWithAnUnsupportedAttributeValueIsNAKed require exact NAKs for unsupported types and sole invalid values; CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed keeps a supported rate beside an invalid second Filter-Id/duplicate rate/unknown vendor, requiring 407 and no emitted change. DisconnectWithAnUnsupportedValueIsNAKed isolates malformed NAS-Port versus unsupported VSA, requires 407/401 and zero teardown. RequestWhoseEveryValueIsSupportedIsACKed retains useful CoA and Disconnect acceptance. New DynamicAuthorizationRefusesUnimplementedIdentification supplies valid signed wire encodings of each of eleven unsupported identification types, one at a time alongside all three matching supported selectors, for both request kinds: NAK 401, both shaping directions unchanged, subscriber retained and no teardown. CoAImplementedIdentificationStillApplies uses only the three implemented selectors and explicit 20mbit/5mbit, requiring signed ACK and those actual backend rates. Section 2.3 expressly allows a NAS to omit CoA support for attributes it supports in authentication/accounting, so explicit 401 replaces the former silent ignore correctly. readCoAChange walks every authorization attribute; unsupportedAttr/unsupportedAttrValue run before application; the companion atomicity units enforce unavailable-backend refusal rather than event-only success. Accepting/ignoring any of these extras or values breaks the exact NAK/no-change controls; blanket refusal breaks useful ACK controls. Native proof freshness remains main's separate gate.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L114) | unit/verify | revert, verified |
 | negative | [`TestDynamicAuthorizationRefusesUnimplementedIdentification`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_identification_test.go#L17) | unit/verify | mutant, verified |
@@ -316,7 +316,7 @@ State changes resulting from a CoA-Request MUST be atomic: if the CoA-Request is
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against all CoA atomicity and unsuccessful Disconnect clauses in Section 2.3. Existing ChangeThatCannotBeCarriedOutIsNAKed and CoANAKMakesNoPartialChange cover unavailable dispatch/no access interface on L2TP; SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange covers the subscriber path, requiring 506 and no change notification. RequestWhoseEveryValueIsSupportedIsACKed retains all requested control notifications. New MixedOwnerFailureRestoresBothControls drives real registered shaper and CoS owners through signed UDP, makes VLAN application partially write after rate application, then requires CoA-NAK 506 with original 10M/5M shaping and both original empty VLAN maps. MixedOwnersApplyBeforeACK supplies the same valid request without backend failure and requires signed ACK only with actual 20M/8M shaping plus both gold maps installed. Thus an ACK after mere notification, incomplete application or failure without reverse compensation fails actual state assertions. DisconnectThatCannotTerminateIsNAKed requires NAK after the failed single teardown; DisconnectThatTerminatesIsACKed requires ACK and one completed teardown. This NAS refuses multiple matches before any mutation, so the unsupported-multiple-session route cannot partially terminate or update a set. confirmCoA prepares all bounded owners, applies/commits synchronously and rolls back in reverse on failure. Native new-pair records are not asserted by this source judgement.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestCoAMixedOwnerFailureRestoresBothControls`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L55) | unit/verify | mutant, verified |
 | negative | [`TestRFC5176DisconnectThatTerminatesIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L287) | unit/verify | revert, verified |
@@ -334,7 +334,7 @@ A NAS that does not support dynamic authorization changes applying to multiple s
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. CoA half added: a CoA-Request whose User-Name matches two sessions gets CoA-NAK 508 and zero bus events; the same request narrowed by NAS-Port to one session is ACKed with one event, so the NAK is specific to the multiple match. The Disconnect half (Disconnect-NAK 508, zero teardowns) was already held. Producer oneSession serves both.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176CoAMatchingOneSessionIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L100) | unit/verify | revert, verified |
 | negative | [`TestRFC5176MultipleMatchingSessionsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L477) | unit/verify | revert, verified |
@@ -347,7 +347,7 @@ If there are any Proxy-State attributes in a Disconnect-Request or CoA-Request r
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Clause 1 (Proxy-State returned): TestRFC5176ProxyStateReturnedUnmodified both polarities at sendResponse. Clause 2 (no modification of Proxy-State/State/Class) and clause 3 (opaque): + TestRFC5176StateAndClassUnmodifiedProxyStateOpaque, State byte-equal in the CoA-ACK, a 253-octet all-values Proxy-State and an attribute-shaped one returned byte-equal; Class is never echoed by sendResponse, so its assertion holds by construction (no Class can come back altered). Clause 4 (operation independent of Proxy-State content): the same test's two Disconnects differing only in Proxy-State both ACK with 2 teardowns, and - TestRFC5176ProxyStateContentIsNeverRead: an unknown-session Disconnect whose Proxy-State encodes the live session's Acct-Session-Id gets the same NAK code and Error-Cause as without it, 0 teardowns (recorded at handleDisconnect). All units observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176ProxyStateContentIsNeverRead`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L144) | unit/verify | revert, verified |
 | negative | [`TestRFC5176ProxyStateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L514) | unit/verify | revert, verified |
@@ -360,7 +360,7 @@ A NAS MUST respond to a CoA-Request including a Service-Type Attribute with valu
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: answering an Authorize Only CoA-Request with a CoA-ACK, or not NAKing an unsupported Authorize Only. (b) TestRFC5176ServiceTypeNAKed wantNAK(CoA-NAK, 405) and zero events for Service-Type 17; the same request without Service-Type is ACKed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L549) | unit/verify | revert, verified |
 | positive | [`TestRFC5176ServiceTypeNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L546) | unit/verify | revert, verified |
@@ -371,7 +371,7 @@ The State Attribute is available to be sent by the Dynamic Authorization Client 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. NAK half added: a CoA-Request carrying State (0xdead00beef, embedded zero) answered by CoA-NAK 506 and by CoA-NAK 503 gets the State back byte-equal; a NAK to a request with no State carries none. The ACK half and its no-State counterpart were already held. Producer sendResponse.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176NAKForARequestWithoutStateCarriesNone`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L190) | unit/verify | revert, verified |
 | negative | [`TestRFC5176StateReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L578) | unit/verify | revert, verified |
@@ -384,12 +384,12 @@ When the HMAC-MD5 message integrity check is calculated the Request Authenticato
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: computing the HMAC-MD5 with the Request Authenticator or the Message-Authenticator not zeroed. (b) TestRFC5176MessageAuthenticatorRefusesEveryOtherStream refuses the Request Authenticator hashed as on the wire and the attribute not zeroed; TestRFC5176MessageAuthenticatorZeroesBothFields accepts the conformant stream with a non-zero wire Request Authenticator; the listener-level walk test discards the pre-fix computation.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`authradius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L609) | unit/verify | revert, verified |
-| negative | [`TestRFC5176MessageAuthenticatorRefusesEveryOtherStream`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L148) | unit/verify | unproven |
+| negative | [`TestRFC5176MessageAuthenticatorRefusesEveryOtherStream`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L148) | unit/verify | not verified |
 | positive | [`authradius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L605) | unit/verify | revert, verified |
-| positive | [`radius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L126) | unit/verify | unproven |
+| positive | [`radius/TestRFC5176MessageAuthenticatorZeroesBothFields`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L126) | unit/verify | not verified |
 
 ### [`RFC5176-3.4-2`](#rfc5176-3.4-2)
 
@@ -397,10 +397,10 @@ The Message-Authenticator Attribute is calculated and inserted in the packet bef
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: a Request Authenticator computed over a zeroed Message-Authenticator, i.e. the attribute not inserted first. (b) TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder refuses the inverted order and a Message-Authenticator changed after signing; TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator accepts the conformant order with a non-zero attribute.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L239) | unit/verify | unproven |
-| positive | [`TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L218) | unit/verify | unproven |
+| negative | [`TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L239) | unit/verify | not verified |
+| positive | [`TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L218) | unit/verify | not verified |
 
 ### [`RFC5176-3.4-3`](#rfc5176-3.4-3)
 
@@ -408,11 +408,11 @@ A Dynamic Authorization Server receiving a CoA-Request or Disconnect-Request wit
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5176WrongMessageAuthenticatorDiscardedWhenNotRequired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L72) | unit/verify | unproven |
-| negative | [`TestRFC5176ListenerDiscardsWrongMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L52) | unit/verify | unproven |
-| positive | [`TestRFC5176ListenerAcceptsConformantMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L26) | unit/verify | unproven |
+| negative | [`TestRFC5176WrongMessageAuthenticatorDiscardedWhenNotRequired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L72) | unit/verify | not verified |
+| negative | [`TestRFC5176ListenerDiscardsWrongMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L52) | unit/verify | not verified |
+| positive | [`TestRFC5176ListenerAcceptsConformantMessageAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L26) | unit/verify | not verified |
 
 ### [`RFC5176-3.4-4`](#rfc5176-3.4-4)
 
@@ -420,10 +420,10 @@ The Message-Authenticator Attribute MAY be used to authenticate and integrity-pr
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against Section 3.4's optional Message-Authenticator. MessageAuthenticatorAbsentIsAcceptedByDefault still sends a correctly authenticated/current Disconnect without Message-Authenticator to a trusted listener, now explicitly seeds its current accounting identity, and asserts Disconnect-ACK AND one actual teardown. MissingMessageAuthenticatorDroppedWhenRequired drives the same absence with the opt-in leaf enabled and asserts no response. The valid accountant seed fixes identity isolation and preserves the original assertions; a default mandatory-presence gate fails acceptance, while ignoring the explicit strict leaf fails discard. New source is unchanged at admitRequest: absence is accepted by default, presence is always verified. This MAY does not require optional response attributes to be emitted; mandatory verification when present is separately covered by 3.4-3. No fresh mutation execution is claimed here.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L371) | unit/verify | mutant, verified |
-| positive | [`TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L26) | unit/verify | unproven |
+| positive | [`TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L26) | unit/verify | not verified |
 
 ### [`RFC5176-3.5-5`](#rfc5176-3.5-5)
 
@@ -431,7 +431,7 @@ Values 200-299 represent successful completion, so that these values may only be
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). Re-judged after the D-15 tag narrowing (unit changed only in comment). (a) forbidden: a 200-299 Error-Cause in a NAK, or a 400-599 value in an ACK. + TestRFC5176ErrorCausePlacement fails on a NAK cause outside 400-599; - (#2) fails on any Error-Cause in a CoA-ACK or Disconnect-ACK; both kinds required seen. The 201/202/502/504 clauses moved to RFC5176-3.5-6..9, which drive all 15 response paths (incl. 504, 506, 508). Negative record re-observed red (sendResponse).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176ErrorCausePlacement`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L648) | unit/verify | revert, verified |
 | positive | [`TestRFC5176ErrorCausePlacement`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L645) | unit/verify | revert, verified |
@@ -442,7 +442,7 @@ Where NAS or session identification attributes are included in Disconnect-Reques
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against Section 3.6 Note 1: NAS/session identification attributes serve identification only, never authorization changes. IdentificationAttributesIdentifyOnly now uses exactly the three implemented selectors (User-Name, NAS-Port, Acct-Session-Id), replacing two unsupported extras previously ignored. With Filter-Id it requires CoA-ACK, exactly one typed rate event for session 20 at 10M; with the SAME three selectors and no authorization attribute it requires CoA-NAK 401 and no further event. The genuine accepted control prevents passing through blanket rejection, while the bare control catches interpreting identity as a requested authorization change. readCoAChange reads only Filter-Id/VSA; sessionSelectorsMatch only narrows identity. New signed-wire refusal tests retain all eleven removed unsupported types as explicit 401 controls, so the correction does not hide those inputs. All prior payload/rate/count assertions remain. No native proof claim is inferred.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176IdentificationAttributesIdentifyOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L759) | unit/verify | revert, verified |
 | positive | [`TestRFC5176IdentificationAttributesIdentifyOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L756) | unit/verify | revert, verified |
@@ -453,11 +453,11 @@ A Dynamic Authorization Server MUST silently discard Disconnect- Request or CoA-
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against Section 6.1's silent discard of both dynamic authorization request kinds from untrusted sources. UntrustedSourceDiscarded sends an otherwise valid signed/current Disconnect to a listener trusting a different address, then an empty allowlist: both receive no response and cause zero teardowns; a loopback-trusting listener accepts the same identity with Disconnect-ACK. The added explicit current-accountant seed makes the trusted counterpart reach the intended session rather than fail later identity matching. SourceFilterDiscardsWhenNoServerResolved independently sends correctly authenticated CoA with an empty allowlist and requires silence; SourceFilterAnswersAConfiguredClient repeats from the trusted source and requires an actual CoA-NAK response for unknown session, proving admission rather than universal discard. isAllowedSource precedes packet authentication/dispatch and is false for an empty set. A permissive empty/unlisted-source guard or blanket drop would break these opposite controls. No new proof execution is claimed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestCoASourceFilterAnswersAConfiguredClient`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L173) | unit/verify | unproven |
+| negative | [`TestCoASourceFilterAnswersAConfiguredClient`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L173) | unit/verify | not verified |
 | negative | [`TestRFC5176UntrustedSourceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L806) | unit/verify | revert, verified |
-| positive | [`TestCoASourceFilterDiscardsWhenNoServerResolved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L119) | unit/verify | unproven |
+| positive | [`TestCoASourceFilterDiscardsWhenNoServerResolved`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L119) | unit/verify | not verified |
 | positive | [`TestRFC5176UntrustedSourceDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L803) | unit/verify | revert, verified |
 
 ### [`RFC5176-6.3-1`](#rfc5176-6.3-1)
@@ -466,7 +466,7 @@ When the Event-Timestamp Attribute is present, both the Dynamic Authorization Se
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: acting on or answering a request whose Event-Timestamp is outside the window. (b) TestRFC5176StaleEventTimestampDiscarded asserts no response and zero teardowns for a timestamp two windows old, and ACK for a current one. A future-dated timestamp is not exercised.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176StaleEventTimestampDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L866) | unit/verify | revert, verified |
 | positive | [`TestRFC5176StaleEventTimestampDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L862) | unit/verify | revert, verified |
@@ -477,7 +477,7 @@ A NAS MUST respond to a CoA-Request including a Service-Type Attribute with an u
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176UnsupportedServiceTypeValueIsNAKed: Service-Type 1/2/6/8 in a CoA-Request -> CoA-NAK with Error-Cause exactly [405], no change (MUST and the SHOULD both asserted). - TestRFC5176CoAWithoutServiceTypeIsACKed: the same request without Service-Type -> CoA-ACK, no Error-Cause, one change, so the NAK is owed to the value. Both over a real UDP socket; records observed red (handlePacket, handleCoA).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176CoAWithoutServiceTypeIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L215) | unit/verify | revert, verified |
 | positive | [`TestRFC5176UnsupportedServiceTypeValueIsNAKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L188) | unit/verify | revert, verified |
@@ -488,7 +488,7 @@ If other attributes are included in a Disconnect- Request, implementations MUST 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against Section 3 plus the Section 3.6 Disconnect table and Notes 2/7. DisconnectWithANonIdentificationAttributeIsNAKed keeps valid Acct-Session-Id/User-Name while separately adding Filter-Id, Framed-MTU, Session-Timeout, Idle-Timeout, Service-Type or State (each absent from the allowed Disconnect-request column), requiring Disconnect-NAK, exactly [401] and zero teardowns. DisconnectCarryingOnlyIdentificationIsACKed now includes the three actually implemented matching selectors and requires ACK plus one teardown; unsupported NAS identification extras are correctly tested as Section 2.3 refusal cases, not placed in this accepted control. DisconnectAdmitsTheSection36TableAttributes separately requires ACK/no Error-Cause and one additional teardown for Reply-Message, Class and Acct-Terminate-Cause individually and together. EAP/VSA are not misclassified as this clause's forbidden 'other' attributes: the table permits them while this NAS can explicitly refuse unsupported services under 2.3. unsupportedAttr selects the exact Disconnect allowlist before handleDisconnect. Removing the exclusion or refusing all accepted inputs breaks exact outcomes; the complete forbidden-other rule is exercised without weakening table exceptions. Native proof refresh is separate.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176DisconnectAdmitsTheSection36TableAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L305) | unit/verify | revert, verified |
 | negative | [`TestRFC5176DisconnectCarryingOnlyIdentificationIsACKed`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L283) | unit/verify | revert, verified |
@@ -500,7 +500,7 @@ In either usage, the Dynamic Authorization Server MUST NOT interpret the Attribu
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176StateNeverChangesTheOutcome: no State, State shaped as a rate, as another session's Acct-Session-Id and as a Filter-Id TLV -> identical CoA-ACK and one 10 Mbit/s change on session 20, State returned octet-equal. - TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity: State '10mbit' with no change attribute -> NAK 401; State naming the live session beside an Acct-Session-Id naming none -> NAK 503; no change, State echoed. The Termination-Action usage is unreachable (Ze NAKs Termination-Action in a CoA). Records observed red (sendResponse, readCoAChange).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L401) | unit/verify | revert, verified |
 | positive | [`TestRFC5176StateNeverChangesTheOutcome`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L349) | unit/verify | revert, verified |
@@ -511,7 +511,7 @@ This value is only sent within a Disconnect-ACK and MUST NOT be sent within a Co
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176ResidualSessionCauseOnlyInADisconnectACK: coaResponsePaths drives 15 response paths (both ACKs, NAK 401/404/405/407/503/504/506/508 for CoA and Disconnect), asserts each exact code+cause, requires all four response codes seen, and fails on 201 outside a Disconnect-ACK. - TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK (R1(b)): requests carrying Error-Cause 201 and a Proxy-State holding a 201 TLV -> NAK with only [401], Proxy-State whole, no teardown. Records observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L444) | unit/verify | revert, verified |
 | positive | [`TestRFC5176ResidualSessionCauseOnlyInADisconnectACK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L436) | unit/verify | revert, verified |
@@ -522,7 +522,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176InvalidEAPPacketCauseNeverSent: no response on any of the 15 paths carries 202. - TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest (R1(b)): an injected 202 is never echoed (401 only), and a Disconnect with a malformed EAP-Message gets [401], never 202. Records observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L459) | unit/verify | revert, verified |
 | positive | [`TestRFC5176InvalidEAPPacketCauseNeverSent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L452) | unit/verify | revert, verified |
@@ -533,7 +533,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against Section 3.5: NAS MUST NOT emit proxy-only Error-Cause 502. RequestNotRoutableCauseNeverSent drives coaResponsePaths across all four reply codes and all current success/refusal classes, verifies each exact code/cause, then prohibits 502 everywhere. RequestNotRoutableCauseNeverSentForAForeignSession injects 502 into both request kinds with an opaque Proxy-State copy and requires only 401 (never echoed 502) while preserving Proxy-State bytes; its foreign user/NAS-Identifier case now correctly requires only 401 because NAS-Identifier is unsupported, still forbidding 502. The changed 503-to-401 assertion follows mandatory unsupported-attribute admission and preserves the actual NAS prohibition. Exact cause assertions would fail if request content were echoed as NAS error or foreign identity were answered using proxy routing failure. These controls isolate response generation from transport/authentication failure and retain both ordinary replies and tempting forbidden input. No fresh record execution is claimed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L485) | unit/verify | revert, verified |
 | positive | [`TestRFC5176RequestNotRoutableCauseNeverSent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L478) | unit/verify | revert, verified |
@@ -544,7 +544,7 @@ It MUST NOT be sent within a CoA-ACK, CoA-NAK, or Disconnect-ACK, only within a 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). D-8 fixed here: handleDisconnect sent 503 (Session Context Not Found) for a located session whose teardown failed; it now sends 504 (radius.ErrorCauseSessionNotRemovable), also on the PPPoE not-wired branch (producer read). + TestRFC5176SessionNotRemovableOnlyInADisconnectNAK: the teardown-refused Disconnect path answers Disconnect-NAK [504] and no CoA-ACK, CoA-NAK or Disconnect-ACK on any path carries 504. - TestRFC5176SessionNotRemovableNeverInACoANAK: injected 504 never echoed; an undeliverable CoA gets CoA-NAK 506, never 504. Records observed red (handleDisconnect, handleCoA). Residual not proven here: the svc==nil branch after a found session still answers 503.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176SessionNotRemovableNeverInACoANAK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L521) | unit/verify | mutant, verified |
 | positive | [`TestRFC5176SessionNotRemovableOnlyInADisconnectNAK`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L503) | unit/verify | revert, verified |
@@ -555,7 +555,7 @@ However, the same Attribute MUST NOT be used for both purposes simultaneously. (
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176VendorSpecificIsAChangeOnly: Acct-Session-Id + MikroTik rate VSA -> CoA-ACK and one 10 Mbit/s change on session 20 (VSA used for change only). - TestRFC5176VendorSpecificIsNeverAnIdentity: VSA alone -> NAK 503, VSA beside an unknown Acct-Session-Id -> 503 (the VSA never selects the one live session), Disconnect + VSA -> 401; no change, no teardown. Records observed red (readCoAChange, oneSession).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176VendorSpecificIsNeverAnIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L569) | unit/verify | revert, verified |
 | positive | [`TestRFC5176VendorSpecificIsAChangeOnly`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L537) | unit/verify | revert, verified |
@@ -566,7 +566,7 @@ The time window used for duplicate detection MUST be the same as the window used
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-14 by a reader who did not author the tests; the change sends both copies from one socket, so the duplicate is a real same-port duplicate. + TestRFC5176DuplicateAndTimestampWindowsBothHoldInside: at coaReplayWindow-10s the duplicate gets the cached octets with one teardown and an Event-Timestamp that old is answered. - TestRFC5176DuplicateAndTimestampWindowsBothEndOutside: at window+10s the duplicate is processed again (second teardown) and that old an Event-Timestamp is silently discarded. Both mechanisms are pinned to one window within 10 seconds.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5176DuplicateAndTimestampWindowsBothEndOutside`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L672) | unit/verify | revert, verified |
 | positive | [`TestRFC5176DuplicateAndTimestampWindowsBothHoldInside`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L637) | unit/verify | revert, verified |

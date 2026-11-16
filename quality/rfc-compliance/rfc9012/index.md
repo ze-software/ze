@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 24 | of 76 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 76 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 24 | of 76 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 76 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 76 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 76 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 76 | 76 of 90 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 76 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 76 | 76 of 90 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 76 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 1 | of 76 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 76 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 76 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 76 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 76 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 76 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: The BGP Tunnel Encapsulation Attribute
 
 **Area:** Tunnel Encapsulation attribute
 
-**Proof:** 25 of 76 MUST proven
+**Test verification:** 25 of 76 MUST proven
 
 **Evidence:** unit 25
 
@@ -109,7 +109,7 @@ Included in automatic checks: The BGP Tunnel Encapsulation Attribute
 | Annotated (including scoped evidence) | 52 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **76** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: The BGP Tunnel Encapsulation Attribute
 
 ## Figures
 
-- **MUST bar**: Ze proven 25, Not built 50
-- **Overview bar**: Ze MUST proven 25, SHOULD proven 1, Not owed 1, Not assessed 21, Not built 50
+- **MUST bar**: Ze verified 25, Not built 50
+- **Overview bar**: Ze MUST verified 25, SHOULD verified 1, Not owed 1, Not assessed 21, Not built 50
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: The BGP Tunnel Encapsulation Attribute
 | Mandatory requirements complete | not complete |
 | MUST rows | 76 |
 | MUST rows kept (the MUST bar) | 75 |
-| Ze proven | 25 |
+| Ze verified | 25 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Tests awaiting verification | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: The BGP Tunnel Encapsulation Attribute
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 1 |
 | SHOULD / MAY rows | 22 |
-| SHOULD proven | 1 |
+| SHOULD verified | 1 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 21 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9012.json](../../../data/rfc/rfc9012.json).
 
@@ -317,9 +317,9 @@ Source: [data/rfc/rfc9012.json](../../../data/rfc/rfc9012.json).
 | [`RFC9012-13-21`](#rfc9012-13-21) If a Tunnel TLV has more than one of any of these sub-TLVs, all but the first occurrence of each such sub-TLV type MUST be disregarded. (§13) | {gap}, no test | the absent attribute-driven consumer does not implement first-occurrence interpretation for Encapsulation, DS, UDP Destination Port, Embedded Label Handling, MPLS Label Stack or Prefix-SID. internal/core/bgp/attribute/tunnel_encap.go TunnelTLV.SubTLVs preserves every occurrence; TunnelTLV.Preference concerns a different RFC 9830 sub-TLV and does not prove this rule. On Section 6 carriers, the separate exactly-one Tunnel Egress Endpoint exception is enforced by tunnelTLVLayout and applyTunnelEncap in internal/component/bgp/reactor/session_tunnel_encap.go and remains accounted for by RFC9012-13-13/-14/-15. Owner: plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md |
 | [`RFC9012-15-1`](#rfc9012-15-1) RFC 8402 specifies that "SR domain boundary routers MUST filter any external traffic" ([RFC8402], Section 8.1). For these purposes, traffic introduced into an SR domain using the Prefix-SID sub-TLV lies within the SR domain, even though the Prefix-SIDs used by the routers at the two ends of the tunnel may be different, as discussed in Section 3.7. This implies that the duty to filter external traffic extends to all routers participating in such tunnels. (§15) | {gap}, no test | the absent attribute-driven Prefix-SID tunnel consumer does not install this participating-router traffic filter; attribute-23 ingress/egress filtering is a different behavior. Owner: plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC9012-3.1-2`](#rfc9012-3.1-2)
 
@@ -327,7 +327,7 @@ The Reserved subfield SHOULD be originated as zero. It MUST be disregarded on re
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §3.1: "The Reserved subfield SHOULD be originated as zero. It MUST be disregarded on receipt, and it MUST be propagated unchanged." The receipt-disregard identity is enforced: tunnelEndpointValid reads AFI after the four Reserved octets, and zero/nonzero endpoint Reserved controls both retain ActionNone, exact attribute bytes and downstream announcements. This does not credit the separately allocated origination SHOULD. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L370) | unit/verify | revert, verified |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L369) | unit/verify | revert, verified |
@@ -338,7 +338,7 @@ The Reserved subfield SHOULD be originated as zero. It MUST be disregarded on re
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §3.1 requires Reserved to be propagated unchanged. Nonzero endpoint Reserved octets survive receipt, default cached export, MED rebuilding and downstream delivery byte-for-byte. ParseTunnelEncap and TunnelEncap.WriteTo also retain their opaque value; an actual-output comparison, not the fabricated clean-encoding comparison alone, supplies proof. Origination is not credited. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L362) | unit/verify | revert, verified |
 | negative | [`TestRFC9012ReservedOctetsPropagateUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L336) | unit/verify | revert, verified |
@@ -351,7 +351,7 @@ If the Address Family subfield contains the value for IPv4, the Address subfield
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestTunnelEndpointLengthsAccepted accepts an AFI-1 endpoint containing exactly four address octets unchanged. TestRFC9012EndpointInvalidTLVsRemovedOnUnicast rejects a short AFI-1 address, removing only its TLV around a valid sibling or selecting exact TreatAsWithdraw without a survivor. tunnelEndpointValid requires a ten-octet endpoint value.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012EndpointInvalidTLVsRemovedOnUnicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L248) | unit/verify | revert, verified |
 | positive | [`TestTunnelEndpointLengthsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L402) | unit/verify | revert, verified |
@@ -362,7 +362,7 @@ If the Address Family subfield contains the value for IPv6, the Address subfield
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestTunnelEndpointLengthsAccepted accepts an AFI-2 endpoint containing exactly sixteen address octets unchanged. TestRFC9012EndpointInvalidTLVsRemovedOnUnicast rejects a short AFI-2 address, removing only its TLV around a valid sibling or selecting exact TreatAsWithdraw without a survivor. tunnelEndpointValid requires a twenty-two-octet endpoint value.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012EndpointInvalidTLVsRemovedOnUnicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L249) | unit/verify | revert, verified |
 | positive | [`TestTunnelEndpointLengthsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L403) | unit/verify | revert, verified |
@@ -373,7 +373,7 @@ In this case, the Length field of Tunnel Egress Endpoint sub-TLV MUST contain th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestTunnelEndpointLengthsAccepted accepts AFI zero with a six-octet value and no Address subfield. TestRFC9012EndpointInvalidTLVsRemovedOnUnicast rejects an overlong AFI-zero value, removing its TLV while preserving a valid sibling or selecting exact TreatAsWithdraw without one. No next-hop ownership or reachability procedure is inferred.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012EndpointInvalidTLVsRemovedOnUnicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L250) | unit/verify | revert, verified |
 | positive | [`TestTunnelEndpointLengthsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L404) | unit/verify | revert, verified |
@@ -384,7 +384,7 @@ When the Tunnel Encapsulation attribute is carried in an UPDATE message of one o
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC9012ReceiveRemovesInstalledNativeRoutes exercises all seven Section 6 carriers through actual Session receipt and received-route storage: exactly one endpoint installs, a marked valid sibling survives missing/duplicate-endpoint TLVs, and no survivor removes only the target route before same-session reinstall. tunnelTLVLayout counts endpoints and applyTunnelEncap removes offending TLVs.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012ReceiveRemovesInstalledNativeRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_receive_storage_test.go#L36) | unit/verify | revert, verified |
 | positive | [`TestRFC9012ReceiveRemovesInstalledNativeRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_receive_storage_test.go#L35) | unit/verify | revert, verified |
@@ -411,7 +411,7 @@ Intermediate routers MUST propagate them without modification. (§3.2.1, §3.2.2
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §§3.2.1/3.2.2: "Intermediate routers MUST propagate them without modification." Both VXLAN type8 and NVGRE type9 occur with V/M held fixed and reserved R bits zero or set. Exact actual received and downstream values prevent masking those bits; codec round trips supplement the two cached export modes. No tunnel-header interpretation or origination is inferred. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L364) | unit/verify | revert, verified |
 | negative | [`TestRFC9012ReservedOctetsPropagateUnchanged`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L349) | unit/verify | revert, verified |
@@ -536,12 +536,12 @@ In those cases where the sub-TLV is ignored, it MUST NOT be stripped from the TL
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §3.5: "In those cases where the sub-TLV is ignored, it MUST NOT be stripped from the TLV before the route is propagated." Embedded Label Handling1/2 under GRE on unlabeled IPv4 unicast supplies the applicable ignored condition. Single and duplicate inputs retain every byte through actual receipt and both cached export modes. Label interpretation/realization remains outside this non-stripping claim. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L366) | unit/verify | revert, verified |
-| negative | [`TestRFC9012EmbeddedLabelHandlingNotStripped`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L373) | unit/verify | unproven |
+| negative | [`TestRFC9012EmbeddedLabelHandlingNotStripped`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L373) | unit/verify | not verified |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L365) | unit/verify | revert, verified |
-| positive | [`TestRFC9012EmbeddedLabelHandlingNotStripped`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L365) | unit/verify | unproven |
+| positive | [`TestRFC9012EmbeddedLabelHandlingNotStripped`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L365) | unit/verify | not verified |
 
 ### [`RFC9012-3.5-4`](#rfc9012-3.5-4)
 
@@ -693,7 +693,7 @@ No flags are defined in this document; this field MUST be set to zero by the ori
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §4.3 requires the Color Extended Community Flags value not to change during propagation. Exact downstream equality includes Flags0x3fa5, not merely the Color Value, through default export and MED rebuilding. ParseExtendedCommunities and ExtendedCommunities.WriteTo copy all eight octets; actual zero/nonzero Flags round trips supplement the consumer. Origination is not credited. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L368) | unit/verify | revert, verified |
 | negative | [`TestRFC9012ColorExtendedCommunityUnchangedOnPropagation`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L400) | unit/verify | revert, verified |
@@ -786,7 +786,7 @@ No test carries RFC9012-11-8, so there is no linked test.
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-02 by an independent auditor who authored none of the change, after a965ee38fb moved community stripping into chain members. RFC 9012 Section 11: "Any BGP speaker that understands it MUST be able to filter it from incoming BGP UPDATE messages." TestRFC9012ConfiguredEncapsulationECIngress now configures the real bgp-filter-community plugin over an RPC pipe, names bgp-filter-community:ingress in the peer's import chain (the member checkCommunityMembers requires), and gives the source an import policy compiled by policychain.Compile with WithLibrary, the same calls bgp/config compileLibraryChain makes for a configured peer. The reactor's peer-chain step sends each route through filter-update to evaluateCommunityFilter, which answers the ingress member with ingressFilter -> applyIngressFilter -> ingressStripCommunities. Every assertion is byte-identical: the remove case requires the Extended Communities attribute to hold only the RT (both 030c000000000002 and 030c000000000008 gone) at receive dispatch, on the forwarded socket bytes and after downstream receipt, with ORIGIN, AS_PATH, NEXT_HOP and NLRI unchanged; the preserve case (populated no-match strip) requires both Encapsulation ECs kept. The two removed require.Len(orderedIngressSteps, 1) lines counted a filterapi registration that no longer exists, so they proved nothing about filtering. The discrimination record, re-taken in 5a77ebfd7e, observed both polarities red with ingressStripCommunities disabled. This proves configurable ingress filtering, not a default-EBGP behaviour.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012ConfiguredEncapsulationECIngress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go#L178) | unit/verify | revert, verified |
 | positive | [`TestRFC9012ConfiguredEncapsulationECIngress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go#L177) | unit/verify | revert, verified |
@@ -797,7 +797,7 @@ It MUST be possible to filter the Encapsulation Extended Community from outgoing
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-02 by an independent auditor who authored none of the change, after a965ee38fb moved community stripping into chain members. RFC 9012 Section 11: "It MUST be possible to filter the Encapsulation Extended Community from outgoing messages." TestRFC9012ConfiguredEncapsulationECEgress now configures the real bgp-filter-community plugin over an RPC pipe, names bgp-filter-community:egress in the destination's export chain, and gives the destination an export policy compiled by policychain.Compile with WithLibrary, as bgp/config compileLibraryChain does. The peer-chain egress step sends the route through filter-update to evaluateCommunityFilter, whose egress member runs egressFilter -> applyEgressFilter, and the returned operations are applied by genericCommunityHandler during the real ForwardUpdate. Every assertion is byte-identical: both Encapsulation ECs are present at source dispatch, and the remove case requires the socket bytes and the downstream receipt to carry only the RT with ORIGIN, AS_PATH, NEXT_HOP and NLRI unchanged; the populated no-match destination receives both original values. The dropped require.Len(orderedEgressSteps, 1) counted a deleted filterapi registration. The discrimination record, re-taken in 5a77ebfd7e, observed both polarities red with genericCommunityHandler disabled. This proves configurable outgoing filtering, not a default-EBGP behaviour.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012ConfiguredEncapsulationECEgress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go#L189) | unit/verify | revert, verified |
 | positive | [`TestRFC9012ConfiguredEncapsulationECEgress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_encapsulation_filter_test.go#L188) | unit/verify | revert, verified |
@@ -816,7 +816,7 @@ The final octet of a TLV MUST also be the final octet of its final sub-TLV (§13
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment against RFC9012 Section 13: the accepted control ends exactly at the tunnel boundary; malformed short/long sub-TLV headers and values now follow a valid endpoint and retain exact TreatAsWithdraw assertions. The old eight-case unit survived selective omission of tunnelTLVLayout end > size (job-enum-framing-blindspot-before-da6b72ea.log); after fixture isolation the identical omission failed both truncated-value cases with expected 2, actual 0 (job-enum-framing-boundary-after-red-da6b72ea.log). The real-producer race smoke passed all eight cases and endpoint-removal/composition/length/reset siblings (job-enum-framing-repaired-race-smoke-5388cca1.log). This proves structural boundary discrimination, not separate mutation observations for every header guard or daemon interoperability.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelFramingReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L308) | unit/verify | revert, verified |
 | positive | [`TestRFC9012TunnelFramingReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L307) | unit/verify | revert, verified |
@@ -827,7 +827,7 @@ The final octet of a TLV MUST also be the final octet of its final sub-TLV. If t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Framing controls isolate outer and short/long sub-TLV boundary violations against valid endpoints. TestRFC9012ReceiveRemovesInstalledNativeRoutes now supplements the exact-action root with actual target removal, independent-route preservation and same-session reinstall on all seven Section 6 carriers. The prior classification-only and missing-carrier objections no longer describe the tagged test set.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012ReceiveRemovesInstalledNativeRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_receive_storage_test.go#L31) | unit/verify | revert, verified |
 | negative | [`TestRFC9012TunnelFramingReceiveVerdicts`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L310) | unit/verify | revert, verified |
@@ -840,12 +840,12 @@ If a Tunnel Encapsulation attribute can be parsed correctly but contains a TLV w
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 forbids calling a correctly framed unknown tunnel type malformed. Isolated0xfffe and type2 controls share valid endpoint framing and require exact ActionNone, attribute retention and downstream delivery. applyTunnelEncap restricts tunnel types only on the separately governed SR-Policy SAFI73, not this ordinary-unicast carrier. Genuine outer-framing rejection controls remain. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L345) | unit/verify | revert, verified |
-| negative | [`TestRFC9012MalformedAttributeIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L150) | unit/verify | unproven |
+| negative | [`TestRFC9012MalformedAttributeIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L150) | unit/verify | not verified |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L344) | unit/verify | revert, verified |
-| positive | [`TestRFC9012UnrecognizedTunnelTypeIsCarried`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L115) | unit/verify | unproven |
+| positive | [`TestRFC9012UnrecognizedTunnelTypeIsCarried`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L115) | unit/verify | not verified |
 
 ### [`RFC9012-13-4`](#rfc9012-13-4)
 
@@ -861,12 +861,12 @@ If the route carrying the Tunnel Encapsulation attribute is propagated with the 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13: "If the route carrying the Tunnel Encapsulation attribute is propagated with the attribute, the unrecognized TLV MUST remain in the attribute." Isolated/combined unknown tunnel TLVs remain byte-identical before forwarding, on default/rebuilt cached socket output and at downstream receipt. Codec round trip is supplementary; the separate constructed known-only comparison is not credited as independent producer-negative proof. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L347) | unit/verify | revert, verified |
-| negative | [`TestRFC9012UnrecognizedTLVRemovalIsObservable`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L138) | unit/verify | unproven |
+| negative | [`TestRFC9012UnrecognizedTLVRemovalIsObservable`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L138) | unit/verify | not verified |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L346) | unit/verify | revert, verified |
-| positive | [`TestRFC9012UnrecognizedTunnelTypeIsCarried`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L124) | unit/verify | unproven |
+| positive | [`TestRFC9012UnrecognizedTunnelTypeIsCarried`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L124) | unit/verify | not verified |
 
 ### [`RFC9012-13-6`](#rfc9012-13-6)
 
@@ -882,10 +882,10 @@ However, the Tunnel TLV containing them MUST NOT be considered to be malformed (
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 requires duplicate single-instance sub-TLVs not to make their Tunnel TLV malformed and requires all sub-TLVs to propagate. Duplicate Embedded Label Handling, a type actually named by this section, and its single control retain exact ActionNone and bytes with one valid endpoint. Preference is not substituted for this applicable ELH case. First-occurrence semantic consumption remains a separate explicit gap. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L349) | unit/verify | revert, verified |
-| negative | [`TestRFC9012MalformedAttributeIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L160) | unit/verify | unproven |
+| negative | [`TestRFC9012MalformedAttributeIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L160) | unit/verify | not verified |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L348) | unit/verify | revert, verified |
 | positive | [`TestRFC9012DuplicateSingleInstanceSubTLVs`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L269) | unit/verify | revert, verified |
 
@@ -895,12 +895,12 @@ all the sub-TLVs MUST be propagated if the route carrying the Tunnel Encapsulati
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 requires every duplicate single-instance sub-TLV to propagate. Both ELH occurrences remain in order and byte-identical in actual downstream output under default and MED-rebuilt cached export; removing either would fail those comparisons. Exact ActionNone observes the companion classification clause. Fabricated shortened codec encodings alone are not credited, and no first-occurrence interpretation is inferred. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L351) | unit/verify | revert, verified |
-| negative | [`TestRFC9012AllSubTLVsPropagate`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L193) | unit/verify | unproven |
+| negative | [`TestRFC9012AllSubTLVsPropagate`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L193) | unit/verify | not verified |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L350) | unit/verify | revert, verified |
-| positive | [`TestRFC9012AllSubTLVsPropagate`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L179) | unit/verify | unproven |
+| positive | [`TestRFC9012AllSubTLVsPropagate`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L179) | unit/verify | not verified |
 
 ### [`RFC9012-13-10`](#rfc9012-13-10)
 
@@ -908,7 +908,7 @@ If a TLV of a Tunnel Encapsulation attribute contains a sub-TLV that is not reco
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC9012 Section 13 requires the containing TLV to be processed as if an unrecognized sub-TLV were absent. TestRFC9012UnknownSubTLVEndpointProcessing now compares absent controls with framed short- and long-header unknowns before, after and between endpoints across 27 cases: valid, length-invalid, registry-disallowed, duplicate and missing endpoints. It observes exact retained TLVs through original-input Session receipt, cache/export, default and MED-rebuilt socket output and downstream receipt; real received-route storage observes replacement, removal with no surviving TLV, an unaffected independent route and same-session recovery. A selective tunnelTLVLayout break stopping at unknown types 100/200 leaves absent controls passing but fails exact exported bytes and installed-target removal, including duplicate-endpoint cases with an intervening unknown; restored claim roots pass. Existing carry assertions retain admission and opaque-propagation proof. TestRFC9012UnrecognizedSubTLVDoesNotDisturbProcessing separately proves local Preference accessor equivalence and absence of a Preference in an all-unknown TLV, not SRPM selection. The positive-only annotation is appropriate: unknown types are legal inputs and surrounding endpoint errors are controls for processing equivalence, not invalid unknown types. This whole conditional receive/transit obligation is enforced without claiming the absent attribute-driven tunnel-selection, encapsulation-header or SRPM consumers, which retain their separate ownership and gaps.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L352) | unit/verify | revert, verified |
 | positive | [`TestRFC9012UnknownSubTLVEndpointProcessing`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L658) | unit/verify | revert, verified |
@@ -920,12 +920,12 @@ If the route carrying the Tunnel Encapsulation attribute is propagated with the 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 requires an unrecognized sub-TLV to remain when its attribute propagates. Isolated long-header type200 under GRE survives actual receipt, default cached export, MED rebuild and downstream receipt exactly. Actual codec round trips supplement short/long-header coverage; fabricated shorter encodings alone are not negative evidence. tunnelTLVLayout walks non-endpoint sub-TLVs by their declared framing without stripping unknown types. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L354) | unit/verify | revert, verified |
-| negative | [`TestRFC9012AllSubTLVsPropagate`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L196) | unit/verify | unproven |
+| negative | [`TestRFC9012AllSubTLVsPropagate`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L196) | unit/verify | not verified |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L353) | unit/verify | revert, verified |
-| positive | [`TestRFC9012AllSubTLVsPropagate`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L186) | unit/verify | unproven |
+| positive | [`TestRFC9012AllSubTLVsPropagate`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L186) | unit/verify | not verified |
 
 ### [`RFC9012-13-12`](#rfc9012-13-12)
 
@@ -933,12 +933,12 @@ In general, if a TLV contains a sub-TLV that is malformed, the sub-TLV MUST be t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 generally treats a malformed sub-TLV as unrecognized, with the explicit malformed-endpoint exception retained. Applicable MPLS-in-UDP type13 inputs with UDP length3 or value0, against absent/valid controls, retain ActionNone and exact bytes through actual default/rebuilt cached output like unknown sub-TLVs. TunnelTLV.Preference skips malformed four-byte Preference and reads a following valid six-byte777, with standalone555 control. No UDP-header or tunnel-consumer feature is claimed. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L356) | unit/verify | revert, verified |
-| negative | [`TestRFC9012MalformedSubTLVTreatedAsUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L249) | unit/verify | unproven |
+| negative | [`TestRFC9012MalformedSubTLVTreatedAsUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L249) | unit/verify | not verified |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L355) | unit/verify | revert, verified |
-| positive | [`TestRFC9012MalformedSubTLVTreatedAsUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L240) | unit/verify | unproven |
+| positive | [`TestRFC9012MalformedSubTLVTreatedAsUnrecognized`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L240) | unit/verify | not verified |
 
 ### [`RFC9012-13-13`](#rfc9012-13-13)
 
@@ -946,7 +946,7 @@ if a TLV contains a malformed Tunnel Egress Endpoint sub-TLV (as defined in Sect
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Structural endpoint cases, original-input registry propagation and real native-route storage jointly prove that malformed endpoint TLVs are ignored wholesale. Valid marked siblings survive; all-invalid replacements remove the installed target on all seven Section 6 carriers. Registry Destination/Forwardable restrictions and allowed exceptions are covered. The optional origin-AS determination is not implemented or inferred, so no unproved determination is claimed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012EndpointAddressRegistryStorage`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_receive_storage_test.go#L105) | unit/verify | revert, verified |
 | negative | [`TestRFC9012EndpointAddressRegistryPropagation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L566) | unit/verify | revert, verified |
@@ -961,7 +961,7 @@ There is one exception to this rule: if a TLV contains a malformed Tunnel Egress
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-03 by an independent auditor who authored none of 816ce1ce4c, 2cbd255ba4, 2e5c2d012a, d22b811ce4 or 1a2ccaeef8 (phase 5 of spec-filter-wire-0-umbrella, the per-peer text filter chain deleted). RFC 9012 Section 13 read: "There is one exception to this rule: if a TLV contains a malformed Tunnel Egress Endpoint sub-TLV (as defined in Section 3.1), the entire TLV MUST be ignored and MUST be removed from the Tunnel Encapsulation attribute before the route carrying that attribute is distributed." The moved unit TestRFC9012FilterRawOverrideRemovesInvalidTLVs changed only its plumbing: The test filter is now an answerTransport behind filterTransportSeam, compiled by answerPolicy into a policychain library chain, so the verdict travels the real filter-update path (route.Input, rpc.FilterUpdateOutput decoded by the library chain) instead of the deleted policyFilterSeam that handed a PolicyResponse straight to the text chain; that is the production path every plugin filter now takes. The Warn capture now points fwdLogger at the recorder, where the library chain writes the refusal. The assertions are byte-identical: on runEgressPolicyChainASN4 and runIngressPolicyChain a raw answer whose valid TLV sits between two short-endpoint TLVs is handed on as exactly the body holding the valid TLV, the answer bytes stay untouched, an all-malformed export answer is not accepted, is failed and is logged at Warn, and a clean answer passes unchanged. The earlier note said the library chain raw answer (filter_library.go) was not driven by this unit; it now is, since answerPolicy compiles a library chain and runLibraryChain reaches decodeFilterRawOverride (filter_library.go), so that disclaimer is withdrawn. The tag claims the removal on both chains and the export-side refusal, which is what the body checks; the untagged twin TestRFC9012LibraryRawAnswerRemovesInvalidTLVs adds the import refusal. Other carriers (tunnel_encap_carry, rfc9830_tunnel_receive, receive_storage) unmoved; their judgement stands: structural and registry-semantic removal on receive, exact raw and rebuilt output, stored routes. Optional origin-AS validation is neither provided nor claimed. Ran the tagged units under ./le job run at HEAD (-tags ze_bgp, -v): PASS (scratch audit-p5-units-v.log). Verdict unchanged: enforced.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012FilterRawOverrideRemovesInvalidTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_filter_raw_override_test.go#L43) | unit/verify | revert, verified |
 | negative | [`TestRFC9012EndpointAddressRegistryStorage`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_receive_storage_test.go#L101) | unit/verify | revert, verified |
@@ -977,7 +977,7 @@ Within a Tunnel Encapsulation attribute that is carried by a BGP UPDATE whose AF
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Missing and duplicate endpoint TLVs are now exercised through actual Session receipt and real received-route storage for every Section 6 AFI/SAFI, with a causal marked sibling, an independent control route, actual target withdrawal and same-session reinstall. Existing unicast raw/rebuilt forwarding assertions remain complementary. The prior missing-carrier and classification-only objections are closed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012ReceiveRemovesInstalledNativeRoutes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_receive_storage_test.go#L33) | unit/verify | revert, verified |
 | negative | [`TestRFC9012EndpointInvalidTLVsRemovedOnUnicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9830_tunnel_receive_test.go#L244) | unit/verify | revert, verified |
@@ -1006,10 +1006,10 @@ However, the sub-TLV MUST NOT be considered to be malformed (§13)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 forbids classifying a meaningless sub-TLV as malformed or removing it. Well-formed two-byte nonzero UDP Destination Port under GRE isolates meaninglessness from bad length/value; it receives ActionNone and survives exact actual downstream propagation. GRE-without-UDP and applicable-valid UDP are controls; malformed outer framing remains rejected. This classification identity does not establish encapsulation-header behavior. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L358) | unit/verify | revert, verified |
-| negative | [`TestRFC9012MalformedAttributeIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L155) | unit/verify | unproven |
+| negative | [`TestRFC9012MalformedAttributeIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L155) | unit/verify | not verified |
 | positive | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L357) | unit/verify | revert, verified |
 | positive | [`TestRFC9012MeaninglessSubTLVIgnoredNotRemoved`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L295) | unit/verify | revert, verified |
 
@@ -1019,7 +1019,7 @@ the sub-TLV MUST NOT be considered to be malformed and MUST NOT be removed from 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent FinalTunnelRejudgment retained this allocated obligation; Main read RFC9012 full text, session_tunnel_encap.go::applyTunnelEncap/tunnelTLVLayout/tunnelEndpointValid, tunnel_encap.go codec producers and the real consumer. RFC9012 §13 forbids removing a meaningless sub-TLV before distribution. UDP-in-GRE retains exact bytes through default and MED-rebuilt cached output and downstream delivery, with ActionNone and applicable/absent controls. Codec round trip supplements retention; constructed shorter encodings alone are not independent negative evidence. The separately owned13-16/13-17 consumer gaps remain unchanged. Actual consumer: internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go::TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong and teForwardedAttrs drive Session.processMessage, cache publication, ForwardUpdate, worker/socket output and downstream Session receipt. These are two cached export modes, not an independently exercised reactor-native RS rail; no absent attribute-driven tunnel-selection feature is credited.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelEncapReceivedIgnoredAndPassedAlong`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_tunnel_encap_carry_test.go#L360) | unit/verify | revert, verified |
 | negative | [`TestRFC9012MeaninglessSubTLVIgnoredNotRemoved`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc9012_test.go#L319) | unit/verify | revert, verified |
@@ -1048,7 +1048,7 @@ This filtering SHOULD be possible on a per-BGP-session basis. (§11) Context: ou
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-22 by independent route-policy auditor. RFC 9012 Section 11: "In addition, any BGP speaker that understands the attribute MUST be able to filter the attribute from outgoing BGP UPDATE messages." "This filtering SHOULD be possible on a per-BGP-session basis." This row owns the latter per-session SHOULD, not the outgoing-capability MUST, EBGP defaults, ingress filtering or dataplane. Read both current tagged tests TestRFC9012TunnelFilterSelectedSession and TestRFC9012TunnelFilterDoesNotAffectOtherSession, plus teSessionFilterRoundTrip, teSessionFilterTransport.CallFilterUpdate, teSessionFilterAssertBody and teSessionFilterDownstream in reactor/rfc9012_session_filter_test.go. The fixture transforms the actual raw request by removing only attribute 23, rather than returning precomputed output. Each round sends one received/cached UPDATE to two independently configured session writers, swaps which destination filters, asserts exactly one written UPDATE, exact attribute removal/preservation and unrelated encodings (with mandatory IBGP LOCAL_PREF), unchanged NLRI/withdrawals, one downstream production Session.processMessage dispatch with unchanged output, and original/cache immutability. Producers: filter_chain.go::PolicyFilterChain honors a raw modification and FinalAccept; filter_ordered.go::runEgressPolicyChainASN4 returns wireOverride; reactor_api_forward.go::forwardUpdateSection selects each snapshot exportPolicy and consumes the override for that destination only. The cutover replaces only the export filter value with typed Policy plus FinalAccept and renames the mutation comment; transformations and assertions are preserved. Retain enforced with the original unit-session/simulated-plugin-transport evidence boundary, not live daemon/TCP/FRR evidence. Old native record metadata is not a new observation; renewal and stamping remain parent-owned.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9012TunnelFilterDoesNotAffectOtherSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_session_filter_test.go#L50) | unit/verify | revert, verified |
 | positive | [`TestRFC9012TunnelFilterSelectedSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9012_session_filter_test.go#L37) | unit/verify | revert, verified |

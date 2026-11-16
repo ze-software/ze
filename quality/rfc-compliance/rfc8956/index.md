@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 7 | of 9 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 2 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 7 | of 9 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 2 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 9 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 13 | 13 of 18 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 13 | 13 of 18 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -25,9 +25,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 9 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 9 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 9 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 9 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 9 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 9 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 9 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -46,13 +46,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -86,7 +86,7 @@ Included in automatic checks: Dissemination of Flow Specification Rules for IPv6
 
 **Area:** IPv6 FlowSpec
 
-**Proof:** 7 of 9 MUST proven
+**Test verification:** 7 of 9 MUST proven
 
 **Evidence:** unit 7
 
@@ -101,7 +101,7 @@ Included in automatic checks: Dissemination of Flow Specification Rules for IPv6
 | Annotated (including scoped evidence) | 2 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **9** | every mandatory requirement appears in exactly one group above |
@@ -112,8 +112,8 @@ Included in automatic checks: Dissemination of Flow Specification Rules for IPv6
 
 ## Figures
 
-- **MUST bar**: Ze proven 7, Proof pending 2
-- **Overview bar**: Ze MUST proven 7, Proof pending 2, Not assessed 5
+- **MUST bar**: Ze verified 7, Tests awaiting verification 2
+- **Overview bar**: Ze MUST verified 7, Tests awaiting verification 2, Not assessed 5
 
 | Figure | Rows |
 |---|---|
@@ -122,9 +122,9 @@ Included in automatic checks: Dissemination of Flow Specification Rules for IPv6
 | Mandatory requirements complete | not complete |
 | MUST rows | 9 |
 | MUST rows kept (the MUST bar) | 9 |
-| Ze proven | 7 |
+| Ze verified | 7 |
 | OS verified | 0 |
-| Proof pending | 2 |
+| Tests awaiting verification | 2 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -134,19 +134,19 @@ Included in automatic checks: Dissemination of Flow Specification Rules for IPv6
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 5 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 5 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc8956.json](../../../data/rfc/rfc8956.json).
 
@@ -173,9 +173,9 @@ Source: [data/rfc/rfc8956.json](../../../data/rfc/rfc8956.json).
 
 RFC 8956 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC8956-2-1`](#rfc8956-2-1)
 
@@ -183,9 +183,9 @@ Implementations wishing to exchange IPv6 Flow Specifications MUST use BGP's Capa
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestIPv6FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L865) | unit/verify | unproven |
+| positive | [`TestIPv6FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L865) | unit/verify | not verified |
 
 ### [`RFC8956-2-2`](#rfc8956-2-2)
 
@@ -193,10 +193,10 @@ The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be (
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestFlowSpecIPv6Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L440) | unit/verify | unproven |
-| positive | [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L655) | unit/verify | unproven |
+| positive | [`TestFlowSpecIPv6Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L440) | unit/verify | not verified |
+| positive | [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L655) | unit/verify | not verified |
 
 ### [`RFC8956-3.1-1`](#rfc8956-3.1-1)
 
@@ -204,7 +204,7 @@ Padding bits MUST be 0 on encoding (§3.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: TestIPv6FlowPrefixPatternAndPadding moved verbatim to core internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go, with only the family identifier renamed (test-local AFI 2/SAFI 133). RFC 8956 Section 3.1: "Padding bits MUST be 0 on encoding and MUST be ignored on decoding." Encode clause: received patterns padded with 0xff must re-encode through both Bytes() and WriteTo to the canonical zero-padded bytes (0xff becomes 0xfe for 72/65, 0xff becomes 0xc0 for 17/7), and a configured 2001:db8:ffff::/33 must encode its last pattern octet as exactly 0x80.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go#L12) | unit/verify | revert, verified |
 | positive | [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go#L11) | unit/verify | revert, verified |
@@ -215,7 +215,7 @@ Padding bits MUST be 0 on encoding and MUST be ignored on decoding. (§3.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: same unit as RFC8956-3.1-1, moved verbatim to core. The quote carries both clauses. Encoding is proven by the canonical-bytes assertions. Decoding: inputs with 0xff padding must parse without error, and comp.Prefix() must equal the pattern-only prefix (::7f00:0:0:0/72, 103:8000::/17) with the exact offset. A decoder that read padding into the match, or rejected nonzero padding, fails require.NoError or the Prefix assertion.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go#L14) | unit/verify | revert, verified |
 | positive | [`TestIPv6FlowPrefixPatternAndPadding`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_prefix_test.go#L13) | unit/verify | revert, verified |
@@ -226,7 +226,7 @@ The Type 12 component bitmask MUST be encoded as a single octet bitmask (bitmask
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: the unit moved to core rfc8956_fragment_test.go. It changed only by the family identifiers and the now-exported NewFlowFragmentMatchComponent. RFC 8956 Section 3.6: "The Type 12 component bitmask MUST be encoded as a single octet bitmask (bitmask_op len=00)." A value of ^uint64(0) through the IPv6 FlowSpec and IPv6 VPN producers must encode exactly {12, 0x81, 0x0e} (len=00, one octet) via WriteTo and Bytes(), so core writeToAFI applies fragmentMask before choosing the width. The negative requires ParseFlowSpec/ParseFlowSpecVPN to refuse a 0x91 (len=01) two-octet operand.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8956FragmentSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L11) | unit/verify | revert, verified |
 | positive | [`TestRFC8956FragmentSingleOctet`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L10) | unit/verify | revert, verified |
@@ -237,7 +237,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: the unit moved verbatim to core, with only the family identifiers renamed. RFC 8956 Section 3.6: "0: MUST be set to 0 on NLRI encoding". One shared component carrying DF|IsF, FF and LF must encode IPv6 and IPv6-VPN as 2, 4, 8 (DF, reserved in Figure 1, cleared), while IPv4 and IPv4-VPN keep 3. Core fragmentMask(AFIIPv6)=0x0e is what clears it. The high reserved bits are covered by the 3.6-1 unit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L46) | unit/verify | revert, verified |
 | positive | [`TestRFC8956FragmentEncodingRespectsEnclosingFamily`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L45) | unit/verify | revert, verified |
@@ -248,7 +248,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: the unit moved verbatim to core, with only the family identifiers renamed. The quote carries both clauses. Decoding: operands 0xf3, 0xf5, 0xf9, 0xf1, each carrying every reserved bit, must parse without error for IPv6 and IPv6-VPN, and Matches() must equal exactly IsF, FF, LF, 0. Encoding: the re-encoded NLRI must equal the input with reserved bits zeroed (2, 4, 8, 0).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L70) | unit/verify | revert, verified |
 | positive | [`TestRFC8956FragmentDecodeIgnoresReservedBits`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc8956_fragment_test.go#L69) | unit/verify | revert, verified |
@@ -259,10 +259,10 @@ If length = 0 and offset = 0, this component matches every address; otherwise, l
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: both units changed only by package qualification. The plugin unit now calls core flowspec.ParseFlowSpec and flowspec.KwDestinationIPv6; the firewall unit names the IPv6 FlowSpec family as a family.Family literal. RFC 8956 Section 3.1: "If length = 0 and offset = 0, this component matches every address; otherwise, length MUST be in the range offset < length < 129 or the component is malformed." First clause: flowspec-firewall TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress parses 03 01 00 00 and 03 02 00 00 and requires the firewall matches to be exactly MatchDestinationAddress{::/0} and MatchSourceAddress{::/0}. Its containment loop checks the constant and adds nothing, so the require.Equal is the proof. Second clause: TestIPv6FlowPrefixRejectsMalformedBounds requires parse errors for 0/1, 64/64, 63/64, 129/0 and a truncated pattern, and config refusal for /64/64, /64/65 and /0/1. It also requires 80/64 to encode and compare equal to its received form.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L13) | unit/verify | unproven |
-| positive | [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L12) | unit/verify | unproven |
+| negative | [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L13) | unit/verify | not verified |
+| positive | [`TestIPv6FlowPrefixRejectsMalformedBounds`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/rfc8956_prefix_test.go#L12) | unit/verify | not verified |
 | positive | [`TestRFC8956ZeroLengthZeroOffsetMatchesEveryAddress`](https://github.com/ze-software/ze/blob/main/internal/plugins/flowspec-firewall/rfc8956_zero_prefix_test.go#L26) | unit/verify | revert, verified |
 
 ### [`RFC8956-5-1`](#rfc8956-5-1)
@@ -271,7 +271,7 @@ item a) of the validation procedure should now read as follows: | a) A destinati
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment: RFC8956 Section 5: "A destination prefix component with offset=0 is embedded in the Flow Specification." Section 5 retains RFC8955 validation but replaces item a with this offset-zero amendment. Current TestFlowSpecVPNValidationSeparatesAFIAndRD uses a legal /64 offset32 four-byte pattern, the same RD/default authorizing route, and unchanged wire input. It requires retained receipt but false generation-7 eligibility, zero candidates and no additional selected event; the zero-offset rule succeeds. Removing only the Offset()==0 gate now fails that consumer oracle and clean controls pass. The pattern shape is legal under Section 3.1 length-minus-offset; rejection is authorization, not malformed encoding. Enforcement is for this amendment, not blanket inherited-rule or dataplane compliance. These are inspected scratch semantic executions, not canonical discrimination records. Current native record renewal/stamping remains parent-owned; no pending FRR carrier run, SRPM behavior, dataplane behavior, or full-RFC acceptance is inferred.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L307) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecVPNValidationSeparatesAFIAndRD`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L306) | unit/verify | revert, verified |

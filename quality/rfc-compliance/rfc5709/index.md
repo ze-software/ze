@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 14 | of 15 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 15 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 14 | of 15 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 15 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 15 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 15 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 0 | of 15 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 15 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 14 | 14 of 46 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 14 | 14 of 46 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 | Audit verdicts | 17 | of 15 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
@@ -26,9 +26,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 15 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 15 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 15 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 15 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 15 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 15 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 15 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -47,13 +47,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -87,7 +87,7 @@ Included in automatic checks: OSPFv2 HMAC-SHA Cryptographic Authentication (AuTy
 
 **Area:** OSPFv2 HMAC-SHA authentication
 
-**Proof:** 5 of 15 MUST proven
+**Test verification:** 5 of 15 MUST proven
 
 **Evidence:** unit 5
 
@@ -102,7 +102,7 @@ Included in automatic checks: OSPFv2 HMAC-SHA Cryptographic Authentication (AuTy
 | Annotated (including scoped evidence) | 1 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **15** | every mandatory requirement appears in exactly one group above |
@@ -113,8 +113,8 @@ Included in automatic checks: OSPFv2 HMAC-SHA Cryptographic Authentication (AuTy
 
 ## Figures
 
-- **MUST bar**: Ze proven 5, Proof pending 10
-- **Overview bar**: Ze MUST proven 5, SHOULD proven 2, Proof pending 10, Not assessed 5
+- **MUST bar**: Ze verified 5, Tests awaiting verification 10
+- **Overview bar**: Ze MUST verified 5, SHOULD verified 2, Tests awaiting verification 10, Not assessed 5
 
 | Figure | Rows |
 |---|---|
@@ -123,9 +123,9 @@ Included in automatic checks: OSPFv2 HMAC-SHA Cryptographic Authentication (AuTy
 | Mandatory requirements complete | not complete |
 | MUST rows | 15 |
 | MUST rows kept (the MUST bar) | 15 |
-| Ze proven | 5 |
+| Ze verified | 5 |
 | OS verified | 0 |
-| Proof pending | 10 |
+| Tests awaiting verification | 10 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -135,19 +135,19 @@ Included in automatic checks: OSPFv2 HMAC-SHA Cryptographic Authentication (AuTy
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 7 |
-| SHOULD proven | 2 |
+| SHOULD verified | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 5 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5709.json](../../../data/rfc/rfc5709.json).
 
@@ -182,9 +182,9 @@ Source: [data/rfc/rfc5709.json](../../../data/rfc/rfc5709.json).
 
 RFC 5709 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC5709-3-1`](#rfc5709-3-1)
 
@@ -192,10 +192,10 @@ Of the above, implementations of this specification MUST include support for at 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Stale only from added comment tags (RFC5709-3.3-5 in auth_verify_test.go, RFC2328-D.3-4 in auth_keystore_test.go and rfc5709_crypto_sequence_test.go); the assertions judged in the previous round are byte-identical in behaviour, so the earlier enforced judgement stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L87) | unit/verify | unproven |
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L78) | unit/verify | unproven |
+| negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L87) | unit/verify | not verified |
+| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L78) | unit/verify | not verified |
 
 ### [`RFC5709-3-5`](#rfc5709-3-5)
 
@@ -203,7 +203,7 @@ An implementation of this specification MUST allow network operators to configur
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. The redundant codec-level tag was removed. TestRFC5709AnyAlgorithmUnderAnyKeyID rotates all five algorithms over Key IDs 1, 77, 200, 254 and 255 through parseOSPFConfig, validateConfig and the engine verifyPacket hook, with no auth failure. The row's {single-polarity: positive} holds: the MUST is permissive and has no forbidden pairing to reject.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC5709AnyAlgorithmUnderAnyKeyID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_any_algorithm_any_keyid_test.go#L36) | unit/verify | revert, verified |
 
@@ -213,10 +213,10 @@ Second, set the Authentication Type to Cryptographic Authentication (§3.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: sending an HMAC-SHA packet whose Authentication Type is not Cryptographic Authentication (2); (b) TestEngineSignPacketCrypto asserts the on-wire AuType of eng.signPacket output equals AuTypeCryptographic; negative TestOSPFAuthStoreSignVerify asserts a non-crypto AuType packet is refused under crypto config
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFAuthStoreSignVerify`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L73) | unit/verify | unproven |
-| positive | [`TestEngineSignPacketCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L56) | unit/verify | unproven |
+| negative | [`TestOSPFAuthStoreSignVerify`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L73) | unit/verify | not verified |
+| positive | [`TestEngineSignPacketCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L56) | unit/verify | not verified |
 
 ### [`RFC5709-3.1-2`](#rfc5709-3.1-2)
 
@@ -224,7 +224,7 @@ set the Authentication Data Length field to the length (measured in bytes, not b
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Stale only from added comment tags (RFC5709-3.3-5 in auth_verify_test.go, RFC2328-D.3-4 in auth_keystore_test.go and rfc5709_crypto_sequence_test.go); the assertions judged in the previous round are byte-identical in behaviour, so the earlier enforced judgement stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5709WrongAuthDataLengthRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L74) | unit/verify | revert, verified |
 | positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L61) | unit/verify | revert, verified |
@@ -236,7 +236,7 @@ Third, the 32-bit cryptographic sequence number is set in accordance with the pr
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 after the AuType 2 replay slot became per neighbour (replaySlotFor). Positive TestRFC5709CryptoSequenceNonDecreasingOnInterface signs five Hellos through signPacket across a key change and fails on any sequence below the last sent on eth0 (RFC 2328 D.4.3 (5) 'non-decreasing'). Negative TestOSPFAuthReplay, AuType 2: seq 5 after 11 is dropped with reason replay, per D.5.3 (2) 'less than ... discarded'; equal 11 is accepted. replayedSequence returns seq < last for AuType 2. Both polarities stand.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestOSPFAuthReplay`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L139) | unit/verify | revert, verified |
 | positive | [`TestRFC5709CryptoSequenceNonDecreasingOnInterface`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_crypto_sequence_test.go#L54) | unit/verify | revert, verified |
@@ -247,10 +247,10 @@ Fourth, the message digest is then calculated and appended to the OSPF packet, a
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Stale only from added comment tags (RFC5709-3.3-5 in auth_verify_test.go, RFC2328-D.3-4 in auth_keystore_test.go and rfc5709_crypto_sequence_test.go); the assertions judged in the previous round are byte-identical in behaviour, so the earlier enforced judgement stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L235) | unit/verify | unproven |
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L67) | unit/verify | unproven |
+| negative | [`TestOSPFAuthCryptoRejectsExtraTrailerBytes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L235) | unit/verify | not verified |
+| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L67) | unit/verify | not verified |
 
 ### [`RFC5709-3.3-1`](#rfc5709-3.3-1)
 
@@ -258,11 +258,11 @@ First, the OSPFv2 packet's Authentication Trailer (which is the appendage descri
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Stale only from added comment tags (RFC5709-3.3-5 in auth_verify_test.go, RFC2328-D.3-4 in auth_keystore_test.go and rfc5709_crypto_sequence_test.go); the assertions judged in the previous round are byte-identical in behaviour, so the earlier enforced judgement stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L96) | unit/verify | unproven |
-| negative | [`TestRFC5709ReceiveRejectsWrongHashConstruction`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L436) | unit/verify | unproven |
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L79) | unit/verify | unproven |
+| negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L96) | unit/verify | not verified |
+| negative | [`TestRFC5709ReceiveRejectsWrongHashConstruction`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L436) | unit/verify | not verified |
+| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L79) | unit/verify | not verified |
 
 ### [`RFC5709-3.3-5`](#rfc5709-3.3-5)
 
@@ -270,7 +270,7 @@ Apad is the hexadecimal value 0x878FE1F3 repeated (L/4) times. (§3.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 5709 Section 3.3 ('Apad is the hexadecimal value 0x878FE1F3 repeated (L/4) times'), split from the Apad fill obligation of 3.3-1. The positive requires the signed trailer to equal a digest built independently with that literal Apad for every L. The negative refuses a digest made over a zero-filled trailer. Both records are on apad.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5709ReceiveRejectsWrongHashConstruction`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L441) | unit/verify | revert, verified |
 | positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L71) | unit/verify | revert, verified |
@@ -281,12 +281,12 @@ In this application, Ko is always L octets long. If the Authentication Key (K) i
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Stale only from added comment tags (RFC5709-3.3-5 in auth_verify_test.go, RFC2328-D.3-4 in auth_keystore_test.go and rfc5709_crypto_sequence_test.go); the assertions judged in the previous round are byte-identical in behaviour, so the earlier enforced judgement stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L88) | unit/verify | unproven |
-| negative | [`TestRFC5709ReceiveRejectsWrongHashConstruction`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L437) | unit/verify | unproven |
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L80) | unit/verify | unproven |
-| positive | [`TestRFC5709ReceiveIndependentDigest`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L403) | unit/verify | unproven |
+| negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L88) | unit/verify | not verified |
+| negative | [`TestRFC5709ReceiveRejectsWrongHashConstruction`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L437) | unit/verify | not verified |
+| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L80) | unit/verify | not verified |
+| positive | [`TestRFC5709ReceiveIndependentDigest`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L403) | unit/verify | not verified |
 
 ### [`RFC5709-3.3-3`](#rfc5709-3.3-3)
 
@@ -294,11 +294,11 @@ Then, a First-Hash, also known as the inner hash, is computed as follows: First-
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Stale only from added comment tags (RFC5709-3.3-5 in auth_verify_test.go, RFC2328-D.3-4 in auth_keystore_test.go and rfc5709_crypto_sequence_test.go); the assertions judged in the previous round are byte-identical in behaviour, so the earlier enforced judgement stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L89) | unit/verify | unproven |
-| negative | [`TestRFC5709ReceiveRejectsWrongHashConstruction`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L438) | unit/verify | unproven |
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L81) | unit/verify | unproven |
+| negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L89) | unit/verify | not verified |
+| negative | [`TestRFC5709ReceiveRejectsWrongHashConstruction`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L438) | unit/verify | not verified |
+| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L81) | unit/verify | not verified |
 
 ### [`RFC5709-3.3-4`](#rfc5709-3.3-4)
 
@@ -306,11 +306,11 @@ The resulting Second-Hash becomes the Authentication Data that is sent in the Au
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Stale only from added comment tags (RFC5709-3.3-5 in auth_verify_test.go, RFC2328-D.3-4 in auth_keystore_test.go and rfc5709_crypto_sequence_test.go); the assertions judged in the previous round are byte-identical in behaviour, so the earlier enforced judgement stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L97) | unit/verify | unproven |
-| negative | [`TestRFC5709ReceiveRejectsWrongHashConstruction`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L439) | unit/verify | unproven |
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L69) | unit/verify | unproven |
+| negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L97) | unit/verify | not verified |
+| negative | [`TestRFC5709ReceiveRejectsWrongHashConstruction`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L439) | unit/verify | not verified |
+| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L69) | unit/verify | not verified |
 
 ### [`RFC5709-3.4-1`](#rfc5709-3.4-1)
 
@@ -318,15 +318,15 @@ the cryptographic calculation of the message digest follows the procedure in Sec
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. Codec tests (TestOSPFAuthSignVerifyCrypto, TestRFC5709ReceiveIndependentDigest, TestRFC5709ReceiveRejectsWrongHashConstruction, TestOSPFAuthCryptoChecksumOctetAuthenticated) changed only by added comment tags: Verify accepts an independently built HMAC-SHA digest with Apad and rejects altered digests, wrong constructions and a changed checksum octet. TestEngineReceiveSelectsSecurityAssociation now offsets each case's sequences by 1000 because AuType 2 keeps one sequence per neighbour; the valid/forged/next assertions are unchanged and the 'next' check still reddens if a forged packet advanced replay state. No discrimination records; judged by reading.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFAuthCryptoChecksumOctetAuthenticated`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L364) | unit/verify | unproven |
-| negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L98) | unit/verify | unproven |
-| negative | [`TestRFC5709ReceiveRejectsWrongHashConstruction`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L440) | unit/verify | unproven |
-| negative | [`TestEngineReceiveSelectsSecurityAssociation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L138) | unit/verify | unproven |
-| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L82) | unit/verify | unproven |
-| positive | [`TestRFC5709ReceiveIndependentDigest`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L404) | unit/verify | unproven |
-| positive | [`TestEngineReceiveSelectsSecurityAssociation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L137) | unit/verify | unproven |
+| negative | [`TestOSPFAuthCryptoChecksumOctetAuthenticated`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L364) | unit/verify | not verified |
+| negative | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L98) | unit/verify | not verified |
+| negative | [`TestRFC5709ReceiveRejectsWrongHashConstruction`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L440) | unit/verify | not verified |
+| negative | [`TestEngineReceiveSelectsSecurityAssociation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L138) | unit/verify | not verified |
+| positive | [`TestOSPFAuthSignVerifyCrypto`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L82) | unit/verify | not verified |
+| positive | [`TestRFC5709ReceiveIndependentDigest`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L404) | unit/verify | not verified |
+| positive | [`TestEngineReceiveSelectsSecurityAssociation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L137) | unit/verify | not verified |
 
 ### [`RFC5709-3.4-2`](#rfc5709-3.4-2)
 
@@ -334,12 +334,12 @@ Kindly recall that the cryptographic algorithm/mode in use is indicated implicit
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. TestOSPFAuthCryptoRejectsKeyIDMismatch (codec) unchanged: a non-matching Key ID fails even with the same secret, a matching one verifies. TestEngineReceiveSelectsSecurityAssociation: Key IDs 7 (SHA-256), 8 (SHA-512), 9 (other secret); each valid packet passes, an unknown Key ID and another association's algorithm or secret are dropped and counted. The only change is per-case sequence offsets for the per-neighbour AuType 2 slot, which leaves every assertion intact.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestOSPFAuthCryptoRejectsKeyIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L252) | unit/verify | unproven |
-| negative | [`TestEngineReceiveSelectsSecurityAssociation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L136) | unit/verify | unproven |
-| positive | [`TestOSPFAuthCryptoRejectsKeyIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L255) | unit/verify | unproven |
-| positive | [`TestEngineReceiveSelectsSecurityAssociation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L135) | unit/verify | unproven |
+| negative | [`TestOSPFAuthCryptoRejectsKeyIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L252) | unit/verify | not verified |
+| negative | [`TestEngineReceiveSelectsSecurityAssociation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L136) | unit/verify | not verified |
+| positive | [`TestOSPFAuthCryptoRejectsKeyIDMismatch`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L255) | unit/verify | not verified |
+| positive | [`TestEngineReceiveSelectsSecurityAssociation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_auth_wiring_test.go#L135) | unit/verify | not verified |
 
 ### [`RFC5709-3.2-1`](#rfc5709-3.2-1)
 
@@ -347,10 +347,10 @@ When a new key replaces an old, the KeyStartGenerate time for the new key MUST b
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. (a) forbidden: a new key whose KeyStartGenerate is after the old key's KeyStopGenerate; (b) TestKeyRolloverGapRejected asserts validateConfig returns ErrKeyRolloverGap for start 2026-03-01 after end 2026-02-01, and TestKeyRolloverOverlapAccepted asserts an overlapping rollover validates. The equal-time boundary is not exercised
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestKeyRolloverGapRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_config_test.go#L574) | unit/verify | unproven |
-| positive | [`TestKeyRolloverOverlapAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_config_test.go#L561) | unit/verify | unproven |
+| negative | [`TestKeyRolloverGapRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_config_test.go#L574) | unit/verify | not verified |
+| positive | [`TestKeyRolloverOverlapAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_config_test.go#L561) | unit/verify | not verified |
 
 ### [`RFC5709-3.2-2`](#rfc5709-3.2-2)
 
@@ -358,7 +358,7 @@ In the event that the last key associated with an interface expires, it is unacc
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 8, judge): row narrowed per R35 to the MUST NOT (no revert to an unauthenticated condition); the 'not advisable to disrupt routing' clause moved to RFC5709-3.2-5. Positive TestRFC5709LastKeyExpiredStillSigns: only key's send and accept lifetimes over, a Hello through eng.signPacket leaves AuType 2 Key ID 1; positive TestSignKeyNoRevertWhenAllExpired (store level). Negative TestRFC5709LastKeyExpiredRefusesUnauthenticated: AuType 0 Hello refused by verify with autype-mismatch after expiry. All three revert records (selectSendKey, verify) re-recorded by the judge after continuation 8 changed those producers, observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5709LastKeyExpiredRefusesUnauthenticated`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_last_key_expiry_test.go#L70) | unit/verify | revert, verified |
 | positive | [`TestSignKeyNoRevertWhenAllExpired`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L378) | unit/verify | revert, verified |
@@ -370,7 +370,7 @@ Therefore, the router should send a "last Authentication Key expiration" notific
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. New row 2026-09-30 (R35, D-8 fixed). auth_keystore.go: lastKeyIndex (latest sendStart, tie -> later accept end) is shared by signer and verifier; selectSendKey signs with it when no key is active; lastKeyExtendedIndex extends its accept window only when every window of the chain has closed and the last key's accept end passed (a not-yet-open chain is not expiry); noticeLocked notifies once per interface until configure installs a new chain; notification = slog Warn + ospf/last-key-expiration event. Positive TestRFC5709LastKeyExpiredKeepsAdjacency: two engines with the same expired one-key chain, two Hellos signed by one verify on the other, exactly one event each (eth0, key 1, send / receive). Negative TestRFC5709ExpiredKeyRefusedOnceNotLast: after a live Key ID 2 is configured the expired Key ID 1 is refused accept-lifetime, the signer moves to Key ID 2, no event. Revert records on lastKeyExtendedIndex observed red for both polarities. 'Lifetime extended' and 'key deleted' are the same configure path as 'new key configured' and are not separately asserted.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5709ExpiredKeyRefusedOnceNotLast`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_last_key_expiry_test.go#L150) | unit/verify | revert, verified |
 | positive | [`TestRFC5709LastKeyExpiredKeepsAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_last_key_expiry_test.go#L103) | unit/verify | revert, verified |
@@ -381,7 +381,7 @@ Key storage SHOULD persist across a system restart, warm or cold, to avoid opera
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 5709 Section 3.2: 'Key storage SHOULD persist across a system restart, warm or cold'. The positive commits the key chain through config.LoadConfig, SerializeSet, storage.WriteCandidateVersion and PromoteCandidate into an on-disk store and closes it. It then reopens the store with storage.Open and ReadActiveConfig (the cmd/ze/hub/config_source.go read) and requires Key ID 1 to sign, with a neighbour holding the plaintext key accepting the Hello. A serializer, store or reader that lost or altered the key turns it red, and the untagged TestRFC5709AlteredStoredKeyRefused control shows the neighbour checks the key itself. The {single-polarity: positive} annotation is sound. The SHOULD constrains the implementation's storage, not a received input, so no input exists that Ze could accept or refuse in violation, and a negative could only be fault injection into the store. The annotation names PromoteCandidate, the producer the positive's discrimination record breaks.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC5709KeysSurviveRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5709_key_persistence_test.go#L156) | unit/verify | revert, verified |
 

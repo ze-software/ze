@@ -2,7 +2,7 @@ Topology lab
 
 # netlab Topology Lab
 
-netlab starts three Ze nodes under containerlab from the supplied topology. A live check proves the routing protocols, the kernel routes and the traffic between them, then tears the lab down.
+netlab starts three Ze nodes under containerlab from the supplied topology. A live check tests the routing protocols, the kernel routes and the traffic between them, then tears the lab down.
 
 `Daemon`
 
@@ -10,7 +10,7 @@ The reference topology in `contrib/netlab/topology.yml` has three nodes. r1 and 
 
 To start the same topology by hand with netlab, check it, rebuild it and remove it, follow the [netlab guide](https://ze-software.net/guides/netlab/).
 
-- **Proves:** Every declared BGP, OSPF, IS-IS and BFD adjacency, both static routes in the kernel FIB, and sourced loopback pings between every pair of nodes, when `./le test netlab run` exits 0 after teardown
+- **What this lab tests:** Every declared BGP, OSPF, IS-IS and BFD adjacency, both static routes in the kernel FIB, and sourced loopback pings between every pair of nodes, when `./le test netlab run` exits 0 after teardown
 - **Environment:** Three Ze nodes under containerlab on a Docker host; netlab and containerlab run in a tool container
 - **Requires:** Docker access to a Ze Docker host, or QEMU for the disposable Ze Docker host
 - **Source:** [contrib/netlab/](https://github.com/ze-software/ze/tree/main/contrib/netlab)
@@ -34,7 +34,7 @@ Docker access from a Ze source checkout. For the two live runs, Python, netlab a
 - [internal/le/test/netlab/live.go live check](https://github.com/ze-software/ze/blob/main/internal/le/test/netlab/live.go)
 - [contrib/netlab/ daemon definition and templates](https://github.com/ze-software/ze/tree/main/contrib/netlab)
 
-## What is proven, and what is not.
+## What has been tested.
 
 The render check covers template rendering and parsing. The functional profile check covers one daemon's SSH login. The live command checks adjacencies, kernel routes and traffic across the topology; it must finish successfully before those properties can be claimed for a run.
 
@@ -44,7 +44,7 @@ The render check covers template rendering and parsing. The functional profile c
 | The render is valid ze configuration | `ze config validate` exits 0 on each file under `contrib/netlab/golden/` |
 | A daemon runs one of those renders and answers the show command with JSON | `test/plugin/netlab-lab-profile.ci` |
 | Every declared protocol reaches its healthy state, static routes reach the kernel FIB, and sourced loopback pings pass | `./le test netlab run` exits 0 after teardown |
-| Each declared feature passes netlab's own upstream integration suite | Not verified: no run here executes netlab's upstream integration suite. This is separate from the native reference-lab proof |
+| Each declared feature passes netlab's own upstream integration suite | Not verified: no run here executes netlab's upstream integration suite. This is separate from the native reference-lab test |
 
 The live command passed on 2026-11-14 on arm64, in Ze's QEMU Docker host under HVF, with netlab 26.10 and the committed templates. It reached every BGP, OSPF, IS-IS and BFD adjacency, found both static routes in the kernel FIB, passed all six sourced loopback pings, and tore the lab down with no container left. No amd64 run from the committed templates is recorded.
 
@@ -76,9 +76,9 @@ The runner waits for every declared BGP, OSPF, IS-IS and BFD adjacency, verifies
 
 ## When a run fails.
 
-**What a failed proof saves**
+**Files saved when a test fails**
 
-Before cleanup, a failed proof saves a private `diagnostics-*` directory inside the retained lab directory. It contains startup output, the topology snapshot, generated node files, Docker inspection, and each node's last 200 log lines. It also saves addresses, kernel routes, BGP and BFD state, OSPF and IS-IS interfaces, neighbors, databases and routes, the system RIB, and plugin state. Address, kernel route and adjacency queries run across every node before the more detailed routing queries. Capture has a two-minute total deadline and a five-second deadline for each command. A failed query leaves an `.error.txt` artifact with its command, failure and process output, so unavailable state cannot appear as an empty successful result. Cleanup still runs after capture. JSON artifacts keep stdout and use private `.stderr.txt` sidecars for stderr. The runner explicitly adds `netlab.snapshot.yml` to netlab's normal outputs before startup. netlab 26.10 writes a pickle snapshot by default; the added YAML inventory supplies node names for live checks, failure capture, and cleanup.
+Before cleanup, a failed test run saves a private `diagnostics-*` directory inside the retained lab directory. It contains startup output, the topology snapshot, generated node files, Docker inspection, and each node's last 200 log lines. It also saves addresses, kernel routes, BGP and BFD state, OSPF and IS-IS interfaces, neighbors, databases and routes, the system RIB, and plugin state. Address, kernel route and adjacency queries run across every node before the more detailed routing queries. Capture has a two-minute total deadline and a five-second deadline for each command. A failed query leaves an `.error.txt` artifact with its command, failure and process output, so unavailable state cannot appear as an empty successful result. Cleanup still runs after capture. JSON artifacts keep stdout and use private `.stderr.txt` sidecars for stderr. The runner explicitly adds `netlab.snapshot.yml` to netlab's normal outputs before startup. netlab 26.10 writes a pickle snapshot by default; the added YAML inventory supplies node names for live checks, failure capture, and cleanup.
 
 ## Keeping the templates from drifting.
 

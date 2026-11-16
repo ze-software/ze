@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 5 | of 41 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 14 | of 41 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 5 | of 41 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 14 | of 41 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 41 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 27 | 27 of 30 tests linked to requirements, 0 without a fault test and 3 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 27 | 27 of 30 tests linked to requirements, 0 without a fault test and 3 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -21,7 +21,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 2 | of 41 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 2 | of 41 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 13 | of 41 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 
 ### Neutral
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 41 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 41 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 7 | of 41 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 7 | of 41 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 41 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 41 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 41 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | bad | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | bad | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: Ze plays the IPv6 CE router of the fttx-edge use c
 
 **Area:** IPv6 customer edge router
 
-**Proof:** 18 of 41 MUST proven
+**Test verification:** 18 of 41 MUST proven
 
 **Evidence:** unit 18
 
@@ -108,7 +108,7 @@ Included in automatic checks: Ze plays the IPv6 CE router of the fttx-edge use c
 | Annotated (including scoped evidence) | 36 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 2 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 2 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 2 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **41** | every mandatory requirement appears in exactly one group above |
@@ -117,14 +117,14 @@ Included in automatic checks: Ze plays the IPv6 CE router of the fttx-edge use c
 
 **Annotated (including scoped evidence) (36):** [`RFC7084-4.1-1`](#rfc7084-4.1-1), [`RFC7084-4.1-2`](#rfc7084-4.1-2), [`RFC7084-4.1-3`](#rfc7084-4.1-3), [`RFC7084-4.2-1`](#rfc7084-4.2-1), [`RFC7084-4.2-2`](#rfc7084-4.2-2), [`RFC7084-4.2-3`](#rfc7084-4.2-3), [`RFC7084-4.2-4`](#rfc7084-4.2-4), [`RFC7084-4.2-5`](#rfc7084-4.2-5), [`RFC7084-4.2-6`](#rfc7084-4.2-6), [`RFC7084-4.2-7`](#rfc7084-4.2-7), [`RFC7084-4.2-8`](#rfc7084-4.2-8), [`RFC7084-4.2-9`](#rfc7084-4.2-9), [`RFC7084-4.2-11`](#rfc7084-4.2-11), [`RFC7084-4.2-12`](#rfc7084-4.2-12), [`RFC7084-4.2-14`](#rfc7084-4.2-14), [`RFC7084-4.2-15`](#rfc7084-4.2-15), [`RFC7084-4.2-16`](#rfc7084-4.2-16), [`RFC7084-4.2-17`](#rfc7084-4.2-17), [`RFC7084-4.2-18`](#rfc7084-4.2-18), [`RFC7084-4.2-19`](#rfc7084-4.2-19), [`RFC7084-4.2-20`](#rfc7084-4.2-20), [`RFC7084-4.2-21`](#rfc7084-4.2-21), [`RFC7084-4.2-22`](#rfc7084-4.2-22), [`RFC7084-4.2-23`](#rfc7084-4.2-23), [`RFC7084-4.2-24`](#rfc7084-4.2-24), [`RFC7084-4.3-1`](#rfc7084-4.3-1), [`RFC7084-4.3-2`](#rfc7084-4.3-2), [`RFC7084-4.3-3`](#rfc7084-4.3-3), [`RFC7084-4.3-5`](#rfc7084-4.3-5), [`RFC7084-4.3-6`](#rfc7084-4.3-6), [`RFC7084-4.3-8`](#rfc7084-4.3-8), [`RFC7084-4.3-9`](#rfc7084-4.3-9), [`RFC7084-4.3-10`](#rfc7084-4.3-10), [`RFC7084-4.3-11`](#rfc7084-4.3-11), [`RFC7084-4.3-12`](#rfc7084-4.3-12), [`RFC7084-4.3-14`](#rfc7084-4.3-14)
 
-**Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (2):** [`RFC7084-4.3-5`](#rfc7084-4.3-5), [`RFC7084-4.3-6`](#rfc7084-4.3-6)
+**Partial test coverage (subset of annotated; zero whole-requirement credit) (2):** [`RFC7084-4.3-5`](#rfc7084-4.3-5), [`RFC7084-4.3-6`](#rfc7084-4.3-6)
 
 **Derived from other rows (2):** [`RFC7084-4.2-13`](#rfc7084-4.2-13), [`RFC7084-4.3-4`](#rfc7084-4.3-4)
 
 ## Figures
 
-- **MUST bar**: Ze proven 18, Proof pending 1, OS testing gap 7, Not built 15
-- **Overview bar**: Ze MUST proven 18, Proof pending 1, OS testing gap 7, Not assessed 24, Not built 16
+- **MUST bar**: Ze verified 18, Tests awaiting verification 1, OS testing gap 7, Not built 15
+- **Overview bar**: Ze MUST verified 18, Tests awaiting verification 1, OS testing gap 7, Not assessed 24, Not built 16
 
 | Figure | Rows |
 |---|---|
@@ -133,9 +133,9 @@ Included in automatic checks: Ze plays the IPv6 CE router of the fttx-edge use c
 | Mandatory requirements complete | not complete |
 | MUST rows | 41 |
 | MUST rows kept (the MUST bar) | 41 |
-| Ze proven | 18 |
+| Ze verified | 18 |
 | OS verified | 0 |
-| Proof pending | 1 |
+| Tests awaiting verification | 1 |
 | OS testing gap | 7 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -145,19 +145,19 @@ Included in automatic checks: Ze plays the IPv6 CE router of the fttx-edge use c
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 25 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 24 |
 | SHOULD not built | 1 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc7084.json](../../../data/rfc/rfc7084.json).
 
@@ -198,8 +198,8 @@ Source: [data/rfc/rfc7084.json](../../../data/rfc/rfc7084.json).
 | `RFC7084-4.3-2` | ULA-4: By default, the IPv6 CE router MUST act as a site border router according to Section 4.3 of [RFC4193] and filter packets with local IPv6 source or destination addresses accordingly. (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** no filter of ULA source or destination addresses at the site border is installed by default; such filtering exists only as firewall rules the operator writes |
 | `RFC7084-4.3-3` | ULA-5: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime greater than zero whenever all of its configured and delegated prefixes are ULA prefixes. (§4.3) | MUST NOT | 4.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the Router Lifetime does not depend on whether the advertised prefixes are all ULA prefixes; internal/component/iface/config_ra.go parseRAConfig takes router-lifetime from the operator (default 1800 seconds) and nothing lowers it |
 | `RFC7084-4.3-4` | L-1: The IPv6 CE router MUST support router behavior according to Neighbor Discovery for IPv6 [RFC4861]. (§4.3) | MUST | 4.3 | **positive:** no positive test. **negative:** no negative test. **{rollup}:** rfc4861; L-1 asks for the router behaviour RFC 4861 states and asserts nothing of its own. **derived:** gap: RFC4861-2.3-1 is annotated {gap} |
-| `RFC7084-4.3-5` | L-2: The IPv6 CE router MUST assign a separate /64 from its delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) for each of its LAN interfaces. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestDelegatedSubnetDerivation`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_delegated_prefix_test.go#L15). **negative:** `unit/verify` [`TestDelegatedPrefixVerify`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_delegated_prefix_test.go#L111). **{partial}:** tested "MUST assign a separate /64 from its delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; Ze holds no ULA prefix of its own to number LAN interfaces from (ULA-1 generation is absent), so internal/component/iface/delegated_prefix.go::deriveDelegatedAddress takes each LAN /64 from a delegated prefix only. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
-| `RFC7084-4.3-6` | L-3: An IPv6 CE router MUST advertise itself as a router for the delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) using the "Route Information Option" specified in Section 2.3 of [RFC4191]. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC7084L3RouteInformationOption`](https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc7084_rio_test.go#L14). **positive:** `unit/verify` [`TestRFC7084RouterLifetimeMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L83). **negative:** `unit/verify` [`TestRFC7084L3DroppedDelegationRIO`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L272). **{partial}:** tested "MUST advertise itself as a router for the delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; internal/plugins/iface/ra/advertiser.go::advertiser.build adds a Route Information Option for each delegated prefix only, and none for a ULA prefix the unit advertises. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
+| `RFC7084-4.3-5` | L-2: The IPv6 CE router MUST assign a separate /64 from its delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) for each of its LAN interfaces. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestDelegatedSubnetDerivation`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_delegated_prefix_test.go#L15). **negative:** `unit/verify` [`TestDelegatedPrefixVerify`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_delegated_prefix_test.go#L111). **{partial}:** tested "MUST assign a separate /64 from its delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; Ze holds no ULA prefix of its own to number LAN interfaces from (ULA-1 generation is absent), so internal/component/iface/delegated_prefix.go::deriveDelegatedAddress takes each LAN /64 from a delegated prefix only. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
+| `RFC7084-4.3-6` | L-3: An IPv6 CE router MUST advertise itself as a router for the delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) using the "Route Information Option" specified in Section 2.3 of [RFC4191]. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC7084L3RouteInformationOption`](https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc7084_rio_test.go#L14). **positive:** `unit/verify` [`TestRFC7084RouterLifetimeMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L83). **negative:** `unit/verify` [`TestRFC7084L3DroppedDelegationRIO`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L272). **{partial}:** tested "MUST advertise itself as a router for the delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; internal/plugins/iface/ra/advertiser.go::advertiser.build adds a Route Information Option for each delegated prefix only, and none for a ULA prefix the unit advertises. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. not reviewed: no reviewer has checked whether these tests enforce the requirement |
 | `RFC7084-4.3-7` | L-4: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime [RFC4861] greater than zero if it has no prefixes configured or delegated to it. (§4.3) | MUST NOT | 4.3 | **positive:** `unit/verify` [`TestRFC7084RouterLifetimeMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L77). **negative:** `unit/verify` [`TestRFC7084RouterLifetimeMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L80) |
 | `RFC7084-4.3-8` | L-5: The IPv6 CE router MUST make each LAN interface an advertising interface according to [RFC4861]. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRFC4861OnlyAnAdvertisingInterfaceSends`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L101). **negative:** no negative test. **{single-polarity}:** the row asks that a LAN interface advertise, and no input exists under which a conforming router keeps a LAN interface silent |
 | `RFC7084-4.3-9` | L-6: In Router Advertisement messages ([RFC4861]), the Prefix Information option's A and L flags MUST be set to 1 by default. (§4.3) | MUST | 4.3 | **positive:** `unit/verify` [`TestRAConfigParse`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_config_ra_test.go#L104). **negative:** no negative test. **{single-polarity}:** the row fixes a default, and no input exists under which a conforming default leaves A or L clear, so only the default itself can be asserted |
@@ -256,17 +256,17 @@ Source: [data/rfc/rfc7084.json](../../../data/rfc/rfc7084.json).
 | [`RFC7084-4.3-2`](#rfc7084-4.3-2) ULA-4: By default, the IPv6 CE router MUST act as a site border router according to Section 4.3 of [RFC4193] and filter packets with local IPv6 source or destination addresses accordingly. (§4.3) | {gap}, no test | no filter of ULA source or destination addresses at the site border is installed by default; such filtering exists only as firewall rules the operator writes |
 | [`RFC7084-4.3-3`](#rfc7084-4.3-3) ULA-5: An IPv6 CE router MUST NOT advertise itself as a default router with a Router Lifetime greater than zero whenever all of its configured and delegated prefixes are ULA prefixes. (§4.3) | {gap}, no test | the Router Lifetime does not depend on whether the advertised prefixes are all ULA prefixes; internal/component/iface/config_ra.go parseRAConfig takes router-lifetime from the operator (default 1800 seconds) and nothing lowers it |
 | [`RFC7084-4.3-4`](#rfc7084-4.3-4) L-1: The IPv6 CE router MUST support router behavior according to Neighbor Discovery for IPv6 [RFC4861]. (§4.3) | no test | no test carries this requirement id; annotated {rollup}: rfc4861; L-1 asks for the router behaviour RFC 4861 states and asserts nothing of its own |
-| [`RFC7084-4.3-5`](#rfc7084-4.3-5) L-2: The IPv6 CE router MUST assign a separate /64 from its delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) for each of its LAN interfaces. (§4.3) | {partial}, Partial proof; remaining gap | tested "MUST assign a separate /64 from its delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; Ze holds no ULA prefix of its own to number LAN interfaces from (ULA-1 generation is absent), so internal/component/iface/delegated_prefix.go::deriveDelegatedAddress takes each LAN /64 from a delegated prefix only |
-| [`RFC7084-4.3-6`](#rfc7084-4.3-6) L-3: An IPv6 CE router MUST advertise itself as a router for the delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) using the "Route Information Option" specified in Section 2.3 of [RFC4191]. (§4.3) | {partial}, Partial proof; remaining gap | tested "MUST advertise itself as a router for the delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; internal/plugins/iface/ra/advertiser.go::advertiser.build adds a Route Information Option for each delegated prefix only, and none for a ULA prefix the unit advertises |
+| [`RFC7084-4.3-5`](#rfc7084-4.3-5) L-2: The IPv6 CE router MUST assign a separate /64 from its delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) for each of its LAN interfaces. (§4.3) | {partial}, Partial test coverage | tested "MUST assign a separate /64 from its delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; Ze holds no ULA prefix of its own to number LAN interfaces from (ULA-1 generation is absent), so internal/component/iface/delegated_prefix.go::deriveDelegatedAddress takes each LAN /64 from a delegated prefix only |
+| [`RFC7084-4.3-6`](#rfc7084-4.3-6) L-3: An IPv6 CE router MUST advertise itself as a router for the delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) using the "Route Information Option" specified in Section 2.3 of [RFC4191]. (§4.3) | {partial}, Partial test coverage | tested "MUST advertise itself as a router for the delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; internal/plugins/iface/ra/advertiser.go::advertiser.build adds a Route Information Option for each delegated prefix only, and none for a ULA prefix the unit advertises |
 | [`RFC7084-4.3-10`](#rfc7084-4.3-10) L-8: The IPv6 CE router MUST support a DHCPv6 server capable of IPv6 address assignment according to [RFC3315] OR a stateless DHCPv6 server according to [RFC3736] on its LAN interfaces. (§4.3) | {gap}, no test | the DHCP server is IPv4 only and refuses an IPv6 subnet (internal/plugins/dhcpserver/config.go), and the DHCPv6 server on L2TP subscriber sessions only delegates prefixes (internal/component/l2tp/ppp/dhcpv6.go), so no LAN interface has a DHCPv6 address-assignment or stateless server |
 | [`RFC7084-4.3-11`](#rfc7084-4.3-11) L-10: The IPv6 CE router MUST support providing DNS information in the DHCPv6 DNS_SERVERS and DOMAIN_LIST options [RFC3646]. (§4.3) | {gap}, no test | no LAN-side DHCPv6 server exists to send DNS_SERVERS or DOMAIN_LIST (internal/plugins/dhcpserver/config.go refuses an IPv6 subnet) |
 | [`RFC7084-4.3-12`](#rfc7084-4.3-12) L-11: The IPv6 CE router MUST support providing DNS information in the Router Advertisement Recursive DNS Server (RDNSS) and DNS Search List options. (§4.3) | {gap}, no test | the RDNSS half is met: a unit's RDNSS follows its rdnss dns-source list, whose default reaches the received class when no rdnss server is set (internal/component/iface/ra_dns_source.go raSelectRDNSS); the Router Advertisement encoder has no DNS Search List option (internal/core/ndp/ra.go BuildRA), owned by plan/post-release/features/spec-router-advertisement-options-out-of-scope.md |
 | [`RFC7084-4.3-14`](#rfc7084-4.3-14) L-14: The IPv6 CE router MUST send an ICMPv6 Destination Unreachable message, code 5 (Source address failed ingress/egress policy) for packets forwarded to it that use an address from a prefix that has been invalidated. (§4.3) | {gap}, no test | no prefix is ever invalidated and nothing sends ICMPv6 Destination Unreachable code 5 for one |
 | [`RFC7084-4.3-19`](#rfc7084-4.3-19) L-12: The IPv6 CE router SHOULD make available a subset of DHCPv6 options (as listed in Section 5.3 of [RFC3736]) received from the DHCPv6 client on its WAN interface to its LAN-side DHCPv6 server. (§4.3) | {gap} | no LAN-side DHCPv6 server exists to receive them (internal/plugins/dhcpserver/config.go refuses an IPv6 subnet; plan/post-release/features/spec-dhcpv6-server.md); the DNS servers a WAN DHCPv6 lease carries reach the LAN only through RA RDNSS (internal/component/iface/ra_dns_source.go raSelectRDNSS) |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC7084-4.1-1`](#rfc7084-4.1-1)
 
@@ -298,7 +298,7 @@ G-4: By default, an IPv6 CE router that has no default router(s) on its WAN inte
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7084RouterLifetimeMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L74) | unit/verify | mutant, verified |
 | positive | [`TestRFC7084RouterLifetimeMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L72) | unit/verify | mutant, verified |
@@ -309,7 +309,7 @@ G-5: By default, if the IPv6 CE router is an advertising router and loses its IP
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7084G5ImmediateZeroLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L176) | unit/verify | mutant, verified |
 | positive | [`TestRFC7084G5ImmediateZeroLifetime`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L173) | unit/verify | mutant, verified |
@@ -320,7 +320,7 @@ W-1: When the router is attached to the WAN interface link, it MUST act as an IP
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC7084WANUnitTurnsOnSLAAC`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L29) | unit/verify | revert, verified |
 
@@ -346,7 +346,7 @@ W-3: Absent other routing information, the IPv6 CE router MUST use Router Discov
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC7084DiscoveredRouterBecomesTheDefaultRoute`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L89) | unit/verify | revert, verified |
 
@@ -356,7 +356,7 @@ W-4: The router MUST act as a requesting router for the purposes of DHCPv6 prefi
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC7084RequestingRouterSolicitsIAPD`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L32) | unit/verify | revert, verified |
 
@@ -366,7 +366,7 @@ W-5: The IPv6 CE router MUST use a persistent DHCP Unique Identifier (DUID) for 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestDHCPv6DefaultDUIDStable`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L622) | unit/verify | revert, verified |
 
@@ -376,7 +376,7 @@ The DUID MUST NOT change between network-interface resets or IPv6 CE router rebo
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDHCPv6DefaultDUIDStable`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L623) | unit/verify | revert, verified |
 
@@ -402,7 +402,7 @@ WLL-3: If the WAN interface supports PPP encapsulation, in a dual- stack environ
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7084WLL3IPCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L220) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
 | positive | [`TestRFC7084WLL3IPCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L215) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
@@ -414,7 +414,7 @@ WAA-1: The IPv6 CE router MUST support Stateless Address Autoconfiguration (SLAA
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC7084WANUnitTurnsOnSLAAC`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L28) | unit/verify | revert, verified |
 
@@ -464,7 +464,7 @@ WAA-8: The CE router MUST support the SOL_MAX_RT option [RFC7083] and request th
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC7084SolMaxRTRequestedAndHonoured`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L55) | unit/verify | revert, verified |
 
@@ -482,7 +482,7 @@ WPD-1: The IPv6 CE router MUST support DHCPv6 prefix delegation requesting route
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC7084RequestingRouterSolicitsIAPD`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L33) | unit/verify | revert, verified |
 
@@ -500,7 +500,7 @@ WPD-3: The IPv6 CE router MUST be prepared to accept a delegated prefix size dif
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC7084DelegatedPrefixOtherThanHintWithoutAddresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L73) | unit/verify | revert, verified |
 
@@ -518,7 +518,7 @@ WPD-6: If the IPv6 CE router requests both an IA_NA and an IA_PD option in DHCPv
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC7084DelegatedPrefixOtherThanHintWithoutAddresses`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc7084_dhcp_v6_ce_linux_test.go#L74) | unit/verify | revert, verified |
 
@@ -528,7 +528,7 @@ WPD-7: By default, an IPv6 CE router MUST NOT initiate any dynamic routing proto
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7084InterfaceOnlyConfigStartsNoRoutingProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/plugin/server/rfc7084_wan_routing_test.go#L26) | unit/verify | revert, verified |
 
@@ -538,7 +538,7 @@ ULA-2: An IPv6 CE router with a ULA prefix MUST maintain this prefix consistentl
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC7084ULAPrefixComesFromTheConfigAlone`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L71) | unit/verify | revert, verified |
 
@@ -570,11 +570,11 @@ No test carries RFC7084-4.3-4, so there is no linked test.
 
 L-2: The IPv6 CE router MUST assign a separate /64 from its delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) for each of its LAN interfaces. (§4.3)
 
-Records cover only part of this requirement: tested "MUST assign a separate /64 from its delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; Ze holds no ULA prefix of its own to number LAN interfaces from (ULA-1 generation is absent), so internal/component/iface/delegated_prefix.go::deriveDelegatedAddress takes each LAN /64 from a delegated prefix only; they do not prove the whole requirement.
+Records cover only part of this requirement: tested "MUST assign a separate /64 from its delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; Ze holds no ULA prefix of its own to number LAN interfaces from (ULA-1 generation is absent), so internal/component/iface/delegated_prefix.go::deriveDelegatedAddress takes each LAN /64 from a delegated prefix only; they do not verify the whole requirement.
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDelegatedPrefixVerify`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_delegated_prefix_test.go#L111) | unit/verify | mutant, verified |
 | positive | [`TestDelegatedSubnetDerivation`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_delegated_prefix_test.go#L15) | unit/verify | mutant, verified |
@@ -583,11 +583,11 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 L-3: An IPv6 CE router MUST advertise itself as a router for the delegated prefix(es) (and ULA prefix if configured to provide ULA addressing) using the "Route Information Option" specified in Section 2.3 of [RFC4191]. (§4.3)
 
-Records cover only part of this requirement: tested "MUST advertise itself as a router for the delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; internal/plugins/iface/ra/advertiser.go::advertiser.build adds a Route Information Option for each delegated prefix only, and none for a ULA prefix the unit advertises; they do not prove the whole requirement.
+Records cover only part of this requirement: tested "MUST advertise itself as a router for the delegated prefix"; gap "and ULA prefix if configured to provide ULA addressing"; internal/plugins/iface/ra/advertiser.go::advertiser.build adds a Route Information Option for each delegated prefix only, and none for a ULA prefix the unit advertises; they do not verify the whole requirement.
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7084L3DroppedDelegationRIO`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L272) | unit/verify | mutant, verified |
 | positive | [`TestRFC7084L3RouteInformationOption`](https://github.com/ze-software/ze/blob/main/internal/core/ndp/rfc7084_rio_test.go#L14) | unit/verify | mutant, verified |
@@ -599,7 +599,7 @@ L-4: An IPv6 CE router MUST NOT advertise itself as a default router with a Rout
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7084RouterLifetimeMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L80) | unit/verify | mutant, verified |
 | positive | [`TestRFC7084RouterLifetimeMatrix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L77) | unit/verify | mutant, verified |
@@ -610,7 +610,7 @@ L-5: The IPv6 CE router MUST make each LAN interface an advertising interface ac
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC4861OnlyAnAdvertisingInterfaceSends`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc4861_router_configuration_test.go#L101) | unit/verify | revert, verified |
 
@@ -620,7 +620,7 @@ L-6: In Router Advertisement messages ([RFC4861]), the Prefix Information option
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRAConfigParse`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_config_ra_test.go#L104) | unit/verify | revert, verified |
 
@@ -654,7 +654,7 @@ L-13: If the delegated prefix changes, i.e., the current prefix is replaced with
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC7084L13RenewKeepsPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L378) | unit/verify | mutant, verified |
 | positive | [`TestRFC7084L13ReplacedDelegatedPrefix`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/ra/rfc7084_router_lifetime_test.go#L340) | unit/verify | mutant, verified |

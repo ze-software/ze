@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 14 | of 23 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 23 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 14 | of 23 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 23 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 23 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 23 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 47 | 47 of 53 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 23 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 47 | 47 of 53 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 23 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 23 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 23 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 23 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 23 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 23 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 23 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: BFD for IPv4/IPv6 Single Hop (RFC 5881): 12 MET (C
 
 **Area:** BFD single-hop
 
-**Proof:** 13 of 23 MUST proven
+**Test verification:** 13 of 23 MUST proven
 
 **Evidence:** unit 13
 
@@ -108,7 +108,7 @@ Included in automatic checks: BFD for IPv4/IPv6 Single Hop (RFC 5881): 12 MET (C
 | Annotated (including scoped evidence) | 9 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **23** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: BFD for IPv4/IPv6 Single Hop (RFC 5881): 12 MET (C
 
 ## Figures
 
-- **MUST bar**: Ze proven 13, Proof pending 2, Not built 8
-- **Overview bar**: Ze MUST proven 13, Proof pending 2, Not assessed 10, Not built 8
+- **MUST bar**: Ze verified 13, Tests awaiting verification 2, Not built 8
+- **Overview bar**: Ze MUST verified 13, Tests awaiting verification 2, Not assessed 10, Not built 8
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: BFD for IPv4/IPv6 Single Hop (RFC 5881): 12 MET (C
 | Mandatory requirements complete | not complete |
 | MUST rows | 23 |
 | MUST rows kept (the MUST bar) | 23 |
-| Ze proven | 13 |
+| Ze verified | 13 |
 | OS verified | 0 |
-| Proof pending | 2 |
+| Tests awaiting verification | 2 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: BFD for IPv4/IPv6 Single Hop (RFC 5881): 12 MET (C
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 10 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 10 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5881.json](../../../data/rfc/rfc5881.json).
 
@@ -208,9 +208,9 @@ Source: [data/rfc/rfc5881.json](../../../data/rfc/rfc5881.json).
 | [`RFC5881-6-3`](#rfc5881-6-3) On a point-to-point link, the source address of a BFD Control packet MUST NOT be used to identify the session. (§6) | {gap}, no test | ze does not model point-to-point links separately; the first-packet demux keys firstPacketKey on the source address in.From (internal/component/bfd/engine/loop.go:88), so an initial packet whose source differs from the configured peer is not associated with the session, whereas RFC 5881 forbids using the source to identify a point-to-point session |
 | [`RFC5881-6-4`](#rfc5881-6-4) This means that the initial BFD packet MUST be accepted with any source address (§6) | {gap}, no test | the first-packet demux requires the source to equal the configured peer (internal/component/bfd/engine/loop.go:88-94, byKey lookup on in.From), so ze does not accept a point-to-point initial packet bearing an arbitrary source address; once a discriminator is learned, subsequent packets are demuxed by Your Discriminator alone (internal/component/bfd/engine/loop.go:82) as RFC5881-6-5 requires |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC5881-2-1`](#rfc5881-2-1)
 
@@ -226,7 +226,7 @@ If BFD is to be used in conjunction with both IPv4 and IPv6 on a particular path
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, netns+pinning). §2 "a separate BFD session MUST be established for each protocol (and thus encapsulated by that protocol) over that link". The missing encapsulation clause is now observed on the wire: TestRFC5881EachProtocolSessionEncapsulatedInItsProtocol (rootless netns) runs one Loop over a real transport.Dual with a v4 and a v6 session on lo, distinct discriminators; the peer's IPv4 socket gets the v4 session's Control and never the v6's, the IPv6 socket the v6's and never the v4's. With TestRFC5881PerProtocolSessions (+) and TestRFC5881SamePeerCoalesces (-) for separation. Revert record on dual.go::Send observed red; overlay routing every peer to V4 reds the IPv6 clause (author pin-ov3). This unit also exercises the IPV6_PKTINFO pin on send (Interface lo, unbound Dual).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5881SamePeerCoalesces`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L319) | unit/verify | revert, verified |
 | positive | [`TestRFC5881EachProtocolSessionEncapsulatedInItsProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_per_protocol_wire_linux_test.go#L66) | unit/verify | revert, verified |
@@ -254,14 +254,14 @@ both sides of a session MUST take the "Active" role (§3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. RA-BFD strict re-read 2026-09-27 (stale after DF-BFD-4). One clause: both sides of a single-hop session MUST take the Active role. Forbidden: a single-hop session created in the Passive role. The only producer of SessionRequest.Passive is profileConfig.applyTo (OSPF, BGP and static requests set none), and every entry passes profileConfig.permitsMode: pluginConfig.validate for a pinned session, resolveProfile from pluginService.EnsureSession for a client request, checkClientProfile at commit. Red: TestRFC5881SingleHopPassiveProfileRejected Fatal when validate returns nil for a passive single-hop profile (its positive twin differs only in the passive bit); TestRFC5881ClientSingleHopPassiveProfileRefused Fatal when EnsureSession returns a handle or lacks the `sets passive` refusal. Positive: TestRFC5881SingleHopActiveProfileAccepted (passive unset validates and yields Passive false), TestRFC5881SingleHopTakesActiveRole (Init takes RoleActive and arms TX at creation), TestRFC5881ClientMultiHopPassiveProfileAccepted (scope: a blanket refusal fails). TestRFC5881NonActiveStaysSilent proves the Passive-role semantics of RFC5880-6.8.7-5, not this row; session.Init itself accepts Passive in either mode, so the guard is the config layer.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5881ClientSingleHopPassiveProfileRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/enabled_test.go#L199) | unit/verify | revert, verified |
 | negative | [`TestRFC5881SingleHopPassiveProfileRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L105) | unit/verify | revert, verified |
-| negative | [`TestRFC5881NonActiveStaysSilent`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L52) | unit/verify | unproven |
+| negative | [`TestRFC5881NonActiveStaysSilent`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L52) | unit/verify | not verified |
 | positive | [`TestRFC5881ClientMultiHopPassiveProfileAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/enabled_test.go#L214) | unit/verify | revert, verified |
 | positive | [`TestRFC5881SingleHopActiveProfileAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_test.go#L117) | unit/verify | revert, verified |
-| positive | [`TestRFC5881SingleHopTakesActiveRole`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L37) | unit/verify | unproven |
+| positive | [`TestRFC5881SingleHopTakesActiveRole`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/session/rfc5881_test.go#L37) | unit/verify | not verified |
 
 ### [`RFC5881-3-2`](#rfc5881-3-2)
 
@@ -269,7 +269,7 @@ any BFD packet from the remote machine with a zero value of Your Discriminator M
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-10-15 (rejudge, three link-local positives added). §3 "any BFD packet from the remote machine with a zero value of Your Discriminator MUST be associated with the session bound to the remote system, interface, and protocol". Unchanged since the 2026-09-30 verdict: TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol (+/-) varies interface and protocol against one remote, TestRFC5881FirstPacketMatchesByTuple (+) and TestRFC5881FirstPacketWrongSourceDropped (-) the remote address; revert records on loop.go::handleInbound. Added: rfc5881_link_local_first_packet_test.go, the same association for an IPv6 link-local remote whose packet source carries the kernel's zone while the configured peer has none. TestFirstPacketSelectsALinkLocalPeer asserts the exact RemoteDiscriminator on the session bound to fe80::1 on eth0; TestFirstPacketTakesTheLinkFromTheZone (transport reports no ingress interface, the zone names the link) and TestTwoLinkLocalSessionsStayApart (one address on two links) each assert the exact value on the session bound to the packet's link and zero on the session bound to the same remote on the other link. Each input is a conforming YD=0 first packet and nothing else in handleInbound's first-packet path can reject it, so the buffer isolates the rule. Tagged positive only: one packet reaches at most one byKey entry, so no keying break makes one packet set both sessions and the other-link assertion cannot fire alone. Mutant records (reconcileZone, zone != "" -> false, the peer keeps its zone) observed all three red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5881FirstPacketBoundToRemoteInterfaceAndProtocol`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_first_packet_binding_test.go#L21) | unit/verify | revert, verified |
 | negative | [`TestRFC5881FirstPacketWrongSourceDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L152) | unit/verify | revert, verified |
@@ -285,7 +285,7 @@ BFD Control packets MUST be transmitted in UDP packets with destination port 378
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, netns+pinning). Units now run in a rootless user+net namespace (userns.Enter), which removes the prior weak reason (fixed host ports colliding with a running ze or a parallel run); the judge ran them: each child ran and passed, none skipped. §4 "BFD Control packets MUST be transmitted in UDP packets with destination port 3784". + TestRFC5881ControlSentToPort3784OnTheWire (IPv4 and IPv6), - TestRFC5881EchoTransportNeverAddressesControlPort (echo at 3785, silence at 3784). Revert records on udp.go::destination (+) and bfd.go::newEchoTransport (-) observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5881EchoTransportNeverAddressesControlPort`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_wire_port_linux_test.go#L146) | unit/verify | revert, verified |
 | positive | [`TestRFC5881ControlSentToPort3784OnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_wire_port_linux_test.go#L129) | unit/verify | revert, verified |
@@ -304,7 +304,7 @@ The same UDP source port number MUST be used for all BFD Control packets associa
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, 6-2 + rest). Unit TestRFC5881ControlSourcePortFixedOnTheWire unchanged: five datagrams observed with one source AddrPort in a rootless user+net namespace, ran and passed. Its producer UDP.Send changed twice (pinning 637aa9c186 and the reaches fix); the revert record was re-observed red against the current Send (sub2-rec-43). The {single-polarity: positive} marker still holds: every Control packet leaves through the one socket the loop binds, so no per-packet source-port choice exists to exercise.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC5881ControlSourcePortFixedOnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_wire_port_linux_test.go#L194) | unit/verify | revert, verified |
 
@@ -314,10 +314,10 @@ but ultimately the mechanisms in [BFD] MUST be used to demultiplex incoming pack
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: demultiplexing a subsequent packet by something other than the RFC 5880 discriminator. (a) a packet with an unallocated Your Discriminator from the configured peer's source being associated: TestRFC5881DiscriminatorDemuxUnknownDropped reds (RemoteDiscriminator != 0), catching a source-address fallback; (b) a packet with the right discriminator from another source not delivered: TestRFC5881DiscriminatorDemuxDelivers reds (RemoteDiscriminator != peerMyDiscr). Producer loop.go handleInbound byDiscr.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L199) | unit/verify | unproven |
-| positive | [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L176) | unit/verify | unproven |
+| negative | [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L199) | unit/verify | not verified |
+| positive | [`TestRFC5881DiscriminatorDemuxDelivers`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L176) | unit/verify | not verified |
 
 ### [`RFC5881-4-5`](#rfc5881-4-5)
 
@@ -325,7 +325,7 @@ BFD Echo packets MUST be transmitted in UDP packets with destination UDP port 37
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, netns+pinning). Units now run in a rootless user+net namespace (userns.Enter), which removes the prior weak reason (fixed host ports colliding with a running ze or a parallel run); the judge ran them: each child ran and passed, none skipped. §4 "BFD Echo packets MUST be transmitted in UDP packets with destination UDP port 3785". + TestRFC5881EchoSentToPort3785OnTheWire, - TestRFC5881ControlTransportNeverAddressesEchoPort. Revert records on destination (+) and bfd.go::newUDPTransport (-) observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5881ControlTransportNeverAddressesEchoPort`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_wire_port_linux_test.go#L177) | unit/verify | revert, verified |
 | positive | [`TestRFC5881EchoSentToPort3785OnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/rfc5881_wire_port_linux_test.go#L163) | unit/verify | revert, verified |
@@ -352,7 +352,7 @@ BFD Echo packets MUST be transmitted in such a way as to ensure that they are re
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, netns+pinning). §4 "BFD Echo packets MUST be transmitted in such a way as to ensure that they are received by the remote system. On multiaccess media ... the destination datalink address corresponds to the remote system." Over veth pairs in a rootless netns with AF_PACKET capture: + TestRFC5881EchoFrameAddressedToTheRemoteSystem (echo bound p0, frame on p1 with Ethernet dst == remote MAC); - TestRFC5881EchoNeverSentWhereTheRemoteCannotReceiveIt (unbound, /32 via o0 where the remote is not: nothing on o1, frame on p1 with the remote's MAC). {single-polarity} marker removed. Revert records on udp.go::destination (+) and udp.go::pinsToLink (-) observed red; pinsToLink-false overlay reds only the negative (author pin-ov2).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5881EchoNeverSentWhereTheRemoteCannotReceiveIt`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/rfc5881_echo_link_linux_test.go#L123) | unit/verify | revert, verified |
 | positive | [`TestEchoRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_echo_test.go#L70) | unit/verify | revert, verified |
@@ -364,7 +364,7 @@ If BFD authentication is not in use on a session, all BFD Control packets for th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, netns+pinning). §5 "If BFD authentication is not in use on a session, all BFD Control packets for the session MUST be sent with a Time to Live (TTL) or Hop Limit value of 255." + TestRFC5881ControlLeavesWithTTL255OnTheWire reads 255 off the received IP header (IPv4 and IPv6), now in a rootless netns. - (R1 a, receiving side) TestRFC5881UnauthenticatedControlBelow255IsDiscardedOffTheWire: a peer socket sends Control at TTL 254 / Hop Limit 254 to a started Loop on a real transport.UDP; session stays Down with RemoteDiscr 0, the same packet at 255 reaches Init. Old plain-kernel-socket negative tag removed. Revert records on loop.go::passesTTLGate (-) and udp_linux.go::applySocketOptionsV6 (+) observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5881UnauthenticatedControlBelow255IsDiscardedOffTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go#L224) | unit/verify | revert, verified |
 | positive | [`TestRFC5881ControlLeavesWithTTL255OnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go#L76) | unit/verify | revert, verified |
@@ -376,7 +376,7 @@ All received BFD Control packets that are demultiplexed to the session MUST be d
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30. §5 "All received BFD Control packets that are demultiplexed to the session MUST be discarded if the received TTL or Hop Limit is not equal to 255." Through handleInbound (loop.go passesTTLGate after the session lookup, so both demux paths): TestRFC5881TTL255ReachesTheSessionOnBothDemuxPaths - a TTL 255 first packet installs RemoteDiscr and Init, a discriminator-demuxed TTL 255 packet reaches Up; TestRFC5881TTLNot255DiscardedOnBothDemuxPaths - first packets at TTL 254/128/1/0 leave RemoteDiscr 0 and Down, and a discriminator-demuxed TTL 254 packet leaves Init. Buffers isolated: the packets differ only in TTL from the accepted ones. Author's overlay removing the handleInbound gate call reddens the new negative; revert records on passesTTLGate verify. Predicate units in ttl_test.go stay as supplementary.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5881TTLNot255DiscardedOnBothDemuxPaths`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_ttl_demux_test.go#L46) | unit/verify | revert, verified |
 | negative | [`TestTTLGateSingleHop`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_ttl_test.go#L20) | unit/verify | revert, verified |
@@ -389,7 +389,7 @@ If BFD authentication is in use on a session, all BFD Control packets MUST be se
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, netns+pinning). §5 "If BFD authentication is in use on a session, all BFD Control packets MUST be sent with a TTL or Hop Limit value of 255." + same wire unit with an auth section, now in netns. - (R1 a) TestRFC5881AuthenticatedControlBelow255IsDiscardedOffTheWire: Keyed SHA1 session, signed packets at 254 dropped (Down, RemoteDiscr 0), at 255 accepted (Init). Revert records on passesTTLGate (-) and applySocketOptions (+) observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5881AuthenticatedControlBelow255IsDiscardedOffTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_ttl_wire_linux_test.go#L238) | unit/verify | revert, verified |
 | positive | [`TestRFC5881ControlLeavesWithTTL255OnTheWire`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/rfc5881_ttl_wire_linux_test.go#L79) | unit/verify | revert, verified |
@@ -401,7 +401,7 @@ Implementations MUST ensure that all BFD Control packets are transmitted over th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, subnet). §6 "Implementations MUST ensure that all BFD Control packets are transmitted over the one-hop path being protected by BFD." UDP.Send pins single-hop packets on a device-less socket with an IP_PKTINFO/IPV6_PKTINFO ifindex cmsg (pinsToLink, egressLinkOf, pktinfoPin). + TestRFC5881ControlLeavesOnTheProtectedLink; - TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink, - TestRFC5881UnboundLoopControlLeavesOnTheSessionLink (IPv4 /32 detour via o0), and now - TestRFC5881IPv6ControlNeverFollowsARouteOffTheSessionLink (unbound [::], /128 via o0: no frame on o1, one on p1), closing the IPv4-only residual. The Send record went stale with the subnet change and was re-recorded by the judge (observed red); the v6 record reverts pinsToLink. Send failures now Warn once a minute per session (warnSendFailedLocked).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5881ControlNeverFollowsARouteOffTheProtectedLink`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go#L196) | unit/verify | revert, verified |
 | negative | [`TestRFC5881UnboundLoopControlLeavesOnTheSessionLink`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/rfc5881_one_hop_path_linux_test.go#L217) | unit/verify | revert, verified |
@@ -414,7 +414,7 @@ On a multiaccess network, BFD Control packets MUST be transmitted with source an
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, 6-2 + rest). Section 6: 'On a multiaccess network, BFD Control packets MUST be transmitted with source and destination addresses that are part of the subnet'. Source half unchanged and proven (+ TestRFC5881ControlAddressedFromAndToTheSubnet, - TestRFC5881ControlNeverSourcedOffTheSubnet, records on destination/pinsToLink). Destination half: the D-8 defect named in the prior verdict is fixed at the producer, egressLink.reaches (transport/udp.go), which now exempts only target.Is6() && IsLinkLocalUnicast, with the RFC 4291 Section 2.5.6 quote verified verbatim in rfc/full/rfc4291.txt; netip also answers IsLinkLocalUnicast for IPv4 169.254/16, which carries no zone and can leave by a gateway. - TestRFC5881ControlNeverAddressedOffTheSubnet (global peer via gateway: errUDPOffSubnet, no frame), NEW - TestRFC5881SubnetCheckRefusesIPv4LinkLocalOffTheSubnet (169.254.5.2, ::ffff:169.254.5.2, 10.58.3.2 refused on a link without 169.254; 169.254.5.2 reaches when the link holds 169.254.5.0/24), NEW netns - TestRFC5881ControlNeverAddressedToAnIPv4LinkLocalOffTheSubnet (Send returns errUDPOffSubnet, no frame via the p0 gateway); both new negatives observed red against the pre-fix reaches (job-bfd-red-08cba9d4). NEW + TestRFC5881SubnetCheckAllowsOnSubnetAndExemptPeers covers both exemptions: on-subnet v4/v6, fe80::2, and an off-subnet peer on a point-to-point link (the RFC's 'On a multiaccess network'). Judge ran all netns units in a user+net namespace: none skipped. Records: revert reaches observed red for each new unit. Residual, not counted against the verdict: engine TestRFC5881TransmitDestinationStable carries an unrecorded supplementary + (unproven); the 30 s ifNameTTL subnet cache bounds how late an address change is seen.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5881ControlNeverSourcedOffTheSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/rfc5881_echo_link_linux_test.go#L170) | unit/verify | revert, verified |
 | negative | [`TestRFC5881ControlNeverAddressedOffTheSubnet`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/transport/rfc5881_subnet_destination_linux_test.go#L21) | unit/verify | revert, verified |
@@ -446,7 +446,7 @@ and that subsequent BFD packets MUST be demultiplexed solely by the Your Discrim
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (rejudge, netns+pinning). §6 "subsequent BFD packets MUST be demultiplexed solely by the Your Discriminator field". The missing dimensions are now varied: + TestRFC5881DiscriminatorAloneSelectsTheSession (source, local address and ingress interface all differ from the session: delivered); - TestRFC5881AddressingNeverOverridesTheDiscriminator (session 1's exact tuple with session 2's YD goes to 2, 1 untouched). Old source-dimension tags kept. Revert records on loop.go::handleInbound observed red; overlays byDiscr-also-requiring-iface and byKey-before-byDiscr red the new + and - respectively (author e4-ov9a/b).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5881AddressingNeverOverridesTheDiscriminator`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_demux_solely_test.go#L51) | unit/verify | revert, verified |
 | negative | [`TestRFC5881DiscriminatorDemuxUnknownDropped`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L201) | unit/verify | revert, verified |
@@ -459,10 +459,10 @@ If the received source address changes, the local system MUST NOT use that addre
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: after a changed received source, using it as the transmit destination, or not using the configured address. After handleInbound from 198.51.100.7 by discriminator, TestRFC5881TransmitDestinationStable reds if PeerAddr drifts or ct.last.To != configured peer (MUST continue to use configured), and TestRFC5881TransmitDestinationIgnoresChangedSource reds if ct.last.To == changed source (MUST NOT use that address). Producer loop.go sendLocked To: PeerAddr().
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5881TransmitDestinationIgnoresChangedSource`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L253) | unit/verify | unproven |
-| positive | [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L218) | unit/verify | unproven |
+| negative | [`TestRFC5881TransmitDestinationIgnoresChangedSource`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L253) | unit/verify | not verified |
+| positive | [`TestRFC5881TransmitDestinationStable`](https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5881_test.go#L218) | unit/verify | not verified |
 
 ## Requirement list review
 

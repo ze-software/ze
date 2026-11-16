@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 26 | of 37 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 6 | of 37 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 26 | of 37 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 6 | of 37 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 37 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 37 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 56 | 56 of 84 tests linked to requirements, 0 without a fault test and 17 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 37 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 54 | 54 of 84 tests linked to requirements, 0 without a fault test and 19 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 37 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 37 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 1 | of 37 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 1 | of 37 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 37 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 37 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 37 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,9 +93,9 @@ Included in automatic checks: PPPoE access-concentrator and client roles: discov
 
 **Area:** PPPoE
 
-**Proof:** 24 of 37 MUST proven
+**Test verification:** 23 of 37 MUST proven
 
-**Evidence:** unit 24
+**Evidence:** unit 23
 
 **Unmet:** RFC2516-3-1, RFC2516-x-11, RFC2516-x-14, RFC2516-x-15
 
@@ -108,7 +108,7 @@ Included in automatic checks: PPPoE access-concentrator and client roles: discov
 | Annotated (including scoped evidence) | 11 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **37** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: PPPoE access-concentrator and client roles: discov
 
 ## Figures
 
-- **MUST bar**: Ze proven 24, Proof pending 8, OS testing gap 1, Not built 4
-- **Overview bar**: Ze MUST proven 24, Proof pending 8, OS testing gap 1, Not assessed 3, Not built 4
+- **MUST bar**: Ze verified 23, Tests awaiting verification 9, OS testing gap 1, Not built 4
+- **Overview bar**: Ze MUST verified 23, Tests awaiting verification 9, OS testing gap 1, Not assessed 3, Not built 4
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: PPPoE access-concentrator and client roles: discov
 | Mandatory requirements complete | not complete |
 | MUST rows | 37 |
 | MUST rows kept (the MUST bar) | 37 |
-| Ze proven | 24 |
+| Ze verified | 23 |
 | OS verified | 0 |
-| Proof pending | 8 |
+| Tests awaiting verification | 9 |
 | OS testing gap | 1 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: PPPoE access-concentrator and client roles: discov
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 3 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 3 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc2516.json](../../../data/rfc/rfc2516.json).
 
@@ -180,22 +180,22 @@ Source: [data/rfc/rfc2516.json](../../../data/rfc/rfc2516.json).
 | `RFC2516-x-9` | The Maximum-Receive-Unit (MRU) option MUST NOT be negotiated to a larger size than 1492. (§7) | MUST NOT | 7 | **positive:** `unit/verify` [`TestLCPConfigRequestMRU`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/session_test.go#L117). **positive:** `unit/verify` [`TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go#L154). **positive:** `unit/verify` [`TestRFC2516ClientNegotiatesMRUAtThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go#L120). **positive:** `unit/verify` [`TestRFC2516HostSessionMTUDefaultsToThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go#L34). **negative:** `unit/verify` [`TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go#L179). **negative:** `unit/verify` [`TestRFC2516ClientRefusesAnMRUAboveThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_mru_ceiling_test.go#L153). **negative:** `unit/verify` [`TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go#L96) |
 | `RFC2516-7-1` | The SESSION_ID MUST NOT change for that PPPoE session and MUST be the value assigned in the Discovery stage. (§6) | MUST | 6 | **positive:** `unit/verify` [`TestRFC2516AdmittedPADSCarriesTheNewSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L74). **negative:** `unit/verify` [`TestRFC2516PADRReplayKeepsTheSessionID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L132) |
 | `RFC2516-3-1` | Once a PPP session is established, both the Host and the Access Concentrator MUST allocate the resources for a PPP virtual interface (§3) | MUST | 3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** both roles allocate the interface (server.go::handlePADR, pppoeclient/dialer.go::Dial) but no tagged test observes the ppp unit, which only a QEMU run can; plan/pre-release/spec-pppoe-virtual-interface-proof.md |
-| `RFC2516-4-1` | A value of 0xffff is reserved for future use and MUST NOT be used (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestRFC2516AllocSIDReturnsUsableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L46). **negative:** `unit/verify` [`TestRFC2516SessionID0xffffIsNeverAllocated`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L58) |
-| `RFC2516-5.1-4` | The CODE field is set to 0x09 and the SESSION_ID MUST be set to 0x0000. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC2516PADISessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L79). **negative:** `unit/verify` [`TestRFC2516PADIWithNonZeroSessionIDIsDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L95) |
+| `RFC2516-4-1` | A value of 0xffff is reserved for future use and MUST NOT be used (§4) | MUST NOT | 4 | **positive:** `unit/verify` [`TestRFC2516AllocSIDReturnsUsableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L52). **negative:** `unit/verify` [`TestRFC2516SessionID0xffffIsNeverAllocated`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L64) |
+| `RFC2516-5.1-4` | The CODE field is set to 0x09 and the SESSION_ID MUST be set to 0x0000. (§5.1) | MUST | 5.1 | **positive:** `unit/verify` [`TestRFC2516PADISessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L85). **negative:** `unit/verify` [`TestRFC2516PADIWithNonZeroSessionIDIsDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L101) |
 | `RFC2516-5.1-5` | An entire PADI packet (including the PPPoE header) MUST NOT exceed 1484 octets so as to leave sufficient room for a relay agent to add a Relay-Session-Id TAG. (§5.1) | MUST NOT | 5.1 | **positive:** `unit/verify` [`TestPADINeverExceeds1484Octets`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L17). **negative:** `unit/verify` [`TestPADINeverExceeds1484Octets`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L18) |
-| `RFC2516-5.2-6` | The CODE field is set to 0x07 and the SESSION_ID MUST be set to 0x0000. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC2516PADOSessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L115). **negative:** `unit/verify` [`TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go#L37) |
-| `RFC2516-5.3-5` | The CODE field is set to 0x19 and the SESSION_ID MUST be set to 0x0000. (§5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestRFC2516PADRSessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L132). **negative:** `unit/verify` [`TestRFC2516PADRWithNonZeroSessionIDIsDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L149) |
-| `RFC2516-5.4-3` | The CODE field is set to 0x65 and the SESSION_ID MUST be set to the unique value generated for this PPPoE session. (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC2516AdmittedPADSCarriesTheNewSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L73). **positive:** `unit/verify` [`TestRFC2516PADSCarriesTheSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L178). **negative:** `unit/verify` [`TestRFC2516PADSWithZeroSessionIDIsARefusal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go#L61) |
-| `RFC2516-5.5-3` | The DESTINATION_ADDR field is a unicast Ethernet address, the CODE field is set to 0xa7 and the SESSION_ID MUST be set to indicate which session is to be terminated. (§5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestBuildPADT`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L225). **positive:** `unit/verify` [`TestRFC2516HostPADTNamesItsAccessConcentratorAndSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L141). **positive:** `unit/verify` [`TestRFC2516SessionDownSendsPADTForThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L219). **negative:** `unit/verify` [`TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L162). **negative:** `unit/verify` [`TestRFC2516UnknownSessionIDTerminatesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L253) |
+| `RFC2516-5.2-6` | The CODE field is set to 0x07 and the SESSION_ID MUST be set to 0x0000. (§5.2) | MUST | 5.2 | **positive:** `unit/verify` [`TestRFC2516PADOSessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L121). **negative:** `unit/verify` [`TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go#L37) |
+| `RFC2516-5.3-5` | The CODE field is set to 0x19 and the SESSION_ID MUST be set to 0x0000. (§5.3) | MUST | 5.3 | **positive:** `unit/verify` [`TestRFC2516PADRSessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L138). **negative:** `unit/verify` [`TestRFC2516PADRWithNonZeroSessionIDIsDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L155) |
+| `RFC2516-5.4-3` | The CODE field is set to 0x65 and the SESSION_ID MUST be set to the unique value generated for this PPPoE session. (§5.4) | MUST | 5.4 | **positive:** `unit/verify` [`TestRFC2516AdmittedPADSCarriesTheNewSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L73). **positive:** `unit/verify` [`TestRFC2516PADSCarriesTheSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L184). **negative:** `unit/verify` [`TestRFC2516PADSWithZeroSessionIDIsARefusal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go#L61) |
+| `RFC2516-5.5-3` | The DESTINATION_ADDR field is a unicast Ethernet address, the CODE field is set to 0xa7 and the SESSION_ID MUST be set to indicate which session is to be terminated. (§5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestBuildPADT`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L225). **positive:** `unit/verify` [`TestRFC2516HostPADTNamesItsAccessConcentratorAndSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L142). **positive:** `unit/verify` [`TestRFC2516SessionDownSendsPADTForThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L225). **negative:** `unit/verify` [`TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L163). **negative:** `unit/verify` [`TestRFC2516UnknownSessionIDTerminatesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L318) |
 | `RFC2516-5.5-4` | Even normal PPP termination packets MUST NOT be sent after sending or receiving a PADT (§5.5) | MUST NOT | 5.5 | **positive:** `unit/verify` [`TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L53). **positive:** `unit/verify` [`TestRFC2516ACSentPADTClosesTransportBeforeSend`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L87). **positive:** `unit/verify` [`TestRFC2516ClientPADTStopsOnlyMatchingSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L29). **positive:** `unit/verify` [`TestRFC2516ClientSentPADTStopsPPPBeforeSend`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L131). **negative:** `unit/verify` [`TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L54). **negative:** `unit/verify` [`TestRFC2516ClientPADTStopsOnlyMatchingSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L30) |
 | `RFC2516-6-1` | The PPPoE CODE MUST be set to 0x00. (§6) | MUST | 6 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux pppoe (PX_PROTO_OE, drivers/net/ppp/pppoe.c), linux:CONFIG_PPPOE; internal/component/l2tp/pppoe/kernel_linux.go::pppoeCreate connects the AF_PPPOX socket to the session ID, the peer MAC and the device, and the module writes the CODE byte of every session frame itself, so no value Ze writes decides this field |
 | `RFC2516-7-2` | An implementation MUST NOT request any of the following options, and MUST reject a request for such an option: Field Check Sequence (FCS) Alternatives, Address-and-Control-Field-Compression (ACFC), Asynchronous-Control-Character-Map (ACCM) (§7) | MUST NOT | 7 | **positive:** `unit/verify` [`TestRFC2516ACRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc2516_options_test.go#L11). **positive:** `unit/verify` [`TestRFC2516ClientRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L101). **negative:** `unit/verify` [`TestRFC2516ACRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc2516_options_test.go#L12). **negative:** `unit/verify` [`TestRFC2516ClientRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L102) |
-| `RFC2516-7-3` | When LCP terminates, the Host and Access concentrator MUST stop using that PPPoE session. (§7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L252). **positive:** `unit/verify` [`TestRFC2516SessionDownSendsPADTForThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L220). **negative:** `unit/verify` [`TestRFC2516HostKeepsTheSessionUntilLCPTerminates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L287). **negative:** `unit/verify` [`TestRFC2516UnknownSessionIDTerminatesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L254) |
+| `RFC2516-7-3` | When LCP terminates, the Host and Access concentrator MUST stop using that PPPoE session. (§7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L263). **positive:** `unit/verify` [`TestRFC2516SessionDownSendsPADTForThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L227). **negative:** `unit/verify` [`TestRFC2516HostKeepsTheSessionUntilLCPTerminates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L298). **negative:** `unit/verify` [`TestRFC2516UnknownSessionIDTerminatesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L320) |
 | `RFC2516-7-4` | If the Host wishes to start another PPP session, it MUST return to the PPPoE Discovery stage. (§7) | MUST | 7 | **positive:** `unit/verify` [`TestRFC2516HostReturnsToDiscoveryForTheNextSession`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc2516_pppoe_client_test.go#L59). **negative:** `unit/verify` [`TestRFC2516HostReturnsToDiscoveryForTheNextSession`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc2516_pppoe_client_test.go#L60) |
 | `RFC2516-x-10` | All PADI packets MUST guarantee sufficient room for the addition of a Relay-Session-Id TAG with a TAG_VALUE length of 12 octets. (Appendix A, §11) | MUST | 11 | **positive:** `unit/verify` [`TestPADINeverExceeds1484Octets`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L19). **negative:** `unit/verify` [`TestPADINeverExceeds1484Octets`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L20) |
 | `RFC2516-x-11` | A Relay-Session-Id TAG MUST NOT be added if the discovery packet already contains one. (Appendix A, §11) | MUST NOT | 11 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze fills no PPPoE relay agent; plan/spec-pppoe-relay-agent.md |
-| `RFC2516-x-12` | This TAG (typically with a zero-length data section) indicates that for one reason or another, the requested Service-Name request could not be honored. If there is data, and the first octet of the data is nonzero, then it MUST be a printable UTF-8 string which explains why the request was denied. (Appendix A, §11) | MUST | 11 | **positive:** `unit/verify` [`TestRFC2516ErrorTagsCarryNoData`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L285). **negative:** no negative test. **{single-polarity}:** discovery.go::BuildPADSError writes the tag with no data, so the conditional never binds and no violating input exists |
-| `RFC2516-x-13` | It MAY be included in PADS packets. If there is data, and the first octet of the data is nonzero, then it MUST be a printable UTF-8 string which explains the nature of the error. (Appendix A, §11) | MUST | 11 | **positive:** `unit/verify` [`TestRFC2516ErrorTagsCarryNoData`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L286). **negative:** no negative test. **{single-polarity}:** discovery.go::BuildPADSError writes the tag with no data, so the conditional never binds and no violating input exists |
+| `RFC2516-x-12` | This TAG (typically with a zero-length data section) indicates that for one reason or another, the requested Service-Name request could not be honored. If there is data, and the first octet of the data is nonzero, then it MUST be a printable UTF-8 string which explains why the request was denied. (Appendix A, §11) | MUST | 11 | **positive:** `unit/verify` [`TestRFC2516ErrorTagsCarryNoData`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L356). **negative:** no negative test. **{single-polarity}:** discovery.go::BuildPADSError writes the tag with no data, so the conditional never binds and no violating input exists |
+| `RFC2516-x-13` | It MAY be included in PADS packets. If there is data, and the first octet of the data is nonzero, then it MUST be a printable UTF-8 string which explains the nature of the error. (Appendix A, §11) | MUST | 11 | **positive:** `unit/verify` [`TestRFC2516ErrorTagsCarryNoData`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L357). **negative:** no negative test. **{single-polarity}:** discovery.go::BuildPADSError writes the tag with no data, so the conditional never binds and no violating input exists |
 | `RFC2516-x-14` | It can be added to PADO, PADR or PADS packets when an unrecoverable error occurs and no other error TAG is appropriate. If there is data then it MUST be an UTF-8 string which explains the nature of the error. (Appendix A, §11) | MUST | 11 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze emits no Generic-Error TAG (discovery.go::BuildPADT, BuildPADSError); plan/spec-pppoe-generic-error-tag.md |
 | `RFC2516-x-15` | If there is data then it MUST be an UTF-8 string which explains the nature of the error. This string MUST NOT be NULL terminated. (Appendix A, §11) | MUST NOT | 11 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze emits no Generic-Error TAG (discovery.go::BuildPADT, BuildPADSError); plan/spec-pppoe-generic-error-tag.md |
 | `RFC2516-5.2-5` | The Access Concentrator MAY include this TAG in a PADO packet. (Appendix A, §11) | MAY | 11 | **positive:** no positive test. **negative:** no negative test |
@@ -212,9 +212,9 @@ Source: [data/rfc/rfc2516.json](../../../data/rfc/rfc2516.json).
 | [`RFC2516-x-14`](#rfc2516-x-14) It can be added to PADO, PADR or PADS packets when an unrecoverable error occurs and no other error TAG is appropriate. If there is data then it MUST be an UTF-8 string which explains the nature of the error. (Appendix A, §11) | {gap}, no test | Ze emits no Generic-Error TAG (discovery.go::BuildPADT, BuildPADSError); plan/spec-pppoe-generic-error-tag.md |
 | [`RFC2516-x-15`](#rfc2516-x-15) If there is data then it MUST be an UTF-8 string which explains the nature of the error. This string MUST NOT be NULL terminated. (Appendix A, §11) | {gap}, no test | Ze emits no Generic-Error TAG (discovery.go::BuildPADT, BuildPADSError); plan/spec-pppoe-generic-error-tag.md |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC2516-x-1`](#rfc2516-x-1)
 
@@ -222,10 +222,10 @@ The VER field is four bits and MUST be set to 0x1 for this version of the PPPoE 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestBuildFrameVerType asserts BuildPADI writes VER=1; TestParseBadVersion shows a VER=2 frame is refused
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseBadVersion`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L306) | unit/verify | unproven |
-| positive | [`TestBuildFrameVerType`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L454) | unit/verify | unproven |
+| negative | [`TestParseBadVersion`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L306) | unit/verify | not verified |
+| positive | [`TestBuildFrameVerType`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L454) | unit/verify | not verified |
 
 ### [`RFC2516-x-2`](#rfc2516-x-2)
 
@@ -233,10 +233,10 @@ The TYPE field is four bits and MUST be set to 0x1 for this version of the PPPoE
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestBuildFrameVerType asserts BuildPADI writes TYPE=1; TestParseBadType shows a TYPE=2 frame is refused
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseBadType`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L474) | unit/verify | unproven |
-| positive | [`TestBuildFrameVerType`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L455) | unit/verify | unproven |
+| negative | [`TestParseBadType`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L474) | unit/verify | not verified |
+| positive | [`TestBuildFrameVerType`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L455) | unit/verify | not verified |
 
 ### [`RFC2516-x-4`](#rfc2516-x-4)
 
@@ -244,7 +244,7 @@ This TAG indicates that there are no further TAGs in the list. The TAG_LENGTH of
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516NoSentFrameCarriesEndOfList, internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516NoSentFrameCarriesEndOfList#2 moved. first sentence: TestParseEndOfListTag. TAG_LENGTH MUST: Ze builds no End-Of-List; TestRFC2516NoSentFrameCarriesEndOfList walks the raw TLVs of the PADO and PADS replies and shows a received End-Of-List of TAG_LENGTH 4 is never copied out. Not observed: BuildPADR and BuildPADSError, which copy tags by type the same way (AddTagCopy of FindTag) and so cannot carry one either. Stale single-polarity marker removed
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516NoSentFrameCarriesEndOfList`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L349) | unit/verify | revert, verified |
 | positive | [`TestRFC2516NoSentFrameCarriesEndOfList`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L348) | unit/verify | revert, verified |
@@ -256,7 +256,7 @@ If the Access Concentrator receives this TAG, it MUST include the TAG unmodified
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID moved. PADO echo byte-compared by TestBuildPADO; PADS echo now byte-compared both in TestBuildPADS and through handlePADR for two hosts with distinct Host-Uniq values (TestRFC2516AdmittedPADSCarriesTheNewSessionsID); TestBuildNoHostUniqEcho proves no Host-Uniq is invented. Observed-red records on BuildPADS for both new/changed units
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestBuildNoHostUniqEcho`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L578) | unit/verify | revert, verified |
 | positive | [`TestRFC2516AdmittedPADSCarriesTheNewSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L77) | unit/verify | revert, verified |
@@ -269,10 +269,10 @@ If a Host receives this TAG, it MUST return the TAG unmodified in the following 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestBuildPADREchoesTags compares the echoed AC-Cookie bytes; TestBuildPADRNoOptionalTags shows none is invented
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestBuildPADRNoOptionalTags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L549) | unit/verify | unproven |
-| positive | [`TestBuildPADREchoesTags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L508) | unit/verify | unproven |
+| negative | [`TestBuildPADRNoOptionalTags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L549) | unit/verify | not verified |
+| positive | [`TestBuildPADREchoesTags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L508) | unit/verify | not verified |
 
 ### [`RFC2516-x-5`](#rfc2516-x-5)
 
@@ -280,7 +280,7 @@ If either the Host or Access Concentrator receives this TAG they MUST include it
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID, internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516RefusingPADSEchoesRelaySessionID#2 moved. the refusing PADS (BuildPADSError via handlePADR) and the admitting PADS now echo the Relay-Session-Id byte-for-byte, and a refusing PADS for a PADR without one invents none; PADO, PADR and PADS builder echo and no-echo units unchanged. Records red on BuildPADSError
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516RefusingPADSEchoesRelaySessionID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L272) | unit/verify | revert, verified |
 | negative | [`TestRelaySessionIDNoEcho`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L658) | unit/verify | revert, verified |
@@ -293,9 +293,9 @@ The PADI packet MUST contain exactly one TAG of TAG_TYPE Service- Name, indicati
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity; TestBuildPADIDiscovery counts exactly one Service-Name tag
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestBuildPADIDiscovery`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L485) | unit/verify | unproven |
+| positive | [`TestBuildPADIDiscovery`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L485) | unit/verify | not verified |
 
 ### [`RFC2516-5.1-2`](#rfc2516-5.1-2)
 
@@ -303,9 +303,9 @@ The Host sends the PADI packet with the DESTINATION_ADDR set to the broadcast ad
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity; TestBuildPADIDiscovery asserts the PADI DstMAC is the broadcast address
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestBuildPADIDiscovery`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L486) | unit/verify | unproven |
+| positive | [`TestBuildPADIDiscovery`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L486) | unit/verify | not verified |
 
 ### [`RFC2516-5.2-2`](#rfc2516-5.2-2)
 
@@ -313,7 +313,7 @@ The PADO packet MUST contain one AC-Name TAG containing the Access Concentrator'
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADOCarriesACNameAndServiceNames moved. TestRFC2516PADOCarriesACNameAndServiceNames drives handlePADI and asserts exactly one AC-Name equal to the configured name, the first Service-Name identical to the PADI's, then the other offered name in order; TestPADOAlwaysCarriesServiceName pins the Service-Name list and the zero-length edge. Records observed red on BuildPADO
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPADOAlwaysCarriesServiceName`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L726) | unit/verify | revert, verified |
 | positive | [`TestRFC2516PADOCarriesACNameAndServiceNames`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L240) | unit/verify | revert, verified |
@@ -325,7 +325,7 @@ If the Access Concentrator can not serve the PADI it MUST NOT respond with a PAD
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused, internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused#2 moved. TestRFC2516UnservedServiceNameIsRefused drives handlePADI: a PADI naming an unserved Service-Name draws no frame, the same PADI naming a served one draws exactly one PADO, so the silence is specific to the unserved service. Both polarities recorded red on handlePADI
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516UnservedServiceNameIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L200) | unit/verify | revert, verified |
 | positive | [`TestRFC2516UnservedServiceNameIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L201) | unit/verify | revert, verified |
@@ -336,9 +336,9 @@ The PADR packet MUST contain exactly one TAG of TAG_TYPE Service- Name, indicati
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity; TestBuildPADREchoesTags counts exactly one Service-Name tag
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestBuildPADREchoesTags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L509) | unit/verify | unproven |
+| positive | [`TestBuildPADREchoesTags`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L509) | unit/verify | not verified |
 
 ### [`RFC2516-5.4-1`](#rfc2516-5.4-1)
 
@@ -346,10 +346,10 @@ The PADS packet contains exactly one TAG of TAG_TYPE Service-Name, indicating th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. re-read after TestBuildPADS changed (only its Host-Uniq check was tightened to a byte compare): TestBuildPADS and TestPADSAlwaysCarriesServiceName both count exactly one Service-Name tag in the PADS, including for a PADR carrying none
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPADSAlwaysCarriesServiceName`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L782) | unit/verify | revert, verified |
-| positive | [`TestBuildPADS`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L179) | unit/verify | unproven |
+| positive | [`TestBuildPADS`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L179) | unit/verify | not verified |
 
 ### [`RFC2516-5.4-2`](#rfc2516-5.4-2)
 
@@ -357,7 +357,7 @@ If the Access Concentrator does not like the Service-Name in the PADR, then it M
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID, internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516UnservedServiceNameIsRefused, internal/component/l2tp/pppoe/rfc2516_server_test.go::TestPADRWithoutServiceNameGetsServiceNameError moved. positive: a PADR with a PRESENT unserved Service-Name through handlePADR draws one PADS with Service-Name-Error and SESSION_ID 0x0000, no session, no socket (TestRFC2516UnservedServiceNameIsRefused); the absent-tag branch stays covered by TestPADRWithoutServiceNameGetsServiceNameError. negative: a served name draws a non-zero SID and no Service-Name-Error. All three recorded red on handlePADR
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516AdmittedPADSCarriesTheNewSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L76) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2516UnservedServiceNameIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L199) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
@@ -369,7 +369,7 @@ For Discovery packets, the value is either a unicast or broadcast address as def
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID, internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516SessionNeverBoundToANonUnicastPeer moved. session-stage addressing is set by connecting the pppox socket: the positive asserts each admitted session's socket is bound to its PADR's unicast source MAC; the negative shows a broadcast- and a multicast-sourced PADR are refused by ParseDiscovery before HandleDiscovery and bind nothing, while a unicast source binds itself. The negative mirrors Subsystem.discoveryReader's parse-then-dispatch inline (read at subsystem.go, it matches), so a change to the reader itself would not turn it red. Records red on createTransport and ParseDiscovery
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516SessionNeverBoundToANonUnicastPeer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L161) | unit/verify | revert, verified |
 | positive | [`TestRFC2516AdmittedPADSCarriesTheNewSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L75) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
@@ -380,7 +380,7 @@ The SOURCE_ADDR field MUST contains the Ethernet MAC address of the source devic
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516BuildersWriteTheSendersMAC moved. TestRFC2516BuildersWriteTheSendersMAC asserts PADI, PADR, PADO, PADS, the refusing PADS and PADT write the sender MAC they are given in SOURCE_ADDR; every production call site passes the device's own MAC (s.hwAddr in server.go, hwaddr/srcMAC in pppoeclient/dialer.go), read, not asserted. Receive side refuses broadcast and multicast sources. Record red on NewBuilder
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestParseBroadcastSource`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L332) | unit/verify | revert, verified |
 | negative | [`TestParseMulticastSource`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L342) | unit/verify | revert, verified |
@@ -393,9 +393,9 @@ If a discovery packet is received with a TAG of unknown TAG_TYPE, the TAG MUST b
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity; TestUnknownTagIgnored parses a frame with an unknown tag without error and keeps known tags findable
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestUnknownTagIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L678) | unit/verify | unproven |
+| positive | [`TestUnknownTagIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L678) | unit/verify | not verified |
 
 ### [`RFC2516-x-9`](#rfc2516-x-9)
 
@@ -403,7 +403,7 @@ The Maximum-Receive-Unit (MRU) option MUST NOT be negotiated to a larger size th
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorNegotiatesMRUAtThePPPoECeiling, internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go::TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling moved. Independent rejudgment 2026-11-15 against RFC 2516 Section 7: "The Maximum-Receive-Unit (MRU) option MUST NOT be negotiated to a larger size than 1492." Read all seven tagged units and their production paths. Host-default accepts omitted MTU as 1492, preserves 1492 and 1480, and reads an actual first client Configure-Request naming 1492; Host-negative refuses 1493/1500/9000 with the specific range error and verifies Dial rejects 1500 before discovery/interface resolution. The client positive negotiates both directions at 1492 and opens; distinct negative requests a peer MRU 1500, requires a Nak containing only 1492 and then opens after correction, and separately sends a correlated 1500 Nak suggestion which must not raise the next client MRU above1492. The AC pair drives handlePADR into the production PPP driver and observes its own MRU at or below1492, Ack of a canonical1492 request and Nak of a distinct1500 request to1492, preserving Identifiers. TestLCPConfigRequestMRU independently checks exact encoder output1492. Read pppoeSessionMTU and Dial admission, clientLCPPolicy/negotiateLCP and server MaxMRU/transmitMRU caps. Positive and negative buffers differ only in the targeted MRU value and valid correlation; neither relies on a packet-shape refusal. New explicit LCP/Max-Failure fixtures leave the scoped MRU assertions unchanged. Main-thread current native records supply observed-red evidence; no new behavior is claimed from panic-style producer-disable observations.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516AccessConcentratorRefusesAnMRUAboveThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_ac_mru_ceiling_linux_test.go#L179) | unit/verify | revert, verified |
 | negative | [`TestRFC2516HostRefusesASessionMTUAboveThePPPoECeiling`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_session_mtu_test.go#L96) | unit/verify | revert, verified |
@@ -419,7 +419,7 @@ The SESSION_ID MUST NOT change for that PPPoE session and MUST be the value assi
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516AdmittedPADSCarriesTheNewSessionsID, internal/component/l2tp/pppoe/rfc2516_admission_test.go::TestRFC2516PADRReplayKeepsTheSessionID moved. Ze's share of Section 6 is binding the session socket: TestRFC2516AdmittedPADSCarriesTheNewSessionsID asserts the socket is bound once to the SID the PADS assigned (createTransport seam, production path unchanged), and TestRFC2516PADRReplayKeepsTheSessionID shows a retransmitted PADR keeps the SID, binds no second socket, adds no session. The kernel pppox socket keeps the SID fixed after connect. The PADT-MAC unit no longer carries the tag. Records red on createTransport and matchLiveCookie
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516PADRReplayKeepsTheSessionID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L132) | unit/verify | revert, verified |
 | positive | [`TestRFC2516AdmittedPADSCarriesTheNewSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L74) | unit/verify | revert, producer-gone (the producer the break was applied to is no longer in the tree) |
@@ -438,10 +438,10 @@ A value of 0xffff is reserved for future use and MUST NOT be used (§4)
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516AllocSIDReturnsUsableValue, internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionID0xffffIsNeverAllocated moved. TestRFC2516SessionID0xffffIsNeverAllocated exhausts the table and shows 0xffff is never handed out, even after freeSID
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2516SessionID0xffffIsNeverAllocated`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L58) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2516AllocSIDReturnsUsableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L46) | unit/verify | revert, verified |
+| negative | [`TestRFC2516SessionID0xffffIsNeverAllocated`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L64) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2516AllocSIDReturnsUsableValue`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L52) | unit/verify | revert, verified |
 
 ### [`RFC2516-5.1-4`](#rfc2516-5.1-4)
 
@@ -449,10 +449,10 @@ The CODE field is set to 0x09 and the SESSION_ID MUST be set to 0x0000. (§5.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADISessionIDIsZero, internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADIWithNonZeroSessionIDIsDropped moved. TestRFC2516PADISessionIDIsZero asserts CODE 0x09 and SESSION_ID 0; the negative shows handlePADI drops a non-zero SESSION_ID PADI
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2516PADIWithNonZeroSessionIDIsDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L95) | unit/verify | revert, verified |
-| positive | [`TestRFC2516PADISessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L79) | unit/verify | revert, verified |
+| negative | [`TestRFC2516PADIWithNonZeroSessionIDIsDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L101) | unit/verify | revert, verified |
+| positive | [`TestRFC2516PADISessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L85) | unit/verify | revert, verified |
 
 ### [`RFC2516-5.1-5`](#rfc2516-5.1-5)
 
@@ -460,7 +460,7 @@ An entire PADI packet (including the PPPoE header) MUST NOT exceed 1484 octets s
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestPADINeverExceeds1484Octets accepts exactly 1484 octets and refuses 1485
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPADINeverExceeds1484Octets`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L18) | unit/verify | revert, verified |
 | positive | [`TestPADINeverExceeds1484Octets`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L17) | unit/verify | revert, verified |
@@ -471,10 +471,10 @@ The CODE field is set to 0x07 and the SESSION_ID MUST be set to 0x0000. (§5.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADOSessionIDIsZero moved. TestRFC2516PADOSessionIDIsZero asserts CODE 0x07 and SESSION_ID 0; the client refuses a PADO with a non-zero SESSION_ID
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516PADOWithNonZeroSessionIDIsNotAnOffer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go#L37) | unit/verify | revert, verified |
-| positive | [`TestRFC2516PADOSessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L115) | unit/verify | revert, verified |
+| positive | [`TestRFC2516PADOSessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L121) | unit/verify | revert, verified |
 
 ### [`RFC2516-5.3-5`](#rfc2516-5.3-5)
 
@@ -482,10 +482,10 @@ The CODE field is set to 0x19 and the SESSION_ID MUST be set to 0x0000. (§5.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRSessionIDIsZero, internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADRWithNonZeroSessionIDIsDropped moved. TestRFC2516PADRSessionIDIsZero asserts CODE 0x19 and SESSION_ID 0; handlePADR drops a non-zero SESSION_ID PADR
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2516PADRWithNonZeroSessionIDIsDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L149) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2516PADRSessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L132) | unit/verify | revert, verified |
+| negative | [`TestRFC2516PADRWithNonZeroSessionIDIsDropped`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L155) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2516PADRSessionIDIsZero`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L138) | unit/verify | revert, verified |
 
 ### [`RFC2516-5.4-3`](#rfc2516-5.4-3)
 
@@ -493,11 +493,11 @@ The CODE field is set to 0x65 and the SESSION_ID MUST be set to the unique value
 
 Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516PADSCarriesTheSessionsID moved. the fresh-admission PADS is now observed: two hosts each get CODE 0x65, a non-zero SESSION_ID equal to the SID the table holds for that host, and the two SIDs differ (TestRFC2516AdmittedPADSCarriesTheNewSessionsID); the replay path stays covered; the client refuses a zero-SID PADS (pppoeclient negative). Records observed red on handlePADR and tryReadPADS
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516PADSWithZeroSessionIDIsARefusal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_discovery_test.go#L61) | unit/verify | revert, verified |
 | positive | [`TestRFC2516AdmittedPADSCarriesTheNewSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_admission_test.go#L73) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2516PADSCarriesTheSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L178) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC2516PADSCarriesTheSessionsID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L184) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC2516-5.5-3`](#rfc2516-5.5-3)
 
@@ -505,13 +505,13 @@ The DESTINATION_ADDR field is a unicast Ethernet address, the CODE field is set 
 
 Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession, internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing moved. Judge 2026-09-30 (cont 7 re-judge). AC half unchanged and enforced (TestBuildPADT, handleSessionDown sends the PADT for that SID, an unknown SID terminates nothing). Host half, the gap of the prior weak verdict, now proven on raw octets: TestRFC2516HostPADTNamesItsAccessConcentratorAndSession (PADO+PADS through tryReadPADO/tryReadPADS, then sendPADT: DESTINATION_ADDR = offering AC's MAC with the group bit clear, CODE 0xa7, SESSION_ID 0x2345 from the PADS), observed red under a revert of sendPADT; TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession (a PADO from broadcast or multicast source is never an offer, so no PADT can be addressed to a group; a PADS from another AC carrying 0x3456 is ignored and the PADT names 0x2345), observed red under a revert of tryReadPADS. Residual, named not disqualifying: the two-line acMAC copy from padoPkt.SrcMAC in Dial is mirrored in the test helper because Dial needs kernel PPPoE; Dial passes the same acMAC/sessID to sendPADT on every path (read at dialer.go).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2516UnknownSessionIDTerminatesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L253) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L162) | unit/verify | revert, verified |
+| negative | [`TestRFC2516UnknownSessionIDTerminatesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L318) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC2516HostPADTNeverAddressesAGroupOrAForeignSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L163) | unit/verify | revert, verified |
 | positive | [`TestBuildPADT`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_discovery_test.go#L225) | unit/verify | revert, verified |
-| positive | [`TestRFC2516SessionDownSendsPADTForThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L219) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC2516HostPADTNamesItsAccessConcentratorAndSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L141) | unit/verify | revert, verified |
+| positive | [`TestRFC2516SessionDownSendsPADTForThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L225) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC2516HostPADTNamesItsAccessConcentratorAndSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L142) | unit/verify | revert, verified |
 
 ### [`RFC2516-5.5-4`](#rfc2516-5.5-4)
 
@@ -519,7 +519,7 @@ Even normal PPP termination packets MUST NOT be sent after sending or receiving 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516ACReceivedPADTClosesOnlyMatchingTransport`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padt_lifetime_linux_test.go#L54) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestRFC2516ClientPADTStopsOnlyMatchingSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_padt_lifetime_test.go#L30) | unit/verify | revert, verified |
@@ -542,7 +542,7 @@ An implementation MUST NOT request any of the following options, and MUST reject
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestRFC2516ACRejectsForbiddenLCPOptions and TestRFC2516ClientRejectsForbiddenLCPOptions assert Configure-Reject of ACCM, ACFC and FCS Alternatives verbatim, that neither role requests them, and Ack for MRU/PFC
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516ACRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc2516_options_test.go#L12) | unit/verify | revert, verified |
 | negative | [`TestRFC2516ClientRejectsForbiddenLCPOptions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc1661_client_negotiation_test.go#L102) | unit/verify | revert, verified |
@@ -553,14 +553,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 When LCP terminates, the Host and Access concentrator MUST stop using that PPPoE session. (§7)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession, internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing moved. Re-judged after a02374d9ad changed TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates against RFC 2516 Section 7 ("When LCP terminates, the Host and Access concentrator MUST stop using that PPPoE session."). The only change: the post-termination sendEchoReply result, previously discarded, must now satisfy errors.Is(err, io.ErrClosedPipe). That error is produced only by sessionLink.Write's closed guard (dialer.go), passed through writeClientPacket unwrapped and by sendEchoReply with %w, so the check pins the session's own refusal; the hostChannel still accepts writes after Close, so neither this nor the zero-later-frames check can pass unless superviseNetworkPhase closed the link after keepaliveLoop returned on the Terminate-Request. Every earlier assertion is kept (exactly one Terminate-Ack for Identifier 5, one channel close, Done published, link.Write refused, no frame after the Ack): strictly stronger. Negative TestRFC2516HostKeepsTheSessionUntilLCPTerminates unchanged: Echo-Request and stray Terminate-Ack leave Done open and the Host answering, only the Terminate-Request ends it, so the stop is tied to LCP termination. AC half unchanged: handleSessionDown removes the session and sends its PADT (exact CODE, SESSION_ID, destination MAC); an unknown SID sends nothing and removes nothing. Discrimination records (re-taken 45025b3639) replace whole producer bodies with a panic, which proves only that the units reach the producers; the specific break (dropping link.Close from superviseNetworkPhase) was judged by reading: it leaves link.stopped open and Write succeeding, so three assertions go red.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516SessionDownSendsPADTForThatSession, internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516UnknownSessionIDTerminatesNothing, internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostKeepsTheSessionUntilLCPTerminates, internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go::TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates moved. Re-judged after a02374d9ad changed TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates against RFC 2516 Section 7 ("When LCP terminates, the Host and Access concentrator MUST stop using that PPPoE session."). The only change: the post-termination sendEchoReply result, previously discarded, must now satisfy errors.Is(err, io.ErrClosedPipe). That error is produced only by sessionLink.Write's closed guard (dialer.go), passed through writeClientPacket unwrapped and by sendEchoReply with %w, so the check pins the session's own refusal; the hostChannel still accepts writes after Close, so neither this nor the zero-later-frames check can pass unless superviseNetworkPhase closed the link after keepaliveLoop returned on the Terminate-Request. Every earlier assertion is kept (exactly one Terminate-Ack for Identifier 5, one channel close, Done published, link.Write refused, no frame after the Ack): strictly stronger. Negative TestRFC2516HostKeepsTheSessionUntilLCPTerminates unchanged: Echo-Request and stray Terminate-Ack leave Done open and the Host answering, only the Terminate-Request ends it, so the stop is tied to LCP termination. AC half unchanged: handleSessionDown removes the session and sends its PADT (exact CODE, SESSION_ID, destination MAC); an unknown SID sends nothing and removes nothing. Discrimination records (re-taken 45025b3639) replace whole producer bodies with a panic, which proves only that the units reach the producers; the specific break (dropping link.Close from superviseNetworkPhase) was judged by reading: it leaves link.stopped open and Write succeeding, so three assertions go red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2516UnknownSessionIDTerminatesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L254) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestRFC2516HostKeepsTheSessionUntilLCPTerminates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L287) | unit/verify | revert, verified |
-| positive | [`TestRFC2516SessionDownSendsPADTForThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L220) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L252) | unit/verify | revert, verified |
+| negative | [`TestRFC2516UnknownSessionIDTerminatesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L320) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| negative | [`TestRFC2516HostKeepsTheSessionUntilLCPTerminates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L298) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC2516SessionDownSendsPADTForThatSession`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L227) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC2516HostStopsUsingTheSessionWhenLCPTerminates`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc2516_host_termination_test.go#L263) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC2516-7-4`](#rfc2516-7-4)
 
@@ -568,7 +568,7 @@ If the Host wishes to start another PPP session, it MUST return to the PPPoE Dis
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudge 2026-11-08: TestRFC2516HostReturnsToDiscoveryForTheNextSession changed only by passing Timing: testPPPoETiming (ReconnectDelayMin 1s) now that keepalive and reconnect timing come from config, and the comment naming the delay. Assertions unchanged: after the first session's Done the client calls Dial again (Discovery) within 5s, the first session's Cleanup (PADT) ran first, and the client holds SESSION_ID 0 in state discovery.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2516HostReturnsToDiscoveryForTheNextSession`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc2516_pppoe_client_test.go#L60) | unit/verify | revert, verified |
 | positive | [`TestRFC2516HostReturnsToDiscoveryForTheNextSession`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc2516_pppoe_client_test.go#L59) | unit/verify | revert, verified |
@@ -579,7 +579,7 @@ All PADI packets MUST guarantee sufficient room for the addition of a Relay-Sess
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TestPADINeverExceeds1484Octets asserts exactly 16 octets are left at the largest PADI and that one octet more is refused
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPADINeverExceeds1484Octets`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L20) | unit/verify | revert, verified |
 | positive | [`TestPADINeverExceeds1484Octets`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_padi_length_test.go#L19) | unit/verify | revert, verified |
@@ -598,9 +598,9 @@ This TAG (typically with a zero-length data section) indicates that for one reas
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516ErrorTagsCarryNoData moved. single-polarity; TestRFC2516ErrorTagsCarryNoData drives handlePADR and asserts the Service-Name-Error TAG_LENGTH is 0
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2516ErrorTagsCarryNoData`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L285) | unit/verify | revert, verified |
+| positive | [`TestRFC2516ErrorTagsCarryNoData`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L356) | unit/verify | revert, verified |
 
 ### [`RFC2516-x-13`](#rfc2516-x-13)
 
@@ -608,9 +608,9 @@ It MAY be included in PADS packets. If there is data, and the first octet of the
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/pppoe/rfc2516_session_id_test.go::TestRFC2516ErrorTagsCarryNoData moved. single-polarity; TestRFC2516ErrorTagsCarryNoData drives a resource refusal and asserts the AC-System-Error TAG_LENGTH is 0
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2516ErrorTagsCarryNoData`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L286) | unit/verify | revert, verified |
+| positive | [`TestRFC2516ErrorTagsCarryNoData`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoe/rfc2516_session_id_test.go#L357) | unit/verify | revert, verified |
 
 ### [`RFC2516-x-14`](#rfc2516-x-14)
 

@@ -10,12 +10,12 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 26 | of 31 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5 | of 31 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 26 | of 31 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 31 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 31 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 31 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 0 | of 31 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 31 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 76 | 76 of 107 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 80 | 80 of 107 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Neutral
 
@@ -25,9 +25,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 31 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 31 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 31 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 31 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 31 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 31 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 31 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -46,13 +46,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -86,9 +86,9 @@ Included in automatic checks: Remote Authentication Dial In User Service (RADIUS
 
 **Area:** RADIUS authentication
 
-**Proof:** 26 of 31 MUST proven
+**Test verification:** 27 of 31 MUST proven
 
-**Evidence:** unit 26
+**Evidence:** unit 27
 
 **Unmet:** -
 
@@ -101,7 +101,7 @@ Included in automatic checks: Remote Authentication Dial In User Service (RADIUS
 | Annotated (including scoped evidence) | 5 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **31** | every mandatory requirement appears in exactly one group above |
@@ -112,8 +112,8 @@ Included in automatic checks: Remote Authentication Dial In User Service (RADIUS
 
 ## Figures
 
-- **MUST bar**: Ze proven 26, Proof pending 5
-- **Overview bar**: Ze MUST proven 26, Proof pending 5, Not assessed 1
+- **MUST bar**: Ze verified 27, Tests awaiting verification 4
+- **Overview bar**: Ze MUST verified 27, Tests awaiting verification 4, Not assessed 1
 
 | Figure | Rows |
 |---|---|
@@ -122,9 +122,9 @@ Included in automatic checks: Remote Authentication Dial In User Service (RADIUS
 | Mandatory requirements complete | not complete |
 | MUST rows | 31 |
 | MUST rows kept (the MUST bar) | 31 |
-| Ze proven | 26 |
+| Ze verified | 27 |
 | OS verified | 0 |
-| Proof pending | 5 |
+| Tests awaiting verification | 4 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -134,19 +134,19 @@ Included in automatic checks: Remote Authentication Dial In User Service (RADIUS
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 1 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 1 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc2865.json](../../../data/rfc/rfc2865.json).
 
@@ -191,9 +191,9 @@ Source: [data/rfc/rfc2865.json](../../../data/rfc/rfc2865.json).
 
 RFC 2865 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC2865-3-1`](#rfc2865-3-1)
 
@@ -201,7 +201,7 @@ The minimum length is 20 and maximum length is 4096. (§3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive: Decode accepts 20- and 4096-octet packets (16 attributes kept) and EncodeTo writes exactly 4096 with Length 4096. Negative: Decode refuses 19 octets, refuses a 4097-octet packet whose Length field says 4097 and whose attributes are all valid (so only the maximum can refuse it), and EncodeTo refuses attributes making 4097 octets. Both bounds now discriminated at both edges.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDecodeBadLength`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L193) | unit/verify | revert, verified |
 | negative | [`TestDecodeTooLong`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L180) | unit/verify | revert, verified |
@@ -216,9 +216,9 @@ In Access-Request Packets, the Authenticator value is a 16 octet random number, 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Request Authenticator that is not 16 random octets, or one drawn from a predictable source. TestRFC2865RequestAuthenticatorRandom substitutes crypto/rand.Reader and asserts the authenticator equals the substituted octets byte for byte (a counter or constant goes red), and asserts two successive values differ; the width is the [AuthenticatorLen]byte type. Single-polarity marker on the row covers the missing negative.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC2865RequestAuthenticatorRandom`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L40) | unit/verify | unproven |
+| positive | [`TestRFC2865RequestAuthenticatorRandom`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L40) | unit/verify | not verified |
 
 ### [`RFC2865-3-3`](#rfc2865-3-3)
 
@@ -226,14 +226,14 @@ The value of the Authenticator field in Access-Accept, Access- Reject, and Acces
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Response Authenticator computed over anything but Code+ID+Length+RequestAuth+Attributes+Secret. TestRFC2865ResponseAuthenticatorMatchesTheFormula compares ResponseAuthenticator with an independent MD5 over exactly those fields (red on a wrong formula, with a non-degenerate attribute stream); TestRFC2865ResponseAuthenticatorCoversEveryNamedField mutates each named field and asserts VerifyResponseAuth rejects it.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestResponseAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L214) | unit/verify | unproven |
-| negative | [`TestVerifyResponseAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L246) | unit/verify | unproven |
-| negative | [`TestRFC2865ResponseAuthenticatorCoversEveryNamedField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L99) | unit/verify | unproven |
-| positive | [`TestResponseAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L206) | unit/verify | unproven |
-| positive | [`TestVerifyResponseAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L240) | unit/verify | unproven |
-| positive | [`TestRFC2865ResponseAuthenticatorMatchesTheFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L58) | unit/verify | unproven |
+| negative | [`TestResponseAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L214) | unit/verify | not verified |
+| negative | [`TestVerifyResponseAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L246) | unit/verify | not verified |
+| negative | [`TestRFC2865ResponseAuthenticatorCoversEveryNamedField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L99) | unit/verify | not verified |
+| positive | [`TestResponseAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L206) | unit/verify | not verified |
+| positive | [`TestVerifyResponseAuth`](https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L240) | unit/verify | not verified |
+| positive | [`TestRFC2865ResponseAuthenticatorMatchesTheFormula`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L58) | unit/verify | not verified |
 
 ### [`RFC2865-4.2-1`](#rfc2865-4.2-1)
 
@@ -241,7 +241,7 @@ Invalid packets are silently discarded. (§4.2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after 3fa8b278a9. rfc/full/rfc2865.txt Section 4.2: 'The Response Authenticator field MUST contain the correct response for the pending Access-Request.  Invalid packets are silently discarded.' TestClientAuthenticatorVerify's first reply is now signed with the correct secret and only its Response Authenticator byte 4 is flipped; the Message-Authenticator HMAC runs with the Request Authenticator substituted (RFC 2869 5.14) so it still verifies, and the test fatals unless the mock's verifyResponseMessageAuthenticator verdict on that reply is Accepted. Only VerifyResponseAuth can therefore discard it: attempts >= 2 goes red if it is accepted (mutant: compare forced true, observed 'got 1 attempt', record 8bc5e1c3c3). Positive: the correctly signed retry is accepted (Code assertion; revert record). Isolation restored; the earlier weak finding (wrong-key reply also failed the HMAC) no longer applies.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestClientAuthenticatorVerify`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L407) | unit/verify | mutant, verified |
 | positive | [`TestClientAuthenticatorVerify`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L396) | unit/verify | revert, verified |
@@ -252,7 +252,7 @@ If the NAS is retransmitting a RADIUS request to the same server as before, and 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after BlastRADIUS (only change: Exchange takes a Server, buildResponse now signs non-accounting answers). TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort still leaves the first datagram unanswered and byte-compares Identifier, all 16 Request Authenticator octets, attributes and source addr:port of every retransmit against the first; the signed answer only lets the exchange complete under the default presence check, it does not touch what is compared. {single-polarity: positive} holds. TestClientRetransmit remains a floor assertion.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestClientRetransmit`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_client_test.go#L200) | unit/verify | revert, verified |
 | positive | [`TestRFC2865RetransmitRepeatsIdentifierAuthenticatorAndSourcePort`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_wire_rules_test.go#L111) | unit/verify | revert, verified |
@@ -263,11 +263,11 @@ It MUST be sent in Access-Request packets if available. (§5, sentence at §5.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 5.1: 'It MUST be sent in Access-Request packets if available.' The unchanged admin test reads the transmitted alice User-Name; the subscriber builder test requires subscriber@example.net exactly. The subscriber negative supplies an empty name with a usable PAP password, then reads a real Access-Request with User-Password and no User-Name. That retained credential proves omission did not merely suppress the whole packet. The new canonical ID changes only transport context for the same subscriber and leaves username values, credentials and all assertions unchanged. Both the available-name obligation and its absence condition remain covered. Native discrimination refresh remains separate main-thread evidence.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2865AccessRequestOmitsAnUnavailableUserName`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L77) | unit/verify | revert, verified |
 | positive | [`TestRFC2865SubscriberAccessRequestUserName`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_test.go#L33) | unit/verify | revert, verified |
-| positive | [`TestRFC2865AccessRequestUserName`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L219) | unit/verify | unproven |
+| positive | [`TestRFC2865AccessRequestUserName`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L219) | unit/verify | not verified |
 
 ### [`RFC2865-5.2-1`](#rfc2865-5.2-1)
 
@@ -275,11 +275,11 @@ A one- way MD5 hash is calculated over a stream of octets consisting of the shar
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a User-Password cipher not chained as MD5(S+RA) then MD5(S+c(i-1)). TestEncodeUserPasswordMultiBlock compares a 2-block ciphertext with one the test builds from the RFC recipe (red if block 2 is keyed on RA), TestEncodeUserPassword reverses block 1 with MD5(S+RA); the negatives assert the ciphertext changes with the secret and with the Request Authenticator.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2865UserPasswordDependsOnSecret`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L156) | unit/verify | unproven |
-| positive | [`TestEncodeUserPassword`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L35) | unit/verify | unproven |
-| positive | [`TestEncodeUserPasswordMultiBlock`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L97) | unit/verify | unproven |
+| negative | [`TestRFC2865UserPasswordDependsOnSecret`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L156) | unit/verify | not verified |
+| positive | [`TestEncodeUserPassword`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L35) | unit/verify | not verified |
+| positive | [`TestEncodeUserPasswordMultiBlock`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L97) | unit/verify | not verified |
 
 ### [`RFC2865-5.2-2`](#rfc2865-5.2-2)
 
@@ -287,12 +287,12 @@ The password is first padded at the end with nulls to a multiple of 16 octets. A
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a password not null-padded to a multiple of 16, or longer than 128. TestEncodeUserPassword asserts len%16 == 0 and the decoded pad octets are 0; TestEncodeUserPasswordEmpty asserts 16; TestEncodeUserPasswordMultiBlock asserts 32 and the chain over the null-padded plaintext; TestRFC2865UserPasswordClamp asserts 128 for a 130-octet input. Single-polarity marker on the row.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestEncodeUserPassword`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L17) | unit/verify | unproven |
-| positive | [`TestEncodeUserPasswordEmpty`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L52) | unit/verify | unproven |
-| positive | [`TestEncodeUserPasswordMultiBlock`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L75) | unit/verify | unproven |
-| positive | [`TestRFC2865UserPasswordClamp`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L175) | unit/verify | unproven |
+| positive | [`TestEncodeUserPassword`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L17) | unit/verify | not verified |
+| positive | [`TestEncodeUserPasswordEmpty`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L52) | unit/verify | not verified |
+| positive | [`TestEncodeUserPasswordMultiBlock`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_attr_test.go#L75) | unit/verify | not verified |
+| positive | [`TestRFC2865UserPasswordClamp`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L175) | unit/verify | not verified |
 
 ### [`RFC2865-5-2`](#rfc2865-5-2)
 
@@ -300,7 +300,7 @@ The Length field is one octet, and indicates the length of this Attribute includ
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Positive reads the Length octets EncodeTo writes on the wire (3, 8, 255 for 1/6/253-octet values, walking exactly to the packet end) and Decode reads Length 8 as "netops". Negative: a Filter-Id "netops" with Length octet 6 (value-only count) is refused; a decoder counting only the Value would accept it and go red. The old round-trip units stay floor assertions.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2865AttributeLengthBound`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L94) | unit/verify | revert, verified |
 | negative | [`TestRFC2865AttributeLengthOctetThatOmitsTheHeaderIsRefused`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_wire_rules_test.go#L268) | unit/verify | revert, verified |
@@ -313,11 +313,11 @@ A NAS that does not implement a given service MUST NOT implement the RADIUS attr
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L146) | unit/verify | unproven |
+| negative | [`TestRFC2869DictionaryDeclaresNoAttributeForAnUnofferedService`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L146) | unit/verify | not verified |
 | positive | [`TestAdminAccessRequestCarriesNoUnofferedServiceAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L38) | unit/verify | revert, verified |
-| positive | [`TestRFC2869DictionaryCoversTheServicesZeOffers`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L117) | unit/verify | unproven |
+| positive | [`TestRFC2869DictionaryCoversTheServicesZeOffers`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2869_unoffered_service_attributes_test.go#L117) | unit/verify | not verified |
 
 ### [`RFC2865-1.1-2`](#rfc2865-1.1-2)
 
@@ -325,7 +325,7 @@ A NAS MUST treat a RADIUS access-accept authorizing an unavailable service as an
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 1.1: 'A NAS MUST treat a RADIUS access-accept authorizing an unavailable service as an access-reject instead.' All tagged admin and subscriber units were read. Admin Login-User and subscriber Framed-User with PPP are admitted; unoffered Service-Types and all six non-PPP Framed-Protocol values are refused. The framing cases keep Service-Type fixed, so another authorization guard cannot decide them first. Absent Service-Type remains admitted on both paths. The subscriber helper now supplies its existing L2TP canonical ID; credentials, server reply attributes, acceptance assertions and all four branches of TestRFC2865SubscriberServiceTypeAuthorization remain intact. The tests cover the Service-Type and framing authorization routes of this implemented capability; this retains the existing enforced verdict and adds no capability claim. Native discrimination refresh remains separate main-thread evidence.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2865SubscriberServiceTypeAuthorization`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L231) | unit/verify | revert, verified |
 | negative | [`TestRFC2865AcceptForAFramingTheLNSLacksIsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L56) | unit/verify | revert, verified |
@@ -342,7 +342,7 @@ A NAS is not required to implement all of these service types, and MUST treat un
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30 (rfc/full/rfc2865.txt:1693-1696, Section 5.6). Forbidden: honouring an Access-Accept whose Service-Type the NAS does not implement or does not know. On the L2TP LNS, TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection drives both halves of 'unknown or unsupported': Login-User 1 and Callback-Framed-User 4 (defined, not implemented) and 65535 (undefined), each alone in the Accept, and fails if the session comes up; the producer is doRADIUS calling radius.AcceptedServiceType(resp, ServiceTypeFramed) and answering respond(false). TestRFC2865SupportedServiceTypeIsHonored is the conforming input (Framed-User) and fails if a supported Service-Type is refused, ruling out a check that rejects every Accept. Buffers isolated: only Service-Type varies. Records: positive against AcceptedServiceType, negative against doRADIUS, both observed red (panic breaks, which prove reachability; the discriminating assertion is the per-value accept flag).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L86) | unit/verify | revert, verified |
 | positive | [`TestRFC2865SupportedServiceTypeIsHonored`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L71) | unit/verify | revert, verified |
@@ -353,12 +353,12 @@ Octets outside the range of the Length field MUST be treated as padding and igno
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDecodeIgnoresAnAttributeHiddenInThePadding`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L120) | unit/verify | revert, verified |
-| negative | [`TestRFC2866LengthPaddingBoundaryIsTheLengthField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L137) | unit/verify | unproven |
+| negative | [`TestRFC2866LengthPaddingBoundaryIsTheLengthField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L137) | unit/verify | not verified |
 | positive | [`TestDecodeIgnoresOctetsOutsideTheLengthField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L104) | unit/verify | revert, verified |
-| positive | [`TestRFC2866LengthPaddingIgnoredOnReception`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L117) | unit/verify | unproven |
+| positive | [`TestRFC2866LengthPaddingIgnoredOnReception`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L117) | unit/verify | not verified |
 
 ### [`RFC2865-3-8`](#rfc2865-3-8)
 
@@ -366,11 +366,11 @@ The secret MUST NOT be empty (length 0) since this would allow packets to be tri
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2865EmptySharedSecretBuildsNoClient`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L173) | unit/verify | unproven |
-| negative | [`TestExchangeRefusesAnEmptySharedSecret`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L179) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2865EmptySharedSecretBuildsNoClient`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L168) | unit/verify | unproven |
+| negative | [`TestRFC2865EmptySharedSecretBuildsNoClient`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L173) | unit/verify | not verified |
+| negative | [`TestExchangeRefusesAnEmptySharedSecret`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L179) | unit/verify | revert, verified |
+| positive | [`TestRFC2865EmptySharedSecretBuildsNoClient`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L168) | unit/verify | not verified |
 | positive | [`TestExchangeAcceptsANonEmptySharedSecret`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L159) | unit/verify | revert, verified |
 
 ### [`RFC2865-4.1-1`](#rfc2865-4.1-1)
@@ -379,7 +379,7 @@ An implementation wishing to authenticate a user MUST transmit a RADIUS packet w
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2865AccountingRequestDoesNotCarryTheAccessRequestCode`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L99) | unit/verify | revert, verified |
 | positive | [`TestRADIUSAuthNASIPAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L433) | unit/verify | revert, verified |
@@ -391,12 +391,12 @@ The Request Authenticator value MUST be changed each time a new Identifier is us
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC2865FailoverRegeneratesRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L141) | unit/verify | unproven |
-| negative | [`TestRetransmitToTheSameServerKeepsItsRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L345) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestRFC2865FailoverRegeneratesRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L117) | unit/verify | unproven |
-| positive | [`TestFailoverChangesTheRequestAuthenticatorWithTheIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L308) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRFC2865FailoverRegeneratesRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L141) | unit/verify | not verified |
+| negative | [`TestRetransmitToTheSameServerKeepsItsRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L345) | unit/verify | revert, verified |
+| positive | [`TestRFC2865FailoverRegeneratesRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L117) | unit/verify | not verified |
+| positive | [`TestFailoverChangesTheRequestAuthenticatorWithTheIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L308) | unit/verify | revert, verified |
 
 ### [`RFC2865-4.1-2`](#rfc2865-4.1-2)
 
@@ -404,7 +404,7 @@ It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: 'It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both).' TestRADIUSAuthNASIPAddress reads Code 1 and the exact configured IPv4 address from the captured subscriber request. TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured sets neither identity leaf and still requires a nonempty NAS-Identifier with no invented address. The unchanged admin unit reads the wire and requires at least one NAS identity attribute. All requests retain usable PAP credentials, so failure to build a credential cannot substitute for the identity checks. The only subscriber fixture change is the canonical ID required before provider dispatch; packet and assertion inputs are unchanged. These cases retain the whole existing either/or identity obligation. Native discrimination refresh remains separate main-thread evidence.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L50) | unit/verify | revert, verified |
 | positive | [`TestRADIUSAuthNASIPAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L435) | unit/verify | revert, verified |
@@ -416,7 +416,7 @@ An Access-Request MUST contain either a User-Password or a CHAP- Password or a S
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: 'An Access-Request MUST NOT contain both a User-Password and a CHAP-Password.' The full row also requires User-Password, CHAP-Password or State and explicitly permits an extension credential instead. All attached tests were read: subscriber PAP and CHAP packets carry their credentials; no-auth and short MS-CHAPv2 inputs put no request on the wire; valid MS-CHAPv2 carries its VSA and neither base credential. The unchanged admin PAP unit excludes CHAP-Password, and the EAP conversation requires EAP-Message without either base credential on every captured request and State after the initial request. Valid credentials and signed mock replies keep transport rejection from masking these assertions. Canonical IDs identify the original subscriber cases without changing methods, credential bytes, no-request checks or captured packet assertions. This retains the existing whole-row judgment, including its extension and exclusivity clauses. Native discrimination refresh remains separate main-thread evidence.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestNoAuthIsAdmittedWithARADIUSClientConfigured`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go#L96) | unit/verify | revert, verified |
 | negative | [`TestRFC2865SubscriberAccessRequestCarriesCredential`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L131) | unit/verify | revert, verified |
@@ -432,7 +432,7 @@ If the NAS does not support challenge/response, it MUST treat an Access-Challeng
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. The L2TP half is now proven at authradius handler.go doRADIUS: an Access-Challenge (State + Reply-Message) to PAP and CHAP-MD5 subscriber logins is refused with exactly one answer to PPP, and the same logins with an Access-Accept (Framed-User) are admitted, so the refusal is specific to the Challenge code. The admin PAP half was already enforced (ErrAuthRejected, chain stops).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L58) | unit/verify | revert, verified |
 | negative | [`TestRFC2865AccessChallengeIsRejection`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L200) | unit/verify | revert, verified |
@@ -447,7 +447,7 @@ A RADIUS server or client MUST NOT have any dependencies on the order of attribu
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2865AttributeOrderIsObservableByPosition`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_attribute_order_test.go#L101) | unit/verify | revert, verified |
 | positive | [`TestRFC2865AccessAcceptExtractionIsOrderIndependent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_attribute_order_test.go#L66) | unit/verify | revert, verified |
@@ -459,13 +459,13 @@ Text of length zero (0) MUST NOT be sent; omit the entire attribute instead. (§
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 5: 'Text of length zero (0) MUST NOT be sent; omit the entire attribute instead.' All tagged units were read. The raw encoder pair omits an empty Filter-Id while retaining User-Name and retains a one-octet Filter-Id, isolating the zero-length condition. Admin and subscriber PAP paths also contrast nonempty User-Name with an empty one; their empty-name requests retain User-Password on the wire. Canonical IDs are added only to existing subscriber requests, so neither omission nor the permitted nonempty survivors changes. The exact absent attribute, retained packet and one-octet boundary assertions still discriminate the whole stated zero-length text rule. Native discrimination refresh remains separate main-thread evidence.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2865SubscriberZeroLengthUserNameOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L185) | unit/verify | revert, verified |
-| negative | [`TestRFC2865ZeroLengthTextIsOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L282) | unit/verify | unproven |
+| negative | [`TestRFC2865ZeroLengthTextIsOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L282) | unit/verify | not verified |
 | negative | [`TestOneOctetAttributeIsNotOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L528) | unit/verify | revert, verified |
 | positive | [`TestRFC2865SubscriberZeroLengthUserNameOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L172) | unit/verify | revert, verified |
-| positive | [`TestRFC2865ZeroLengthTextIsOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L274) | unit/verify | unproven |
+| positive | [`TestRFC2865ZeroLengthTextIsOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L274) | unit/verify | not verified |
 | positive | [`TestZeroLengthAttributeIsOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L511) | unit/verify | revert, verified |
 
 ### [`RFC2865-5-9`](#rfc2865-5-9)
@@ -474,7 +474,7 @@ Strings of length zero (0) MUST NOT be sent; omit the entire attribute instead. 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-09-30 (rfc/full/rfc2865.txt:1383-1385, Section 5, string data type). Forbidden: a string-typed attribute of zero octets on the wire. TestRFC2865ZeroLengthStringIsOmitted encodes State, Class, Proxy-State and CHAP-Challenge with empty values beside a User-Name through Packet.EncodeTo, decodes the wire and fails if the attribute is present or the attribute count is not 1. TestRFC2865OneOctetStringIsSent is the boundary control: the one-octet string 00 must reach the wire byte-equal, so an encoder that dropped every string, or every 0x00-valued one, goes red; it is labelled negative but is a conforming input, which is the only other polarity an emit-side MUST NOT has. Producer packet.go::EncodeTo omits any zero-length value at the wire boundary. Records observed red on both units.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC2865OneOctetStringIsSent`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_zero_length_string_test.go#L55) | unit/verify | revert, verified |
 | positive | [`TestRFC2865ZeroLengthStringIsOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_zero_length_string_test.go#L31) | unit/verify | revert, verified |
@@ -485,7 +485,7 @@ If the packet is shorter than the Length field indicates, it MUST be silently di
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: accepting a packet shorter than its Length field. TestDecodeRefusesAPacketShorterThanItsLengthField sets Length to len+1 and requires Decode to error; the positive decodes an exact-length packet.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestDecodeRefusesAPacketShorterThanItsLengthField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L147) | unit/verify | revert, verified |
 | positive | [`TestDecodeAcceptsAPacketAsLongAsItsLengthField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L136) | unit/verify | revert, verified |
@@ -496,7 +496,7 @@ An Access-Request MUST NOT contain both a User-Password and a CHAP-Password (§4
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRadiusAdminChapAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_authenticator_test.go#L419) | unit/verify | revert, verified |
 | positive | [`TestAdminAccessRequestCarriesExactlyOneCredential`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L239) | unit/verify | revert, verified |
@@ -507,9 +507,9 @@ The Identifier field MUST be changed whenever the content of the Attributes fiel
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRetransmitToTheSameServerKeepsItsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L281) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestRetransmitToTheSameServerKeepsItsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L281) | unit/verify | revert, verified |
 | positive | [`TestSuccessiveRequestsUseDifferentIdentifiers`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L258) | unit/verify | revert, verified |
 
 ### [`RFC2865-5-5`](#rfc2865-5-5)
@@ -518,7 +518,7 @@ A RADIUS server or client MUST NOT require attributes of the same type to be con
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestAttributeLookupDoesNotRequireContiguity`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L434) | unit/verify | revert, verified |
 
@@ -528,7 +528,7 @@ If an Attribute is received in an Access-Accept, Access-Reject or Access-Challen
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Negative drives Access-Accept, Access-Reject and Access-Challenge each with Length 1 and with a Length 5 past the packet end, re-signed so the Response Authenticator verifies (asserted) and only the length is wrong; Client.Exchange returns an error with no packet (silent discard). Positive delivers Reject and Challenge with valid lengths and their Reply-Message. All three codes and both invalid-length shapes covered.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestResponseWithAnInvalidAttributeLengthIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L462) | unit/verify | revert, verified |
 | negative | [`TestRFC2865ReplyWithAnInvalidAttributeLengthIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_wire_rules_test.go#L307) | unit/verify | revert, verified |
@@ -541,7 +541,7 @@ Servers and servers and clients MUST be able to deal with embedded nulls. (§5)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: failing on an embedded null. TestAttributeValueWithAnEmbeddedNullRoundTrips asserts the value with a null round-trips whole (red on truncation); TestAnEmbeddedNullDoesNotEndTheAttributeWalk asserts the following attribute is still decoded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestAnEmbeddedNullDoesNotEndTheAttributeWalk`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L494) | unit/verify | revert, verified |
 | positive | [`TestAttributeValueWithAnEmbeddedNullRoundTrips`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L479) | unit/verify | revert, verified |
@@ -552,7 +552,7 @@ It is intended to be human readable and MUST NOT affect operation of the protoco
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Quote is the Filter-Id sentence of 5.11. Forbidden: Filter-Id content changing protocol operation. TestCarrierAttributesDoNotAffectAnAccessReject asserts a Reject carrying Filter-Id stays a rejection; TestCarrierAttributesDoNotAffectAnAccessAccept asserts an Accept carrying it stays an accept. Question reported: ze uses Filter-Id as its admin profile carrier.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestCarrierAttributesDoNotAffectAnAccessReject`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L563) | unit/verify | revert, verified |
 | positive | [`TestCarrierAttributesDoNotAffectAnAccessAccept`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L546) | unit/verify | revert, verified |
@@ -563,7 +563,7 @@ This Attribute is available to be sent by the server to the client in an Access-
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: returning State modified or not at all. TestRadiusAdminStateIsReturnedUnmodified asserts each round's request carries that round's distinct State byte for byte (red on drop, rewrite or stale echo); TestRadiusAdminStateIsNotManufactured asserts no State when the challenge sent none.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRadiusAdminStateIsNotManufactured`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_state_echo_test.go#L68) | unit/verify | revert, verified |
 | positive | [`TestRadiusAdminStateIsReturnedUnmodified`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_state_echo_test.go#L31) | unit/verify | revert, verified |
@@ -574,11 +574,11 @@ The client MUST NOT interpret the attribute locally. (§5.25)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Quote is the Class sentence of 5.25. Forbidden: interpreting Class locally. TestRadiusClassIsNotInterpretedLocally asserts an Accept whose only carrier is Class yields no profile and ErrAuthRejected; TestExtractRadiusConfigProfileAttrNeverClass asserts no configuration selects Class. Two tagged units (TestStateIsNotInterpretedLocally, TestRadiusAdminEapChallengeLoopCarriesState) prove the State rule of 5.24 instead, reported.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestExtractRadiusConfigProfileAttrNeverClass`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_config_test.go#L102) | unit/verify | unproven |
+| negative | [`TestExtractRadiusConfigProfileAttrNeverClass`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_config_test.go#L102) | unit/verify | not verified |
 | positive | [`TestRadiusAdminEapChallengeLoopCarriesState`](https://github.com/ze-software/ze/blob/main/internal/component/radius/authenticator_eap_test.go#L443) | unit/verify | revert, verified |
-| positive | [`TestRadiusClassIsNotInterpretedLocally`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_authenticator_test.go#L322) | unit/verify | unproven |
+| positive | [`TestRadiusClassIsNotInterpretedLocally`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_authenticator_test.go#L322) | unit/verify | not verified |
 | positive | [`TestStateIsNotInterpretedLocally`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L583) | unit/verify | revert, verified |
 
 ## Requirement list review

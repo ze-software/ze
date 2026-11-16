@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 7 | of 9 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 1 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 7 | of 9 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 1 | of 9 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 9 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 13 | 13 of 31 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 9 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 13 | 13 of 31 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 9 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 9 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 9 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 9 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 9 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 9 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 9 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 
 **Area:** BGP Flowspec (obsoleted by RFC 8955)
 
-**Proof:** 3 of 9 MUST proven
+**Test verification:** 3 of 9 MUST proven
 
 **Evidence:** unit 3
 
@@ -108,7 +108,7 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 | Annotated (including scoped evidence) | 2 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 3 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **9** | every mandatory requirement appears in exactly one group above |
@@ -121,8 +121,8 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 
 ## Figures
 
-- **MUST bar**: Ze proven 3, Proof pending 5, Not built 1
-- **Overview bar**: Ze MUST proven 3, Proof pending 5, Not assessed 4, Not built 1
+- **MUST bar**: Ze verified 3, Tests awaiting verification 5, Not built 1
+- **Overview bar**: Ze MUST verified 3, Tests awaiting verification 5, Not assessed 4, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -131,9 +131,9 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 | Mandatory requirements complete | not complete |
 | MUST rows | 9 |
 | MUST rows kept (the MUST bar) | 9 |
-| Ze proven | 3 |
+| Ze verified | 3 |
 | OS verified | 0 |
-| Proof pending | 5 |
+| Tests awaiting verification | 5 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -143,19 +143,19 @@ Included in automatic checks: BGP Flowspec (obsoleted by RFC 8955): 8 single-pol
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 4 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 4 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5575.json](../../../data/rfc/rfc5575.json).
 
@@ -189,9 +189,9 @@ Source: [data/rfc/rfc5575.json](../../../data/rfc/rfc5575.json).
 | [`RFC5575-6-3`](#rfc5575-6-3) A flow specification NLRI must be validated such that it is considered feasible if and only if: a) The originator of the flow specification matches the originator of the best-match unicast route for the destination prefix embedded in the flow specification. (§6) | no test | no test carries this requirement id; annotated {rollup}: RFC8955-6-1; RFC 5575 is obsoleted and originator matching is condition (b) of the RFC 8955 Section 6 procedure, so the row holds exactly when RFC8955-6-1 does |
 | [`RFC5575-6-4`](#rfc5575-6-4) A flow specification NLRI must be validated such that it is considered feasible if and only if: a) The originator of the flow specification matches the originator of the best-match unicast route for the destination prefix embedded in the flow specification. b) There are no more specific unicast routes, when compared with the flow destination prefix, that have been received from a different neighboring AS than the best-match unicast route, which has been determined in step a). (§6) | no test | no test carries this requirement id; annotated {rollup}: RFC8955-6-1; RFC 5575 is obsoleted and the more-specific-route rule is condition (c) of the RFC 8955 Section 6 procedure, so the row holds exactly when RFC8955-6-1 does |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC5575-4-1`](#rfc5575-4-1)
 
@@ -199,11 +199,11 @@ Implementations wishing to exchange flow specification rules MUST use BGP's Capa
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read RFC 5575 Section 4's complete capability paragraph against RFC 8955 Section 4 and the current summary/derived row; the superseded/restated RFC8955-4-1 annotation remains accurate and unchanged. TestIPv4FlowSpecNegotiatesMultiprotocolCapability is supplementary family-registration evidence; its constructed object and shared code constant are not an independent numeric-wire proof. Both tagged occurrences of TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily retain real configuration-derived OPEN capabilities, matching and crossed 133/134 SAFIs, an actual AnnounceNLRIBatch, exactly one UPDATE with the complete expected MP_REACH payload in matched cases, and exact ErrNoPeersAcceptedFamily plus no connection bytes in crossed cases. The same negotiated families reach both Peer and Session; no input or assertion is weakened. These exchange controls establish conditional use of the advertised application, while the literal pair supplies independent numeric identity. The configured OPEN fixture's test-only Session.buildOpen delegates directly to the current production buildOpenFromSnapshot with one captured plugin snapshot. In production prepareOpen retains the built message with its settings and declarations in one preparedOpen; sendOpen writes that message, and prepareNegotiation/publishNegotiation retain the advertised local/remote family intersection. The obsolete production buildOpen code key is replaced by buildOpenFromSnapshot; all other existing code anchors and tagged covers remain. The literal positive independently walks parameter and capability TLVs from the configured OPEN, requiring exactly one literal code 1, length 4 and exact AFI/reserved/SAFI payload for each exercised application (1/133, 1/134, 16388/71), then requires application and unicast negotiation against a separately handwritten code-1 peer stream. The negative provides a valid code-1 unicast control and the application payload under code 250, requires successful parsing, first excludes the application, and then requires surviving unicast. Thus a shared codec constant or rejection of every capability cannot satisfy the pair. Existing recorded breaks target Multiprotocol.WriteTo emitting 250 and parseCapability recognizing 250; the latter must fail for acceptance of the bad application, not solely loss of the unicast control. This independent current-source judgment credits only the capability-advertisement obligation. Main's final native inventories at HEAD 606a3ba2 report all existing records current: four for RFC5575-4-1, five for RFC7752-3.2-1, two for RFC8955-4-1 and five for RFC9552-5.2-7, with no stale bindings. This continuation read all sixteen actual record objects and every tagged test and reached producer before stamping. The eight numeric-code records and eight partner records remain intact; four supplementary registration/core-positive tagged covers have no historical record and are judged from their assertions without inventing execution. This verdict covers this capability-advertisement requirement alone, not whole-RFC or additional-NLRI conformance.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestMultiprotocolApplicationsRejectUnrecognizedCapabilityCode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L106) | unit/verify | mutant, verified |
 | negative | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L22) | unit/verify | revert, verified |
-| positive | [`TestIPv4FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L902) | unit/verify | unproven |
+| positive | [`TestIPv4FlowSpecNegotiatesMultiprotocolCapability`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L902) | unit/verify | not verified |
 | positive | [`TestMultiprotocolApplicationsAdvertiseLiteralCodeOne`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L27) | unit/verify | mutant, verified |
 | positive | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L21) | unit/verify | revert, verified |
 
@@ -213,11 +213,11 @@ The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently re-judged against full RFC 5575 Section 4: The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type. TestFlowSpecIPv4Basic pins IPv4 flow to AFI 1 / SAFI 133; TestFlowSpecVPNFamily pins VPNv4 flow to AFI 1 / SAFI 134 (its additional IPv6 assertion is not evidence for RFC5575). TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily and its second cover build and parse the configured OPEN, negotiate each exact application through capability.Negotiate, publish that same negotiation to both peer and session, and call AnnounceNLRIBatch. Each matched case requires exactly one UPDATE and the complete MP_REACH value, including the literal AFI/SAFI and NLRI bytes. Each crossed-SAFI case requires ErrNoPeersAcceptedFamily and zero connection bytes. The fixture additions retain all old expectations and make the session/peer encoding context agree with the actual negotiation. The producer's exact-family AnnounceNLRIBatch gate and batch writer therefore remain meaningfully exercised. All four prior test keys are preserved by the native writer; the prior audit has no code anchors. The independent Code-1 numeric oracle is a separate RFC5575-4-1 question and is not claimed here. This is a source re-judgment, not a claim that this agent ran tests or observed a red; main must finish and inspect the pending native renewal observations before stamping.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L24) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestFlowSpecIPv4Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L421) | unit/verify | unproven |
-| positive | [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L647) | unit/verify | unproven |
+| positive | [`TestFlowSpecIPv4Basic`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L421) | unit/verify | not verified |
+| positive | [`TestFlowSpecVPNFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L647) | unit/verify | not verified |
 | positive | [`TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L23) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC5575-4-3`](#rfc5575-4-3)
@@ -226,11 +226,11 @@ Flow specification components must follow strict type ordering. (§4)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16 after the codec move; units changed only by package qualification. RFC 5575 Section 4: "Flow specification components must follow strict type ordering." TestFlowSpecComponentsAscendingOrder adds types 5,12,3,1 and requires the re-parsed wire order 1,3,5,12 (red on insertion-order emission by core writeComponentsSorted); TestFlowSpecJoinsRepeatedTypeIntoOneComponent requires one Type 4 component with exact merged bytes; TestParseFlowSpecRefusesRepeatedComponentType requires ErrFlowSpecDuplicateType from core parseComponents on a repeated type 4, with the merged control accepted.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseFlowSpecRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1307) | unit/verify | unproven |
-| positive | [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1227) | unit/verify | unproven |
-| positive | [`TestFlowSpecJoinsRepeatedTypeIntoOneComponent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1270) | unit/verify | unproven |
+| negative | [`TestParseFlowSpecRefusesRepeatedComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1307) | unit/verify | not verified |
+| positive | [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1227) | unit/verify | not verified |
+| positive | [`TestFlowSpecJoinsRepeatedTypeIntoOneComponent`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1270) | unit/verify | not verified |
 
 ### [`RFC5575-4-4`](#rfc5575-4-4)
 
@@ -238,10 +238,10 @@ A given component type may or may not be present in the specification, but if pr
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16 after the codec move; units changed only by package qualification. RFC 5575 Section 4: "if present, it MUST precede any component of higher numeric type value." Positive asserts strictly ascending emitted types and the exact order 1,3,5,12; negative TestParseFlowSpecRefusesDescendingComponentType requires ErrFlowSpecTypeOrder from core parseComponents on 5-then-3, with the same components ascending accepted, so the refusal is isolated to order.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestParseFlowSpecRefusesDescendingComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1335) | unit/verify | unproven |
-| positive | [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1228) | unit/verify | unproven |
+| negative | [`TestParseFlowSpecRefusesDescendingComponentType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1335) | unit/verify | not verified |
+| positive | [`TestFlowSpecComponentsAscendingOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1228) | unit/verify | not verified |
 
 ### [`RFC5575-6-1`](#rfc5575-6-1)
 
@@ -281,9 +281,9 @@ This extended community is encoded as a sequence of 5 zero bytes followed by the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: non-zero bytes in the five octets before the DSCP, or the DSCP elsewhere. TestFlowSpecTrafficMarkingReservedBytesZero asserts ec[2..6]==0 and ec[7]==dscp with type 0x80/0x09; red on either. {single-polarity} marker present.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestFlowSpecTrafficMarkingReservedBytesZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1508) | unit/verify | unproven |
+| positive | [`TestFlowSpecTrafficMarkingReservedBytesZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/types_test.go#L1508) | unit/verify | not verified |
 
 ### [`RFC5575-4-8`](#rfc5575-4-8)
 
@@ -291,14 +291,14 @@ Whenever the corresponding application does not require Next-Hop information, th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 5575 Section 4 read: "Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt." Unit read: TestFlowSpecOriginationOmitsConfiguredNextHop (both tags); its subtests now close the gate on the session the fixture installed (setTestInitialSync(1, true)) where the Peer flags were set, and drive runInitialSyncNow. 08fe903803 moved the initial-sync gate (sendingInitialRoutes) and the End-of-RIB owed mark (initialSyncEOROwed) from Peer onto Session. In the tagged units named stale it replaced peer.sendInitialRoutes() with peer.runInitialSyncNow(), which is Peer.sendInitialRoutes(p.testInitialSync()) (initial_sync_helpers_test.go): the same production sync body, run on the session the fixture installed (or one built with NewSession(p.settings) and published through establishedSession as enterEstablished does); it replaced peer.<flag>.Store(v) with peer.testInitialSync().<flag>.Store(v) or setTestInitialSync, and drainAndCloseQueueGate now takes that session. git diff 08fe903803^ against the working tree shows no assertion, expected byte, driven input or tag prose changed in any of them, each under the RFC-approved line 08fe903803 carries. Questions 1, 3 and 4 answer exactly as the earlier judgement below; question 2 still rests on the same producers, whose discrimination records are retaken by ./le rfc record after this stamp. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 5575 Section 4: "Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt." 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestRFC8955NextHopIgnoredForFlowSpec, both tags). Verdict unchanged: enforced. Earlier judgement follows. RFC 5575 Section 4: "Whenever the corresponding application does not require Next-Hop information, this shall be encoded as a 0-octet length Next Hop in the MP_REACH_NLRI attribute and ignored on receipt." Both clauses remain covered. Producers message/update_build_plugin.go::MPReachCarriesNextHop and reactor/forward_next_hop.go::applyNextHopFamily force zero hop for non-redirect FlowSpec; payloadNextHop does not use the received FlowSpec address as a forwarding gate. plugins/rib/rib_bestchange.go::entryNextHopAddr returns no forwarding address for FlowSpec; rib_flowspec_validation_test.go::TestRFC8955NextHopIgnoredForFlowSpec feeds empty, self and non-address MP bytes alongside a legacy self NEXT_HOP, then requires eligible retained candidates and exactly the same selected NLRI/action event. The legacy condition matters: draft-simpson-idr-flowspec-redirect-02 Section 3 identifies the redirect action target in MP_REACH, so an application requiring that address is outside RFC 5575 zero-hop antecedent. RFC 8955 Section 4 instead says "When advertising Flow Specifications, the Length of the Next-Hop Network Address MUST be set to 0." and separately "The Network Address of the Next-Hop field MUST be ignored." Its unconditional transmit rule is stronger; the legacy superseded relationship is navigation, not permission to import the old exception into RFC 8955. No whole-successor-conformance claim follows from this enforced legacy row. Independently read every tag carrier: message/flowspec_wire_contract_test.go::TestFlowSpecUpdateIgnoresConfiguredNextHop, reactor/flowspec_origin_wire_test.go::TestFlowSpecOriginationOmitsConfiguredNextHop, reactor/flowspec_forward_wire_test.go::TestFlowSpecForwardingOmitsNextHop and protected reactor/flowspec_rs_wire_test.go::TestFlowSpecRouteServerOmitsNextHop. The changed forward fixture calls negotiateForwardTestFamilies, which uses capability.Negotiate on explicit MP capabilities and publishes the same negotiated intersection to peer.session and peer.negotiated; it no longer seeds only the peer facade. forwardViaRIB sends non-FlowSpec sections live and relays individual FlowSpec StoredRoute values through reactorAPIAdapter.RelayStoredRoute to forwardUpdateCore. Exact recipient MP_REACH equals AFI/SAFI/zero length/reserved/NLRI, with exact traffic-rate bytes, no substituted withdrawal and the expected message count, for all four families, four rewrite modes and empty/IPv4/IPv6 received fields. Config, API batch and both queued origination writers compare whole TCP frames, including RD/NLRI/actions, with absent/IPv4/IPv6 configured addresses. The protected route-server carrier drives real RIB authorization and recipient TCP and remains unchanged. Native freshness inputs identify pending forward-carrier renewals; this source rejudgment does not claim they have run or passed. Parent must renew applicable proofs and stamp only after integration.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L18) | unit/verify | unproven |
+| negative | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L18) | unit/verify | not verified |
 | negative | [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L515) | unit/verify | revert, verified |
 | negative | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L34) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L35) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`TestFlowSpecRouteServerOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L30) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L17) | unit/verify | unproven |
+| positive | [`TestFlowSpecUpdateIgnoresConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L17) | unit/verify | not verified |
 | positive | [`TestRFC8955NextHopIgnoredForFlowSpec`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rib_flowspec_validation_test.go#L514) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecForwardingOmitsNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L33) | unit/verify | revert, verified |
 | positive | [`TestFlowSpecOriginationOmitsConfiguredNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L34) | unit/verify | revert, verified |
@@ -310,7 +310,7 @@ This ordering function must be such that it must not depend on the arrival order
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: both units moved verbatim to internal/core/bgp/nlri/flowspec, only the family identifier changed to the test-local ipv4FlowSpec literal (AFI 1, SAFI 133). RFC 5575 Section 5.1: "This ordering function must be such that it must not depend on the arrival order of the flow specification's rules and must be constant in the network." TestFlowSpecPrecedenceFromWire requires Compare(a,b)<0, Compare(b,a)>0 and Compare(a,a)==0 over overlap, disjoint, component-type, operator-byte, received-width and extra-component pairs; TestRFC5575PrecedenceIndependentOfArrival parses independent copies in both arrival orders, sorts with production Compare and requires identical exact byte order. Compare (core compare.go) reads only component content, no identity or arrival metadata.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestFlowSpecPrecedenceFromWire`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/compare_rfc8955_test.go#L14) | unit/verify | revert, verified |
 | negative | [`TestRFC5575PrecedenceIndependentOfArrival`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/flowspec/rfc5575_arrival_order_test.go#L15) | unit/verify | revert, verified |
@@ -323,10 +323,10 @@ The NLRI length field shall include both the 8 bytes of the Route Distinguisher 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16: the unit changed only in how the VPN family is named (family.Family{AFIIPv4, SAFIFlowSpecVPN} instead of the plugin constant). RFC 5575 Section 8: "The NLRI length field shall include both the 8 bytes of the Route Distinguisher as well as the subsequent flow specification." TestFlowSpecVPNUpdateCountsRouteDistinguisher builds a VPN UPDATE through the real message builder and requires the exact MP_REACH NLRI 13|RD|5-octet value (red on a length of 5) with SAFI 134, re-parses it, and requires the core ParseFlowSpecVPN to error when the length octet is reduced by 8.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L37) | unit/verify | unproven |
-| positive | [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L36) | unit/verify | unproven |
+| negative | [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L37) | unit/verify | not verified |
+| positive | [`TestFlowSpecVPNUpdateCountsRouteDistinguisher`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L36) | unit/verify | not verified |
 
 ## Requirement list review
 

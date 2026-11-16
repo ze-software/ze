@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 33 | of 47 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 4 | of 47 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 33 | of 47 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 4 | of 47 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 47 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 47 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 85 | 85 of 101 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 47 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 85 | 85 of 101 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 47 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 47 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 2 | of 47 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 2 | of 47 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 47 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 47 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 47 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: EAP-TLS (RFC 5216, EAP inside IKEv2): 52 rows, 47 
 
 **Area:** EAP-TLS (EAP inside IKEv2)
 
-**Proof:** 30 of 47 MUST proven
+**Test verification:** 30 of 47 MUST proven
 
 **Evidence:** unit 30
 
@@ -109,7 +109,7 @@ Included in automatic checks: EAP-TLS (RFC 5216, EAP inside IKEv2): 52 rows, 47 
 | Annotated (including scoped evidence) | 14 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **47** | every mandatory requirement appears in exactly one group above |
@@ -120,8 +120,8 @@ Included in automatic checks: EAP-TLS (RFC 5216, EAP inside IKEv2): 52 rows, 47 
 
 ## Figures
 
-- **MUST bar**: Ze proven 30, Proof pending 7, OS testing gap 2, Not built 8
-- **Overview bar**: Ze MUST proven 30, SHOULD proven 2, Proof pending 7, OS testing gap 2, Not assessed 4, Not built 9
+- **MUST bar**: Ze verified 30, Tests awaiting verification 7, OS testing gap 2, Not built 8
+- **Overview bar**: Ze MUST verified 30, SHOULD verified 2, Tests awaiting verification 7, OS testing gap 2, Not assessed 4, Not built 9
 
 | Figure | Rows |
 |---|---|
@@ -130,9 +130,9 @@ Included in automatic checks: EAP-TLS (RFC 5216, EAP inside IKEv2): 52 rows, 47 
 | Mandatory requirements complete | not complete |
 | MUST rows | 47 |
 | MUST rows kept (the MUST bar) | 47 |
-| Ze proven | 30 |
+| Ze verified | 30 |
 | OS verified | 0 |
-| Proof pending | 7 |
+| Tests awaiting verification | 7 |
 | OS testing gap | 2 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -142,19 +142,19 @@ Included in automatic checks: EAP-TLS (RFC 5216, EAP inside IKEv2): 52 rows, 47 
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 7 |
-| SHOULD proven | 2 |
+| SHOULD verified | 2 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 4 |
 | SHOULD not built | 1 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5216.json](../../../data/rfc/rfc5216.json).
 
@@ -233,9 +233,9 @@ Source: [data/rfc/rfc5216.json](../../../data/rfc/rfc5216.json).
 | [`RFC5216-5.3-2`](#rfc5216-5.3-2) Once a TLS session is established, EAP-TLS peer and server implementations MUST validate that the identities represented in the certificate are appropriate and authorized for use with EAP-TLS. (§5.3) | {gap}, no test | neither role authorizes the Peer-Id or Server-Id against configuration; plan/release/fixes/spec-eap-tls-identity-authorization.md |
 | [`RFC5216-5.3-3`](#rfc5216-5.3-3) When performing this comparison, implementations MUST follow the validation rules specified in Section 3.1 of [RFC2818]. (§5.3) | {gap}, no test | the peer sets no expected server identity, so no RFC 2818 Section 3.1 comparison runs; plan/release/fixes/spec-eap-tls-identity-authorization.md |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC5216-3-1`](#rfc5216-3-1)
 
@@ -243,7 +243,7 @@ The L bit (length included) is set to indicate the presence of the four-octet TL
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (owner ruling 5, ruling 2 reading). Positive TestTLSFragmenterFirstFragmentHasLength: Ze's first fragment of a multi-fragment message carries L, M and the exact 4-octet TLS Message Length (2000). Negative TestRFC5216FirstFragmentWithoutLengthIsRefused (new, D-8 fix in reassemble): the peer's handleTLSRequest refuses a first fragment with M set and L clear, isolated from a clean state, with an error naming the L bit, no fragment ACK and 0 octets buffered; the same payload with L+M is ACKed as control. Producer checked: the guard fires only when no message is in progress (inExpected 0, inBuf empty), so middle fragments of an L-opened train and unfragmented messages without L pass; shared by authenticator Process and peer. TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength stays tagged negative as supplementary: its prose now states L-only-on-first is Ze's choice, not an RFC ban. All three units hold observed-red revert records.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestTLSFragmenterMiddleAndLastFragmentsHaveNoLength`](https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L475) | unit/verify | revert, verified |
 | negative | [`TestRFC5216FirstFragmentWithoutLengthIsRefused`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_reassembly_refusal_test.go#L55) | unit/verify | revert, verified |
@@ -255,9 +255,9 @@ Implementations of this specification MUST set the reserved bits to zero (§3, F
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Single-polarity positive. Forbidden: an emitted flags octet with any of bits 3-7 set. TestTLSFragmentReservedFlagBitsAreZero fatals if the S constant or any flags octet nextFragment produces for first (L+M), middle (M), last and single-fragment (L) sends intersects 0x1F. The only other flags octet sent is the literal 0x00 ACK.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestTLSFragmentReservedFlagBitsAreZero`](https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L495) | unit/verify | unproven |
+| positive | [`TestTLSFragmentReservedFlagBitsAreZero`](https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L495) | unit/verify | not verified |
 
 ### [`RFC5216-2.4-1`](#rfc5216-2.4-1)
 
@@ -265,7 +265,7 @@ The version offered by the peer MUST correspond to TLS v1.0 or later. (§2.1.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Unchanged after comment-only edits to TestEAPTLSMutualAuthHandshakeSucceeds. Single-polarity positive (row marker): TestRFC5216BothRolesInstallAVersionFloor reads the peer tls.Config tlsClientConfig builds, MinVersion TLS 1.2; the handshake unit asserts the negotiated version >= TLS 1.0. Recorded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC5216BothRolesInstallAVersionFloor`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_clause_test.go#L24) | unit/verify | revert, verified |
 | positive | [`TestEAPTLSMutualAuthHandshakeSucceeds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_handshake_test.go#L368) | unit/verify | revert, verified |
@@ -276,7 +276,7 @@ The version offered by the server MUST correspond to TLS v1.0 or later. (§2.1.1
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Unchanged after comment-only edits to TestEAPTLSMutualAuthHandshakeSucceeds. Single-polarity positive (row marker): the tls.Config newTLSMethod installs carries MinVersion TLS 1.2; the handshake unit asserts the authenticator's negotiated version >= TLS 1.0. Recorded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC5216BothRolesInstallAVersionFloor`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_clause_test.go#L38) | unit/verify | revert, verified |
 | positive | [`TestEAPTLSMutualAuthHandshakeSucceeds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_handshake_test.go#L371) | unit/verify | revert, verified |
@@ -287,7 +287,7 @@ However, during the EAP-TLS conversation the EAP peer and server MUST NOT reques
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. This unit is byte-identical; the file around it changed. Its helpers (tls12Exchange, fullTLS12Flights) gained a tune argument passed as nil to driveTunedEAPTLSFlight, which driveEAPTLSFlight itself calls with nil, and fresh stores offer no ticket, so the producer change never runs here. Verdict stands. The weak HandshakeComplete tag on TestEAPTLSMutualAuthHandshakeSucceeds is gone. What remains reads the wire in both polarities, both recorded: the peer's ClientHello offers compression_methods [0] and the ServerHello selects 0 (TestRFC5216NeitherSideNegotiatesCompression); an injected ClientHello offering [1, 0] is answered with null compression (TestRFC5216ServerRefusesTheCompressionAPeerOffers).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216ServerRefusesTheCompressionAPeerOffers`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L286) | unit/verify | revert, verified |
 | positive | [`TestRFC5216NeitherSideNegotiatesCompression`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L271) | unit/verify | revert, verified |
@@ -298,7 +298,7 @@ Since the ciphersuite negotiated within EAP-TLS applies only to the EAP conversa
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-09-30 (ike-eap judge, R6). The {single-polarity} marker is removed and a genuine negative is held in internal/component/ike/engine: TestRFC5216DataCipherComesFromTheESPProposal runs a real EAP-TLS exchange (Ze as authenticator, TLS 1.3 by Go's default, whose suites are all AEAD), sets EAPSession/EAPMSK on the IKE SA as responder_eap.go does, and createFirstChildSA installs the ESP proposal's aes256/sha256 non-AEAD transform; TestRFC5216TLSSessionDoesNotChooseTheDataCipher has one TLS session authenticate two IKE SAs with different ESP proposals and requires the installed transforms to differ and follow each proposal (aes128/sha512 on the second), so data ciphers taken from or pinned by the TLS session go red. Both carry records on child.go createFirstChildSA. The negotiated TLS version/suite is not asserted in the body (the fixture relies on Go's TLS 1.3 default). HEAD tag on eap TestEAPTLSMutualAuthHandshakeSucceeds is supplementary, holds no record, and its prose ('not reused as the lower-layer key') claims more than its 64-octet-MSK body: rewording is author work; the verdict does not rest on it.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216TLSSessionDoesNotChooseTheDataCipher`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5216_data_cipher_test.go#L111) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC5216DataCipherComesFromTheESPProposal`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc5216_data_cipher_test.go#L89) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
@@ -318,7 +318,7 @@ If the EAP server sent a certificate_request message in the preceding EAP-Reques
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. This unit is byte-identical; the file around it changed. Its helpers (tls12Exchange, fullTLS12Flights) gained a tune argument passed as nil to driveTunedEAPTLSFlight, which driveEAPTLSFlight itself calls with nil, and fresh stores offer no ticket, so the producer change never runs here. Verdict stands. Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). D-8 fixed: tlsClientConfig answers every certificate_request through GetClientCertificate (answerCertificateRequest, peer.go), so the peer no longer drops to an empty certificate_list when the request names another CA. Positive: TestRFC5216PeerSendsItsCertificateWhateverTheRequestNames reads the TLS 1.2 peer flight off the wire after a certificate_request naming a CA other than the peer certificate's issuer: a certificate message whose first entry is the configured DER, and a certificate_verify (red before the fix, record on answerCertificateRequest); TestRFC5216PeerFlightAnswersTheCertificateRequest keeps the exact compliant flight. Negative (R1 a, non-compliant form on the wire): TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate configures a TRUSTED client cert, empties the peer's answer after the TLS client starts, asserts the empty certificate_list and absent certificate_verify on the wire, and the authenticator sends no EAP-Success, does not succeed or complete its handshake, and refuses with an error that is not a certificate verification failure. Privacy (Section 2.1.4) is not implemented, so the unless-clause never applies. Every tagged unit carries an observed-red record.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216AuthenticatorRefusesAPeerThatSendsNoCertificate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_certless_peer_test.go#L35) | unit/verify | revert, verified |
 | negative | [`TestEAPTLSAuthenticatorRequiresClientCert`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_handshake_test.go#L444) | unit/verify | revert, verified |
@@ -332,10 +332,10 @@ The EAP-TLS conversation will then begin, with the peer sending an EAP-Response 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the answer to the Start is not an EAP-Response of Type 13, or its data is not a TLS record carrying client_hello. TestEAPTLSPeerFirstResponseCarriesClientHello fatals on Code != CodeResponse or Type != TypeTLS, and assertHandshakeRecord fails unless the TypeData holds a handshake record of type client_hello. Negative: TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging fatals if a peer whose TLS engine produced nothing sends any Response instead of errTLSClientStalled, so an EAP-TLS Response with no client_hello is refused.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_flight_test.go#L231) | unit/verify | unproven |
-| positive | [`TestEAPTLSPeerFirstResponseCarriesClientHello`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_flight_test.go#L89) | unit/verify | unproven |
+| negative | [`TestEAPTLSPeerStalledClientFailsRatherThanAcknowledging`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_flight_test.go#L231) | unit/verify | not verified |
+| positive | [`TestEAPTLSPeerFirstResponseCarriesClientHello`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_flight_test.go#L89) | unit/verify | not verified |
 
 ### [`RFC5216-2.1.5-1`](#rfc5216-2.1.5-1)
 
@@ -343,7 +343,7 @@ As a result, an EAP-TLS implementation MUST provide its own support for fragment
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (owner ruling 5). Positive TestTLSFragmenterRoundTrip: a 3000-octet message is split into >=3 fragments and reassembled byte-for-byte. Negatives (inconsistent reassembly is refused): TestRFC5216ReassemblyLongerThanDeclaredIsRefused declares 30, sends 20+20, and the overrunning fragment is refused with 'exceeds declared length', no answer, buffer keeps the 20-octet prefix; TestRFC5216ReassemblyShorterThanDeclaredIsRefused declares 3000 and ends at 1524 (M clear), refused naming '1524 of 3000', no answer, not drained to crypto/tls. Both drive the peer's handleTLSRequest; the authenticator shares reassemble/reassemblyComplete. TestTLSReassemblyRejectsOversized (cap) stays as a supplementary DoS bound. All four units hold observed-red revert records.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestTLSReassemblyRejectsOversized`](https://github.com/ze-software/ze/blob/main/internal/core/eap/peer_test.go#L444) | unit/verify | revert, verified |
 | negative | [`TestRFC5216ReassemblyLongerThanDeclaredIsRefused`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_reassembly_refusal_test.go#L89) | unit/verify | revert, verified |
@@ -356,7 +356,7 @@ Since the EAP-TLS server is typically connected to the Internet, it SHOULD suppo
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). Server path-validation SHOULD. Positive: a valid peer chain is path-validated and accepted (TestEAPTLSMutualAuthHandshakeSucceeds). Negative no longer confounded: since D-8 the peer sends its untrusted certificate, and TestEAPTLSServerRejectsUntrustedClientChain asserts the authenticator's refusal is a tls.CertificateVerificationError wrapping x509.UnknownAuthorityError whose UnverifiedCertificates[0] is the configured untrusted leaf, besides no EAP-Success and an incomplete handshake; it is distinct from the certless refusal of 2.1.1-1, which asserts NOT a verification error. Records observed red on newTLSMethod for both polarities.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLSServerRejectsUntrustedClientChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_handshake_test.go#L473) | unit/verify | revert, verified |
 | positive | [`TestEAPTLSMutualAuthHandshakeSucceeds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_handshake_test.go#L356) | unit/verify | revert, verified |
@@ -367,7 +367,7 @@ Therefore, the EAP-TLS server SHOULD provide its entire certificate chain minus 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. This unit is byte-identical; the file around it changed. Its helpers (tls12Exchange, fullTLS12Flights) gained a tune argument passed as nil to driveTunedEAPTLSFlight, which driveEAPTLSFlight itself calls with nil, and fresh stores offer no ticket, so the producer change never runs here. Verdict stands. Re-judged 2026-09-30 after the D-8 peer certificate fix (answerCertificateRequest). Server clause now exercised with a real intermediate: TestRFC5216ServerSendsItsIntermediateButNotTheRoot configures leaf+intermediate under the peer's root and reads the certificate message off the wire: exactly [leaf, intermediate], the root absent (the root is also the authenticator's ClientCAs anchor, so a server appending its pool would fail), peer validates and reaches EAP-Success. Negative (R1 a): TestRFC5216PeerRefusesAServerChainMissingItsIntermediate puts [leaf] alone on the wire and the peer refuses with x509.UnknownAuthorityError, never concluding. Peer clause also by TestEAPTLSPeerRejectsUntrustedServerChain and TestEAPTLSPeerWithoutCARefusesToStart (record re-observed on the changed startTLSClient). Limit named: Ze sends the chain the operator configures; it does not strip a configured root nor complete a leaf-only configuration, so the minus-the-root property rests on the configured chain.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLSPeerRejectsUntrustedServerChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_handshake_test.go#L519) | unit/verify | revert, verified |
 | negative | [`TestEAPTLSPeerWithoutCARefusesToStart`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_handshake_test.go#L554) | unit/verify | revert, verified |
@@ -390,7 +390,7 @@ EAP-TLS peer and server implementations MUST support the use of Certificate Revo
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. This unit is byte-identical; the file around it changed. Its helpers (tls12Exchange, fullTLS12Flights) gained a tune argument passed as nil to driveTunedEAPTLSFlight, which driveEAPTLSFlight itself calls with nil, and fresh stores offer no ticket, so the producer change never runs here. Verdict stands. Server half: a CRL revoking the client certificate refuses the TLS 1.2 exchange, a CRL naming nobody completes. Peer half (new, TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12): a peer CRL revoking the authenticator certificate over TLS 1.2 gives a peer error, no EAP-Success, no MSK; isolated by TestEAPTLS12CompletesWithAnUnrevokedChain, where the peer holds a CRL that revokes nothing and completes. Every tagged unit carries a record.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestEAPTLS12CompletesWithAnUnrevokedChain`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_revocation_test.go#L384) | unit/verify | revert, verified |
 | positive | [`TestRFC5216PeerRefusesARevokedServerCertificateOverTLS12`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L567) | unit/verify | revert, verified |
@@ -402,7 +402,7 @@ peer implementations MUST also support checking for certificate revocation after
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a peer with no revocation check after authentication. TestPostAuthenticationCheckClosesTheSAWhenTheResponderReportsRevoked fatals if startServerCertRecheck (called from established.go after the exchange) starts no check or reports no verdict when the OCSP responder says revoked; TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood fatals on any verdict when it says good. The eap units prove the accepted TLS 1.2 chain is kept for the check and none is published on a refused handshake. The first unit's name claims the SA closes; it asserts only the verdict.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestPostAuthenticationCheckLeavesTheSAUpWhenTheResponderReportsGood`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc9190_postauth_test.go#L283) | unit/verify | revert, verified |
 | negative | [`TestEAPTLSPeerPublishesNoChainWhenTheHandshakeRefusedIt`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc9190_ocsp_test.go#L416) | unit/verify | revert, verified |
@@ -415,10 +415,10 @@ The EAP Server MUST reply with an EAP-Failure packet since server authentication
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the server answering the peer's alert with anything but EAP-Failure, or later than the next packet. TestRFC5216ServerRepliesEAPFailureToPeerAlert fatals if no Failure is sent, errors on any Success, and errors unless failureAt == alertAt+1. Negative: TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate errors if a mutually authenticated conversation draws any Failure.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L202) | unit/verify | unproven |
-| positive | [`TestRFC5216ServerRepliesEAPFailureToPeerAlert`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L119) | unit/verify | unproven |
+| negative | [`TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L202) | unit/verify | not verified |
+| positive | [`TestRFC5216ServerRepliesEAPFailureToPeerAlert`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L119) | unit/verify | not verified |
 
 ### [`RFC5216-2.1.3-3`](#rfc5216-2.1.3-3)
 
@@ -426,9 +426,9 @@ To ensure that the peer receives the TLS alert message, the EAP server MUST wait
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the server concluding (EAP-Failure) on the round it sends its alert, instead of waiting for the peer's Response. alertFlight fatals if the round that records the cause carries CodeFailure, TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure errors unless that round is an EAP-Request with a TLS alert record, and only the later Response draws the Failure. Negative: TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend fatals if a failure with no alert to send reports no error, so the wait is bound to an alert.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_alert_flight_test.go#L361) | unit/verify | unproven |
+| negative | [`TestEAPTLSAuthenticatorReportsTheFailureWithNoAlertToSend`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_alert_flight_test.go#L361) | unit/verify | not verified |
 | positive | [`TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_alert_flight_test.go#L95) | unit/verify | revert, verified |
 
 ### [`RFC5216-2.1.3-4`](#rfc5216-2.1.3-4)
@@ -437,7 +437,7 @@ it MAY contain an EAP-Response packet with EAP-Type=EAP-TLS and no data, in whic
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. This unit is byte-identical; the file around it changed. Its helpers (tls12Exchange, fullTLS12Flights) gained a tune argument passed as nil to driveTunedEAPTLSFlight, which driveEAPTLSFlight itself calls with nil, and fresh stores offer no ticket, so the producer change never runs here. Verdict stands. Both clauses asserted: the no-data Response after the authenticator's alert draws EAP-Failure, and later Responses (same one, Identifiers at and after the Failure's) draw nothing with Succeeded false; the alert is on the wire before EAP-Failure. Control negative: a mutually authenticated exchange sends no EAP-Failure and reaches EAP-Success, so the Failure answers the rejection only. All units recorded.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216ServerSendsNoEAPFailureWhenBothSidesAuthenticate`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_termination_test.go#L207) | unit/verify | revert, verified |
 | positive | [`TestEAPTLSAuthenticatorSendsTheAlertBeforeItReportsTheFailure`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_alert_flight_test.go#L101) | unit/verify | revert, verified |
@@ -450,10 +450,10 @@ If the peer authenticates successfully, the EAP server MUST respond with an EAP-
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the packet before EAP-Success is not an EAP-TLS Request carrying change_cipher_spec then the Finished handshake record, or a rejected peer receives that flight. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess fatals on a non-Request/non-TLS packet or a bare ACK there, errors unless record types are [change_cipher_spec, handshake], and requires equal non-zero MSKs. Negative: TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected errors on any change_cipher_spec record sent to a rejected peer.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L333) | unit/verify | unproven |
-| positive | [`TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L229) | unit/verify | unproven |
+| negative | [`TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L333) | unit/verify | not verified |
+| positive | [`TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L229) | unit/verify | not verified |
 
 ### [`RFC5216-2.1.3-6`](#rfc5216-2.1.3-6)
 
@@ -461,10 +461,10 @@ To ensure that the EAP Server receives the TLS alert message, the peer MUST wait
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the peer terminating on the round it discovers the failure, before the server replies. TestRFC5216PeerRepliesBeforeItTerminates fatals if that round returns Err or no Response, errors if the Response is a bare ACK rather than the alert, and requires the error only from the round that processes the server's EAP-Failure. Negative: TestRFC5216PeerDoesNotWaitWhenItSentNothing errors if a peer that sent nothing parks its error or sends a Response.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5216PeerDoesNotWaitWhenItSentNothing`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L168) | unit/verify | unproven |
-| positive | [`TestRFC5216PeerRepliesBeforeItTerminates`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L41) | unit/verify | unproven |
+| negative | [`TestRFC5216PeerDoesNotWaitWhenItSentNothing`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L168) | unit/verify | not verified |
+| positive | [`TestRFC5216PeerRepliesBeforeItTerminates`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_peer_wait_test.go#L41) | unit/verify | not verified |
 
 ### [`RFC5216-2.1.3-7`](#rfc5216-2.1.3-7)
 
@@ -472,10 +472,10 @@ If the EAP server authenticates successfully, the peer MUST send an EAP-Response
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the peer answering the server's closing flight with anything but a no-data EAP-TLS Response. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess errors unless bareEAPTLSResponse(peerSent[successAt-1]). Negative: TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse errors if a peer refusing the server sends the no-data Response as its last packet.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L386) | unit/verify | unproven |
-| positive | [`TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L237) | unit/verify | unproven |
+| negative | [`TestRFC5216PeerSendsItsAlertRatherThanTheNoDataResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L386) | unit/verify | not verified |
+| positive | [`TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L237) | unit/verify | not verified |
 
 ### [`RFC5216-2.1.3-8`](#rfc5216-2.1.3-8)
 
@@ -483,10 +483,10 @@ The EAP Server then MUST respond with an EAP-Success message. (§2.1.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the server answering the peer's no-data Response with anything but EAP-Success. TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess errors unless serverSent[successAt].Code == CodeSuccess directly after that Response. Negative: TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected errors on any Success to a rejected peer.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L339) | unit/verify | unproven |
-| positive | [`TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L242) | unit/verify | unproven |
+| negative | [`TestRFC5216NoClosingFlightOrSuccessWhenThePeerIsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L339) | unit/verify | not verified |
+| positive | [`TestRFC5216SuccessfulTerminationSendsFlightAckThenSuccess`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_success_flight_test.go#L242) | unit/verify | not verified |
 
 ### [`RFC5216-2.3-1`](#rfc5216-2.3-1)
 
@@ -494,7 +494,7 @@ Key_Material = TLS-PRF-128(master_secret, "client EAP encryption", client.random
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment after the approved mechanical TLS 1.2 caller adjustment. RFC 5216 section 2.3 defines Key_Material as the 128-octet TLS PRF under the literal client EAP encryption label, with MSK octets 0-63 and EMSK octets 64-127. The pinned TLS 1.2 case in TestRFC3748EAPTLSExportsASixtyFourOctetEMSK checks the authenticator MSK and EMSK against the complete export and equality of the peer EMSK; TestRFC5216MSKIsTheExportUnderTheRFCLabel independently checks both roles MSKs against that literal-label exporter and retains the wrong-label control. The fifth helper result is a copy of stored Session.emsk before cleanup and is ignored only by the TLS 1.2 caller; none of its previous inputs or assertions changed. TestEAPTLSMutualAuthHandshakeSucceeds is supplementary agreement evidence, not the derivation oracle. Single-polarity positive remains appropriate for this fixed output derivation. Reviewed exportEAPTLSKeys and both Session and PeerSession consumers; reviewed the refreshed wrong-label mutant record and private overlay. No test was rerun by this judge.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC3748EAPTLSExportsASixtyFourOctetEMSK`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc3748_emsk_test.go#L152) | unit/verify | revert, verified |
 | positive | [`TestEAPTLSMutualAuthHandshakeSucceeds`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_eap_tls_handshake_test.go#L364) | unit/verify | revert, verified |
@@ -506,7 +506,7 @@ Once having received the peer's Identity, the EAP server MUST respond with an EA
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: after the Identity the server sends anything but a Request of Type 13 with only the S flag, or sends a Start before an Identity. TestRFC5216StartAnswersTheIdentityResponse fatals on Code != CodeRequest, Type != TypeTLS, or TypeData != {S}; TestRFC5216NoStartBeforeTheIdentityIsReceived fatals if Begin opens with an EAP-TLS packet or a stale Identity Response draws any packet.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216NoStartBeforeTheIdentityIsReceived`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L102) | unit/verify | revert, verified |
 | positive | [`TestRFC5216StartAnswersTheIdentityResponse`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L70) | unit/verify | revert, verified |
@@ -517,7 +517,7 @@ If the peer's sessionId is null or unrecognized by the server, the server MUST c
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 53c17be5e3. RFC 5216 Section 2.1.1: 'If the peer's sessionId is null or unrecognized by the server, the server MUST choose the sessionId to establish a new session.' Producer: the patched GOROOT doFullHandshake (internal/le/go/stdpatch/patches/crypto-tls-server-session-id.patch) writes a fresh 32-octet session_id when the TLS 1.2 full handshake issues no ticket, and eap_tls.go::tls12WithoutTickets disables tickets for every handshake negotiatesTLS13 classifies as TLS 1.2. UNRECOGNIZED half: rfc5216_session_id_test.go::TestRFC5216TLS12FullHandshakeServerHelloSessionID offers ze's peer's non-empty random id and requires a 32-octet ServerHello session_id differing from it, no SessionTicket extension and no NewSessionTicket. NULL half: TestRFC5216TLS12NullSessionIDServerChooses rewrites the TLS 1.2 ClientHello to an empty session_id (asserted), replays it at two fresh authenticators and requires each ServerHello to carry a 32-octet id, no ticket, and the two ids to differ. Its recorded break is a panic in tls12WithoutTickets, which shows reachability only, so the auditor ran targeted mutants through go test overlays: a patched doFullHandshake that chooses an id only when the client offered one ('!ticketSupported && len(clientHello.sessionId) > 0') leaves the unrecognized-id test green and turns the null-id test red on 'session_id is 0 octets'; tls12WithoutTickets without SessionTicketsDisabled turns both red. Limit: the null-id ClientHello still carries the SessionTicket extension; the null-id ClientHello without it is not sent.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216TLS12FullHandshakeServerHelloSessionID`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_session_id_test.go#L167) | unit/verify | revert, verified |
 | positive | [`TestRFC5216TLS12FullHandshakeServerHelloSessionID`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_session_id_test.go#L160) | unit/verify | revert, verified |
@@ -529,7 +529,7 @@ If the session matches the peer's, then the ciphersuite MUST match the one negot
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator's GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. Section 2.1.1 'If the session matches the peer's, then the ciphersuite MUST match' binds the resuming server. TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished mints and resumes a TLS 1.2 session on a stock-resumption TEST server (stockTLS12Resumption) only to give the peer a live ticket encrypted under ze's own ticket keys; the suite-equality check there is a harness check on that test server and proves nothing about ze. The ze assertion is the last attempt, run with ze's unmodified authenticator config (tune nil): offered that ticket it does not resume and answers a full handshake (certificate, no change_cipher_spec). Ze therefore never matches a TLS 1.2 session, so no matched-session ciphersuite arises, and any TLS 1.2 resumption goes red. The test-server ticket does not weaken this: the subject of the assertion is ze's own authenticator and the input is the strongest one (a ticket ze's keys decrypt). Negative TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights: UnwrapSession answers no session at TLS 1.2 (on and off) and redeems at TLS 1.3, so the refusal is not vacuous.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L88) | unit/verify | revert, verified |
 | positive | [`TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L494) | unit/verify | revert, verified |
@@ -541,7 +541,7 @@ If the EAP server is not resuming a previously established session, then it MUST
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator's GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. Units changed only by withdrawal of the 2.1.1-4 tag lines. TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone requires the authenticator's first TLS 1.2 flight to carry a certificate and end with server_hello_done; the negative refuses a config with an unparsable certificate. Both polarities hold.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L89) | unit/verify | revert, verified |
 | positive | [`TestRFC5216ServerFlightCarriesItsCertificateAndEndsWithServerHelloDone`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L195) | unit/verify | revert, verified |
@@ -561,7 +561,7 @@ If the peer supports EAP-TLS and is configured to use it, it MUST respond to the
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a peer configured for EAP-TLS answering the EAP-TLS Request with anything but an EAP-TLS Response (a Nak, another type). TestRFC5216ConfiguredPeerAnswersEAPTLSWithEAPTLS fatals on Code != CodeResponse or Type != TypeTLS and on TypeData without a handshake record. Negative for the condition: TestRFC5216PeerNotConfiguredForEAPTLSDoesNotAnswerWithEAPTLS fatals if an MS-CHAPv2 peer answers with Type 13 and wantLegacyNak requires the Nak.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216PeerNotConfiguredForEAPTLSDoesNotAnswerWithEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L165) | unit/verify | revert, verified |
 | positive | [`TestRFC5216ConfiguredPeerAnswersEAPTLSWithEAPTLS`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L132) | unit/verify | revert, verified |
@@ -572,7 +572,7 @@ If the preceding server_hello message sent by the EAP server in the preceding EA
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator's GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. Units changed only by withdrawal of the 2.1.1-4 tag lines. TestRFC5216PeerFlightAnswersTheCertificateRequest requires ze's peer, after a non-resuming server_hello, to send certificate, client_key_exchange, certificate_verify, then change_cipher_spec and exactly one sealed handshake record (finished). The config negative (no session cache with resumption off) is weaker but the positive asserts the exact flight.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L90) | unit/verify | revert, verified |
 | positive | [`TestRFC5216PeerFlightAnswersTheCertificateRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L252) | unit/verify | revert, verified |
@@ -584,7 +584,7 @@ If the preceding server_hello message sent by the EAP server in the preceding EA
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator's GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. The obligation binds ze's PEER. TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished resumes against a TEST server (stockTLS12Resumption: ze's config with GetConfigForClient and UnwrapSession removed, i.e. stock crypto/tls), which is the counterpart, not the subject, and is needed because ze's authenticator never resumes TLS 1.2. It requires peer.Resumed() and that ze's peer answers the resuming server_hello with no plaintext handshake message, change_cipher_spec and one sealed record. A peer that sent client_key_exchange or certificate goes red. The test server does not weaken the proof of ze's own behaviour.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L91) | unit/verify | revert, verified |
 | positive | [`TestRFC5216ResumedFlightsCarryOnlyChangeCipherSpecAndFinished`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L490) | unit/verify | revert, verified |
@@ -596,7 +596,7 @@ If the EAP server is resuming a previously established session, then it MUST inc
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-14 (independent auditor) after 56e67411be, where the authenticator's GetConfigForClient (eap_tls.go) answers every handshake negotiatesTLS13 classifies as TLS 1.2 with tls12WithoutTickets, so ze issues no TLS 1.2 ticket, while UnwrapSession redeemTLS13Only/refuseResumption (resumption.go) still refuses a TLS 1.2 session. Section 2.1.2: 'If the EAP server is resuming a previously established session, then it MUST include only a TLS change_cipher_spec message and a TLS finished handshake message after the server_hello message.' TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake mints the TLS 1.2 ticket on a TEST server (issueTLS12Tickets: ze's config with GetConfigForClient removed, same Resumption store and ticket keys) because ze issues none, then offers it to ze's unmodified authenticator (tune nil); ticketedTLS12Attempt fails unless the ClientHello really offers the ticket. Ze must not resume and its flight must be the full one (certificate, server_hello_done last, no change_cipher_spec). The precondition 'is resuming' therefore never holds for TLS 1.2 in ze, and any TLS 1.2 resumption goes red. The minted ticket is a fixture input, not the subject, so the test still proves ze's own behaviour; it proves compliance by non-resumption, not the resumed flight's content (TLS 1.3 resumption is RFC 9190's). Negative: UnwrapSession refuses TLS 1.2 on and off and redeems TLS 1.3.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216TLSConfigRefusesWhatWouldBreakTheFlights`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_tls_config_test.go#L92) | unit/verify | revert, verified |
 | positive | [`TestRFC5216AuthenticatorAnswersATLS12TicketWithAFullHandshake`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L462) | unit/verify | revert, verified |
@@ -608,7 +608,7 @@ When an EAP-TLS peer receives an EAP-Request packet with the M bit set, it MUST 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the peer answering an M-set Request with data or with anything but an EAP-TLS Response. TestRFC5216PeerAcksEachServerFragmentWithNoData errors unless every M-set Request is answered by bareEAPTLSResponse, and errors if the last fragment (M clear) draws the no-data ACK instead of the TLS flight; driveFragmentedFlight fatals unless both sides fragment and the MSKs match.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216PeerAcksEachServerFragmentWithNoData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L205) | unit/verify | revert, verified |
 | positive | [`TestRFC5216PeerAcksEachServerFragmentWithNoData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L199) | unit/verify | revert, verified |
@@ -619,7 +619,7 @@ The EAP server MUST wait until it receives the EAP-Response before sending anoth
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the server sending another fragment before the ACK for the current one arrives. driveFragmentedFlight feeds a Response carrying the previous Identifier after every server fragment and fatals if it draws any packet or moves outOffset; TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck fatals unless the packet after each fragment is the continuation Request carrying data with neither S nor L.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L247) | unit/verify | revert, verified |
 | positive | [`TestRFC5216ServerSendsTheNextFragmentOnlyInAnswerToTheAck`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L241) | unit/verify | revert, verified |
@@ -630,7 +630,7 @@ In order to prevent errors in processing of fragments, the EAP server MUST incre
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Clause 1 forbidden: a fragment Request whose Identifier is not the previous plus one; TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem errors on req.Identifier != prev+1. Clause 2 forbidden: an ACK carrying another Identifier; the same test errors on ack.Identifier != req.Identifier, and driveFragmentedFlight fatals if a stale-Identifier ACK draws a packet.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L279) | unit/verify | revert, verified |
 | positive | [`TestRFC5216ServerFragmentIdentifiersIncrementAndTheAckEchoesThem`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L273) | unit/verify | revert, verified |
@@ -641,7 +641,7 @@ Similarly, when the EAP server receives an EAP-Response with the M bit set, it M
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the server answering an M-set Response with data or with a non-EAP-TLS Request. TestRFC5216ServerAcksEachPeerFragmentWithNoData errors unless each M-set Response is followed by a Request of Type 13 with TypeData exactly 0x00, and errors if the peer's last fragment is answered with an ACK instead of the closing flight.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216ServerAcksEachPeerFragmentWithNoData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L312) | unit/verify | revert, verified |
 | positive | [`TestRFC5216ServerAcksEachPeerFragmentWithNoData`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L306) | unit/verify | revert, verified |
@@ -652,7 +652,7 @@ The EAP peer MUST wait until it receives the EAP-Request before sending another 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: the peer sending its next fragment before an EAP-Request arrives. driveFragmentedFlight feeds the peer an undefined-Code packet after each of its fragments and fatals if probe.Response != nil or peer.outOffset moves; TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck fatals unless the packet after each fragment is a continuation Response carrying TLS data without L.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L355) | unit/verify | revert, verified |
 | positive | [`TestRFC5216PeerSendsTheNextFragmentOnlyInAnswerToTheAck`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L349) | unit/verify | revert, verified |
@@ -663,7 +663,7 @@ In order to prevent errors in the processing of fragments, the EAP server MUST i
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Clause 1 forbidden: an ACK Identifier that is not the previous Request plus one; TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem errors on ack.Identifier != serverSent[i].Identifier+1. Clause 2 forbidden: the peer fragment after an ACK carries another Identifier; the same test errors on next.Identifier != ack.Identifier, and driveFragmentedFlight fatals if the authenticator accepts a fragment re-numbered with a stale Identifier.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L388) | unit/verify | revert, verified |
 | positive | [`TestRFC5216ServerAckIdentifiersIncrementAndTheNextFragmentEchoesThem`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_fragment_ack_test.go#L382) | unit/verify | revert, verified |
@@ -682,7 +682,7 @@ The Identifier field MUST be changed on each Request packet. (§3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Request that repeats the Identifier of the packet before it. TestRFC5216IdentifierChangesOnEveryRequest errors on cur.Identifier == prev.Identifier for every Request of a full TLS 1.2 conversation and fatals if fewer than 3 Requests ran; the negative pins that EAP-Success (not a Request) repeats the answered Identifier.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216IdentifierChangesOnEveryRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L190) | unit/verify | revert, verified |
 | positive | [`TestRFC5216IdentifierChangesOnEveryRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L186) | unit/verify | revert, verified |
@@ -693,7 +693,7 @@ Octets outside the range of the Length field should be treated as Data Link Laye
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: octets past the Length field read as packet data. TestRFC5216PaddingPastTheLengthIsIgnored decodes a packet with seven padding octets shaped like flags and a TLS record header and errors if TypeData differs from the unpadded TypeData, if its length exceeds Length less 5, or if the padding bytes appear inside TypeData; the unpadded decode is the positive.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216PaddingPastTheLengthIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L232) | unit/verify | revert, verified |
 | positive | [`TestRFC5216PaddingPastTheLengthIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L227) | unit/verify | revert, verified |
@@ -704,7 +704,7 @@ Implementations of this specification MUST set the reserved bits to zero, and MU
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-12 (independent auditor) after 37dbe54095, where the authenticator with resumption on installs redeemTLS13Only (resumption.go), which refuses every TLS 1.2 ticket. This unit is byte-identical; the file around it changed. Its helpers (tls12Exchange, fullTLS12Flights) gained a tune argument passed as nil to driveTunedEAPTLSFlight, which driveEAPTLSFlight itself calls with nil, and fresh stores offer no ticket, so the producer change never runs here. Verdict stands. Set clause: TestRFC5216SendersWriteZeroReservedFlagBits reads the flags octet of every EAP-TLS packet both roles sent in a full TLS 1.2 conversation and fails on any of bits 0x1f. Reception clause: all five reserved bits set on a Start and on a whole client_hello are ignored by peer and authenticator. Every tagged unit carries a record.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216ReservedFlagBitsAreIgnoredOnReception`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L276) | unit/verify | revert, verified |
 | positive | [`TestRFC5216SendersWriteZeroReservedFlagBits`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_content_test.go#L372) | unit/verify | revert, verified |
@@ -716,7 +716,7 @@ The Identifier field is one octet and MUST match the Identifier field from the c
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a Response whose Identifier differs from the Request it answers. TestRFC5216ResponseIdentifierMatchesTheRequest errors on res.Identifier != serverSent[i].Identifier over a full conversation; TestRFC5216ResponseIdentifierIsCopiedNotCounted fatals if Requests 0x80 then 0x05 are not answered 0x80 then 0x05, which refuses a peer that counts its own Identifiers.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC5216ResponseIdentifierIsCopiedNotCounted`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L373) | unit/verify | revert, verified |
 | positive | [`TestRFC5216ResponseIdentifierMatchesTheRequest`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc5216_flight_rules_test.go#L348) | unit/verify | revert, verified |

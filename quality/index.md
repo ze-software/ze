@@ -17,25 +17,25 @@ Fuzzing extends the inputs a Go test tries, and mutation testing with gomu check
 
 **Step 1**
 
-### Prove package behavior
+### Test package behavior
 
 Start with a small Go test that names the case and expected result. Use fuzzing when one or two examples cannot cover the input space. Use gomu when the code is covered but the assertion may still be too loose.
 
 **Step 2**
 
-### Prove visible behavior
+### Test visible behavior
 
 When the behavior crosses a process boundary, use a functional transcript. `.ci` drives commands, peers, files, HTTP, and daemons. `.wb` drives the browser. `.et` drives the editor.
 
 **Step 3**
 
-### Prove Linux behavior
+### Test Linux behavior
 
 Tests that depend on the Linux kernel run on Linux. From macOS, a functional file marked `option=needs-linux` can run in QEMU using Ze's kernel and system image.
 
 **Step 4**
 
-### Prove release behavior
+### Run release checks
 
 Release checks include peer daemons, deployment tests, performance measurements, and chaos scenarios. Together these exercise interactions and failure conditions beyond the fixtures used in package tests.
 

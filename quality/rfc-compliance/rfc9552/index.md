@@ -10,10 +10,10 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 46 | of 59 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5 | of 59 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 46 | of 59 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 59 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 59 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 117 | 117 of 165 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 117 | 117 of 165 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -21,7 +21,7 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Partial proof; remaining gap | 1 | of 59 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
+| Partial test coverage | 1 | of 59 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
 | Declared gap or no test | 6 | of 59 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
 | Audit verdicts | 43 | of 59 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
@@ -33,9 +33,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 59 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 1 | of 59 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 59 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 59 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 59 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 59 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 59 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -54,13 +54,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | bad | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | bad | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -94,7 +94,7 @@ Included in automatic checks: Distribution of Link-State and TE Information Usin
 
 **Area:** BGP-LS (obsoletes RFC 7752)
 
-**Proof:** 44 of 59 MUST proven
+**Test verification:** 44 of 59 MUST proven
 
 **Evidence:** functional 1, unit 43
 
@@ -109,7 +109,7 @@ Included in automatic checks: Distribution of Link-State and TE Information Usin
 | Annotated (including scoped evidence) | 13 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 1 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 1 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **59** | every mandatory requirement appears in exactly one group above |
@@ -118,12 +118,12 @@ Included in automatic checks: Distribution of Link-State and TE Information Usin
 
 **Annotated (including scoped evidence) (13):** [`RFC9552-5.2-4`](#rfc9552-5.2-4), [`RFC9552-5.2-5`](#rfc9552-5.2-5), [`RFC9552-5.2.1.4-2`](#rfc9552-5.2.1.4-2), [`RFC9552-5.2.2-4`](#rfc9552-5.2.2-4), [`RFC9552-5.2.3.1-1`](#rfc9552-5.2.3.1-1), [`RFC9552-5.2.1-1`](#rfc9552-5.2.1-1), [`RFC9552-5.5-1`](#rfc9552-5.5-1), [`RFC9552-5.3-1`](#rfc9552-5.3-1), [`RFC9552-5.4-1`](#rfc9552-5.4-1), [`RFC9552-5.3-2`](#rfc9552-5.3-2), [`RFC9552-5.1-7`](#rfc9552-5.1-7), [`RFC9552-8.2.6-2`](#rfc9552-8.2.6-2), [`RFC9552-5.4-2`](#rfc9552-5.4-2)
 
-**Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):** [`RFC9552-5.5-1`](#rfc9552-5.5-1)
+**Partial test coverage (subset of annotated; zero whole-requirement credit) (1):** [`RFC9552-5.5-1`](#rfc9552-5.5-1)
 
 ## Figures
 
-- **MUST bar**: Ze proven 44, Proof pending 7, Not built 7
-- **Overview bar**: Ze MUST proven 44, SHOULD proven 1, Not owed 1, Proof pending 7, Not assessed 28, Not built 8
+- **MUST bar**: Ze verified 44, Tests awaiting verification 7, Not built 7
+- **Overview bar**: Ze MUST verified 44, SHOULD verified 1, Not owed 1, Tests awaiting verification 7, Not assessed 28, Not built 8
 
 | Figure | Rows |
 |---|---|
@@ -132,9 +132,9 @@ Included in automatic checks: Distribution of Link-State and TE Information Usin
 | Mandatory requirements complete | not complete |
 | MUST rows | 59 |
 | MUST rows kept (the MUST bar) | 58 |
-| Ze proven | 44 |
+| Ze verified | 44 |
 | OS verified | 0 |
-| Proof pending | 7 |
+| Tests awaiting verification | 7 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -144,19 +144,19 @@ Included in automatic checks: Distribution of Link-State and TE Information Usin
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 1 |
 | SHOULD / MAY rows | 30 |
-| SHOULD proven | 1 |
+| SHOULD verified | 1 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 28 |
 | SHOULD not built | 1 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc9552.json](../../../data/rfc/rfc9552.json).
 
@@ -190,7 +190,7 @@ Source: [data/rfc/rfc9552.json](../../../data/rfc/rfc9552.json).
 | `RFC9552-5.3.2.1-1` | All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI. (§5.3.2.1) | MUST | 5.3.2.1 | **positive:** `unit/verify` [`TestRFC9552ISISLinkCarriesAllRouterIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L143). **positive:** `unit/verify` [`TestRFC9552ISISLinkRouterIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L72). **positive:** `unit/verify` [`TestRFC9552OSPFInterASRouterIDsReachExporter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_router_id_test.go#L164). **positive:** `unit/verify` [`TestRFC9552OSPFRouterIDsReachExporter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_router_id_test.go#L39). **negative:** `unit/verify` [`TestRFC9552ISISLinkCarriesAllRouterIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L157). **negative:** `unit/verify` [`TestRFC9552ISISLinkRouterIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L77). **negative:** `unit/verify` [`TestRFC9552OSPFRouterIDAbsenceReachExporter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_router_id_test.go#L94) |
 | `RFC9552-5.3.2.2-1` | The MPLS Protocol Mask TLV MUST NOT be included in NLRIs with the other Protocol-IDs listed in Table 2. (§5.3.2.2) | MUST NOT | 5.3.2.2 | **positive:** `unit/verify` [`TestRFC9552NativeDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L200). **negative:** `unit/verify` [`TestRFC9552NativeIGPMPLSMaskRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L223) |
 | `RFC9552-5.3.2.3-1` | If a source protocol uses a metric width of fewer than 32 bits, then the high- order bits of this field MUST be padded with zero. (§5.3.2.3) | MUST | 5.3.2.3 | **positive:** `unit/verify` [`TestRFC7752TEDefaultMetricZeroPadded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L206). **positive:** `unit/verify` [`TestRFC9552ISISTEDefaultMetricZeroPaddedHighOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_metric_test.go#L98). **negative:** `unit/verify` [`TestRFC9552ISISTEDefaultMetricRebuildNeverCarriesStaleArena`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_metric_test.go#L132). **negative:** `unit/verify` [`TestRFC9552ISISTEDefaultMetricSourceNeverInHighOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_metric_test.go#L113) |
-| `RFC9552-5.5-1` | The next-hop address MUST be encoded as described in [RFC4760]. (§5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestRFC7752BGPLSNextHopFollowsRFC4760`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7752_bgpls_test.go#L25). **negative:** no negative test. **{partial}:** tested "MUST be encoded"; gap "as described in [RFC4760]"; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. weak (the tests pass over code that does not enforce the requirement), fresh. Independent rejudgment on 2026-11-16 of only RFC9552-5.5-1, against the applied summary row and current working tree (comparison HEAD d7a7a46affc8c2c272cea0458fc7e525c7e61077). Read both full RFC 7752 and RFC 9552, RFC 4760 in full, the exact applied correction, the sole tagged unit, and the current producing boundaries. RFC 9552 Section 5.5: "The next-hop address MUST be encoded as described in [RFC4760]." RFC 9552 obsoletes RFC 7752; the legacy row retains its restated-successor link, and the sentence is unchanged. RFC 4760 Section 3 defines the length as "A 1-octet field whose value expresses the length of the "Network Address of Next Hop" field, measured in octets." Its MP_REACH envelope puts AFI, SAFI, this length, the address bytes, a zero Reserved octet and then NLRI. The LS section additionally describes native IPv4, global IPv6, a global/link-local pair and the VPN zero-RD prefix. The row remains annotated partial, with Tested "MUST be encoded" and Gap "as described in [RFC4760]". These are valid source selectors; they do not divide this single MUST into independently fulfilled clauses. The Reason correctly bounds its declared Tested evidence by family/address form and distinguishes implemented framing from missing proof. Producer is internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo, which exists and was read. Q1: TestRFC7752BGPLSNextHopFollowsRFC4760 makes RFC-derived layout assertions for SAFI 71. Its IPv4 arm independently checks literal AFI 16388, SAFI 71, length 4, address 192.0.2.1, zero Reserved and following NLRI; ParseMPReachNLRI is checked for AFI/SAFI/NLRI, not decoded next-hop identity. The IPv6 arm checks length 16, zero Reserved and following NLRI, but not the IPv6 address bytes, AFI/SAFI or decoded next hop. Its tag prose therefore exceeds what that arm proves about the address. Q2: IPv4 address corruption or misplaced envelope fields would fail its independent literals. Corrupting only the IPv6 address bytes while retaining length/reserved/NLRI can remain green. There is no directly tagged negative input and no discrimination record for either requirement found in the bounded record search; no current producer-break observation is inferred. Q3: the direct codec test isolates the MP_REACH envelope, with real IPv4/global-IPv6 address values and independently located Reserved/NLRI boundaries, rather than passing because another rejection fired. It does not exercise negotiated family admission, the linked LS plugin profile or a daemon receiver. The opaque Node NLRI bytes are compared rather than independently validated as a complete emitted link-state object; this is codec-layout evidence only. Q4: the tagged unit covers only SAFI 71 singles. It proves no SAFI 71 global/link-local pair and no SAFI 72 address/RD form, and has no negative/current-break proof pair. New literal-wire/profile/forwarding tests are untagged and cannot supply audited credit to this row. Live routing-peer acceptance of the LS72 paired form remains unverified. Thus weak remains the honest verdict, not partial/enforced; zero whole-requirement credit. The earlier implementation-absence explanation is superseded by actual current source: the LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48 with RDPerAddress. MPReachNLRI.WriteTo selects and sizes through the registered profile and calls NextHopProfile.WriteNextHops; that writer explicitly clears an eight-octet RD before each SAFI 72 address. NextHopProfile.DecodeNextHops and decodeMPNextHopRD read 12/24/48 framing; buildMPReachPlugin selects the same profile and writer for singles. The removed writeNextHops symbol is not cited. These producers match the comparison HEAD; this audit corrects proof context and does not implement or newly test them. The applied private correction b67b8385d7fd4fb2a25291ef8b27fb18e6c9fd2d5770c588e80c76516d43aa67 exactly matches the current row; quote, ID, level, Tested/Gap selectors and RFC7752 successor suffix are preserved. Its Wireshark v4.4.0 layout statement was checked against the primary packet-bgp.c source: decode_mp_next_hop dispatches AFNUM_BGP_LS/SAFNUM_BGP_LS_VPN to VPN decoders, which recognize zero-RD+IPv4, zero-RD+IPv6 and two RD+IPv6 slots. This is decoder-backed layout evidence, not routing-peer acceptance (https://raw.githubusercontent.com/wireshark/wireshark/v4.4.0/epan/dissectors/packet-bgp.c). No summary/test/tag/discrimination/source edit, runtime test, mutant/revert record, interop execution or full-RFC conformance claim is made by this rejudgment. ROOT still owes native rfc check and the declared proof/real-entry-point work. |
+| `RFC9552-5.5-1` | The next-hop address MUST be encoded as described in [RFC4760]. (§5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestRFC7752BGPLSNextHopFollowsRFC4760`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7752_bgpls_test.go#L25). **negative:** no negative test. **{partial}:** tested "MUST be encoded"; gap "as described in [RFC4760]"; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed. **Partial test coverage:** Tests and fault test records cover only the part marked Tested; they do not verify the whole requirement. weak (the tests pass over code that does not enforce the requirement), fresh. Independent rejudgment on 2026-11-16 of only RFC9552-5.5-1, against the applied summary row and current working tree (comparison HEAD d7a7a46affc8c2c272cea0458fc7e525c7e61077). Read both full RFC 7752 and RFC 9552, RFC 4760 in full, the exact applied correction, the sole tagged unit, and the current producing boundaries. RFC 9552 Section 5.5: "The next-hop address MUST be encoded as described in [RFC4760]." RFC 9552 obsoletes RFC 7752; the legacy row retains its restated-successor link, and the sentence is unchanged. RFC 4760 Section 3 defines the length as "A 1-octet field whose value expresses the length of the "Network Address of Next Hop" field, measured in octets." Its MP_REACH envelope puts AFI, SAFI, this length, the address bytes, a zero Reserved octet and then NLRI. The LS section additionally describes native IPv4, global IPv6, a global/link-local pair and the VPN zero-RD prefix. The row remains annotated partial, with Tested "MUST be encoded" and Gap "as described in [RFC4760]". These are valid source selectors; they do not divide this single MUST into independently fulfilled clauses. The Reason correctly bounds its declared Tested evidence by family/address form and distinguishes implemented framing from missing proof. Producer is internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo, which exists and was read. Q1: TestRFC7752BGPLSNextHopFollowsRFC4760 makes RFC-derived layout assertions for SAFI 71. Its IPv4 arm independently checks literal AFI 16388, SAFI 71, length 4, address 192.0.2.1, zero Reserved and following NLRI; ParseMPReachNLRI is checked for AFI/SAFI/NLRI, not decoded next-hop identity. The IPv6 arm checks length 16, zero Reserved and following NLRI, but not the IPv6 address bytes, AFI/SAFI or decoded next hop. Its tag prose therefore exceeds what that arm proves about the address. Q2: IPv4 address corruption or misplaced envelope fields would fail its independent literals. Corrupting only the IPv6 address bytes while retaining length/reserved/NLRI can remain green. There is no directly tagged negative input and no discrimination record for either requirement found in the bounded record search; no current producer-break observation is inferred. Q3: the direct codec test isolates the MP_REACH envelope, with real IPv4/global-IPv6 address values and independently located Reserved/NLRI boundaries, rather than passing because another rejection fired. It does not exercise negotiated family admission, the linked LS plugin profile or a daemon receiver. The opaque Node NLRI bytes are compared rather than independently validated as a complete emitted link-state object; this is codec-layout evidence only. Q4: the tagged unit covers only SAFI 71 singles. It proves no SAFI 71 global/link-local pair and no SAFI 72 address/RD form, and has no negative/current-break proof pair. New literal-wire/profile/forwarding tests are untagged and cannot supply audited credit to this row. Live routing-peer acceptance of the LS72 paired form remains unverified. Thus weak remains the honest verdict, not partial/enforced; zero whole-requirement credit. The earlier implementation-absence explanation is superseded by actual current source: the LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48 with RDPerAddress. MPReachNLRI.WriteTo selects and sizes through the registered profile and calls NextHopProfile.WriteNextHops; that writer explicitly clears an eight-octet RD before each SAFI 72 address. NextHopProfile.DecodeNextHops and decodeMPNextHopRD read 12/24/48 framing; buildMPReachPlugin selects the same profile and writer for singles. The removed writeNextHops symbol is not cited. These producers match the comparison HEAD; this audit corrects proof context and does not implement or newly test them. The applied private correction b67b8385d7fd4fb2a25291ef8b27fb18e6c9fd2d5770c588e80c76516d43aa67 exactly matches the current row; quote, ID, level, Tested/Gap selectors and RFC7752 successor suffix are preserved. Its Wireshark v4.4.0 layout statement was checked against the primary packet-bgp.c source: decode_mp_next_hop dispatches AFNUM_BGP_LS/SAFNUM_BGP_LS_VPN to VPN decoders, which recognize zero-RD+IPv4, zero-RD+IPv6 and two RD+IPv6 slots. This is decoder-backed layout evidence, not routing-peer acceptance (https://raw.githubusercontent.com/wireshark/wireshark/v4.4.0/epan/dissectors/packet-bgp.c). No summary/test/tag/discrimination/source edit, runtime test, mutant/revert record, interop execution or full-RFC conformance claim is made by this rejudgment. ROOT still owes native rfc check and the declared proof/real-entry-point work. |
 | `RFC9552-5.3-1` | BGP-LS Producers MUST ensure that the TLVs included in the BGP-LS Attribute does not result in a BGP UPDATE message for a single Link-State NLRI that crosses the maximum limit for a BGP message. (§5.3) | MUST | 5.3 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the native exporter bounds a BGP-LS Attribute only at the 65535-octet TLV length and never against the maximum UPDATE size of the collector session; internal/component/bgp/plugins/ls_export/export_encode.go::originateAttributes |
 | `RFC9552-5.9-1` | If the BGP-LS Producer does withdraw link-state objects associated with an IGP node based on the failure of reachability check for that node, then it MUST re-advertise those link-state objects after that node becomes reachable again in the IGP domain. (§5.9) | MUST | 5.9 | **positive:** `unit/verify` [`TestBGPLSNativeSPFInterAreaASBROrigin`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L738). **positive:** `unit/verify` [`TestBGPLSNativeSPFPartitionRestoresStaleOrigins`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L631). **positive:** `unit/verify` [`TestBGPLSNativeV3SPFPseudonodeRestoration`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L800). **positive:** `unit/verify` [`TestISISBGPLSNativeSPFReachability`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_test.go#L442). **positive:** `unit/verify` [`TestRFC9552NativeReachabilityWithdrawalAndRestoration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L322). **negative:** `unit/verify` [`TestBGPLSNativeSPFPartitionRestoresStaleOrigins`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L633). **negative:** `unit/verify` [`TestBGPLSNativeSPFUnknownOriginsWaitForComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L862). **negative:** `unit/verify` [`TestISISBGPLSNativeSPFReachability`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_test.go#L443). **negative:** `unit/verify` [`TestRFC9552NativeReachabilityWithdrawalAndRestoration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L323) |
 | `RFC9552-5.4-1` | For such TLV use in the NLRI or BGP-LS Attribute, the format described in Section 5.1 is to be used and a 4-octet field MUST be included as the first field in the value to carry the Enterprise Code. (§5.4) | MUST | 5.4 | **positive:** no positive test. **negative:** `unit/verify` [`TestRFC9552NativePrivateUseWithoutEnterpriseRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L295). **{single-polarity}:** ze originates no private-use TLV, because internal/component/bgp/plugins/ls_export/export_encode.go::originateAttributes refuses every type from 65000, so no emitted private-use TLV exists for a positive case |
@@ -260,7 +260,7 @@ Source: [data/rfc/rfc9552.json](../../../data/rfc/rfc9552.json).
 |---|---|---|
 | [`RFC9552-5.2-4`](#rfc9552-5.2-4) The network operator MUST assign the same BGP-LS Instance-IDs on all BGP-LS Producers within a given IGP domain (§5.2) | no test | no test carries this requirement id; annotated {not-applicable}: "The network operator MUST assign the same BGP-LS Instance-IDs on all BGP-LS Producers within a given IGP domain."; binds the network operator; ze is a BGP-LS Producer and Propagator, and it carries the per-domain Instance-ID the operator configures unchanged into the NLRI (internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig) with no view of what another Producer reports |
 | [`RFC9552-5.2-5`](#rfc9552-5.2-5) Unique BGP-LS Instance-IDs MUST be assigned to routing protocol instances operating in different IGP domains (§5.2) | {gap}, no test | the passive sentence names no party, so neither not-applicable shape takes it. The assignment is the operator's, and ze holds the half it can see without checking it: internal/component/bgp/plugins/ls_export/export_config.go::parseExportConfig refuses a duplicate native domain mapping but not one Instance-ID configured for two of ze's own IGP domains, so ze can emit the same Instance-ID for different domains; no test asserts either |
-| [`RFC9552-5.5-1`](#rfc9552-5.5-1) The next-hop address MUST be encoded as described in [RFC4760]. (§5.5) | {partial}, Partial proof; remaining gap | tested "MUST be encoded"; gap "as described in [RFC4760]"; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed |
+| [`RFC9552-5.5-1`](#rfc9552-5.5-1) The next-hop address MUST be encoded as described in [RFC4760]. (§5.5) | {partial}, Partial test coverage | tested "MUST be encoded"; gap "as described in [RFC4760]"; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed |
 | [`RFC9552-5.3-1`](#rfc9552-5.3-1) BGP-LS Producers MUST ensure that the TLVs included in the BGP-LS Attribute does not result in a BGP UPDATE message for a single Link-State NLRI that crosses the maximum limit for a BGP message. (§5.3) | {gap}, no test | the native exporter bounds a BGP-LS Attribute only at the 65535-octet TLV length and never against the maximum UPDATE size of the collector session; internal/component/bgp/plugins/ls_export/export_encode.go::originateAttributes |
 | [`RFC9552-5.3-2`](#rfc9552-5.3-2) When a BGP-LS Propagator finds that it is exceeding the maximum BGP message size due to the addition or update of some other BGP Attribute (e.g., AS_PATH), it MUST consider the BGP-LS Attribute to be malformed, apply the 'Attribute Discard' error-handling approach [RFC7606], and handle the propagation as described in Section 8.2.2. (§5.3) | {gap}, no test | when a forwarded UPDATE exceeds the destination's maximum message size and the split fails -- which is what a single BGP-LS NLRI larger than the limit produces (internal/component/bgp/message/chunk_mp_nlri.go:133) -- fwdBody logs the failure and drops the whole UPDATE (internal/component/bgp/reactor/forward_body.go:57-60, :95-97). Nothing discards the BGP-LS Attribute first, so the Attribute Discard this clause mandates never happens |
 | [`RFC9552-5.1-7`](#rfc9552-5.1-7) a BGP-LS Consumer MUST NOT be able to send information to a BGP Speaker for origination into BGP-LS. (§3) | {gap}, no test | ze's process API delivers received BGP-LS to consumer processes, and nothing proves a consumer cannot hand BGP-LS back for origination: internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection lets a process forward a received UPDATE, which is propagation, and no test asserts that no command lets a process originate a BGP-LS NLRI; unverified |
@@ -268,9 +268,9 @@ Source: [data/rfc/rfc9552.json](../../../data/rfc/rfc9552.json).
 | [`RFC9552-5.4-2`](#rfc9552-5.4-2) For a private use NLRI type, a 4-octet field MUST be included as the first field in the NLRI immediately following the Total NLRI Length field of the Link-State NLRI format as described in Section 5.2 to carry the Enterprise Code [ENTNUM]. (§5.4) | {gap}, no test | gap in proof: internal/component/bgp/plugins/ls_export/export_encode.go::encodeTopology meets it by originating no private-use NLRI type, only Node (1), Link (2), IPv4 and IPv6 Prefix (3, 4) and SRv6 SID (6) NLRIs, and a received private-use NLRI is propagated opaque; no test asserts it |
 | [`RFC9552-5.3.2.7-1`](#rfc9552-5.3.2.7-1) This symbolic name can be the FQDN for the link, a substring of the FQDN, or any string that an operator wants to use for the link. The use of the FQDN or a substring of it is strongly RECOMMENDED. (§5.3.2.7) | {gap} | FQDN-based native Link Name selection is not implemented. internal/component/bgp/plugins/nlri/ls/attr_link.go::decodeLinkName preserves a received string, and internal/component/bgp/plugins/ls_export/export_encode.go::originateAttributes copies supplied TLV values without deriving a link name. The optional Link Name TLV remains decodable and propagatable; arbitrary operator strings are permitted by the RFC. This records missing origination support for the recommendation, not a requirement to reject such strings or implement the optional feature in this pass. |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC9552-5.1-1`](#rfc9552-5.1-1)
 
@@ -278,7 +278,7 @@ To compare NLRIs with unknown TLVs, all TLVs within the NLRI MUST be ordered in 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.1: "To compare NLRIs with unknown TLVs, all TLVs within the NLRI MUST be ordered in ascending order by TLV Type." Native whole-Link-NLRI proof: ls_export TestRFC9552NativeLinkTLVsCanonicalOrder / ...ReorderedSource (unchanged). Core descriptor units moved verbatim (package clause only): 260 precedes 261 for mixed families, and no descriptor combination descends.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeLinkTLVsReorderedSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go#L116) | unit/verify | revert, verified |
 | negative | [`TestNoDescriptorEmitsADescendingTLVSequence`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_ordering_test.go#L73) | unit/verify | revert, verified |
@@ -291,7 +291,7 @@ If there are multiple TLVs of the same type within a single NLRI, then the TLVs 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. rejudge 2026-09-30 (was wrong: the units asserted repeated 518 inside a Node Descriptor, which 5.2.1.4 forbids; those tags are removed under D-15 and the units kept untagged). Now proven on the one producer that repeats a Type: the two ls_export units emit two 259, two 260, two 261, two 262 and assert them ascending by Value, and that no longer same-type TLV precedes a shorter one. The Length key never differs within a Type on this producer (259/260 are 4 octets, 261/262 16), so the Length clause is met by construction and asserted as a tie; the Value clause is discriminated: judge break (Value comparison reversed) turns both units red, revert records observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeLinkTLVsReorderedSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go#L118) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeLinkTLVsCanonicalOrder`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_ordering_test.go#L96) | unit/verify | revert, verified |
@@ -302,7 +302,7 @@ Unknown and unsupported types MUST be preserved and propagated within both the N
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.1: "Unknown and unsupported types MUST be preserved and propagated within both the NLRI and the BGP-LS Attribute." Proof stays reactor TestRFC9552UnknownTypesPropagateOnAForwardedUpdate / ...SurviveARewrittenUpdate (both halves byte-identical, internal and rewritten external path). The ls decoder-level positive now parses through bgpls.ParseBGPLSWithRest and requires an empty remainder.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552UnknownTypesSurviveARewrittenUpdate`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_propagate_test.go#L191) | unit/verify | revert, verified |
 | positive | [`TestRFC7752UnknownTLVPreservedAndPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L67) | unit/verify | revert, verified |
@@ -314,11 +314,11 @@ The presence of unknown or unexpected TLVs MUST NOT result in the NLRI or the BG
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.1: "The presence of unknown or unexpected TLVs MUST NOT result in the NLRI or the BGP-LS Attribute being considered malformed." NLRI half: reactor rfc9552_nlri_test units (unchanged). Attribute half: TestRFC9552UnorderedUnexpectedAttributeTLVs walks 0x7FFF, 1088 in a node set, 1026, 1024 without error; TestRFC9552AttributeSyntaxStillRejected keeps the bound: an unknown TLV is tolerated only while its declared length fits (bgpls.ErrBGPLSTruncated).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L101) | unit/verify | revert, verified |
 | negative | [`TestRFC9552LinkStateNLRIUnknownTLVOverrunIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L299) | unit/verify | revert, verified |
-| positive | [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L55) | unit/verify | unproven |
+| positive | [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L55) | unit/verify | not verified |
 | positive | [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L55) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.1-5`](#rfc9552-5.1-5)
@@ -327,11 +327,11 @@ NLRIs having TLVs that do not follow the above ordering rules MUST be considered
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c21 judge). Section 5.1's three ordering clauses are now all driven through enforceRFC7606: type (existing descending 257-before-256 unit), same-type Length (TLV 1234 lengths 3 then 2 discarded; 2 then 3 kept byte-identical) and same-type Value (equal lengths, bb bb then aa aa discarded; aa aa then bb bb kept). Each malformed case is otherwise well framed, so only the order trips, and the survivor beside it is kept. Records observed red on bgplsTLVOrdered.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L53) | unit/verify | unproven |
+| negative | [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L53) | unit/verify | not verified |
 | negative | [`TestRFC9552LinkStateSameTypeTLVsInOrderArePropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L339) | unit/verify | revert, verified |
-| positive | [`TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L166) | unit/verify | unproven |
+| positive | [`TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L166) | unit/verify | not verified |
 | positive | [`TestRFC9552LinkStateSameTypeTLVsOutOfOrderAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L315) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.1-6`](#rfc9552-5.1-6)
@@ -340,10 +340,10 @@ BGP-LS Attribute with unordered TLVs MUST NOT be considered malformed (§5.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L100) | unit/verify | revert, verified |
-| positive | [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L54) | unit/verify | unproven |
+| positive | [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L54) | unit/verify | not verified |
 
 ### [`RFC9552-5.2-1`](#rfc9552-5.2-1)
 
@@ -351,10 +351,10 @@ All non-VPN link, node, and prefix information SHALL be encoded using AFI 16388 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7752NonLinkStateFamilyRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L269) | unit/verify | unproven |
-| positive | [`TestRFC7752NonVPNFamilyIsAFI16388SAFI71`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L232) | unit/verify | unproven |
+| negative | [`TestRFC7752NonLinkStateFamilyRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L269) | unit/verify | not verified |
+| positive | [`TestRFC7752NonVPNFamilyIsAFI16388SAFI71`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L232) | unit/verify | not verified |
 
 ### [`RFC9552-5.2-2`](#rfc9552-5.2-2)
 
@@ -362,11 +362,11 @@ VPN link, node, and prefix information SHALL be encoded using AFI 16388 / SAFI 7
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC7752NonLinkStateFamilyRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L270) | unit/verify | unproven |
-| positive | [`TestRFC9552BGPLSVPNNLRIFramedByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L135) | unit/verify | unproven |
-| positive | [`TestRFC7752VPNFamilyIsAFI16388SAFI72`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L250) | unit/verify | unproven |
+| negative | [`TestRFC7752NonLinkStateFamilyRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L270) | unit/verify | not verified |
+| positive | [`TestRFC9552BGPLSVPNNLRIFramedByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L135) | unit/verify | not verified |
+| positive | [`TestRFC7752VPNFamilyIsAFI16388SAFI72`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L250) | unit/verify | not verified |
 
 ### [`RFC9552-5.2-3`](#rfc9552-5.2-3)
 
@@ -374,7 +374,7 @@ For all information derived from other protocols, the corresponding Protocol-ID 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeProtocolIDFollowsSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L38) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeProtocolIDFollowsSource`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L25) | unit/verify | revert, verified |
@@ -401,7 +401,7 @@ When adding, removing, or modifying a TLV/sub-TLV from a Link-State NLRI, the BG
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. c23: add and remove now driven (TestRFC9552NativeDescriptorTLVAddRemoveWithdrawsFirst: TLV 260 added then removed, each time a del of exactly the previous NLRI precedes the add) beside the HEAD modify +/-; wire half TestRFC9552LinkStateWithdrawalLeavesInMPUnreach pins MP_UNREACH_NLRI = 40 04 47 + exact NLRI with empty Withdrawn Routes and NLRI. Records: revert on reconcilePeer and buildBatchWithdrawUpdate. Judge probes: skipping the withdraw when a replacement exists turned the add/remove unit red; routing AFI 16388 into Withdrawn Routes turned the wire unit red. The update-handler hop between them is generic and untagged. Sub-TLV changes alter the containing TLV value, the modify case
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeDescriptorChangeWithdrawsFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L71) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeDescriptorChangeWithdrawsFirst`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L60) | unit/verify | revert, verified |
@@ -414,14 +414,14 @@ For two BGP Speakers to exchange Link-State NLRI, they MUST use BGP Capabilities
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read RFC 9552 Section 5.2's complete capability paragraph and RFC 7752 Section 3.2's predecessor against the current summary/derived row. This is RFC9552-5.2-7, not the separate AFI/SAFI encoding row RFC9552-5.2-1. The core advertised-and-negotiated test retains literal AFI/reserved/SAFI/length and family-intersection assertions; the silent-peer negative excludes BGP-LS while retaining unicast and separately distinguishes VPN SAFI 72. TestRFC9552LinkStateSentToCapablePeer submits a real Node NLRI through AnnounceNLRIBatch and requires exactly one UPDATE with literal MP_REACH prefix 40 04 47. TestRFC9552LinkStateNeverSentToIncapablePeer uses that same NLRI with unicast-only negotiated families and requires exact ErrNoPeersAcceptedFamily and no recipient UPDATE bodies. The fixture's final Session receives precisely its existing family/encoding negotiation; these controls retain actual conditional exchange. Numeric OPEN identity is supplied by the independent literal pair, not inferred from the core test's shared capability-code constant. Unknown-NLRI handling and support for additional NLRI types are separate obligations and receive no credit here. The configured OPEN fixture's test-only Session.buildOpen delegates directly to the current production buildOpenFromSnapshot with one captured plugin snapshot. In production prepareOpen retains the built message with its settings and declarations in one preparedOpen; sendOpen writes that message, and prepareNegotiation/publishNegotiation retain the advertised local/remote family intersection. The obsolete production buildOpen code key is replaced by buildOpenFromSnapshot; all other existing code anchors and tagged covers remain. The literal positive independently walks parameter and capability TLVs from the configured OPEN, requiring exactly one literal code 1, length 4 and exact AFI/reserved/SAFI payload for each exercised application (1/133, 1/134, 16388/71), then requires application and unicast negotiation against a separately handwritten code-1 peer stream. The negative provides a valid code-1 unicast control and the application payload under code 250, requires successful parsing, first excludes the application, and then requires surviving unicast. Thus a shared codec constant or rejection of every capability cannot satisfy the pair. Existing recorded breaks target Multiprotocol.WriteTo emitting 250 and parseCapability recognizing 250; the latter must fail for acceptance of the bad application, not solely loss of the unicast control. This independent current-source judgment credits only the capability-advertisement obligation. Main's final native inventories at HEAD 606a3ba2 report all existing records current: four for RFC5575-4-1, five for RFC7752-3.2-1, two for RFC8955-4-1 and five for RFC9552-5.2-7, with no stale bindings. This continuation read all sixteen actual record objects and every tagged test and reached producer before stamping. The eight numeric-code records and eight partner records remain intact; four supplementary registration/core-positive tagged covers have no historical record and are judged from their assertions without inventing execution. This verdict covers this capability-advertisement requirement alone, not whole-RFC or additional-NLRI conformance.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestMultiprotocolApplicationsRejectUnrecognizedCapabilityCode`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L109) | unit/verify | mutant, verified |
 | negative | [`TestRFC9552LinkStateNeverSentToIncapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_capability_test.go#L78) | unit/verify | revert, verified |
 | negative | [`TestRFC7752BGPLSCapabilityNotNegotiatedWhenPeerSilent`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L63) | unit/verify | revert, verified |
 | positive | [`TestMultiprotocolApplicationsAdvertiseLiteralCodeOne`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L30) | unit/verify | mutant, verified |
 | positive | [`TestRFC9552LinkStateSentToCapablePeer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_capability_test.go#L55) | unit/verify | revert, verified |
-| positive | [`TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L29) | unit/verify | unproven |
+| positive | [`TestRFC7752BGPLSCapabilityAdvertisedAndNegotiated`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/rfc7752_bgpls_test.go#L29) | unit/verify | not verified |
 
 ### [`RFC9552-5.2-8`](#rfc9552-5.2-8)
 
@@ -429,11 +429,11 @@ An implementation MUST handle unknown Link-State NLRI types as opaque objects an
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9552MalformedBGPLSNLRIRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L90) | unit/verify | unproven |
-| positive | [`TestRFC9552BGPLSVPNNLRIFramedByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L136) | unit/verify | unproven |
-| positive | [`TestRFC9552UnknownBGPLSNLRITypeIsOpaque`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L46) | unit/verify | unproven |
+| negative | [`TestRFC9552MalformedBGPLSNLRIRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L90) | unit/verify | not verified |
+| positive | [`TestRFC9552BGPLSVPNNLRIFramedByLength`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L136) | unit/verify | not verified |
+| positive | [`TestRFC9552UnknownBGPLSNLRITypeIsOpaque`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc9552_bgpls_test.go#L46) | unit/verify | not verified |
 | positive | [`rfc9552-52-rs-opaque-withdraw-peer-down.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/rfc9552-52-rs-opaque-withdraw-peer-down.ci#L3) | functional/verify | revert, verified |
 
 ### [`RFC9552-5.2.1.4-1`](#rfc9552-5.2.1.4-1)
@@ -442,11 +442,11 @@ At most, there MUST be one instance of each sub-TLV type present in any Node Des
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.2.1.4: "At most, there MUST be one instance of each sub-TLV type present in any Node Descriptor." Sender half: core TestNodeDescriptorNeverRepeatsASubTLVType (512..517 each once, six types) and TestSRv6SIDNLRIKeepsItsSIDOutOfTheNodeDescriptor (no 518 inside the Local Node container, one at NLRI level), moved verbatim. Receive half: reactor duplicate-512 discard and distinct-types kept (unchanged).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L54) | unit/verify | unproven |
+| negative | [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L54) | unit/verify | not verified |
 | negative | [`TestSRv6SIDNLRIKeepsItsSIDOutOfTheNodeDescriptor`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_node_descriptor_unique_test.go#L75) | unit/verify | revert, verified |
-| positive | [`TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L128) | unit/verify | unproven |
+| positive | [`TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L128) | unit/verify | not verified |
 | positive | [`TestNodeDescriptorNeverRepeatsASubTLVType`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_node_descriptor_unique_test.go#L37) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.2.1.4-2`](#rfc9552-5.2.1.4-2)
@@ -455,9 +455,9 @@ The sub-TLVs within a Node Descriptor MUST be arranged in ascending order by sub
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.2.1.4: "The sub-TLVs within a Node Descriptor MUST be arranged in ascending order by sub-TLV type." {single-polarity: positive}: exact 512..517 sequence from bgpls.NodeDescriptor.WriteTo, the encoder the native exporter uses for every Node Descriptor (exportNodeID).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC7752NodeDescriptorSubTLVsAscending`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L167) | unit/verify | unproven |
+| positive | [`TestRFC7752NodeDescriptorSubTLVsAscending`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L167) | unit/verify | not verified |
 
 ### [`RFC9552-5.2.2-1`](#rfc9552-5.2.2-1)
 
@@ -465,7 +465,7 @@ If interface and neighbor addresses, either IPv4 or IPv6, are present, then the 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. c23: genuine negative under R1(b): TestRFC9552NativeDualStackLinkKeepsEveryAddress forces link ids 7/9 and IPv4+IPv6 globals on both ends and asserts TLVs 259, 260, 261, 262 each exactly once with their values (revert record on encodeNativeLink). Judge probe dropping the IPv6 interface address when IPv4 is present turned it red on TLV 261. HEAD positive TestRFC9552NativeLinkIdentitySelection pins exact values; HEAD invalid-zero-address negative stays as a supplement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeDualStackLinkKeepsEveryAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L196) | unit/verify | revert, verified |
 | negative | [`TestRFC9552NativeLinkDescriptorComplements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L101) | unit/verify | revert, verified |
@@ -477,7 +477,7 @@ If interface and neighbor addresses, either IPv4 or IPv6, are present, then the 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. negative asserts TLV 258 absent from a link carrying global addresses and link IDs; positive asserts the link is still advertised by 261/260
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeLinkIdentitySelection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L243) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeLinkDescriptorComplements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L97) | unit/verify | revert, verified |
@@ -488,7 +488,7 @@ IPv4/IPv6 link-local addresses MUST NOT be carried in the IPv4/IPv6 interface/ne
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. negative asserts link-local 169.254/fe80 addresses absent from 259-262 (exact single global values), and a link-local-only link carries none of 259-262; positive pins the global addresses once each
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeLinkIdentitySelection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L244) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeLinkDescriptorComplements`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L98) | unit/verify | revert, verified |
@@ -499,7 +499,7 @@ If interface and neighbor addresses are not present and the link local/remote id
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c22 judge). First clause now driven: TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers exports an IS-IS link with no interface or neighbor address and link ids 7/9 and asserts TLV 258 == 00000007 00000009 and none of 259-262. Second clause (link-local-only addressing) stays on TestRFC9552NativeLinkIdentitySelection. Row carries {single-polarity: positive}, read against encodeNativeLink: no refusal input exists. Revert records on encodeNativeLink observed red for both units.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9552NativeUnnumberedLinkCarriesLinkIdentifiers`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L135) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeLinkIdentitySelection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L245) | unit/verify | revert, verified |
@@ -510,7 +510,7 @@ The Multi-Topology Identifier TLV MUST be included as a Link Descriptor if the u
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (BGP c22 judge). Genuine negative added: TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed feeds one IS-IS link in topologies 0, 2, 2 and asserts exactly two Link NLRIs, each with exactly one TLV 263, MT-IDs {0,2}: a producer collapsing onto the default topology or dropping 263 on the topology-2 NLRI goes red. Positive TestRFC9552NativeLinkNonDefaultTopology asserts 263 = MT-ID 2; its inline negative tag still re-asserts the same value and proves nothing on its own. Over-constraint noted: the negative also requires TLV 263 with MT-ID 0 on the default-topology NLRI, which RFC 9552 does not require (only the non-default case is a MUST). Revert records on encodeNativeLink observed red.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeLinkNonDefaultTopology`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L122) | unit/verify | revert, verified |
 | negative | [`TestRFC9552NativeLinkNonDefaultTopologyNotCollapsed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L223) | unit/verify | revert, verified |
@@ -522,7 +522,7 @@ The OSPF Route Type TLV MUST be included in the advertisement when the type is e
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against full RFC 9552 Section 5.2.3.1: the OSPF Route Type TLV MUST accompany an advertisement when the underlying LSA signals the type explicitly or another LSA for the same prefix determines it. The source further specifies resolving Extended Prefix external/NSSA classes and type zero from base LSAs. Read both tagged tests and producer chain. The live LSDB publisher test installs actual Router, Summary Network, AS External and NSSA LSAs plus an opaque-marked Extended Prefix; ten cases demand exactly one correlated advertisement for router 2.2.2.2 with exact type 1..6, including cross-area NSSA. Its opaque guard excludes a base-only result. publishBGPLSLocked processes bases before extensions; extendedV2Prefix consumes v2PrefixRouteTypes, which correlates prefix/router identity and external metric type. The exporter test independently reconciles a native OSPF snapshot and asserts TLV 264 value 1 in captured NLRI. These compose source-publisher and encoder boundaries; this is not a live BGP-peer test and the wire test does not exhaust all six values. The single-positive annotation is sound for mandatory origination, not an exemption when the underlying value is zero. The exhaustive-ignore directive only documents the fixture's restricted LSA types. Verdict enforced. No execution or replay freshness claimed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9552NativeOSPFRouteType`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L246) | unit/verify | revert, verified |
 | positive | [`TestRFC9552ExtendedPrefixResolvesRouteType`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_route_type_test.go#L17) | unit/verify | revert, verified |
@@ -533,7 +533,7 @@ When configured, these auxiliary TE Router-IDs (TLV 1028/1029) MUST be included 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged all current tagged carriers against RFC 9552 Section 5.2.1: 'When configured, these auxiliary TE Router-IDs (TLV 1028/1029) MUST be included in the node attribute described in Section 5.3.1 and MAY be included in the link attribute described in Section 5.3.2.' Preserved IS-IS TestRFC9552ISISNodeRouterID and TestRFC9552ISISNodeCarriesBothRouterIDs assert exact per-node IPv4 and IPv6 values from native LSP TLVs 134/140. New OSPF TestRFC9552OSPFRouterIDsReachExporter installs one area-scope opaque-type-1 Router Address LSA per router, conforming to RFC 3630 Sections 2.1 and 2.4.1, and compares the complete native node TLV multiset and final encoded BGP-LS Attribute bytes from the registered exporter against independent literals. It catches omission, substitution, duplication and invented IPv6 IDs, closing the previous OSPF and final-attribute proof gaps. Read indexV2 scope guards, trafficEngineering, snapshot router-ID collection, encodeTopology, originateAttributes and send. The single-positive annotation is appropriate for this inclusion obligation. TestRFC9552OSPFAuxiliaryRouterIDsNotCollapsed is untagged robustness evidence only: multiple Router Address LSAs from one router violate RFC 3630's exactly-one-LSA condition and are not the conforming positive. This is a source-level judgment; new native discrimination observations remain Main's responsibility, and no fresh independent-peer run is claimed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC9552ISISNodeCarriesBothRouterIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L114) | unit/verify | revert, verified |
 | positive | [`TestRFC9552ISISNodeRouterID`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L49) | unit/verify | revert, verified |
@@ -545,7 +545,7 @@ All auxiliary Router-IDs of both the local and the remote node MUST be included 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged all current tagged carriers against RFC 9552 Section 5.3.2.1: 'All auxiliary Router-IDs of both the local and the remote node MUST be included in the link attribute of each Link NLRI.' Preserved IS-IS TestRFC9552ISISLinkRouterIDs and TestRFC9552ISISLinkCarriesAllRouterIDs assert exact local/remote IPv4 and IPv6 inclusion and separately forbid swapped values. OSPF TestRFC9552OSPFRouterIDsReachExporter uses conforming single Router Address LSAs and pins both directed links' exact 1028/1030 values through complete encoded attributes. TestRFC9552OSPFRouterIDAbsenceReachExporter uses absent, MaxAge and unrelated-opaque local sources with a live remote control: it requires the remote ID to remain on the correct side and forbids invented local IDs, with roles reversed on the reverse link. TestRFC9552OSPFInterASRouterIDsReachExporter uses RFC 5392 type-6 Link TLVs in both permitted area/AS scopes, mandatory remote-AS and permitted simultaneous remote IPv4/IPv6 ASBR IDs, with no prohibited Link ID; it requires local 1028 and remote 1030/1031 in exact final bytes and detects contamination from an internal same-four-octet-ID router. Read indexV2, trafficEngineering, linkAttributes and exporter attribute producers; Remote.ASN == 0 correctly prevents internal-ID borrowing. Literal complete snapshots and final attribute equality catch missing, swapped, duplicate or invented IDs rather than merely accepting a parse. The untagged multi-LSA case is robustness evidence, not a conforming positive; untagged wrong-scope and mixed-body regressions support provenance without adding tagged covers. This is a source-level judgment; new native discrimination observations remain Main's responsibility, and the documented FRR ordinary/inter-AS collectors are not claimed freshly passed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552ISISLinkCarriesAllRouterIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L157) | unit/verify | revert, verified |
 | negative | [`TestRFC9552ISISLinkRouterIDs`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_router_id_test.go#L77) | unit/verify | revert, verified |
@@ -561,7 +561,7 @@ The MPLS Protocol Mask TLV MUST NOT be included in NLRIs with the other Protocol
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. negative refuses an IS-IS replacement carrying TLV 1094 and keeps the prior state; positive shows a Direct link still carries the mask; OSPF Protocol-IDs 3 and 6 are not driven
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeIGPMPLSMaskRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L223) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L200) | unit/verify | revert, verified |
@@ -572,24 +572,24 @@ If a source protocol uses a metric width of fewer than 32 bits, then the high- o
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudge 2026-10-17, upgraded from weak because the live originator is now tagged. RFC 9552 Section 5.3.2.3: "If a source protocol uses a metric width of fewer than 32 bits, then the high-order bits of this field MUST be padded with zero." Ze widens a metric into TLV 1092 only in internal/plugins/isis/bgpls_export.go linkAttribute case 18 (RFC 5305 sub-TLV 18, 24 bits): alloc(4) then copy(v[1:], value); OSPF TE metric is already 32 bits. TestRFC9552ISISTEDefaultMetricZeroPaddedHighOrder (80 00 01 -> 00 80 00 01) and ...SourceNeverInHighOrder (fe dc ba -> 00 fe dc ba) store a real LSP (TLV 22 with sub-TLV 18), run bgplsBuilder.build (the same build publishBGPLSLocked calls) and assert the exact TLV 1092 octets; copy(v, value) or a wrong width reddens both. The old plugin-ls TestRFC7752TEDefaultMetricZeroPadded stays tagged but drives a decode-side type with no production encoder and carries no weight. The arena dependency is now covered too: TestRFC9552ISISTEDefaultMetricRebuildNeverCarriesStaleArena (negative) builds twice on ONE builder, as the persistent exporter does; the first build fills the arena with 0xff from a 200-octet unmapped TLV 251, a fixture check proves the arena octet under the new TLV 1092 was non-zero before the second build, and the exact 00 0a 0b 0c assertion goes red (ff 0a 0b 0c) if clear(value) is removed from bgplsBuilder.alloc. Every way Ze could leave a non-zero high-order octet (wrong offset, wrong width, dirty arena) now reddens a tagged unit.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552ISISTEDefaultMetricRebuildNeverCarriesStaleArena`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_metric_test.go#L132) | unit/verify | revert, verified |
 | negative | [`TestRFC9552ISISTEDefaultMetricSourceNeverInHighOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_metric_test.go#L113) | unit/verify | revert, verified |
-| positive | [`TestRFC7752TEDefaultMetricZeroPadded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L206) | unit/verify | unproven |
+| positive | [`TestRFC7752TEDefaultMetricZeroPadded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L206) | unit/verify | not verified |
 | positive | [`TestRFC9552ISISTEDefaultMetricZeroPaddedHighOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_metric_test.go#L98) | unit/verify | revert, verified |
 
 ### [`RFC9552-5.5-1`](#rfc9552-5.5-1)
 
 The next-hop address MUST be encoded as described in [RFC4760]. (§5.5)
 
-Records cover only part of this requirement: tested "MUST be encoded"; gap "as described in [RFC4760]"; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed; they do not prove the whole requirement.
+Records cover only part of this requirement: tested "MUST be encoded"; gap "as described in [RFC4760]"; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed; they do not verify the whole requirement.
 
 Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Independent rejudgment on 2026-11-16 of only RFC9552-5.5-1, against the applied summary row and current working tree (comparison HEAD d7a7a46affc8c2c272cea0458fc7e525c7e61077). Read both full RFC 7752 and RFC 9552, RFC 4760 in full, the exact applied correction, the sole tagged unit, and the current producing boundaries. RFC 9552 Section 5.5: "The next-hop address MUST be encoded as described in [RFC4760]." RFC 9552 obsoletes RFC 7752; the legacy row retains its restated-successor link, and the sentence is unchanged. RFC 4760 Section 3 defines the length as "A 1-octet field whose value expresses the length of the "Network Address of Next Hop" field, measured in octets." Its MP_REACH envelope puts AFI, SAFI, this length, the address bytes, a zero Reserved octet and then NLRI. The LS section additionally describes native IPv4, global IPv6, a global/link-local pair and the VPN zero-RD prefix. The row remains annotated partial, with Tested "MUST be encoded" and Gap "as described in [RFC4760]". These are valid source selectors; they do not divide this single MUST into independently fulfilled clauses. The Reason correctly bounds its declared Tested evidence by family/address form and distinguishes implemented framing from missing proof. Producer is internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo, which exists and was read. Q1: TestRFC7752BGPLSNextHopFollowsRFC4760 makes RFC-derived layout assertions for SAFI 71. Its IPv4 arm independently checks literal AFI 16388, SAFI 71, length 4, address 192.0.2.1, zero Reserved and following NLRI; ParseMPReachNLRI is checked for AFI/SAFI/NLRI, not decoded next-hop identity. The IPv6 arm checks length 16, zero Reserved and following NLRI, but not the IPv6 address bytes, AFI/SAFI or decoded next hop. Its tag prose therefore exceeds what that arm proves about the address. Q2: IPv4 address corruption or misplaced envelope fields would fail its independent literals. Corrupting only the IPv6 address bytes while retaining length/reserved/NLRI can remain green. There is no directly tagged negative input and no discrimination record for either requirement found in the bounded record search; no current producer-break observation is inferred. Q3: the direct codec test isolates the MP_REACH envelope, with real IPv4/global-IPv6 address values and independently located Reserved/NLRI boundaries, rather than passing because another rejection fired. It does not exercise negotiated family admission, the linked LS plugin profile or a daemon receiver. The opaque Node NLRI bytes are compared rather than independently validated as a complete emitted link-state object; this is codec-layout evidence only. Q4: the tagged unit covers only SAFI 71 singles. It proves no SAFI 71 global/link-local pair and no SAFI 72 address/RD form, and has no negative/current-break proof pair. New literal-wire/profile/forwarding tests are untagged and cannot supply audited credit to this row. Live routing-peer acceptance of the LS72 paired form remains unverified. Thus weak remains the honest verdict, not partial/enforced; zero whole-requirement credit. The earlier implementation-absence explanation is superseded by actual current source: the LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48 with RDPerAddress. MPReachNLRI.WriteTo selects and sizes through the registered profile and calls NextHopProfile.WriteNextHops; that writer explicitly clears an eight-octet RD before each SAFI 72 address. NextHopProfile.DecodeNextHops and decodeMPNextHopRD read 12/24/48 framing; buildMPReachPlugin selects the same profile and writer for singles. The removed writeNextHops symbol is not cited. These producers match the comparison HEAD; this audit corrects proof context and does not implement or newly test them. The applied private correction b67b8385d7fd4fb2a25291ef8b27fb18e6c9fd2d5770c588e80c76516d43aa67 exactly matches the current row; quote, ID, level, Tested/Gap selectors and RFC7752 successor suffix are preserved. Its Wireshark v4.4.0 layout statement was checked against the primary packet-bgp.c source: decode_mp_next_hop dispatches AFNUM_BGP_LS/SAFNUM_BGP_LS_VPN to VPN decoders, which recognize zero-RD+IPv4, zero-RD+IPv6 and two RD+IPv6 slots. This is decoder-backed layout evidence, not routing-peer acceptance (https://raw.githubusercontent.com/wireshark/wireshark/v4.4.0/epan/dissectors/packet-bgp.c). No summary/test/tag/discrimination/source edit, runtime test, mutant/revert record, interop execution or full-RFC conformance claim is made by this rejudgment. ROOT still owes native rfc check and the declared proof/real-entry-point work.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC7752BGPLSNextHopFollowsRFC4760`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7752_bgpls_test.go#L25) | unit/verify | unproven |
+| positive | [`TestRFC7752BGPLSNextHopFollowsRFC4760`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc7752_bgpls_test.go#L25) | unit/verify | not verified |
 
 ### [`RFC9552-5.3-1`](#rfc9552-5.3-1)
 
@@ -605,17 +605,17 @@ If the BGP-LS Producer does withdraw link-state objects associated with an IGP n
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. ls_export unit withdraws the unreachable origin and re-announces the identical commands once Unreachable clears, and emits nothing while it stays unreachable; IS-IS and OSPF units prove the source restores eligibility only after completed SPF; assertions are engine commands, not wire
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeReachabilityWithdrawalAndRestoration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L323) | unit/verify | revert, verified |
-| negative | [`TestISISBGPLSNativeSPFReachability`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_test.go#L443) | unit/verify | unproven |
-| negative | [`TestBGPLSNativeSPFPartitionRestoresStaleOrigins`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L633) | unit/verify | unproven |
-| negative | [`TestBGPLSNativeSPFUnknownOriginsWaitForComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L862) | unit/verify | unproven |
+| negative | [`TestISISBGPLSNativeSPFReachability`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_test.go#L443) | unit/verify | not verified |
+| negative | [`TestBGPLSNativeSPFPartitionRestoresStaleOrigins`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L633) | unit/verify | not verified |
+| negative | [`TestBGPLSNativeSPFUnknownOriginsWaitForComputation`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L862) | unit/verify | not verified |
 | positive | [`TestRFC9552NativeReachabilityWithdrawalAndRestoration`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L322) | unit/verify | revert, verified |
-| positive | [`TestISISBGPLSNativeSPFReachability`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_test.go#L442) | unit/verify | unproven |
-| positive | [`TestBGPLSNativeSPFInterAreaASBROrigin`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L738) | unit/verify | unproven |
-| positive | [`TestBGPLSNativeSPFPartitionRestoresStaleOrigins`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L631) | unit/verify | unproven |
-| positive | [`TestBGPLSNativeV3SPFPseudonodeRestoration`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L800) | unit/verify | unproven |
+| positive | [`TestISISBGPLSNativeSPFReachability`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_test.go#L442) | unit/verify | not verified |
+| positive | [`TestBGPLSNativeSPFInterAreaASBROrigin`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L738) | unit/verify | not verified |
+| positive | [`TestBGPLSNativeSPFPartitionRestoresStaleOrigins`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L631) | unit/verify | not verified |
+| positive | [`TestBGPLSNativeV3SPFPseudonodeRestoration`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc9552_bgpls_export_test.go#L800) | unit/verify | not verified |
 
 ### [`RFC9552-5.4-1`](#rfc9552-5.4-1)
 
@@ -623,7 +623,7 @@ For such TLV use in the NLRI or BGP-LS Attribute, the format described in Sectio
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single-polarity negative per row annotation; a private-use 65000 node attribute is refused with no UPDATE; the refusal is of every private type, not of a short Enterprise Code
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativePrivateUseWithoutEnterpriseRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L295) | unit/verify | revert, verified |
 
@@ -633,7 +633,7 @@ The IP Prefix field contains an IP address prefix followed by the minimum number
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. negative: an unmasked 198.51.100.129/25 is emitted as 25,198.51.100.128; positive: a masked prefix is unchanged
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeTopologySeparation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L86) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeMaskedPrefixUnchanged`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L260) | unit/verify | revert, verified |
@@ -644,11 +644,11 @@ IS-IS small metrics are 6 bits in size but are encoded in a 1-octet field; there
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudge 2026-10-17, upgraded from weak because the live originator is now tagged. RFC 9552 Section 5.3.2.4: "IS-IS small metrics are 6 bits in size but are encoded in a 1-octet field; therefore, the two most significant bits of the field MUST be set to 0 by the originator and MUST be ignored by the receiver." (row carries the originator clause). Ze originates the 1-octet TLV 1095 only in internal/plugins/isis/bgpls_export.go narrowLinks: metric[0] = entry.DefaultMetricValue, where DefaultMetricValue is filled by packet.DecodeNarrowISReachTLV as def & narrowMetricValueMask (0x3f). TestRFC9552ISISSmallMetricOriginatedWithTopBitsZero (source octet ca, reserved bit 8 and I/E over metric 10, -> 0a) and ...FlagBitsNeverReachIGPMetric (ff -> 3f) store a real TLV 2 LSP, run bgplsBuilder.build and assert the exact octet; dropping the mask emits ca/ff and reddens both. That the mask sits in the shared decoder rather than in narrowLinks does not weaken it: per ai/rules/rfc-compliance.md the verdict is judged on what the stack Ze runs produces, and the tests assert the octet the BGP-LS Producer emits, so any change that lets the S or I/E bit reach TLV 1095 (decoder or originator) goes red. The old plugin-ls units stay tagged but drive an encoder with no production caller and carry no weight. The recorded breaks panic the whole decoder, so they prove reach; the mask-specific red is established by reading.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L164) | unit/verify | unproven |
+| negative | [`TestRFC9552IGPMetricWidthGrowsInsteadOfTruncating`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L164) | unit/verify | not verified |
 | negative | [`TestRFC9552ISISSmallMetricFlagBitsNeverReachIGPMetric`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_metric_test.go#L79) | unit/verify | revert, verified |
-| positive | [`TestRFC9552ISISSmallMetricTwoMSBsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L130) | unit/verify | unproven |
+| positive | [`TestRFC9552ISISSmallMetricTwoMSBsZero`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L130) | unit/verify | not verified |
 | positive | [`TestRFC9552ISISSmallMetricOriginatedWithTopBitsZero`](https://github.com/ze-software/ze/blob/main/internal/plugins/isis/rfc9552_bgpls_export_metric_test.go#L63) | unit/verify | revert, verified |
 
 ### [`RFC9552-8.2.2-1`](#rfc9552-8.2.2-1)
@@ -657,7 +657,7 @@ A Link-State NLRI MUST NOT be considered malformed or invalid based on the inclu
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 8.2.2: "A Link-State NLRI MUST NOT be considered malformed or invalid based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e., semantic errors), as described in Sections 5.1 and 5.2." Session-path proof: reactor rfc9552_semantic_test units (unchanged). Core decoder units moved verbatim (identical bodies, local copies of buildAttrTLV and unknownAttrTLVType 0x7FFF): Private-Use Protocol-ID 200 with no IGP Router-ID and an unknown sub-TLV parses and re-emits byte-identically; Total-Length overrun, short body and sub-TLV overrun return ErrBGPLSTruncated.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L114) | unit/verify | revert, verified |
 | negative | [`TestRFC9552NLRIFramingErrorsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_test.go#L101) | unit/verify | revert, verified |
@@ -670,11 +670,11 @@ A BGP-LS Attribute MUST NOT be considered malformed or invalid based on the incl
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 8.2.2: "A BGP-LS Attribute MUST NOT be considered malformed or invalid based on the inclusion/exclusion of TLVs or contents of the TLV fields (i.e., semantic errors), as described in Sections 5.1 and 5.3." Session proof: reactor semantic/framing-twin attribute units (unchanged). ls units: unordered and unexpected TLVs walk without error; a TLV length past the attribute end is ErrBGPLSTruncated.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L102) | unit/verify | revert, verified |
 | negative | [`TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L213) | unit/verify | revert, verified |
-| positive | [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L56) | unit/verify | unproven |
+| positive | [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L56) | unit/verify | not verified |
 | positive | [`TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L186) | unit/verify | revert, verified |
 
 ### [`RFC9552-8.2.2-3`](#rfc9552-8.2.2-3)
@@ -683,13 +683,13 @@ A BGP-LS Propagator, even when it has a coexisting BGP-LS Consumer on the same n
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 8.2.2: "A BGP-LS Propagator, even when it has a coexisting BGP-LS Consumer on the same node, should not perform semantic validation of the Link-State NLRI or the BGP-LS Attribute to determine if it is malformed or invalid." Reactor receive path (ls plugin linked) refuses none of the semantic NLRIs/attributes and discards every framing twin (unchanged). Core and ls decoder-level units are supplementary, moved/renamed only.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552AttributeSyntaxStillRejected`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L103) | unit/verify | revert, verified |
 | negative | [`TestRFC9552BGPLSAttributeFramingTwinsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L214) | unit/verify | revert, verified |
 | negative | [`TestRFC9552LinkStateNLRIFramingTwinsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L115) | unit/verify | revert, verified |
 | negative | [`TestRFC9552NLRIFramingErrorsRejected`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_test.go#L102) | unit/verify | revert, verified |
-| positive | [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L57) | unit/verify | unproven |
+| positive | [`TestRFC9552UnorderedUnexpectedAttributeTLVs`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L57) | unit/verify | not verified |
 | positive | [`TestRFC9552BGPLSAttributeSemanticErrorsAreNotMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L187) | unit/verify | revert, verified |
 | positive | [`TestRFC9552LinkStateNLRISemanticErrorsAreNotMalformed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_semantic_test.go#L95) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NLRIContentsNeverMakeItMalformed`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_test.go#L68) | unit/verify | revert, verified |
@@ -700,11 +700,11 @@ When the error that is determined allows for the router to skip the malformed NL
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c21 judge): stale only because TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated gained a 5.1-4 tag line; its body is unchanged. Receive path: TLV overrun and duplicate sub-TLV NLRIs removed alone, sibling survives, no session reset; a well-formed NLRI survives byte-identically.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L51) | unit/verify | unproven |
-| positive | [`TestRFC9552LinkStateNLRITLVOverrunIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L91) | unit/verify | unproven |
-| positive | [`TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L129) | unit/verify | unproven |
+| negative | [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L51) | unit/verify | not verified |
+| positive | [`TestRFC9552LinkStateNLRITLVOverrunIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L91) | unit/verify | not verified |
+| positive | [`TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L129) | unit/verify | not verified |
 
 ### [`RFC9552-8.2.2-5`](#rfc9552-8.2.2-5)
 
@@ -712,10 +712,10 @@ Alternately, the router MUST perform a 'session reset' when the session is only 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c21 judge): stale only because TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated gained a 5.1-4 tag line; its body is unchanged. Total NLRI Length overrunning MP_REACH gives RFC7606ActionSessionReset; a well-formed section leaves the session up.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L52) | unit/verify | unproven |
-| positive | [`TestRFC9552LinkStateNLRILengthOverrunResetsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L205) | unit/verify | unproven |
+| negative | [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L52) | unit/verify | not verified |
+| positive | [`TestRFC9552LinkStateNLRILengthOverrunResetsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L205) | unit/verify | not verified |
 
 ### [`RFC9552-8.2.2-6`](#rfc9552-8.2.2-6)
 
@@ -723,11 +723,11 @@ When the error that is determined allows for the router to skip the malformed BG
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. TLV overrun and trailing-octet attributes give AttributeDiscard with tombstone and MP_REACH kept; a well-formed attribute survives byte-identically
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9552BGPLSAttributeWellFormedIsKept`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L88) | unit/verify | unproven |
-| positive | [`TestRFC9552BGPLSAttributeTLVOverrunDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L121) | unit/verify | unproven |
-| positive | [`TestRFC9552BGPLSAttributeTrailingOctetsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L162) | unit/verify | unproven |
+| negative | [`TestRFC9552BGPLSAttributeWellFormedIsKept`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L88) | unit/verify | not verified |
+| positive | [`TestRFC9552BGPLSAttributeTLVOverrunDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L121) | unit/verify | not verified |
+| positive | [`TestRFC9552BGPLSAttributeTrailingOctetsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L162) | unit/verify | not verified |
 
 ### [`RFC9552-5.3-2`](#rfc9552-5.3-2)
 
@@ -743,10 +743,10 @@ An implementation MUST have the means to limit inbound updates (§8.2.6)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestBGPLSPrefixLimitActuallyFires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_prefix_limit_test.go#L100) | unit/verify | unproven |
-| positive | [`TestBGPLSPrefixCountCountsNLRIsNotPrefixBytes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_prefix_limit_test.go#L39) | unit/verify | unproven |
+| negative | [`TestBGPLSPrefixLimitActuallyFires`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_prefix_limit_test.go#L100) | unit/verify | not verified |
+| positive | [`TestBGPLSPrefixCountCountsNLRIsNotPrefixBytes`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_prefix_limit_test.go#L39) | unit/verify | not verified |
 
 ### [`RFC9552-5.2.2-6`](#rfc9552-5.2.2-6)
 
@@ -754,7 +754,7 @@ If the value in the MT-ID TLV is derived from OSPF, then the upper R bits of the
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeOSPFTopologyBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L112) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeOSPFTopologyBoundary`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L111) | unit/verify | revert, verified |
@@ -773,7 +773,7 @@ The same node MUST NOT be represented by two keys (§5.2.1.1)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 5.2.1.1: "(A) The same node MUST NOT be represented by two keys (otherwise, one node will look like two nodes)." Moved verbatim to core: one node parsed from 512,514,515 and 515,514,512 re-encodes to the identical canonical ascending bytes; WriteTo and Bytes emit identical octets. Native Node Descriptors come from one builder (ls_export exportNodeID), so encoder canonicality is the remaining way to mint a second key. The negative is an encoder-consistency check rather than a rejected input; accepted because the violation it guards (two encodings of one node) is exactly two keys.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestNodeDescriptorWriteToMatchesBytes`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_types_descriptor_key_test.go#L156) | unit/verify | mutant, verified |
 | positive | [`TestSameNodeHasOneKeyWhateverTheStorageOrder`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_types_descriptor_key_test.go#L186) | unit/verify | revert, verified |
@@ -784,7 +784,7 @@ Two different nodes MUST NOT be represented by the same key (§5.2.1.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestNodeDescriptorKeepsBackboneDistinctFromAreaLess`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_types_descriptor_key_test.go#L57) | unit/verify | mutant, verified |
 | positive | [`TestNodeDescriptorEncodesLegalZeroKeyFields`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/nlri/bgpls/rfc9552_types_descriptor_key_test.go#L20) | unit/verify | mutant, verified |
@@ -795,10 +795,10 @@ When used as a Link or Prefix Descriptor for IS-IS, the Bits R are reserved and 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, second pass after the coordinator's comment-only fix). RFC 9552 Section 5.2.2.1: "When used as a Link or Prefix Descriptor for IS-IS, the Bits R are reserved and MUST be set to 0 (as per Section 7.2 of [RFC5120]) when originated and ignored on receipt." Receipt: TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt builds IS-IS (Protocol-ID 2) Link and Prefix NLRIs with MT-ID 0x00E and R bits 0x0 vs 0xF; bgpls.ParseBGPLSLinkTLVs and ParseBGPLSPrefixTLVs (descriptor_info.go:74/:188, mask & 0x0FFF; reached from the NLRI JSON path) must yield the same MT-ID [14] and still decode the following descriptor (192.0.2.1, 192.0.2.0/24). Its doc comment now names those producers correctly, and the body is unchanged. Origination: ls_export TestRFC9552NativeISISTopologyReservedBits gives an IS-IS link topology 4096 (an R bit set), requires replace to error and no UPDATE to be emitted. Both clauses exercised at real producers.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeISISTopologyReservedBits`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L273) | unit/verify | revert, verified |
-| positive | [`TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L227) | unit/verify | unproven |
+| positive | [`TestRFC9552ISISMTIDReservedBitsIgnoredOnReceipt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_test.go#L227) | unit/verify | not verified |
 
 ### [`RFC9552-8.2.2-9`](#rfc9552-8.2.2-9)
 
@@ -806,13 +806,13 @@ A BGP-LS Speaker MUST perform the following syntactic validation of the Link-Sta
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-01 (BGP c21 judge). The two bullets the earlier note named are now driven through enforceRFC7606: MP_UNREACH_NLRI length sum (Total NLRI Length 255 with 21 present: session reset + error, TestRFC9552LinkStateUnreachLengthOverrunResetsSession) and the sub-TLV length of a recognized TLV (TLV 256 framed at 8, sub-TLV 512 claiming 8 with 4 present: NLRI discarded, survivor kept). With the existing MP_REACH sum, TLV overrun, ordering and duplicate sub-TLV units and the well-formed negative, every concrete bullet of the section 8.2.2 list is driven; the 'per RFC 7606' bullet is the umbrella of the others. New units carry records observed red on validateBGPLSNLRISyntax and bgplsNodeDescriptorWellFormed; older units carry none (pre-existing).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L50) | unit/verify | unproven |
-| positive | [`TestRFC9552LinkStateNLRILengthOverrunResetsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L204) | unit/verify | unproven |
-| positive | [`TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L165) | unit/verify | unproven |
-| positive | [`TestRFC9552LinkStateNLRITLVOverrunIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L90) | unit/verify | unproven |
-| positive | [`TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L127) | unit/verify | unproven |
+| negative | [`TestRFC9552LinkStateNLRIWithUnknownTLVsIsPropagated`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L50) | unit/verify | not verified |
+| positive | [`TestRFC9552LinkStateNLRILengthOverrunResetsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L204) | unit/verify | not verified |
+| positive | [`TestRFC9552LinkStateNLRIOutOfOrderTLVsAreDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L165) | unit/verify | not verified |
+| positive | [`TestRFC9552LinkStateNLRITLVOverrunIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L90) | unit/verify | not verified |
+| positive | [`TestRFC9552LinkStateNodeDescriptorDuplicateSubTLVIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L127) | unit/verify | not verified |
 | positive | [`TestRFC9552LinkStateRecognizedTLVSubTLVOverrunIsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L249) | unit/verify | revert, verified |
 | positive | [`TestRFC9552LinkStateUnreachLengthOverrunResetsSession`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_nlri_test.go#L228) | unit/verify | revert, verified |
 
@@ -822,12 +822,12 @@ A BGP-LS Speaker MUST perform the following syntactic validation of the BGP-LS A
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552 Section 8.2.2: "A BGP-LS Speaker MUST perform the following syntactic validation of the BGP-LS Attribute to determine if it is malformed." Session proof: reactor TestRFC9552BGPLSAttributeTLVOverrunDiscarded / TrailingOctetsDiscarded / WellFormedIsKept (unchanged). ls TestRFC7752MalformedTLVNotPreserved now asserts bgpls.ErrBGPLSTruncated for the overrun and the wrong-size fixed TLV, and that no generic-key preservation occurs.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC9552BGPLSAttributeWellFormedIsKept`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L87) | unit/verify | unproven |
+| negative | [`TestRFC9552BGPLSAttributeWellFormedIsKept`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L87) | unit/verify | not verified |
 | positive | [`TestRFC7752MalformedTLVNotPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc7752_test.go#L105) | unit/verify | revert, verified |
-| positive | [`TestRFC9552BGPLSAttributeTLVOverrunDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L120) | unit/verify | unproven |
-| positive | [`TestRFC9552BGPLSAttributeTrailingOctetsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L161) | unit/verify | unproven |
+| positive | [`TestRFC9552BGPLSAttributeTLVOverrunDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L120) | unit/verify | not verified |
+| positive | [`TestRFC9552BGPLSAttributeTrailingOctetsDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9552_test.go#L161) | unit/verify | not verified |
 
 ### [`RFC9552-8.2.3-5`](#rfc9552-8.2.3-5)
 
@@ -835,7 +835,7 @@ An implementation MUST allow the operator to configure an 8-octet BGP-LS Instanc
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeInstanceIDOverflowRefused`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/export_rfc9552_polarity_test.go#L286) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeInstanceIDFullWidth`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L277) | unit/verify | revert, verified |
@@ -854,7 +854,7 @@ In case one wants to advertise multiple topologies for a given Link or Prefix De
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeTopologyReplacement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L146) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeTopologySeparation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L83) | unit/verify | revert, verified |
@@ -865,7 +865,7 @@ The Multi-Topology Identifier TLV MUST be included in the Prefix Descriptor if t
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeTopologyReplacement`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L147) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeTopologySeparation`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L84) | unit/verify | revert, verified |
@@ -876,7 +876,7 @@ The bits that are not defined MUST be set to 0 by the originator and MUST be ign
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552: "The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver." Originator: ls_export TestRFC9552NativeDefinedFlags / TestRFC9552NativeReservedFlagsCleared (unchanged). Receiver: Node Flag Bits (0xA8 vs 0xAB; 0x03 sets no O/T/E/B/R/V), the walk continues to the next TLV; key constant now bgpls.JSONKeyReserved, same "RSV".
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeReservedFlagsCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L210) | unit/verify | revert, verified |
 | negative | [`TestRFC9552UndefinedNodeBitsDoNotSetDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go#L128) | unit/verify | revert, verified |
@@ -889,7 +889,7 @@ In the case of OSPF, this TLV MUST NOT be used to advertise TLVs other than thos
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. OSPFv2 node opaque from RI-LSA provenance reaches TLV 1025; Extended Link LSA provenance is refused by validOpaqueSource and leaves the advertised state untouched; the OSPF node check is shared by OSPFv2 and OSPFv3, only OSPFv2 driven
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeOpaqueNodeProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L52) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeOpaqueNodeProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L51) | unit/verify | revert, verified |
@@ -900,7 +900,7 @@ The bits that are not defined MUST be set to 0 by the originator and MUST be ign
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552: "The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver." Originator: ls_export TestRFC9552NativeDefinedFlags / TestRFC9552NativeReservedFlagsCleared (unchanged). Receiver: MPLS Protocol Mask (0x3f decodes L=0 R=0, Node Name after it intact; 0xc0 decodes L/R), the walk continues to the next TLV; key constant now bgpls.JSONKeyReserved, same "RSV".
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeReservedFlagsCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L212) | unit/verify | revert, verified |
 | negative | [`TestRFC9552MPLSProtocolMaskReservedIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go#L166) | unit/verify | revert, verified |
@@ -913,7 +913,7 @@ In the case of OSPFv2, this TLV MUST NOT be used to advertise information carrie
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. OSPFv2 link opaque from Extended Link LSA reaches TLV 1097; RI-LSA provenance refused without replacing the valid state; the OSPFv2 link allowlist has one member, so the pair discriminates it
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeOpaqueOSPFv2LinkProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L60) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeOpaqueOSPFv2LinkProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L59) | unit/verify | revert, verified |
@@ -924,7 +924,7 @@ In the case of OSPFv3, this TLV MUST NOT be used to advertise TLVs other than th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. OSPFv3 link opaque from E-Router-LSA reaches TLV 1097; E-Inter-Area-Prefix provenance refused; E-Link-LSA acceptance and other forbidden sources are not driven, one representative of each side
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeOpaqueOSPFv3LinkProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L68) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeOpaqueOSPFv3LinkProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L67) | unit/verify | revert, verified |
@@ -935,7 +935,7 @@ The bits that are not defined MUST be set to 0 by the originator and MUST be ign
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. D2 rejudge 2026-10-16 (independent judge, BGP-LS codec moved to internal/core/bgp/nlri/bgpls). Tagged units changed only by the package move: identifiers re-qualified with bgpls., comments re-pointed; producer bodies byte-identical modulo the writeTLV->WriteTLV and field-export renames (TLV code constants verified unchanged). RFC 9552: "The bits that are not defined MUST be set to 0 by the originator and MUST be ignored by the receiver." Originator: ls_export TestRFC9552NativeDefinedFlags / TestRFC9552NativeReservedFlagsCleared (unchanged). Receiver: IGP Flags (0xA0 vs 0xAF; 0x0f sets no D/N/L/P), the walk continues to the next TLV; key constant now bgpls.JSONKeyReserved, same "RSV".
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeReservedFlagsCleared`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_test.go#L211) | unit/verify | revert, verified |
 | negative | [`TestRFC9552UndefinedIGPBitsDoNotSetDefinedFlags`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/ls/rfc9552_attr_flags_test.go#L142) | unit/verify | revert, verified |
@@ -948,7 +948,7 @@ In the case of OSPFv2, this TLV MUST NOT be used to advertise information carrie
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. OSPFv2 prefix opaque from Extended Prefix LSA reaches TLV 1157; Extended Link LSA provenance refused; single-member allowlist, so the pair discriminates it
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeOpaqueOSPFv2PrefixProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L76) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeOpaqueOSPFv2PrefixProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L75) | unit/verify | revert, verified |
@@ -959,7 +959,7 @@ In the case of OSPFv3, this TLV MUST NOT be used to advertise TLVs other than th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. OSPFv3 prefix opaque from E-NSSA-LSA reaches TLV 1157; E-Link-LSA provenance refused; the other three permitted LSAs and other forbidden sources are not driven, one representative of each side
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC9552NativeOpaqueOSPFv3PrefixProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L84) | unit/verify | revert, verified |
 | positive | [`TestRFC9552NativeOpaqueOSPFv3PrefixProvenance`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/ls_export/rfc9552_export_provenance_test.go#L83) | unit/verify | revert, verified |

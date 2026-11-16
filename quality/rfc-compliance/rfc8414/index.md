@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 16 | of 31 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 0 | of 31 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 16 | of 31 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 0 | of 31 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 31 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 31 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 22 | 22 of 43 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 31 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 22 | 22 of 43 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 31 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 12 | of 31 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 31 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 31 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 31 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 31 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 31 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: Ze consumes authorization-server metadata for its 
 
 **Area:** OAuth 2.0 Authorization Server Metadata (MCP resource server)
 
-**Proof:** 9 of 31 MUST proven
+**Test verification:** 9 of 31 MUST proven
 
 **Evidence:** unit 9
 
@@ -108,7 +108,7 @@ Included in automatic checks: Ze consumes authorization-server metadata for its 
 | Annotated (including scoped evidence) | 15 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **31** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: Ze consumes authorization-server metadata for its 
 
 ## Figures
 
-- **MUST bar**: Ze proven 9, Proof pending 7, Exclusion unchecked 12, Not built 3
-- **Overview bar**: Ze MUST proven 9, Proof pending 7, Exclusion unchecked 12, Not assessed 2, Not built 3
+- **MUST bar**: Ze verified 9, Tests awaiting verification 7, Exclusion unchecked 12, Not built 3
+- **Overview bar**: Ze MUST verified 9, Tests awaiting verification 7, Exclusion unchecked 12, Not assessed 2, Not built 3
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: Ze consumes authorization-server metadata for its 
 | Mandatory requirements complete | not complete |
 | MUST rows | 31 |
 | MUST rows kept (the MUST bar) | 31 |
-| Ze proven | 9 |
+| Ze verified | 9 |
 | OS verified | 0 |
-| Proof pending | 7 |
+| Tests awaiting verification | 7 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 12 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: Ze consumes authorization-server metadata for its 
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 2 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 2 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc8414.json](../../../data/rfc/rfc8414.json).
 
@@ -215,9 +215,9 @@ Source: [data/rfc/rfc8414.json](../../../data/rfc/rfc8414.json).
 | [`RFC8414-3.2-2`](#rfc8414-3.2-2) Claims with zero elements MUST be omitted from the response (§3.2) | no test | no test carries this requirement id; annotated {not-applicable}: §3.2 says "The response is a set of claims about the authorization server's configuration." Thomas excluded the AS publisher role on 2026-09-21. internal/component/mcp/as_metadata.go::fetchASMetadata consumes that response; internal/component/mcp/streamable.go::ServeHTTP exposes only MCP and protected-resource metadata, whose empty-field omission is separately governed by RFC 9728 |
 | [`RFC8414-6.1-2`](#rfc8414-6.1-2) The authorization server MUST support TLS version 1.2 (§6.1) | no test | no test carries this requirement id; annotated {not-applicable}: §6.1 explicitly says "The authorization server MUST support TLS version 1.2 [RFC5246]". Thomas excluded the AS role on 2026-09-21. internal/component/mcp/as_metadata.go::fetchASMetadata is the external-AS HTTPS client; cmd/ze/hub/service_mcp.go::loadMCPTLSConfig configures Ze's resource-server listener, not an AS listener. Its real-listener proof belongs to RFC9728-7.1-1 and RFC9728-7.1-2 |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC8414-2-1`](#rfc8414-2-1)
 
@@ -225,7 +225,7 @@ issuer REQUIRED. The authorization server's issuer identifier, which is a URL th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Every clause of the §2 issuer definition in both polarities in TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment: + an https issuer with no query or fragment is fetched and its issuer returned; - an http issuer (oauthHTTPSURL scheme check), ?tenant=a and a bare ? (asMetadataURL RawQuery/ForceQuery), and #frag (oauthHTTPSURL) each give zero metadata with no request reaching the AS, each input violating one clause only; a document with no issuer gives zero metadata (fetchASMetadata missing-issuer). The as_metadata_test.go units keep their presence tags. Records are whole-function panic breaks of fetchASMetadata (+) and asMetadataURL (-).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestFetchASMetadata_MissingIssuer`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_as_metadata_test.go#L87) | unit/verify | revert, verified |
 | negative | [`TestRFC8414IssuerIsHTTPSWithoutQueryOrFragment`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L418) | unit/verify | revert, verified |
@@ -246,10 +246,10 @@ This path MUST use the "https" scheme. (§3; historical section-3.3 ID retained)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Quote is the §3 sentence 'This path MUST use the https scheme.' Forbidden: fetching the metadata path over http. TestRFC8414MetadataRequiresHTTPS asserts fetchASMetadata errs and returns zero metadata for an http issuer and for an https-to-http redirect, and plainHits==0; positive decodes metadata from a trusted https server. The §6.1 confidentiality clause the old row text also named is not in this quote (reported as split needed).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8414MetadataRequiresHTTPS`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L272) | unit/verify | unproven |
-| positive | [`TestRFC8414MetadataRequiresHTTPS`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L271) | unit/verify | unproven |
+| negative | [`TestRFC8414MetadataRequiresHTTPS`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L272) | unit/verify | not verified |
+| positive | [`TestRFC8414MetadataRequiresHTTPS`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L271) | unit/verify | not verified |
 
 ### [`RFC8414-3.3-2`](#rfc8414-3.3-2)
 
@@ -257,13 +257,13 @@ The "issuer" value returned MUST be identical to the authorization server's issu
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Clause 1 (issuer MUST be identical): TestRFC8414MetadataIssuerIdentity asserts slash, dot-path and NFC aliases of the configured issuer return an error and zero metadata, and the identical (JSON-escaped) issuer is accepted; TestNewStreamable_OAuth_RejectsIssuerMismatch-style unit asserts 'does not match configured'. Clause 2 (data MUST NOT be used): TestOAuthRejectsIssuerAliases asserts keyRequests==0, so the mismatched document's jwks_uri is never fetched, and no server is returned.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestNewStreamable_OAuth_RejectsIssuerMismatch`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L161) | unit/verify | unproven |
-| negative | [`TestOAuthRejectsIssuerAliases`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L897) | unit/verify | unproven |
-| negative | [`TestRFC8414MetadataIssuerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L375) | unit/verify | unproven |
-| positive | [`TestNewStreamable_OAuth_AcceptsValidToken`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L172) | unit/verify | unproven |
-| positive | [`TestRFC8414MetadataIssuerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L374) | unit/verify | unproven |
+| negative | [`TestNewStreamable_OAuth_RejectsIssuerMismatch`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L161) | unit/verify | not verified |
+| negative | [`TestOAuthRejectsIssuerAliases`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L897) | unit/verify | not verified |
+| negative | [`TestRFC8414MetadataIssuerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L375) | unit/verify | not verified |
+| positive | [`TestNewStreamable_OAuth_AcceptsValidToken`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L172) | unit/verify | not verified |
+| positive | [`TestRFC8414MetadataIssuerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L374) | unit/verify | not verified |
 
 ### [`RFC8414-2-2`](#rfc8414-2-2)
 
@@ -295,10 +295,10 @@ This URL MUST use the "https" scheme. (§2)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a jwks_uri that does not use https. TestRFC8414JWKSMetadataSecurity 'HTTP keys' subtest serves jwks_uri on http and asserts NewStreamable returns an error, no server, and plainHits==0; 'redirect to HTTP' asserts the same for an https jwks_uri redirecting to http. Positive 'labeled keys' verifies a token with the key fetched over https.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8414JWKSMetadataSecurity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L936) | unit/verify | unproven |
-| positive | [`TestRFC8414JWKSMetadataSecurity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L935) | unit/verify | unproven |
+| negative | [`TestRFC8414JWKSMetadataSecurity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L936) | unit/verify | not verified |
+| positive | [`TestRFC8414JWKSMetadataSecurity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L935) | unit/verify | not verified |
 
 ### [`RFC8414-2-8`](#rfc8414-2-8)
 
@@ -306,10 +306,10 @@ When both signing and encryption keys are made available, a "use" (public key us
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8414JWKSMetadataSecurity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L938) | unit/verify | unproven |
-| positive | [`TestRFC8414JWKSMetadataSecurity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L937) | unit/verify | unproven |
+| negative | [`TestRFC8414JWKSMetadataSecurity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L938) | unit/verify | not verified |
+| positive | [`TestRFC8414JWKSMetadataSecurity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/oauth_e2e_test.go#L937) | unit/verify | not verified |
 
 ### [`RFC8414-2-9`](#rfc8414-2-9)
 
@@ -389,10 +389,10 @@ The well-known URI suffix used MUST be registered in the IANA "Well-Known URIs" 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8414MetadataPathNeverAppendedToIssuerPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L155) | unit/verify | unproven |
-| positive | [`TestRFC8414MetadataRequestIsGETAtWellKnownPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L78) | unit/verify | unproven |
+| negative | [`TestRFC8414MetadataPathNeverAppendedToIssuerPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L155) | unit/verify | not verified |
+| positive | [`TestRFC8414MetadataRequestIsGETAtWellKnownPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L78) | unit/verify | not verified |
 
 ### [`RFC8414-3-3`](#rfc8414-3-3)
 
@@ -400,10 +400,10 @@ An OAuth 2.0 application using this specification MUST specify what well-known U
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8414MetadataPathNeverAppendedToIssuerPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L156) | unit/verify | unproven |
-| positive | [`TestRFC8414MetadataRequestIsGETAtWellKnownPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L79) | unit/verify | unproven |
+| negative | [`TestRFC8414MetadataPathNeverAppendedToIssuerPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L156) | unit/verify | not verified |
+| positive | [`TestRFC8414MetadataRequestIsGETAtWellKnownPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L79) | unit/verify | not verified |
 
 ### [`RFC8414-3.1-1`](#rfc8414-3.1-1)
 
@@ -411,7 +411,7 @@ An authorization server metadata document MUST be queried using an HTTP "GET" re
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8414MetadataRequestUsesNoOtherVerbOrPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L102) | unit/verify | revert, verified |
 | positive | [`TestRFC8414MetadataRequestIsGETAtWellKnownPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L74) | unit/verify | revert, verified |
@@ -422,7 +422,7 @@ If the issuer identifier value contains a path component, any terminating "/" MU
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8414MetadataPathNeverAppendedToIssuerPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L151) | unit/verify | revert, verified |
 | positive | [`TestRFC8414MetadataPathInsertedBeforeIssuerPath`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L128) | unit/verify | revert, verified |
@@ -433,10 +433,10 @@ A successful response MUST use the 200 OK HTTP status code and return a JSON obj
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Consumer view of the response envelope. 200: 'created' (201) case must return error and zero metadata. application/json: 'HTML' and 'absent type' cases red if accepted; charset parameter accepted. JSON object: 'array' case red if accepted. Positive: 200 application/json object yields issuer and jwks_uri. The 'subset of Section 2 values' clause constrains the server; §3.2 says 'Other claims MAY also be returned', so no consumer input violates it.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8414MetadataHTTPResponse`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L326) | unit/verify | unproven |
-| positive | [`TestRFC8414MetadataHTTPResponse`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L325) | unit/verify | unproven |
+| negative | [`TestRFC8414MetadataHTTPResponse`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L326) | unit/verify | not verified |
+| positive | [`TestRFC8414MetadataHTTPResponse`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L325) | unit/verify | not verified |
 
 ### [`RFC8414-3.2-2`](#rfc8414-3.2-2)
 
@@ -452,7 +452,7 @@ Therefore, comparisons between JSON strings and other Unicode strings MUST be pe
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Row now quotes the lead-in plus step 1 (remove JSON-applied escaping). Metadata path: TestRFC8414MetadataIssuerUnescapedBeforeCompare + matches a document issuer written with escaped solidi and a u0062 escape against the unescaped configured https://host/ab, which goes red if fetchASMetadata compared JSON text; - refuses a configured issuer holding the literal escape, which goes red if the configured side were also unescaped. That negative's configured value is not the full raw JSON text (its solidi are unescaped), so on the metadata path the text-compare violation is caught by the positive alone. JWT path: TestRFC8414IssuerCompareUnescapesJSON / TestRFC8414IssuerCompareNotOnJSONText isolate it exactly (expected issuer equal to the raw JSON text is refused with errJWTIssuerMismatch). Steps 2 and 3 stay on 4-2 and 4-3.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8414IssuerCompareNotOnJSONText`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_jwt_test.go#L99) | unit/verify | revert, verified |
 | negative | [`TestRFC8414MetadataIssuerUnescapedBeforeCompare`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L470) | unit/verify | revert, verified |
@@ -465,12 +465,12 @@ Unicode Normalization [USA15] MUST NOT be applied at any point to either the JSO
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: applying Unicode normalization to either string. TestRFC8414IssuerCompareNoNormalizationRejects asserts errJWTIssuerMismatch for NFC iss vs NFD expected and the reverse; TestRFC8414MetadataIssuerIdentity asserts an NFC metadata issuer against the NFD configured one returns error and zero metadata. Positives: identical NFD strings accepted on both the JWT and metadata paths.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8414IssuerCompareNoNormalizationRejects`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_jwt_test.go#L130) | unit/verify | revert, verified |
-| negative | [`TestRFC8414MetadataIssuerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L377) | unit/verify | unproven |
+| negative | [`TestRFC8414MetadataIssuerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L377) | unit/verify | not verified |
 | positive | [`TestRFC8414IssuerCompareNoNormalizationAccepts`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_jwt_test.go#L120) | unit/verify | revert, verified |
-| positive | [`TestRFC8414MetadataIssuerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L376) | unit/verify | unproven |
+| positive | [`TestRFC8414MetadataIssuerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L376) | unit/verify | not verified |
 
 ### [`RFC8414-4-3`](#rfc8414-4-3)
 
@@ -478,12 +478,12 @@ Comparisons between the two strings MUST be performed as a Unicode code-point-to
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8414IssuerCompareCodePointsDiffer`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_jwt_test.go#L154) | unit/verify | revert, verified |
-| negative | [`TestRFC8414MetadataIssuerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L379) | unit/verify | unproven |
+| negative | [`TestRFC8414MetadataIssuerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L379) | unit/verify | not verified |
 | positive | [`TestRFC8414IssuerCompareCodePointsEqual`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_jwt_test.go#L145) | unit/verify | revert, verified |
-| positive | [`TestRFC8414MetadataIssuerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L378) | unit/verify | unproven |
+| positive | [`TestRFC8414MetadataIssuerIdentity`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L378) | unit/verify | not verified |
 
 ### [`RFC8414-6.1-1`](#rfc8414-6.1-1)
 
@@ -491,7 +491,7 @@ Implementations MUST support TLS (§6.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8414MetadataFetchNeverDowngradesToCleartext`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L204) | unit/verify | revert, verified |
 | positive | [`TestRFC8414MetadataFetchOverTLS`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L180) | unit/verify | revert, verified |
@@ -510,7 +510,7 @@ When using TLS, the client MUST perform a TLS/SSL server certificate check, per 
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8414MetadataFetchRefusesUntrustedCertificate`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L244) | unit/verify | revert, verified |
 | positive | [`TestRFC8414MetadataFetchAcceptsTrustedCertificate`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L226) | unit/verify | revert, verified |
@@ -521,7 +521,7 @@ To protect against information disclosure and tampering, confidentiality protect
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. §6.1 confidentiality sentence, whole-stack: TestRFC8414MetadataFetchUsesConfidentialIntegritySuite + the fetch negotiates TLS with a suite in tls.CipherSuites and not in tls.InsecureCipherSuites; - a cleartext server behind an https issuer (nil client, the production path of buildAuthForMode) and a TLS 1.2 server offering only TLS_RSA_WITH_RC4_128_SHA each give zero metadata with neither handler reached. The suite refusal is performed by Go's crypto/tls default client suite list, which Ze keeps by never setting TLSClientConfig in oauthHTTPClient; the RC4 case uses the httptest client (to isolate this from the 6.1-3 certificate check), so a caller passing a custom insecure transport is not exercised. Records are whole-function panic breaks of fetchASMetadata (+) and oauthHTTPClient (-).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8414MetadataFetchUsesConfidentialIntegritySuite`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L496) | unit/verify | revert, verified |
 | positive | [`TestRFC8414MetadataFetchUsesConfidentialIntegritySuite`](https://github.com/ze-software/ze/blob/main/internal/component/mcp/rfc8414_metadata_request_test.go#L495) | unit/verify | revert, verified |

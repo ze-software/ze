@@ -128,11 +128,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>9</strong><b>of 12 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 12 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>9</strong><b>of 12 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 12 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 12 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 12 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>25</strong><b>25 of 33 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 12 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>25</strong><b>25 of 33 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -144,9 +144,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 12 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 12 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 12 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 12 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 12 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 12 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 12 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -174,11 +174,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-bad"></span> bad</td>
@@ -190,7 +190,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -198,7 +198,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -279,7 +279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> OSPFv2 manual-key security extension</p>
-<p><strong>Proof:</strong> 7 of 12 MUST proven</p>
+<p><strong>Test verification:</strong> 7 of 12 MUST proven</p>
 <p><strong>Evidence:</strong> unit 7</p>
 <p><strong>Unmet:</strong> RFC7474-8-1</p>
 
@@ -305,7 +305,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -326,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7474:must">Ze proven 7, Proof pending 4, Not built 1</div>
+<div data-ze-rfc-bar="rfc7474:must">Ze verified 7, Tests awaiting verification 4, Not built 1</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7474:overview">Ze MUST proven 7, SHOULD proven 1, Proof pending 4, Not assessed 3, Not built 1</div>
+<div data-ze-rfc-bar="rfc7474:overview">Ze MUST verified 7, SHOULD verified 1, Tests awaiting verification 4, Not assessed 3, Not built 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -348,13 +348,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc7474:must.kept">12</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc7474:must.ze-proven">7</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7474:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc7474:must.proof-pending">4</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -384,7 +384,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc7474:should.total">4</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc7474:should.proven">1</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -405,7 +405,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc7474:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc7474:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -420,7 +420,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -600,14 +600,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </table>
 </div>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc7474-2-1"><code>RFC7474-2-1</code></a></h3>
 <p>Since there is no room in the OSPFv2 packet for a 64-bit sequence number, it will occupy the 8 octets following the OSPFv2 packet and MUST be included when calculating the OSPFv2 packet digest. (§2)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Strengthened positive: TestOSPFAuthType3SequenceTrailer and TestRFC7474SequenceIncludedInDigest compare Sign&#39;s trailer with an independent HMAC-SHA-256 over packet || 8 sequence octets || Apad, so a Sign that left the sequence out of the hash fails where a round trip would not. The negative TestRFC7474SequenceChangeBreaksDigest flips one sequence octet with packet and digest untouched, and the packet is refused while the control verifies.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go#L142" title="internal/plugins/ospf/packet/rfc5709_rfc7474_digest_test.go" target="_blank" rel="noopener"><code>TestRFC7474SequenceChangeBreaksDigest</code></a></td>
@@ -632,12 +632,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: boot count and per-packet counter swapped or merged. TestSetBootCountSeedsSequence asserts signKey&#39;s seq == 0x1234&lt;&lt;32|1 after setBootCount(0x1234), red on any other composition. Single-polarity marker: a construction property with no violating input.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L464" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestSetBootCountSeedsSequence</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -647,7 +647,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment after host-independent fixture repair; runtime renewal is not claimed here. RFC 7474 section 2: &#39;The lower-order 32-bit sequence number MUST be incremented for every OSPF packet sent by the OSPF router.&#39; Read the full RFC, current checklist, derived row and both current positive carriers. internal/plugins/ospf/rfc7474_replay_test.go::TestRFC7474EverySentPacketIncrementsSequence installs installOSPFAddressBackend before rfc7474Store configures its key chain, calls engine.signPacket three times, and asserts the verified wire sequences are exactly 7&lt;&lt;32|1, 7&lt;&lt;32|2 and 7&lt;&lt;32|3. rfc7474SentSequence verifies against the fixture&#39;s explicit 192.0.2.1, not cached signer state, and separately rejects zero and 192.0.2.2, eliminating the prior host-source confound without weakening the counter assertion. internal/plugins/ospf/auth_keystore_test.go::TestOSPFAuthESNCounterWrapAdvancesBootCount independently seeds low word 0xffffffff and durable boot 0x1234, then asserts 0x1235&lt;&lt;32 followed by 0x1235&lt;&lt;32|1 and strict increase. Producer internal/plugins/ospf/auth_keystore.go::signKey computes c = s.sendSeq[iface] + 1, durably advances the boot count on wrap, composes the two words and stores c; auth_wiring.go::signPacket signs that sequence. installAuthHooks installs the same signer, and transport.go::SendPacket and SendPacketRouted both invoke it without packet-type branching. Four questions: the oracle is the RFC&#39;s exact increment, not an inequality accepting skipped increments; a frozen or repeated low word fails the exact-value assertions; the fixture isolates address acquisition before configuration and uses a valid explicit source; ordinary and wrap increments cover this row&#39;s complete obligation at the shared signer boundary. Scope remains the historical AuType-3 signing/counter claim: the tagged send test invokes the signer with three Hellos, not a five-packet-type transport or external-peer integration test. Two positive tagged units, no negative; the existing single-polarity annotation is justified as a send-side construction with no violating input to submit, not as an assertion that a broken counter is unobservable. The existing native record disables the whole signKey body and proves reachability only; renew its exact tagged unit after a clean baseline and separately observe a targeted counter-increment break before treating that break as runtime proof. No source, protocol, tag or requirement change is proposed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L492" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthESNCounterWrapAdvancesBootCount</code></a></td>
@@ -667,22 +667,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: a sequence reused after a cold restart or a low-word wrap. TestBootCountMonotonicAcrossRestart asserts the persisted boot count strictly increases per load; TestOSPFESNWrapPersistsBeforeRestart asserts the wrapped boot count is persisted (value 2) and a second engine&#39;s first packet (3&lt;&lt;32|1) sorts above the first engine&#39;s final packet; TestOSPFESNWrapFailureRefusesPackets asserts signPacket emits nothing when the durable increment is unavailable, corrupt, failed, exhausted, missing or non-increasing. Lost storage is the separate RFC7474-8-1 gap.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_state_store_gate_test.go#L259" title="internal/plugins/ospf/rfc7474_state_store_gate_test.go" target="_blank" rel="noopener"><code>TestOSPFESNWrapFailureRefusesPackets</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L428" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestBootCountMonotonicAcrossRestart</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_state_store_gate_test.go#L186" title="internal/plugins/ospf/rfc7474_state_store_gate_test.go" target="_blank" rel="noopener"><code>TestOSPFESNWrapPersistsBeforeRestart</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -692,7 +692,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. The AuType 2 tags flagged last round are gone from TestOSPFAuthReplay (now RFC 2328 rows). Split confirmed against the texts: RFC 7474 Section 2 &#39;MUST be greater than the sequence number in the last OSPF packet of that type accepted from the sending OSPF neighbor&#39; binds AuType 3; RFC 2328 D.5.3 (2) discards only &#39;less than the cryptographic sequence number recorded in the sending neighbor&#39;s data structure&#39; (one field per neighbour, D.3). replayedSequence returns seq &lt;= last for AuTypeCryptographicESN. Positive TestRFC7474GreaterExtendedSequenceAccepted accepts boot 2 low 1 after boot 1 low 6; negative TestRFC7474NotGreaterExtendedSequenceDropped drops smaller-boot, smaller and equal with reason replay; TestOSPFAuthReplayEqualSequenceByAuType drops an equal AuType 3 sequence. Replacing &lt;= by &lt; or comparing the low word only reddens a named assertion.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L185" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthReplayEqualSequenceByAuType</code></a></td>
@@ -717,7 +717,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21. AuType 2 tags removed from TestOSPFAuthReplay and TestOSPFAuthReplayPerType; only AuType 3 units remain. replaySlotFor keys AuType 3 by iface, neighbour and packet type, AuType 2 by neighbour only, matching RFC 7474 Section 2 (&#39;of that type ... from the sending OSPF neighbor&#39;) and RFC 2328 D.5.3/D.3. Positive TestRFC7474ReplayMarkPerNeighborAndType: after 2.2.2.2 Hello 100, 3.3.3.3 Hello 5 and 2.2.2.2 LS Ack 5 are accepted, so a mark shared across neighbours or types reddens. Negative TestRFC7474ReplayedPacketDropped: 2.2.2.2 Hello 99 and 3.3.3.3 Hello 5 again are dropped as replay, 3.3.3.3 Hello 6 accepted. The positive record is a whole-body revert of verify; the slot discrimination was judged by reading.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc7474_replay_test.go#L111" title="internal/plugins/ospf/rfc7474_replay_test.go" target="_blank" rel="noopener"><code>TestRFC7474ReplayedPacketDropped</code></a></td>
@@ -737,7 +737,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Positive asserts the literal auth field 00 00 00 28 01 02 03 04 and the Packet Length excluding the 8 sequence octets. The negatives are strict framing (an extra byte after seq+digest refused), a 32-bit Key ID mismatch whose IDs share the low octet so only a full 32-bit compare rejects it, and a changed sequence refused.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L234" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthCryptoRejectsExtraTrailerBytes</code></a></td>
@@ -772,17 +772,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. The positive unit now holds the independent digest over packet || sequence || Apad, which is the First-Hash content, beside the round trip; the negative refuses a tampered sequence octet.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L294" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTamperRejected</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L184" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -792,7 +792,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment of the extracted fixture dependency, not a claim that unchanged tagged bodies became stale-unit. RFC 7474 section 5: &#39;OSPF routers sending OSPF packets must initialize the first 4 octets of Apad to the value of the IP source address that would be used when sending the OSPFv2 packet. The remainder of Apad will contain the value 0x878FE1F3 repeated (L - 4)/4 times, where L is the length of the hash, measured in octets. The basic idea is to incorporate the IP source address from the IP header in the cryptographic authentication computation so that any change of IP source address in a replayed packet can be detected. When an OSPF packet is received, implementations MUST initialize the first 4 octets of Apad to the IP source address from the IP header of the incoming OSPFv2 packet.&#39; The immediately following RFC sentence also requires the same repeated remainder on reception. Read every current carrier: internal/plugins/ospf/rfc7474_apad_source_test.go::TestRFC7474SentApadIsInterfaceSource, TestRFC7474SentApadNotRouterIDOrZero, TestRFC7474ReceiveApadFromIPHeaderSource and TestRFC7474ReceiveApadOtherThanIPHeaderSourceDropped; internal/plugins/ospf/packet/auth_verify_test.go::TestOSPFAuthType3SourceBinding supplies both additional polarities with distinct matching-source and spoofed-source assertions. The shared installOSPFAddressBackend now registers/loads eth0 192.0.2.1/24, asserts address and mask through production lookup, and restores the prior backend after engine shutdown; rfc7474ApadEngine calls it before setConfig/openInterfaces. This helper is semantically relevant even though the four tagged bodies are unchanged and their file movement is machine-level SHIFTED under the audit&#39;s enclosing-unit model. Send positive compares the captured production-transport Hello digest with independent HMAC-SHA-256 over wire packet, eight-byte sequence, and literal source plus seven remainder words. Send negative independently rejects router ID 10.0.0.1, zero source and zero remainder. Receive positive sends a valid /24 backbone Hello bound to IP-header source 192.0.2.2 and asserts zero dispatcher drops plus one neighbor; receive negative changes only digest-bound Apad source to 192.0.2.3, local 192.0.2.1 or zero, retaining actual source 192.0.2.2, and asserts one drop plus no neighbor using fresh engines/replay stores. Producer auth_keystore.go::configure obtains the source via interfaceIPv4Address; signPacket passes it to packet.Sign; verifyPacket obtains rp.Src and authStore.verify passes it to packet.Verify. packet/auth_verify.go::apadSrc initializes the common remainder and overwrites its first four bytes; both Sign and Verify use it. Four questions: literal RFC source/remainder oracles rather than mere self-round-trip; wrong-source or wrong-remainder output fails independent assertions; mask, area, key, packet framing and actual receive source remain conforming so neighboring guards do not explain rejection; send source, common remainder and receive source obligations are covered collectively at these shared producers. Three positive and three negative tags, five distinct test functions; the packet-level pair is two different assertions, not one assertion counted twice. Historical capability scope remains HMAC-SHA-256 engine fixtures plus the shared Apad implementation; no new all-algorithm, routed-source or dynamic-address integration claim. No semantic regression from the extraction was found. Existing revert records prove only their named producer disables, not source-substitution sensitivity or current runtime success; helper-dependent clean runs and any chosen renewed red observations remain the parent&#39;s work.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L204" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SourceBinding</code></a></td>
@@ -832,17 +832,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. The positive unit&#39;s independent reference digest appends Protocol ID 00 01 to the key and must equal Sign&#39;s trailer, so a missing suffix fails it; the negative rejects a digest made from the bare key.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L330" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3RequiresProtocolIDSuffix</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/auth_verify_test.go#L185" title="internal/plugins/ospf/packet/auth_verify_test.go" target="_blank" rel="noopener"><code>TestOSPFAuthType3SequenceTrailer</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -852,7 +852,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/packet/rfc7474_auth_test.go#L80" title="internal/plugins/ospf/packet/rfc7474_auth_test.go" target="_blank" rel="noopener"><code>TestRFC7474KoNonZeroPadRejected</code></a></td>
@@ -876,7 +876,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 (continuation 8, judge): TestVerifyRejectsOutsideAcceptLifetime verifies identical bytes at three clocks: refused accept-lifetime before the window opens (negative), accepted inside (positive), refused after it closes while successor Key ID 2 is live (negative). The successor was added because RFC 5709 s3.2 (row RFC5709-3.2-5) now keeps an expired LAST key; the closed-window refusal of a non-last key is exactly this row. Revert records on acceptsAt re-observed red for both polarities.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/auth_keystore_test.go#L535" title="internal/plugins/ospf/auth_keystore_test.go" target="_blank" rel="noopener"><code>TestVerifyRejectsOutsideAcceptLifetime</code></a></td>
@@ -1133,7 +1133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

@@ -127,9 +127,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="profile/mpls/required:must">Ze proven 127, Proof pending 9, OS testing gap 2, Not built 181</div>
+<div data-ze-rfc-bar="profile/mpls/required:must">Ze verified 127, Tests awaiting verification 9, OS testing gap 2, Not built 181</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="profile/mpls/required:overview">Ze MUST proven 127, SHOULD proven 6, Proof pending 10, OS testing gap 2, Not assessed 49, Not built 184</div>
+<div data-ze-rfc-bar="profile/mpls/required:overview">Ze MUST verified 127, SHOULD verified 6, Tests awaiting verification 10, OS testing gap 2, Not assessed 49, Not built 184</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -149,13 +149,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="profile/mpls/required:must.kept">319</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="profile/mpls/required:must.ze-proven">127</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="profile/mpls/required:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="profile/mpls/required:must.proof-pending">9</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -185,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="profile/mpls/required:should.total">59</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="profile/mpls/required:should.proven">6</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -206,7 +206,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="profile/mpls/required:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="profile/mpls/required:should.proof-pending">1</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -221,7 +221,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 </section>
 <section><h2>Tree</h2>
 <p>The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows &#34;requirements not reviewed&#34; instead of a bar.</p>
@@ -232,8 +232,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc2205/">RFC 2205</a> (cycle with rfc2210, rfc2211, rfc2215)</td>
 <td>Resource ReSerVation Protocol (RSVP) -- Version 1 Functional Specification</td>
-<td><div data-ze-rfc-bar="rfc2205:must">Ze proven 31, Not built 44</div></td>
-<td><div data-ze-rfc-bar="rfc2205:overview">Ze MUST proven 31, Not assessed 5, Not built 44</div></td>
+<td><div data-ze-rfc-bar="rfc2205:must">Ze verified 31, Not built 44</div></td>
+<td><div data-ze-rfc-bar="rfc2205:overview">Ze MUST verified 31, Not assessed 5, Not built 44</div></td>
 </tr>
 </tbody>
 </table>
@@ -245,8 +245,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc5036/">RFC 5036</a></td>
 <td>LDP Specification</td>
-<td><div data-ze-rfc-bar="rfc5036:must">Ze proven 29, Proof pending 3, Not built 59</div></td>
-<td><div data-ze-rfc-bar="rfc5036:overview">Ze MUST proven 29, Proof pending 3, Not assessed 3, Not built 60</div></td>
+<td><div data-ze-rfc-bar="rfc5036:must">Ze verified 29, Tests awaiting verification 3, Not built 59</div></td>
+<td><div data-ze-rfc-bar="rfc5036:overview">Ze MUST verified 29, Tests awaiting verification 3, Not assessed 3, Not built 60</div></td>
 </tr>
 </tbody>
 </table>
@@ -258,8 +258,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc5561/">RFC 5561</a></td>
 <td>LDP Capabilities</td>
-<td><div data-ze-rfc-bar="rfc5561:must">Ze proven 1, Not built 16</div></td>
-<td><div data-ze-rfc-bar="rfc5561:overview">Ze MUST proven 1, Not assessed 1, Not built 16</div></td>
+<td><div data-ze-rfc-bar="rfc5561:must">Ze verified 1, Not built 16</div></td>
+<td><div data-ze-rfc-bar="rfc5561:overview">Ze MUST verified 1, Not assessed 1, Not built 16</div></td>
 </tr>
 </tbody>
 </table>
@@ -271,13 +271,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc3031/">RFC 3031</a> (cycle with rfc3032)</td>
 <td>Multiprotocol Label Switching Architecture</td>
-<td><div data-ze-rfc-bar="rfc3031:must">Ze proven 2, Not built 8</div></td>
-<td><div data-ze-rfc-bar="rfc3031:overview">Ze MUST proven 2, Not assessed 2, Not built 8</div></td>
+<td><div data-ze-rfc-bar="rfc3031:must">Ze verified 2, Not built 8</div></td>
+<td><div data-ze-rfc-bar="rfc3031:overview">Ze MUST verified 2, Not assessed 2, Not built 8</div></td>
 </tr>
 <tr><td><a href="../../rfc3032/">RFC 3032</a> (cycle with rfc3031)</td>
 <td>MPLS Label Stack Encoding</td>
-<td><div data-ze-rfc-bar="rfc3032:must">Ze proven 3, Not built 15</div></td>
-<td><div data-ze-rfc-bar="rfc3032:overview">Ze MUST proven 3, Not assessed 5, Not built 16</div></td>
+<td><div data-ze-rfc-bar="rfc3032:must">Ze verified 3, Not built 15</div></td>
+<td><div data-ze-rfc-bar="rfc3032:overview">Ze MUST verified 3, Not assessed 5, Not built 16</div></td>
 </tr>
 </tbody>
 </table>
@@ -289,8 +289,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc3209/">RFC 3209</a></td>
 <td>RSVP-TE: Extensions to RSVP for LSP Tunnels</td>
-<td><div data-ze-rfc-bar="rfc3209:must">Ze proven 23, Proof pending 2, OS testing gap 2, Not built 32</div></td>
-<td><div data-ze-rfc-bar="rfc3209:overview">Ze MUST proven 23, Proof pending 3, OS testing gap 2, Not assessed 2, Not built 32</div></td>
+<td><div data-ze-rfc-bar="rfc3209:must">Ze verified 23, Tests awaiting verification 2, OS testing gap 2, Not built 32</div></td>
+<td><div data-ze-rfc-bar="rfc3209:overview">Ze MUST verified 23, Tests awaiting verification 3, OS testing gap 2, Not assessed 2, Not built 32</div></td>
 </tr>
 </tbody>
 </table>
@@ -302,13 +302,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc4090/">RFC 4090</a></td>
 <td>Fast Reroute Extensions to RSVP-TE for LSP Tunnels</td>
-<td><div data-ze-rfc-bar="rfc4090:must">Ze proven 29, Proof pending 3, Not built 1</div></td>
-<td><div data-ze-rfc-bar="rfc4090:overview">Ze MUST proven 29, SHOULD proven 6, Proof pending 3, Not assessed 1, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc4090:must">Ze verified 29, Tests awaiting verification 3, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc4090:overview">Ze MUST verified 29, SHOULD verified 6, Tests awaiting verification 3, Not assessed 1, Not built 2</div></td>
 </tr>
 <tr><td><a href="../../rfc5443/">RFC 5443</a></td>
 <td>LDP IGP Synchronization</td>
-<td><div data-ze-rfc-bar="rfc5443:must">Ze proven 5, Not built 3</div></td>
-<td><div data-ze-rfc-bar="rfc5443:overview">Ze MUST proven 5, Not assessed 6, Not built 3</div></td>
+<td><div data-ze-rfc-bar="rfc5443:must">Ze verified 5, Not built 3</div></td>
+<td><div data-ze-rfc-bar="rfc5443:overview">Ze MUST verified 5, Not assessed 6, Not built 3</div></td>
 </tr>
 </tbody>
 </table>
@@ -320,8 +320,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc6138/">RFC 6138</a></td>
 <td>LDP IGP Synchronization for Broadcast Networks</td>
-<td><div data-ze-rfc-bar="rfc6138:must">Ze proven 2</div></td>
-<td><div data-ze-rfc-bar="rfc6138:overview">Ze MUST proven 2</div></td>
+<td><div data-ze-rfc-bar="rfc6138:must">Ze verified 2</div></td>
+<td><div data-ze-rfc-bar="rfc6138:overview">Ze MUST verified 2</div></td>
 </tr>
 </tbody>
 </table>
@@ -333,8 +333,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc5286/">RFC 5286</a></td>
 <td>Basic Specification for IP Fast Reroute: Loop-Free Alternates</td>
-<td><div data-ze-rfc-bar="rfc5286:must">Ze proven 2, Proof pending 1, Not built 3</div></td>
-<td><div data-ze-rfc-bar="rfc5286:overview">Ze MUST proven 2, Proof pending 1, Not assessed 24, Not built 3</div></td>
+<td><div data-ze-rfc-bar="rfc5286:must">Ze verified 2, Tests awaiting verification 1, Not built 3</div></td>
+<td><div data-ze-rfc-bar="rfc5286:overview">Ze MUST verified 2, Tests awaiting verification 1, Not assessed 24, Not built 3</div></td>
 </tr>
 </tbody>
 </table>
@@ -376,7 +376,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

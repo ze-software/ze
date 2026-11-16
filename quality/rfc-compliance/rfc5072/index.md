@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 6 | of 16 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 6 | of 16 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 6 | of 16 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 6 | of 16 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 16 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 16 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 11 | 11 of 24 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 16 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 11 | 11 of 24 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 16 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 16 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 16 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 16 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 16 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 16 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 16 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6C
 
 **Area:** IPv6CP
 
-**Proof:** 9 of 16 MUST proven
+**Test verification:** 9 of 16 MUST proven
 
 **Evidence:** unit 9
 
@@ -108,7 +108,7 @@ Included in automatic checks: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6C
 | Annotated (including scoped evidence) | 10 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **16** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6C
 
 ## Figures
 
-- **MUST bar**: Ze proven 9, Proof pending 3, Not built 4
-- **Overview bar**: Ze MUST proven 9, Proof pending 3, Not assessed 12, Not built 4
+- **MUST bar**: Ze verified 9, Tests awaiting verification 3, Not built 4
+- **Overview bar**: Ze MUST verified 9, Tests awaiting verification 3, Not assessed 12, Not built 4
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6C
 | Mandatory requirements complete | not complete |
 | MUST rows | 16 |
 | MUST rows kept (the MUST bar) | 16 |
-| Ze proven | 9 |
+| Ze verified | 9 |
 | OS verified | 0 |
-| Proof pending | 3 |
+| Tests awaiting verification | 3 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: IPv6 over PPP / IPV6CP (RFC 5072): 7 MET (no IPV6C
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 12 |
-| SHOULD proven | 0 |
+| SHOULD verified | 0 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 12 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc5072.json](../../../data/rfc/rfc5072.json).
 
@@ -199,9 +199,9 @@ Source: [data/rfc/rfc5072.json](../../../data/rfc/rfc5072.json).
 | [`RFC5072-4.1-10`](#rfc5072-4.1-10) If an IEEE global identifier is not available, a different source of uniqueness should be used. Suggested sources of uniqueness include link-layer addresses, machine serial numbers, et cetera. In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | {gap}, no test | ze uses no case-2 source of uniqueness (no link-layer address, no machine serial number) for its own Interface-Identifier; it draws a random identifier from crypto/rand, which is the case-3 random identifier RFC5072-4.1-11 governs. internal/component/l2tp/ppp/ipv6cp.go::generateIPv6CPInterfaceID (ipv6cp.go:141-152) never clears that identifier's u bit, and requestIPv6CPInterfaceID (ncp.go:200-207) uses it raw, so clearing the bit in generateIPv6CPInterfaceID meets this row and RFC5072-4.1-11 together |
 | [`RFC5072-4.1-11`](#rfc5072-4.1-11) In this case, the "u" bit of the interface identifier MUST be set to zero (0). (§4.1) | {gap}, no test | ze's identifier is randomly generated and the generator does not force the u bit to zero, the exact case this MUST governs (internal/component/l2tp/ppp/ipv6cp.go:141-152, generateIPv6CPInterfaceID; used raw by requestIPv6CPInterfaceID, ncp.go:200-207) |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC5072-3-1`](#rfc5072-3-1)
 
@@ -209,7 +209,7 @@ IPV6CP packets may not be exchanged until PPP has reached the network-layer prot
 
 Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase, internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go::TestNCPHeldUntilNetworkPhase#2 moved. Rejudged 2026-11-08 after 14d3df65a7 against RFC 5072 Section 3 "IPV6CP packets may not be exchanged until PPP has reached the network-layer protocol phase." Send half: TestNCPHeldUntilNetworkPhase/ipv6 holds CHAP pending 3 s and onlyChallengesUntil fails on any frame but a CHAP Challenge (Code 1) with a changed Identifier (RFC 1994 4.1 retransmission), so an IPV6CP 0x8057 frame fails it; no EventIPRequest and no P2P install (-); after the Response is accepted pendingLifecycleNCP reads the 0x8057 Configure-Request (+). The stricter window isolates the rule better than before. Receive half: TestIPv6CPNoResponseBeforeNetworkPhase (-), TestIPv6CPOpenedEmitsAssigned (+), unchanged. Records: runAuthPhase revert (-), runNCPPhase mutant (+).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPv6CPNoResponseBeforeNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L660) | unit/verify | mutant, verified |
 | negative | [`TestNCPHeldUntilNetworkPhase`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc1661_phase_lifecycle_test.go#L169) | unit/verify | revert, unit-changed (the tagged unit's behavior changed since the red was observed) |
@@ -222,7 +222,7 @@ Before any IPv6 packets may be communicated, PPP MUST reach the network-layer pr
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6ServiceStartsOnlyAfterIPv6CPOpened moved. Judge ppp5 2026-09-30. TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened: both NCPs enabled, IPCP Opened, IPV6CP held in Ack-Rcvd; fails on EventSessionUp and now on either attempt log, 'IPv6 service start failed' or 'refusing to start the IPv6 service', the second being what afterLCPOpenIPv6Service logs in this scenario because the peer interface id is never negotiated. So an up gate keyed on any non-Initial IPV6CP state and an early service start both turn it red (recorded ncpsComplete revert). Single-polarity positive per the row marker; ncp_test.go TestIPv6ServiceStartsOnlyAfterIPv6CPOpened proves the service does start once IPV6CP Opens.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestIPv6ServiceStartsOnlyAfterIPv6CPOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L453) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC5072NoIPv6ServiceWhileIPv6CPShortOfOpened`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_opened_test.go#L75) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
@@ -241,11 +241,11 @@ A Configure- Request MUST contain exactly one instance of the interface-identifi
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPDuplicateIdentifierOptionIsNotAcked, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPRequestWithoutIdentifierIsNotAcked moved. Rejudge 2026-11-08: new client positive TestRFC5072ClientConfigureRequestOneIdentifier asserts the PPPoE client's first IPv6CP Configure-Request has an options field of exactly 10 octets (one Interface-Identifier, so zero or two instances are red) holding the modified EUI-64. Server side unchanged: TestIPv6CPProposesInterfaceID counts type-1 options (iidCount != 1 red); negatives TestIPv6CPRequestWithoutIdentifierIsNotAcked and TestIPv6CPDuplicateIdentifierOptionIsNotAcked refuse zero- and two-option requests.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPv6CPDuplicateIdentifierOptionIsNotAcked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1067) | unit/verify | revert, verified |
 | negative | [`TestIPv6CPRequestWithoutIdentifierIsNotAcked`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L999) | unit/verify | revert, verified |
-| positive | [`TestIPv6CPProposesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L123) | unit/verify | unproven |
+| positive | [`TestIPv6CPProposesInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L123) | unit/verify | not verified |
 | positive | [`TestRFC5072ClientConfigureRequestOneIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go#L78) | unit/verify | mutant, verified |
 
 ### [`RFC5072-4.1-2`](#rfc5072-4.1-2)
@@ -254,10 +254,10 @@ The interface identifier MUST be unique within the PPP link (§4.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestIPv6CPNaksCollidingInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L741) | unit/verify | unproven |
-| positive | [`TestIPv6CPInterfaceIDsDiffer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L692) | unit/verify | unproven |
+| negative | [`TestIPv6CPNaksCollidingInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L741) | unit/verify | not verified |
+| positive | [`TestIPv6CPInterfaceIDsDiffer`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L692) | unit/verify | not verified |
 
 ### [`RFC5072-4.1-3`](#rfc5072-4.1-3)
 
@@ -265,10 +265,10 @@ If the two interface identifiers are different and the received interface identi
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPAcksDifferentNonZeroInterfaceID, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNaksZeroInterfaceID moved. Forbidden: Nak/Reject of a different non-zero identifier, or an Ack carrying a value other than the requested one. TestIPv6CPAcksDifferentNonZeroInterfaceID fails on response code != Configure-Ack and on ackOpts.InterfaceID != the requested ipv6cpTestPeerID. Negative TestIPv6CPNaksZeroInterfaceID fails when a zero identifier is Acked, bounding the non-zero condition.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestIPv6CPNaksZeroInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L817) | unit/verify | unproven |
-| positive | [`TestIPv6CPAcksDifferentNonZeroInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L778) | unit/verify | unproven |
+| negative | [`TestIPv6CPNaksZeroInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L817) | unit/verify | not verified |
+| positive | [`TestIPv6CPAcksDifferentNonZeroInterfaceID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L778) | unit/verify | not verified |
 
 ### [`RFC5072-4.1-4`](#rfc5072-4.1-4)
 
@@ -276,7 +276,7 @@ If the two interface identifiers are equal and are not zero, Configure-Nak MUST 
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakOnEqualNonZeroIdentifiers moved. Forbidden: answering equal non-zero identifiers with Ack or Reject, or a Nak whose suggestion equals the colliding value or is zero. TestIPv6CPNakOnEqualNonZeroIdentifiers fails on verdict != unacceptable, code != Configure-Nak, opts.InterfaceID == local (not different) and opts.InterfaceID == zero (not non-zero). Every clause asserted; single-polarity marker present.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestIPv6CPNakOnEqualNonZeroIdentifiers`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1226) | unit/verify | revert, verified |
 
@@ -286,7 +286,7 @@ Such a suggested interface identifier MUST be different from the interface ident
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPSuggestionDiffersFromLocalIdentifier moved. Judge 2026-09-29. TestIPv6CPSuggestionDiffersFromLocalIdentifier now feeds crypto/rand.Reader a first draw equal to the local identifier (u bit clear) and a distinct second: the suggestion must be the second draw. Deleting the id == local rejection in suggestIPv6CPInterfaceID returns the local identifier and fails both assertions. Valid single-polarity: the forced colliding draw is the violating input; ze produces no suggestion outside this function. Marker text corrected.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestIPv6CPSuggestionDiffersFromLocalIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1272) | unit/verify | revert, verified |
 
@@ -296,7 +296,7 @@ If the two interface identifiers are equal to zero, the interface identifier's n
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPBothZeroIsRejected moved. Forbidden: answering equal-zero identifiers with a Nak/Ack, or a Reject not carrying the zero identifier. TestIPv6CPBothZeroIsRejected fails on code != Configure-Reject, a Reject missing the Interface-Identifier option, and opts.InterfaceID != zero. The sentence defines termination as transmitting that Reject, which is asserted. Single-polarity marker present.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestIPv6CPBothZeroIsRejected`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1139) | unit/verify | revert, verified |
 
@@ -306,10 +306,10 @@ In this case, a new Configure-Request MUST be sent with the identifier value sug
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPNakInvalidSuggestionNotAdopted, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPResendsCRWithNakSuggestedID moved. Rejudge 2026-11-08: new client positive TestRFC5072ClientAdoptsNakSuggestion: a Nak suggesting 02:00:00:00:00:00:00:77 (different from any Nak the client sent, the condition of the sentence) makes the next Configure-Request carry exactly that identifier under a new Identifier. Server side unchanged: TestIPv6CPResendsCRWithNakSuggestedID requires the suggested value; negative TestIPv6CPNakInvalidSuggestionNotAdopted refuses an all-zero suggestion.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestIPv6CPNakInvalidSuggestionNotAdopted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L887) | unit/verify | unproven |
-| positive | [`TestIPv6CPResendsCRWithNakSuggestedID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L851) | unit/verify | unproven |
+| negative | [`TestIPv6CPNakInvalidSuggestionNotAdopted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L887) | unit/verify | not verified |
+| positive | [`TestIPv6CPResendsCRWithNakSuggestedID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L851) | unit/verify | not verified |
 | positive | [`TestRFC5072ClientAdoptsNakSuggestion`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc5072_ipv6cp_client_test.go#L123) | unit/verify | mutant, verified |
 
 ### [`RFC5072-4.1-8`](#rfc5072-4.1-8)
@@ -326,7 +326,7 @@ The "u" (universal/local) bit of the suggested identifier MUST be set to zero (0
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: a suggested identifier with the u bit (canonical bit 6, octet 0 mask 0x02) set. TestIPv6CPSuggestionHasUniversalBitClear fails when suggestion[0]&ipv6cpUniversalLocalBitMask != 0 over 64 random draws; deleting the `&^=` clear in suggestIPv6CPInterfaceID turns it red with probability 1-2^-64. suggestIPv6CPInterfaceID is the only source of buildNakOrReject's IPv6 Nak value (ncp.go). The EUI exception is never taken by ze; single-polarity marker present.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestIPv6CPSuggestionHasUniversalBitClear`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/rfc5072_ipv6cp_test.go#L187) | unit/verify | revert, verified |
 
@@ -352,10 +352,10 @@ A new Configure-Request MUST NOT contain the interface-identifier option if a va
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPInterfaceIDRejectIsFatal, internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPUnknownOptionRejectNotFatal moved. Forbidden: a further Configure-Request carrying the interface-identifier option after a valid Interface-Identifier Configure-Reject. TestIPv6CPInterfaceIDRejectIsFatal fails when no EventSessionDown follows the Reject (absorbIPv6CPReject returns ncpReplyFatal, so no new CR is ever sent); a regression that absorbs and resends keeps the session up and goes red. Negative TestIPv6CPUnknownOptionRejectNotFatal fails if a Reject of an unrequested option stops negotiation.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestIPv6CPUnknownOptionRejectNotFatal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L956) | unit/verify | revert, verified |
-| positive | [`TestIPv6CPInterfaceIDRejectIsFatal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L932) | unit/verify | unproven |
+| positive | [`TestIPv6CPInterfaceIDRejectIsFatal`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L932) | unit/verify | not verified |
 
 ### [`RFC5072-4.1-19`](#rfc5072-4.1-19)
 
@@ -363,7 +363,7 @@ If the next Configure-Request does not include this option, the peer MUST NOT se
 
 Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/l2tp/ppp/ncp_test.go::TestIPv6CPMissingOptionIsNakedOnce moved. Forbidden: Naking a second option-less Configure-Request after having Naked the first. TestIPv6CPMissingOptionIsNakedOnce fails when the second evalIPv6CPRequest verdict is not ncpRequestAcceptable (i.e. a second Nak). The first-call assertion bounds it. Single-polarity marker present.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestIPv6CPMissingOptionIsNakedOnce`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/ppp/ncp_test.go#L1030) | unit/verify | revert, verified |
 

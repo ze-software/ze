@@ -211,12 +211,12 @@ The design is in
 [Hardware kernel profiles](https://github.com/ze-software/ze/blob/main/docs/architecture/appliance/kernel-profiles.md),
 "Built in or loadable" and "Loading driver modules on the device".
 
-## VPN Kernel Proof
+## VPN Kernel Tests
 
 `./le test qemu vpn-kernel` boots Ze's docker-host image with its own
 kernel and base, on the host's native architecture. It uses the shared
 Docker lab transport: KVM on Linux or HVF on macOS, never a stock guest or
-foreign-architecture emulation. This is a manual kernel proof, not a check
+foreign-architecture emulation. This is a manual kernel test, not a check
 of the default appliance image's packaged config.
 <!-- source: internal/le/test/qemu/vpnproof.go -- runVPNKernelHere -->
 <!-- source: internal/le/test/qemu/dockerlab.go -- runDockerLab -->
@@ -248,7 +248,7 @@ result is implied by the command's presence.
 
 Ze's L2TP LNS path needs kernel PPPoL2TP support in the appliance runtime
 kernel: `CONFIG_PPP`, `CONFIG_PPPOL2TP`, `CONFIG_L2TP`, and
-`CONFIG_L2TP_V3`. The shared runtime proof kernel also keeps `CONFIG_PPPOE`
+`CONFIG_L2TP_V3`. The shared runtime test kernel also keeps `CONFIG_PPPOE`
 built in for PPPoE evidence. The appliance image boots this kernel, so every
 image carries these options. To fill the cache before a build, on an amd64
 host:
@@ -300,19 +300,19 @@ can be used.
 <!-- source: internal/appliance/kernelbuilder/worker.go -- RunWorker -->
 
 On a Linux runner with QEMU, `xl2tpd`, `pppd`, `/dev/ppp`, and PPPoL2TP kernel
-support, the deployment proof target builds an L2TP-enabled appliance image and
+support, the deployment test target builds an L2TP-enabled appliance image and
 drives a real LAC against it:
 
 ```bash
 ./le test deployment gokrazy-l2tp-ppp
 ```
 
-The proof image is built from a temporary gokrazy instance config so the normal
-appliance config is left unchanged. It disables IPv6CP in that proof image
+The test image is built from a temporary gokrazy instance config so the normal
+appliance config is left unchanged. It disables IPv6CP in that test image
 because the current static L2TP pool is IPv4-only. Set
 `ZE_GOKRAZY_SKIP_BUILD=1` to run against an existing `tmp/gokrazy/ze.img` that
-was already built with the L2TP proof template, the proof runtime environment,
-and an L2TP-capable kernel: skip-build bypasses the proof's check of the
+was already built with the L2TP test template, the test runtime environment,
+and an L2TP-capable kernel: skip-build bypasses the test's check of the
 runtime kernel cache, and an image whose kernel lacks PPPoL2TP crash-loops at
 first boot instead of serving.
 <!-- source: gokrazy/kernel/runtime.config -- Ze L2TP/PPP kernel config -->
@@ -399,7 +399,7 @@ Write the image to a USB drive or internal disk on your N100 machine:
 Use the exact `.img` path printed by the named build's `image ready:` line.
 Named builds write into the selected appliance directory, normally
 `~/.config/ze/appliances/edge-01/`; `tmp/gokrazy/ze.img` belongs to other build
-and proof workflows. Set `ZE_IMAGE` to the named image you just built, verify
+and test workflows. Set `ZE_IMAGE` to the named image you just built, verify
 its accompanying `.sha256` file, and identify the target device before writing.
 <!-- source: internal/appliance/cmd_build.go -- buildOne -->
 <!-- source: internal/appliance/resolve.go -- ResolveDir, AppliancePath -->

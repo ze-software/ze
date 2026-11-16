@@ -128,21 +128,21 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>29</strong><b>of 30 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
-<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 30 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>29</strong><b>of 30 mandatory requirements</b><p>a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 30 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 30 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 30 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
+<article class="rfc-card rfc-ok"><span>Partial test coverage</span><strong>0</strong><b>of 30 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 30 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>82</strong><b>82 of 98 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>82</strong><b>82 of 98 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-neutral"><span>Out of scope</span><strong>0</strong><b>of 30 mandatory requirements</b><p>an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page</p></article>
 <article class="rfc-card rfc-neutral"><span>Not applicable</span><strong>0</strong><b>of 30 mandatory requirements</b><p>a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 30 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
+<article class="rfc-card rfc-neutral"><span>Met below Ze</span><strong>0</strong><b>of 30 mandatory requirements</b><p>a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer&#39;s behavior on the state Ze installs, with a recorded break, and an OS testing gap until then</p></article>
 <article class="rfc-card rfc-neutral"><span>Optional feature declined</span><strong>0</strong><b>of 30 mandatory requirements</b><p>a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to</p></article>
-<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 30 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit</p></article>
+<article class="rfc-card rfc-neutral"><span>Linux cannot do this</span><strong>0</strong><b>of 30 mandatory requirements</b><p>Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze&#39;s code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit</p></article>
 </div>
 <h3>Totals</h3>
 <p>what the cards above are counted against</p>
@@ -170,11 +170,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>One polarity, unexcused</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: half a proof with no reason for the other half</td>
+<td>green at zero, RED above it: one test direction is missing without a recorded reason</td>
 </tr>
-<tr><td>Partial proof; remaining gap</td>
+<tr><td>Partial test coverage</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
-<td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
+<td>green at zero, RED above it: testing one clause does not verify the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -186,7 +186,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Met below Ze</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself</td>
+<td>no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze&#39;s own tests verify</td>
 </tr>
 <tr><td>Optional feature declined</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
@@ -194,7 +194,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td>Linux cannot do this</td>
 <td><span class="rfc-swatch rfc-neutral"></span> neutral</td>
-<td>neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption</td>
+<td>neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption</td>
 </tr>
 <tr><td>Tests shown to detect a fault</td>
 <td><span class="rfc-swatch rfc-ok"></span> ok</td>
@@ -275,7 +275,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RADIUS CoA and Disconnect Message</p>
-<p><strong>Proof:</strong> 26 of 30 MUST proven</p>
+<p><strong>Test verification:</strong> 26 of 30 MUST proven</p>
 <p><strong>Evidence:</strong> unit 26</p>
 <p><strong>Unmet:</strong> -</p>
 
@@ -301,7 +301,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><strong>0</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
-<tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
+<tr><td>Partial test coverage (subset of annotated; zero whole-requirement credit)</td>
 <td><strong>0</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
@@ -322,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc5176:must">Ze proven 26, Proof pending 4</div>
+<div data-ze-rfc-bar="rfc5176:must">Ze verified 26, Tests awaiting verification 4</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc5176:overview">Ze MUST proven 26, SHOULD proven 1, Proof pending 4</div>
+<div data-ze-rfc-bar="rfc5176:overview">Ze MUST verified 26, SHOULD verified 1, Tests awaiting verification 4</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -344,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="rfc5176:must.kept">30</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="rfc5176:must.ze-proven">26</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc5176:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="rfc5176:must.proof-pending">4</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -380,7 +380,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="rfc5176:should.total">1</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="rfc5176:should.proven">1</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -401,7 +401,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="rfc5176:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="rfc5176:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -416,7 +416,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 
 </section>
 <section><h2>Requirements</h2>
@@ -747,24 +747,24 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <section><h2>Gaps and untested MUSTs</h2>
 <p>RFC 5176 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.</p>
 </section>
-<section><h2>Proof state</h2>
-<p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
+<section><h2>Test status</h2>
+<p>A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.</p>
 <h3><a href="#rfc5176-3.5-1"><code>RFC5176-3.5-1</code></a></h3>
 <p>This value is used to authenticate packets between the Dynamic Authorization Client and the Dynamic Authorization Server. (§2.3)</p>
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-29, re-judged after the RFC5176-3.5-2 tags were dropped from the doc comments; the test bodies are unchanged. (a) forbidden: acting on a request whose Authenticator does not authenticate it. (b) TestCoAListenerInvalidAuth fails if a zero-authenticator CoA-Request gets any response; TestCoAListenerUnknownSession asserts a correctly signed request is processed (CoA-NAK 503).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L316" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerInvalidAuth</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L401" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerUnknownSession</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -774,7 +774,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against RFC 5176 Section 3 (the complete combination MUST match; otherwise NAK), current coa.go selectors and every tagged unit. Existing MatchedIdentificationSucceeds, UnmatchedIdentificationIsNAKed and NoSessionIdNotActedOn distinguish real CoA/Disconnect ACK/teardown from 503/no event/no teardown. ReplayReturnsCachedResponse now seeds the live accountant and still requires two ACKs but exactly one teardown. New RegisteredSubscriberAllSelectorsMustMatch sends an exact registry Acct-Session-Id plus conflicting User-Name or NAS-Port, requiring signed CoA-NAK 503 and unchanged installed rate. OldAccountingIdentityCannotSelectNewIncarnation and DisconnectOldAccountingIdentityCannotTerminateNewIncarnation keep the tuple/other selectors valid while changing only the full issued identity; they require signed 503, unchanged shaping and zero teardown. LiveAccountingOwnerIdentitySurvivesRegistryMiss supplies the actual current accountant ID alongside a different registry ID and requires signed ACK plus an installed 20M rate, preventing refusal of every fallback. Admission refuses unsupported identification types before matching; sessionSelectorsMatch intersects every occurrence of the three implemented selectors on both registry and complete-accountant fallback routes. Removing either intersection or restoring numeric-prefix matching makes exact outcome assertions fail. This judges the whole included-combination clause, not a claim to support the eleven refused types. Native proof freshness is a separate main-thread gate.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go#L36" title="internal/component/l2tp/plugins/authradius/rfc5176_account_identity_test.go" target="_blank" rel="noopener"><code>TestCoAOldAccountingIdentityCannotSelectNewIncarnation</code></a></td>
@@ -824,7 +824,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. The oracle is no longer the producer: TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5 reads CoA-ACK, CoA-NAK, Disconnect-ACK and Disconnect-NAK raw off the socket and compares the Authenticator field with an MD5 the test computes over Code, Identifier, Length, the sent Request Authenticator, the response attributes and the secret. The {single-polarity: positive} annotation holds: the NAS only emits responses.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L206" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176ResponseAuthenticatorMatchesAnIndependentMD5</code></a></td>
@@ -844,27 +844,27 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a Request Authenticator not computed as RFC 2866 specifies (MD5 over Code+Identifier+Length+16 zero octets+attributes+secret). (b) TestRFC5176CoARequestAuthenticatorMatchesTheFormula compares AccountingRequestAuth with an independent MD5 in the test over non-zero wire octets; TestRFC5176CoARequestAuthenticatorCoversEveryNamedField refuses changed Code, Identifier, attribute and secret; packet_test.go refuses a corrupted byte.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L358" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestVerifyCoARequestAuth</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L218" title="internal/component/radius/rfc2865_response_auth_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoARequestAuthenticatorCoversEveryNamedField</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/packet_test.go#L352" title="internal/component/radius/packet_test.go" target="_blank" rel="noopener"><code>TestVerifyCoARequestAuth</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_response_auth_test.go#L183" title="internal/component/radius/rfc2865_response_auth_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoARequestAuthenticatorMatchesTheFormula</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -874,7 +874,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: answering or acting on a packet whose Code is not CoA-Request or Disconnect-Request. (b) TestRFC5176InvalidCodeDiscarded: sendRawCoAPacketExpectNoResponse for a correctly signed Code 44 packet; the CoA-Request with the same attributes is answered. One invalid value exercises the whitelist in handlePacket.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L143" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176InvalidCodeDiscarded</code></a></td>
@@ -894,7 +894,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-14 by a reader who did not author the tests. (a) forbidden: failing to detect a duplicate with the same source IP, source UDP port and Identifier. + TestRFC5176DuplicateIsSameSourcePortAndIdentifier: one socket sends the same octets twice, the second answer is byte-identical to the first and the session is torn down once. - TestRFC5176DifferentSourcePortIsNotADuplicate: the same octets from a second socket are processed afresh (two teardowns). - TestRFC5176DuplicateRequestAnsweredFromCache: on one socket a new Identifier is processed afresh. - TestRFC5176SameTripleNewAuthenticatorIsProcessedAfresh: same triple with a new Request Authenticator is processed afresh and replaces the entry, and a discarded stale copy leaves it. Producer coa.go coaReplayKey{source netip.AddrPort, identifier} with cachedReplay comparing the Authenticator.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L246" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176DifferentSourcePortIsNotADuplicate</code></a></td>
@@ -929,7 +929,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: reading octets past Length as attributes, or processing a datagram shorter than its Length. (b) TestRFC5176LengthFieldGovernsTheOctetsRead asserts a request with eight trailing octets is ACKed, and a datagram four octets short of its Length gets no response.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L342" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176LengthFieldGovernsTheOctetsRead</code></a></td>
@@ -949,7 +949,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L367" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176SharedSecretChosenBySourceAddress</code></a></td>
@@ -969,7 +969,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against the complete Section 2.3 Attributes paragraph, including mandatory attributes, changes that cannot be carried out, and unsupported attribute types/values for BOTH CoA and Disconnect. Existing UnsupportedAttributeNAKed and CoAWithAnUnsupportedAttributeValueIsNAKed require exact NAKs for unsupported types and sole invalid values; CoAWithOneUnsupportedValueBesideSupportedOnesIsNAKed keeps a supported rate beside an invalid second Filter-Id/duplicate rate/unknown vendor, requiring 407 and no emitted change. DisconnectWithAnUnsupportedValueIsNAKed isolates malformed NAS-Port versus unsupported VSA, requires 407/401 and zero teardown. RequestWhoseEveryValueIsSupportedIsACKed retains useful CoA and Disconnect acceptance. New DynamicAuthorizationRefusesUnimplementedIdentification supplies valid signed wire encodings of each of eleven unsupported identification types, one at a time alongside all three matching supported selectors, for both request kinds: NAK 401, both shaping directions unchanged, subscriber retained and no teardown. CoAImplementedIdentificationStillApplies uses only the three implemented selectors and explicit 20mbit/5mbit, requiring signed ACK and those actual backend rates. Section 2.3 expressly allows a NAS to omit CoA support for attributes it supports in authentication/accounting, so explicit 401 replaces the former silent ignore correctly. readCoAChange walks every authorization attribute; unsupportedAttr/unsupportedAttrValue run before application; the companion atomicity units enforce unavailable-backend refusal rather than event-only success. Accepting/ignoring any of these extras or values breaks the exact NAK/no-change controls; blanket refusal breaks useful ACK controls. Native proof freshness remains main&#39;s separate gate.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go#L114" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_values_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestWhoseEveryValueIsSupportedIsACKed</code></a></td>
@@ -1019,7 +1019,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against all CoA atomicity and unsuccessful Disconnect clauses in Section 2.3. Existing ChangeThatCannotBeCarriedOutIsNAKed and CoANAKMakesNoPartialChange cover unavailable dispatch/no access interface on L2TP; SubscriberCoAThatCannotBeCarriedOutWholeMakesNoChange covers the subscriber path, requiring 506 and no change notification. RequestWhoseEveryValueIsSupportedIsACKed retains all requested control notifications. New MixedOwnerFailureRestoresBothControls drives real registered shaper and CoS owners through signed UDP, makes VLAN application partially write after rate application, then requires CoA-NAK 506 with original 10M/5M shaping and both original empty VLAN maps. MixedOwnersApplyBeforeACK supplies the same valid request without backend failure and requires signed ACK only with actual 20M/8M shaping plus both gold maps installed. Thus an ACK after mere notification, incomplete application or failure without reverse compensation fails actual state assertions. DisconnectThatCannotTerminateIsNAKed requires NAK after the failed single teardown; DisconnectThatTerminatesIsACKed requires ACK and one completed teardown. This NAS refuses multiple matches before any mutation, so the unsupported-multiple-session route cannot partially terminate or update a set. confirmCoA prepares all bounded owners, applies/commits synchronously and rolls back in reverse on failure. Native new-pair records are not asserted by this source judgement.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go#L55" title="internal/component/l2tp/plugins/authradius/rfc5176_atomic_owners_test.go" target="_blank" rel="noopener"><code>TestCoAMixedOwnerFailureRestoresBothControls</code></a></td>
@@ -1074,7 +1074,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. CoA half added: a CoA-Request whose User-Name matches two sessions gets CoA-NAK 508 and zero bus events; the same request narrowed by NAS-Port to one session is ACKed with one event, so the NAK is specific to the multiple match. The Disconnect half (Disconnect-NAK 508, zero teardowns) was already held. Producer oneSession serves both.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L100" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoAMatchingOneSessionIsACKed</code></a></td>
@@ -1104,7 +1104,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Clause 1 (Proxy-State returned): TestRFC5176ProxyStateReturnedUnmodified both polarities at sendResponse. Clause 2 (no modification of Proxy-State/State/Class) and clause 3 (opaque): + TestRFC5176StateAndClassUnmodifiedProxyStateOpaque, State byte-equal in the CoA-ACK, a 253-octet all-values Proxy-State and an attribute-shaped one returned byte-equal; Class is never echoed by sendResponse, so its assertion holds by construction (no Class can come back altered). Clause 4 (operation independent of Proxy-State content): the same test&#39;s two Disconnects differing only in Proxy-State both ACK with 2 teardowns, and - TestRFC5176ProxyStateContentIsNeverRead: an unknown-session Disconnect whose Proxy-State encodes the live session&#39;s Acct-Session-Id gets the same NAK code and Error-Cause as without it, 0 teardowns (recorded at handleDisconnect). All units observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go#L144" title="internal/component/l2tp/plugins/authradius/rfc5176_proxy_state_opaque_test.go" target="_blank" rel="noopener"><code>TestRFC5176ProxyStateContentIsNeverRead</code></a></td>
@@ -1134,7 +1134,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: answering an Authorize Only CoA-Request with a CoA-ACK, or not NAKing an unsupported Authorize Only. (b) TestRFC5176ServiceTypeNAKed wantNAK(CoA-NAK, 405) and zero events for Service-Type 17; the same request without Service-Type is ACKed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L549" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ServiceTypeNAKed</code></a></td>
@@ -1154,7 +1154,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. NAK half added: a CoA-Request carrying State (0xdead00beef, embedded zero) answered by CoA-NAK 506 and by CoA-NAK 503 gets the State back byte-equal; a NAK to a request with no State carries none. The ACK half and its no-State counterpart were already held. Producer sendResponse.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go#L190" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_branches_test.go" target="_blank" rel="noopener"><code>TestRFC5176NAKForARequestWithoutStateCarriesNone</code></a></td>
@@ -1184,7 +1184,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: computing the HMAC-MD5 with the Request Authenticator or the Message-Authenticator not zeroed. (b) TestRFC5176MessageAuthenticatorRefusesEveryOtherStream refuses the Request Authenticator hashed as on the wire and the attribute not zeroed; TestRFC5176MessageAuthenticatorZeroesBothFields accepts the conformant stream with a non-zero wire Request Authenticator; the listener-level walk test discards the pre-fix computation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L609" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></td>
@@ -1194,7 +1194,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L148" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176MessageAuthenticatorRefusesEveryOtherStream</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L605" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>authradius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></td>
@@ -1204,7 +1204,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L126" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>radius/TestRFC5176MessageAuthenticatorZeroesBothFields</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1214,17 +1214,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: a Request Authenticator computed over a zeroed Message-Authenticator, i.e. the attribute not inserted first. (b) TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder refuses the inverted order and a Message-Authenticator changed after signing; TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator accepts the conformant order with a non-zero attribute.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L239" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestAuthenticatorRefusesTheInvertedOrder</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc5176_message_authenticator_test.go#L218" title="internal/component/radius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestAuthenticatorCoversTheSignedMessageAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1234,22 +1234,22 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L72" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go" target="_blank" rel="noopener"><code>TestRFC5176WrongMessageAuthenticatorDiscardedWhenNotRequired</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L52" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176ListenerDiscardsWrongMessageAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go#L26" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_test.go" target="_blank" rel="noopener"><code>TestRFC5176ListenerAcceptsConformantMessageAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1259,7 +1259,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against Section 3.4&#39;s optional Message-Authenticator. MessageAuthenticatorAbsentIsAcceptedByDefault still sends a correctly authenticated/current Disconnect without Message-Authenticator to a trusted listener, now explicitly seeds its current accounting identity, and asserts Disconnect-ACK AND one actual teardown. MissingMessageAuthenticatorDroppedWhenRequired drives the same absence with the opt-in leaf enabled and asserts no response. The valid accountant seed fixes identity isolation and preserves the original assertions; a default mandatory-presence gate fails acceptance, while ignoring the explicit strict leaf fails discard. New source is unchanged at admitRequest: absence is accepted by default, presence is always verified. This MAY does not require optional response attributes to be emitted; mandatory verification when present is separately covered by 3.4-3. No fresh mutation execution is claimed here.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go#L371" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_listener_test.go" target="_blank" rel="noopener"><code>TestCoAListenerMissingMessageAuthenticatorDroppedWhenRequired</code></a></td>
@@ -1269,7 +1269,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go#L26" title="internal/component/l2tp/plugins/authradius/rfc5176_message_authenticator_optional_test.go" target="_blank" rel="noopener"><code>TestRFC5176MessageAuthenticatorAbsentIsAcceptedByDefault</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 </tbody>
 </table>
@@ -1279,7 +1279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). Re-judged after the D-15 tag narrowing (unit changed only in comment). (a) forbidden: a 200-299 Error-Cause in a NAK, or a 400-599 value in an ACK. + TestRFC5176ErrorCausePlacement fails on a NAK cause outside 400-599; - (#2) fails on any Error-Cause in a CoA-ACK or Disconnect-ACK; both kinds required seen. The 201/202/502/504 clauses moved to RFC5176-3.5-6..9, which drive all 15 response paths (incl. 504, 506, 508). Negative record re-observed red (sendResponse).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L648" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176ErrorCausePlacement</code></a></td>
@@ -1299,7 +1299,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against Section 3.6 Note 1: NAS/session identification attributes serve identification only, never authorization changes. IdentificationAttributesIdentifyOnly now uses exactly the three implemented selectors (User-Name, NAS-Port, Acct-Session-Id), replacing two unsupported extras previously ignored. With Filter-Id it requires CoA-ACK, exactly one typed rate event for session 20 at 10M; with the SAME three selectors and no authorization attribute it requires CoA-NAK 401 and no further event. The genuine accepted control prevents passing through blanket rejection, while the bare control catches interpreting identity as a requested authorization change. readCoAChange reads only Filter-Id/VSA; sessionSelectorsMatch only narrows identity. New signed-wire refusal tests retain all eleven removed unsupported types as explicit 401 controls, so the correction does not hide those inputs. All prior payload/rate/count assertions remain. No native proof claim is inferred.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L759" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176IdentificationAttributesIdentifyOnly</code></a></td>
@@ -1319,12 +1319,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against Section 6.1&#39;s silent discard of both dynamic authorization request kinds from untrusted sources. UntrustedSourceDiscarded sends an otherwise valid signed/current Disconnect to a listener trusting a different address, then an empty allowlist: both receive no response and cause zero teardowns; a loopback-trusting listener accepts the same identity with Disconnect-ACK. The added explicit current-accountant seed makes the trusted counterpart reach the intended session rather than fail later identity matching. SourceFilterDiscardsWhenNoServerResolved independently sends correctly authenticated CoA with an empty allowlist and requires silence; SourceFilterAnswersAConfiguredClient repeats from the trusted source and requires an actual CoA-NAK response for unknown session, proving admission rather than universal discard. isAllowedSource precedes packet authentication/dispatch and is false for an empty set. A permissive empty/unlisted-source guard or blanket drop would break these opposite controls. No new proof execution is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L173" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestCoASourceFilterAnswersAConfiguredClient</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L806" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></td>
@@ -1334,7 +1334,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go#L119" title="internal/component/l2tp/plugins/authradius/rfc5176_coa_test.go" target="_blank" rel="noopener"><code>TestCoASourceFilterDiscardsWhenNoServerResolved</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>not verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L803" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176UntrustedSourceDiscarded</code></a></td>
@@ -1349,7 +1349,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. (a) forbidden: acting on or answering a request whose Event-Timestamp is outside the window. (b) TestRFC5176StaleEventTimestampDiscarded asserts no response and zero teardowns for a timestamp two windows old, and ACK for a current one. A future-dated timestamp is not exercised.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go#L866" title="internal/component/l2tp/plugins/authradius/rfc5176_walk_test.go" target="_blank" rel="noopener"><code>TestRFC5176StaleEventTimestampDiscarded</code></a></td>
@@ -1369,7 +1369,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176UnsupportedServiceTypeValueIsNAKed: Service-Type 1/2/6/8 in a CoA-Request -&gt; CoA-NAK with Error-Cause exactly [405], no change (MUST and the SHOULD both asserted). - TestRFC5176CoAWithoutServiceTypeIsACKed: the same request without Service-Type -&gt; CoA-ACK, no Error-Cause, one change, so the NAK is owed to the value. Both over a real UDP socket; records observed red (handlePacket, handleCoA).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L215" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176CoAWithoutServiceTypeIsACKed</code></a></td>
@@ -1389,7 +1389,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against Section 3 plus the Section 3.6 Disconnect table and Notes 2/7. DisconnectWithANonIdentificationAttributeIsNAKed keeps valid Acct-Session-Id/User-Name while separately adding Filter-Id, Framed-MTU, Session-Timeout, Idle-Timeout, Service-Type or State (each absent from the allowed Disconnect-request column), requiring Disconnect-NAK, exactly [401] and zero teardowns. DisconnectCarryingOnlyIdentificationIsACKed now includes the three actually implemented matching selectors and requires ACK plus one teardown; unsupported NAS identification extras are correctly tested as Section 2.3 refusal cases, not placed in this accepted control. DisconnectAdmitsTheSection36TableAttributes separately requires ACK/no Error-Cause and one additional teardown for Reply-Message, Class and Acct-Terminate-Cause individually and together. EAP/VSA are not misclassified as this clause&#39;s forbidden &#39;other&#39; attributes: the table permits them while this NAS can explicitly refuse unsupported services under 2.3. unsupportedAttr selects the exact Disconnect allowlist before handleDisconnect. Removing the exclusion or refusing all accepted inputs breaks exact outcomes; the complete forbidden-other rule is exercised without weakening table exceptions. Native proof refresh is separate.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L305" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176DisconnectAdmitsTheSection36TableAttributes</code></a></td>
@@ -1414,7 +1414,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176StateNeverChangesTheOutcome: no State, State shaped as a rate, as another session&#39;s Acct-Session-Id and as a Filter-Id TLV -&gt; identical CoA-ACK and one 10 Mbit/s change on session 20, State returned octet-equal. - TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity: State &#39;10mbit&#39; with no change attribute -&gt; NAK 401; State naming the live session beside an Acct-Session-Id naming none -&gt; NAK 503; no change, State echoed. The Termination-Action usage is unreachable (Ze NAKs Termination-Action in a CoA). Records observed red (sendResponse, readCoAChange).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L401" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176StateIsNeverReadAsAChangeOrAnIdentity</code></a></td>
@@ -1434,7 +1434,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176ResidualSessionCauseOnlyInADisconnectACK: coaResponsePaths drives 15 response paths (both ACKs, NAK 401/404/405/407/503/504/506/508 for CoA and Disconnect), asserts each exact code+cause, requires all four response codes seen, and fails on 201 outside a Disconnect-ACK. - TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK (R1(b)): requests carrying Error-Cause 201 and a Proxy-State holding a 201 TLV -&gt; NAK with only [401], Proxy-State whole, no teardown. Records observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L444" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176ResidualSessionCauseInARequestNeverReachesANAK</code></a></td>
@@ -1454,7 +1454,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176InvalidEAPPacketCauseNeverSent: no response on any of the 15 paths carries 202. - TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest (R1(b)): an injected 202 is never echoed (401 only), and a Disconnect with a malformed EAP-Message gets [401], never 202. Records observed red.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L459" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176InvalidEAPPacketCauseNeverSentForAnEAPRequest</code></a></td>
@@ -1474,7 +1474,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent semantic rejudgment 2026-11-12 against Section 3.5: NAS MUST NOT emit proxy-only Error-Cause 502. RequestNotRoutableCauseNeverSent drives coaResponsePaths across all four reply codes and all current success/refusal classes, verifies each exact code/cause, then prohibits 502 everywhere. RequestNotRoutableCauseNeverSentForAForeignSession injects 502 into both request kinds with an opaque Proxy-State copy and requires only 401 (never echoed 502) while preserving Proxy-State bytes; its foreign user/NAS-Identifier case now correctly requires only 401 because NAS-Identifier is unsupported, still forbidding 502. The changed 503-to-401 assertion follows mandatory unsupported-attribute admission and preserves the actual NAS prohibition. Exact cause assertions would fail if request content were echoed as NAS error or foreign identity were answered using proxy routing failure. These controls isolate response generation from transport/authentication failure and retain both ordinary replies and tempting forbidden input. No fresh record execution is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L485" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176RequestNotRoutableCauseNeverSentForAForeignSession</code></a></td>
@@ -1494,7 +1494,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). D-8 fixed here: handleDisconnect sent 503 (Session Context Not Found) for a located session whose teardown failed; it now sends 504 (radius.ErrorCauseSessionNotRemovable), also on the PPPoE not-wired branch (producer read). + TestRFC5176SessionNotRemovableOnlyInADisconnectNAK: the teardown-refused Disconnect path answers Disconnect-NAK [504] and no CoA-ACK, CoA-NAK or Disconnect-ACK on any path carries 504. - TestRFC5176SessionNotRemovableNeverInACoANAK: injected 504 never echoed; an undeliverable CoA gets CoA-NAK 506, never 504. Records observed red (handleDisconnect, handleCoA). Residual not proven here: the svc==nil branch after a found session still answers 503.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L521" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176SessionNotRemovableNeverInACoANAK</code></a></td>
@@ -1514,7 +1514,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (access cont 10, independent). + TestRFC5176VendorSpecificIsAChangeOnly: Acct-Session-Id + MikroTik rate VSA -&gt; CoA-ACK and one 10 Mbit/s change on session 20 (VSA used for change only). - TestRFC5176VendorSpecificIsNeverAnIdentity: VSA alone -&gt; NAK 503, VSA beside an unknown Acct-Session-Id -&gt; 503 (the VSA never selects the one live session), Disconnect + VSA -&gt; 401; no change, no teardown. Records observed red (readCoAChange, oneSession).</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L569" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176VendorSpecificIsNeverAnIdentity</code></a></td>
@@ -1534,7 +1534,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-14 by a reader who did not author the tests; the change sends both copies from one socket, so the duplicate is a real same-port duplicate. + TestRFC5176DuplicateAndTimestampWindowsBothHoldInside: at coaReplayWindow-10s the duplicate gets the cached octets with one teardown and an Event-Timestamp that old is answered. - TestRFC5176DuplicateAndTimestampWindowsBothEndOutside: at window+10s the duplicate is processed again (second teardown) and that old an Event-Timestamp is silently discarded. Both mechanisms are pinned to one window within 10 seconds.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
-<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
+<thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Test status</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go#L672" title="internal/component/l2tp/plugins/authradius/rfc5176_section_rows_test.go" target="_blank" rel="noopener"><code>TestRFC5176DuplicateAndTimestampWindowsBothEndOutside</code></a></td>
@@ -1952,7 +1952,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

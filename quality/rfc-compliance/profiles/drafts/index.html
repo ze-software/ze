@@ -127,9 +127,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="profile/drafts/required:must">Ze proven 73, Proof pending 6, OS testing gap 1, Not built 42</div>
+<div data-ze-rfc-bar="profile/drafts/required:must">Ze verified 73, Tests awaiting verification 6, OS testing gap 1, Not built 42</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="profile/drafts/required:overview">Ze MUST proven 73, SHOULD proven 6, Proof pending 6, OS testing gap 1, Not assessed 55, Not built 42</div>
+<div data-ze-rfc-bar="profile/drafts/required:overview">Ze MUST verified 73, SHOULD verified 6, Tests awaiting verification 6, OS testing gap 1, Not assessed 55, Not built 42</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -149,13 +149,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>MUST rows kept (the MUST bar)</td>
 <td><span data-ze-rfc="profile/drafts/required:must.kept">122</span></td>
 </tr>
-<tr><td>Ze proven</td>
+<tr><td>Ze verified</td>
 <td><span data-ze-rfc="profile/drafts/required:must.ze-proven">73</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="profile/drafts/required:must.os-verified">0</span></td>
 </tr>
-<tr><td>Proof pending</td>
+<tr><td>Tests awaiting verification</td>
 <td><span data-ze-rfc="profile/drafts/required:must.proof-pending">6</span></td>
 </tr>
 <tr><td>OS testing gap</td>
@@ -185,7 +185,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD / MAY rows</td>
 <td><span data-ze-rfc="profile/drafts/required:should.total">61</span></td>
 </tr>
-<tr><td>SHOULD proven</td>
+<tr><td>SHOULD verified</td>
 <td><span data-ze-rfc="profile/drafts/required:should.proven">6</span></td>
 </tr>
 <tr><td>SHOULD OS verified</td>
@@ -206,7 +206,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>SHOULD not owed: not-applicable</td>
 <td><span data-ze-rfc="profile/drafts/required:should.not-owed-by-kind.not-applicable">0</span></td>
 </tr>
-<tr><td>SHOULD proof pending</td>
+<tr><td>SHOULD tests awaiting verification</td>
 <td><span data-ze-rfc="profile/drafts/required:should.proof-pending">0</span></td>
 </tr>
 <tr><td>SHOULD exclusion unchecked</td>
@@ -221,7 +221,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
+<p>The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.</p>
 </section>
 <section><h2>Tree</h2>
 <p>The RFCs are listed with the standards they build on first. An RFC appears one level after the highest level of its dependencies; RFCs that refer back to each other share a level. Each RFC has the same two coverage bars as the group above. An RFC whose requirement list has not been reviewed shows &#34;requirements not reviewed&#34; instead of a bar.</p>
@@ -232,8 +232,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../sflow-v5/">SFLOW-V5</a></td>
 <td>sFlow: A Method for Monitoring Traffic in Switched and Routed Networks</td>
-<td><div data-ze-rfc-bar="sflow-v5:must">Ze proven 21, OS testing gap 1, Not built 9</div></td>
-<td><div data-ze-rfc-bar="sflow-v5:overview">Ze MUST proven 21, SHOULD proven 3, OS testing gap 1, Not assessed 8, Not built 9</div></td>
+<td><div data-ze-rfc-bar="sflow-v5:must">Ze verified 21, OS testing gap 1, Not built 9</div></td>
+<td><div data-ze-rfc-bar="sflow-v5:overview">Ze MUST verified 21, SHOULD verified 3, OS testing gap 1, Not assessed 8, Not built 9</div></td>
 </tr>
 </tbody>
 </table>
@@ -258,8 +258,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../draft-abraitis-bgp-version-capability/">DRAFT-ABRAITIS-BGP-VERSION-CAPABILITY</a></td>
 <td>Software Version Capability for BGP</td>
-<td><div data-ze-rfc-bar="draft-abraitis-bgp-version-capability:must">Ze proven 11</div></td>
-<td><div data-ze-rfc-bar="draft-abraitis-bgp-version-capability:overview">Ze MUST proven 11, Not assessed 4</div></td>
+<td><div data-ze-rfc-bar="draft-abraitis-bgp-version-capability:must">Ze verified 11</div></td>
+<td><div data-ze-rfc-bar="draft-abraitis-bgp-version-capability:overview">Ze MUST verified 11, Not assessed 4</div></td>
 </tr>
 </tbody>
 </table>
@@ -271,8 +271,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../draft-abraitis-idr-addpath-paths-limit/">DRAFT-ABRAITIS-IDR-ADDPATH-PATHS-LIMIT</a></td>
 <td>Scalability Considerations for ADD-PATH with PATHS-LIMIT</td>
-<td><div data-ze-rfc-bar="draft-abraitis-idr-addpath-paths-limit:must">Ze proven 1, Proof pending 3</div></td>
-<td><div data-ze-rfc-bar="draft-abraitis-idr-addpath-paths-limit:overview">Ze MUST proven 1, SHOULD proven 3, Proof pending 3</div></td>
+<td><div data-ze-rfc-bar="draft-abraitis-idr-addpath-paths-limit:must">Ze verified 1, Tests awaiting verification 3</div></td>
+<td><div data-ze-rfc-bar="draft-abraitis-idr-addpath-paths-limit:overview">Ze MUST verified 1, SHOULD verified 3, Tests awaiting verification 3</div></td>
 </tr>
 </tbody>
 </table>
@@ -284,8 +284,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../draft-ietf-bess-mup-safi/">DRAFT-IETF-BESS-MUP-SAFI</a></td>
 <td>BGP Extensions for the Mobile User Plane (MUP) SAFI</td>
-<td><div data-ze-rfc-bar="draft-ietf-bess-mup-safi:must">Ze proven 17, Not built 30</div></td>
-<td><div data-ze-rfc-bar="draft-ietf-bess-mup-safi:overview">Ze MUST proven 17, Not assessed 20, Not built 30</div></td>
+<td><div data-ze-rfc-bar="draft-ietf-bess-mup-safi:must">Ze verified 17, Not built 30</div></td>
+<td><div data-ze-rfc-bar="draft-ietf-bess-mup-safi:overview">Ze MUST verified 17, Not assessed 20, Not built 30</div></td>
 </tr>
 </tbody>
 </table>
@@ -297,13 +297,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../draft-ietf-idr-linklocal-capability/">DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY</a></td>
 <td>Link-Local Next Hop Capability for BGP</td>
-<td><div data-ze-rfc-bar="draft-ietf-idr-linklocal-capability:must">Ze proven 10, Proof pending 3, Not built 2</div></td>
-<td><div data-ze-rfc-bar="draft-ietf-idr-linklocal-capability:overview">Ze MUST proven 10, Proof pending 3, Not assessed 12, Not built 2</div></td>
+<td><div data-ze-rfc-bar="draft-ietf-idr-linklocal-capability:must">Ze verified 10, Tests awaiting verification 3, Not built 2</div></td>
+<td><div data-ze-rfc-bar="draft-ietf-idr-linklocal-capability:overview">Ze MUST verified 10, Tests awaiting verification 3, Not assessed 12, Not built 2</div></td>
 </tr>
 <tr><td><a href="../../draft-ietf-sidrops-aspa-verification/">DRAFT-IETF-SIDROPS-ASPA-VERIFICATION</a></td>
 <td>BGP AS_PATH Verification Based on Autonomous System Provider Authorization (ASPA) Objects</td>
-<td><div data-ze-rfc-bar="draft-ietf-sidrops-aspa-verification:must">Ze proven 9, Not built 1</div></td>
-<td><div data-ze-rfc-bar="draft-ietf-sidrops-aspa-verification:overview">Ze MUST proven 9, Not assessed 10, Not built 1</div></td>
+<td><div data-ze-rfc-bar="draft-ietf-sidrops-aspa-verification:must">Ze verified 9, Not built 1</div></td>
+<td><div data-ze-rfc-bar="draft-ietf-sidrops-aspa-verification:overview">Ze MUST verified 9, Not assessed 10, Not built 1</div></td>
 </tr>
 </tbody>
 </table>
@@ -315,8 +315,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../draft-ietf-idr-bgp-bfd-strict-mode/">DRAFT-IETF-IDR-BGP-BFD-STRICT-MODE</a></td>
 <td>BGP BFD Strict-Mode</td>
-<td><div data-ze-rfc-bar="draft-ietf-idr-bgp-bfd-strict-mode:must">Ze proven 4</div></td>
-<td><div data-ze-rfc-bar="draft-ietf-idr-bgp-bfd-strict-mode:overview">Ze MUST proven 4</div></td>
+<td><div data-ze-rfc-bar="draft-ietf-idr-bgp-bfd-strict-mode:must">Ze verified 4</div></td>
+<td><div data-ze-rfc-bar="draft-ietf-idr-bgp-bfd-strict-mode:overview">Ze MUST verified 4</div></td>
 </tr>
 </tbody>
 </table>
@@ -358,7 +358,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 18:33 UTC</span>
                 </div>
             </div>
         </footer>

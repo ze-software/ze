@@ -10,11 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 32 | of 51 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
-| One polarity plus reason | 5 | of 51 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| Tested both ways | 32 | of 51 mandatory requirements | a positive test checks that Ze does what the requirement demands and a negative one checks that it refuses what the requirement forbids |
+| One polarity plus reason | 5 | of 51 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason supplies the complete test coverage required |
 | One polarity, unexcused | 0 | of 51 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Partial proof; remaining gap | 0 | of 51 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 59 | 59 of 103 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Partial test coverage | 0 | of 51 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unverified, with zero whole-requirement credit |
+| Tests shown to detect a fault | 59 | 59 of 103 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests verifies a requirement only after both tests have been shown to detect a fault |
 
 ### Negative
 
@@ -32,9 +32,9 @@ measures that are neither good news nor bad
 |---|---:|---|---|
 | Out of scope | 0 | of 51 mandatory requirements | an obligation that does not bind Ze, counted once its evidence passes. A {not-applicable} annotation says it never bound; a {feature-declined} annotation says its condition is an optional feature Ze does not offer, and quotes the RFC sentence that makes it optional. An annotation whose evidence fails is not counted here: the figures count it as exclusion unchecked. This classification records applicability and forms part of the total accounted for by the cards on this page |
 | Not applicable | 0 | of 51 mandatory requirements | a {not-applicable} annotation says the obligation does not bind Ze. No test is owed only once its evidence passes; one whose evidence fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Met below Ze | 0 | of 51 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze proven: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
+| Met below Ze | 0 | of 51 mandatory requirements | a {lower-layer} annotation says a layer under Ze performs the behavior, on state Ze installs into that layer, and names the producer that installs it. The obligation binds Ze and stays in the MUST bar, outside Ze verified: it is OS verified once a tagged test checks that layer's behavior on the state Ze installs, with a recorded break, and an OS testing gap until then |
 | Optional feature declined | 0 | of 51 mandatory requirements | a {feature-declined} annotation says the obligation is conditional on a feature the RFC makes optional and Ze does not offer, and it quotes the sentence that makes it optional. The condition is false, so nothing is owed once that quote passes its evidence check; one whose quote fails stays owed, and the figures count it as exclusion unchecked. It remains in the total that these cards add up to |
-| Linux cannot do this | 0 | of 51 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no proof credit |
+| Linux cannot do this | 0 | of 51 mandatory requirements | Linux cannot provide the primitive this requirement needs. The obligation still binds Ze and stays unmet, but as a limit of the kernel, not of Ze's code: once its limit entry is verified, the row is not owed (OS blocked) and is left out of the MUST bar; one whose entry fails stays owed, and the figures count it as not built. It remains in the total that these cards add up to and earns no test verification credit |
 
 ### Totals
 
@@ -53,13 +53,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
-| Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
+| One polarity, unexcused | ok | green at zero, RED above it: one test direction is missing without a recorded reason |
+| Partial test coverage | ok | green at zero, RED above it: testing one clause does not verify the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
-| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
+| Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze's own tests verify |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
-| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
+| Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither test verification nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
 | Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
@@ -93,7 +93,7 @@ Included in automatic checks: OSPF Extensions for Segment Routing
 
 **Area:** OSPF Segment Routing extensions
 
-**Proof:** 13 of 51 MUST proven
+**Test verification:** 13 of 51 MUST proven
 
 **Evidence:** unit 13
 
@@ -108,7 +108,7 @@ Included in automatic checks: OSPF Extensions for Segment Routing
 | Annotated (including scoped evidence) | 19 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
-| Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
+| Partial test coverage (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **51** | every mandatory requirement appears in exactly one group above |
@@ -119,8 +119,8 @@ Included in automatic checks: OSPF Extensions for Segment Routing
 
 ## Figures
 
-- **MUST bar**: Ze proven 13, Proof pending 24, Not built 14
-- **Overview bar**: Ze MUST proven 13, SHOULD proven 1, Proof pending 24, Not assessed 34, Not built 14
+- **MUST bar**: Ze verified 13, Tests awaiting verification 24, Not built 14
+- **Overview bar**: Ze MUST verified 13, SHOULD verified 1, Tests awaiting verification 24, Not assessed 34, Not built 14
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: OSPF Extensions for Segment Routing
 | Mandatory requirements complete | not complete |
 | MUST rows | 51 |
 | MUST rows kept (the MUST bar) | 51 |
-| Ze proven | 13 |
+| Ze verified | 13 |
 | OS verified | 0 |
-| Proof pending | 24 |
+| Tests awaiting verification | 24 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -141,19 +141,19 @@ Included in automatic checks: OSPF Extensions for Segment Routing
 | MUST not owed: linux-limit | 0 |
 | MUST not owed: not-applicable | 0 |
 | SHOULD / MAY rows | 35 |
-| SHOULD proven | 1 |
+| SHOULD verified | 1 |
 | SHOULD OS verified | 0 |
 | SHOULD OS testing gap | 0 |
 | SHOULD not owed | 0 |
 | SHOULD not owed: feature-declined | 0 |
 | SHOULD not owed: linux-limit | 0 |
 | SHOULD not owed: not-applicable | 0 |
-| SHOULD proof pending | 0 |
+| SHOULD tests awaiting verification | 0 |
 | SHOULD exclusion unchecked | 0 |
 | SHOULD not assessed | 34 |
 | SHOULD not built | 0 |
 
-The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze proven means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Proof pending counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
+The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and SHALL NOT) that Ze and its operating system must meet. It includes only RFCs whose requirement lists have been checked against the original text. Ze verified means a test has been shown to fail when the required behavior is deliberately broken. Behavior provided by the operating system or a library is OS verified when a test checks it using the settings Ze installs and has also been shown to detect a deliberate fault; until then, it is an OS testing gap. Tests awaiting verification counts requirements a tagged test covers that no deliberate fault has yet been shown to break and that nothing records as unmet. Exclusion unchecked counts requirements claimed not to apply to Ze whose evidence is still to be checked. Not assessed counts requirements no tagged test covers and that nothing records as unmet, so nothing yet says whether Ze meets them. Not built counts requirements the RFC summary or a test review says Ze does not meet, in full or in part. The overview bar adds optional requirements (MAY, NOT RECOMMENDED, OPTIONAL, RECOMMENDED, SHOULD and SHOULD NOT) and requirements that do not apply to Ze. An RFC marked requirements not reviewed is excluded from these figures because its requirement list has not been checked against the original text. Counts are loaded from the RFC data files.
 
 Source: [data/rfc/rfc8665.json](../../../data/rfc/rfc8665.json).
 
@@ -267,9 +267,9 @@ Source: [data/rfc/rfc8665.json](../../../data/rfc/rfc8665.json).
 | [`RFC8665-7.1-3`](#rfc8665-7.1-3) Multiple Mapping Servers can advertise Prefix-SIDs for the same prefix; in which case, the same Prefix-SID MUST be advertised by all of them. (§7.1) | {gap}, no test | ze advertises no mapping-server Prefix-SIDs, so it enforces no consistency between mapping servers: the Prefix-SID builder emits only this router's own configured node SIDs with the M-Flag clear, internal/plugins/ospf/sr.go:197-213, and the receive path keeps one Prefix-SID per prefix and marks a second one duplicate whatever its source, internal/plugins/ospf/sr_install.go:274-278. Disclosed in docs/features/rfc-status.md RFC 8665 row |
 | [`RFC8665-7.2-1`](#rfc8665-7.2-1) In order to support SR in a multiarea environment, OSPFv2 MUST propagate Prefix-SID information between areas. (§7.2) | {gap}, no test | OSPFv2 does not propagate a learned Prefix-SID between areas. srBuildPrefixSID attaches a Prefix-SID only when the prefix matches an entry in this router's own segment-routing configuration, internal/plugins/ospf/sr.go:202-212, so the inter-area Extended Prefix TLV an ABR originates from its self Type-3 summaries, internal/plugins/ospf/ext_prefix.go:136-160, carries no Prefix-SID for a remote prefix. Inter-area propagation exists only for IPv6, v6OriginateInterAreaSR internal/plugins/ospf/sr_interarea_v6.go:60-83. Disclosed in docs/features/rfc-status.md RFC 8665 row |
 
-## Proof state
+## Test status
 
-A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.
+A test reads not verified when no record shows it failing after a deliberate fault. Until then, the test has not been shown to detect a fault in the required behavior.
 
 ### [`RFC8665-3.1-1`](#rfc8665-3.1-1)
 
@@ -277,10 +277,10 @@ If the SR-Algorithm TLV is advertised, Algorithm 0 MUST be included (§3.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665NoSRAlgorithmTLVWhenSRUnconfigured`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L73) | unit/verify | unproven |
-| positive | [`TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L44) | unit/verify | unproven |
+| negative | [`TestRFC8665NoSRAlgorithmTLVWhenSRUnconfigured`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L73) | unit/verify | not verified |
+| positive | [`TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L44) | unit/verify | not verified |
 
 ### [`RFC8665-3.1-2`](#rfc8665-3.1-2)
 
@@ -288,9 +288,9 @@ Local policy at the node claiming support for Algorithm 1 MUST NOT alter the SPF
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single polarity (annotated, argument holds): the obligation binds only a node claiming Algorithm 1, and the only producer of that claim is srBuildAlgorithm. Forbidden precondition: advertising Algorithm 1; TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly decodes the emitted TLV and fails unless it is exactly {0}, so any Algorithm 1 claim goes red. With no claim there is no Algorithm 1 SPF for local policy to alter and no violating input exists
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L47) | unit/verify | unproven |
+| positive | [`TestRFC8665SRAlgorithmTLVAdvertisesAlgorithmZeroOnly`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L47) | unit/verify | not verified |
 
 ### [`RFC8665-3.1-3`](#rfc8665-3.1-3)
 
@@ -298,10 +298,10 @@ When multiple SR-Algorithm TLVs are received from a given router, the receiver M
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. forbidden: using a later SR-Algorithm TLV of the same RI LSA. TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored feeds srDecodeRemoteCapabilities (the receive decode) one body with {0} then {1} and fails unless the result is exactly {0}, red on last-wins and on union; positive TestRFC8665SingleAlgorithmAndSRMSInstanceUsed pins the single-TLV case
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L146) | unit/verify | unproven |
-| positive | [`TestRFC8665SingleAlgorithmAndSRMSInstanceUsed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L127) | unit/verify | unproven |
+| negative | [`TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L146) | unit/verify | not verified |
+| positive | [`TestRFC8665SingleAlgorithmAndSRMSInstanceUsed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L127) | unit/verify | not verified |
 
 ### [`RFC8665-3.1-4`](#rfc8665-3.1-4)
 
@@ -325,10 +325,10 @@ Range Size: 3-octet SID/label range size (i.e., the number of SIDs or labels in 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. forbidden: a Range Size of 0 sent or accepted. Receive: TestRFC8665RangeSizeZeroRejected zeroes only the size of a valid value and requires DecodeRangeValue to error, and srDecodeRemoteCapabilities appends a range only on rerr == nil. Send: the same test requires SRConfig.Validate to reject a configured SRGB of size 0, and Validate gates the config verify (validateSRConfig, register.go) before any SRGB reaches srWire. Positive TestRFC8665RangeTLVRoundTrip decodes size 100
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665RangeSizeZeroRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L54) | unit/verify | unproven |
-| positive | [`TestRFC8665RangeTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L22) | unit/verify | unproven |
+| negative | [`TestRFC8665RangeSizeZeroRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L54) | unit/verify | not verified |
+| positive | [`TestRFC8665RangeTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L22) | unit/verify | not verified |
 
 ### [`RFC8665-3.2-2`](#rfc8665-3.2-2)
 
@@ -336,10 +336,10 @@ The SID/Label Sub-TLV MUST be included in the SID/Label Range TLV (§3.2)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665RangeWithoutSIDLabelSubTLVRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L81) | unit/verify | unproven |
-| positive | [`TestRFC8665RangeTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L27) | unit/verify | unproven |
+| negative | [`TestRFC8665RangeWithoutSIDLabelSubTLVRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L81) | unit/verify | not verified |
+| positive | [`TestRFC8665RangeTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L27) | unit/verify | not verified |
 
 ### [`RFC8665-3.2-3`](#rfc8665-3.2-3)
 
@@ -347,10 +347,10 @@ If more than one SID/Label Sub-TLV is present, the SID/ Label Range TLV MUST be 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. forbidden: using a range TLV that carries two SID/Label sub-TLVs. TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored builds two valid sub-TLVs and requires DecodeRangeValue to error, red on a decoder that picks one; the SRGB case of srDecodeRemoteCapabilities appends only on rerr == nil, so the error is the ignore. Positive TestRFC8665RangeWithSingleSIDLabelAccepted accepts exactly one
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L107) | unit/verify | unproven |
-| positive | [`TestRFC8665RangeWithSingleSIDLabelAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L96) | unit/verify | unproven |
+| negative | [`TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L107) | unit/verify | not verified |
+| positive | [`TestRFC8665RangeWithSingleSIDLabelAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L96) | unit/verify | not verified |
 
 ### [`RFC8665-3.2-4`](#rfc8665-3.2-4)
 
@@ -358,9 +358,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. forb
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. single polarity (annotated, argument holds: srBuildSRGB emits one RITLV per configured range and cannot pack two). TestRFC8665EachRangeInItsOwnTLV requires two type-9 TLVs from two ranges, each decoding as a single-sub-TLV range with the expected base in order, red on packing
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8665EachRangeInItsOwnTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L169) | unit/verify | unproven |
+| positive | [`TestRFC8665EachRangeInItsOwnTLV`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L169) | unit/verify | not verified |
 
 ### [`RFC8665-3.2-5`](#rfc8665-3.2-5)
 
@@ -368,7 +368,7 @@ The originating router MUST ensure the order is the same after a graceful restar
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge). TestRFC8665RangeOrderStableThroughConfigRestart now drives the configuration text through parseOSPFConfig, applySRConfig (parseSegmentRouting) and srBuildSRGB, clears the process SR store (restart) and re-applies: byte-identical SID/Label Range TLVs, identical under a different key order of the document, and exactly one SRGB range 16000/8000 (revert record on parseSegmentRouting, observed red). Single polarity is valid and the corrected annotation matches the producer: sr_config.go reads the one YANG srgb container into a one-element slice, so there is no reorderable input to reject.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | positive | [`TestRFC8665RangeOrderStableThroughConfigRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_range_order_test.go#L34) | unit/verify | revert, verified |
 | positive | [`TestRFC8665RangeOrderStableAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L197) | unit/verify | revert, verified |
@@ -379,7 +379,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Reception path now driven end to end: TestRFC8665ReceivedRangesMappedInAdvertisedOrder installs two RI Opaque LSAs advertising 20000/5,16000/5 and the reverse, reads engine.srRemoteCapabilities (srDecodeRemoteCapabilities) and pins index 0/4/5/9 to literal labels per advertised order; judge overlay sorting decoded ranges by base before sr.NewSRGB turns it red (2.2.2.2 index 0 = 16000). SRGB.Label units keep advertised-order positive and the order-sensitivity/out-of-range negative; all three have observed-red records.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665SRGBIndexOutOfRangeAndOrderSensitivity`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L142) | unit/verify | revert, verified |
 | positive | [`TestRFC8665ReceivedRangesMappedInAdvertisedOrder`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_srgb_advertised_order_test.go#L16) | unit/verify | revert, verified |
@@ -391,10 +391,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Rece
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. forbidden: advertising overlapping SRGB ranges. TestRFC8665OverlappingRangesRejected requires SRConfig.Validate to reject 16000+100 with 16050+100, red on a missing overlap check; Validate gates the config verify (validateSRConfig, register.go) so the advertised SRGB is only a validated one. Positive TestRFC8665NonOverlappingRangesAccepted accepts disjoint ranges
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665OverlappingRangesRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L175) | unit/verify | unproven |
-| positive | [`TestRFC8665NonOverlappingRangesAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L159) | unit/verify | unproven |
+| negative | [`TestRFC8665OverlappingRangesRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L175) | unit/verify | not verified |
+| positive | [`TestRFC8665NonOverlappingRangesAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L159) | unit/verify | not verified |
 
 ### [`RFC8665-3.2-8`](#rfc8665-3.2-8)
 
@@ -410,7 +410,7 @@ Reserved: SHOULD be set to 0 on transmission and MUST be ignored on reception (�
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. the MUST clause is reception: TestRFC8665ReservedFieldIgnoredOnReception sets the Reserved octets of all seven SR TLV/sub-TLV decoders to 0xff and fails unless the decode is DeepEqual to the zero case and error-free, red on a decoder that reads or rejects Reserved; TestRFC8665NonReservedOctetIsRead flips a read octet and requires a changed decode, so the equality is not vacuous. The transmission clause is a SHOULD, carried by row RFC8665-3.2-9, not by this MUST row Re-stamped 2026-09-27 by DF-OSPF-C after a rename only: the tag's prose names the range decoder DecodeExtPrefixRangeValueV4 (was decodeExtPrefixRangeValueV4, now exported for the RFC 8665 Section 9 LSA-level check); no assertion changed. REV-OSPF independent re-audit 2026-09-27: kept enforced. Forbidden: a decoder that rejects or reads a Reserved octet; TestRFC8665ReservedFieldIgnoredOnReception sets every Reserved octet of all seven SR decoders to 0xff and fails unless the decode is error-free and DeepEqual to the clean one; TestRFC8665NonReservedOctetIsRead proves the equality is not vacuous. The transmission SHOULD is row RFC8665-3.2-9. The body change since the earlier stamp is the decodeExtPrefixRangeValueV4 to DecodeExtPrefixRangeValueV4 rename only.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665NonReservedOctetIsRead`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_reserved_test.go#L75) | unit/verify | revert, verified |
 | positive | [`TestRFC8665ReservedFieldIgnoredOnReception`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_reserved_test.go#L51) | unit/verify | revert, verified |
@@ -421,10 +421,10 @@ Range Size: 3-octet SID/Label range size (i.e., the number of SIDs or labels in 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. forbidden: an SRLB Range Size of 0 sent or accepted. Receive: the SRLB case of srDecodeRemoteCapabilities uses DecodeRangeValue with an rerr == nil gate, and TestRFC8665RangeSizeZeroRejected requires it to reject size 0. Send: the same test requires Validate to reject a configured SRLB of size 0 (the cfgLB case), and Validate gates config verify. Positive TestRFC8665RangeTLVRoundTrip
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665RangeSizeZeroRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L58) | unit/verify | unproven |
-| positive | [`TestRFC8665RangeTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L24) | unit/verify | unproven |
+| negative | [`TestRFC8665RangeSizeZeroRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L58) | unit/verify | not verified |
+| positive | [`TestRFC8665RangeTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L24) | unit/verify | not verified |
 
 ### [`RFC8665-3.3-2`](#rfc8665-3.3-2)
 
@@ -432,10 +432,10 @@ The SID/Label Sub-TLV MUST be included in the SRLB TLV (§3.3)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665RangeWithoutSIDLabelSubTLVRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L84) | unit/verify | unproven |
-| positive | [`TestRFC8665RangeTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L30) | unit/verify | unproven |
+| negative | [`TestRFC8665RangeWithoutSIDLabelSubTLVRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L84) | unit/verify | not verified |
+| positive | [`TestRFC8665RangeTLVRoundTrip`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L30) | unit/verify | not verified |
 
 ### [`RFC8665-3.3-3`](#rfc8665-3.3-3)
 
@@ -443,10 +443,10 @@ If more than one SID/Label Sub-TLV is present, the SRLB TLV MUST be ignored. (§
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. forbidden: using an SRLB TLV that carries two SID/Label sub-TLVs. The V4TypeSRLB case of srDecodeRemoteCapabilities calls the same DecodeRangeValue and appends only on rerr == nil; TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored requires that decoder to reject the two-sub-TLV value, red on a decoder that picks one. Positive accepts exactly one
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L110) | unit/verify | unproven |
-| positive | [`TestRFC8665RangeWithSingleSIDLabelAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L98) | unit/verify | unproven |
+| negative | [`TestRFC8665RangeWithTwoSIDLabelSubTLVsIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L110) | unit/verify | not verified |
+| positive | [`TestRFC8665RangeWithSingleSIDLabelAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L98) | unit/verify | not verified |
 
 ### [`RFC8665-3.3-4`](#rfc8665-3.3-4)
 
@@ -454,10 +454,10 @@ The originating router MUST NOT advertise overlapping ranges. (§3.3)
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. forbidden: advertising overlapping SRLB ranges. TestRFC8665OverlappingRangesRejected requires Validate to reject two overlapping SRLB ranges (and an SRLB overlapping the SRGB), red on a missing check; Validate gates config verify. Positive TestRFC8665NonOverlappingRangesAccepted accepts disjoint SRLB ranges
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665OverlappingRangesRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L178) | unit/verify | unproven |
-| positive | [`TestRFC8665NonOverlappingRangesAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L162) | unit/verify | unproven |
+| negative | [`TestRFC8665OverlappingRangesRejected`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L178) | unit/verify | not verified |
+| positive | [`TestRFC8665NonOverlappingRangesAccepted`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L162) | unit/verify | not verified |
 
 ### [`RFC8665-3.4-1`](#rfc8665-3.4-1)
 
@@ -465,10 +465,10 @@ When multiple SRMS Preference TLVs are received from a given router, the receive
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. forbidden: using a later SRMS Preference TLV of the same RI LSA. TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored decodes an RI body with Preference 100 then 250 via srDecodeRemoteCapabilities and fails unless SRMSPref is 100, red on last-wins; positive pins the single-TLV case. The preference has no consumer (RFC8665-3.4-2 gap), so the decode is the only use
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L149) | unit/verify | unproven |
-| positive | [`TestRFC8665SingleAlgorithmAndSRMSInstanceUsed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L129) | unit/verify | unproven |
+| negative | [`TestRFC8665RepeatedAlgorithmAndSRMSInstancesIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L149) | unit/verify | not verified |
+| positive | [`TestRFC8665SingleAlgorithmAndSRMSInstanceUsed`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L129) | unit/verify | not verified |
 
 ### [`RFC8665-3.4-2`](#rfc8665-3.4-2)
 
@@ -516,10 +516,10 @@ Other bits: Reserved. These MUST be zero when sent and are ignored when received
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. two clauses. Sent: TestRFC8665PrefixSIDReservedFlagBitsZeroOnSend encodes every defined flag and fails if mask 0x83 is set, red on an encoder leaking a reserved bit. Received: TestRFC8665PrefixSIDReservedFlagBitsIgnoredOnReceive sets 0x83 and requires no error and a decode equal to the clean one, red on a decoder that rejects or interprets them
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665PrefixSIDReservedFlagBitsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L224) | unit/verify | unproven |
-| positive | [`TestRFC8665PrefixSIDReservedFlagBitsZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L209) | unit/verify | unproven |
+| negative | [`TestRFC8665PrefixSIDReservedFlagBitsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L224) | unit/verify | not verified |
+| positive | [`TestRFC8665PrefixSIDReservedFlagBitsZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L209) | unit/verify | not verified |
 
 ### [`RFC8665-5-2`](#rfc8665-5-2)
 
@@ -527,10 +527,10 @@ NP-Flag: No-PHP (Penultimate Hop Popping) Flag. If set, then the penultimate hop
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. forbidden: popping when NP is set. TestRFC8665NoPHPKeepsPrefixSIDLabel requires OutgoingActionFor(NP=1) to be ActionKeep with the label imposed; negative TestRFC8665PHPPopsWhenNoPHPFlagClear requires NP=0 to pop, so the no-pop rule is tied to the flag. Sole producer of the penultimate-hop action; wiring is row RFC8665-5-7
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665PHPPopsWhenNoPHPFlagClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L331) | unit/verify | unproven |
-| positive | [`TestRFC8665NoPHPKeepsPrefixSIDLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L306) | unit/verify | unproven |
+| negative | [`TestRFC8665PHPPopsWhenNoPHPFlagClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L331) | unit/verify | not verified |
+| positive | [`TestRFC8665NoPHPKeepsPrefixSIDLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L306) | unit/verify | not verified |
 
 ### [`RFC8665-5-3`](#rfc8665-5-3)
 
@@ -538,7 +538,7 @@ E-Flag: Explicit Null Flag. If set, any upstream neighbor of the Prefix-SID orig
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Strengthened: both positives now assert the literal label 0 (the '(0 for IPv4)' clause) rather than ExplicitNullV4 against itself, at the sr codec and through the installer push toward the originator. The negatives push 16009, never 0, with E clear.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665NoExplicitNullWithoutEFlag`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_explicit_null_label_test.go#L31) | unit/verify | revert, verified |
 | negative | [`TestRFC8665NoPHPKeepsPrefixSIDLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L311) | unit/verify | revert, verified |
@@ -551,10 +551,10 @@ A router receiving a Prefix-SID from a remote node and with an algorithm value t
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. forbidden: installing a Prefix-SID whose algorithm the originator did not advertise. TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised drives installRoutes with the originator advertising {1} only and a usable SRGB and requires no mpls-fib entry at all; without the check the NP=0 penultimate-hop route would emit a pop entry, so the len == 0 assertion goes red. Positive with {0} requires push label 16009
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L294) | unit/verify | unproven |
-| positive | [`TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L266) | unit/verify | unproven |
+| negative | [`TestRFC8665PrefixSIDIgnoredWhenAlgorithmNotAdvertised`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L294) | unit/verify | not verified |
+| positive | [`TestRFC8665PrefixSIDInstalledWhenAlgorithmAdvertised`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L266) | unit/verify | not verified |
 
 ### [`RFC8665-5-5`](#rfc8665-5-5)
 
@@ -562,10 +562,10 @@ All other combinations of V-Flag and L-Flag are invalid and any SID Advertisemen
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. forbidden: accepting a SID with V set and L clear or the reverse. TestRFC8665InvalidVLCombinationIgnored requires Prefix-SID, Adj-SID and LAN Adj-SID decoders to error on both invalid pairs; the receive callers (srRemotePrefixSIDs sr_install.go, sr_tilfa.go) use a SID only on derr == nil, so the error is the ignore. Positive TestRFC8665ValidVLCombinationsDecode decodes V=0/L=0 index and V=1/L=1 label forms
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665InvalidVLCombinationIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L279) | unit/verify | unproven |
-| positive | [`TestRFC8665ValidVLCombinationsDecode`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L247) | unit/verify | unproven |
+| negative | [`TestRFC8665InvalidVLCombinationIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L279) | unit/verify | not verified |
+| positive | [`TestRFC8665ValidVLCombinationsDecode`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L247) | unit/verify | not verified |
 
 ### [`RFC8665-5-6`](#rfc8665-5-6)
 
@@ -573,7 +573,7 @@ If an OSPF router advertises multiple Prefix-SIDs for the same prefix, topology,
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge). The second reader is now covered: TestRFC8665TILFAIgnoresDuplicatePrefixSIDs drives srTILFAResolver.PrefixSIDLabel with an absolute-label SID (no SRGB needed), resolves 20009 for one Prefix-SID and nothing once the same router advertises a second one for the same prefix, topology and algorithm; removing the Duplicate skip reddens it (records on PrefixSIDLabel). Installer proofs and per-(area,router,prefix,MT-ID,algorithm) scoping stand. A mixed case (one router repeating, another advertising once) is still not driven; the 2026-09-27 audit recorded that the positive scoping cases go red when the router key or the per-(area,router) count is dropped, which bounds that risk.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665PrefixSIDsOfDifferentAlgorithmsNotDuplicate`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L229) | unit/verify | revert, verified |
 | negative | [`TestRFC8665DuplicatePrefixSIDsAllIgnored`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L337) | unit/verify | revert, verified |
@@ -590,7 +590,7 @@ When calculating the outgoing label for the prefix, the router MUST take into ac
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (independent judge, ospf c27). Both c26 gaps closed. Claims now name srInstaller.forwarding / installRoutes and state what the bodies assert (bodies unchanged): + TestRFC8665NextHopFlagsAppliedWhereSIDAdvertised (next hop = SID advertiser with NP clear, transit next hop listed first: no push and a pop toward the originator next hop); - TestRFC8665OriginatorFlagsNotAppliedAtTransitHop (next hop did not advertise the SID: originator NP=0 not applied, push 17009 from the transit SRGB). Revert records on forwarding for both, observed red. Judge replayed overlays on forwarding: penultimate test forced true -> only the - red ('<nil>', PHP at transit); forced false -> only the + red (push 16009 toward the originator). TestRFC8665NextHopEAndMFlagsApplied keeps the E/NP/M cases (record on srMappedSIDAction).
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665OriginatorFlagsNotAppliedAtTransitHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L410) | unit/verify | revert, verified |
 | positive | [`TestRFC8665NextHopEAndMFlagsApplied`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_nexthop_flags_test.go#L46) | unit/verify | revert, verified |
@@ -602,7 +602,7 @@ This MUST be done regardless of whether the next-hop router contributes to the b
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8665 Section 5: 'the E-, NP-, and M-Flags advertised by the next-hop router if that router advertised the SID for the prefix. This MUST be done regardless of whether the next-hop router contributes to the best path'. Product fix read: srInstaller.forwarding now applies the next hop's own advertisement (advertisedBy over Originator and Also), and sr_malformed resolve lists the other advertisers of the same SID. The positive has the best path end at 10.0.0.9 (NP set) with next hop 10.0.0.2 also advertising: NP clear must PHP-pop 18009 with no push, and NP+E must push 0, never 17009. The old originator-only code swapped 17009 and fails it. The negative checks that a next hop that advertised nothing gets 17009 with no pop, even though both other advertisers have NP clear.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665OffPathAdvertiserFlagsNotAppliedToNextHop`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go#L110) | unit/verify | revert, verified |
 | positive | [`TestRFC8665NextHopFlagsAppliedOffBestPath`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_nexthop_off_best_path_test.go#L64) | unit/verify | revert, verified |
@@ -629,10 +629,10 @@ If the NP-Flag is not set, then: Any upstream neighbor of the Prefix-SID origina
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. two clauses. Pop: TestRFC8665PHPPopsWhenNoPHPFlagClear requires OutgoingActionFor(NP=0) to be ActionPHP and OutgoingLabel to impose nothing; E ignored: the same case sets E=1, so honoring E goes red. Negative TestRFC8665NoPHPKeepsPrefixSIDLabel: NP=1 must not pop. OutgoingActionFor is the sole producer of the penultimate-hop action (sr_install.go, sr_fib.go); the wiring to the next-hop case is row RFC8665-5-7
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665NoPHPKeepsPrefixSIDLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L315) | unit/verify | unproven |
-| positive | [`TestRFC8665PHPPopsWhenNoPHPFlagClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L328) | unit/verify | unproven |
+| negative | [`TestRFC8665NoPHPKeepsPrefixSIDLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L315) | unit/verify | not verified |
+| positive | [`TestRFC8665PHPPopsWhenNoPHPFlagClear`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L328) | unit/verify | not verified |
 
 ### [`RFC8665-5-11`](#rfc8665-5-11)
 
@@ -640,10 +640,10 @@ If the NP-Flag is set and the E-Flag is not set, then: Any upstream neighbor of 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. NP=1/E=0 gives ActionKeep with 16009 imposed, and NP=1/E=1 does not keep the Prefix-SID.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665ExplicitNullReplacesPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L349) | unit/verify | unproven |
-| positive | [`TestRFC8665NoPHPKeepsPrefixSIDLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L309) | unit/verify | unproven |
+| negative | [`TestRFC8665ExplicitNullReplacesPrefixSID`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L349) | unit/verify | not verified |
+| positive | [`TestRFC8665NoPHPKeepsPrefixSIDLabel`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L309) | unit/verify | not verified |
 
 ### [`RFC8665-5-12`](#rfc8665-5-12)
 
@@ -651,7 +651,7 @@ If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefi
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-21 against Section 5: "If both the NP-Flag and E-Flag are set, then: Any upstream neighbor of the Prefix-SID originator MUST replace the Prefix-SID with an Explicit NULL label." Action: positives TestRFC8665ExplicitNullPushedAsLabelZero (installer pushes literal label 0) and TestRFC8665ExplicitNullReplacesPrefixSID. Condition, both halves: NP set E clear gives 16009 / ActionKeep (TestRFC8665NoExplicitNullWithoutEFlag, TestRFC8665NoPHPKeepsPrefixSIDLabel); E set NP clear gives ActionPHP, not ActionExplicitNull (TestRFC8665MappingServerFlagClearHonorsNPAndE, newly tagged, revert record on OutgoingActionFor). An E-only Explicit NULL rule now reddens a tagged negative; the earlier half-condition gap is closed.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665NoExplicitNullWithoutEFlag`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_explicit_null_label_test.go#L33) | unit/verify | revert, verified |
 | negative | [`TestRFC8665MappingServerFlagClearHonorsNPAndE`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L380) | unit/verify | revert, verified |
@@ -665,10 +665,10 @@ When the M-Flag is set, the NP-Flag and the E-Flag MUST be ignored on reception 
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 against Section 5: "When the M-Flag is set, the NP-Flag and the E-Flag MUST be ignored on reception." OutgoingActionFor (sr/install.go) returns ActionKeep on M before reading NP or E. Positive: M=1, NP=0, E=1 gives ActionKeep and label 16009 imposed; honoring NP would give PHP, honoring E with NP ignored would give Explicit NULL, so either reddens. Negative TestRFC8665MappingServerFlagClearHonorsNPAndE: without M the same NP=0/E=1 gives PHP and NP=1/E=1 gives ActionExplicitNull, so the ignore is conditional on M. Proven at the action function the installer calls, not through the installer.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665MappingServerFlagClearHonorsNPAndE`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L378) | unit/verify | unproven |
-| positive | [`TestRFC8665MappingServerFlagIgnoresNPAndE`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L364) | unit/verify | unproven |
+| negative | [`TestRFC8665MappingServerFlagClearHonorsNPAndE`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L378) | unit/verify | not verified |
+| positive | [`TestRFC8665MappingServerFlagIgnoresNPAndE`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L364) | unit/verify | not verified |
 
 ### [`RFC8665-6.1-1`](#rfc8665-6.1-1)
 
@@ -676,10 +676,10 @@ Other bits: Reserved. These MUST be zero when sent and are ignored when received
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. two clauses. Sent: TestRFC8665AdjSIDReservedFlagBitsZeroOnSend encodes all five flags for Adj-SID and LAN Adj-SID and fails if bits 5-7 (0x07) are set. Received: TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive sets 0x07 and requires no error and a decode equal to the clean one
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L412) | unit/verify | unproven |
-| positive | [`TestRFC8665AdjSIDReservedFlagBitsZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L393) | unit/verify | unproven |
+| negative | [`TestRFC8665AdjSIDReservedFlagBitsIgnoredOnReceive`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L412) | unit/verify | not verified |
+| positive | [`TestRFC8665AdjSIDReservedFlagBitsZeroOnSend`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L393) | unit/verify | not verified |
 
 ### [`RFC8665-6.1-2`](#rfc8665-6.1-2)
 
@@ -687,9 +687,9 @@ When the P-Flag is set, the Adj-SID MUST be persistent (§6.1)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8665AdjSIDNeverClaimsPersistence`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L223) | unit/verify | unproven |
+| positive | [`TestRFC8665AdjSIDNeverClaimsPersistence`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L223) | unit/verify | not verified |
 
 ### [`RFC8665-6.2-1`](#rfc8665-6.2-1)
 
@@ -697,9 +697,9 @@ When the P-Flag is set, the LAN Adjacency SID MUST be persistent (§6.2)
 
 Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| positive | [`TestRFC8665AdjSIDNeverClaimsPersistence`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L229) | unit/verify | unproven |
+| positive | [`TestRFC8665AdjSIDNeverClaimsPersistence`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L229) | unit/verify | not verified |
 
 ### [`RFC8665-7.1-1`](#rfc8665-7.1-1)
 
@@ -739,7 +739,7 @@ If the adjacency transitions to a state lower than 2-Way, then the Adj-SID Adver
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-29 (independent judge). TestRFC8665AdjSIDWithdrawnThroughNeighborSink reports the neighbor down through the production sink (neighborEventSinkValue().NeighborDown -> bfdNeighborLost -> srAdjNeighborLost), then asserts the Adj-SID is gone from the store the Extended Link LSA reads, its pop entry removed, its SRLB label freed and one self-LSA re-origination queued (revert record on srAdjNeighborLost). The queue is also fed by the sink's own onChange, so the unit proves the withdrawal is in the store before a re-origination that is certainly queued, which is what carries it to the area. The wrong-adjacency negative stands.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665AdjSIDWithdrawKeyedByAdjacency`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L477) | unit/verify | revert, verified |
 | positive | [`TestRFC8665AdjSIDWithdrawnThroughNeighborSink`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_adjsid_withdraw_test.go#L20) | unit/verify | revert, verified |
@@ -751,7 +751,7 @@ Implementations MUST assure that malformed TLVs and sub-TLVs defined in this doc
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Shift only. Every truncation is rejected without panic, a zero-length SR-Algorithm TLV is ignored, and well-formed values decode.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665ZeroLengthSRAlgorithmIgnoresLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_sr_algorithm_length_test.go#L16) | unit/verify | revert, verified |
 | negative | [`TestRFC8665TruncatedTLVsRejectedWithoutPanic`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/sr/rfc8665_test.go#L484) | unit/verify | revert, verified |
@@ -763,7 +763,7 @@ For any new TLVs/sub-TLVs defined in this document, if the length is invalid, th
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-21 over the current tags, units and records. Comment-only edit (ErrLength wraps ErrMalformed). Length-invalid SR TLVs and sub-TLVs cause the carrying RI, Extended Prefix and Extended Link LSAs to be ignored by SR install and BGP-LS export, and well-formed ones are applied.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665LengthInvalidAdjSIDIgnoresExtendedLinkLSA`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L129) | unit/verify | revert, verified |
 | negative | [`TestRFC8665LengthInvalidSubTLVIgnoredByBGPLSExport`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_ext_malformed_test.go#L148) | unit/verify | revert, verified |
@@ -785,7 +785,7 @@ However, PHP behavior SHOULD be done in the following cases: The Prefix is intra
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-02 (independent judge, ospf c28). All three listed cases now go through a real LSDB, eng.spf.Run and srInstallFromRoutes. Intra-area (new rfc8665_mapped_sid_intra_spf_test.go): 10.0.0.1 p2p 10.0.0.2 (stub 10.3.0.0/24) p2p 10.0.0.3 (stub 10.4.0.0/24), Mapping Server M-Flag SIDs 11/12; + TestRFC8665MappedSIDIntraAreaPHPThroughSPFRoutes: next hop is the prefix originator -> no push, 18011 pops; - TestRFC8665MappedSIDIntraAreaKeepsLabelTowardTransitRouter: originator 10.0.0.3 behind next hop 10.0.0.2 -> push 16012, 18012 swaps. Judge overlays: the c27 gap overlay (Origin dropped from the srRoute srRoutes builds) now turns the intra + red ('pushed label 16011 toward its originator'); srMappedSIDAction intra case PHP for any originated route -> intra - red and the hand-built - red, + green. Inter-area/external as judged in c27 (A-Flag TLVs from the next hop, both polarities, srRoutes overlays red). Revert records observed on srRoutes and srMappedSIDAction. OSPFv3 LA-bit cases are RFC 8666's, disclosed in docs/guide/ospf.md and journaled.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665MappedSIDIntraAreaKeepsLabelTowardTransitRouter`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_mapped_sid_intra_spf_test.go#L136) | unit/verify | revert, verified |
 | negative | [`TestRFC8665MappedSIDKeepsLabelOutsideListedCases`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_mapped_sid_php_test.go#L105) | unit/verify | revert, verified |
@@ -801,10 +801,10 @@ For the purpose of SR-Algorithm TLV advertisement, area-scoped flooding is REQUI
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Stale only from the added 3.2-15/3.3-10 tags; type 8 is registered at area scope and absent from AS and link scope.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
-| negative | [`TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L109) | unit/verify | unproven |
-| positive | [`TestRFC8665SRCapabilityTLVsAreAreaScoped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L85) | unit/verify | unproven |
+| negative | [`TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L109) | unit/verify | not verified |
+| positive | [`TestRFC8665SRCapabilityTLVsAreAreaScoped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L85) | unit/verify | not verified |
 
 ### [`RFC8665-3.2-15`](#rfc8665-3.2-15)
 
@@ -812,7 +812,7 @@ For the purpose of SID/ Label Range TLV advertisement, area-scoped flooding is R
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8665 Section 3.2 ('For the purpose of SID/ Label Range TLV advertisement, area-scoped flooding is REQUIRED'), split from the 3.1-7 sentence that covered only SR-Algorithm. Type 9 is registered at area scope and absent at AS and link scope, and the negative record is on riTLVBuildersForScope.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L112) | unit/verify | revert, verified |
 | positive | [`TestRFC8665SRCapabilityTLVsAreAreaScoped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L89) | unit/verify | revert, verified |
@@ -823,7 +823,7 @@ For the purpose of SRLB TLV advertisement, area-scoped flooding is REQUIRED. (§
 
 Audit verdict: enforced (the tests do what the requirement demands), fresh. Judged 2026-10-21 over current tags, units and records. Quote verified in RFC 8665 Section 3.3 ('For the purpose of SRLB TLV advertisement, area-scoped flooding is REQUIRED'). Type 14 is registered at area scope and absent at AS and link scope.
 
-| Polarity | Test | Kind and tier | Proof state |
+| Polarity | Test | Kind and tier | Test status |
 |---|---|---|---|
 | negative | [`TestRFC8665SRCapabilityTLVsAbsentFromOtherScopes`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L114) | unit/verify | revert, verified |
 | positive | [`TestRFC8665SRCapabilityTLVsAreAreaScoped`](https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc8665_test.go#L91) | unit/verify | revert, verified |
