@@ -1,0 +1,70 @@
+Ze-Reviewed-Against: github.com/opencontainers/runc v1.5.3
+
+H-2 of the runc series: initProcess.start no longer speaks the C stage's
+protocol. Upstream writes the bootstrap data to the init socket, reads the pid
+of the final child from it, and waits for the first child to exit. With
+runc-01-direct-init.patch the process the standard library started is init
+itself, so those three steps are removed and its pid is used where the final
+child's was.
+
+The C stage also wrote the out-of-memory score of init from the bootstrap
+data, and nothing in the Go init does. The parent writes it here, before it
+sends init its configuration.
+
+The reader, startInitialization, is unchanged: it decodes the init
+configuration as JSON from the init socket and never read the bootstrap data,
+so with that data gone the JSON is the first thing on the socket.
+
+Needs runc-01-direct-init.patch: without it the started process is the C
+stage's first parent, not init.
+
+No upstream pull request is opened for this change: upstream keeps its C
+stage, and the change is specific to a build with cgo off. The design is
+docs/architecture/container/runtime.md.
+
+Delete this series when Ze no longer vendors the runtime.
+
+diff --git a/vendor/github.com/opencontainers/runc/libcontainer/process_linux.go b/vendor/github.com/opencontainers/runc/libcontainer/process_linux.go
+index b03cdf0d6e..933cc6bc1f 100644
+--- a/vendor/github.com/opencontainers/runc/libcontainer/process_linux.go
++++ b/vendor/github.com/opencontainers/runc/libcontainer/process_linux.go
+@@ -846,29 +846,25 @@ func (p *initProcess) start() (retErr error) {
+ 			return fmt.Errorf("unable to apply Intel RDT configuration: %w", err)
+ 		}
+ 	}
+-	if _, err := io.Copy(p.comm.initSockParent, p.bootstrapData); err != nil {
+-		return fmt.Errorf("can't copy bootstrap data to pipe: %w", err)
+-	}
+-
+-	childPid, err := p.getChildPid()
+-	if err != nil {
+-		return fmt.Errorf("can't get final child's PID from pipe: %w", err)
++	// ze patch (runc-02-start-without-bootstrap): no C stage reads bootstrap
++	// data, reports a child pid or exits first. The process started above is
++	// init itself. The C stage also wrote the out-of-memory score from that
++	// data, so it is written here, before init is sent its configuration.
++	if adj := p.container.config.OomScoreAdj; adj != nil {
++		if err := os.WriteFile("/proc/"+strconv.Itoa(p.pid())+"/oom_score_adj", []byte(strconv.Itoa(*adj)), 0o644); err != nil {
++			return fmt.Errorf("unable to set the oom score adjustment of init: %w", err)
++		}
+ 	}
+ 
+ 	// Save the standard descriptor names before the container process
+ 	// can potentially move them (e.g., via dup2()).  If we don't do this now,
+ 	// we won't know at checkpoint time which file descriptor to look up.
+-	fds, err := getPipeFds(childPid)
++	fds, err := getPipeFds(p.pid())
+ 	if err != nil {
+-		return fmt.Errorf("error getting pipe fds for pid %d: %w", childPid, err)
++		return fmt.Errorf("error getting pipe fds for pid %d: %w", p.pid(), err)
+ 	}
+ 	p.setExternalDescriptors(fds)
+ 
+-	// Wait for our first child to exit
+-	if err := p.waitForChildExit(childPid); err != nil {
+-		return fmt.Errorf("error waiting for our first child to exit: %w", err)
+-	}
+-
+ 	// Spin up a goroutine to handle remapping mount requests by runc init.
+ 	// There is no point doing this for rootless containers because they cannot
+ 	// configure MOUNT_ATTR_IDMAP, nor do OPEN_TREE_CLONE. We could just

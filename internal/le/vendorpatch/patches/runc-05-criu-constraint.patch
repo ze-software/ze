@@ -1,0 +1,38 @@
+Ze-Reviewed-Against: github.com/opencontainers/runc v1.5.3
+
+H-5 of the runc series: the checkpoint and restore client (criu_linux.go)
+compiles only under the build tag runc_criu, and the file that refuses both
+calls (criu_disabled_linux.go) compiles without it. Upstream has it the other
+way round: the client is built unless the tag runc_nocriu is set.
+
+Ze derives its build tags from feature-gates.txt, and only tags with the ze_
+prefix, so no ze build can carry an upstream opt-out tag, and a build site
+that forgot it would link the client in silence. With the constraint inverted,
+no ze build sets the tag and none links the client. ErrNoCR still names the
+upstream tag in its text; Ze never calls Checkpoint or Restore.
+
+No upstream pull request is opened for this change: upstream's default is the
+client built in. The design is docs/architecture/container/runtime.md.
+
+Delete this series when Ze no longer vendors the runtime.
+
+diff --git a/vendor/github.com/opencontainers/runc/libcontainer/criu_disabled_linux.go b/vendor/github.com/opencontainers/runc/libcontainer/criu_disabled_linux.go
+index 28c4ad1664..64bad92077 100644
+--- a/vendor/github.com/opencontainers/runc/libcontainer/criu_disabled_linux.go
++++ b/vendor/github.com/opencontainers/runc/libcontainer/criu_disabled_linux.go
+@@ -1,4 +1,4 @@
+-//go:build runc_nocriu
++//go:build !runc_criu
+ 
+ package libcontainer
+ 
+diff --git a/vendor/github.com/opencontainers/runc/libcontainer/criu_linux.go b/vendor/github.com/opencontainers/runc/libcontainer/criu_linux.go
+index eddfe4745a..404e83982b 100644
+--- a/vendor/github.com/opencontainers/runc/libcontainer/criu_linux.go
++++ b/vendor/github.com/opencontainers/runc/libcontainer/criu_linux.go
+@@ -1,4 +1,4 @@
+-//go:build !runc_nocriu
++//go:build runc_criu
+ 
+ package libcontainer
+ 

@@ -460,7 +460,7 @@ file is not in the tree, so that patch is applied at build time.
 | The patches | `internal/le/vendorpatch/patches/*.patch` | The set is the files present: adding a patch needs no edit anywhere else (`vendorpatch.Patches`) |
 | The re-vendor | `./le setup install` (`internal/le/setup`, `vendorGoDeps`) | Runs `go mod tidy`, then `go mod vendor -o <owned-stage>/vendor`. It checks every stamp against the staged module versions and applies every patch there before publishing the replacement. A command or patch refusal leaves the current `vendor/` untouched |
 | The upstream check | `TestPatchedVendorModulesMatchUpstream` (`internal/le/vendorpatch`) | For each module a patch names, reverts its patches in a copy of `vendor/<module>` and requires every file to equal the module at the vendored version, as `go mod download` fetches it. A hand edit no patch records, a dropped patch and a half-applied one all turn it red. It then applies the module's patches forward, in set order, to a second tree written from those upstream files, which is what the re-vendor does: a patch that reverts and cannot be applied turns it red too. The second tree matters, because reverting a patch that adds a file with no `new file mode` line leaves an empty `dev/null` file behind, and a forward apply in the same tree finds it and passes. It reads the module from the Go module cache, which `./le setup install` fills; on a cold cache it needs network access to download the module |
-| The guard tests | `TestEveryVendorPatchIsApplied`, and the named guards `TestNetlinkXFRMPatchApplied`, `TestBubblesCursorPatchApplied`, `TestGokrazyPackerReturnsErrorsPatchApplied`, `TestGokrazyUpdaterURLUserinfoPatchApplied` (`internal/le/vendorpatch`) | The derived guard requires every patch present to be applied: one subtest per patch file, named after the file and found from the directory through `vendorpatch.Patches`, so a new patch is guarded with no test edited. A patch that is not applied fails its own subtest, the others still report, and the failure names `./le setup install` as the recovery. An empty patch directory fails rather than passing over nothing. A deleted patch is simply not listed, which the derived guard cannot see, so each named guard names its patch (the XFRM one, every file of its series) and pins that it is present. Both run `assertVendorPatchApplied`, which checks that every hunk is present with `git apply --reverse --check` and needs no module cache. A patch with later patches stamped for the same module is judged at its place in that stack: in a copy of the files the stack writes, the later patches are reversed in reverse order first, because a later patch can change lines an earlier one added. A failure says whether the patch itself does not reverse or a later patch of its stack does not, which leaves it unjudged |
+| The guard tests | `TestEveryVendorPatchIsApplied`, and the named guards `TestNetlinkXFRMPatchApplied`, `TestBubblesCursorPatchApplied`, `TestGokrazyPackerReturnsErrorsPatchApplied`, `TestGokrazyUpdaterURLUserinfoPatchApplied`, `TestRuncDirectInitPatchApplied` (`internal/le/vendorpatch`) | The derived guard requires every patch present to be applied: one subtest per patch file, named after the file and found from the directory through `vendorpatch.Patches`, so a new patch is guarded with no test edited. A patch that is not applied fails its own subtest, the others still report, and the failure names `./le setup install` as the recovery. An empty patch directory fails rather than passing over nothing. A deleted patch is simply not listed, which the derived guard cannot see, so each named guard names its patch (the XFRM one and the runc one, every file of their series) and pins that it is present. Both run `assertVendorPatchApplied`, which checks that every hunk is present with `git apply --reverse --check` and needs no module cache. A patch with later patches stamped for the same module is judged at its place in that stack: in a copy of the files the stack writes, the later patches are reversed in reverse order first, because a later patch can change lines an earlier one added. A failure says whether the patch itself does not reverse or a later patch of its stack does not, which leaves it unjudged |
 
 A plain `go mod vendor` drops every patch. Run `./le setup install` instead.
 Its owned dot-prefixed stage sits beside `vendor/`, on the same filesystem.
@@ -499,6 +499,43 @@ release containing the change is required, delete the patch.
 <!-- source: internal/le/vendorpatch/upstream_test.go -- TestPatchedVendorModulesMatchUpstream -->
 <!-- source: internal/le/vendorpatch/vendor_patch_test.go -- TestEveryVendorPatchIsApplied, assertVendorPatchApplied -->
 <!-- source: internal/le/vendorpatch/netlink_xfrm_patch_test.go -- TestNetlinkXFRMPatchApplied, netlinkXFRMSeries -->
+<!-- source: internal/le/vendorpatch/runc_direct_init_patch_test.go -- TestRuncDirectInitPatchApplied, runcDirectInitSeries -->
+
+### A patch for a module the tree does not vendor yet
+
+A new module and its patches arrive together, and three facts of the tooling
+fix the order:
+
+- `./le setup install` checks every patch of the set against the staged
+  `vendor/modules.txt`, and refuses a patch whose module that file does not
+  hold (`CheckStamp`). So the patch files and the module must be there in the
+  same run.
+- The run starts with `go mod tidy`, which drops a required module no Go file
+  of the tree imports, and which resolves an import no requirement covers to
+  the module's latest release. So the importing file must be in the working
+  tree, and `go.mod` must already require the version the patches are stamped
+  for.
+- The dependency commit holds `go.mod`, `go.sum` and `vendor/` and nothing
+  else (`docs/contributing/dependency-approval.md`). The vendored files it
+  carries are the patched ones, because the run applied the set before it
+  published `vendor/`.
+
+The sequence, with the patch files and the importing file in the working tree
+and uncommitted:
+
+```
+go mod edit -require=<module>@<version>
+./le setup install
+```
+
+Commit `go.mod`, `go.sum` and `vendor/` alone. The patch files, their named
+guard and the importing file land in the commits after it.
+
+Between writing the patch files and running the sequence, every stamp check in
+the checkout refuses, for every session that shares it: the set names a module
+`vendor/` does not hold. Run the sequence as soon as the files exist.
+<!-- source: internal/le/vendorpatch/stamp.go -- CheckStamp -->
+<!-- source: internal/le/setup/install.go -- vendorGoDeps, applyVendorPatches -->
 
 ## Reference
 

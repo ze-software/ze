@@ -1,0 +1,42 @@
+Ze-Reviewed-Against: github.com/opencontainers/runc v1.5.3
+
+H-3 of the runc series: newSetnsProcess refuses. Starting a process inside a
+running container joins that container's namespaces, which the standard
+library cannot do at clone and which upstream leaves to the C stage
+(libcontainer/nsenter). A ze binary is built with cgo off and has no C stage,
+so the call would hang on a protocol nobody speaks. It answers an error that
+names the missing join instead.
+
+The upstream body is kept, unchanged, under the name newSetnsProcessWithJoin,
+which nothing calls. The patch that brings a namespace join restores it.
+
+Needs runc-01-direct-init.patch: both change container_linux.go, and this
+hunk's line numbers follow that patch.
+
+No upstream pull request is opened for this change: upstream keeps its C
+stage, and the change is specific to a build with cgo off. The design is
+docs/architecture/container/runtime.md.
+
+Delete this series when Ze no longer vendors the runtime.
+
+diff --git a/vendor/github.com/opencontainers/runc/libcontainer/container_linux.go b/vendor/github.com/opencontainers/runc/libcontainer/container_linux.go
+index 0bc420344e..394acd2bcb 100644
+--- a/vendor/github.com/opencontainers/runc/libcontainer/container_linux.go
++++ b/vendor/github.com/opencontainers/runc/libcontainer/container_linux.go
+@@ -683,6 +683,16 @@ func (c *Container) newInitProcess(p *Process, cmd *exec.Cmd, comm *processComm)
+ }
+ 
+ func (c *Container) newSetnsProcess(p *Process, cmd *exec.Cmd, comm *processComm) (*setnsProcess, error) {
++	// ze patch (runc-03-refuse-setns): entering a running container means
++	// joining its namespaces, which the standard library cannot do at clone
++	// and which upstream leaves to the C stage this build does not have.
++	// Nothing below this return runs.
++	return nil, errors.New("entering a running container is not supported: this build has no namespace join")
++}
++
++// newSetnsProcessWithJoin is the upstream body of newSetnsProcess, kept
++// unchanged for the patch that restores entering a container.
++func (c *Container) newSetnsProcessWithJoin(p *Process, cmd *exec.Cmd, comm *processComm) (*setnsProcess, error) {
+ 	cmd.Env = append(cmd.Env, "_LIBCONTAINER_INITTYPE="+string(initSetns))
+ 	state := c.currentState()
+ 	// for setns process, we don't have to set cloneflags as the process namespaces

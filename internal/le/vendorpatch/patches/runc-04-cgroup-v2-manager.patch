@@ -1,0 +1,91 @@
+Ze-Reviewed-Against: github.com/opencontainers/runc v1.5.3
+
+H-4 of the runc series: Create and Load build the cgroup v2 manager directly.
+Upstream calls manager.New and manager.NewWithPaths of
+github.com/opencontainers/cgroups/manager, and factory_linux.go is the only
+file of libcontainer that imports that package. The package links the systemd
+cgroup driver and the cgroup v1 manager, neither of which a ze appliance can
+use: it has no systemd and runs the unified hierarchy.
+
+newCgroupV2Manager keeps the checks manager.NewWithPaths made (a nil config,
+the shape of the saved path) and refuses what it no longer builds: a config
+that asks for the systemd driver, and a host that is not in cgroup v2 unified
+mode.
+
+No upstream pull request is opened for this change: upstream selects the
+manager at run time on purpose. The design is
+docs/architecture/container/runtime.md.
+
+Delete this series when Ze no longer vendors the runtime.
+
+diff --git a/vendor/github.com/opencontainers/runc/libcontainer/factory_linux.go b/vendor/github.com/opencontainers/runc/libcontainer/factory_linux.go
+index f1c223e981..8832afd7ac 100644
+--- a/vendor/github.com/opencontainers/runc/libcontainer/factory_linux.go
++++ b/vendor/github.com/opencontainers/runc/libcontainer/factory_linux.go
+@@ -5,12 +5,13 @@ import (
+ 	"errors"
+ 	"fmt"
+ 	"os"
++	"path/filepath"
+ 
+ 	securejoin "github.com/cyphar/filepath-securejoin"
+ 	"golang.org/x/sys/unix"
+ 
+ 	"github.com/opencontainers/cgroups"
+-	"github.com/opencontainers/cgroups/manager"
++	"github.com/opencontainers/cgroups/fs2"
+ 	"github.com/opencontainers/runc/internal/pathrs"
+ 	"github.com/opencontainers/runc/libcontainer/configs"
+ 	"github.com/opencontainers/runc/libcontainer/configs/validate"
+@@ -55,7 +56,7 @@ func Create(root, id string, config *configs.Config) (*Container, error) {
+ 		return nil, err
+ 	}
+ 
+-	cm, err := manager.New(config.Cgroups)
++	cm, err := newCgroupV2Manager(config.Cgroups, nil)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -126,7 +127,7 @@ func Load(root, id string) (*Container, error) {
+ 		processStartTime: state.InitProcessStartTime,
+ 		fds:              state.ExternalDescriptors,
+ 	}
+-	cm, err := manager.NewWithPaths(state.Config.Cgroups, state.CgroupPaths)
++	cm, err := newCgroupV2Manager(state.Config.Cgroups, state.CgroupPaths)
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -147,6 +148,33 @@ func Load(root, id string) (*Container, error) {
+ 	return c, nil
+ }
+ 
++// newCgroupV2Manager is a ze patch (runc-04-cgroup-v2-manager). Upstream calls
++// manager.New and manager.NewWithPaths here, and that package links the
++// systemd driver and the cgroup v1 manager. Ze runs on the unified hierarchy
++// with no systemd, so the v2 manager is built directly, with the checks
++// manager.NewWithPaths made, and anything else is refused.
++func newCgroupV2Manager(config *cgroups.Cgroup, paths map[string]string) (cgroups.Manager, error) {
++	if config == nil {
++		return nil, errors.New("cgroup config must not be nil")
++	}
++	if config.Systemd {
++		return nil, errors.New("the systemd cgroup driver is not supported: only the cgroup v2 filesystem manager is built")
++	}
++	if !cgroups.IsCgroup2UnifiedMode() {
++		return nil, errors.New("the host is not in cgroup v2 unified mode: /sys/fs/cgroup is not a cgroup2 filesystem")
++	}
++	// The same sanity checks as getUnifiedPath of the manager package: the
++	// only key is "" and its value is the unified cgroup path, or empty.
++	if len(paths) > 1 {
++		return nil, fmt.Errorf("inconsistent cgroup paths: expected a single path, got %+v", paths)
++	}
++	path := paths[""]
++	if path != "" && (filepath.Clean(path) != path || !filepath.IsAbs(path)) {
++		return nil, fmt.Errorf("inconsistent cgroup paths: invalid path: %q", path)
++	}
++	return fs2.NewManager(config, path)
++}
++
+ func loadState(root string) (*State, error) {
+ 	stateFilePath, err := securejoin.SecureJoin(root, stateFilename)
+ 	if err != nil {
