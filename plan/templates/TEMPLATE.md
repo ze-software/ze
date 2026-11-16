@@ -369,6 +369,17 @@ Add `// RFC NNNN Section X.Y: "<quoted requirement>"` above enforcing code.
 MUST document: validation rules, error conditions, state transitions, timer
 constraints, message ordering, and every MUST/MUST NOT.
 
+Treat the RFC as the required baseline, not a ceiling on explicit operator
+control. Assess compliance on the default configuration path. Preserve explicit
+options for more specific behavior and extensions, including behavior that differs from
+the RFC. Their availability does not make a compliant default path fail.
+Name the configuration covered by each claim and test both paths. RFC work does
+not remove existing features to improve a conformance figure.
+
+| RFC / section | Default configuration and required behavior | Explicit options / extensions to preserve | Tests of default behavior | Tests preserving options / extensions |
+|---------------|---------------------------------------------|-------------------------------------------|---------------------------|---------------------------------------|
+| [RFC and section] | [exact configuration and observable behavior] | [option paths and behavior, or none with reason] | [test names and proof] | [test names, including any difference from the RFC] |
+
 ## Checklist
 
 ### Pre-Spec Verification (before the design is presented)
