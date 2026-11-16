@@ -96,6 +96,7 @@ proposed yet.
 | Delivery reconcile | `internal/component/plugin/server/delivery_reconcile.go` `reconcileDelivery` | warns in the log when a plugin's declared events and a peer's grant disagree | Extends: stays the runtime voice for an external plugin, which declares after the config is parsed; the commit-time refusal covers what is known at config time |
 | Alias resolution | `internal/component/bgp/config/redistribute_binding.go` `processNameFor` | names the process a registry plugin runs under | Extends: the refusal names the operator's alias in the line it gives |
 | Plugin auto-load | `internal/component/plugin/server/startup_autoload.go` `getConfigPathPlugins` and its siblings | loads plugins by config root, family, event type, send type, dependency and data plane | Replaces or narrows per Q-1: a load the operator did not write becomes a refusal naming the `plugin { }` entry to add |
+| Typed fix of a refusal | `internal/component/cli/fix_frame.go` `FixCommand`, `FrameFix`; `docs/architecture/cli/error-surface.md` | a refusal carries its fix as a typed editor command (verb, position, arguments, and which arguments are placeholders), and every surface prints it as the exact command for the operator's position. Nothing applies it | Extends: the grant and plugin refusals carry their missing lines as these typed fixes, and the editor gains the step that applies a refusal's concrete fixes to the candidate on the operator's request, on the SSH editor and the web editor alike (`ai/doors/commands-cli.md`, Traps: one surface fixed, the other not). No second fix format |
 | Absent-policy report | `internal/component/bgp/reactor/rfc8212_warning.go` `RFC8212Absences` | one value with message and editor fix, read by validate and the session log | Does not apply as the carrier: that is a warning for a legal config. Its shape, one value with the fix line read by every surface, is the model for the refusal |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -171,6 +172,7 @@ proposed yet.
 | AC-3 | A redistribution rule with BGP as destination; a peer's block for the orchestrator lacks `send [ update ]`, or is missing | Refused with the line; with it added, a redistributed route reaches that peer | Peers the rule does not feed need nothing |
 | AC-4 | A FlowSpec family, or AIGP, with a missing or narrow `bgp-rib` block | Refused in the same message shape as AC-1, where today a missing block is derived | The existing refusal of a narrow block keeps refusing |
 | AC-5 | A config that needs a plugin its `plugin { }` block does not declare, within the Q-1 boundary | Refused with the `plugin { }` entry to add; with it added, the plugin runs | A plugin loaded by its own config root, if Q-1 keeps that |
+| AC-6 | An interactive editor session commits the AC-1 config and is refused | The refusal lists the missing lines and offers to add them. Accepting adds exactly those lines to the candidate, shows them as the pending change, and commits nothing: the operator's next commit applies them and succeeds. Declining leaves the candidate untouched | A fix that holds a placeholder is printed and never offered, since Ze cannot know the value. `ze config validate`, the daemon's start, and the API surfaces print the same lines, in a form a program can read, and change no configuration |
 
 ## End-to-End User Stories
 
@@ -230,6 +232,7 @@ proposed yet.
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
 |----------|------------------------|-----------|
+| The commit offers the missing lines and the operator accepts them (owner question, 2026-11-16; proposed, not yet ruled) | add them without asking; print them only | Adding without asking is the derivation D-1 forbids. Printing only leaves a paste the tool can do. An offer keeps the decision with the operator: the lines enter the candidate, are shown as a pending change, and take a second commit |
 | Explicit, or refused at commit with the fix (owner decisions D-1 to D-3) | derive the missing configuration; warn and load | Explicit configuration prevents surprises; a refusal that gives the line costs one paste, where a silent load costs an investigation |
 
 ## Known Limitations
