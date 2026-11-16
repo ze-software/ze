@@ -19,7 +19,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 ## Task
 
 **Symptom (2026-11-12).** A tooling spec
-(`plan/post-release/engineering/spec-activity-codebase-growth.md`) named a new
+(`spec-activity-codebase-growth`) named a new
 script for the public website under `website/assets/js/` in its Files to
 Create. The spec write was refused with "Daemon-path changes must reference a
 functional test file under test/ (.ci, .et or .wb)". Nothing in that spec

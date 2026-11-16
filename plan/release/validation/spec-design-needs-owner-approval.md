@@ -18,7 +18,7 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
-On 2026-11-12 the spec `plan/release/fixes/spec-plugin-dispatch-pipe-chain-reaches-the-handler.md`
+On 2026-11-12 the historical spec `spec-plugin-dispatch-pipe-chain-reaches-the-handler`
 went from `skeleton` (commit 12531c56ca) to designed, `ready`, claimed,
 implemented (2616478e64, 9321d263aa) and closed (ba91ff4dc5) in one day. A
 subagent wrote the design, the main session set the spec `ready` in the
@@ -495,6 +495,8 @@ implementation only after Thomas approves it from his own terminal.
 
 ### Before and after
 
+In the proposed messages below, `<spec-path>` means the open spec being reviewed.
+
 **1. A code edit before the file's design page is read.**
 
 Before: only the doors are owed, so an agent edits `pipe.go` without ever opening `commands.md`.
@@ -521,7 +523,7 @@ After (the edit that sets Status to ready, or `./le spec approve`):
 >   - docs/architecture/api/commands.md, Design decision of 2026-08-21  (the // Design: page of internal/component/command/pipe.go)
 >   - docs/architecture/command-ownership.md  (anchored to internal/component/plugin/server/command.go)
 >   why: a spec never departs from the design documentation without a discussion with Thomas, so it gives a verdict on every design page its files link
->   fix: run ./le spec citation design spec plan/release/fixes/spec-plugin-dispatch-pipe-chain-reaches-the-handler.md and add a row with a verdict for each
+>   fix: run ./le spec citation design spec <spec-path> and add a row with a verdict for each
 
 **3. A design page lacking the decisions section.**
 
@@ -558,11 +560,11 @@ After:
 > refusing to start spec-plugin-dispatch-pipe-chain-reaches-the-handler.md: its design has no owner approval, and only Thomas records one
 >   why: a design reaches implementation only once Thomas approved it (ai/META-DECISIONS.md, "How agents work")
 >   fix: present its ## Design presentation to Thomas; he runs, from his own terminal:
->     ./le spec approve spec plan/release/fixes/spec-plugin-dispatch-pipe-chain-reaches-the-handler.md words "<what he said>"
+>     ./le spec approve spec <spec-path> words "<what he said>"
 
 **6. A subagent sets the spec ready.**
 
-> BLOCKED: plan/release/fixes/spec-plugin-dispatch-pipe-chain-reaches-the-handler.md: a subagent cannot move a spec to ready
+> BLOCKED: <spec-path>: a subagent cannot move a spec to ready
 >   why: only the main session presents a design to Thomas, and he approves it
 >   fix: hand the design back to the main session and stop
 
@@ -570,7 +572,7 @@ After:
 
 From an agent: the Bash hook refuses before le starts (`./le spec approve is Thomas's command, run from his own terminal outside any agent session`), and any non-terminal run gets the owner-terminal refusal naming the command. From his terminal:
 
-> $ ./le spec approve spec plan/release/fixes/spec-x.md words "approved, the pipe stays the operator surface"
+> $ ./le spec approve spec <spec-path> words "approved, the pipe stays the operator surface"
 > approved spec-x.md (digest 3f9a1c0e72b4): design documents 9 (8 agrees, 0 departs, 1 silent), judge verdict recorded 2026-11-12
 > next: the main session sets Status to ready; the next commit carrying the spec records Design-approved
 
