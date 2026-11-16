@@ -2,9 +2,10 @@
 // Overview: docwiring.go -- the gate that runs this check
 // Detail: allowlist.go -- the symbols this check deliberately exempts
 //
-// wiring.go checks whether every ADDED exported symbol has a non-test reference
-// in internal/ or cmd/. An unreferenced symbol is dead or unwired. The change
-// that adds it is the cheapest place to find either defect.
+// wiring.go checks whether every ADDED exported symbol under internal/ or cmd/
+// has a non-test reference in internal/, cmd/ or pkg/. An unreferenced symbol
+// is dead or unwired. The change that adds it is the cheapest place to find
+// either defect.
 //
 // The reader deliberately uses lines instead of a Go parser. It reads both the
 // base copy and the working file. During a rename, the base copy does not
@@ -115,9 +116,10 @@ func leadingExportedIdents(code string) []string {
 	return names
 }
 
-// checkWiring answers one issue line per exported symbol this change adds that
-// no non-test file in internal/ or cmd/ names. An allowlisted symbol, a
-// *ForTest helper and an export of a declared test-only package are exempt.
+// checkWiring answers one issue line per exported symbol this change adds under
+// internal/ or cmd/ that no non-test file in internal/, cmd/ or pkg/ names.
+// An allowlisted symbol, a *ForTest helper and an export of a declared test-only
+// package are exempt.
 //
 // base is the commit the change is judged against, the last pushed commit
 // behind HEAD. A path's content there is what the change started from.
@@ -188,8 +190,9 @@ func checkWiring(root, base string, changed []string) ([]string, error) {
 		if strings.HasSuffix(sym.Name, "ForTest") {
 			continue
 		}
-		// A declared test-only package can have no non-test importer: the
-		// tier gate test-only-imports refuses one. Both read testonly.Packages.
+		// The tier check restricts these helpers to tests and tooling under
+		// internal/le, so the wiring check exempts their exports without
+		// requiring a non-test reference. Both read testonly.Packages.
 		if _, ok := testonly.Owner(sym.Path); ok {
 			continue
 		}
@@ -199,19 +202,19 @@ func checkWiring(root, base string, changed []string) ([]string, error) {
 		var tb textbuf.Buffer
 		issues = append(issues, tb.Str(sym.Path).Byte(':').Int(int64(sym.Line)).
 			Str(": exported ").Str(sym.Kind).Byte(' ').Str(sym.Name).
-			Str(" has no non-test reference in internal/ or cmd/").String())
+			Str(" has no non-test reference in internal/, cmd/ or pkg/").String())
 	}
 	return issues, nil
 }
 
-// hasProductionReference reports whether any non-test Go file under internal/
-// or cmd/ names the symbol, on a line other than the one declaring it.
+// hasProductionReference reports whether any non-test Go file under internal/,
+// cmd/ or pkg/ names the symbol, on a line other than the one declaring it.
 func hasProductionReference(root string, sym Symbol) bool {
 	var tb textbuf.Buffer
 	token := regexp.MustCompile(tb.Str(`\b`).Str(regexp.QuoteMeta(sym.Name)).Str(`\b`).String())
 
 	found := false
-	for _, base := range [...]string{"internal", "cmd"} {
+	for _, base := range [...]string{"internal", "cmd", "pkg"} {
 		if found {
 			break
 		}
