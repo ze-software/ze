@@ -17,10 +17,19 @@ server default {
         pap
     }
     authenticate {
-        Auth-Type CHAP { chap }
-        Auth-Type PAP { pap }
+        Auth-Type CHAP {
+            chap
+        }
+        Auth-Type PAP {
+            pap
+        }
     }
-    preacct { preprocess }
-    accounting { ze_detail }
-    post-auth { }
+    preacct {
+        preprocess
+    }
+    accounting {
+        ze_detail
+    }
+    post-auth {
+    }
 }
