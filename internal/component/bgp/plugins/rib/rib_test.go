@@ -2872,6 +2872,7 @@ func newTestRIBManagerWithLocRIB(t *testing.T) *RIBManager {
 	r := newTestRIBManager(t)
 	loc := locrib.NewRIB()
 	r.SetLocRIB(loc)
+	t.Cleanup(func() { r.SetLocRIB(nil) })
 
 	loc.Insert(family.IPv4Multicast,
 		netip.MustParsePrefix("224.0.0.0/4"),
@@ -2912,6 +2913,7 @@ func TestRPFCommand_IPv6Multicast(t *testing.T) {
 	r := newTestRIBManager(t)
 	loc := locrib.NewRIB()
 	r.SetLocRIB(loc)
+	t.Cleanup(func() { r.SetLocRIB(nil) })
 
 	loc.Insert(family.IPv6Multicast,
 		netip.MustParsePrefix("ff00::/8"),
