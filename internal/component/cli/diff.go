@@ -7,6 +7,8 @@ package cli
 import (
 	"strings"
 
+	"github.com/ze-software/ze/internal/component/config"
+
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -167,7 +169,8 @@ func backtrackDiff(dp [][]int, a, b []string) []diffLine {
 
 // detectModifications converts adjacent removed/added runs into modified markers.
 // A run of N removed lines followed by N added lines where each pair shares
-// leading whitespace is treated as N modifications: show the new versions with '|'.
+// leading whitespace is treated as N modifications for hierarchical or generic
+// text. Flat statements retain both sides because indentation proves no identity.
 // Unmatched trailing lines in either run are emitted with their original marker.
 func detectModifications(lines []diffLine) []diffLine {
 	result := make([]diffLine, 0, len(lines))
@@ -194,6 +197,11 @@ func detectModifications(lines []diffLine) []diffLine {
 		}
 		addEnd := i
 
+		if diffRunHasFlatStatements(lines[remStart:addEnd]) {
+			result = append(result, lines[remStart:addEnd]...)
+			continue
+		}
+
 		// Pair up removed/added lines with matching indent → modified
 		remCount := remEnd - remStart
 		addCount := addEnd - addStart
@@ -219,6 +227,22 @@ func detectModifications(lines []diffLine) []diffLine {
 	}
 
 	return result
+}
+
+// diffRunHasFlatStatements asks the configuration format authority rather than
+// copying its command vocabulary. A line diff has no schema proof that two flat
+// statements address the same item, so it MUST keep every removal and addition.
+// The scan is bounded by this adjacent run and each statement's input length.
+func diffRunHasFlatStatements(lines []diffLine) bool {
+	for _, line := range lines {
+		switch config.DetectFormat(line.Text) {
+		case config.FormatSet, config.FormatSetMeta:
+			return true
+		case config.FormatHierarchical:
+			// Retain the existing compact presentation for generic/tree text.
+		}
+	}
+	return false
 }
 
 // leadingWhitespace returns the leading whitespace prefix of a string.
