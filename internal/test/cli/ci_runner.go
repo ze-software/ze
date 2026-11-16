@@ -46,6 +46,8 @@ func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
 	fs.BoolVar(quiet, "quiet", false, "minimal output")
 	parallel := fs.Int("p", cfg.DefaultParallel, "max concurrent tests (0 = all)")
 	fs.IntVar(parallel, "parallel", cfg.DefaultParallel, "max concurrent tests (0 = all)")
+	saveDir := fs.String("save", "", "save captured test output to directory")
+	fs.StringVar(saveDir, "s", "", "save captured test output to directory")
 	draft := fs.Bool("draft", false, "discover from test/draft/<suite> instead of test/<suite> (tests under development)")
 
 	fs.Usage = func() {
@@ -136,6 +138,7 @@ func runCISubcommandInner(cfg CIRunnerConfig, args []string) error {
 		Verbose:  *verbose,
 		Quiet:    *quiet,
 		Parallel: *parallel,
+		SaveDir:  *saveDir,
 	}
 
 	success := r.Run(ctx, opts)

@@ -2939,12 +2939,12 @@ Common run options:
 | `-p`, `--parallel N` | Max concurrent tests for `.ci` runners |
 | `-v`, `--verbose` | Show verbose failure output |
 | `-q`, `--quiet` | Minimal output |
-| `-s`, `--save DIR` | Save logs for BGP/VPP `.ci` runners |
+| `-s`, `--save DIR` | Save logs for BGP/VPP and shared `.ci` suite runners |
 | `--port N` | Base port for BGP/VPP `.ci` runners |
 | `-c`, `--count N` | BGP `.ci` stress mode, run each selected test N times |
 | `--server ID`, `--client ID` | BGP `.ci` manual split-debug modes |
 <!-- source: internal/test/cli/cmd_bgp.go -- zeTestParseRunCLI, zeTestPrintRunUsage -->
-<!-- source: internal/test/cli/ci_runner.go -- RunCISubcommand -->
+<!-- source: internal/test/cli/ci_runner.go -- runCISubcommandInner -->
 <!-- source: internal/test/cli/cmd_vpp.go -- zeTestParseVPPCLI, zeTestPrintVPPUsage -->
 <!-- source: internal/test/cli/cmd_editor.go -- cmdEditorMain -->
 <!-- source: internal/test/cli/cmd_web.go -- cmdWebMain -->
