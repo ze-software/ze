@@ -7,6 +7,7 @@ package sdk
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"math"
@@ -78,6 +79,7 @@ type MetricsPublisher struct {
 }
 
 type metricFamily struct {
+	custody  metrics.SeriesCustody // shared by every vector handle of this exact family
 	decl     rpc.MetricDeclaration
 	declared bool   // the engine applied the declaration
 	refused  string // why the name is not forwarded; empty while it is
@@ -87,12 +89,13 @@ type metricFamily struct {
 }
 
 type metricSeries struct {
-	values  []string
-	dirty   bool
-	deleted bool      // removed by Delete: a held handle updates nothing
-	value   float64   // counter: added since the last publish; gauge: current value
-	counts  []uint64  // histogram: observations per bucket since the last publish
-	sums    []float64 // histogram: their sum per bucket
+	awaitingHandle bool // admitted lease reservation, unpublished until ordinary With
+	values         []string
+	dirty          bool
+	deleted        bool      // removed by Delete: a held handle updates nothing
+	value          float64   // counter: added since the last publish; gauge: current value
+	counts         []uint64  // histogram: observations per bucket since the last publish
+	sums           []float64 // histogram: their sum per bucket
 
 	// Zero reserves no counter delta; nil reserves no histogram sums.
 	// Histogram sums borrow the immutable update slice, not another array.
@@ -718,32 +721,51 @@ func (m *MetricsPublisher) forgetRefusedFamily(f *metricFamily, reason string) {
 func (m *MetricsPublisher) seriesFor(f *metricFamily, values []string) *metricSeries {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-
-	if f.refused != "" {
+	series, err := m.seriesForLocked(f, values, true)
+	if err != nil {
+		// Declaration refusal was already reported by family. Ordinary With
+		// still reports value admission once and returns the same inert handle;
+		// RetainSeries instead returns this cause without a logging callback.
+		if f.refused == "" {
+			m.warnOnce(f, err.Error())
+		}
 		return &metricSeries{deleted: true}
+	}
+	return series
+}
+
+// seriesForLocked is the one family/label/series-limit admission producer.
+// The caller MUST hold m.mu. Refusal returns no series and its actual cause;
+// callers MUST report or return that cause before dependent work can start.
+// A lease reserves a bounded slot without publishing a guessed zero. Ordinary
+// With makes that reservation visible and retains its existing warning policy.
+func (m *MetricsPublisher) seriesForLocked(f *metricFamily, values []string, publish bool) (*metricSeries, error) {
+	if f.refused != "" {
+		return nil, fmt.Errorf("metric %s is refused: %s", f.decl.Name, f.refused)
 	}
 	if len(values) != len(f.decl.Labels) {
 		panic("BUG: metric " + f.decl.Name + " given " + strconv.Itoa(len(values)) + " label values for " + strconv.Itoa(len(f.decl.Labels)) + " labels")
 	}
 	for _, value := range values {
 		if len(value) > rpc.MetricLabelValueMax {
-			m.warnOnce(f, "a label value exceeds "+strconv.Itoa(rpc.MetricLabelValueMax)+" octets")
-			return &metricSeries{deleted: true}
+			return nil, errors.New("a label value exceeds " + strconv.Itoa(rpc.MetricLabelValueMax) + " octets")
 		}
 		if !utf8.ValidString(value) {
-			m.warnOnce(f, "a label value is not valid UTF-8 and cannot be published without changing its identity")
-			return &metricSeries{deleted: true}
+			return nil, errors.New("a label value is not valid UTF-8 and cannot be published without changing its identity")
 		}
 	}
 	// Valid UTF-8 cannot contain the separator or change identity in JSON.
 	key := strings.Join(values, "\xff")
 	if s, ok := f.series[key]; ok {
-		return s
+		if publish && s.awaitingHandle {
+			s.awaitingHandle = false
+			s.dirty = true
+		}
+		return s, nil
 	}
 	if len(values) > 0 {
 		if m.series >= rpc.MetricsSeriesMax {
-			m.warnOnce(f, "the plugin holds "+strconv.Itoa(rpc.MetricsSeriesMax)+" labeled series, the limit")
-			return &metricSeries{deleted: true}
+			return nil, errors.New("the plugin holds " + strconv.Itoa(rpc.MetricsSeriesMax) + " labeled series, the limit")
 		}
 		m.series++
 	}
@@ -752,10 +774,12 @@ func (m *MetricsPublisher) seriesFor(f *metricFamily, values []string) *metricSe
 		s.counts = make([]uint64, len(f.decl.Buckets)+1)
 		s.sums = make([]float64, len(f.decl.Buckets)+1)
 	}
-	// A series exists from its creation, at zero, as With creates it in-process.
-	s.dirty = true
+	// With publishes a new series at zero, matching native vector creation.
+	// A custody reservation alone occupies the limit without inventing a value.
+	s.dirty = publish
+	s.awaitingHandle = !publish
 	f.series[key] = s
-	return s
+	return s, nil
 }
 
 func (m *MetricsPublisher) deleteSeries(f *metricFamily, values []string) bool {
@@ -946,7 +970,29 @@ func (v *publishedVec) With(labelValues ...string) metrics.Counter {
 	return &publishedCounter{m: v.m, f: v.f, s: v.m.seriesFor(v.f, labelValues)}
 }
 
-func (v *publishedVec) Delete(labelValues ...string) bool { return v.m.deleteSeries(v.f, labelValues) }
+func (v *publishedVec) Delete(labelValues ...string) bool {
+	return v.f.custody.Delete(labelValues, func(values ...string) bool { return v.m.deleteSeries(v.f, values) })
+}
+
+// RetainSeries keeps the publisher's original family alive through local users.
+// It adds no protocol message: the final release uses the existing Delete path.
+// Callers MUST Release after their final update.
+func (v *publishedVec) RetainSeries(labelValues ...string) (metrics.SeriesLease, error) {
+	admit := func(values ...string) error {
+		v.m.mu.Lock()
+		defer v.m.mu.Unlock()
+		// A refused family's declaration no longer holds its label names.
+		// Let the canonical producer report that original refusal first.
+		if v.f.refused == "" {
+			if len(values) != len(v.f.decl.Labels) {
+				return fmt.Errorf("metric %s series lease received %d label values; expected %d", v.f.decl.Name, len(values), len(v.f.decl.Labels))
+			}
+		}
+		_, err := v.m.seriesForLocked(v.f, values, false)
+		return err
+	}
+	return v.f.custody.Retain(labelValues, admit, func(values ...string) bool { return v.m.deleteSeries(v.f, values) })
+}
 
 type publishedGaugeVec struct{ publishedVec }
 
