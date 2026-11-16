@@ -1,6 +1,8 @@
 # Reuse the maintained pppd 2.5.5 build and add the pinned multi-session LAC.
 FROM golang:1.27-alpine AS builder
-RUN CGO_ENABLED=0 go install github.com/katalix/go-l2tp/cmd/kl2tpd@v0.1.8
+# Upstream cmd/kl2tpd/pppox.go uses cgo for the Linux PPPoX socket ABI.
+RUN apk add --no-cache gcc musl-dev linux-headers
+RUN CGO_ENABLED=1 go install github.com/katalix/go-l2tp/cmd/kl2tpd@v0.1.8
 
 FROM ze-l2tp-lac
 COPY --from=builder /go/bin/kl2tpd /usr/local/bin/kl2tpd

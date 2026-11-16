@@ -99,6 +99,12 @@ next LAC after the first sixteen sessions have established.
 <!-- source: internal/le/interoplab/l2tp/scale_plan.go -- scalePeerTemplates -->
 <!-- source: internal/le/interoplab/l2tp/scale_inputs.go -- scaleUsername, scaleInterface, scaleUsers -->
 
+The pinned kl2tpd release uses cgo for its Linux PPPoX socket bindings.
+Its builder installs GCC, musl development headers and Linux headers, then
+enables cgo for this third-party peer. The runtime remains the maintained
+Alpine LAC image. Ze and the relay retain their own build settings.
+<!-- source: test/interop-l2tp/Dockerfile.kl2tpd -->
+
 The independent control decoder requires the omitted Receive Window Size AVP
 in each SCCRQ. Three genuine cumulative ACK advances warm the window before
 the relay holds Nr alone. The assertion requires five distinct
