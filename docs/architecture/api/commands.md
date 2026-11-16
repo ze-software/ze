@@ -1503,6 +1503,13 @@ A chain the answer's shape cannot support is refused AFTER the command has run, 
 <!-- source: internal/component/bgp/reactor/reactor_api_advertised.go -- WithdrawAdvertised, adjOutWithdrawalNLRI -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/advertised.go -- handleRibClearAdvertised -->
 
+Before `clear bgp rib out` starts replay, bgp-rib applies its queued events.
+The replay command then uses the same plugin process and connection.
+Both operations share the command deadline. A failed event, stopped owner or
+changed connection refuses the replay before the command is sent.
+<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- forwardRibClearOut -->
+<!-- source: internal/component/plugin/server/command.go -- ForwardToPluginAfterEvents, drainCommandEvents -->
+
 RIB route filters such as `received`, `advertised`, `peer`, `family`, `prefix`, `path`, and `community` are command-specific filters registered by the RIB command and folded into the RIB iterator request before route output is generated.
 
 Inject attributes: `origin <igp|egp|incomplete>`, `nhop|nexthop <ip>`, `aspath <asn,asn,...>`, `localpref <n>`, `med <n>`. Peer address is a label (valid IP, no session required). Only simple prefix families (IPv4/IPv6 unicast/multicast). IPv4-mapped IPv6 next-hops accepted.

@@ -332,7 +332,7 @@ func forwardRibClearOut(ctx *pluginserver.CommandContext, validated command.Vali
 	if refusal != nil {
 		return refusal, nil
 	}
-	return ctx.Dispatcher().ForwardToPlugin(ribClearHandoff(ctx), cmdRibClearOut, args, args[0])
+	return ctx.Dispatcher().ForwardToPluginAfterEvents(ribClearHandoff(ctx), cmdRibClearOut, args, args[0])
 }
 
 // ribClearHandoff answers the context the clear forwarders hand the bgp-rib

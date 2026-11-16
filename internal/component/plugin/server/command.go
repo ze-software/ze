@@ -1492,6 +1492,18 @@ func (d *Dispatcher) ForwardToPlugin(cmdCtx *CommandContext, command string, arg
 	return d.routeToProcess(cmdCtx, cmd, args, peerSelector)
 }
 
+// ForwardToPluginAfterEvents applies the captured command owner's queued events
+// before executing a command that reads their projection. The same owner and
+// connection carry both operations under one deadline. Callers MUST NOT hold
+// locks needed by event handlers or call from that owner's event callback.
+func (d *Dispatcher) ForwardToPluginAfterEvents(cmdCtx *CommandContext, command string, args []string, peerSelector string) (*plugin.Response, error) {
+	cmd := d.registry.Lookup(command)
+	if cmd == nil {
+		return nil, fmt.Errorf("plugin command %q not registered (plugin may not be running): %w", command, ErrUnknownCommand)
+	}
+	return d.routeToProcessWithEvents(cmdCtx, cmd, args, peerSelector, true)
+}
+
 // matchPluginCommand finds the longest registered plugin command that prefixes
 // lowerInput on a word boundary, falling back to deprecated aliases. It returns
 // the match and the length of the matched prefix, or (nil, 0) when the command
@@ -1573,6 +1585,10 @@ func (d *Dispatcher) dispatchPlugin(ctx *CommandContext, input, lowerInput, peer
 // Every other answer is one document and becomes the plugin.RawJSON payload it
 // has always been.
 func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredCommand, args []string, peerSelector string) (*plugin.Response, error) {
+	return d.routeToProcessWithEvents(cmdCtx, cmd, args, peerSelector, false)
+}
+
+func (d *Dispatcher) routeToProcessWithEvents(cmdCtx *CommandContext, cmd *RegisteredCommand, args []string, peerSelector string, applyEvents bool) (*plugin.Response, error) {
 	// Route R9, every plugin-process command: the tokens are judged against
 	// the leaves the model declares for the plugin's command, before any
 	// process is asked, and only the judged tokens are sent. A builtin proxy
@@ -1608,6 +1624,15 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 	// releases it before it returns.
 	rpcCtx, cancel := context.WithTimeout(parentCtx, cmd.Timeout)
 
+	if applyEvents {
+		if err := d.drainCommandEvents(rpcCtx, cmd, proc, conn); err != nil {
+			cancel()
+			return nil, opererr.Wrap(err, "Cannot run "+cmd.Name+" on plugin "+proc.Name(),
+				"Queued events were not successfully applied by the same plugin owner, so the command was not sent",
+				"ze show errors")
+		}
+	}
+
 	input := &rpc.ExecuteCommandInput{Command: cmd.Name, Args: validated.Tokens(), Peer: peerSelector}
 	answer, err := conn.SendExecuteCommandAnswer(rpcCtx, input)
 	if err != nil {
@@ -1638,6 +1663,28 @@ func (d *Dispatcher) routeToProcess(cmdCtx *CommandContext, cmd *RegisteredComma
 		return &plugin.Response{Status: rpcOut.Status}, nil
 	}
 	return &plugin.Response{Status: rpcOut.Status, Data: plugin.RawJSON(rpcOut.Data)}, nil
+}
+
+// drainCommandEvents never substitutes a replacement process or connection for
+// the owner whose queue was drained. No registry or process lock spans the wait.
+func (d *Dispatcher) drainCommandEvents(ctx context.Context, cmd *RegisteredCommand, proc *process.Process, conn *pluginipc.PluginConn) error {
+	if err := proc.DrainEventsApplied(ctx); err != nil {
+		return err
+	}
+	current := d.registry.Lookup(cmd.Name)
+	if current == nil {
+		return ErrPluginProcessNotRunning
+	}
+	if current.Process != proc {
+		return ErrPluginProcessNotRunning
+	}
+	if !proc.Running() {
+		return ErrPluginProcessNotRunning
+	}
+	if proc.Conn() != conn {
+		return ErrPluginConnectionClosed
+	}
+	return nil
 }
 
 // streamedPluginResponse is the response a plugin's streamed answer becomes: the
