@@ -1240,7 +1240,11 @@ the fast path's because its subject is the complete path, the socket and the
 device the TUN finding names, and its consequence is that finding's, a refused
 SA, which no fast path finding has. When the TUN record of the last apply has
 the same cause, the check reports the receiver's finding alone
-(`espFormDeviceFindings`, `espFormSameCause`). Every doctor finding calls the
+(`espFormDeviceFindings`, `espFormSameCause`). The apply's TUN record also
+controls device-finding applicability: removing every configured peer clears
+that record and silences both device findings, while the receiver keeps its
+last failure until an open succeeds. A configured peer with no running session
+or Child SA still reports that failure. Every doctor finding calls the
 complete path Ze's own receiver for bare ESP, including the fast-path findings
 that explain the rate bound and the input interface the firewall sees.
 
@@ -1314,6 +1318,7 @@ to install a new Child SA.
 <!-- source: internal/component/ike/dataplane/espform_state.go -- ESPFormReaderStopped, RegisterESPFormReaderStopped -->
 <!-- source: internal/component/ike/engine/register_esp_form_reader.go -- espFormReaderStoppedSink -->
 <!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormDeviceFindings, espFormSameCause -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_peer_removal_test.go TestDoctorESPFormPeerRemovalHidesRetainedFailure -->
 <!-- source: internal/component/ike/dataplane/xfrm_migrate_linux.go -- MigrateTunnel, xfrmMigrationCollision, xfrmMigrationUnserved, espFormRefusalCause, followMove -->
 <!-- source: internal/component/ike/engine/doctor_esp_form_fast_path.go -- espFormCompletePathFindings -->
 <!-- test: internal/component/ike/dataplane/xfrm_migrate_linux_test.go TestXFRMMigrationUnwatchedSAOpensThePathsBeforeTheMove -->

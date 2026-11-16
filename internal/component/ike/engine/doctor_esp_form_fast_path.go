@@ -203,8 +203,15 @@ func checkIPsecESPFormFastPath(tun *espFormTUNRecord) []rpc.DoctorCheckDiagnosti
 // receiver's last failure to open its complete path (espFormCompletePathFindings). When
 // both carry the same cause (espFormSameCause), the receiver's finding alone is reported:
 // it is the later of the two, it carries its time, and two errors for one cause would read
-// as two problems.
+// as two problems. The apply record also determines whether these findings apply:
+// recordESPFormTUN leaves none when no peer is configured or the backend has no dual-form
+// receiver. The receiver's last failure is retained until an open succeeds, but it is no
+// current device problem when no configured peer can need the device.
 func espFormDeviceFindings(tun *espFormTUNRecord, watching bool, failure *dataplane.ESPFormCompletePathFailure) []rpc.DoctorCheckDiagnostic {
+	// refuse-by-default: guards checkIPsecESPFormFastPath -- no apply record means no configured peer on a dual-form backend needs the device
+	if tun == nil {
+		return nil
+	}
 	var out []rpc.DoctorCheckDiagnostic
 	if !espFormSameCause(tun, failure) {
 		out = espFormTUNFindings(tun, watching)

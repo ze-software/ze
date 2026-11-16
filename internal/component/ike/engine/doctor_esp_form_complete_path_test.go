@@ -89,7 +89,7 @@ func TestDoctorESPFormCompletePathFailure(t *testing.T) {
 	} {
 		t.Run(tc.name, func(t *testing.T) {
 			loadESPFormBackend(t, tc.dp)
-			diags := checkIPsecESPFormFastPath(nil)
+			diags := checkIPsecESPFormFastPath(newESPFormTUNRecord(nil))
 			if got := diagnosticCodes(diags); got != tc.want {
 				t.Fatalf("diagnostics = %q, want %q (%v)", got, tc.want, diags)
 			}
