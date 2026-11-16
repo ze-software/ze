@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC7606-2-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go::TestRIBTreatAsWithdrawRemovesInstalledRoute",
+    "unit-sha": "0728977677fc97de",
+    "claim-sha": "369ad3c69a692b79",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/rfc7606_withdraw.go::SynthesizeWithdraw",
+    "producer-sha": "638f6e1d6c0329df",
+    "break": "line 44: \"return bodies[0], true\" -\u003e \"return body, true\""
+  }
+]
