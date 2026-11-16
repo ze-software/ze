@@ -87,6 +87,15 @@ func runContainerEngine(conn net.Conn) int {
 	sup := newSupervisor(log, newRuntimeLibrary(log), storeFactory, participants)
 	sup.tunables = newSysctlClaim(p)
 	defer sup.close()
+	// Deferred after close, so it runs first: once the engine connection
+	// closed, whatever still runs is killed. After a drain nothing does; when
+	// the daemon's stop skipped the drain, this is the stop.
+	defer sup.killRunning()
+
+	// What a previous run left, a killed daemon's containers among them, is
+	// removed before the engine is even asked to start this run: containers
+	// are started again, never adopted.
+	sup.sweep()
 
 	// A worker's tunable claim is a call to the engine, which the engine
 	// answers only once the startup handshake ended, so the containers of the

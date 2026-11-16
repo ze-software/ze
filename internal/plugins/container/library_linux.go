@@ -116,6 +116,18 @@ func (c *libraryContainer) wait() (int, error) {
 	return status.ExitStatus(), nil
 }
 
+// signal sends sig to the container's init through the library, which
+// signals the init process alone: in a container of its own pid namespace,
+// init decides what its other processes get.
+func (c *libraryContainer) signal(sig syscall.Signal) error {
+	return c.container.Signal(sig)
+}
+
+// sweep removes what a previous run of the plugin left (sweep_linux.go).
+func (patchedLibrary) sweep() []leftover {
+	return sweepLeftovers()
+}
+
 // kill ends every process of the container through its control group: the
 // kernel kills each process the group holds, whatever session, process group
 // or namespace it joined.

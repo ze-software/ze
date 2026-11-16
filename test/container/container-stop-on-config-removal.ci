@@ -1,0 +1,45 @@
+# Question: when a config reload removes a container, is it sent its stop
+# signal and then gone from the host, its control group, its root mount and
+# the runtime library's state with it, while the daemon keeps running
+# (spec-container-1-runtime AC-11, the container-stop-on-config-removal test)?
+#
+# A unit test cannot decide it: TestRemovedRootStopsEveryContainer proves the
+# parser reads the change as "stop every container", and what this asks is
+# whether a real reload reaches the plugin's worker and the real stop removes
+# every trace on a real kernel.
+#
+# Method: the probe's drive mode starts the daemon itself, because a .ci line
+# cannot change the config file between two observations. Once the container
+# runs, drive overwrites the config with removed.conf, whose container root
+# holds no instance, sends SIGHUP, and waits until the container has no
+# control group, root mount or library state left and its stop signal is
+# recorded. It then stops the daemon.
+#
+# The store lives under /run, not in the test's work directory: in the QEMU
+# guest that directory is on the 9p share of the checkout, and an overlay
+# cannot take a 9p directory as its upper layer.
+option=needs-linux:caps=sys-admin
+option=exclusive:group=container
+option=timeout:value=150s
+option=env:var=ze.test.container.store:value=/run/ze-container-test-$PORT
+
+tmpfs=container.conf:terminator=EOF_CONFIG
+container {
+	instance probe {
+	}
+}
+EOF_CONFIG
+
+tmpfs=removed.conf:terminator=EOF_REMOVED
+container {
+}
+EOF_REMOVED
+
+cmd=foreground:seq=1:exec=ze-containerprobe reset /run/ze-container-test-$PORT:exit=0
+cmd=foreground:seq=2:exec=ze-containerprobe drive /run/ze-container-test-$PORT probe container.conf remove removed.conf:timeout=120s:exit=0
+expect=stdout:contains=probe: the container runs
+expect=stdout:contains=probe: its control group is gone
+expect=stdout:contains=probe: its root mount is gone
+expect=stdout:contains=probe: its runtime library state is gone
+expect=stdout:contains=probe: the container received a stop signal
+reject=stdout:contains=probe: FAIL

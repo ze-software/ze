@@ -12,6 +12,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -28,7 +29,12 @@ const testStoreKey = "ze.test.container.store"
 const (
 	probeBinary   = "ze-containerprobe"
 	probeArgument = "run"
-	testDigest    = "sha256:7a65000000000000000000000000000000000000000000000000000000000001"
+	// A container whose name starts with stubbornPrefix runs the probe mode
+	// that records its stop signal and keeps running, so a test can name the
+	// container that must be killed after its stop timeout.
+	stubbornPrefix        = "stubborn"
+	probeStubbornArgument = "run-ignoring-stop"
+	testDigest            = "sha256:7a65000000000000000000000000000000000000000000000000000000000001"
 )
 
 var _ = env.MustRegister(env.EnvEntry{
@@ -65,12 +71,16 @@ func (testStore) Resolve(_ context.Context, request ResolveRequest) (Resolution,
 	if err := installProbe(image); err != nil {
 		return nil, err
 	}
+	argument := probeArgument
+	if strings.HasPrefix(request.Instance, stubbornPrefix) {
+		argument = probeStubbornArgument
+	}
 	return Ready{
 		Digest:           testDigest,
 		ImageFolder:      image,
 		WritableFolder:   filepath.Join(directory, "layer", request.Instance),
 		Entrypoint:       []string{"/" + probeBinary},
-		Command:          []string{probeArgument},
+		Command:          []string{argument},
 		Environment:      []string{"PATH=/"},
 		WorkingDirectory: "/",
 	}, nil

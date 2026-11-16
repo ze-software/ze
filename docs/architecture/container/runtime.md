@@ -11,9 +11,11 @@ restart command, the seams toward the image store, the participants and the
 filter, its doctor codes, its runtime doctor checks, one kernel requirement and
 the build gate exist, and so does the start sequence: a configured container is
 described, its root mounted, created through the library, released and
-watched. What is not built yet: the stop signal and its timeout before the
-kill, the leftover sweep, the system-call filter, the device filter, the limit
-and grant nodes, the restart policy, output capture and the state view. No
+watched; it is stopped with its stop signal, then killed after its stop
+timeout; a daemon stop drains every container together; and what a killed
+daemon left is swept at the next start. What is not built yet: the
+system-call filter, the device filter, the limit and grant nodes, the restart
+policy, output capture and the state view. No
 shipped build holds an image store yet, so only the test build's store
 (below) answers a start. This page states what exists and grows with the work.
 
@@ -122,13 +124,14 @@ The plugin is `container`, in `internal/plugins/container`, gated by
 
 | Piece | What it does today |
 |-------|--------------------|
-| Config root | `container instance NAME` with `enabled`. Every other node of the container work lands with the package that realizes it |
+| Config root | `container instance NAME` with `enabled`, `stop-timeout` (1 to 30 seconds, default 10) and `stop-signal` (`term`, `int`, `quit`, `hup`, `usr1`, `usr2`; absent, the image's signal, else `term`). Every other node of the container work lands with the package that realizes it |
 | One rule set | `parseContainerSections` parses and judges a delivery. The registration's static verifier, the reload's verify and the boot configure all call it, so `ze config validate` accepts exactly what starts |
 | A removed root | Arrives as an empty body and parses to a config with no container. Installing that config stops every container. Only a delivery with no container section means "unchanged" |
 | Apply | The supervisor records the desired set, wakes the worker of each container concerned and returns. It never waits for a start. The boot configure arrives before the startup handshake ends, when the engine refuses a worker's calls, so it only records: the plugin's `OnStarted` callback (`supervisor.begin`) wakes the workers |
 | Dependency | The `sysctl` plugin, which writes the kernel tunable a container's network namespace needs (below) |
 | `request container restart name NAME` | A YANG command node bound to a wire method the plugin's package proxies to the plugin's process. A disabled container is refused with the statement that enables it |
-| Daemon stop | The plugin declares a drain budget of 37 seconds and stops every running container in its drain handler, the one call of a daemon stop that waits for a plugin |
+| Daemon stop | The plugin declares a drain budget of 37 seconds and stops every running container together in its drain handler, the one call of a daemon stop that waits for a plugin (below, "The stop") |
+| Plugin start and exit | Before the engine is asked to start the plugin, the sweep removes what a previous run left. Once the engine connection closed, whatever still runs is killed at once |
 | Failure policy | `restart` |
 
 A disabled container is accepted and held in the `disabled` state; an enabled
@@ -164,10 +167,8 @@ worker, the restart command and the store's notices never interleave.
 A failed step after the create destroys the container, makes the ended calls
 and releases the hold. A failed `Container.Start` is destroyed by the library
 wrapper itself: the patched parent made the control group before init started,
-and the library's own cleanup is not in place yet at that point. A stop kills
-every process of the container at once through its control group
-(`cgroup.kill`) and waits for the watcher's cleanup. A destroy that fails is
-recorded as `doctor-container-cleanup-incomplete`.
+and the library's own cleanup is not in place yet at that point. A destroy
+that fails is recorded as `doctor-container-cleanup-incomplete`.
 
 The device filter of the control group is not set: the cgroups module's filter
 package links the systemd driver, and the filter arrives with the devices
@@ -179,6 +180,69 @@ image user given by name is refused until the image's account files are read.
 <!-- source: internal/plugins/container/describe_linux.go -- describeContainer, describeEntrypoint -->
 <!-- source: internal/plugins/container/rootfs_linux.go -- mountRoot, unmountRoot -->
 <!-- test: internal/plugins/container/describe_linux_test.go TestDescriptionHasTheDefaultConfinement -->
+
+### The stop
+
+A stop, whether a config change removed or disabled the container, the
+restart command asked for it or the daemon stops, sends the container's init
+its stop signal: the config's `stop-signal`, else the signal the image
+declares (a name, with or without `SIG`, or a number), else the termination
+signal. An image signal Ze cannot read refuses the start, with the
+`stop-signal` statement as the fix, rather than a guess that would end in a
+kill. The signal and the stop timeout are fixed when the container starts, so
+the stop of a container the config no longer holds still has them.
+
+The stop then waits the container's `stop-timeout`. A container still running
+after it is killed through its control group (`cgroup.kill`), which reaches
+every process of it whatever session or group it joined, and the stop waits up
+to 5 seconds for the cleanup. A container killed at its timeout is logged at
+`Warn` and recorded for the `container-stop-killed` check
+(`doctor-container-stop-killed`, with the `stop-timeout` statement as its
+fix). Init of a pid namespace gets no signal it set no handler for, so a
+workload that installs none is killed at its timeout.
+
+The stop drain is the one call of a daemon stop that waits for a plugin, and
+its budget of 37 seconds is declared at Stage 1, before any config. The drain
+handler spends it in order: up to 2 seconds for the shell sessions (the shell
+work's), up to 30 seconds for the stop signals, which is why `stop-timeout` is
+at most 30, and 5 seconds for the kills and the cleanups. It stops every
+container together: each gets its stop signal first, then each is waited for
+until its own timeout counted from the same moment, so the drain waits the
+longest timeout among them, never their sum. From the drain's start no
+container starts, and the drain takes every container's lifecycle lock, so a
+start in progress ends before the set to stop is read. A second signal during
+the drain aborts it: the engine stops waiting and closes the connection, the
+drain's context ends, and every container still running is killed at once,
+with no stop-killed record, because its stop was cut short. When the
+engine connection closes with containers still running, because the stop
+skipped the drain, the plugin's exit kills them at once (`killRunning`).
+
+<!-- source: internal/plugins/container/stop.go -- stopSignalOf, killCleanupTimeout -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.stopTogether, awaitEnd, supervisor.drain, supervisor.killRunning -->
+<!-- test: internal/plugins/container/stop_test.go TestStopSendsTheSignalThenKillsAfterTheTimeout, TestDrainSignalsEveryContainerBeforeAnyKill, TestForcedDrainKillsAtOnce -->
+
+### The sweep of what a previous run left
+
+A daemon that was killed or crashed leaves its containers running, because a
+container takes a session of its own and the patched library refuses a
+parent death signal. Containers are never adopted (the owner's ruling): before
+the engine is asked to start the plugin, the sweep reads the plugin's own
+directories, the control groups under `/sys/fs/cgroup/ze-container`, the root
+mounts under `/run/ze-container/root` and the library's state directories
+under `/run/ze-container/state`, and for each container it finds there it
+kills the processes of its control group, waits up to 5 seconds for the group
+to empty, removes it, unmounts the root, removes the mount point and removes
+the state directory, which would otherwise refuse a new container of the same
+name. Each participant gets the ended call for each leftover. Each is logged
+at `Warn` by name under `doctor-container-cleanup-incomplete`. One the kernel
+refused to remove whole is kept for the `container-cleanup-incomplete` check,
+configured or not, with `ze signal reboot` as its fix, until that container
+runs again. A configured container is then started as a new process when the
+plugin has started, as at any boot.
+
+<!-- source: internal/plugins/container/sweep_linux.go -- sweepLeftovers, sweepContainer, killControlGroup, removeRootMount -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.sweep, supervisor.problemsOf -->
+<!-- test: internal/plugins/container/stop_test.go TestSweepEndsEveryLeftoverBeforeAnyStart -->
 
 ### The kernel's fallback tunnel devices
 
@@ -217,9 +281,15 @@ functional-test daemon, fills the store seam with a test store
 folder holding `ze-containerprobe`, which the harness builds beside `ze` and
 the store copies into the image. The private key `ze.test.container.store`
 names the store's directory: the image is `image/` and each container's
-writable layer `layer/NAME`. The probe's `run` mode is the entrypoint and
-writes what it sees to `/report`; its `verify` mode runs on the host and
-judges that report.
+writable layer `layer/NAME`. The probe's `run` mode is the entrypoint: it
+appends a line to `/starts`, writes what it sees to `/report`, and records its
+stop signal in `/signals` before it exits. A container whose name starts with
+`stubborn` gets the `run-ignoring-stop` mode, which records every stop signal
+and keeps running until it is killed. On the host, `verify` judges the report,
+`gone` waits until a container left no control group, root mount or library
+state and judges the time from its stop signal to its end, `starts` counts
+its starts and the processes of its control group, and `drive` runs a daemon
+itself, for a second signal during the drain or a config reload.
 
 A test puts its store at `/run/ze-container-test-$PORT`, never in its work
 directory. In the QEMU guest the work directory is on the 9p share of the
@@ -282,11 +352,14 @@ underlying error, and the fix the refusal names (`failureDetail`). The record
 lasts exactly as long as the state: a later start that runs or waits for its
 image clears it, and so does a configuration that disables or removes the
 container. Ze starts a failed container again at the next configuration commit
-and at the restart command. The other three records need the code that reads the control group's
-events and the stop timeout, which does not exist yet, so those checks answer
-no finding. The statements the fixes name (`memory`, `process-limit`,
-`stop-timeout`) are not in the schema yet either; each arrives with the code
-that writes its record.
+and at the restart command. The stop writes the `container-stop-killed`
+record when it kills a container at its stop timeout, and the sweep keeps
+each leftover it could not remove for the `container-cleanup-incomplete`
+check (above). The out-of-memory and process-limit records need the code
+that reads the control group's events, which does not exist yet, so those two
+checks answer no finding, and the statements their fixes name (`memory`,
+`process-limit`) are not in the schema yet; each arrives with the code that
+writes its record.
 
 <!-- source: internal/plugins/container/doctor.go -- containerDiagnosticCodes, runtimeDoctorChecks, runtimeDoctorCheckDecls, supervisor.answerDoctorCheck -->
 <!-- source: internal/plugins/container/register.go -- registerContainerDiagnosticCodes -->

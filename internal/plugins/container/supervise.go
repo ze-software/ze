@@ -13,6 +13,7 @@ import (
 	"slices"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -62,12 +63,12 @@ func (s State) String() string {
 }
 
 // The bounds of the steps a worker makes. A participant's call is bounded so
-// a participant that hangs fails the start rather than holding it; a stop is
-// bounded by the share of the drain budget left for the kill and the cleanup.
+// a participant that hangs fails the start rather than holding it. A stop is
+// bounded by the container's own stop timeout, then killCleanupTimeout
+// (stop.go).
 const (
 	participantCallTimeout = 10 * time.Second
 	startTimeout           = 60 * time.Second
-	stopTimeout            = 5 * time.Second
 )
 
 // startRequest is what the supervisor hands the runtime library to create
@@ -90,6 +91,20 @@ type runtimeLibrary interface {
 	// success the caller MUST call destroy on the result, also when a later
 	// step of the start fails.
 	create(ctx context.Context, request *startRequest) (createdContainer, error)
+	// sweep removes every container a previous run of the plugin left: it
+	// kills the processes of each leftover control group, removes the group,
+	// unmounts the root and removes the library's state directory. It answers
+	// one entry for each container it found, sorted by name. It MUST be called
+	// once, before any create.
+	sweep() []leftover
+}
+
+// leftover is one container a previous run of the plugin left behind, as the
+// sweep found it. err is nil when the sweep removed all of it, and names what
+// the kernel refused to remove otherwise.
+type leftover struct {
+	name string
+	err  error
 }
 
 // createdContainer is one container the library created and has not
@@ -103,6 +118,11 @@ type createdContainer interface {
 	// release lets init execute the entrypoint. It MUST be called after
 	// every created call returned nil, and at most once.
 	release() error
+	// signal sends sig to the container's init. It returns when the signal is
+	// sent; wait answers when init is gone. A container whose init already
+	// exited answers an error, which the stop does not act on: its wait
+	// decides.
+	signal(sig syscall.Signal) error
 	// wait blocks until the container's init has exited and answers its exit
 	// code: the code it exited with, or 128 plus the signal that killed it.
 	// It MUST be called once, after release returned nil, and before destroy.
@@ -122,6 +142,11 @@ type createdContainer interface {
 type runningContainer struct {
 	created     createdContainer
 	releaseHold func()
+	// stopSignal and stopTimeout are the stop of this run of the container,
+	// fixed when it started, so a stop after the config removed the container
+	// still has them.
+	stopSignal  syscall.Signal
+	stopTimeout time.Duration
 	// ended is closed by the watcher once the cleanup ended.
 	ended chan struct{}
 }
@@ -192,8 +217,17 @@ type supervisor struct {
 	// workers holds the wake channel of each container's worker. A worker
 	// ends when its container left the config and stopped.
 	workers map[string]chan struct{}
+	// leftovers holds, for each container a previous run left and the sweep
+	// could not remove whole, what was left. The configuration does not
+	// decide it: a leftover may name a container no longer configured. An
+	// entry lasts until that container runs again, or for this run of the
+	// plugin. It is bounded by the containers the sweep found.
+	leftovers map[string]problemDetail
 	// started is set by begin; apply wakes no worker before it.
 	started bool
+	// stopping is set when the daemon's stop reached the plugin, by the drain
+	// or by the engine connection closing. No start is made after it.
+	stopping bool
 	// closed is set by close; no worker starts after it.
 	closed bool
 }
@@ -218,6 +252,7 @@ func newSupervisor(log *slog.Logger, library runtimeLibrary, buildStore StoreFac
 		waiting:      map[string]string{},
 		running:      map[string]*runningContainer{},
 		problems:     map[problemRecord]problemDetail{},
+		leftovers:    map[string]problemDetail{},
 		lifecycles:   map[string]*sync.Mutex{},
 		workers:      map[string]chan struct{}{},
 	}
@@ -290,7 +325,10 @@ func (s *supervisor) apply(cfg containerConfig) error {
 	}
 	s.mu.Lock()
 	defer s.mu.Unlock()
-	if s.closed || !s.started {
+	if s.closed {
+		return nil
+	}
+	if !s.started {
 		return nil
 	}
 	s.wakeAllLocked()
@@ -362,31 +400,47 @@ func (s *supervisor) work(name string, wake chan struct{}) {
 // start when it is enabled and neither running nor waiting for its image, a
 // stop when it is running and the config removed or disabled it.
 func (s *supervisor) converge(name string) {
+	if s.isStopping() {
+		// The drain or the plugin's exit stops what runs; nothing starts or
+		// stops here once the daemon's stop began.
+		return
+	}
 	instance, configured := s.instance(name)
 	if configured && instance.enabled {
-		if s.isRunning(name) || s.isWaiting(name) {
+		if s.isRunning(name) {
+			return
+		}
+		if s.isWaiting(name) {
 			return
 		}
 		ctx, cancel := context.WithTimeout(context.Background(), startTimeout)
 		defer cancel()
-		if _, err := s.start(ctx, name); err != nil {
-			s.setFailed(name, err)
+		_, err := s.start(ctx, name)
+		if err == nil {
+			return
 		}
+		// A start the daemon's stop refused while this worker waited for the
+		// lifecycle lock is no failure of the container.
+		if s.isStopping() {
+			return
+		}
+		s.setFailed(name, err)
 		return
 	}
 	if !s.isRunning(name) {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), stopTimeout)
-	defer cancel()
-	if err := s.stop(ctx, name); err != nil {
+	// The stop bounds itself: the container's stop timeout, then the kill and
+	// its cleanup.
+	if err := s.stop(context.Background(), name); err != nil {
 		s.log.Warn("container: the stop did not end", "name", name, "error", err, "code", codeCleanupIncomplete)
 	}
 }
 
-// close ends every worker. A container still running keeps running: the drain
-// stops containers before a daemon stop, and close only ends the goroutines
-// of this run of the plugin. MUST be called once, after the last apply.
+// close ends every worker. It stops no container: the drain stops them before
+// a daemon stop, and killRunning, called before close, kills what still runs;
+// close only ends the goroutines of this run of the plugin. MUST be called
+// once, after the last apply.
 func (s *supervisor) close() {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -421,6 +475,12 @@ func (s *supervisor) isRunning(name string) bool {
 	defer s.mu.Unlock()
 	_, running := s.running[name]
 	return running
+}
+
+func (s *supervisor) isStopping() bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return s.stopping
 }
 
 func (s *supervisor) isWaiting(name string) bool {
@@ -459,6 +519,11 @@ func (s *supervisor) setState(name string, state State) {
 	if state != StateFailed {
 		delete(s.problems, problemRecord{name: name, kind: problemFailed})
 	}
+	// A container that runs again was created over what a previous run left,
+	// so nothing of that leftover stands in its way any more.
+	if state == StateRunning {
+		delete(s.leftovers, name)
+	}
 }
 
 // setFailed records a failed start of a configured container: the failed
@@ -469,7 +534,10 @@ func (s *supervisor) setFailed(name string, err error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	instance, configured := s.desired[name]
-	if !configured || !instance.enabled {
+	if !configured {
+		return
+	}
+	if !instance.enabled {
 		return
 	}
 	detail := failureDetail(name, err)
@@ -518,6 +586,9 @@ type namedProblem struct {
 }
 
 // problemsOf answers the recorded problems of kind, sorted by container name.
+// An incomplete cleanup also answers each leftover of a previous run the sweep
+// could not remove whole, configured or not, unless a record of this run
+// already names that container.
 func (s *supervisor) problemsOf(kind problemKind) []namedProblem {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -525,6 +596,14 @@ func (s *supervisor) problemsOf(kind problemKind) []namedProblem {
 	for record, detail := range s.problems {
 		if record.kind == kind {
 			records = append(records, namedProblem{name: record.name, detail: detail})
+		}
+	}
+	if kind == problemCleanupIncomplete {
+		for name, detail := range s.leftovers {
+			if _, recorded := s.problems[problemRecord{name: name, kind: kind}]; recorded {
+				continue
+			}
+			records = append(records, namedProblem{name: name, detail: detail})
 		}
 	}
 	slices.SortFunc(records, func(a, b namedProblem) int { return strings.Compare(a.name, b.name) })
@@ -551,6 +630,13 @@ func (s *supervisor) startLocked(ctx context.Context, name string) (State, error
 	}
 	if s.isRunning(name) {
 		return StateRunning, nil
+	}
+	if s.isStopping() {
+		return StateUnspecified, opererr.New(
+			"container "+name+" is not started: the daemon is stopping",
+			"a daemon stop stops every container, and one started now would outlive it",
+			"ze show doctor",
+		)
 	}
 	if s.library == nil {
 		return StateUnspecified, noRuntime(name)
@@ -587,6 +673,10 @@ func (s *supervisor) startLocked(ctx context.Context, name string) (State, error
 // the hold, so a failed start leaves nothing behind.
 func (s *supervisor) run(ctx context.Context, instance instanceConfig, ready Ready) (State, error) {
 	name := instance.name
+	signal, err := stopSignalOf(name, instance.stopSignal, ready.StopSignal)
+	if err != nil {
+		return StateUnspecified, err
+	}
 	releaseHold := s.store.Hold(name, ready)
 	request := &startRequest{instance: instance, ready: ready}
 	for _, participant := range s.participants {
@@ -619,7 +709,13 @@ func (s *supervisor) run(ctx context.Context, instance instanceConfig, ready Rea
 			"ze request container restart name "+name,
 		)
 	}
-	running := &runningContainer{created: created, releaseHold: releaseHold, ended: make(chan struct{})}
+	running := &runningContainer{
+		created:     created,
+		releaseHold: releaseHold,
+		stopSignal:  signal,
+		stopTimeout: instance.stopTimeout,
+		ended:       make(chan struct{}),
+	}
 	s.mu.Lock()
 	s.running[name] = running
 	s.mu.Unlock()
@@ -734,13 +830,12 @@ func (s *supervisor) cleanup(name string, created createdContainer, releaseHold 
 	releaseHold()
 }
 
-// stop ends the named container and returns once its cleanup ended: its
-// processes are killed through its control group, then it is destroyed, the
-// ended calls are made and the store's hold is released. A configured
-// container that does not run is left as it is.
-//
-// The kill is made at once: the stop signal and the stop timeout that come
-// before it are not built yet.
+// stop ends the named container and returns once its cleanup ended: it sends
+// the container its stop signal, waits its stop timeout for it to end, kills
+// every process of it through its control group if it has not, then waits for
+// the cleanup (destroy, the ended calls, the release of the store's hold). A
+// configured container that does not run is left as it is. When ctx ends
+// before the stop timeout, the container is killed at once.
 func (s *supervisor) stop(ctx context.Context, name string) error {
 	lifecycle := s.lifecycle(name)
 	lifecycle.Lock()
@@ -761,22 +856,115 @@ func (s *supervisor) stopLocked(ctx context.Context, name string) error {
 		}
 		return nil
 	}
-	if err := running.created.kill(); err != nil {
-		s.log.Warn("container: the kill failed", "name", name, "error", err, "code", codeCleanupIncomplete)
+	return s.stopTogether(ctx, []stopTarget{{name: name, running: running}})
+}
+
+// stopTarget is one running container a stop ends.
+type stopTarget struct {
+	name    string
+	running *runningContainer
+}
+
+// stopOutcome is how the wait after a container's stop signal ended. Zero is
+// reserved and names no outcome.
+type stopOutcome uint8
+
+const (
+	// stopEnded: the container ended within its stop timeout.
+	stopEnded stopOutcome = iota + 1
+	// stopTimedOut: the container outlived its stop timeout.
+	stopTimedOut
+	// stopForced: the caller's context ended first: the daemon's stop was
+	// forced, by a second signal or the engine connection closing.
+	stopForced
+)
+
+// stopTogether stops targets at once and returns when every cleanup ended or
+// its bound passed. Every container gets its stop signal first, then each is
+// waited for until its own stop timeout, counted from the same moment, so the
+// stop of many containers takes the longest timeout among them, never their
+// sum: the drain budget holds 30 seconds for the stop signals, whatever the
+// number of containers. Each container still running then is killed through
+// its control group, and the cleanups are awaited for killCleanupTimeout.
+//
+// A container killed because it outlived its stop timeout is recorded as
+// stop-killed. One killed because ctx ended is not: its stop was cut short,
+// it did not ignore its signal. The caller MUST hold the lifecycle lock of
+// every target.
+func (s *supervisor) stopTogether(ctx context.Context, targets []stopTarget) error {
+	signaled := time.Now()
+	for _, target := range targets {
+		if err := target.running.created.signal(target.running.stopSignal); err != nil {
+			// An init that already exited cannot take a signal; its watcher
+			// is cleaning up, and the wait below sees it end.
+			s.log.Debug("container: the stop signal was not delivered", "name", target.name, "error", err)
+		}
+	}
+	killed := make([]stopTarget, 0, len(targets))
+	for _, target := range targets {
+		outcome := awaitEnd(ctx, target.running, signaled.Add(target.running.stopTimeout))
+		switch outcome {
+		case stopEnded:
+			continue
+		case stopTimedOut:
+			s.log.Warn("container: it ignored its stop signal and was killed when its stop timeout ended",
+				"name", target.name, "signal", target.running.stopSignal.String(),
+				"stop-timeout", target.running.stopTimeout.String(), "code", codeStopKilled)
+			if err := s.recordProblem(target.name, problemStopKilled); err != nil {
+				s.log.Debug("container: the problem of a container no longer configured is not recorded", "name", target.name)
+			}
+		case stopForced:
+			s.log.Info("container: killed at once, because the daemon's stop was forced", "name", target.name)
+		}
+		killed = append(killed, target)
+	}
+	for _, target := range killed {
+		if err := target.running.created.kill(); err != nil {
+			s.log.Warn("container: the kill failed", "name", target.name, "error", err, "code", codeCleanupIncomplete)
+		}
+	}
+	cleanupDeadline := time.Now().Add(killCleanupTimeout)
+	var failures []error
+	for _, target := range killed {
+		if awaitEnd(context.Background(), target.running, cleanupDeadline) == stopEnded {
+			continue
+		}
+		if err := s.recordProblem(target.name, problemCleanupIncomplete); err != nil {
+			s.log.Debug("container: the problem of a container no longer configured is not recorded", "name", target.name)
+		}
+		failures = append(failures, opererr.New(
+			"container "+target.name+" did not end after it was killed",
+			"its processes or its control group are still there",
+			restartCommand(target.name),
+		))
+	}
+	return errors.Join(failures...)
+}
+
+// awaitEnd waits for the cleanup of running to end, until deadline or until
+// ctx ends. A cleanup that ended answers stopEnded even when the deadline or
+// ctx passed at the same moment.
+func awaitEnd(ctx context.Context, running *runningContainer, deadline time.Time) stopOutcome {
+	timer := time.NewTimer(time.Until(deadline))
+	defer timer.Stop()
+	select {
+	case <-running.ended:
+		return stopEnded
+	case <-timer.C:
+	case <-ctx.Done():
+		select {
+		case <-running.ended:
+			return stopEnded
+		default:
+		}
+		return stopForced
 	}
 	select {
 	case <-running.ended:
-		return nil
-	case <-ctx.Done():
-		if err := s.recordProblem(name, problemCleanupIncomplete); err != nil {
-			s.log.Debug("container: the problem of a container no longer configured is not recorded", "name", name)
-		}
-		return opererr.Wrap(ctx.Err(),
-			"container "+name+" did not end after it was killed",
-			"its processes or its control group are still there",
-			"ze request container restart name "+name,
-		)
+		return stopEnded
+	default:
 	}
+	return stopTimedOut
 }
 
 // stopThenStart stops the named container when it runs, then starts it, under
@@ -817,22 +1005,113 @@ func (s *supervisor) restart(ctx context.Context, name string) (State, error) {
 
 // drain stops every running container before the daemon stops. It is the
 // plugin's stop drain handler: the one call of a daemon stop that waits for
-// the plugin. It returns when every stop ended or ctx did.
+// the plugin. From its start no container starts. It takes the lifecycle lock
+// of every container this run of the plugin knew, in name order, so a start
+// in progress ends before the set to stop is read, and stops them together
+// (stopTogether): the stop signals within the 30 seconds the drain budget
+// holds for them, then the kill and the cleanup within its last 5 seconds.
+// When ctx ends first, because a second signal aborted the drain or the
+// connection closed, every container still running is killed at once.
 func (s *supervisor) drain(ctx context.Context, _ rpc.DrainInput) error {
 	s.mu.Lock()
-	names := make([]string, 0, len(s.running))
-	for name := range s.running {
+	s.stopping = true
+	names := make([]string, 0, len(s.lifecycles))
+	for name := range s.lifecycles {
 		names = append(names, name)
 	}
 	s.mu.Unlock()
 	slices.Sort(names)
-	var failures []error
+	// The locks are taken in name order, and every other sequence holds one
+	// lock at a time, so no two holders wait for each other.
+	held := make([]*sync.Mutex, 0, len(names))
+	defer func() {
+		for _, lifecycle := range held {
+			lifecycle.Unlock()
+		}
+	}()
 	for _, name := range names {
-		if err := s.stop(ctx, name); err != nil {
-			failures = append(failures, err)
+		lifecycle := s.lifecycle(name)
+		lifecycle.Lock()
+		held = append(held, lifecycle)
+	}
+	return s.stopTogether(ctx, s.runningTargets())
+}
+
+// runningTargets answers every running container, sorted by name.
+func (s *supervisor) runningTargets() []stopTarget {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	targets := make([]stopTarget, 0, len(s.running))
+	for name, running := range s.running {
+		targets = append(targets, stopTarget{name: name, running: running})
+	}
+	slices.SortFunc(targets, func(a, b stopTarget) int { return strings.Compare(a.name, b.name) })
+	return targets
+}
+
+// killRunning kills every container still running, at once, and waits for
+// their cleanups for killCleanupTimeout. It is the engine entry's last step,
+// once the engine connection closed: after a drain nothing runs, and when the
+// daemon's stop skipped or cut the drain short, this is the stop. A container
+// whose cleanup does not end in time is left to the sweep of the next start.
+// It takes no lifecycle lock, so a start that hangs cannot hold the exit, and
+// from its start no container starts. MUST be called once, before close.
+func (s *supervisor) killRunning() {
+	s.mu.Lock()
+	s.stopping = true
+	s.mu.Unlock()
+	targets := s.runningTargets()
+	for _, target := range targets {
+		s.log.Info("container: killed at once, because the plugin is stopping", "name", target.name)
+		if err := target.running.created.kill(); err != nil {
+			s.log.Warn("container: the kill failed", "name", target.name, "error", err, "code", codeCleanupIncomplete)
 		}
 	}
-	return errors.Join(failures...)
+	deadline := time.Now().Add(killCleanupTimeout)
+	for _, target := range targets {
+		if awaitEnd(context.Background(), target.running, deadline) == stopEnded {
+			continue
+		}
+		s.log.Warn("container: its cleanup did not end before the plugin stopped; the next start sweeps what is left",
+			"name", target.name, "code", codeCleanupIncomplete)
+	}
+}
+
+// leftoverFix is the command for a leftover the kernel refused to remove:
+// what holds it ends with the boot.
+const leftoverFix = "ze signal reboot"
+
+// sweep removes every container a previous run of the plugin left, before any
+// container starts: their processes are killed, their control groups and
+// mounts removed, and each participant gets the ended call for each, as for
+// any container this plugin created. Each leftover is logged by name. One the
+// kernel refused to remove whole is kept for the cleanup-incomplete doctor
+// check. Containers are never adopted: a configured one is started again as a
+// new process once begin wakes its worker. MUST be called once, before begin.
+func (s *supervisor) sweep() {
+	if s.library == nil {
+		return
+	}
+	for _, found := range s.library.sweep() {
+		if found.err != nil {
+			s.log.Warn("container: a previous run left this container, and part of it could not be removed",
+				"name", found.name, "error", found.err, "fix", leftoverFix, "code", codeCleanupIncomplete)
+			s.mu.Lock()
+			s.leftovers[found.name] = problemDetail{
+				cause: "a previous run of the daemon left it, and the kernel refused part of its removal: " + found.err.Error(),
+				fix:   leftoverFix,
+			}
+			s.mu.Unlock()
+		} else {
+			s.log.Warn("container: a previous run left this container running; its processes were killed and its control group and root removed",
+				"name", found.name, "code", codeCleanupIncomplete)
+		}
+		ctx, cancel := context.WithTimeout(context.Background(), participantCallTimeout)
+		for _, participant := range s.participants {
+			participant.Ended(ctx, found.name)
+		}
+		cancel()
+	}
 }
 
 // ImagePresent is the store's notice that the image of reference is now

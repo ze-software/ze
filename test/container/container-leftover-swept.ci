@@ -1,0 +1,45 @@
+# Question: when a daemon is killed while a container runs, does the next
+# daemon remove the container it left before it starts anything, and then run
+# the configured container exactly once, as a new process, with a warning that
+# names it (spec-container-1-runtime AC-12, the container-leftover-swept test)?
+#
+# A unit test cannot decide it: a killed daemon leaves a real process in a
+# real control group, a mounted overlay and the runtime library's state
+# directory, which refuses a new container of the same name. Only a real
+# kernel shows whether the sweep kills, unmounts and removes them, and whether
+# the library then creates the container again.
+#
+# Method: the first daemon starts the container, whose probe appends a line
+# to /starts in its writable layer at each start. The daemon is killed with
+# SIGKILL, so no drain runs and the container keeps running: it took a session
+# of its own. A second daemon starts on the same config. The probe's starts
+# mode waits for the second line, then requires exactly two starts and exactly
+# one process in the container's control group: a sweep that did not kill the
+# leftover leaves two processes there, or no second start at all, because the
+# library refuses a name whose state directory is still in place.
+#
+# The store lives under /run, not in the test's work directory: in the QEMU
+# guest that directory is on the 9p share of the checkout, and an overlay
+# cannot take a 9p directory as its upper layer.
+option=needs-linux:caps=sys-admin
+option=exclusive:group=container
+option=timeout:value=120s
+option=env:var=ze.test.container.store:value=/run/ze-container-test-$PORT
+
+stdin=config:terminator=EOF_CONFIG
+container {
+	instance probe {
+	}
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze-containerprobe reset /run/ze-container-test-$PORT:exit=0
+cmd=background:seq=2:exec=ze -:stdin=config:name=first
+cmd=foreground:seq=3:exec=ze-containerprobe verify /run/ze-container-test-$PORT probe:timeout=45s:exit=0
+cmd=stop:seq=4:name=first:signal=kill
+cmd=background:seq=5:exec=ze -:stdin=config:name=second
+cmd=foreground:seq=6:exec=ze-containerprobe starts /run/ze-container-test-$PORT probe 2:timeout=50s:exit=0
+expect=stdout:contains=probe: the container started 2 times
+expect=stdout:contains=probe: one process runs in its control group
+expect=stderr:contains=a previous run left this container running
+reject=stdout:contains=probe: FAIL

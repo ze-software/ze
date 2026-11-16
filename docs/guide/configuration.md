@@ -5061,6 +5061,8 @@ container {
 |-----------|---------|
 | `instance <name>` | One container. The name is 1 to 63 lowercase letters, digits and hyphens, and it neither starts nor ends with a hyphen |
 | `enabled` | Whether the container runs. The default is `true`. `false` keeps the container's statements and keeps it stopped |
+| `stop-timeout <seconds>` | Time between the stop signal and the kill, 1 to 30. The default is 10. A container still running then is killed, and `ze doctor` reports `doctor-container-stop-killed` |
+| `stop-signal <signal>` | The signal a stop sends: `term`, `int`, `quit`, `hup`, `usr1` or `usr2`. Absent, the signal the image declares is sent, or `term` when it declares none |
 
 An enabled container is accepted, and the daemon tries to start it once the
 configuration is applied: the commit never waits for the start. The container
@@ -5068,6 +5070,12 @@ runtime is not complete. No shipped build holds an image store yet, so the
 start is refused there and the container takes the `failed` state. The image,
 the limits, the networks and every other statement of a container are not in
 the schema yet.
+
+When the daemon stops, it stops every container together: each gets its stop
+signal, and each still running after its `stop-timeout` is killed. A daemon
+that was killed leaves its containers running; the next start removes them
+before it starts anything, and starts the configured containers again as new
+processes.
 
 When the configuration holds a container to run, the kernel must be built with
 `CONFIG_CFS_BANDWIDTH`, which a container's hard CPU limit needs. On a kernel

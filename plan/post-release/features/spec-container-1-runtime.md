@@ -8,7 +8,7 @@
 | Release reason | A post-release feature by owner ruling (O-3 of `spec-container-0-umbrella.md`): Ze runs OCI container images itself. No shipped behavior is wrong without it. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 2/9 |
+| Phase | 3/9 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
@@ -176,9 +176,11 @@ The states an operator sees are the six of the operator-surface child's table T-
 
 A start in progress shows the state it left, and a failed start that will be tried again shows `restarting`. Only five failed starts in a row give `failed`. An entrypoint that keeps exiting is restarted under its policy with a growing delay and no bound, and the delay returns to one second after a run of one minute. These internal steps map onto the six states and add none: the operator-surface child's table T-1 states the six in the same words.
 
+The boot configure arrives before the startup handshake ends, when the engine refuses a worker's calls (the kernel tunable claim among them), so it only records the desired set: the containers of a boot start when the plugin's `OnStarted` callback runs (`supervisor.begin`). A reload's apply wakes the workers at once.
+
 ### Problem classes and their doctor codes
 
-The operator-surface child owns the codes that follow the state (`doctor-container-image-absent`, `doctor-container-restarting`, `doctor-container-stopped`, `doctor-container-failed`); this child supplies the state and the reason they read. This child owns these:
+The operator-surface child owns three of the codes that follow the state (`doctor-container-image-absent`, `doctor-container-restarting`, `doctor-container-stopped`); this child supplies the state and the reason they read. The fourth, `doctor-container-failed`, is declared by this child: the supervisor sets the `failed` state where a start fails, so the `Warn` line of that site carries the code and the runtime check `container-failed` (an error) reports the record, with the failed step's cause and fix. The operator-surface child's state view reads the same record. This child owns these:
 
 | Problem class | Code | Phase | Fix the finding names |
 |---------------|------|-------|-----------------------|
@@ -501,7 +503,13 @@ Test files are listed with their paths under Files to Create. The File column na
 | `TestConfigRulesRefuseALimitBelowItsFloor` | plugin, config test | Each limit below its floor is refused with the offending value | |
 | `TestConfigRulesOfTheVerifyTable` | plugin, config test | V-2, V-3, V-7, V-8 and V-10, each with its message. V-11 is proven by `container-not-privileged-refused` | |
 | `TestDescriptionDropsNamedCapabilities` | plugin, describe test | `capability-drop` removes each named capability, `all` removes the default set, and `capability` adds back what is named | |
-| `TestStopSignalComesFromTheConfigThenTheImage` | plugin, describe test | The config's `stop-signal`, else the image's, else the termination signal | |
+| `TestStopSignalComesFromTheConfigThenTheImage` | plugin, stop test | The config's `stop-signal`, else the image's (a name with or without `SIG`, or a number), else the termination signal; an unreadable image signal refuses with the `stop-signal` statement | |
+| `TestStopLeavesParseWithTheirDefaults` | plugin, stop test | `stop-timeout` defaults to 10 and accepts 1 and 30, refuses 0 and 31; `stop-signal` reads its word and refuses another | |
+| `TestStopSendsTheSignalThenKillsAfterTheTimeout` | plugin, stop test | The configured signal, then the kill after the timeout, the cleanup, and the stop-killed record; an obedient container gets no kill and no record | |
+| `TestDrainSignalsEveryContainerBeforeAnyKill` | plugin, stop test | Every signal before any kill, each container stop-killed, no start after the drain | |
+| `TestForcedDrainKillsAtOnce` | plugin, stop test | A drain whose context ended kills at once, with no stop-killed record | |
+| `TestKillRunningKillsWhatStillRuns` | plugin, stop test | The plugin's exit kills what still runs, with no signal, and starts nothing after | |
+| `TestSweepEndsEveryLeftoverBeforeAnyStart` | plugin, stop test | The ended call for each leftover; the cleanup check reports one the kernel kept, with the reboot fix, until that container runs again | |
 | `TestOneRuleSetServesValidateVerifyAndConfigure` | plugin, config test | The in-process verifier, the live verify and configure give one verdict for one config | |
 | `TestRemovedRootStopsEveryContainer` | plugin, config test | An empty body yields "stop all", never "no change" | |
 | `TestApplyReturnsBeforeContainersStart` | plugin, supervise test | Apply records the desired set and returns while a start is blocked | |
@@ -621,7 +629,8 @@ Not applicable: Scope is plugin and no wire protocol changes.
 - `docs/architecture/doctor-and-health-checks.md` - the runtime checks table
 - `docs/architecture/system-architecture.md` - the early role in the dispatch order
 - `docs/architecture/zefs-format.md` - the container key in the key registry
-- `docs/architecture/testing/qemu-integration.md` - the `container` suite, the `container-boot` proof and the fixture image
+- `docs/architecture/testing/qemu-integration.md` - the `container` suite, the `container-boot` proof and the fixture image, and the guest shim's copy of `ze-containerprobe` beside `ze`
+- `internal/le/test/qemu/alltests_shim.go`, `internal/le/test/qemu/alltests_shim_test.go`, `internal/le/test/qemu/alltests_knobs_test.go`, `internal/le/test/qemu/guestbin.go`, `internal/le/test/qemu/actions.go` - the guest shim copies the probe beside `ze`, its tests, and the comments and the action text that name it
 - The functional tests page, the appliance guide's kernel requirement rows and the kernel profiles page - the new suite, the new and the pinned options
 - The plugin guide, the keyword index and the notice file - the plugin, its keywords, the new modules and the profile's source
 - Derived by `./le repo update`, never by hand: the gated composition root, the gated-plugin table, the lint tag list, the appliance tag list, the quickstart install line, the CodeQL build combinations
@@ -642,6 +651,8 @@ Not applicable: Scope is plugin and no wire protocol changes.
 - `internal/plugins/container/rootfs_linux.go` - the overlay mount and unmount
 - `internal/plugins/container/supervise.go`, `internal/plugins/container/supervise_test.go` - the worker, the states, the restart delay, the container object kept for the shell child
 - `internal/plugins/container/sweep_linux.go` - the leftover removal
+- `internal/plugins/container/stop.go`, `internal/plugins/container/stop_test.go` - the stop signal and its resolution, the stop leaves' bounds, the kill and cleanup bound; the tests of the stop, the drain, the forced drain, the exit and the sweep
+- `internal/plugins/container/tunables.go` - the claim of `net.core.fb_tunnels_only_for_init_net` through the sysctl plugin
 - `internal/plugins/container/participant.go`, `internal/plugins/container/participant_test.go` - the created call, the ended call and the contributions
 - `internal/plugins/container/storeseam.go`, `internal/plugins/container/storeseam_zetest.go` - the seam to the store, and the test store with its fixture image
 - `internal/plugins/container/output.go`, `internal/plugins/container/output_test.go` - the bounded buffer and its readers
@@ -823,6 +834,12 @@ Not applicable: Scope is plugin and no wire protocol changes.
 | A user name is resolved by this child, inside the image root | The store resolving it | The store hands the image's configuration as fetched and resolves nothing. The lookup reads files a container controls, so it opens them under a descriptor for the root |
 | A volume the image declares and the config does not stays in the writable layer | An automatic volume | The owner's direction keeps a container's filesystem until its image is updated, and a volume is something the operator declares |
 | `CAP_MKNOD` is withheld from the default set until phase 6 lands the control group's device allowlist, so phases 2 to 5 run thirteen capabilities; it returns together with the allowlist (PENDING THE OWNER: it departs from his ruling of fourteen in "Rules this child takes from the owner", which is unchanged here) | Granting all fourteen now, as ruled; a no-device mount flag on `/dev` | A security review found that with no allowlist, root in the container can make a node for any host device and open it. The default nodes need no grant: the library's init makes them in `prepareRootfs` before `finalizeNamespace` drops to the set, and `/dev/ptmx` is a symlink into the container's own devpts. A no-device flag on `/dev` would disable those default nodes. The rows that say fourteen (the owner's rule, the `capability` words, AC-7, the confinement test, the review checklist) describe the set once the allowlist exists |
+
+| While a container is enabled, the plugin claims `net.core.fb_tunnels_only_for_init_net=1` through the sysctl plugin's default event, under its own name as the source, before every create; the claim is cleared once no enabled container remains, and the sysctl plugin restores the kernel's value then and at daemon stop. A value other than 1 or 2 read back refuses the start under `doctor-container-failed`, with the statement that sets it to 1 | Narrowing the guest probe to "no other device is up"; deleting the fallback devices inside each namespace | Ze's kernel builds the tunnel drivers in, so every new network namespace otherwise holds seven fallback tunnel devices, and the network child's criterion is that loopback is the only link. 1 keeps the devices in the initial namespace, where the host's configuration may use them. The configuration outranks a plugin's default, so the operator keeps the last word. No shipped namespace Ze creates outside a container relies on the devices (`kernelcap.InThrowawayNetworkNamespace` only) |
+| The stop signal and the stop timeout are fixed when a container starts; the signal is the config's `stop-signal`, else the image's, else the termination signal, and an image signal Ze cannot read refuses the start | Reading both from the config at the stop; falling back to the termination signal for an unreadable image signal | A container the config removed has no config left at its stop. A fallback signal the workload did not ask for ends in a kill |
+| A stop of many containers signals all of them, then waits each one's own timeout from that one moment, then kills and awaits the cleanups for 5 seconds; the drain takes every lifecycle lock in name order and starts nothing after it begins | One stop after the other, as phase 2 did | The drain budget holds 30 seconds for the stop signals whatever the number of containers; a sequential stop needs the sum |
+| A forced stop (the drain's context ends: a second signal, or the connection closing) kills at once and writes no stop-killed record; when the engine connection closes with containers still running, the plugin's exit kills them | Waiting out the stop timeout; leaving them to the next sweep | A daemon that is being forced away gives a plugin 3 seconds in-process and 1 second forked. The record is for a container that ignored its signal, which a cut-short stop does not show |
+| The sweep runs in the engine entry before the plugin's Stage 1, removes every entry under the plugin's three run-time directories, makes the ended call for each, and keeps one the kernel refused to remove whole for the cleanup check, configured or not, with `ze signal reboot` as its fix, until that container runs again | Sweeping in `OnStarted`; recording leftovers through `recordProblem` | A start can only begin after `OnStarted`, so a sweep before Stage 1 precedes every start without blocking the event loop. `recordProblem` refuses a container the config does not hold, and a leftover may name one the config no longer holds |
 
 ## Known Limitations
 - Running containers are never re-adopted. When Ze restarts, including for its own update, every container is stopped and started again; after a crash, the next start removes what was left and starts each container anew. Re-adoption is not part of this work, by owner ruling.

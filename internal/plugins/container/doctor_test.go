@@ -214,6 +214,8 @@ func (l *refusingLibrary) setRefusal(refusal error) {
 	l.refusal = refusal
 }
 
+func (l *refusingLibrary) sweep() []leftover { return l.fake.sweep() }
+
 func (l *refusingLibrary) create(ctx context.Context, request *startRequest) (createdContainer, error) {
 	l.mu.Lock()
 	refusal := l.refusal

@@ -5,8 +5,11 @@ package container
 import (
 	"context"
 	"slices"
+	"strconv"
 	"sync"
+	"syscall"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -63,10 +66,24 @@ func storeFactoryOf(store Store) StoreFactory {
 
 // fakeLibrary is a runtime library that creates nothing and records each
 // step in events.
+//
+// The steps of a stop go to stops, a log of their own, "signal NAME NUMBER"
+// and "kill NAME", so the tests of the start order read events unchanged. A
+// container of a library with ignoresStop set outlives every signal and ends
+// only when it is killed; otherwise it ends at its first signal. sweep answers
+// leftovers.
 type fakeLibrary struct {
 	events           *eventLog
 	initProcess      int
 	networkNamespace string
+	ignoresStop      bool
+	stops            eventLog
+	leftovers        []leftover
+}
+
+func (f *fakeLibrary) sweep() []leftover {
+	f.events.add("sweep")
+	return f.leftovers
 }
 
 func (f *fakeLibrary) create(_ context.Context, request *startRequest) (createdContainer, error) {
@@ -101,7 +118,16 @@ func (c *fakeCreated) wait() (int, error) {
 }
 
 func (c *fakeCreated) kill() error {
+	c.library.stops.add("kill " + c.name)
 	c.killOnce.Do(func() { close(c.exited) })
+	return nil
+}
+
+func (c *fakeCreated) signal(sig syscall.Signal) error {
+	c.library.stops.add("signal " + c.name + " " + strconv.Itoa(int(sig)))
+	if !c.library.ignoresStop {
+		c.killOnce.Do(func() { close(c.exited) })
+	}
 	return nil
 }
 
@@ -119,8 +145,15 @@ func (c *fakeCreated) destroy() error {
 }
 
 // configOf answers a config holding instances as they are, with no rule
-// applied: the tests of this file drive the supervisor past the rule set.
+// applied: the tests of this file drive the supervisor past the rule set. An
+// instance that states no stop timeout takes the default the parser gives
+// one, as every configured container has a stop timeout.
 func configOf(instances ...instanceConfig) containerConfig {
+	for i := range instances {
+		if instances[i].stopTimeout == 0 {
+			instances[i].stopTimeout = stopTimeoutSecondsDefault * time.Second
+		}
+	}
 	return containerConfig{instances: instances}
 }
 

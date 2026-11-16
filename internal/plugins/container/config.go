@@ -7,6 +7,7 @@ package container
 import (
 	"encoding/json"
 	"fmt"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -34,6 +35,12 @@ const instanceNameLengthMax = 63
 type instanceConfig struct {
 	name    string
 	enabled bool
+	// stopTimeout is the time a stop waits, after the stop signal, before the
+	// kill: the stop-timeout leaf, or its default.
+	stopTimeout time.Duration
+	// stopSignal is the stop-signal leaf, or stopSignalFromImage when the
+	// config names none.
+	stopSignal stopSignal
 }
 
 // containerConfig is the whole container root: its instances, sorted by name.
@@ -114,7 +121,60 @@ func parseInstance(entry configvalue.ListEntry) (instanceConfig, error) {
 		}
 		enabled = value
 	}
-	return instanceConfig{name: entry.Key, enabled: enabled}, nil
+	stopTimeout, err := parseStopTimeout(entry)
+	if err != nil {
+		return instanceConfig{}, err
+	}
+	signal := stopSignalFromImage
+	if raw, present := entry.Fields[leafStopSignal]; present {
+		word, isWord := raw.(string)
+		if !isWord {
+			return instanceConfig{}, refuseStopSignal(entry.Key)
+		}
+		value, known := parseStopSignal(word)
+		if !known {
+			return instanceConfig{}, refuseStopSignal(entry.Key)
+		}
+		signal = value
+	}
+	return instanceConfig{name: entry.Key, enabled: enabled, stopTimeout: stopTimeout, stopSignal: signal}, nil
+}
+
+// parseStopTimeout reads the stop-timeout leaf of one entry, or its default
+// when the leaf is absent. The schema refuses a value outside 1 to 30; this is
+// the second check of the pair.
+func parseStopTimeout(entry configvalue.ListEntry) (time.Duration, error) {
+	raw, present := entry.Fields[leafStopTimeout]
+	if !present {
+		return stopTimeoutSecondsDefault * time.Second, nil
+	}
+	seconds, read := configvalue.Int(raw)
+	if !read {
+		return 0, refuseStopTimeout(entry.Key, "it is not a whole number")
+	}
+	if seconds < stopTimeoutSecondsMin {
+		return 0, refuseStopTimeout(entry.Key, "it is below 1")
+	}
+	if seconds > stopTimeoutSecondsMax {
+		return 0, refuseStopTimeout(entry.Key, "it is above 30")
+	}
+	return time.Duration(seconds) * time.Second, nil
+}
+
+func refuseStopSignal(name string) error {
+	return opererr.New(
+		"container "+name+": stop-signal is not one of term, int, quit, hup, usr1 and usr2",
+		"the leaf names the signal a stop sends, so ze refuses a value it cannot read rather than send another",
+		setInstanceStatement(name, leafStopSignal, "term"),
+	)
+}
+
+func refuseStopTimeout(name, defect string) error {
+	return opererr.New(
+		"container "+name+": stop-timeout is not a number of seconds from 1 to 30: "+defect,
+		"a daemon stop gives the containers 30 seconds to obey their stop signals, and a stop needs at least one",
+		setInstanceStatement(name, leafStopTimeout, "SECONDS"),
+	)
 }
 
 // checkInstanceName refuses a name outside the form the schema states:
@@ -165,8 +225,9 @@ func refuseInstanceName(name, defect string) error {
 
 // checkConfigRules judges a parsed config against every rule that needs code.
 // Each package of the plugin adds the rules of its own nodes here, so one
-// call judges the whole root. The nodes the schema holds today (the name and
-// enabled) need no rule beyond what parsing checks.
+// call judges the whole root. The nodes the schema holds today (the name,
+// enabled, stop-timeout and stop-signal) need no rule beyond what parsing
+// checks.
 func checkConfigRules(containerConfig) error {
 	return nil
 }

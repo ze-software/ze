@@ -1,0 +1,50 @@
+# Question: does a daemon stop stop every container it runs, the one that
+# obeys its stop signal and the one that ignores it, and leave no process,
+# control group, root mount or library state of either on the host
+# (spec-container-1-runtime AC-11, the container-stop-on-daemon-stop test)?
+#
+# A unit test cannot decide it: a whole-daemon stop closes the plugin's
+# connection with no notice, and only the stop drain waits for the plugin, so
+# what this asks is whether the real daemon's drain reaches the container
+# plugin and the plugin's stop removes every trace of both containers on a
+# real kernel.
+#
+# Method: two containers. probe runs the probe mode that exits at its first
+# SIGTERM; stubborn (the test store gives the name its mode) records the
+# signal and keeps running, with a stop timeout of 1 second. The daemon stops
+# with SIGTERM. The probe's gone mode then waits for each container's control
+# group, root mount point and library state to be gone, and requires the stop
+# signal each one recorded; stubborn must also have ended at least its stop
+# timeout after the signal.
+#
+# The store lives under /run, not in the test's work directory: in the QEMU
+# guest that directory is on the 9p share of the checkout, and an overlay
+# cannot take a 9p directory as its upper layer.
+option=needs-linux:caps=sys-admin
+option=exclusive:group=container
+option=timeout:value=150s
+option=env:var=ze.test.container.store:value=/run/ze-container-test-$PORT
+
+stdin=config:terminator=EOF_CONFIG
+container {
+	instance probe {
+	}
+	instance stubborn {
+		stop-timeout 1;
+	}
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze-containerprobe reset /run/ze-container-test-$PORT:exit=0
+cmd=background:seq=2:exec=ze -:stdin=config:name=daemon
+cmd=foreground:seq=3:exec=ze-containerprobe verify /run/ze-container-test-$PORT probe:timeout=45s:exit=0
+cmd=foreground:seq=4:exec=ze-containerprobe verify /run/ze-container-test-$PORT stubborn:timeout=45s:exit=0
+cmd=stop:seq=5:name=daemon:signal=term
+cmd=foreground:seq=6:exec=ze-containerprobe gone /run/ze-container-test-$PORT probe:timeout=50s:exit=0
+cmd=foreground:seq=7:exec=ze-containerprobe gone /run/ze-container-test-$PORT stubborn at-least 1:timeout=50s:exit=0
+expect=stdout:contains=probe: its control group is gone
+expect=stdout:contains=probe: its root mount is gone
+expect=stdout:contains=probe: its runtime library state is gone
+expect=stdout:contains=probe: the container received a stop signal
+expect=stdout:contains=probe: it ended at least 1s after its stop signal
+reject=stdout:contains=probe: FAIL
