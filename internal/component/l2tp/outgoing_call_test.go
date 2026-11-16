@@ -155,6 +155,7 @@ func TestSubsystem_DialFromLoopbackNamesServer(t *testing.T) {
 			Name: "lns1", Address: netip.MustParseAddrPort("192.0.2.1:1701"), OutgoingCalls: true,
 		}},
 	})
+	defer UseListenerKernelBackendForTest(s)()
 	ctx := context.Background()
 	require.NoError(t, s.Start(ctx, nil, nil))
 	defer func() { require.NoError(t, s.Stop(ctx)) }()

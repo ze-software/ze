@@ -3,6 +3,7 @@ package l2tp
 import (
 	"log/slog"
 
+	"github.com/ze-software/ze/internal/component/iface"
 	"github.com/ze-software/ze/internal/component/l2tp/subscriber"
 	"github.com/ze-software/ze/pkg/ze"
 )
@@ -34,4 +35,24 @@ func SetProbeKernelModulesForTest(fn func() error) func() {
 	old := probeKernelModulesFn
 	probeKernelModulesFn = fn
 	return func() { probeKernelModulesFn = old }
+}
+
+// listenerKernelBackend owns no OS resource. The listener-only fixtures never
+// configure a PPP interface; an unexpected interface operation still fails
+// through the embedded interface rather than silently succeeding.
+type listenerKernelBackend struct{ iface.Backend }
+
+func (*listenerKernelBackend) Close() error { return nil }
+
+// UseListenerKernelBackendForTest supplies only the per-subsystem interface
+// factory needed by listener-only cases. Real UDP binding, reactor startup and
+// shutdown remain in use. The configured global interface backend is untouched.
+// The caller MUST install it before Start and MUST call the returned restore
+// after Stop. It changes no other subsystem or process-wide registry.
+func UseListenerKernelBackendForTest(sub *Subsystem) func() {
+	previous := sub.openKernelBackend
+	sub.openKernelBackend = func(string) (iface.Backend, error) {
+		return &listenerKernelBackend{}, nil
+	}
+	return func() { sub.openKernelBackend = previous }
 }

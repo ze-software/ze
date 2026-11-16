@@ -63,6 +63,7 @@ func TestSubsystem_StartEnabledWithListener(t *testing.T) {
 		Enabled:     true,
 		ListenAddrs: []netip.AddrPort{addr},
 	})
+	defer l2tp.UseListenerKernelBackendForTest(sub)()
 	ctx := context.Background()
 	require.NoError(t, sub.Start(ctx, nil, nil))
 	require.NoError(t, sub.Stop(ctx))
@@ -97,6 +98,7 @@ func TestSubsystem_BindFailureUnwinds(t *testing.T) {
 		},
 	})
 
+	defer l2tp.UseListenerKernelBackendForTest(sub)()
 	ctx := context.Background()
 	err = sub.Start(ctx, nil, nil)
 	require.Error(t, err, "bind must fail when second listener targets a busy port")
@@ -113,6 +115,7 @@ func TestSubsystem_BindFailureUnwinds(t *testing.T) {
 		Enabled:     true,
 		ListenAddrs: []netip.AddrPort{netip.AddrPortFrom(netip.MustParseAddr("127.0.0.1"), 0)},
 	})
+	defer l2tp.UseListenerKernelBackendForTest(sub2)()
 	require.NoError(t, sub2.Start(ctx, nil, nil))
 	require.NoError(t, sub2.Stop(ctx))
 }
