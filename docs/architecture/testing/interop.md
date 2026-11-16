@@ -91,6 +91,49 @@ does not require a second cleanup inventory.
 <!-- source: internal/le/interoplab/l2tp/register_scale.go -- init -->
 <!-- source: internal/le/interoplab/l2tp/scale_plan.go -- scalePeerTemplates, scaleScenarioPlan -->
 
+### Marked raw policy output at a native receiver
+
+This section describes the scenario's assertions. It reports no completed run.
+
+`bgp-atomic-policy-admission-frr` sends received IPv4 routes through a public
+SDK export filter to FRR. The checker releases the real TCP source only after
+the sessions and initial EORs are ready. It verifies the marked originals at
+FRR before it releases unsafe rewrites and an accepted subset.
+<!-- source: internal/le/interoplab/bgp/check_atomic_policy.go -- checkAtomicPolicyFRR -->
+
+The final table
+must retain the useful marked sibling and an independent control. It must also
+retain an unmarked rewrite and a later permitted route. It must omit the
+forbidden replacement and the withdrawn originals. Ze's actual Adj-RIB-In must still hold every
+original source key, and the sessions must remain unchanged.
+<!-- source: internal/le/interoplab/bgp/check_atomic_policy.go -- checkAtomicPolicyFRR -->
+
+The checker waits for the complete final table. A later permitted prefix alone
+does not prove an earlier source removal complete. An active RIB recovery
+owner can select its withdrawal or a permitted replacement asynchronously.
+The scenario still requires the exact final absences and useful routes.
+<!-- source: internal/le/interoplab/bgp/check_atomic_policy.go -- checkAtomicPolicyFRR, requireAtomicPolicyFinal -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryOwedFor, run, decide -->
+
+The source's MED values select the filter answers independently of peer
+behavior. Those answers include a more-specific marked destination, a removed
+marker, and a useful exact subset. The test uses iBGP toward FRR so a changed MED
+proves the attribute edit without an eBGP MED removal. The kept subset's new MED also distinguishes
+it from its old advertisement. The restriction on marked output is described in
+[egress attribute rules](../bgp/egress-attribute-rules.md).
+<!-- source: internal/le/interoplab/bgp/helper_atomic_policy.go -- atomicPolicyAnswer -->
+<!-- source: test/interop/scenarios/bgp-atomic-policy-admission-frr/ze.conf -- frr peer -->
+
+FRR10.7.1's [`bgp_attr_atomic`](https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_attr.c)
+accepts the zero-length marker, and
+[`route_vty_out_detail`](https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_route.c)
+exposes it as `atomicAggregate`. Its
+`bgp_nlri_parse_ip` and `bgp_withdraw` apply received withdrawals to the
+peer's path. The checker reads that native state and requires populated
+positive controls before it judges any absence.
+<!-- source: internal/le/interoplab/bgp/check_atomic_policy.go -- requireAtomicPolicyRoute, requireAtomicPolicyFinal -->
+
 ### Role export policy on a roleless destination
 
 `bgp-role-export-roleless-destination-frr` runs FRR as a Customer whose

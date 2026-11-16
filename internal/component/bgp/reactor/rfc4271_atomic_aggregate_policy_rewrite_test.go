@@ -1,6 +1,5 @@
 // Design: docs/architecture/bgp/structural-forwarding.md -- policy output reaches the final relay writer.
 // Related: rfc4271_atomic_aggregate_relay_proof_test.go -- received UPDATE and live relay fixture.
-// RFC naming: untagged -- policy-rewrite regression under investigation; no conformance claim or producer-break record yet.
 package reactor
 
 import (
@@ -27,6 +26,7 @@ import (
 // defined in 9.1.4) when advertising this route to other BGP speakers."
 // RFC 4271 Section 9.1.4: "In particular, a route that carries the
 // ATOMIC_AGGREGATE attribute MUST NOT be de-aggregated."
+// RFC requirement: RFC4271-5.1.6-1 negative — raw export-policy /24-to-/25 rewrites of a received marked legacy IPv4 route do not reach the final socket on ordinary and native route-server rails, whether the answer retains or strips ATOMIC_AGGREGATE; the same rewrite from unmarked input remains advertisable.
 func TestRFC4271AtomicAggregatePolicyRewriteDoesNotDeaggregate(t *testing.T) {
 	original := []byte{24, 10, 42, 0}
 	specific := []byte{25, 10, 42, 0, 0}

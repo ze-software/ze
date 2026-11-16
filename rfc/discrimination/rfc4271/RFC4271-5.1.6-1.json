@@ -1,6 +1,17 @@
 [
   {
     "rid": "RFC4271-5.1.6-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_atomic_aggregate_policy_rewrite_test.go::TestRFC4271AtomicAggregatePolicyRewriteDoesNotDeaggregate",
+    "unit-sha": "b13084e6221346a0",
+    "claim-sha": "4982f8a3defa01b4",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/filter_atomic_aggregate.go::atomicAggregatePolicyAllowed",
+    "producer-sha": "7f711678482ce538",
+    "break": "line 47: \"if !marked {\" -\u003e \"if !marked || len(input) \u003e 0 { // MUTATION-APPLIED: bypass marked-input output admission.\""
+  },
+  {
+    "rid": "RFC4271-5.1.6-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_atomic_aggregate_relay_proof_test.go::TestRFC4271AtomicAggregateRelayPreservesExactNLRI",
     "unit-sha": "5ddd083d0311cf93",

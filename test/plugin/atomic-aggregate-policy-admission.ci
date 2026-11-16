@@ -1,0 +1,106 @@
+# Test: do live import and export refuse unsafe marked replacements while useful
+# output crosses both the internal typed slot and forked filter-update transport?
+# A unit cannot prove the configured daemon's SDK calls, actual source sockets,
+# recipient ownership withdrawals and the installed Adj-RIB-In agree.
+# The compiled fixture drives three zero-hold-time BGP sockets and reads every
+# expected UPDATE. A later permitted UPDATE on the SAME socket bounds silence.
+# Raw import/export answers deliberately propose marker stripping and /25 output;
+# the daemon must refuse them. Its independently configured typed MED filter
+# still advertises marked A/B and unmarked C with MED77 on each transport.
+# Accepted raw subsets and an empty EOR subset must retire omitted source keys
+# from the actual receive store and both sockets; same-socket fences bound it.
+option=timeout:value=150s
+
+stdin=config-internal:terminator=CONFIG_INTERNAL
+plugin {
+ internal bgp-filter-modify { use bgp-filter-modify; }
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ external atomic-forwarder { run "le test fixture plugin/atomic-aggregate-policy-forwarder"; encoder json; }
+ external atomic-policy {
+  run "le test fixture plugin/atomic-aggregate-policy-admission internal 127.0.0.1:$PORT";
+  encoder json;
+ }
+}
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+policy { modify MED { set { med 77; } } }
+bgp {
+ router-id 1.1.1.1;
+ filter { import { final accept; } export { final accept; } }
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65000; remote 65001; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { filters [ atomic-policy:import ]; final accept; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process atomic-forwarder { receive [ update state ]; send [ update ]; }
+ }
+ peer raw-destination {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65000; remote 65000; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { export { filters [ atomic-policy:export ]; final accept; } }
+  attach process atomic-forwarder { send [ update ]; }
+ }
+ peer typed-destination {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.4; connect false; } }
+  session { asn { local 65000; remote 65000; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { export { filters [ bgp-filter-modify:MED ]; final accept; } }
+  attach process atomic-forwarder { send [ update ]; }
+ }
+}
+CONFIG_INTERNAL
+
+cmd=foreground:seq=1:exec=ze -:stdin=config-internal:timeout=70s
+expect=exit:code=0
+expect=stderr:contains=OK: atomic admission raw refusal withdraws exact source, fresh refusal stays quiet, unmarked rewrite survives, import clears old RIB, and internal typed MED output survives
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered
+cmd=foreground:seq=2:exec=le test fixture daemon/await-exit:timeout=20s
+expect=stderr:contains=OK: the first daemon exited
+
+stdin=config-forked:terminator=CONFIG_FORKED
+plugin {
+ external bgp-filter-modify { run "ze plugin bgp-filter-modify"; }
+ internal adj-rib-in { use bgp-adj-rib-in; }
+ external atomic-forwarder { run "le test fixture plugin/atomic-aggregate-policy-forwarder"; encoder json; }
+ external atomic-policy {
+  run "le test fixture plugin/atomic-aggregate-policy-admission forked 127.0.0.1:$PORT";
+  encoder json;
+ }
+}
+telemetry { prometheus { enabled true; server main { ip 127.0.0.1; port $PORT2; } } }
+policy { modify MED { set { med 77; } } }
+bgp {
+ router-id 1.1.1.1;
+ filter { import { final accept; } export { final accept; } }
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session { asn { local 65000; remote 65001; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { import { filters [ atomic-policy:import ]; final accept; } }
+  attach process adj-rib-in { receive [ update-received state ]; }
+  attach process atomic-forwarder { receive [ update state ]; send [ update ]; }
+ }
+ peer raw-destination {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session { asn { local 65000; remote 65000; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { export { filters [ atomic-policy:export ]; final accept; } }
+  attach process atomic-forwarder { send [ update ]; }
+ }
+ peer typed-destination {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.4; connect false; } }
+  session { asn { local 65000; remote 65000; } family { ipv4/unicast { prefix { maximum 100; } } } capability { graceful-restart disable; } }
+  behavior { group-updates disable; }
+  filter { export { filters [ bgp-filter-modify:MED ]; final accept; } }
+  attach process atomic-forwarder { send [ update ]; }
+ }
+}
+CONFIG_FORKED
+
+cmd=foreground:seq=3:exec=ze -:stdin=config-forked:timeout=70s
+expect=exit:code=0
+expect=stderr:contains=OK: atomic admission raw refusal withdraws exact source, fresh refusal stays quiet, unmarked rewrite survives, import clears old RIB, and forked typed MED output survives
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered
