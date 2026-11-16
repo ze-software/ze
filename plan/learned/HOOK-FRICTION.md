@@ -59,6 +59,7 @@ native owner of each hook family is listed in `.claude/hooks/README.md`.
 | `session-end-summary.sh` clobbers hand-written digests | 1 (2026-07-22) | Retired 2026-08-28 | [F9](#retired-f9-session-end-summarysh-destroys-the-digests-post-compactionmd-asks-for) |
 | `stress-repro.py` broken argv / crash-only detection | 1 (2026-07-22) | Fixed 2026-07-22 at the source | [F10](#f10-stress-repropy-was-broken-for-every-sub-suite-and-said-so-as-reproduced) |
 | design-source gate locks a spec over `cache/go-cache`; daemon-proof refusal names no path | 1 (2026-11-14) | Fixed at the source 2026-11-14 | [entry](#a-cache-directory-locked-a-spec-and-the-proof-refusal-named-no-path-2026-11-14) |
+| design-source gate judges a historical `### Current Behavior` and refuses a check name under the `ze` file; the daemon-proof gate refuses the same name | 1 (2026-11-15) | Fixed at the source 2026-11-15 | [entry](#the-design-gate-read-a-github-check-name-as-a-producer-path-2026-11-15) |
 | `pretool-bash` identity rewrite (`updatedInput`) voided by auto mode | about 490 (three weeks to 2026-11-11) | Rewrite removed 2026-11-11; live probe passed the same day, retired | [entry](#the-bash-hook-rewrote-every-subagent-command-and-auto-mode-voided-the-call-2026-11-11) |
 
 ### Renamed checks
@@ -2127,3 +2128,59 @@ code that owed proof.
 name be confined, because confinement is a property of producers, not of
 prose. Where a name is ambiguous, the gate refuses and its message says which
 name and how to disambiguate, rather than guessing.
+
+## The design gate read a GitHub check name as a producer path (2026-11-15)
+
+**What happened.** Two Work Not Done amendments of
+`plan/release/fixes/spec-selfupdate-manifest-authenticity.md` could not be
+written into the specs that own them. An edit of
+`plan/release/delivery/spec-release-distribution.md` was refused by the design
+source gate (`writeDesignEvidence`), which named `ze/release-evidence-v1` as a
+name it could not resolve. That is the name of a GitHub commit check in the
+spec's Evidence Path, never a file. The refusal's exact text was not kept; the
+cause below is read from the code. Both that spec and
+`plan/post-release/features/spec-kernel-lockdown-hardening.md` also lacked the
+`## Existing Mechanisms` section the spec tooling requires. That refusal was
+correct, and both specs now carry the section.
+
+**Why.** Two defects in `internal/le/hookruntime` met. `markdownSection`
+(`lifecycle.go`) found a section by substring, so `## Current Behavior`
+matched `### Current Behavior (MANDATORY)` inside the spec's
+`## Historical source record`, and the section ran to the next level-two
+heading: the whole rest of the file, Data Flow and Signing Ownership included,
+was judged as Current Behavior. There `designSubjects` (`designevidence.go`)
+took `ze/release-evidence-v1` as a path. Its first segment is the root-level
+`ze` launcher, a regular file, so `resolveEvidencePath` (`readgate.go`) got
+ENOTDIR from `os.Lstat`, which is not "does not exist", and
+`resolvesToDirectory` failed the same way. A lookup error refuses, so the gate
+refused a name that names nothing that can exist. The sweep also made every
+file the historical record cites a subject, among them a Files to Create path
+git never held, so the ENOTDIR fix alone would not have unlocked the spec. The
+daemon-proof gate (`daemonProofProblem`, `specproof.go`), which runs before
+and after every spec write, refused a `ze/...` name in Files to Modify or
+Files to Create the same way, as "Daemon-path proof cannot resolve changed
+source".
+
+**Fix.** `markdownSection` takes a section only from a line that opens with
+its heading, so a deeper heading, or prose quoting one, opens nothing. Both
+gates resolve a cited name through `checkoutRelativeBelowFile`: an ENOTDIR,
+from a regular-file ancestor at any depth, answers the name's own spelling,
+which each gate judges as it judges a missing path. The design gate skips a
+name that is no source kind and matches a source name whose first segment is
+no top-level directory as package-relative shorthand; the proof gate judges a
+source name as daemon code from the checkout root. A name that climbs out of
+the checkout keeps its refusal. `docs/contributing/spec-workflow.md` states
+both. Tests, in `internal/le/hookruntime/designevidence_section_test.go`:
+`TestDesignEvidenceReadsOnlyAHeadingThatOpensItsLine`,
+`TestDesignEvidenceJudgesANameUnderAFileAsWritten` and
+`TestDaemonProofJudgesANameUnderAFileByItsSpelling`.
+
+**Abandoned approach.** Skipping every name that fails resolution and carries
+no source extension was set aside. It short-circuits the directory rule of the
+2026-11-14 entry, so that entry's mutation test would survive, and a source
+name under a file would still refuse instead of resolving as shorthand.
+
+**General lesson.** A gate that reads one section of a document finds it by
+its heading line, never by a substring, or the rest of the document becomes
+the section. And ENOTDIR is an answer, not a failure to look: a path below a
+regular file does not exist.

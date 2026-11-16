@@ -983,20 +983,32 @@ func validateSpecRFCGaps(root, text string) ([]string, []string) {
 	return errors, warnings
 }
 
+// markdownSection answers the section a spec heading opens: the rest of the
+// first line that starts with heading (leading blanks aside), through the line
+// before the next heading of the same level, and "" when no line opens it. The
+// heading must open its line. A substring match also found `## Current
+// Behavior` inside `### Current Behavior` under a historical record, and inside
+// prose quoting the heading, and then swept every later deeper heading into the
+// section: the Data Flow of spec-release-distribution.md was judged as Current
+// Behavior (plan/learned/HOOK-FRICTION.md, 2026-11-15).
 func markdownSection(text, heading string) string {
-	_, rest, found := strings.Cut(text, heading)
-	if !found {
-		return ""
-	}
-	level := strings.Count(strings.Fields(heading)[0], "#")
-	lines := strings.Split(rest, "\n")
-	end := len(lines)
-	for index, line := range lines[1:] {
+	marker := strings.Repeat("#", strings.Count(strings.Fields(heading)[0], "#")) + " "
+	lines := strings.Split(text, "\n")
+	for start, line := range lines {
 		trimmed := strings.TrimSpace(line)
-		if strings.HasPrefix(trimmed, strings.Repeat("#", level)+" ") {
-			end = index + 1
-			break
+		if !strings.HasPrefix(trimmed, heading) {
+			continue
 		}
+		body := lines[start:]
+		body[0] = strings.TrimPrefix(trimmed, heading)
+		end := len(body)
+		for index, next := range body[1:] {
+			if strings.HasPrefix(strings.TrimSpace(next), marker) {
+				end = index + 1
+				break
+			}
+		}
+		return strings.Join(body[:end], "\n")
 	}
-	return strings.Join(lines[:end], "\n")
+	return ""
 }

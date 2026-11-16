@@ -31,7 +31,10 @@ func daemonProofProblem(root, text string) string {
 	changed := markdownSection(text, "## Files to Modify") + "\n" + markdownSection(text, "## Files to Create")
 	var daemon []string
 	for _, named := range specRepoPaths(root, changed) {
-		path, err := checkoutRelative(context{root: root, path: named})
+		// A name under a regular file cannot exist, so it is classified by its
+		// spelling (checkoutRelativeBelowFile); a functional test below keeps
+		// the strict resolution, because a name that cannot exist proves nothing.
+		path, err := checkoutRelativeBelowFile(context{root: root, path: named})
 		if err != nil {
 			return "Daemon-path proof cannot resolve changed source " + named + ": " + err.Error()
 		}

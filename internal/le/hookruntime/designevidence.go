@@ -15,6 +15,7 @@ import (
 	"path/filepath"
 	"slices"
 	"strings"
+	"syscall"
 	"unicode/utf8"
 
 	lepath "github.com/ze-software/ze/internal/le/le/path"
@@ -128,6 +129,11 @@ func (r sourceRead) validRange() bool {
 // for it and is never refused by the citation it repairs. A name the edit keeps
 // or adds still refuses, untouched lines included, so no later edit lands
 // while the spec cites a producer nobody can tell apart.
+//
+// A name under a regular file of the checkout, such as the GitHub check name
+// ze/release-evidence-v1 under the root-level ze launcher, names nothing that
+// can exist, so it is judged as written by the same rules
+// (checkoutRelativeBelowFile).
 func designSubjects(ctx context, repository *os.Root, current, proposed string) ([]string, error) {
 	var subjects []string
 	for _, source := range []struct {
@@ -138,7 +144,7 @@ func designSubjects(ctx context, repository *os.Root, current, proposed string) 
 			for _, named := range specRepoPaths(ctx.root, markdownSection(source.text, heading)) {
 				subject := ctx
 				subject.path = named
-				path, err := checkoutRelative(subject)
+				path, err := checkoutRelativeBelowFile(subject)
 				if err != nil {
 					directory, statErr := resolvesToDirectory(subject)
 					if statErr != nil {
@@ -218,6 +224,26 @@ func resolvesToDirectory(ctx context) (bool, error) {
 		return false, err
 	}
 	return info.IsDir(), nil
+}
+
+// checkoutRelativeBelowFile is checkoutRelative for a name a spec cites, with
+// one difference: a name whose resolution fails with ENOTDIR, because an
+// ancestor at any depth is a regular file, answers its own cleaned spelling.
+// Such a path cannot exist, so it has no canonical identity to confine, and
+// each gate judges it as written, the way it judges a missing path. The GitHub
+// check name ze/release-evidence-v1 sits under the root-level ze launcher.
+// A spelling that climbs out of the checkout keeps the ENOTDIR error, so
+// confinement still refuses it. Every other error is checkoutRelative's.
+func checkoutRelativeBelowFile(ctx context) (string, error) {
+	path, err := checkoutRelative(ctx)
+	if !errors.Is(err, syscall.ENOTDIR) {
+		return path, err
+	}
+	spelled := filepath.ToSlash(filepath.Clean(ctx.path))
+	if !insideRoot(spelled) {
+		return "", err
+	}
+	return spelled, nil
 }
 
 // deletedInHistory answers whether the last commit that touched path deleted

@@ -676,7 +676,18 @@ producer, so the edit that replaces it with the full path or drops it is never
 refused by it. A name the edit keeps refuses even on a line the edit does not
 touch, because accepting it would let the spec go on citing a producer nobody
 reads; the edit that writes the full path is the way out. A name that starts at a top-level directory keeps the
-rule above. Source identities are normalized checkout-relative paths with
+rule above. A name under a regular file of the checkout, such as the GitHub
+check name `ze/release-evidence-v1` under the root-level `ze` launcher, names
+nothing that can exist, so its failed resolution (ENOTDIR) is judged as
+written (`checkoutRelativeBelowFile`): a name that is no source kind names no
+producer, a source name whose first segment is no top-level directory is
+package-relative shorthand, and a source name under a top-level directory, or
+one that climbs out of the checkout, still refuses. Each
+section is the one its own heading opens: a line that starts with
+`## Current Behavior`, `## Files to Modify` or `## Files to Create`, up to the
+next heading of that level. A deeper `### Current Behavior` under a historical
+record, or prose that quotes a heading, opens no section (`markdownSection`).
+Source identities are normalized checkout-relative paths with
 symlinks resolved; a source outside this checkout cannot supply evidence.
 
 Source-kind and test-only exemptions use that resolved identity, not the
@@ -705,7 +716,8 @@ matched, and location-only LSP results grant no source freshness. Read the
 producer through a native Read that returns its source text and bounds.
 Subjectless drafts still owe one usable current source read. The backstop does
 not prove understanding or population completeness.
-<!-- source: internal/le/hookruntime/designevidence.go -- recordSourceRead, designSubjects, deletedInHistory, rootAnchored, trackedSuffixMatches, resolvesToDirectory, currentSourceReads, designEvidenceProblem -->
+<!-- source: internal/le/hookruntime/designevidence.go -- recordSourceRead, designSubjects, checkoutRelativeBelowFile, deletedInHistory, rootAnchored, trackedSuffixMatches, resolvesToDirectory, currentSourceReads, designEvidenceProblem -->
+<!-- source: internal/le/hookruntime/lifecycle.go -- markdownSection -->
 
 The design admission judgment runs in the harness model through `/ze-spec`
 DESIGN, `/ze-design` and `/ze-review-spec`. It requires positive observable
@@ -913,7 +925,11 @@ gate's `DisableableNonProdPrefixes`; `internal/le/`, the `test/` tree,
 These classifications use canonical checkout-relative identities, resolving
 symlinks through the nearest existing ancestor even for planned files. A raw
 tooling or test prefix cannot exempt a runtime target or turn an aliased
-non-test file into functional proof. An unresolvable or outside identity refuses.
+non-test file into functional proof. An unresolvable or outside identity refuses,
+except a changed name under a regular file of the checkout, such as
+`ze/release-evidence-v1` under the `ze` launcher, which cannot exist and is
+classified by its spelling (`checkoutRelativeBelowFile`): a name that is no
+source kind owes no proof, and a source name owes it like any other root path.
 Every name is judged from the checkout root, so package-relative shorthand such
 as `bgp/run.go` is read as a root path and owes proof. The refusal names each
 path it judged as daemon code, as the spec wrote it, and gives both fixes: the
@@ -923,6 +939,7 @@ functional test reference, or the full path of a file outside the daemon
 post-write validation for Write, Edit and MultiEdit. A named test is a proof
 plan, not evidence that the entry point was exercised.
 <!-- source: internal/le/hookruntime/specproof.go -- daemonProofProblem, daemonProofExempt, daemonProofRefusal -->
+<!-- source: internal/le/hookruntime/designevidence.go -- checkoutRelativeBelowFile -->
 <!-- source: internal/le/arch/tier/gates.go -- DisableableNonProdPrefixes -->
 <!-- source: internal/le/hookruntime/readgate.go -- checkoutRelative, resolveEvidencePath -->
 
