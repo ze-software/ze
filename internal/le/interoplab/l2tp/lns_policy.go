@@ -459,26 +459,12 @@ func lnsPolicySessions(ctx context.Context, lab labOperations) ([]lnsPolicySessi
 }
 
 func lnsPolicyCommand(ctx context.Context, lab labOperations, command string) (json.RawMessage, error) {
-	var body textbuf.Buffer
-	request := body.Str(`--post-data={"command":`).Quoted(command).Byte('}').String()
-	answer, err := execOutput(ctx, lab, peerZe, []string{
-		commandWget, wgetQuietStdout, zeRESTBearerHeader,
-		zeRESTJSONHeader, request,
-		zeRESTExecuteURL,
-	})
+	response, err := lnsPolicyExecute(ctx, lab, command)
 	if err != nil {
-		return nil, fmt.Errorf("daemon %s: %w", command, err)
-	}
-	var response struct {
-		Status string          `json:"status"`
-		Error  string          `json:"error"`
-		Data   json.RawMessage `json:"data"`
-	}
-	if err := json.Unmarshal([]byte(answer), &response); err != nil {
-		return nil, interoplab.WithSearchedOutput(fmt.Errorf("decode daemon %s: %w", command, err), answer)
+		return nil, err
 	}
 	if response.Status != "done" {
-		return nil, interoplab.WithSearchedOutput(fmt.Errorf("daemon %s failed: %s", command, response.Error), answer)
+		return nil, interoplab.WithSearchedOutput(fmt.Errorf("daemon %s failed: %s", command, response.Error), response.raw)
 	}
 	if len(response.Data) == 0 {
 		return nil, fmt.Errorf("daemon %s has no data", command)
@@ -490,6 +476,37 @@ func lnsPolicyCommand(ctx context.Context, lab labOperations, command string) (j
 		return nil, fmt.Errorf("retain daemon evidence: %w", err)
 	}
 	return response.Data, nil
+}
+
+// lnsPolicyReply retains the authenticated REST result, including a refused
+// command. A refusal check MUST inspect Status and its actual error; a failed
+// HTTP request or unknown command is not evidence of selector protection.
+type lnsPolicyReply struct {
+	Status string          `json:"status"`
+	Error  string          `json:"error"`
+	Data   json.RawMessage `json:"data"`
+	raw    string
+}
+
+// lnsPolicyExecute is the single REST command writer shared by useful reads
+// and expected refusals. It neither accepts a result nor hides transport errors.
+func lnsPolicyExecute(ctx context.Context, lab labOperations, command string) (lnsPolicyReply, error) {
+	var body textbuf.Buffer
+	request := body.Str(`--post-data={"command":`).Quoted(command).Byte('}').String()
+	answer, err := execOutput(ctx, lab, peerZe, []string{
+		commandWget, wgetQuietStdout, zeRESTBearerHeader,
+		zeRESTJSONHeader, request,
+		zeRESTExecuteURL,
+	})
+	if err != nil {
+		return lnsPolicyReply{}, fmt.Errorf("daemon %s: %w", command, err)
+	}
+	var response lnsPolicyReply
+	if err := json.Unmarshal([]byte(answer), &response); err != nil {
+		return lnsPolicyReply{}, interoplab.WithSearchedOutput(fmt.Errorf("decode daemon %s: %w", command, err), answer)
+	}
+	response.raw = answer
+	return response, nil
 }
 
 func retainLNSPolicyEvidence(ctx context.Context, lab labOperations, evidence ...string) error {

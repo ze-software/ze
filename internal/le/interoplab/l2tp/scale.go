@@ -83,6 +83,9 @@ func checkScaleSessions(ctx context.Context, lab labOperations, timeout time.Dur
 	if err != nil {
 		return fail(5, err)
 	}
+	if err := checkScaleReadableSelection(ctx, lab, baseline, starts, first, second); err != nil {
+		return fail(5, err)
+	}
 	if err := scaleDisconnect(ctx, lab, starts.byUser[first]); err != nil {
 		return fail(5, err)
 	}
