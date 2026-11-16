@@ -53,7 +53,7 @@ DHCP/link-failover/IPv6-RA handlers in this same package.
    `applyOffloads`), then per-unit VLAN creation (`CreateVLAN`, `670-696`) and sysctl (`698`)
    application. The mirrors (`applyMirror`) are installed after that loop, once every VLAN a
    destination may name exists; a VLAN-unit destination binds through its parent entry
-   (`newMirrorTargets`). Phase 2c (`721-742`) brings every non-disabled interface
+   (`newInterfaceTargets`, `interface_targets.go`, which also binds bridge members and tunnel local interfaces). Phase 2c (`721-742`) brings every non-disabled interface
    administratively up via `SetAdminUp` -- required before DHCP or PPP can send packets.
 6. **Address reconcile + prune (Phase 3+4).** `reconcileOnReadyWithJournal` (`814`) computes
    `cfg.desiredState()` (`24`) -- OS-name → desired CIDR list in configured order (the first is installed first and is the primary), plus the set of Ze-managed names --

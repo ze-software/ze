@@ -1004,6 +1004,16 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		}
 	}
 	previousTunnelSpecs := indexTunnelSpecs(previous)
+	// A tunnel's local interface is a logical name, and the backend looks the
+	// device up by the name it is handed, so each spec is bound through the
+	// selector map first. The ethernet entries a selector binds are devices ze
+	// does not create, so a listing taken here, after the dummies and veths
+	// above, sees every device a local interface can name except a VLAN, which
+	// Phase 2 creates later.
+	tunnelTargets, previousTunnelTargets, listErr := cfg.tunnelTargets(previous, b)
+	if listErr != nil {
+		return record("tunnel local interfaces", listErr)
+	}
 	for i := range cfg.Tunnel {
 		e := &cfg.Tunnel[i]
 		if e.Disable {
@@ -1040,7 +1050,11 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 				if !deleted {
 					return nil
 				}
-				return b.CreateTunnel(prev)
+				prevOnDevices, err := tunnelSpecOnDevices(prev, previousTunnelTargets, e.Name)
+				if err != nil {
+					return err
+				}
+				return b.CreateTunnel(prevOnDevices)
 			}); err != nil {
 				return record("tunnel "+e.Name+" delete before recreate", err)
 			}
@@ -1049,10 +1063,14 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 		// a create that fails can leave a device behind, and a read
 		// afterwards would take that leftover for a netdev an earlier
 		// process made and swallow the error.
+		specOnDevices, bindErr := tunnelSpecOnDevices(e.Spec, tunnelTargets, e.Name)
+		if bindErr != nil {
+			return record("tunnel "+e.Name+" create", bindErr)
+		}
 		held, heldErr := b.GetLink(e.Name)
 		created := false
 		if err := applyBackendStep(journal, func() error {
-			if err := b.CreateTunnel(e.Spec); err != nil {
+			if err := b.CreateTunnel(specOnDevices); err != nil {
 				// What held the name before the create decides. Nothing
 				// held it: the create failed on its own merits, so report
 				// that error even if it left a device behind. A tunnel of
@@ -1317,26 +1335,13 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 	// taken, because enslaving a port changes neither its name nor the address
 	// it was matched on: the bridge takes the port's address, never the
 	// reverse.
-	for _, e := range cfg.Bridge {
-		if e.Disable {
-			continue
-		}
-		for _, member := range e.Members {
-			port, bound := deviceFor(devices, member)
-			if !bound {
-				log.Warn("iface config: no present device answers this bridge member's hardware selector, enslaving deferred",
-					"bridge", e.Name, "member", member)
-				continue
-			}
-			if err := applyBackendStep(journal, func() error {
-				return b.BridgeAddPort(e.Name, port)
-			}, func() error {
-				return b.BridgeDelPort(port)
-			}); err != nil {
-				var bPort textbuf.Buffer
-				return record(bPort.Str("bridge ").Str(e.Name).Str(" add port ").Str(port).String(), err)
-			}
-		}
+	//
+	// A member that is a VLAN unit waits for the Phase 2 loop below, which is
+	// what creates its VLAN: enslaving it here named a device that did not
+	// exist yet on a fresh apply, and the apply rolled back.
+	targets := newInterfaceTargets(cfg, devices)
+	if stepErrs, deferred, stopped := enslaveBridgeMembers(cfg, targets, false, b, journal, record); stopped {
+		return stepErrs, deferred
 	}
 
 	allEntries := allIfaceEntries(cfg)
@@ -1531,7 +1536,6 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 	// filter is installed, so a mirror installed inside the loop was refused
 	// toward a VLAN that was about to be made. The filters match the loop's:
 	// a disabled entry or unit asks for no mirror.
-	targets := newMirrorTargets(cfg, devices)
 	for _, e := range allEntries {
 		if e.Disable {
 			continue
@@ -1547,6 +1551,12 @@ func applyConfigPass(cfg, previous *ifaceConfig, b Backend) (errs []error, defer
 				return recordAll(osName+" mirror", mirrorErrs)
 			}
 		}
+	}
+
+	// Phase 2 bridge members that are VLAN units: the loop above has created
+	// their VLANs, so the device each one names now exists.
+	if stepErrs, deferred, stopped := enslaveBridgeMembers(cfg, targets, true, b, journal, record); stopped {
+		return stepErrs, deferred
 	}
 
 	applyRFSGlobal(cfg)
@@ -2173,7 +2183,11 @@ func recreateManagedInterface(cfg *ifaceConfig, devices map[string]string, name 
 	for i := range cfg.Tunnel {
 		e := &cfg.Tunnel[i]
 		if !e.Disable && e.Name == name {
-			return b.CreateTunnel(e.Spec)
+			spec, err := tunnelSpecOnDevices(e.Spec, newInterfaceTargets(cfg, devices), e.Name)
+			if err != nil {
+				return err
+			}
+			return b.CreateTunnel(spec)
 		}
 	}
 	for i := range cfg.Wireguard {

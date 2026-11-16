@@ -35,6 +35,10 @@ environment {
         }
     }
 }
+interface {
+    ethernet veth-bng {
+    }
+}
 pppoe {
     enabled true
     ac-name ze-realm

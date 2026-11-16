@@ -106,21 +106,43 @@ If the schema cannot be read, completion offers no unverified names and
 validation returns the schema failure with `ze doctor` as the next step.
 
 <!-- source: internal/component/iface/config_apply.go -- the Phase 2a bridge member loop -->
-<!-- source: internal/component/iface/config_mirror.go -- mirrorSpecFor, mirrorDestination, newMirrorTargets, applyMirror -->
+<!-- source: internal/component/iface/config_mirror.go -- mirrorSpecFor, mirrorDestination, applyMirror -->
 <!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference, configuredInterfaceKinds, configuredInterfaceNames, checkConfiguredInterface -->
 
 Which names must be declared follows what the leaf does with the name. A leaf
 that configures an interface Ze owns must name an interface the config
 declares: a mirror target, a bridge member, a tunnel's local interface, a PPPoE
-client's source interface, an unnumbered donor, a VRRP group's interface and a
-PPPoE server's interface. Every other leaf that names an interface, such as an
+client's source interface, a PPPoE server's interface and an unnumbered donor.
+Each of those leaves except the donor is a `configured-interface` reference. The
+donor keeps its own check, because its usual donor is the `loopback` block,
+which is not a list entry and which a mirror must not name. A VRRP group needs
+no reference: it sits inside an interface entry's unit, so its interface is
+declared by construction. Every other leaf that names an interface, such as an
 OSPF, IS-IS, LDP or BFD interface, a server's `listen-interface`, a firewall
 match or VRRP `track interface`, may name a kernel device that no `interface`
 entry declares, because a config that runs a protocol with no `interface` tree
-is a supported mode (`iface.EnsureBackend`, below). Today the mirror leaves and
-the unnumbered donor enforce the first rule.
+is a supported mode (`iface.EnsureBackend`, below).
+
+A device that a lab, a container or a test fixture creates is declared as a
+bare `ethernet <name> { }` entry. With no unit the entry adds no address to
+reconcile, so none of the device's addresses is removed, and with no `mtu` or
+offload leaf ze makes no kernel call for them: the entry claims the device's
+admin state only.
+
+Every reference leaf binds its name through one binder
+(`interfaceTargets`): an ethernet entry through its selector, and a VLAN unit
+through its parent's, as `<parent device>.<vlan-id>`. A bridge member that is a
+VLAN unit is enslaved after the loop that creates the VLANs. A tunnel's local
+interface is bound before the tunnel is created; an unbound one fails the
+apply, naming the tunnel and the entry, because no later step can configure a
+tunnel that was never created. A tunnel whose underlay is a VLAN unit of the
+same config is still created before that VLAN exists, so its first apply fails;
+`plan/release/fixes/spec-iface-apply-on-device-appear.md` owns that case.
 
 <!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference -->
+<!-- source: internal/component/iface/interface_targets.go -- interfaceTargets, newInterfaceTargets, tunnelSpecOnDevices -->
+<!-- source: internal/component/iface/config_bridge_members.go -- enslaveBridgeMembers -->
+<!-- source: internal/component/iface/config_apply.go -- desiredState -->
 <!-- source: internal/component/iface/unnumbered.go -- resolveUnnumbered, pickDonorAddress -->
 <!-- source: internal/component/iface/backend.go -- EnsureBackend -->
 

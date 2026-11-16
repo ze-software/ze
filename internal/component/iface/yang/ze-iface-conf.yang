@@ -931,9 +931,15 @@ Ze sends a priority with no entry as PCP 0.";
 
             leaf interface {
                 type string;
-                description "Ze looks the device up and passes its kernel index as the netlink parent
-                             field, so the kernel takes the source address from that device. The vxlan
-                             case refuses this leaf and needs a local ip.";
+                ze:reference "configured-interface";
+                description "The name must be an interface this config declares, or a VLAN unit
+                             written <interface>.<vlan-id>, and the commit refuses any other name.
+                             Ze resolves it through the selector map, so an uplink bound by mac/match
+                             or aliased by os-name gives its own device, and passes that device's
+                             kernel index as the netlink parent field, so the kernel takes the source
+                             address from it. A declared name whose selector finds no device fails
+                             the apply, naming the entry, because the tunnel has no underlay. The
+                             vxlan case refuses this leaf and needs a local ip.";
                 ze:help "Local interface to take the source address from";
             }
         }
@@ -973,8 +979,14 @@ Ze sends a priority with no entry as PCP 0.";
 
             leaf interface {
                 type string;
-                description "Ze looks the device up and passes its kernel index as the netlink parent
-                             field, so the kernel takes the source address from that device.";
+                ze:reference "configured-interface";
+                description "The name must be an interface this config declares, or a VLAN unit
+                             written <interface>.<vlan-id>, and the commit refuses any other name.
+                             Ze resolves it through the selector map, so an uplink bound by mac/match
+                             or aliased by os-name gives its own device, and passes that device's
+                             kernel index as the netlink parent field, so the kernel takes the source
+                             address from it. A declared name whose selector finds no device fails
+                             the apply, naming the entry, because the tunnel has no underlay.";
                 ze:help "Local interface to take the source address from";
             }
         }
@@ -1122,9 +1134,15 @@ Ze sends a priority with no entry as PCP 0.";
                 ze:os "linux";
                 type string;
                 ze:syntax "bracket";
+                ze:reference "configured-interface";
                 description "Ze enslaves each named port with the netlink call LinkSetMaster. A port
                              that leaves the list is released with LinkSetNoMaster on the next apply.
-                             Each name must be an interface the config or the OS already carries.";
+                             Each name must be an interface this config declares, or a VLAN unit
+                             written <interface>.<vlan-id>, and the commit refuses any other name.
+                             Ze resolves it through the selector map, so a port bound by mac/match or
+                             aliased by os-name is the device enslaved, and a VLAN unit is enslaved
+                             once its VLAN exists. A declared name whose selector finds no device
+                             defers that member.";
                 ze:help "Member port interface names";
             }
 
@@ -1885,11 +1903,14 @@ Ze sends a priority with no entry as PCP 0.";
             leaf source-interface {
                 mandatory true;
                 type string;
-                description "Ze opens a raw discovery socket bound to this device and sends the PADI
-                             frame on it. The source MAC of the frame is the device's own hardware
-                             address.";
+                ze:reference "configured-interface";
+                description "The name must be an interface this config declares, usually an ethernet
+                             entry, or a VLAN unit written <interface>.<vlan-id>, and the commit
+                             refuses any other name. Ze opens a raw discovery socket bound to this
+                             device and sends the PADI frame on it. The source MAC of the frame is
+                             the device's own hardware address.";
                 ze:help "Physical Ethernet interface for PPPoE discovery
-                         (e.g. eth2). Must exist and be admin-up.";
+                         (e.g. eth2). Must be declared under interface ethernet.";
             }
 
             container authentication {

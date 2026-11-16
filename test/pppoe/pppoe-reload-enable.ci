@@ -16,6 +16,11 @@ option=needs-linux:caps=net-admin,net-raw
 option=netns-link:name=veth-bng:peer=veth-sub
 
 stdin=ze-bgp:terminator=EOF_CONF
+interface {
+    ethernet veth-bng {
+    }
+}
+
 pppoe {
     enabled false
     ac-name ze-before
@@ -25,6 +30,11 @@ pppoe {
 EOF_CONF
 
 tmpfs=config2.conf:terminator=EOF_CONF2
+interface {
+    ethernet veth-bng {
+    }
+}
+
 pppoe {
     enabled true
     ac-name ze-after

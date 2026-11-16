@@ -13,7 +13,8 @@ import (
 // TestPPPoEVerifyRefusesVPPBackend drives the shared validation entry point,
 // so an unwired validator cannot pass by testing only its helper.
 func TestPPPoEVerifyRefusesVPPBackend(t *testing.T) {
-	tree := pppoeBackendTree(t, "interface { backend vpp } pppoe { interface access0 {} }")
+	tree := pppoeBackendTree(t,
+		"interface { backend vpp; ethernet access0 {} } pppoe { interface access0 {} }")
 	_, err := config.ValidateCustomSections(tree)
 	if err == nil {
 		t.Fatal("validation accepted a PPPoE access interface on VPP")
@@ -49,7 +50,7 @@ func TestPPPoEVerifyAcceptsDefaultBackend(t *testing.T) {
 	if leaf.Default != "netlink" {
 		t.Fatalf("interface/backend default = %q, want netlink", leaf.Default)
 	}
-	tree := pppoeBackendTree(t, "pppoe { interface access0 {} }")
+	tree := pppoeBackendTree(t, "interface { ethernet access0 {} } pppoe { interface access0 {} }")
 	if _, err := config.ValidateCustomSections(tree); err != nil {
 		t.Fatalf("default backend refused: %v", err)
 	}
@@ -70,6 +71,8 @@ func TestPPPoEVerifyReadsTheBackendPath(t *testing.T) {
 	tree := pppoeBackendTree(t, `
 interface {
     backend netlink
+    ethernet access0 {
+    }
 }
 # backend vpp
 pppoe {
@@ -83,6 +86,9 @@ pppoe {
 
 // pppoeBackendTree builds the same parsed structure the original-tree gate
 // receives; it intentionally does not run validation before the test does.
+// A source that configures the access interface access0 declares it as an
+// ethernet entry, because a PPPoE access interface must name an interface the
+// config declares.
 func pppoeBackendTree(t *testing.T, source string) *config.Tree {
 	t.Helper()
 	schema, err := config.YANGSchema()

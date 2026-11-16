@@ -20,11 +20,14 @@ import (
 )
 
 // keepaliveConfig is the operator config of these tests with the given
-// keepalive and reconnect blocks inside the pppoe-client entry.
+// keepalive and reconnect blocks inside the pppoe-client entry. It declares
+// the source device zec0 as a bare ethernet entry, as pppoeOperatorConfig does.
 func keepaliveConfig(blocks string) string {
 	return `
 interface {
     backend netlink;
+    ethernet zec0 {
+    }
     pppoe-client wan {
         source-interface zec0;
         authentication {

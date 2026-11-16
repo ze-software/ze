@@ -10,6 +10,11 @@
 #           nothing, so the commit succeeded while the AC kept answering with
 #           the boot configuration on the boot interface until a restart.
 #
+# Both configs declare both veth-bng and veth-bng2 as ethernet entries, so the
+# reload changes only the pppoe block and the removed access interface keeps
+# its link: a PADI on veth-sub goes unanswered because the AC stopped serving
+# veth-bng, not because the interface lost its entry.
+#
 # DISCRIMINATION: with Reload a no-op, veth-sub2 never gets a PADO (the driver
 # fails "after the reload: no PADO on veth-sub2 ..."), and veth-sub keeps
 # answering AC-Name=ze-before.
@@ -18,6 +23,13 @@ option=netns-link:name=veth-bng:peer=veth-sub
 option=netns-link:name=veth-bng2:peer=veth-sub2
 
 stdin=ze-bgp:terminator=EOF_CONF
+interface {
+    ethernet veth-bng {
+    }
+    ethernet veth-bng2 {
+    }
+}
+
 pppoe {
     enabled true
     ac-name ze-before
@@ -27,6 +39,13 @@ pppoe {
 EOF_CONF
 
 tmpfs=config2.conf:terminator=EOF_CONF2
+interface {
+    ethernet veth-bng {
+    }
+    ethernet veth-bng2 {
+    }
+}
+
 pppoe {
     enabled true
     ac-name ze-after

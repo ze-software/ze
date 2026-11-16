@@ -168,9 +168,14 @@ module ze-pppoe-conf {
 
             leaf name {
                 type string;
-                description "The name is the list key, and Ze resolves it to a kernel interface
-                             when the subsystem starts. An interface Ze cannot resolve is logged
-                             and gets no server, and the other interfaces still listen. Each
+                ze:reference "configured-interface";
+                description "The name is the list key. It must be an interface this config
+                             declares, usually an ethernet entry, or a VLAN unit written
+                             <interface>.<vlan-id>, and the commit refuses any other name. Ze
+                             resolves it to a kernel interface when the subsystem starts and
+                             when a reload adds it. A declared interface whose device is absent
+                             fails that start or reload, naming the interface and delete pppoe
+                             interface <name>. Each
                              interface holds its own session table, its own PADI limiter and its
                              own cookie key.";
                 ze:help "Network interface name (e.g. eth0, eth0.100).";

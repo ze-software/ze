@@ -2867,6 +2867,17 @@ and negotiates again.
 <!-- source: internal/component/l2tp/pppoeclient/connected_session.go -- restart, awaitApplied -->
 <!-- source: internal/component/iface/pppoe_client.go -- runSession -->
 
+`source-interface` must name an interface the config declares: an entry of
+any interface kind (an `ethernet` entry for a physical port), the peer end of a
+veth, or a VLAN unit written `<interface>.<vlan-id>`. `ze config validate`, boot,
+reload and commit refuse any other name, and name the command that declares it:
+`set interface ethernet <name>`, or for a VLAN unit
+`set interface ethernet <parent> unit <vlan-id> vlan-id <vlan-id>`. A bare `ethernet eth2 { }` entry is enough: with no unit and no
+`mtu`, Ze sets the port administratively up and leaves its addresses and MTU
+alone.
+<!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference, checkConfiguredInterface -->
+<!-- source: internal/component/iface/config_apply.go -- desiredState, applyConfigPass -->
+
 `source-interface` names an interface as you configured it, so an `ethernet`
 entry with an `os-name` or `mac match` selector works: discovery and the PPPoE
 session both run on the kernel device that selector picks.
@@ -2923,6 +2934,8 @@ client restarts it.
 
 ```
 interface {
+    ethernet eth2 {
+    }
     pppoe-client pppoe0 {
         source-interface eth2;
         authentication { username user; password secret; }
@@ -4665,7 +4678,23 @@ PPPoE (RFC 2516) access concentrator configuration. PPPoE uses raw Ethernet
 sockets on configured access interfaces, with no UDP listener needed.
 Sessions use the same PPP Driver, auth, pool, and shaper plugins as L2TP.
 
+Each access `interface` must name an interface the config declares: an entry
+of any interface kind (an `ethernet` entry for a physical port), the peer end
+of a veth, or a VLAN unit written `<interface>.<vlan-id>`. `ze config validate`,
+boot, reload and commit refuse any other name, and name the command that
+declares it: `set interface ethernet <name>`, or for a VLAN unit
+`set interface ethernet <parent> unit <vlan-id> vlan-id <vlan-id>`. Below,
+`eth0` is an `ethernet` entry and `eth0.100` is its VLAN 100 unit.
+<!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference, checkConfiguredInterface -->
+
 ```
+interface {
+    ethernet eth0 {
+        unit 100 {
+            vlan-id 100;
+        }
+    }
+}
 pppoe {
     enabled true;
     ac-name "ze";
@@ -4698,7 +4727,7 @@ pppoe {
 | `max-sessions` | uint16 | 65535 | Maximum concurrent PPPoE sessions per interface. |
 | `max-sessions-per-mac` | uint16 | 8 | Maximum concurrent PPPoE sessions one subscriber MAC address may hold (1-65535). A PADR over the cap is refused with a PADS AC-System-Error and SESSION_ID `0x0000`; no session is allocated. |
 | `padi-rate-limit` | uint16 | 100 | Maximum PADI packets per second per source MAC (1-10000). |
-| `interface <name>` | list | (none) | Access interfaces for PPPoE discovery. Each gets independent SID space. |
+| `interface <name>` | list | (none) | Access interfaces for PPPoE discovery. Each gets independent SID space. The name must be an interface the config declares (`set interface ethernet <name>` for a physical port). |
 | `interface / service-name` | leaf-list | (global) | Per-interface Service-Name filter, overrides global list. |
 | `interface / max-sessions` | uint16 | (global) | Per-interface session limit, defaults to global max-sessions. |
 | `interface / max-sessions-per-mac` | uint16 | (global) | Per-interface override for max-sessions-per-mac. |

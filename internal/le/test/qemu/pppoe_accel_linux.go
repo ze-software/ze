@@ -53,9 +53,14 @@ func pppoeAccelConfig(work, acVeth string) []byte {
 		Bytes()
 }
 
+// pppoeZeConfig declares zeVeth, the veth end the lab creates, as a bare
+// ethernet entry: source-interface must name an interface the config
+// declares, and an entry with no unit leaves the device's addresses alone.
 func pppoeZeConfig(zeVeth string) []byte {
 	var tb textbuf.Buffer
 	return tb.Str("interface {\n").
+		Str("    ethernet ").Str(zeVeth).Str(" {\n").
+		Str("    }\n").
 		Str("    pppoe-client pppoe0 {\n").
 		Str("        source-interface ").Str(zeVeth).Str(";\n").
 		Str("        service-name ").Str(pppoeService).Str(";\n").

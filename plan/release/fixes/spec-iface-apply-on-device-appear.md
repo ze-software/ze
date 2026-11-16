@@ -23,7 +23,9 @@ device appears later: a driver that probes late, a USB NIC, or a replaced card
 whose MAC the `mac match` selector names. The device stays without its
 addresses, MTU, MAC, admin state, units and offloads until an unrelated commit
 runs the apply again. A mirror whose target appears later is never installed
-either.
+either. The same holds inside one apply: a tunnel whose `local interface` is a
+VLAN unit of the same config is created before the VLAN exists, so its create
+fails on a fresh apply (owned journal row, 2026-11-16).
 
 The goal: when a device that an entry of the active config binds to appears,
 Ze applies that entry, the same way a commit would, without a commit.
@@ -156,3 +158,4 @@ T3871 (c95aae771, "name hot-plugged interfaces") and T6393 (99271db4a,
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `listener-never-binds-a-resource-that-appears-later.md` | 2026-11-08 | iface apply never runs for a device that appears after commit |
+| `validate-accepts-what-start-refuses.md` | 2026-11-16 | a tunnel over a VLAN unit of the same config is created before the VLAN exists |

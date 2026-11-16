@@ -51,6 +51,8 @@ plugin {
 
 interface {
 	backend netlink
+	ethernet zentk {
+	}
 	pppoe-client pppoe0 {
 		source-interface zentk
 		authentication {

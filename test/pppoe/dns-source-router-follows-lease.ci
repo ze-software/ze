@@ -52,6 +52,8 @@ plugin {
 
 interface {
 	backend netlink
+	ethernet zecpe0 {
+	}
 	pppoe-client zedns1 {
 		source-interface zecpe0
 		authentication {

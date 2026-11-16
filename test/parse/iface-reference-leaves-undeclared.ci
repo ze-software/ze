@@ -1,0 +1,188 @@
+# Test: a leaf that configures an interface Ze owns must name a declared interface
+#
+# QUESTION: does `ze config validate`, the path boot, reload and commit share,
+#           refuse an undeclared interface on each Part 2 reference leaf, and
+#           accept the names Option B keeps free? A unit test of the reference
+#           source cannot decide it: only the whole-tree walk over the compiled
+#           schema shows that each leaf carries the declaration, in its own
+#           module (ze-iface-conf, ze-pppoe-conf).
+#
+# VALIDATES: spec-iface-mirror-target-reference AC-6, AC-7 and AC-8. A bridge
+#            member, a tunnel local interface, a pppoe-client source-interface
+#            and a PPPoE server interface naming an interface the config does
+#            not declare are refused, each naming the YANG path, the value and
+#            the set command that declares it. Declared names are accepted
+#            whatever order the file writes them in, a VLAN unit and a
+#            pppoe-client included. The names Option B keeps free still
+#            commit: `ipv4 unnumbered loopback`, a firewall wildcard, and an
+#            OSPF interface no entry declares.
+# PREVENTS: a mistyped port, uplink or access interface committing and the
+#           apply binding whatever device carries that name, or none.
+# PLATFORM: the bridge and pppoe-client containers carry ze:os "linux"; skip on darwin.
+option=skip-os:value=darwin
+
+stdin=member:terminator=EOF_MEMBER
+interface {
+	ethernet eth0 {
+	}
+	bridge br0 {
+		member [ eth0 eth9 ]
+	}
+}
+EOF_MEMBER
+
+stdin=tunnel:terminator=EOF_TUNNEL
+interface {
+	ethernet eth0 {
+	}
+	tunnel gre0 {
+		encapsulation {
+			gre {
+				local { interface eth9; }
+				remote { ip 198.51.100.1; }
+			}
+		}
+	}
+}
+EOF_TUNNEL
+
+stdin=client:terminator=EOF_CLIENT
+interface {
+	ethernet eth0 {
+	}
+	pppoe-client pppoe0 {
+		source-interface eth9
+		authentication {
+			username user@isp.example
+			password secret123
+		}
+	}
+}
+EOF_CLIENT
+
+stdin=server:terminator=EOF_SERVER
+interface {
+	ethernet eth0 {
+	}
+}
+pppoe {
+	interface eth9 {
+	}
+}
+EOF_SERVER
+
+stdin=declared:terminator=EOF_DECLARED
+pppoe {
+	interface eth1.100 {
+	}
+}
+interface {
+	bridge br0 {
+		member [ eth0 eth1.100 ]
+	}
+	tunnel gre0 {
+		encapsulation {
+			gre {
+				local { interface pppoe0; }
+				remote { ip 198.51.100.1; }
+			}
+		}
+	}
+	tunnel gre1 {
+		encapsulation {
+			gre {
+				local { interface eth1.200; }
+				remote { ip 198.51.100.2; }
+			}
+		}
+	}
+	pppoe-client pppoe0 {
+		source-interface eth0
+		authentication {
+			username user@isp.example
+			password secret123
+		}
+	}
+	loopback {
+		unit 0 {
+			ipv4 {
+				address [ 192.0.2.1/32 ];
+			}
+		}
+	}
+	ethernet eth0 {
+	}
+	ethernet eth1 {
+		unit 100 {
+			vlan-id 100
+		}
+		unit 200 {
+			vlan-id 200
+		}
+	}
+	ethernet eth2 {
+		unit 0 {
+			ipv4 {
+				unnumbered loopback;
+			}
+		}
+	}
+}
+firewall {
+	backend nft;
+	table refs {
+		family inet;
+		chain input {
+			type filter;
+			hook input;
+			priority 0;
+			policy accept;
+			term sessions {
+				from {
+					input-interface "ppp*";
+				}
+				then {
+					accept;
+				}
+			}
+		}
+	}
+}
+ospf {
+	router-id 10.0.0.1
+	areas {
+		area 0.0.0.0 {
+		}
+	}
+	interfaces {
+		interface eth7 {
+			area 0.0.0.0
+		}
+	}
+}
+EOF_DECLARED
+
+cmd=foreground:seq=1:exec=ze config validate -:stdin=member
+expect=exit:code=1
+expect=stdout:contains=configuration invalid
+expect=stdout:contains=interface/bridge[br0]/member
+expect=stdout:contains=interface "eth9" is not configured
+expect=stdout:contains=set interface ethernet eth9
+cmd=foreground:seq=2:exec=ze config validate -:stdin=tunnel
+expect=exit:code=1
+expect=stdout:contains=local/interface
+expect=stdout:contains=interface "eth9" is not configured
+expect=stdout:contains=set interface ethernet eth9
+cmd=foreground:seq=3:exec=ze config validate -:stdin=client
+expect=exit:code=1
+expect=stdout:contains=interface/pppoe-client[pppoe0]/source-interface
+expect=stdout:contains=interface "eth9" is not configured
+expect=stdout:contains=set interface ethernet eth9
+cmd=foreground:seq=4:exec=ze config validate -:stdin=server
+expect=exit:code=1
+expect=stdout:contains=pppoe/interface
+expect=stdout:contains=interface "eth9" is not configured
+expect=stdout:contains=set interface ethernet eth9
+cmd=foreground:seq=5:exec=ze config validate -:stdin=declared
+expect=exit:code=0
+expect=stdout:contains=configuration valid

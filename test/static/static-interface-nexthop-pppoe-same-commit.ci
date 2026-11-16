@@ -16,6 +16,8 @@
 # Requires Linux and CAP_NET_ADMIN: pppoe-client is a Linux-only kind, the
 # netlink interface backend runs, and the setup creates zentk, the client's
 # source interface and the unrelated route's device.
+# The boot config declares zentk, so the reload adds only the client and
+# the route, and its source-interface names a declared interface.
 option=needs-linux:caps=net-admin
 option=timeout:value=45s
 
@@ -32,6 +34,8 @@ plugin {
 
 interface {
 	backend netlink
+	ethernet zentk {
+	}
 }
 
 static {

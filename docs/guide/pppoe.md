@@ -40,6 +40,13 @@ Auth/Pool/Shaper plugins (shared with L2TP)
 ## Configuration
 
 ```
+interface {
+    ethernet eth0 {
+        unit 100 {
+            vlan-id 100
+        }
+    }
+}
 pppoe {
     enabled true
     ac-name "my-bng"
@@ -66,6 +73,18 @@ pppoe {
 ```
 
 See [configuration guide](configuration.md#pppoe-access) for all settings.
+
+Each access `interface` must name an interface the config declares: an entry
+of any interface kind (an `ethernet` entry for a physical port), the peer end
+of a veth, or a VLAN unit written `<interface>.<vlan-id>`. Above, `eth0` is an
+`ethernet` entry and `eth0.100` is its VLAN 100 unit. `ze config validate`,
+boot, reload and commit refuse any other name, and name the command that
+declares it: `set interface ethernet <name>`, or for a VLAN unit
+`set interface ethernet <parent> unit <vlan-id> vlan-id <vlan-id>`. An
+`ethernet` entry with no unit and no `mtu` only sets the port administratively
+up: Ze leaves its addresses and MTU alone. A PPPoE client's `source-interface` follows the same rule.
+<!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference, checkConfiguredInterface -->
+<!-- source: internal/component/iface/config_apply.go -- desiredState, applyConfigPass -->
 
 The access concentrator shares its LCP settings and defaults with the L2TP
 server. Each counter accepts 1 through 255. A silent subscriber receives
@@ -257,10 +276,13 @@ ignores IPv6CP leaves the IPv4 session up. The same container takes
 `accept-ra`, `autoconf` and `forwarding`, written to the session device each
 time a session creates it, and a `dhcpv6` block that runs the DHCPv6 client on
 the session device. Ze refuses the other `ipv6` leaves while `enabled` is not
-true. For a router that learns its default route from the access
-concentrator's Router Advertisements and asks for a delegated /56:
+true. For a router on the uplink `eth2`, declared as an `ethernet` entry, that
+learns its default route from the access concentrator's Router Advertisements
+and asks for a delegated /56, the `interface` block holds:
 
 ```
+ethernet eth2 {
+}
 pppoe-client pppoe0 {
     source-interface eth2
     authentication { username user@isp.example; password secret; }

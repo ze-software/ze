@@ -21,9 +21,15 @@ import (
 	_ "github.com/ze-software/ze/internal/component/sysctl"
 )
 
+// pppoeOperatorConfig declares the client's source device zec0, which
+// pppoeac.OpenVeth creates, as a bare ethernet entry: source-interface must
+// name an interface the config declares, and an entry with no unit leaves the
+// device's addresses and MTU alone.
 const pppoeOperatorConfig = `
 interface {
     backend netlink;
+    ethernet zec0 {
+    }
     pppoe-client wan {
         source-interface zec0;
         authentication {

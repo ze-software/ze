@@ -158,7 +158,7 @@ func TestPPPoEConfigBytesAndDottedEnvironment(t *testing.T) {
 		}
 	}
 	ze := string(pppoeZeConfig("zpoez1"))
-	for _, exact := range []string{"source-interface zpoez1;", "username alice;", "password s3cr3t;"} {
+	for _, exact := range []string{"ethernet zpoez1 {\n", "source-interface zpoez1;", "username alice;", "password s3cr3t;"} {
 		if !strings.Contains(ze, exact) {
 			t.Errorf("ze config lost %q", exact)
 		}

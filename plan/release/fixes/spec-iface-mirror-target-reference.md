@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | in-progress |
 | Scope | config |
 | Priority | P1 |
 | Release reason | A mistyped or deleted port-mirror target commits, and a VLAN-unit target on a selected parent mirrors toward the wrong device: accepted config that the apply cannot honour is incorrect shipped behavior |
@@ -10,7 +10,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-15 |
+| Updated | 2026-11-16 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -190,10 +190,41 @@ Exemptions Option B keeps, each with its own test: the loopback (`lo`, whose
 config name is `loopback`), a firewall wildcard (`prefix*`, matching runtime
 L2TP and PPP sessions), devices Ze creates at runtime under no declared name
 (L2TP and PPPoE server sessions, XFRM), and a declared dynamic name
-(`pppoe-client`). A wildcard must not be accepted by a leaf that installs toward
-one device (mirror), so a wildcard-accepting leaf takes a second source
-(`configured-interface-match`, also registered by iface), never a flag on the
-first.
+(`pppoe-client`).
+
+### Part 2 as built, from the leaf census (2026-11-16)
+
+Thomas approved Part 2 on 2026-11-16 ("Start by the interface name work"). A
+census of the six AC-6 leaves against their YANG, their consumers and every
+repository user refined the design:
+
+| Leaf | Decision | Why |
+|------|----------|-----|
+| bridge `member` (leaf-list) | `ze:reference "configured-interface"`. A VLAN-unit member binds through its parent's selector and is enslaved after the Phase 2 loop has created the VLANs (AC-10) | Phase 2a enslaved `<entry>.<vlan>` by its literal name before the VLAN existed, the mirror's AC-3 fault. The description's "the config or the OS already carries" is narrowed. No repository user named an undeclared port |
+| tunnel `local interface` (v4 and v6) | `ze:reference "configured-interface"`. The name binds through the selector map before the tunnel is created (AC-11) | Phase 1 handed the logical name to `LinkByName`, so an uplink bound by `mac match` or `os-name` gave the wrong device or none. No repository user |
+| pppoe-client `source-interface` | `ze:reference "configured-interface"` | 26 repository users named a fixture or container device with no `interface` entry; each is converted (AC-9) |
+| PPPoE server `interface` (list key) | `ze:reference "configured-interface"` | 28 users, none declared; each is converted (AC-9). A VLAN the test fixture creates (`veth-bng.100`) is declared as an `ethernet` entry of that name, so Ze adopts the device rather than creating a second one |
+| unit `ipv4 unnumbered` | Unchanged: the donor check already refuses an undeclared donor at verify (`resolveUnnumbered`, `pickDonorAddress`, `TestUnnumberedCommitRefusals`) | Its main donor is `loopback`, which the source does not offer, because `deviceFor` would hand a mirror the nonexistent device `loopback`. A reference would refuse it, or report a missing donor twice |
+| VRRP group `interface` | Nothing to convert | No such leaf: a group is augmented under an entry's unit, so its interface is the enclosing, declared entry. `track interface` keeps naming kernel devices |
+
+Declaring a device as a bare `ethernet <name> {}` claims only its admin state:
+no unit means no address key, so the reconcile removes none of its addresses,
+and an omitted `mtu` or offload leaf makes no kernel call
+(`desiredState`, the `mtu` leaf description, `docs/architecture/iface/offload.md`).
+The conversions therefore change nothing on the lab devices.
+
+The second source `configured-interface-match` for wildcard leaves is dropped:
+under Option B no reference leaf takes a wildcard, so it would have no user.
+AC-8's wildcard and runtime-device exemptions are proven on the protocol and
+match leaves Option B leaves free, which keep committing.
+
+Two faults the census found are too big for this work and go to journal rows
+(Owned journal rows): the shared resolver resolves a VLAN unit of a
+selector-bound entry by its literal name (pppoe-client, PPPoE server, every
+protocol consumer), owned here as AC-12; and a tunnel whose underlay is a VLAN
+unit of the same config is created before the VLAN exists, owned by
+`spec-iface-apply-on-device-appear.md`, whose worker applies an entry when a
+device it needs appears.
 
 ## Acceptance Criteria
 
@@ -204,10 +235,13 @@ first.
 | AC-3 | `mirror egress` names a VLAN unit of an ethernet entry bound by `mac match` to a veth | The tc mirred filter points at `<bound device>.<vlan-id>` | none |
 | AC-4 | A declared target whose device is absent | The commit succeeds, the mirror is not installed, and a warning names it | the deferred mirror, by the page's rule for unbound settings |
 | AC-5 | A target declared and present | The mirror is installed as today | the mirror |
-| AC-6 | (Part 2, Option B) a leaf that configures an interface Ze owns (bridge `member`, tunnel `local interface`, pppoe-client `source-interface`, unit `ipv4 unnumbered`, VRRP group `interface`, PPPoE server `interface`) names an undeclared interface | Refused at validate, reload and commit, naming the path and the fix | none |
+| AC-6 | (Part 2, Option B) a leaf that configures an interface Ze owns (bridge `member`, tunnel `local interface`, pppoe-client `source-interface`, PPPoE server `interface`, and unit `ipv4 unnumbered` through its existing donor check) names an undeclared interface | Refused at validate, reload and commit, naming the path and the fix | none |
 | AC-7 | (Part 2) a referenced interface is declared later in the file than its user | Accepted | none |
-| AC-8 | (Part 2) each kept exemption: `lo`, a firewall wildcard, a runtime-created device, a declared `pppoe-client` | Accepted, one test each | the exemption |
-| AC-9 | (Part 2) every repository config, `.ci`, fixture and guide naming an interface Option B refuses | Converted in the same work | none |
+| AC-8 | (Part 2) each kept exemption: `ipv4 unnumbered loopback`, a firewall wildcard, a runtime-created device and an undeclared kernel device on a protocol leaf, a declared `pppoe-client` as a tunnel's local interface | Accepted, one test each | the exemption |
+| AC-9 | (Part 2) every repository config, `.ci`, fixture and guide naming an interface Option B refuses | Converted in the same work, and each converted config passes `ze config validate` | none |
+| AC-10 | (Part 2) a bridge `member` names a VLAN unit of an entry bound by `mac match`, on a fresh apply | The member enslaved is `<bound device>.<vlan-id>`, after the VLAN exists, and the apply succeeds | none |
+| AC-11 | (Part 2) a tunnel `local interface` names an ethernet entry bound by `mac match` or `os-name` | The tunnel's parent is the bound device, not a device carrying the logical name; an unbound entry fails the apply with a message naming the tunnel and the entry, as an absent local device already did (no later phase can configure a tunnel that was not created) | none |
+| AC-12 | (Part 3) a pppoe-client `source-interface`, PPPoE server `interface` or protocol leaf names a VLAN unit of a selector-bound entry | The shared resolver answers `<bound device>.<vlan-id>` | none |
 
 ### Tests that prove each AC
 
@@ -262,6 +296,15 @@ first.
 - The AC-2 privileged reload test, and the AC-3 privileged boot test, with their netlink drivers. Both ran as root in Ze's QEMU guest on 2026-11-15 (`./le test qemu ci test <path>`) and passed. No ze-test stress run is recorded
 - Evidence: the parse and reload `.ci` tests of b2bb71058e are red with the two `ze:reference` lines removed and green with them; the three unit tests of 38906b1d12 are red against the previous code and green with it
 
+### What Was Implemented (2026-11-16, Part 2)
+- AC-6: `ze:reference "configured-interface"` on bridge `member`, both tunnel `local interface` leaves, pppoe-client `source-interface` (ze-iface-conf) and the PPPoE server `interface` key (ze-pppoe-conf), with their descriptions. The unnumbered donor keeps its own verify check (`TestUnnumberedCommitRefusals`); VRRP has no group interface leaf
+- One binder for every reference leaf: `interfaceTargets` (`interface_targets.go`) replaces the mirror-only `mirrorTargets`, so a mirror target, a bridge member and a tunnel local interface bind the same way
+- AC-10: `enslaveBridgeMembers` (`config_bridge_members.go`) enslaves entry members in Phase 2a and VLAN-unit members after the Phase 2 loop, each through `interfaceTargets`
+- AC-11: `tunnelSpecOnDevices` binds a tunnel's local interface before every create (Phase 1, the delete-then-create undo, the prune undo); an unbound one fails the apply naming the tunnel and the entry
+- AC-9: 54 repository configs converted by declaring the device as a bare `ethernet` entry (pppoe `.ci` suites, static and plugin `.ci`, interop-pppoe and interop-topology configs, two iface PPPoE integration tests, the PPPoE backend gate test, the QEMU accel-ppp lab config whose test now also asserts the declaration), plus `docs/guide/pppoe.md` and `docs/guide/configuration.md`
+- Found and fixed in passing: the PPPoE server `interface` description said an absent device is logged and skipped, but start and reload both fail on it (`prepareAccessConfiguration`)
+- Evidence: `test/parse/iface-reference-leaves-undeclared.ci` passes, and goes red at its own case with each leaf's reference removed alone (member seq 1, tunnel seq 2, client seq 3, server seq 4). The four AC-10 and AC-11 unit tests pass and are red against the previous `config_apply.go` and `config_mirror.go` (decoy `wan.100` enslaved; missing VLAN port; tunnel on decoy `wan`; unbound tunnel built on the decoy). `TestRepositoryConfigsValidate` validated 3337 configs and refused only `test/web/fixtures/cli-load.conf`, for two missing BGP mandatory leaves this work does not touch
+
 ## Checklist
 
 ### Goal Gates (MUST pass)
@@ -278,3 +321,4 @@ first.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `validate-accepts-what-start-refuses.md` | 2026-11-08 | mirror target is an unchecked free string (fixed: b2bb71058e, 38906b1d12) |
+| `validate-accepts-what-start-refuses.md` | 2026-11-16 | the shared resolver resolves a VLAN unit of a selector-bound entry by its literal name (AC-12) |

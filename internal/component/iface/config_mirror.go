@@ -17,70 +17,13 @@ type mirrorSpec struct {
 	egress  string
 }
 
-// mirrorTargets binds the mirror destinations of one config to kernel devices.
-// A destination is the logical name of an entry, or of a VLAN unit written
-// <entry>.<vlan-id>, the two forms configuredInterfaceNames accepts. The entry
-// form is in the selector map. The unit form is not, and passing it through
-// unchanged mirrored toward whatever device carried the logical name, or toward
-// no device: a VLAN's kernel device is named after the device its PARENT
-// resolved to (unitOSName), so a unit is bound through its parent's entry.
-//
-// Build one with newMirrorTargets for the config whose selector map devices is.
-type mirrorTargets struct {
-	devices map[string]string
-	// units maps every declared VLAN unit, by its <entry>.<vlan-id> name, to
-	// the entry that declares it.
-	units map[string]mirrorUnitTarget
-}
-
-// mirrorUnitTarget is one VLAN unit a mirror may name: the logical name of the
-// entry that declares it, and the unit, whose VLAN id names the device.
-type mirrorUnitTarget struct {
-	parent string
-	unit   *unitEntry
-}
-
-// newMirrorTargets indexes the VLAN units cfg declares, for the selector map
-// bindDevices answered for cfg. Every entry kind is indexed, disabled ones
-// included: disabling says what ze does with an interface, never which device
-// it is (bindDevices). The key is unitOSName of the entry's logical name, the
-// same text the configured-interface reference source offers, so a name the
-// commit accepted as a VLAN unit is found here.
-func newMirrorTargets(cfg *ifaceConfig, devices map[string]string) mirrorTargets {
-	targets := mirrorTargets{devices: devices}
-	for _, e := range allIfaceEntries(cfg) {
-		for i := range e.Units {
-			u := &e.Units[i]
-			if u.VLANID <= 0 {
-				continue
-			}
-			if targets.units == nil {
-				targets.units = make(map[string]mirrorUnitTarget)
-			}
-			targets.units[unitOSName(e.Name, u)] = mirrorUnitTarget{parent: e.Name, unit: u}
-		}
-	}
-	return targets
-}
-
-// unitNamed answers the VLAN unit a destination names, and false when it names
-// an entry instead. An ethernet entry the selector map holds is a direct
-// declaration, so a unit whose <entry>.<vlan-id> text equals it never shadows it.
-func (t mirrorTargets) unitNamed(name string) (mirrorUnitTarget, bool) {
-	if _, isEntry := t.devices[name]; isEntry {
-		return mirrorUnitTarget{}, false
-	}
-	target, isUnit := t.units[name]
-	return target, isUnit
-}
-
 // mirrorSpecFor returns the mirror one unit asks for, with both destinations
 // resolved through the apply's selector map. A mirror names two interfaces and
 // the destination is as selectable as the source, so a capture port bound by
 // mac/match or aliased by os-name has to be translated here too: tc installs
 // the filter toward a device, and the logical name reaches whatever else
 // carries it.
-func mirrorSpecFor(u *unitEntry, targets mirrorTargets) mirrorSpec {
+func mirrorSpecFor(u *unitEntry, targets interfaceTargets) mirrorSpec {
 	return mirrorSpec{
 		ingress: mirrorDestination(targets, u.MirrorIngress),
 		egress:  mirrorDestination(targets, u.MirrorEgress),
@@ -95,19 +38,12 @@ func mirrorSpecFor(u *unitEntry, targets mirrorTargets) mirrorSpec {
 // is bound through its parent entry: its device is <parent device>.<vlan-id>,
 // and it is UNBOUND when its parent is. A name the config does not declare
 // never reaches here: the commit refuses it (configuredInterfaceReference).
-func mirrorDestination(targets mirrorTargets, name string) string {
+func mirrorDestination(targets interfaceTargets, name string) string {
 	if name == "" {
 		return ""
 	}
-	if target, isUnit := targets.unitNamed(name); isUnit {
-		parentDevice, bound := deviceFor(targets.devices, target.parent)
-		// refuse-by-default: guards applyMirror -- an unbound parent supplies no destination, so no mirror is installed toward the logical name.
-		if !bound {
-			return ""
-		}
-		return unitOSName(parentDevice, target.unit)
-	}
-	device, bound := deviceFor(targets.devices, name)
+	device, bound := targets.device(name)
+	// refuse-by-default: guards applyMirror -- an unbound destination, or a unit whose parent is unbound, supplies no device, so no mirror is installed toward the logical name.
 	if !bound {
 		return ""
 	}
@@ -128,7 +64,7 @@ func indexMirrorSpecs(cfg *ifaceConfig, devices map[string]string) map[string]mi
 	if cfg == nil {
 		return nil
 	}
-	targets := newMirrorTargets(cfg, devices)
+	targets := newInterfaceTargets(cfg, devices)
 	specs := make(map[string]mirrorSpec)
 	for _, e := range allIfaceEntries(cfg) {
 		if e.Disable {
@@ -409,7 +345,7 @@ func setupMirrorSpec(b Backend, osName string, m mirrorSpec) error {
 // resolves the destination device when the filter is installed, and a
 // destination may be a VLAN unit of an entry the apply reaches after this one.
 // Returns one error per mirror operation that failed.
-func applyMirror(b Backend, osName string, u unitEntry, targets mirrorTargets, journal *sdk.Journal) []error {
+func applyMirror(b Backend, osName string, u unitEntry, targets interfaceTargets, journal *sdk.Journal) []error {
 	if u.MirrorIngress == "" && u.MirrorEgress == "" {
 		return nil
 	}

@@ -23,6 +23,11 @@ option=netns-link:name=veth-bng:peer=veth-sub
 
 
 stdin=config:terminator=EOF_CONF
+interface {
+    ethernet veth-bng {
+    }
+}
+
 pppoe {
     enabled true
     ac-name ze-test
