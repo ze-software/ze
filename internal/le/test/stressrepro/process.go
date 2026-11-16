@@ -112,10 +112,10 @@ func runCommand(ctx context.Context, dir string, env []string, program string, a
 	err = owner.Wait()
 	output := stdout.String() + stderr.String()
 	if errors.Is(ctx.Err(), context.DeadlineExceeded) {
-		return processResult{code: 124, output: output, err: context.DeadlineExceeded}
+		return processResult{code: 124, output: output, err: errors.Join(context.DeadlineExceeded, err)}
 	}
 	if errors.Is(ctx.Err(), context.Canceled) {
-		return processResult{code: 1, output: output, err: context.Canceled}
+		return processResult{code: 1, output: output, err: errors.Join(context.Canceled, err)}
 	}
 	if err == nil {
 		return processResult{output: output}

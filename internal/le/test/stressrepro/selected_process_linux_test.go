@@ -6,12 +6,9 @@ package teststressrepro
 
 import (
 	"context"
-	"errors"
 	"os"
 	"path/filepath"
-	"strconv"
 	"strings"
-	"syscall"
 	"testing"
 	"time"
 )
@@ -40,111 +37,73 @@ func TestNativeStressProcessUsesPreparedEnvironment(t *testing.T) {
 
 func TestNativeStressProcessJoinsDescendantsAfterLeaderExit(t *testing.T) {
 	root := t.TempDir()
-	pidFile := filepath.Join(root, "descendant")
+	listener, socket := stressDescriptorSocket(t)
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer cancel()
-	result := runCommand(ctx, root, os.Environ(), "/bin/sh", "-c", "sleep 30 </dev/null >/dev/null 2>&1 & echo $! > \"$1\"", "fixture", pidFile)
-	if !result.succeeded() {
-		t.Fatalf("controlled leader failed before cleanup: %+v", result)
+	result := make(chan processResult, 1)
+	done := make(chan struct{})
+	program := stressFixtureProgram(t)
+	go func() {
+		defer close(done)
+		result <- runCommand(ctx, root, os.Environ(), program,
+			"-test.run=^TestStressProcessHelper$", "--", "stress-process-fixture", "exit", socket)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+	descendant := receiveStressDescriptor(t, ctx, listener)
+	t.Cleanup(func() { stopStressPidfd(t, descendant.file) })
+	if !stressPidfdLive(t, descendant.file) {
+		t.Fatal("controlled descendant exited before the leader was released")
 	}
-	pid := stressDescendantPID(t, pidFile)
-	t.Cleanup(func() { stopStressDescendant(t, pid) })
-	if stressDescendantLive(t, pid) {
+	descendant.acknowledge(t)
+	joined := <-result
+	if !joined.succeeded() {
+		t.Fatalf("controlled leader failed before cleanup: %+v", joined)
+	}
+	if stressPidfdLive(t, descendant.file) {
 		t.Fatal("successful invocation returned while its native descendant still runs")
 	}
 }
 
 func TestNativeStressProcessCancellationJoinsDescendants(t *testing.T) {
 	root := t.TempDir()
-	pidFile := filepath.Join(root, "descendant")
+	listener, socket := stressDescriptorSocket(t)
 	le := filepath.Join(root, "le")
-	body := "#!/bin/sh\nsleep 30 </dev/null >/dev/null 2>&1 &\necho $! > " + strconv.Quote(pidFile) + "\nwait\n"
+	program := "'" + strings.ReplaceAll(stressFixtureProgram(t), "'", "'\\''") + "'"
+	body := "#!/bin/sh\nexec " + program + " '-test.run=^TestStressProcessHelper$' -- stress-process-fixture wait '" + socket + "'\n"
 	if err := os.WriteFile(le, []byte(body), 0o755); err != nil {
 		t.Fatal(err)
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	result := make(chan processResult, 1)
-	go invokeStressCancellation(ctx, invocation{root: root, harness: []string{"bgp", "plugin"}, test: "selected", testBin: le, zeBin: "/prepared/ze", timeout: time.Minute}, result)
-	t.Cleanup(func() { cancel() })
-	ticker := time.NewTicker(10 * time.Millisecond)
-	defer ticker.Stop()
-	for {
-		if _, err := os.Stat(pidFile); err == nil {
-			break
-		} else if !errors.Is(err, os.ErrNotExist) {
-			cancel()
-			<-result
-			t.Fatal(err)
-		}
-		select {
-		case <-ctx.Done():
-			<-result
-			t.Fatal("controlled descendant never reached its ready marker")
-		case <-ticker.C:
-		}
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		invokeStressCancellation(ctx, invocation{root: root, harness: []string{"bgp", "plugin"}, test: "selected", testBin: le, zeBin: "/prepared/ze", timeout: time.Minute}, result)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+	descendant := receiveStressDescriptor(t, ctx, listener)
+	t.Cleanup(func() { stopStressPidfd(t, descendant.file) })
+	if !stressPidfdLive(t, descendant.file) {
+		t.Fatal("controlled descendant exited before cancellation")
 	}
-	pid := stressDescendantPID(t, pidFile)
-	t.Cleanup(func() { stopStressDescendant(t, pid) })
+	descendant.acknowledge(t)
 	cancel()
 	joined := <-result
 	if joined.code == 0 {
 		t.Fatalf("canceled invocation reported success: %+v", joined)
 	}
-	if stressDescendantLive(t, pid) {
+	if stressPidfdLive(t, descendant.file) {
 		t.Fatal("canceled invocation returned while its native descendant still runs")
 	}
 }
 
 func invokeStressCancellation(ctx context.Context, spec invocation, result chan<- processResult) {
 	result <- (realProcessRunner{}).Invoke(ctx, spec)
-}
-
-func stressDescendantPID(t *testing.T, path string) int {
-	t.Helper()
-	value, err := os.ReadFile(path)
-	if err != nil {
-		t.Fatal(err)
-	}
-	pid, err := strconv.Atoi(strings.TrimSpace(string(value)))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if pid <= 1 {
-		t.Fatalf("invalid controlled descendant PID %d", pid)
-	}
-	return pid
-}
-
-func stressDescendantLive(t *testing.T, pid int) bool {
-	t.Helper()
-	stat, err := os.ReadFile("/proc/" + strconv.Itoa(pid) + "/stat")
-	if errors.Is(err, os.ErrNotExist) {
-		return false
-	}
-	// Linux proc_single_show returns ESRCH if the task disappears before the read.
-	// https://github.com/torvalds/linux/blob/master/fs/proc/base.c
-	if errors.Is(err, syscall.ESRCH) {
-		return false
-	}
-	if err != nil {
-		t.Fatal(err)
-	}
-	_, tail, found := strings.Cut(string(stat), ") ")
-	if !found {
-		t.Fatalf("cannot read controlled descendant state: %q", stat)
-	}
-	return !strings.HasPrefix(tail, "Z ")
-}
-
-func stopStressDescendant(t *testing.T, pid int) {
-	t.Helper()
-	if !stressDescendantLive(t, pid) {
-		return
-	}
-	if err := syscall.Kill(pid, syscall.SIGKILL); err != nil {
-		if !errors.Is(err, syscall.ESRCH) {
-			t.Errorf("stop controlled descendant: %v", err)
-		}
-	}
 }
