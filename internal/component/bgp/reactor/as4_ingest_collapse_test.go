@@ -228,6 +228,7 @@ func collapseAttrValue(t *testing.T, wu *wireu.WireUpdate, code attribute.Attrib
 // destination, permanently, which is what RFC 6793 Section 4.2.3 exists to stop.
 func TestReceiveCollapsesAS4PathIntoASPath(t *testing.T) {
 	s, recvCtxID := collapseRecvSession(t, collapseSettings(), false)
+	collapseEstablish(t, s)
 	body := makeUpdateBody(nil, collapseMixedWidthAttrs(), fwdTestNLRI)
 
 	wu := collapseReceive(t, s, body)
@@ -259,6 +260,7 @@ func TestReceiveCollapsesAS4PathIntoASPath(t *testing.T) {
 // merge consults no width.
 func TestReceiveDiscardsAS4PathFromNewSpeaker(t *testing.T) {
 	s, recvCtxID := collapseRecvSession(t, collapseSettings(), true)
+	collapseEstablish(t, s)
 
 	asPathValue := collapseASPathValue(4, collapseSourceAS, collapseRealAS)
 	aggregatorValue := collapseAggregatorValue(4, collapseSourceAS)
@@ -303,6 +305,7 @@ func TestReceiveDiscardsAS4PathFromNewSpeaker(t *testing.T) {
 // copies every payload; identity is the assertion that cannot.
 func TestReceiveKeepsPayloadWhenNoAS4WorkIsOwed(t *testing.T) {
 	s, recvCtxID := collapseRecvSession(t, collapseSettings(), true)
+	collapseEstablish(t, s)
 
 	attrs := collapseAttr(0x40, byte(attribute.AttrOrigin), []byte{0x00})
 	attrs = append(attrs, collapseAttr(0x40, byte(attribute.AttrASPath),
@@ -520,8 +523,10 @@ func collapseDestPeer(t *testing.T, dest collapseDest, ctx *bgpctx.EncodingConte
 	t.Helper()
 	addr := netip.MustParseAddr(dest.addr)
 	peer := NewPeer(&PeerSettings{
-		Connection:    ConnectionBoth,
-		Address:       addr,
+		Connection: ConnectionBoth,
+		Address:    addr,
+		// An ordinary established eBGP session needs a usable local address under Auto.
+		LocalAddress:  netip.MustParseAddr("10.9.0.254"),
 		LocalAS:       collapseLocalAS,
 		GlobalLocalAS: collapseLocalAS,
 		PeerAS:        65500 + uint32(addr.As4()[3]),
@@ -792,6 +797,7 @@ func TestForwardRSCarriesReconstructedPathToClient(t *testing.T) {
 // operator meets as an AS_PATH no router on the wire ever sent.
 func TestReceivedBytesReachTheObserversUncollapsed(t *testing.T) {
 	s, _ := collapseRecvSession(t, collapseSettings(), false)
+	collapseEstablish(t, s)
 	body := makeUpdateBody(nil, collapseMixedWidthAttrs(), fwdTestNLRI)
 
 	var observed []byte
@@ -841,6 +847,7 @@ func TestReceivedBytesReachTheObserversUncollapsed(t *testing.T) {
 // sending it in the attribute the receive path is obliged to discard.
 func TestReceiveCollapseRunsAfterRFC7606(t *testing.T) {
 	s, _ := collapseRecvSession(t, collapseSettings(), false)
+	collapseEstablish(t, s)
 
 	attrs := collapseAttr(0x40, byte(attribute.AttrOrigin), []byte{0x00})
 	attrs = append(attrs, collapseAttr(0x40, byte(attribute.AttrASPath),
@@ -875,6 +882,7 @@ func TestReceiveCollapseLogsDiscardedMalformedAS4Path(t *testing.T) {
 	t.Cleanup(restore)
 
 	s, _ := collapseRecvSession(t, collapseSettings(), false)
+	collapseEstablish(t, s)
 
 	// One AS_SEQUENCE claiming two AS numbers and carrying one. RFC 7607's AS 0
 	// validator has nothing to say about it, so it reaches the reconciliation
@@ -931,6 +939,7 @@ func TestLoopIngressSeesReconstructedASPath(t *testing.T) {
 	settings.GlobalLocalAS = collapseRealAS
 
 	s, recvCtxID := collapseRecvSession(t, settings, false)
+	collapseEstablish(t, s)
 	body := makeUpdateBody(nil, collapseMixedWidthAttrs(), fwdTestNLRI)
 
 	received := filterapi.PeerFilterInfo{LocalAS: collapseRealAS, ASN4: false}
