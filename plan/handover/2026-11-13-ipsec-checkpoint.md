@@ -195,10 +195,12 @@ remain through closure review.
    entry 20 of `b9-mutants.json` in the lost session tree (see "Transfer and
    recovery"). The four fresh clause-scoped candidates below do not assert
    that identity. All four fresh native records below are observed. The older
-   transport-positive and transport-negative covers were renewed by dependency
-   breaks; the two same-row tunnel SAD-selector covers still await refresh. An inventory of 83 old-record
-   inputs exists, with details and retention in the state. It claims no completed
-   renewals beyond their observed receipts. Regenerate changed mutation
+   transport-positive/negative and tunnel-positive/negative covers were renewed
+   by dependency breaks. The partial audit was independently cleared and natively
+   stamped, and the current check reports no audit/discrimination freshness
+   finding for this exact requirement. Of the 83 old-record inputs, four are
+   observed and 79 remain unobserved, with details and retention in the state.
+   Regenerate changed mutation
    coordinates rather than accepting stale-hunk failures as red evidence.
 
    Main ran the five changed-line architecture checks. Operator-error passed;
@@ -248,7 +250,7 @@ remain through closure review.
    H41 reported a native boot with dockerd ready. This session's four fresh
    native RFC records ran on that pair. Final interop remains owed.
    No duplicate build or optional public image feature was added.
-4. Finish the form-switch marker-review disposition and remaining live scenarios.
+4. Finish the remaining live scenarios.
    `checkESPFormChange` in `internal/le/interoplab/ipsec/checkers.go` now rejects
    empty and whitespace-only Ze SA snapshots. Both new missing-state cases
    first failed (`job-ipsec-form-change-missing-state-red-57ce2d65.log`, native
@@ -276,7 +278,9 @@ remain through closure review.
    is `a47c67ee90560536a43531ebbedc8ed7ad54283870b809d8add1469e80a64e77`.
    The later mutation-marker comment-only revision, SHA256
    `0af0356d5c7ca16099e2a750c856d9f88cd94d678d93a098f3aebcf8c89ca937`,
-   is unexecuted; main decides its marker-review disposition. Run the remaining scenarios
+   is unexecuted. The as-used trial validates the AC-2 goal. Its missing marker
+   was procedural and is corrected for future inputs, with no freshness rerun.
+   Run the remaining scenarios
    and their deliberate breaks:
    `mtu-nat-installed-endpoint`, `icmp-error-payload-check` with bare ESP and
    both redwalks, `esp-form-firewall-drop` with its redwalk,
@@ -324,10 +328,23 @@ remain through closure review.
    clean PASS 3.78s, producer-halt RED 0.01s. That is dependency evidence,
    distinct from a packet-assertion break. The transport-negative cover was also
    renewed (`job-ipsec-sad-transport-negative-record-59c8ab79.log`): clean PASS
-   3.34s, producer-halt RED 0.01s, again dependency evidence. The two tunnel
-   covers and the independent audit remain pending.
+   3.34s, producer-halt RED 0.01s, again dependency evidence. Both tunnel covers
+   were renewed in `job-ipsec-sad-tunnel-positive-record-8cbbeb8e.log` and
+   `job-ipsec-sad-tunnel-negative-record-3ca64234.log`: each clean PASS 3.80s,
+   producer-halt RED 0.01s, same current kernel/image pair, no skips and stopped
+   clean/broken VMs. These remain dependency proofs.
 
-   Then `./le rfc check`. Phase 4 also owes its 13 mutation walks, four
+   Independent review read canonical RFC text, all nine covers across six
+   functions, and both tunnel logs, and cleared the partial audit. Main natively
+   stamped `rfc/audit/rfc4301/RFC4301-5.2-2.json` from the existing pending input.
+   The audit keeps `installChildDataplane` as the missing scope producer and
+   gives no whole-requirement credit. The subsequent check
+   (`job-ipsec-rfc4301-partial-refresh-check-4fea72ad.log`) reports 451 corpus
+   findings, with no audit/discrimination freshness finding for this exact ID.
+   Its only occurrence is the normal partial report. Other claims on the same
+   tunnel unit remain among the 79 unobserved manifest renewals.
+
+   Phase 4 also owes its 13 mutation walks, four
    port-field records and affected audit reseals. They were prepared in
    `phase4-validation.txt` and `phase4-proofs-run.py`, which were lost with
    the session trees, so they are prepared again from the spec.

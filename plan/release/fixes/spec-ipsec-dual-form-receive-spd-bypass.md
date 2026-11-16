@@ -664,8 +664,9 @@ The cut's AS-USED private source SHA256 is
 The later required mutation-marker correction changed only its comment;
 current source SHA256
 `0af0356d5c7ca16099e2a750c856d9f88cd94d678d93a098f3aebcf8c89ca937`
-is unexecuted. Main decides the marker-review disposition; the current bytes
-do not inherit the as-used trial's identity. Other interop and RFC obligations
+is unexecuted. The as-used trial validates the AC-2 goal. Its missing marker was
+procedural and is corrected for future inputs, with no freshness rerun. The current
+bytes do not inherit the as-used trial's identity. Other interop and RFC obligations
 remain open.
 
 ### AC-23 missing-state checker correction
@@ -1247,7 +1248,7 @@ not claim that their final-code tests or mutation proofs have run.
 | Initial final-code main-thread `./le test unit pkg path ./internal/component/ike/dataplane/ path ./internal/component/ike/engine/ path ./internal/core/diagnostic/` | engine and diagnostic packages passed; three dataplane fixture/expectation failures were subsequently corrected and committed in `bd8e21b487`. The targeted package run `job-unit-pkg-58fce57a.log` and narrow race/count-20 scheduling run `job-ipsec-reopen-schedule-e00a01c8.log` passed. Final guest verification remains owed |
 | Receiver doctor and binding fixture units | the named tests passed under race/verbose execution in `job-ipsec-binding-doctor-units-419db7fc.log`; this includes the offload and complete-path doctor findings |
 | Host mutation walks 27, 31–33, 37, 39–49 | all sixteen returned the native red verdict, with clean own-test passes and broken own-test failures, in `job-ipsec-dualform-host-redwalks-aa95f75a.log`; guest mutant 20 remains owed |
-| Remaining closure evidence | Final Linux populations, doctor qualification/promotion and the repaired helper/checker plus clean live form switch have passed; all four fresh clause records are observed. AC-2's as-used clean → binding-cut → clean proof is observed; marker-review disposition, remaining final interop and broader RFC obligations remain open. The last recorded RFC check reported 367 violations, including four older SAD-selector covers. Transport positive and negative were renewed by producer-dependency breaks in `job-ipsec-sad-transport-positive-record-f7512802.log` (clean 3.78s, halt RED 0.01s) and `job-ipsec-sad-transport-negative-record-59c8ab79.log` (clean 3.34s, halt RED 0.01s); the two tunnel covers and independent audit remain pending. An inventory of 83 old-record inputs exists under the state's ownership, with no all-green claim. The fresh records do not reconstruct historical guest mutant 20 |
+| Remaining closure evidence | Final Linux populations, doctor qualification/promotion, repaired helper/checker and AC-2's as-used clean → binding-cut → clean proof are observed; remaining final interop and broader RFC obligations stay open. All four fresh clause records and the four older same-row transport/tunnel dependency renewals are observed. Tunnel positive `job-ipsec-sad-tunnel-positive-record-8cbbeb8e.log` and negative `job-ipsec-sad-tunnel-negative-record-3ca64234.log` each passed clean in 3.80s and failed with producer halt in 0.01s. Independent canonical-RFC review cleared the partial audit after all nine covers across six functions, and main natively stamped `rfc/audit/rfc4301/RFC4301-5.2-2.json`. The current check `job-ipsec-rfc4301-partial-refresh-check-4fea72ad.log` reports 451 corpus findings but no audit/discrimination freshness finding for this exact ID, which appears only in the normal partial report. The 83-entry old-record manifest now records four observed renewals and 79 unobserved renewals, including separate claims on the same units. General per-SA scope/isolation, bits 0–3 admission and K3's unenrolled status are unchanged; AC-4 stays partial. These records do not reconstruct historical guest mutant 20 |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
