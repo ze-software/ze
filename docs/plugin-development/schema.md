@@ -15,7 +15,7 @@ is loaded, before any plugin starts: `ze config validate` reports
 startup, so its own root becomes valid config, is planned
 (`plan/post-release/features/spec-plugin-external-yang-at-startup.md`). The `acme-monitor` example
 at the end of this page shows that planned behavior for an external plugin.
-<!-- source: internal/component/plugin/server/startup.go -- handleRegistration stores reg.PluginSchema; deliverConfigRPC -->
+<!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC, deliverConfigRPC -->
 <!-- source: internal/component/config/loader.go -- LoadConfig, parseTreeWithYANG (compiled-in schema plus CollectPluginYANG of internal plugins) -->
 <!-- source: internal/component/config/plugin_verify.go -- BuildPluginConfigSections -->
 
