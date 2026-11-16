@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Each row is incorrect operator-facing behaviour: a secret echoed, a commit not audited, a list shown as empty, a YANG statement ignored, markup that does not render |
 | Depends | - |
-| Phase | feature parity: corpus correction and capability audit |
+| Phase | feature parity: scoped acceptance |
 | Handoff | verify |
 | Updated | 2026-11-16 |
 
@@ -254,6 +254,59 @@ Producer: `config/cli.parseAndResolve`, `diffSources` and `diffListOrders` in
 | R-P2 | Risk | Per-user history workers outlive editor eviction or borrowed-store shutdown. | Explicit owner/admission close, detached bounded snapshots, blocked-I/O/drain tests and startup-failure cleanup. | Open until P2 proof. |
 | R-P3 | Risk | Config convenience verbs swallow registered operational commands. | Mode/registry authority and direct operational dispatch/auth tests with configuration-delete preservation controls. | Confirmed defect; P3 owns it. |
 | R-P4 | Risk | A nominal read-only browser fixture actually seeds its user as the administrator. | Distinct synthetic identities, real daemon authorization declarations and positive/negative browser controls. | Confirmed fixture defect; P5 owns it. |
+
+#### Continuation implementation and remaining acceptance (2026-11-16)
+
+The core continuation is committed in `b93ff713b34e0432525f26a8945c79905337e58c`.
+This is implementation progress, not completed feature parity. The original
+AC-1 through AC-30 remain open; the earlier amendment history is retained.
+
+| AC | Committed implementation and scoped evidence | Remaining acceptance |
+|----|---------------------------------------------|----------------------|
+| AC-39 | Parsed browser file/paste composition uses the shared fixture and editor. Composition, invalid-load and supplied-reader controls have scoped passing runs. | The full Ze Linux corpus run failed with 30 findings: one browser-replay step, 28 BGP grant fixture preconditions and one PPPoE interface precondition. These require correction and targeted proof before corpus acceptance. |
+| AC-40 | Shared masked recall, per-user/per-mode owners, receipt bounds and strict cleanup are committed. Scoped history/error controls pass; selected doctor/error probes passed in run `f326753a`. | Current consuming-package and browser regressions; no universal durability claim. |
+| AC-41 | Shared operational routing, completion, explanations, controls and daemon restart are committed. Selected root/live completion and monitor-pipe probes pass. The normal `TestRegisteredWireMethods` comparison passed in `f326753a`. | Reached CLI functional acceptance and current browser regression coverage. |
+| AC-42 | Selected-node actions, inspection/session/preferences forms and candidate import are committed. Collection/import/selected-discard journeys pass in `96015`; configuration-actions and field-enter-blur pass 2/2 in `e4899ad7`. | Current broader browser acceptance and remaining consuming checks. |
+| AC-43 | Distinct authenticated administrator/reader fixtures and permission/download cases are committed. Scoped import/auth recovery and allowed supplied-inspection controls pass. | Current broader authenticated browser acceptance. |
+| AC-44 | Registered browser monitor views and sort/detail/back/stop controls are committed. Shared raw/rich monitor-pipe probes pass in `844cf98a`. | Behavioral discrimination of the browser projection and reached functional acceptance. |
+| AC-45 | Registry-derived capability probes, supplied-inspection commands and descriptor-backed file/paste forms are committed. All normal golden comparisons passed in `ea8182f6`; supplied browser journeys passed 4/4. | Scoped structural/lint checks and the remaining executable acceptance below. This does not establish execution parity for every registered command. |
+
+Every failure from the earlier 126/133 browser run now has a focused passing
+rerun. `./le --name web-corrections test web` passed
+`test/web/graphical-configuration-actions.wb` and
+`test/web/graphical-field-enter-blur.wb` together in `e4899ad7`
+(2/2, 25.3 seconds). `./le --name web-corrections test web --pattern scenario-firewall-setup -v` passed in `49d61119`
+(1/1, 12.5 seconds), including all 74 steps. Together with `96015`, these clear
+the seven earlier scenario failures; a current broader browser run remains
+owed. Four explicitly unfinished experimental Workbench workflows remain skips.
+
+Acceptance still requires the current browser run, reached consuming-package
+regressions, scoped lint, assets/HTMX/template and command/YANG/documentation
+checks, shared-view discrimination and CLI functional checks. The complete
+web package is not claimed to pass: the separately owned
+`TestL2TPDisconnectRefusesAnUnguardedForm` currently receives HTTP 200 where its
+guard regression requires 400. Its producer must be fixed before that broader
+package acceptance.
+
+The config-CLI and CLI Linux test binaries compiled in `1566da2d` and
+`71976fb0`. The corrected Ze Linux guest then passed all four
+`TestSessionEmptyEntryCommit` branches: direct/commit, merge/commit,
+direct/candidate and merge/candidate. Native kernel/image admission, the real
+Git runtime, canonical checkout and guest-only `/usr/bin` capacity correction
+all succeeded before the tests.
+
+Full `TestRepositoryConfigsValidate` then failed in 75.80 seconds. Its 30
+findings comprise one browser replay refusal at `error-toggle` in
+`test/web/graphical-import-paste.wb`, 28 BGP source/destination grant fixture
+preconditions and one undeclared PPPoE `access0` interface. The browser replay
+correction is in progress; the BGP and PPP owning work is coordinating its
+fixture corrections. Discovery counted 3,376 Ze inputs, 242 migrated inputs,
+55 declared refusals, 672 exit refusals, 32 browser load sequences, 74 browser
+steps and three staged draft loads; 80 legacy inputs were not validated and
+there was no host skip. These are population/disposition counts, not 3,376
+successful validation results. The first guest attempt stopped during setup
+before any test ran; that setup refusal is not a product-test failure. The
+spec remains `in-progress`.
 
 #### Integration and documentation obligations
 
