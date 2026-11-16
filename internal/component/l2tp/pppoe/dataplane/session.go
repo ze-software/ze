@@ -31,6 +31,7 @@ type OpenedSession interface {
 	WithDescriptor(use func(int) error) error
 	// CloseTransport is safe for concurrent use. The transport owner MUST call
 	// it when the access session ends; every call returns the first close error.
+	// A provider panic becomes a retained error, never a successful later close.
 	// It leaves a separate data-plane handle for the PPP driver to close.
 	CloseTransport() error
 	openedSession()
@@ -61,8 +62,8 @@ func NewOpenedSession(frames ppp.FrameChannel, handle ppp.SessionHandle,
 			return
 		}
 		cleanupErr := errors.Join(
-			closeUnpublishedSessionOwner(handle, "data-plane"),
-			closeUnpublishedSessionOwner(transport, "transport"),
+			closeSessionOwner(handle, "data-plane"),
+			closeSessionOwner(transport, "transport"),
 		)
 		if failure != nil {
 			if cleanupErr == nil {
@@ -98,9 +99,9 @@ func NewOpenedSession(frames ppp.FrameChannel, handle ppp.SessionHandle,
 	return &openedSession{frames: borrowed, handle: handle, transport: transport}, nil
 }
 
-// Each unpublished owner gets its own panic boundary so a failed release cannot
-// prevent the other role's release. Error panic payloads retain their identity.
-func closeUnpublishedSessionOwner(owner io.Closer, role string) (err error) {
+// Each owner gets its own panic boundary so a failed release cannot prevent
+// another role's release or become cached success. Error payloads keep identity.
+func closeSessionOwner(owner io.Closer, role string) (err error) {
 	defer func() {
 		if failure := recover(); failure != nil {
 			if cause, ok := failure.(error); ok {
@@ -135,7 +136,7 @@ func (s *openedSession) CloseTransport() error {
 		return s.closeErr
 	}
 	s.transportClosed = true
-	s.closeErr = s.transport.Close()
+	s.closeErr = closeSessionOwner(s.transport, "transport")
 	return s.closeErr
 }
 
