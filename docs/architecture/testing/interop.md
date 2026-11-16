@@ -2890,7 +2890,7 @@ discriminates"). The harness rebuilds the Ze image with each private fault:
 | `tunnel-df-treatment` | `xfrmDFFlag` answers false for `DFClear` | the clear phase's DF-set burst arrives with DF set |
 | `tunnel-df-treatment` | `xfrmDFFlag` answers true for `DFCopy` | the copy phase's DF-set burst arrives with DF clear |
 | `icmp-error-payload-check` (c) | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error is not delivered, with strongSwan generation and Ze's inbound ESP carriage observed |
-| `icmp-error-payload-check` (d) | P widens the inbound IPv4 tunnel protect policy's source in `xfrmPolicyFromParams`; S widens the inbound IPv4 tunnel state selector's source in `xfrmStateFromParams`, each to `0.0.0.0/0` | P alone and S alone pass; together they deliver the inconsistent error and fail its packet assertion |
+| `icmp-error-payload-check` (d) | P widens the inbound IPv4 tunnel protect policy's source in `xfrmPolicyFromParams`. S widens the inbound IPv4 tunnel state selector's source in `xfrmStateFromParams`, each to `0.0.0.0/0` | P alone and S alone pass. Together they deliver the inconsistent error and fail its packet assertion |
 
 <!-- source: internal/le/interoplab/ipsec/dftreatment.go -- checkTunnelDFTreatment, installOuterDFCounters, judgeOuterDF, requireDataplaneDF -->
 <!-- source: internal/le/interoplab/ipsec/icmperror.go -- checkICMPErrorPayloadCheck, icmpErrorRoutes, carryErrorSourceOverSA, icmpErrorObservation -->

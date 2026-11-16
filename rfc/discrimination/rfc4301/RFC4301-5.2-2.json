@@ -34,14 +34,25 @@
   },
   {
     "rid": "RFC4301-5.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC4301BareESPOnTemplatedSAIsPolicyChecked",
+    "unit-sha": "d2b5af0bc23e6857",
+    "claim-sha": "6444af45edcf1894",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/espform.go::writeESPForm",
+    "producer-sha": "16afaaf015e3744a",
+    "break": "line 368: \"return total\" -\u003e \"return 0\""
+  },
+  {
+    "rid": "RFC4301-5.2-2",
     "polarity": "negative",
-    "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors",
-    "unit-sha": "62e327bd649a7cca",
-    "claim-sha": "9a4f8f68712a01de",
-    "route": "revert",
-    "producer": "internal/component/ike/engine/child.go::installChildSA",
-    "producer-sha": "ec6448c16802f3e0",
-    "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "unit": "internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC4301BareESPOnTemplatedSAIsPolicyChecked",
+    "unit-sha": "d2b5af0bc23e6857",
+    "claim-sha": "ae8507180e35e944",
+    "route": "mutant",
+    "producer": "internal/component/ike/dataplane/espform_tun_linux.go::want",
+    "producer-sha": "691b5743725f33ad",
+    "break": "line 470: \"return 0\" -\u003e \"return 1\""
   },
   {
     "rid": "RFC4301-5.2-2",
@@ -51,7 +62,18 @@
     "claim-sha": "77ebe30c38d2fa34",
     "route": "revert",
     "producer": "internal/component/ike/engine/child.go::installChildSA",
-    "producer-sha": "ec6448c16802f3e0",
+    "producer-sha": "17aa3b0ab62f6479",
+    "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4301-5.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/ike/engine/rfc4301_sad_selector_linux_test.go::TestRFC4301TransportModeInboundSADEntryDropsPacketsOutsideItsSelectors",
+    "unit-sha": "62e327bd649a7cca",
+    "claim-sha": "9a4f8f68712a01de",
+    "route": "revert",
+    "producer": "internal/component/ike/engine/child.go::installChildSA",
+    "producer-sha": "17aa3b0ab62f6479",
     "break": "body of installChildSA replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

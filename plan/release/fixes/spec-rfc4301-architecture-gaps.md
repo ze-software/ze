@@ -391,16 +391,16 @@ above).
 | `test/parse/ipsec-icmp-error-check.ci` | parse | `icmp-error-check` parses true and false, reads back, and refuses a non-boolean |
 | `test/parse/ipsec-icmp-type-selector-refused.ci` | parse | an ICMP type and code-range entry accepted; every ICMP selector the entry cannot carry refused |
 
-**Red proofs owed by the two scenarios**, each one line of Ze with the image
-rebuilt (`docs/architecture/testing/interop.md`, "The outer DF bit and ICMP
+**Red proofs owed by the two scenarios**, with the image rebuilt for each private
+fault (`docs/architecture/testing/interop.md`, "The outer DF bit and ICMP
 errors on a Child SA (RFC 4301)"):
 
 | Proof | Scenario | Break | Expected red | Observed |
 |---|---|---|---|---|
 | (a) | `tunnel-df-treatment` | `xfrmDFFlag` answers false for `DFClear` | the clear phase's DF-set burst arrives with DF set | RED at the earlier `show` readback ("ze reports df-bit ... on its outbound SA, want ..."); the wire-counter check was not reached |
 | (b) | `tunnel-df-treatment` | `xfrmDFFlag` answers true for `DFCopy` | the copy phase's DF-set burst arrives with DF clear | RED at the same `show` readback; the wire-counter check was not reached |
-| (c) | `icmp-error-payload-check` | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error is not delivered | NOT RUN: waits on the dual-form SPD bypass fix |
-| (d) | `icmp-error-payload-check` | `xfrmPolicyFromParams` widens the inbound protect policy's source to `0.0.0.0/0` | the inconsistent error is delivered | NOT RUN: the scenario already delivers it as committed |
+| (c) | `icmp-error-payload-check` | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error is not delivered, with strongSwan generation and Ze's inbound ESP carriage observed | NOT RUN: a current native clean run and the fault run remain owed |
+| (d) | `icmp-error-payload-check` | P widens the inbound IPv4 tunnel protect policy's source in `xfrmPolicyFromParams`; S widens the inbound IPv4 tunnel state selector's source in `xfrmStateFromParams`, each to `0.0.0.0/0` | clean PASS, P alone PASS, S alone PASS, S+P packet-delivery RED, then clean PASS; together the faults deliver the inconsistent error | NOT RUN: both selectors now enforce the source, so the original policy-only fault is masked; preserve the negotiated selectors, template-free entries and all other state and policy fields |
 
 **Decisions.**
 

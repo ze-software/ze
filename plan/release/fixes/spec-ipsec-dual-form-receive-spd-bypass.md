@@ -513,6 +513,8 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 
 | Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
 |-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| Peer-local ESP form stimulus | `internal/le/interoplab/ipsec/peerform/` `parseCommand`, `runAction`, `migrationPayload`, `parsePacket`, `parseEchoReply` | Portable and native Linux packages passed; the live bare/UDP/bare scenario passed | AC-2 uses exact outbound-SA atomic migration and matching wire/reply observations, preserving SPI, identity and replay progress; the as-used binding fault failed at the first actual bare reply and the post-clean run passed; the later comment-only input is unexecuted |
+| Image-owned helper staging | `internal/le/interoplab/ipsec/register_images.go` strongSwan registration; `ipsec.go` `LabBinaries`; `test/interop-ipsec/Dockerfile.strongswan` | Declares, stages and copies `ipsec-peerform` from its standalone Go package; wiring and five generic staging tests passed | Extends the existing registered binary inventory and ignore-file rules; the checker uses `/usr/bin/ipsec-peerform`, with no separate build path |
 | Dual-form receiver | `ike/dataplane/espform_linux.go` `espFormReceiver` | Reads refused bare ESP, re-presents it through `lo` | Extends: keeps the reader, the registry, the rate bound and the socket policy; replaces the `IPPROTO_RAW` injector with a TUN writer; adds the fast path in front of it |
 | Watched-SPI registry | `ike/dataplane/espform.go` `espFormRegistry` | SPI to address pair and ports | Extends: every watch, forget and retarget also writes the fast path's map |
 | BPF loading in the IKE dataplane | `ike/dataplane/override_guard_linux.go` | Loads a cgroup program from `asm.Instructions` through `cilium/ebpf` | Extends its pattern: the rewrite program is built the same way, in the same package |
@@ -603,6 +605,7 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
+| interop `esp-form-change` peer-local stimulus | → | image registration → `LabBinaries` → standalone `peerform` build → strongSwan image COPY → checker helper invocation | wiring/four subtests and five staging consumers PASS; helper/checker packages PASS; native Linux helper PASS; live same-SA switch PASS in `job-ipsec-live-form-switch-clean-de5e18d6.log`; as-used binding fault RED and post-clean PASS are recorded below; the later comment-only input is unexecuted |
 | strongSwan sending bare ESP on a 4500-without-NAT Child SA | → | fast path rewrite, then XFRM on the real interface | interop `icmp-error-payload-check` without `encap = yes` |
 | bare ESP on a veth for a Child SA installed through `createFirstChildSA`, under the SPD a first apply builds | → | `InstallSA` → `espFormReceiver.Watch` → fast path (`espFormFastPathInstructions`) and complete path (`espFormReceiver.run` → `espFormTUN.inject`) | `TestRFC4301BareESPOnTemplatedSAIsPolicyChecked` (`internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go`, QEMU guest-root) |
 | bare ESP with outer ECN CE on the same SA | → | both paths, then XFRM's ECN decapsulation | `TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE` (same file, QEMU guest-root) |
@@ -621,7 +624,7 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | interop `icmp-error-payload-check`, strongSwan sending bare ESP (no `encap = yes`) | the scenario passes; its two red proofs in `plan/release/fixes/spec-rfc4301-architecture-gaps.md` are recorded | the in-selector error is still delivered, because the selector check passes it |
+| AC-1 | interop `icmp-error-payload-check`, strongSwan sending bare ESP (no `encap = yes`) | the scenario passes; its two red proofs in `plan/release/fixes/spec-rfc4301-architecture-gaps.md` are recorded. Proof (c) omits the state ICMP flag and fails consistent-error delivery with generation and SA carriage observed. Proof (d) runs clean PASS, inbound protect-policy source widened alone PASS, inbound state-selector source widened alone PASS, both widened packet-delivery RED, then clean PASS. The private IPv4 tunnel faults preserve negotiated selectors and all other state and policy fields | the in-selector error is still delivered, because the selector check passes it; each single-source fault still rejects the inconsistent error through the other selector |
 | AC-2 | interop `esp-form-change` | one Child SA delivers traffic in both forms, before and after the peer changes form, and keeps its SPI | both forms delivered, because RFC 7296 Section 2.23 requires it |
 | AC-3 | bare ESP on a veth between two network namespaces, on a 4500-without-NAT tunnel-mode SA installed by `createFirstChildSA`, under the production SPD (`unmatched discard` through `installUnmatched`, then the inbound IKE bypass through `installIKEBypass`, in `applyConfig`'s order): whole and fragmented datagrams inside and outside the SA selectors, then an explicit higher-priority host DISCARD inside that scope and its exact removal | inside: delivered; outside: refused by the actual SA selector before SPD lookup. Exact `(XfrmInStateMismatch, XfrmInNoPols, XfrmInPolBlock)` deltas: whole outside `(1,0,0)`, fragmented outside `(2,0,0)`, fragmented inside `(1,0,0)`. The original bare-form refusal contributes one mismatch on the complete path. The explicit DISCARD separately proves SPD consultation: whole `(0,0,1)`, fragmented `(1,0,1)`, neither delivered; after removal both valid forms deliver, whole `(0,0,0)` and fragmented `(1,0,0)`. Whole datagrams advance `Rewritten4` by exactly one; fragmented datagrams leave it unchanged, advance reassembly and are re-presented through `ze-espform`. Counter observations wait for exact terminal deltas within a fixed bound | in-selector traffic delivered in both forms because the SA carries it, and again after the temporary DISCARD is removed; the production catch-all, inbound IKE bypass and reader exemption remain present in SPD readback |
 | AC-4 | `rfc/short/rfc4301.md` `RFC4301-5.2-2` | carries no `{partial}` annotation, with discrimination records for the new tests | other annotations unchanged |
@@ -645,6 +648,26 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 | AC-22 | The exact-state-scope probe sends a capability attribute to test the read-only receipt | the request serializes its fixed header before the capability attribute, and the kernel rejects that correctly formed write with `EINVAL`; every positive capability assertion stays unchanged | the preceding malformed request's result supports no kernel-behavior claim; passing independent packet and fragment probes retain their results |
 | AC-23 | The ESP-form interop checker receives missing, populated valid, or populated same-form Ze XFRM state evidence | empty or whitespace-only snapshots return a missing-state error; a populated valid-state control succeeds after the existing template, traffic, counter, direction and SPI checks; a populated same-form control reaches its distinct form-agreement diagnostic | a populated snapshot still proceeds through the existing template, traffic, direction and SPI checks; AC-2's full form-switch and counter repair remain owed |
 
+### AC-2 native form-switch receipt
+
+The clean live run passed in 8s (`job-ipsec-live-form-switch-clean-de5e18d6.log`).
+The as-used binding cut then failed in 16s at the first actual bare probe,
+with egress observed and no reply after IKE and the Child SA established
+(`job-ipsec-live-form-switch-binding-cut-de5e18d6.log`). The post-clean run
+passed in 8s (`job-ipsec-live-form-switch-clean-after-cut-de5e18d6.log`), with
+fresh recording `esp-form-change-73ZQMZSGXWCCXBQQR2WCLACH4B.jsonl`.
+The cut left no lab resources; its lab exit was 1, while check and command
+exits were zero. The post-clean run had all zero exits. Both VMs stopped.
+
+The cut's AS-USED private source SHA256 is
+`a47c67ee90560536a43531ebbedc8ed7ad54283870b809d8add1469e80a64e77`.
+The later required mutation-marker correction changed only its comment;
+current source SHA256
+`0af0356d5c7ca16099e2a750c856d9f88cd94d678d93a098f3aebcf8c89ca937`
+is unexecuted. Main decides the marker-review disposition; the current bytes
+do not inherit the as-used trial's identity. Other interop and RFC obligations
+remain open.
+
 ### AC-23 missing-state checker correction
 
 The new empty and whitespace regression cases both failed against the old
@@ -656,7 +679,9 @@ tests and both missing-state subtests, plus the existing
 (`job-ipsec-form-change-missing-state-green-3e1c452a.log`). The full checker
 package also passed, with one package OK
 (`job-ipsec-interop-checker-package-a60a1a60.log`). Live interop and AC-2's
-form-switch and counter repair remain separate obligations.
+form-switch and counter repair remain separate obligations. The correction
+landed in `cb5e4a6044`. Its focused and full-package passes preceded the
+subsequent helper wiring and provide no result for that later phase.
 
 ### AC-14 peer-removal proof
 
@@ -810,6 +835,9 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
+| `TestIPsecPeerFormWiring` | `internal/le/interoplab/ipsec/peerform_wiring_test.go` | AC-2 helper has one image owner, one suite staging entry and the executable COPY | named PASS and all four subtests PASS; five generic staging consumers also PASS in `job-ipsec-peerform-staging-named-green-0958ee3a.log` |
+| Command/action, migration, replay, frame/reply and Linux projection/link tests | `internal/le/interoplab/ipsec/peerform/` `action_test.go`, `migration_test.go`, `replay_test.go`, `frame_test.go`, `reply_test.go`, `projection_linux_test.go`, `link_linux_test.go` | AC-2 helper selects one exact outbound SA, preserves identity/replay state, observes the requested ESP form and matches its probe reply | portable helper package PASS 0.242s in `job-ipsec-peerform-checker-packages-green-2d1ebed9.log`; Linux cross-build PASS and native Linux helper tests PASS without skips in `job-ipsec-peerform-linux-units-dcd7f143.log`, including projection, link, GETSA and migration framing |
+| `TestESPFormSwitchKeepsOneSA`, `TestESPFormSwitchRequiresInitialDisagreement`, `TestESPFormSwitchRejectsAStalledDirection`, `TestESPFormSwitchRejectsInvalidProbeEvidence`, `TestESPFormSwitchRejectsInvalidMigrationEvidence`, `TestESPFormSwitchRejectsARefusedOperation`, `TestESPFormSwitchRejectsUnreadableProbeEvidence`, `TestESPFormSwitchRetainsSafetyChecks`, `TestESPFormSwitchRejectsOutboundOnlyZeTemplate` | `internal/le/interoplab/ipsec/espform_switch_test.go` | AC-2 bare/UDP/bare checker phases retain one SA, verify all four traffic directions and reject missing, outbound-only or inconsistent evidence | outbound-only template regression produced its own RED in `job-ipsec-outbound-template-regression-red-69e830c3.log`; directed-reader correction source review CLEAN, then full checker package PASS 10.829s in `job-ipsec-peerform-checker-packages-green-2d1ebed9.log`, including 12 direction/phase stalls and malformed receipts; old counter-fixture replacement was independently approved |
 | `TestESPFormChangeRejectsMissingZeState`, `TestESPFormChangeAcceptsPresentZeState` | `internal/le/interoplab/ipsec/espform_change_snapshot_test.go` | AC-23: empty and whitespace-only snapshots refuse, while a populated state proceeds through the existing checker | actual missing-state RED followed by focused PASS with both subtests and the existing direction-claim control; full checker package PASS |
 | `TestRFC4301KernelAdvertisesExactStateScope` | `internal/component/ike/engine/rfc4301_state_scope_readback_integration_linux_test.go` | AC-22: correctly ordered fixed header and capability attribute test the existing read-only `EINVAL` rejection, retaining every positive receipt check | corrected probe PASS without skips on the same Ze kernel; independent judgment and native approval recorded |
 | `TestESPGroupReloadWaitsForChildlessOwnerHandoff` | `internal/component/ike/engine/reconcile_childless_handoff_test.go` | AC-21: attached childless SA reaches owner adoption before ownership publication and keeps both SPIs and the responder schedule | actual RED, then race-enabled PASS with four existing refusal/schedule tests and no skips; unchanged functional case PASS |
@@ -908,6 +936,8 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 From `git status --short` over the spec's paths on 2026-11-12, this spec's files only. **Shared** marks a file that also carries a hunk this spec cannot claim (another session's work, for example the RFC 4301 ICMP and implicit-discard work): commit this spec's hunks of it with `hunks <path> <patch-file>` after judging the rest against HEAD (`ai/rules/git-safety.md`).
 
 Feature code:
+- `internal/le/interoplab/ipsec/ipsec.go`, `register_images.go`, `test/interop-ipsec/Dockerfile.strongswan`, `.gitignore`, `.dockerignore` - image-owned staging, helper executable COPY and matching ignore declarations for AC-2.
+- `internal/le/interoplab/ipsec/checkers.go` - planned AC-2 bare/UDP/bare phases and counter checks through the peer-local helper; AC-23's missing-state refusal stays in force.
 - `internal/le/interoplab/ipsec/checkers.go` - `checkESPFormChange` rejects empty or whitespace-only Ze XFRM snapshots (AC-23).
 - `internal/component/ike/dataplane/espform_linux.go` - the TUN writer replaces the `IPPROTO_RAW` injector; the reader reads the IPv4 header (`ReadMsgIP`) for the TOS; the fast path lifecycle; Watch and Forget decide start and stop under one lock.
 - `internal/component/ike/dataplane/espform.go` - IPv4 header checksum, received TOS, `espFormBareIPv4`, registry comments.
@@ -965,6 +995,8 @@ Docs and records:
 - `plan/post-release/features/spec-ike-ipv6-transport.md` - receives AC-8.
 
 ## Files to Create
+- `internal/le/interoplab/ipsec/peerform/` `main.go`, `action.go`, `migration.go`, `replay.go`, `frame.go`, `socket_linux.go`, `socket_other.go`, `probe_linux.go` and their portable/Linux test files - peer-local AC-2 stimulus and independent wire/reply evidence.
+- `internal/le/interoplab/ipsec/peerform_wiring_test.go`, `espform_switch_test.go` - image ownership/staging proof and planned same-SA form-switch checker regressions (AC-2).
 - `internal/le/interoplab/ipsec/espform_change_snapshot_test.go` - missing-state regressions and populated-state control for the interop checker (AC-23).
 - `internal/component/ike/engine/reconcile_childless_handoff_test.go` - channel-ordered regression for attached childless SA reload before ownership publication (AC-21).
 - `internal/component/ike/dataplane/espform_program_linux.go` - the rewrite program in `asm.Instructions`.
@@ -1023,7 +1055,7 @@ Docs and records:
 | 6 | Has a user guide page? | Yes | `docs/guide/ipsec.md` ("Both ESP wire forms": the two paths, ECN, IPv6 as a gap); `docs/guide/operations.md`, `docs/guide/ze-install.md`, `docs/guide/command-reference.md` (the unit's `CAP_BPF`); `docs/guide/traffic-usage.md` (the fix text); `docs/guide/ipsec.md` also carries the firewall gate and its four limits; `docs/guide/firewall.md` (a rule on `protocol esp` keeps the fast path off) |
 | 7 | Wire format changed? | No | nothing leaves the host |
 | 8 | Plugin SDK/protocol changed? | No | |
-| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4301.md` `RFC4301-5.2-2` (`{partial}` reason rewritten; dropped once the records exist, AC-4); `RFC7296-2.24-2` in `rfc/short/rfc7296.md` carries no annotation and needs no edit, and its new tag owes a record |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | `rfc/short/rfc4301.md` `RFC4301-5.2-2` (`{partial}` reason names the remaining scope-installation producer; remove it only after the full obligation is implemented and proven, AC-4); `RFC7296-2.24-2` in `rfc/short/rfc7296.md` carries no annotation and needs no edit, and its new tag's native record is observed |
 | 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`, `docs/architecture/testing/qemu-integration.md`: the runner's netns grant derives from `privilege.DaemonCapabilities`, and `/dev/net/tun` is widened beside `/dev/ppp`; `docs/architecture/testing/interop.md`: `esp-form-firewall-drop` and the IPsec ze peer's TUN and net-sysctl grants |
 | 11 | Affects daemon comparison? | No | |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/ike/ipsec-8-ikev2-child-xfrm.md`, `docs/architecture/linux-limitations.md`, `docs/architecture/system-architecture.md` (the daemon's capability set), `docs/architecture/traffic/traffic-usage.md` (`TCX_NEXT`); `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` (the commit observers); `docs/architecture/doctor-and-health-checks.md` (the engine's runtime checks, the TUN record, `ipsec-child-install`, `daemon-capabilities`); `docs/architecture/core-design.md`, "Firewall reconcile concurrency" (the observers inside `reconcileMu`, owed: row 16) |
@@ -1207,11 +1239,15 @@ not claim that their final-code tests or mutation proofs have run.
 
 | Evidence | Observed state |
 |----------|----------------|
+| Main-thread `./le --name session doc check all` | This turn's direct run exited 1 and initially reported 389 documentation-drift issues; its remaining output was truncated and no new log path was retained. Earlier retained run `job-ipsec-doc-check-f119ecea.log` separately reports 389 drift issues, mostly published wiki/gh-pages CLI drift, plus 12 source-anchor findings outside IPsec paths. Neither receipt supplies an owned-docs PASS |
+| Bounded lint-repair source phase | Both packages PASS in `job-ipsec-lint-repair-packages-4419bc1f.log` (native `job-unit-pkg-cf26cae2.log`): checker 12.442s, helper 1.304s. Linux rebuild PASS in `job-ipsec-peerform-lint-fix-linux-build-1732f37d.log`; all 31 top-level guest tests, including fuzz seeds, PASS without skips in `job-ipsec-peerform-lint-fix-linux-units-bad03c34.log`, on the current c3583fe5 kernel/45cb736f9a13fd62 image, all zero exits and stopped VM. Independent review CLEAR. After the final import-group correction, helper-only lint `job-ipsec-peerform-final-import-lint-25898e43.log` reports zero Linux issues and one Darwin `encapsulation` unused finding, for a field consumed by Linux. The 30-file code phase landed in `7d49a5e3f9`; proof metadata is prepared separately. Earlier parent-package findings plus the counter-test modernization note remain; no overall lint-green claim |
+| AC-2 repaired helper/checker and clean live switch | Both full portable packages PASS in `job-ipsec-peerform-checker-packages-green-2d1ebed9.log`; native Linux helper PASS without skips in `job-ipsec-peerform-linux-units-dcd7f143.log`, on current kernel `c3583fe57d83e971a6c24c7d6e93d5b4e682a5797dbb0d15dad42d642f1c8798` and matching image `45cb736f9a13fd62`. Live `esp-form-change` PASS in 8s (`job-ipsec-live-form-switch-clean-de5e18d6.log`), with bare sequence 1, UDP acknowledgement 1, UDP probe sequence 2, bare acknowledgement 2 and bare probe sequence 3 on helper SPI `0x2bfcb9ba`, reqid 1. The real checker verified four counters and identities. Check/command/lab exits zero, no interruption, no resources left, VM stopped. The as-used binding fault produced its intended first-bare-reply failure in 16s, then the post-clean run passed in 8s (the AC-2 receipt records source identities); the later comment-only input remains unexecuted and AC-4 stays open |
+| Fresh native clause records on the current Ze kernel | RFC4301-5.2-2 positive: clean PASS 5.54s, writer-suppression cut fails fragmented inside-selector row 3 in 4.59s (`job-ipsec-rfc4301-positive-record-6923ef2c.log`). Negative: clean PASS 5.27s, TUN policy-bypass cut delivers outside-selector fragmented traffic in row 4, FAIL 14.22s (`job-ipsec-rfc4301-negative-record-651671a3.log`). RFC7296-2.24-2 positive: clean PASS, TOS-zero cut fails with 0x02 instead of CE 0x03 in 3.21s (`job-ipsec-rfc7296-ecn-record-364024cc.log`). RFC5082-3-4 positive: clean PASS 8.91s across four subcases; source-match removal causes three Unknown-SYN failures in 19.50s while the other-port control passes (`job-ipsec-rfc5082-unknown-record-239f49a4.log`). Native records are under `rfc/discrimination/rfc4301/`, `rfc7296/` and `rfc5082/`. All use kernel SHA256 `c3583fe57d83e971a6c24c7d6e93d5b4e682a5797dbb0d15dad42d642f1c8798` and matching `45cb736f9a13fd62` image, without skips and with stopped VMs. These prove the tagged claims; AC-4 remains partial because general per-SA scope installation and isolation are unfinished |
 | Main-thread `./le repo compiles check` after checkpoint `abeb7d6535` | all five committed-tree build configurations compiled; this excludes test files and is not proof of the later working-tree edits |
 | Initial final-code main-thread `./le test unit pkg path ./internal/component/ike/dataplane/ path ./internal/component/ike/engine/ path ./internal/core/diagnostic/` | engine and diagnostic packages passed; three dataplane fixture/expectation failures were subsequently corrected and committed in `bd8e21b487`. The targeted package run `job-unit-pkg-58fce57a.log` and narrow race/count-20 scheduling run `job-ipsec-reopen-schedule-e00a01c8.log` passed. Final guest verification remains owed |
 | Receiver doctor and binding fixture units | the named tests passed under race/verbose execution in `job-ipsec-binding-doctor-units-419db7fc.log`; this includes the offload and complete-path doctor findings |
 | Host mutation walks 27, 31–33, 37, 39–49 | all sixteen returned the native red verdict, with clean own-test passes and broken own-test failures, in `job-ipsec-dualform-host-redwalks-aa95f75a.log`; guest mutant 20 remains owed |
-| Final guest-root tests, guest mutant 20, doctor draft stress/promotion, RFC records and interop | not completed on the final code; neither the host mutation results nor earlier batches close these obligations |
+| Remaining closure evidence | Final Linux populations, doctor qualification/promotion and the repaired helper/checker plus clean live form switch have passed; all four fresh clause records are observed. AC-2's as-used clean → binding-cut → clean proof is observed; marker-review disposition, remaining final interop and broader RFC obligations remain open. The last recorded RFC check reported 367 violations, including four older SAD-selector covers. Transport positive and negative were renewed by producer-dependency breaks in `job-ipsec-sad-transport-positive-record-f7512802.log` (clean 3.78s, halt RED 0.01s) and `job-ipsec-sad-transport-negative-record-59c8ab79.log` (clean 3.34s, halt RED 0.01s); the two tunnel covers and independent audit remain pending. An inventory of 83 old-record inputs exists under the state's ownership, with no all-green claim. The fresh records do not reconstruct historical guest mutant 20 |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
