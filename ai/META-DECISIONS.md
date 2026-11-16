@@ -30,6 +30,17 @@ in the spec or commit it applies to.
 - Every RFC Ze implements gets full, correct coverage; an absent requirement of
   an implemented RFC is owed work, never a question. The only exception is a
   basic primitive Linux cannot provide, named with evidence.
+- An RFC defines the required baseline behavior, not a ceiling on explicit
+  operator control. RFC compliance is assessed on the default configuration
+  path. Explicit configuration options that provide more specific behavior or extensions
+  remain supported; their existence does not make the default path fail
+  compliance. RFC work does not remove existing features to improve a
+  conformance figure. Specs name the default configuration being assessed,
+  the options to preserve, and tests for both. Claims and evidence identify
+  the configuration they cover; an explicitly selected extension is not
+  presented as RFC behavior when it differs from the RFC. BGP router-ID
+  overrides for peers and groups, and router-ID changes on reload, are
+  features to preserve.
 - BGP's RFC state machine describes expected behaviour; it does not prescribe
   the implementation's structure. Implement and assess the required externally
   visible behaviour using RFC 4271 together with applicable updates and errata,
@@ -295,6 +306,10 @@ in the spec or commit it applies to.
   a commit or before a push: the targeted checks for the files it touched are
   its evidence.
 - A check that ran is not re-run to reconfirm what its output said.
+- When fixing GitHub CI failures, read the failed job on GitHub, fix its cause
+  here, and run only the local checks for that issue. After the next push,
+  wait for CI to identify the next failures rather than running wider checks
+  locally to discover them.
 - When the user asks for a commit, prepare the script and run it. Do not review
   again or rerun gates for the commit.
 - Commit work as soon as a piece of it is complete: when it improves the
