@@ -47,7 +47,7 @@ const (
 	valueAuthorisation = "owner authorisation"
 )
 
-const actionApprovalCheck = "approval-check"
+const actionApprovalCheck = "approval"
 
 // keywordPush is the push verb. It is the one push route: create carries no
 // push keyword.

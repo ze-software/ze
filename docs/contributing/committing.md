@@ -104,7 +104,7 @@ earlier block of the same script spends a verdict just like any other commit;
 pruning its pending row does not renew it. This read-only check issues no
 approval and does not reread pending rows as authority. Refusal leaves the
 unpublished block's message and unrelated pending approvals intact.
-The native read-only consumer is `./le commit approval-check parent <fullSHA>
+The native read-only consumer is `./le commit approval parent <fullSHA>
 verdict "<whole verdict line>"`; `verdict` repeats when the block selected
 several ordinary approvals.
 <!-- source: internal/le/commit/script.go -- renderPublish, renderEmptyPublish -->
