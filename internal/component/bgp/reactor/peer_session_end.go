@@ -195,6 +195,9 @@ func (p *Peer) leaveSession(session *Session, leave *sessionLeave, from, to fsm.
 // So a plugin hears every UPDATE of a session before its down, and the down
 // follows PeerStateConnecting.
 func (p *Peer) sessionDown(session *Session, publication *receivePublication, deliverChan chan deliveryItem, deliveryDone <-chan struct{}, leave *sessionLeave) {
+	// A deciding process may acquire retention while applying its queued DOWN.
+	// Close only after that synchronous publication returns, even on a panic.
+	defer session.closeSourceReceipt()
 	if leave.selected && session.fsm.State() == fsm.StateEstablished {
 		p.sessionEndHooks.Load().runBeforeLeaveFire()
 		// Without this event the leave arm, and so the down, would never
@@ -209,7 +212,9 @@ func (p *Peer) sessionDown(session *Session, publication *receivePublication, de
 
 	close(deliverChan)
 	<-deliveryDone
+	p.mu.Lock()
 	p.deliverChan = nil
+	p.mu.Unlock()
 	p.sessionEndHooks.Load().runDrained()
 
 	if !leave.selected {

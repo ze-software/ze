@@ -69,16 +69,23 @@ family, naming the fix, on both receive paths (`reportUnstorableFamily`).
 ### Received source-policy provenance
 
 Received routes retain `SourcePolicyEpoch`, the policy epoch captured when the
-UPDATE was admitted. It is independent of the received message ID, dispatch
-session generation, validation eligibility and GR staleness. Equal-attribute
-refreshes, labeled and native NLRI storage, ADD-PATH paths (including identifier
-zero), retained clones and external event delivery preserve it.
+UPDATE was admitted, and `SourceReceipt`, the issuing source Session's identity.
+They are independent of the received message ID, dispatch session generation,
+validation eligibility and GR staleness. Equal-attribute refreshes replace both
+with the incoming event's originals. Labeled and native NLRI storage, ADD-PATH
+paths (including identifier zero), retained clones and external event delivery
+preserve them. A byte-only insertion has no source receipt and clears an old
+receipt even when the attributes are unchanged.
 
 Replay carries the stored epoch in the typed `rpc.StoredRoute` field
 `source-policy-epoch`; selecting-RIB FlowSpec and recovery snapshots carry the
-same provenance. A replay may use the source's current dispatch session while
-retaining the original policy epoch. Zero means unrecorded provenance, never a
-request to stamp old bytes with the current epoch.
+same provenance, including the original source receipt. A replay may use the
+source's current dispatch session while retaining its original admission facts.
+Zero means unrecorded provenance, never a request to stamp old bytes with the
+current epoch or a replacement session's receipt. The immutable selected capture
+revises when that receipt changes, even if the selected path's attributes and
+monitoring identity remain equal. Capturing a receipt transports identity; it
+does not itself acquire engine authorization to send the route.
 
 The sent inventory retains the epoch beside its received-owner receipt.
 Attribute grouping keeps different epochs separate. Initial and refresh replay
@@ -89,6 +96,9 @@ These fields transport provenance. The source-policy lifecycle owners below
 read them to invalidate and restore a source in place.
 
 <!-- source: internal/component/bgp/plugins/rib/storage/routeentry.go -- RouteEntry, Clone -->
+<!-- source: internal/component/bgp/plugins/rib/rib_advertise_capture.go -- advertiseRoute.matches -->
+<!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryCandidateWithLabels -->
+<!-- source: internal/component/bgp/plugins/rib/rib_flowspec_validation.go -- flowSpecPath -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib.go -- RawRoute, replayStoredRoute -->
 <!-- source: internal/component/bgp/plugins/rib/rib_replay.go -- groupKey, replayRoutesWithCursor, resendRoutesWithCursor -->
 

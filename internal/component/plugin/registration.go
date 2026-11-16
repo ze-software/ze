@@ -85,6 +85,7 @@ type PluginRegistration struct {
 	ConfigCompletion  bool // Retains undo until acknowledged whole-reload completion.
 	SourcePolicyOwner bool // Retains state whose source eligibility can change.
 	SourcePolicy      bool // Implements the acknowledged source-policy lifecycle.
+	CurrentSelection bool // Answers current desired selection independently of ordinary callbacks.
 	VerifyBudget      int  // Estimated verify time in seconds (0 = trivial)
 	ApplyBudget       int  // Estimated apply time in seconds (0 = trivial)
 	StartedHandler    bool // Post-ready initialization must complete before the next tier.
@@ -110,6 +111,10 @@ type PluginRegistration struct {
 	// across the startup set and delivers the union on the Stage-2 configure
 	// callback. See registry.Registration.Claims.
 	Claims []string
+
+	// Dissemination is the validated Stage 1 peer-role declaration. Actual
+	// peer attachments remain the only source of receive/send permission.
+	Dissemination []rpc.DisseminationDecl
 
 	// SignalsSessionReady is the Stage-1 half of the session-ready
 	// declaration, and the only route an external plugin has to it. See

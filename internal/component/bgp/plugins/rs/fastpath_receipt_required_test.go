@@ -21,7 +21,7 @@ func TestRSFastReceiptRequiresExplicitFields(t *testing.T) {
 		null  bool
 	}
 	cases := []receiptInput{{name: "explicit-zero-false"}}
-	for _, field := range []string{"peer", "message-id", "source-policy-epoch", "reactor-forwarded"} {
+	for _, field := range []string{"peer", "message-id", "source-policy-epoch", "source-receipt", "reactor-forwarded"} {
 		cases = append(cases,
 			receiptInput{name: field + "-missing", field: field},
 			receiptInput{name: field + "-null", field: field, null: true})

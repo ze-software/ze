@@ -821,9 +821,10 @@ func runRIBPlugin(conn net.Conn) int {
 	err := p.Run(ctx, &sdk.Registration{
 		// WantsConfig: receive the bgp subtree at Stage 2 and on every reload
 		// that changes it, for the config transaction (config_tx.go).
-		WantsConfig:  []string{configRootBGP},
-		Commands:     commandDecls(),
-		DoctorChecks: []rpc.DoctorCheckDecl{advertiseDoctorDeclaration()},
+		WantsConfig:   []string{configRootBGP},
+		Commands:      commandDecls(),
+		Dissemination: disseminationDecls(),
+		DoctorChecks:  []rpc.DoctorCheckDecl{advertiseDoctorDeclaration()},
 		// ApplyBudget bounds a reload's apply: a selection-rule edit
 		// (maximum-paths, relax-as-path, blackhole honoring) reselects every
 		// stored route inside it (installConfig), one election per route. With
@@ -1228,7 +1229,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 				logger().Warn("received event: invalid next hop", "family", fam.String(), "error", err)
 				continue
 			}
-			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, familyAttrs, event.AddPath[fam], event.GetMsgID(), event.SourcePolicyEpoch, receivedStale)
+			r.insertPoolNLRIs(peerRIB, fam, nlriBytes, familyAttrs, event.AddPath[fam], event.GetMsgID(), event.SourcePolicyEpoch, event.SourceReceipt, receivedStale)
 		}
 	}
 }
@@ -1237,7 +1238,7 @@ func (r *RIBManager) handleReceivedPool(event *Event, peerAddr netip.Addr) {
 // log lines use PeerRIB's cached canonical address string (no per-call
 // conversion). receivedStale is the RFC 9494 Section 4.3 verdict written on
 // every stored route.
-func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool, msgID, sourcePolicyEpoch uint64, receivedStale bool) {
+func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family, nlriBytes, attrBytes []byte, addPath bool, msgID, sourcePolicyEpoch, sourceReceipt uint64, receivedStale bool) {
 	famStr := fam.String()
 	if !nlrisplit.Supported(fam) {
 		r.reportUnstorableFamily(peerRIB.PeerAddr(), fam)
@@ -1257,13 +1258,14 @@ func (r *RIBManager) insertPoolNLRIs(peerRIB *storage.PeerRIB, fam family.Family
 			prefixes := affected[:0]
 			// RFC 8277 Section 2.2: keep labels beside the normalized CIDR,
 			// exactly as on the structured receive path.
-			r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msgID, sourcePolicyEpoch, &prefixes)
+			r.insertLabeled(peerRIB, fam, attrBytes, wirePrefix, addPath, receivedStale, msgID, sourcePolicyEpoch, sourceReceipt, &prefixes)
 			continue
 		}
 		peerRIB.Insert(fam, attrBytes, wirePrefix)
 		peerRIB.ModifyFamilyEntry(fam, wirePrefix, func(entry *storage.RouteEntry) {
 			entry.MsgID = msgID
 			entry.SourcePolicyEpoch = sourcePolicyEpoch
+			entry.SourceReceipt = sourceReceipt
 			entry.ReceivedLLGRStale = receivedStale
 		})
 	}

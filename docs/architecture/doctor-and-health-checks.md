@@ -1428,6 +1428,16 @@ one the daemon runs on.
 
 ## Which check a new dependency needs
 
+The BGP source-session issuer registers `bgp-source-receipt-issuer` in the
+daemon's runtime phase. It reads the daemon-wide identity clock and reports
+`doctor-bgp-source-receipt-admission` if no new identity can be allocated.
+Restarting the BGP subsystem cannot repair that clock; the fix is
+`ze request restart`. A failure to capture a session's negotiated facts raises
+the same owned code with its precise cause on the bounded recent-events bus and
+closes that connection before UP is published. A healthy issuer returns no
+runtime finding.
+<!-- source: internal/component/bgp/reactor/source_session_diagnostic.go -- sourceReceiptDiagnostics, reportSourceReceiptAdmissionFailure -->
+
 BGP's `bgp-transport-scopes` check reads the host interface names and indices
 when the configuration has a BGP block. Its
 `doctor-bgp-transport-scope-unknown` warning means differently spelled TCP

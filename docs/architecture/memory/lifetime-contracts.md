@@ -108,6 +108,18 @@ session loss, the reader and coalesce cleanup return their remaining handles.
 
 The peer metadata `notifyMessageReceiver` builds is copied by value and borrows nothing either; its AS is an `rpc.RemoteAS` value, two words with no pointer.
 
+**A source receipt outlives bytes only through explicit references.** The exact
+Session issues its receipt after negotiation and before UP, then its callback
+places the scalar on each received UPDATE and the cache value. A byte-identical
+`WireUpdate.Snapshot` preserves the scalar; it does not extend source authority.
+The Session keeps the source facts available until its queued receive delivery
+and synchronous DOWN finish. A selecting process must acquire its own authorized
+lease before that delivery reference ends, and explicitly retain it for a
+selected route that survives physical DOWN. Cache ownership alone grants none.
+<!-- source: internal/component/bgp/reactor/source_session.go -- captureSourceReceipt, sourceMessageCallback, closeSourceReceipt -->
+<!-- source: internal/component/bgp/reactor/source_receipt.go -- liveSourceReceipt, sourceReceiptLease -->
+<!-- source: internal/component/bgp/wireu/wire_update.go -- SourceReceipt, Snapshot -->
+
 **A forwarding dedup entry borrows an outgoing item, not a pool slot forever.**
 Both rails MUST finish body construction before publishing a materialization
 to the per-fan-out dedup table. A failed body MUST abandon its candidate before
@@ -134,6 +146,45 @@ output has already copied the bytes.
 <!-- source: internal/component/bgp/reactor/recent_cache.go -- Stop, UnregisterConsumer -->
 <!-- source: internal/component/bgp/reactor/forward_dedup_test.go -- newFanoutHarnessWith, newReflectorHarness -->
 <!-- source: internal/component/bgp/reactor/forward_initial_sync_order_test.go -- newSyncOrderRailWith, TestSyncOrderFixtureReleasesAdoptedBuffers -->
+
+**A failed received publication ends cache admission, not active ownership.**
+The delivery worker aborts its failed batch and queued receipts after sealing
+the source. A read-task failure before handoff aborts that adopted receipt;
+earlier queued receipts still drain normally. An aborted entry rejects new
+lookups and retains, while existing forward retains protect the original read
+slot and every adopted wire variant until their final release. Both cached
+forward APIs acquire the lookup and their retain in one cache transaction.
+Neither a forced delete nor activation with zero consumers can safely replace
+that ownership transfer after a receiver may have published part of a batch.
+
+A callback panic carries its exact adopted-buffer receipt back to the standard
+or coalesced read owner. The owner suppresses a duplicate return and re-panics
+the original cause into the session's existing task boundary. The coalesced
+flush also defers its buffer cleanup, including failure before adoption.
+`TestReceivePublicationAbortReleasesReadOwnership` covers nil receivers,
+panicking receivers, queued receipts and pre-handoff failures using real pool
+slots. `TestReceivePublicationAbortProtectsRetainedReadOwnership` checks lookup
+closure and retained receipt/variant survival until final release on both
+standard and coalesced reads.
+
+The outer receive callback also preserves ownership accumulated across policy
+withdrawal continuations. If the primary publication succeeded and its later
+heap-backed continuation panics, the reader still receives the primary's exact
+ownership receipt and the original panic cause. That later failure does not
+revoke the already-published primary. Its retains continue to protect both the
+read slot and adopted variants until final release.
+`TestReceivePublicationFollowPanicPreservesPrimaryOwnership` proves this
+sequence on both selected read modes. `TestAbortedPublicationRetainSurvivesLateLifecycle`
+also exercises late activation, explicit expiry and a pressured gap scan while
+an aborted receipt and its variant remain retained.
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- abortPublication, getRetained -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- abortDeliveryOwnership -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyOneMessage -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- finishReadBuffer -->
+<!-- source: internal/component/bgp/reactor/session_coalesce.go -- flushCoalesce -->
+<!-- source: internal/component/bgp/reactor/receive_publication_abort_test.go -- real pool ownership regressions -->
+<!-- source: internal/component/bgp/reactor/receive_publication_follow_panic_test.go -- successful primary survives continuation failure -->
+<!-- source: internal/component/bgp/reactor/recent_cache_abort_lifecycle_test.go -- late lifecycle preserves retained aborted bytes -->
 
 ### B. attrpool Handle — never copies
 Attribute bytes are interned once and shared (refcounted) across thousands of

@@ -69,11 +69,11 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 	return s.dispatchFrame(frame)
 }
 
-func (s *Session) readFrame(conn net.Conn, bufReader *bufio.Reader) (*receivedFrame, error) {
+func (s *Session) readFrame(conn net.Conn, bufReader *bufio.Reader) (receivedFrame, error) {
 	// Get buffer from multiplexer.
 	buf := s.getReadBuffer()
 	if buf.Buf == nil {
-		return nil, errReadBufferExhaustedPoolAtMaximum
+		return receivedFrame{}, errReadBufferExhaustedPoolAtMaximum
 	}
 
 	// The constructor owns its handle until it transfers a complete frame.
@@ -92,13 +92,13 @@ func (s *Session) readFrame(conn net.Conn, bufReader *bufio.Reader) (*receivedFr
 		// Clean close does not increment wireReadErrors (not an error).
 		if errors.Is(err, io.EOF) || isConnectionReset(err) {
 			s.handleConnectionClose()
-			return nil, ErrConnectionClosed
+			return receivedFrame{}, ErrConnectionClosed
 		}
 		// Actual read error (timeout, network failure): count it.
 		if s.prefixMetrics != nil {
 			s.prefixMetrics.wireReadErrors.With(s.addrLabel).Inc()
 		}
-		return nil, err
+		return receivedFrame{}, err
 	}
 
 	if s.onRead != nil {
@@ -111,7 +111,7 @@ func (s *Session) readFrame(conn net.Conn, bufReader *bufio.Reader) (*receivedFr
 		s.notifyHeaderErr(conn, buf.Buf[:message.HeaderLen], err)
 		s.logFSMEvent(fsm.EventBGPHeaderErr)
 		s.closeConn()
-		return nil, fmt.Errorf("parse header: %w", err)
+		return receivedFrame{}, fmt.Errorf("parse header: %w", err)
 	}
 
 	// RFC 8654 Section 6: "For all messages except for OPEN and KEEPALIVE
@@ -128,7 +128,7 @@ func (s *Session) readFrame(conn net.Conn, bufReader *bufio.Reader) (*receivedFr
 		)
 		s.logFSMEvent(fsm.EventBGPHeaderErr)
 		s.closeConn()
-		return nil, fmt.Errorf("message length %d exceeds max for %s: %w", hdr.Length, hdr.Type, err)
+		return receivedFrame{}, fmt.Errorf("message length %d exceeds max for %s: %w", hdr.Length, hdr.Type, err)
 	}
 
 	// Read body
@@ -136,14 +136,14 @@ func (s *Session) readFrame(conn net.Conn, bufReader *bufio.Reader) (*receivedFr
 	if bodyLen > 0 {
 		_, err = io.ReadFull(bufReader, buf.Buf[message.HeaderLen:hdr.Length])
 		if err != nil {
-			return nil, fmt.Errorf("read body: %w", err)
+			return receivedFrame{}, fmt.Errorf("read body: %w", err)
 		}
 	}
 
 	s.observeReceivedFrame(hdr.Type, buf.Buf[:hdr.Length])
 
 	transferred = true
-	return &receivedFrame{header: hdr, buffer: buf}, nil
+	return receivedFrame{header: hdr, buffer: buf}, nil
 }
 
 // observeReceivedFrame tees only complete original frames. Pre-read buffered
@@ -163,6 +163,7 @@ func (s *Session) observeReceivedFrame(kind msgtype.MessageType, wire []byte) {
 // receivedFrame owns one complete original packet. The caller MUST dispatch
 // it or return its handle. Only readFrame constructs one; all TCP ingress uses
 // its header validation, capture tee and original-wire observation.
+// It transfers by value so a complete read needs no separate heap wrapper.
 type receivedFrame struct {
 	header message.Header
 	buffer BufHandle
@@ -171,13 +172,9 @@ type receivedFrame struct {
 func (f *receivedFrame) body() []byte { return f.buffer.Buf[message.HeaderLen:f.header.Length] }
 func (f *receivedFrame) wire() []byte { return f.buffer.Buf[:f.header.Length] }
 
-func (s *Session) dispatchFrame(frame *receivedFrame) error {
+func (s *Session) dispatchFrame(frame receivedFrame) error {
 	kept := false
-	defer func() {
-		if !kept {
-			s.returnReadBuffer(frame.buffer)
-		}
-	}()
+	defer s.finishReadBuffer(frame.buffer, &kept)
 	if err := s.beginAdmission(); err != nil {
 		return err
 	}
@@ -185,6 +182,39 @@ func (s *Session) dispatchFrame(frame *receivedFrame) error {
 	err, owned := s.processMessage(&frame.header, frame.body(), frame.buffer)
 	kept = owned
 	return err
+}
+
+// transferredReadBufferPanic carries the callback's ownership result when a
+// panic prevents its normal bool return. Only the callback that adopted the
+// exact buffer constructs it. The read owner MUST unwrap and re-panic its
+// original cause; this receipt never turns a failed publication into success.
+type transferredReadBufferPanic struct {
+	cause  any
+	buffer BufHandle
+}
+
+// finishReadBuffer is deferred by every selected read-buffer owner, including
+// the coalesced synthetic body. Its kept pointer belongs to that read call.
+// A callback can already have adopted (and aborted) this buffer when it panics;
+// returning it again here would free a slot still owned by an active forward.
+func (s *Session) finishReadBuffer(buf BufHandle, kept *bool) {
+	cause := recover()
+	if transferred, ok := cause.(transferredReadBufferPanic); ok {
+		if len(buf.Buf) > 0 {
+			if len(transferred.buffer.Buf) > 0 {
+				if &buf.Buf[0] == &transferred.buffer.Buf[0] {
+					*kept = true
+				}
+			}
+		}
+		cause = transferred.cause
+	}
+	if !*kept {
+		s.returnReadBuffer(buf)
+	}
+	if cause != nil {
+		panic(cause)
+	}
 }
 
 // readBufferRecheck bounds one wait of awaitReadBuffer. A Return to the
@@ -212,7 +242,8 @@ const readBufferRecheck = 100 * time.Millisecond
 // session waits as long as it stays open.
 //
 // The first wait of an episode logs a warning; the loop logs the resume.
-// Called only from the read goroutine (Run).
+// Called only by the connection's current read goroutine (Run or the private
+// incoming reader).
 func (s *Session) awaitReadBuffer(ctx context.Context, stop <-chan struct{}) error {
 	pool := bufMuxStd
 	if s.extendedMessage {
@@ -310,8 +341,8 @@ func (s *Session) processMessage(hdr *message.Header, body []byte, buf BufHandle
 	s.receivedType = hdr.Type
 	var validation rfc7606Validation
 	if hdr.Type == msgtype.TypeUPDATE {
-		// RFC 4271 Section 8.2.2: an UPDATE in OpenSent/OpenConfirm is
-		// an unexpected FSM event. Resolve that admission here: a timer may
+		// RFC 4271 Sections 8.2.2 and 9: an UPDATE before Established
+		// cannot reach consumers. Resolve that admission here: a timer may
 		// change the state before dispatch, but cannot turn this rejected
 		// message into an unclassified UPDATE handed to enforcement.
 		if updateIsUnexpected(s.fsm.State()) {

@@ -97,6 +97,15 @@ var stage1Checks = []stage1Check{
 		},
 	},
 	{
+		name: "dissemination", section: sectionStage1, phase: stage1PhaseDriver,
+		isolated: func(plugin string, input *rpc.DeclareRegistrationInput) error {
+			if err := registry.CheckDisseminationDeclarations(plugin, input.Dissemination); err != nil {
+				return err
+			}
+			return registry.CheckDisseminationEvents(plugin, input.Dissemination)
+		},
+	},
+	{
 		// The filters are judged before the sink stores them: a name the
 		// vocabulary does not hold, or a chain the declared fields do not fit,
 		// fails the plugin here (D-10). The filters, the insertions and the

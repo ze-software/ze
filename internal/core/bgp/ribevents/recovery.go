@@ -73,6 +73,9 @@ type RecoveryRoute struct {
 	NextHop           []byte     `json:"next-hop"`
 	MessageID         uint64     `json:"message-id"`
 	SourcePolicyEpoch uint64     `json:"source-policy-epoch"`
+	// SourceReceipt remains the issuing source Session, including after DOWN.
+	// Zero is unrecorded and grants no selected-output authority.
+	SourceReceipt uint64 `json:"source-receipt"`
 	// PathID and AddPath name the path as the source sent it (RFC 7911), so
 	// a consumer compares a candidate without re-deriving it from NLRI framing.
 	PathID  uint32 `json:"path-id"`

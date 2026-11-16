@@ -113,6 +113,7 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 			items[j].receivedPeer == items[i].receivedPeer &&
 			items[j].receivedGeneration == items[i].receivedGeneration &&
 			items[j].sourcePolicyEpoch == items[i].sourcePolicyEpoch &&
+			items[j].sourceReceipt == items[i].sourceReceipt &&
 			items[j].exportGeneration == items[i].exportGeneration &&
 			parsed[j].parts.attrHash == parsed[i].parts.attrHash &&
 			bytes.Equal(parsed[j].parts.attrs, parsed[i].parts.attrs) {
@@ -184,6 +185,7 @@ func fwdBucketMerge(items []fwdItem, maxBodySize int) []fwdItem {
 				receivedPeer:       items[r.start].receivedPeer,
 				receivedGeneration: items[r.start].receivedGeneration,
 				sourcePolicyEpoch:  items[r.start].sourcePolicyEpoch,
+				sourceReceipt:      items[r.start].sourceReceipt,
 				exportGeneration:   items[r.start].exportGeneration,
 			})
 		}
@@ -362,6 +364,7 @@ func recoveryPackJoins(section, item *fwdItem, lead, parts *bucketBodyParts) boo
 		section.receivedPeer == item.receivedPeer &&
 		section.receivedGeneration == item.receivedGeneration &&
 		section.sourcePolicyEpoch == item.sourcePolicyEpoch &&
+		section.sourceReceipt == item.sourceReceipt &&
 		section.exportGeneration == item.exportGeneration &&
 		section.sourceMessageID == item.sourceMessageID &&
 		section.sourcePeerStr == item.sourcePeerStr &&

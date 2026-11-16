@@ -186,6 +186,8 @@ type MuxConn struct {
 	// pushes requests here when the field after the id is neither an answer
 	// kind nor "ok" or "error".
 	requestCh chan *Request
+	independentMu sync.RWMutex
+	independent map[string]IndependentRequestHandler
 
 	// done is closed when the background reader exits.
 	done chan struct{}
@@ -548,6 +550,14 @@ func (m *MuxConn) readLoop() {
 		}
 
 		m.consecutiveBad = 0
+		if handled, err := m.routeIndependent(req); handled {
+			if err != nil {
+				m.readerErr.Store(&err)
+				m.Close() //nolint:errcheck // admission failure ends this connection
+				return
+			}
+			continue
+		}
 		if !m.sendRequest(req) {
 			slog.Warn("mux conn: request channel full, dropping inbound request",
 				"id", id, "method", verb)

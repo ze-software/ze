@@ -148,58 +148,61 @@ func (a *reactorAPIAdapter) ForwardUpdatesDirect(updateIDs []uint64, destination
 	processed := 0
 
 	for _, id := range ids {
-		update, ok := a.r.recentUpdates.Get(id)
+		update, ok := a.r.recentUpdates.getRetained(id)
 		if !ok {
-			fwdLogger().Error("BUG: ForwardUpdatesDirect: msgID missing from cache",
+			fwdLogger().Debug("cached forward refused: UPDATE no longer available",
 				"id", id, "plugin", pluginName)
 			lastErr = ErrUpdateExpired
 			continue
 		}
 
-		srcInfo := lookupSrcInfo(update.SourcePeerIP)
-		if !srcInfo.resolved {
-			// Fail CLOSED, per-id: this rail is the one bgp-rs uses, so the RFC 4456
-			// hole would be widest here. The entry is still acked below so refusing
-			// does not leak it, and the refusal is logged because a guard that
-			// neither denies nor speaks does not exist. See errForwardNoSource.
-			fwdLogger().Warn("forward-cached refused: source peer is not an established peer",
-				"id", id, "source", update.SourcePeerIP, "plugin", pluginName)
-			lastErr = errForwardNoSource
+		func() {
+			defer a.r.recentUpdates.Release(id)
+			srcInfo := lookupSrcInfo(update.SourcePeerIP)
+			if !srcInfo.resolved {
+				// Fail CLOSED, per-id: this rail is the one bgp-rs uses, so the RFC 4456
+				// hole would be widest here. The entry is still acked below so refusing
+				// does not leak it, and the refusal is logged because a guard that
+				// neither denies nor speaks does not exist. See errForwardNoSource.
+				fwdLogger().Warn("forward-cached refused: source peer is not an established peer",
+					"id", id, "source", update.SourcePeerIP, "plugin", pluginName)
+				lastErr = errForwardNoSource
+				if pluginName != "" {
+					if ackErr := a.r.recentUpdates.Ack(id, pluginName); ackErr != nil {
+						cacheLogger().Warn("cache ack after refused forward failed",
+							"id", id, "plugin", pluginName, "err", ackErr)
+					}
+				}
+				processed++
+				return
+			}
+
+			// Exclude source peer from destinations for this ID.
+			var filteredBuf [16]*Peer
+			filtered := filteredBuf[:0]
+			for _, peer := range matchingPeers {
+				if peer.Settings().Address != update.SourcePeerIP {
+					filtered = append(filtered, peer)
+				}
+			}
+
+			if len(filtered) > 0 {
+				srcInfo.sender = sender
+				fwdErr := a.forwardUpdateCore(update, id, filtered, srcInfo)
+				if fwdErr != nil {
+					fwdLogger().Debug("ForwardUpdatesDirect: dispatch returned",
+						"id", id, "err", fwdErr)
+				}
+			}
+
 			if pluginName != "" {
 				if ackErr := a.r.recentUpdates.Ack(id, pluginName); ackErr != nil {
-					cacheLogger().Warn("cache ack after refused forward failed",
+					cacheLogger().Warn("cache ack after forward failed",
 						"id", id, "plugin", pluginName, "err", ackErr)
 				}
 			}
 			processed++
-			continue
-		}
-
-		// Exclude source peer from destinations for this ID.
-		var filteredBuf [16]*Peer
-		filtered := filteredBuf[:0]
-		for _, peer := range matchingPeers {
-			if peer.Settings().Address != update.SourcePeerIP {
-				filtered = append(filtered, peer)
-			}
-		}
-
-		if len(filtered) > 0 {
-			srcInfo.sender = sender
-			fwdErr := a.forwardUpdateCore(update, id, filtered, srcInfo)
-			if fwdErr != nil {
-				fwdLogger().Debug("ForwardUpdatesDirect: dispatch returned",
-					"id", id, "err", fwdErr)
-			}
-		}
-
-		if pluginName != "" {
-			if ackErr := a.r.recentUpdates.Ack(id, pluginName); ackErr != nil {
-				cacheLogger().Warn("cache ack after forward failed",
-					"id", id, "plugin", pluginName, "err", ackErr)
-			}
-		}
-		processed++
+		}()
 	}
 
 	if processed == 0 {

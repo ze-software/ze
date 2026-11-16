@@ -195,11 +195,13 @@ func (d *EventDispatcher) OnPeerCongestionChange(peer *plugin.PeerInfo, eventTyp
 // group is the peer's enclosing group, empty for a peer that stands alone.
 // generation orders the OPEN against the peer's state events
 // (rpc.ValidateOpenInput.Generation).
+// provisional checks an unselected connection without changing learned peer
+// state. The selected callback repeats that exact pair with false.
 // policyPlugins names the plugins holding OPEN-validation policy for this peer alone,
 // each of which owes an answer (Peer.openPolicyPlugins, bgp/reactor/peer.go).
 // Returns nil if all accept, an OpenValidationError on first rejection, or an
 // OpenValidationUnavailableError when a plugin holding policy did not answer.
-func (d *EventDispatcher) BroadcastValidateOpen(peerAddr, group string, generation uint64, policyPlugins []string, local, remote any) error {
+func (d *EventDispatcher) BroadcastValidateOpen(peerAddr, group string, generation uint64, provisional bool, policyPlugins []string, local, remote any) error {
 	localOpen, ok := local.(*message.Open)
 	if !ok {
 		return fmt.Errorf("BroadcastValidateOpen: local not *message.Open: %T", local)
@@ -208,5 +210,5 @@ func (d *EventDispatcher) BroadcastValidateOpen(peerAddr, group string, generati
 	if !ok {
 		return fmt.Errorf("BroadcastValidateOpen: remote not *message.Open: %T", remote)
 	}
-	return broadcastStampedValidateOpen(d.server, peerAddr, group, generation, policyPlugins, localOpen, remoteOpen)
+	return broadcastStampedValidateOpen(d.server, peerAddr, group, generation, provisional, policyPlugins, localOpen, remoteOpen)
 }

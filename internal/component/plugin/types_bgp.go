@@ -698,6 +698,9 @@ type ReactorLifecycle interface {
 // resolved.
 type PeerProcessBinding struct {
 	PluginName string // Reference to plugin name
+	// Explicit identifies a block the operator wrote, including an inherited
+	// block. Derived bindings stay false and cannot request dissemination.
+	Explicit bool
 
 	// Content settings (HOW messages are formatted)
 	Encoding string // "json" | "text" (empty = inherit from plugin)

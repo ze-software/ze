@@ -82,7 +82,8 @@ func init() {
 		// The reflector owns peer-up replay for peers whose state it receives.
 		// Share the RS claim so Adj-RIB-In stands down before the first peer
 		// establishes; UnheldRoles restores self-replay for other peers.
-		Claims: []string{"bgp-peer-up-replay"},
+		Claims:        []string{"bgp-peer-up-replay", disseminationRole},
+		Dissemination: disseminationDecls(),
 		// The peer-up replay reflects the stored adj-rib-in into the client that
 		// establishes, which is that client's initial routing update, and
 		// signalSessionReady reports when it is out, after this plugin's own

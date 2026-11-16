@@ -274,6 +274,7 @@ type Peer struct {
 	// Per-peer async delivery channel for received UPDATEs.
 	// Created in runOnce() before session.Run(), closed after session exits.
 	// nil means synchronous delivery (no channel configured).
+	// Guarded by mu; message observers capture it with the Session pointer.
 	deliverChan chan deliveryItem
 	// One scalar publication frontier per delivery lifetime. Cold recovery
 	// waits until accepted receive IDs reach plugin queues, without a hot lock.
@@ -1610,7 +1611,8 @@ func (p *Peer) validateOpen(session *Session, peerAddr string, remote *message.O
 	// removal issues a generation as it deletes its peer (doRemovePeer), so the
 	// removal of an earlier peer of this name is at or below this reading, and
 	// this peer's own removal is above it.
-	if err := r.eventDispatcher.BroadcastValidateOpen(peerAddr, settings.GroupName, forwardGenerationClock.Load(), p.openPolicyPlugins(), local, remote); err != nil {
+	_, provisional := session.negotiationEpoch.(*privateNegotiationEpoch)
+	if err := r.eventDispatcher.BroadcastValidateOpen(peerAddr, settings.GroupName, forwardGenerationClock.Load(), provisional, p.openPolicyPlugins(), local, remote); err != nil {
 		return err
 	}
 	p.publishValidatedRouterID(session, remote.BGPIdentifier)

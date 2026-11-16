@@ -534,6 +534,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 				meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: sourceMessageID,
 				receivedPeer: update.receivedPeer, receivedGeneration: update.receivedGeneration,
 				sourcePolicyEpoch: update.SourcePolicyEpoch, exportGeneration: facts.exportGeneration}
+			retirement.sourceReceipt = update.SourceReceipt
 			if err := prepareFwdPolicyRemovals(&retirement, update, update.WireUpdate, policyRemovals, facts); err != nil {
 				reportAtomicAggregateRetirementFailure(facts.addrStr, err)
 				result.fail(session, err)
@@ -759,6 +760,7 @@ func reactorForwardRSSectionResult(r *Reactor, update *ReceivedUpdate, wire *wir
 		item.session, item.authority = session, adjOutForwarded
 		item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
 		item.sourcePolicyEpoch = update.SourcePolicyEpoch
+		item.sourceReceipt = update.SourceReceipt
 		item.exportGeneration = facts.exportGeneration
 
 		extendedMessage := facts.extendedMsg

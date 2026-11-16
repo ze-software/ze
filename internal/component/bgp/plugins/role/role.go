@@ -446,7 +446,7 @@ func RunRolePlugin(conn net.Conn) int {
 // applyValidateOpen validates locally configured role pairs and observes the
 // advertised role an OTC egress member reads for the source's export set.
 //
-// Every OPEN re-establishes the learned role, INCLUDING declaring its absence.
+// Every selected OPEN re-establishes the learned role, INCLUDING its absence.
 // The previous form only wrote when the peer sent a usable Role capability, so
 // a peer that once advertised a role and later reconnected without one kept the
 // stale value indefinitely -- and resolvePeerRole (otc.go) PREFERS the learned
@@ -462,10 +462,11 @@ func RunRolePlugin(conn net.Conn) int {
 // write by generation: the entry carries input.Generation, and the removal
 // frees it only when the down names a newer generation (forgetRemovedPeer).
 // Every other change is driven by the very event that sets it, for the same
-// session, so the last OPEN always decides.
+// session, so the last selected OPEN always decides. Provisional validation
+// checks the candidate's policy without changing this selected relationship.
 //
-// The clear is deliberately symmetric with the set on the reject path too: the
-// role is recorded even when validateOpenRolePair refuses the session, so it
+// The clear is symmetric with the set on the selected reject path too: the
+// role is recorded even when validateOpenRolePair refuses that session, so it
 // must be dropped on refusal as well, rather than leaving a stale relationship
 // exactly when the relationship is most in doubt.
 func applyValidateOpen(
@@ -496,6 +497,11 @@ func applyValidateOpen(
 		cfg = peerConfigs[configjson.CapabilityGroupKey(input.Group)]
 	}
 	result := validateOpenRolePair(cfg, input)
+	// The pending TCP connection is not the relationship used by active routes.
+	// Selection repeats this pair without Provisional after the old epoch ends.
+	if input.Provisional {
+		return result
+	}
 
 	// A roleless destination advertises the value a source's export set reads,
 	// even before any source declares a role. Observe every configured peer

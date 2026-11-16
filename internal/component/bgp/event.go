@@ -29,6 +29,7 @@ var eventLogger = slogutil.LazyLogger("bgp.event")
 var KnownFields = map[string]bool{
 	"type": true, "msg-id": true, "message": true,
 	"source-policy-epoch": true,
+	"source-receipt":      true,
 	"peer":                true, "state": true, "origin": true, "as-path": true,
 	"med": true, "local-preference": true, "communities": true,
 	"large-communities": true, "extended-communities": true, "aigp": true,
@@ -169,7 +170,7 @@ func ParseEvent(data []byte) (*Event, error) {
 				return nil, fmt.Errorf("BGP UPDATE envelope carries a non-UPDATE payload")
 			}
 		}
-		if err := receipt.Validate(event.GetPeerAddress(), event.GetMsgID(), event.SourcePolicyEpoch); err != nil {
+		if err := receipt.Validate(event.GetPeerAddress(), event.GetMsgID(), event.SourcePolicyEpoch, event.SourceReceipt); err != nil {
 			return nil, err
 		}
 	}
@@ -381,6 +382,7 @@ type Event struct {
 	TypeKind          rpc.EventKind `json:"-"`
 	MsgID             uint64        `json:"msg-id"`
 	SourcePolicyEpoch uint64        `json:"source-policy-epoch"`
+	SourceReceipt     uint64        `json:"source-receipt"`
 
 	// Received events use message wrapper (includes type, id, direction).
 	Message *MessageInfo `json:"message,omitempty"`

@@ -77,8 +77,9 @@ func (state *classicMixedNextHopState) receive(raw string) error {
 	}
 	var payload struct {
 		BGP struct {
-			Epoch   uint64 `json:"source-policy-epoch"`
-			Message struct {
+			Epoch         uint64 `json:"source-policy-epoch"`
+			SourceReceipt uint64 `json:"source-receipt"`
+			Message       struct {
 				ID        uint64 `json:"id"`
 				Direction string `json:"direction"`
 			} `json:"message"`
@@ -106,7 +107,7 @@ func (state *classicMixedNextHopState) receive(raw string) error {
 	if err != nil {
 		return err
 	}
-	if err := receipt.Validate(payload.BGP.Peer.Remote.Address, payload.BGP.Message.ID, payload.BGP.Epoch); err != nil {
+	if err := receipt.Validate(payload.BGP.Peer.Remote.Address, payload.BGP.Message.ID, payload.BGP.Epoch, payload.BGP.SourceReceipt); err != nil {
 		return err
 	}
 	state.mu.Lock()

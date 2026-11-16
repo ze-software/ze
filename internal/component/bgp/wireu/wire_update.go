@@ -38,11 +38,12 @@ import (
 //
 // Thread-safe for concurrent read access via sync.Once guards on lazy fields.
 type WireUpdate struct {
-	payload     []byte
-	sourceCtxID bgpctx.ContextID
-	messageID   uint64          // Unique ID set by reactor after creation
-	sourceID    source.SourceID // Source that sent/created this message
-	sentOrigin  *SentOrigin     // Borrowed only during the reactor's sent callback
+	payload       []byte
+	sourceCtxID   bgpctx.ContextID
+	messageID     uint64          // Unique ID set by reactor after creation
+	sourceID      source.SourceID // Source that sent/created this message
+	sourceReceipt uint64          // Original received Session identity; zero is explicitly unrecorded.
+	sentOrigin    *SentOrigin     // Borrowed only during the reactor's sent callback
 
 	sectionOnce sync.Once
 	sections    wire.UpdateSections
@@ -259,6 +260,7 @@ func (u *WireUpdate) Snapshot() *WireUpdate {
 	s := NewWireUpdate(owned, u.sourceCtxID)
 	s.messageID = u.messageID
 	s.sourceID = u.sourceID
+	s.sourceReceipt = u.sourceReceipt
 
 	srcAttrs, srcErr := u.Attrs()
 	s.attrsOnce.Do(func() {
@@ -313,6 +315,14 @@ func (u *WireUpdate) SetSourceID(id source.SourceID) {
 	u.sourceID = id
 }
 
+// SourceReceipt names the original received session, not permission to forward.
+// It is immutable after publication and follows byte-identical snapshots.
+func (u *WireUpdate) SourceReceipt() uint64 { return u.sourceReceipt }
+
+// SetSourceReceipt binds the issuing Session before receive publication. A
+// reconstructed legacy message MUST keep zero rather than borrow a current session.
+func (u *WireUpdate) SetSourceReceipt(id uint64) { u.sourceReceipt = id }
+
 // SentPathSource preserves ingress ADD-PATH identity lost by final encoding.
 // Ordinal is cumulative within a family's emitted announcements, legacy first
 // then MP_REACH. An entry proves ADD-PATH presence, including identifier zero.
@@ -329,6 +339,7 @@ type SentPathSource struct {
 type SentOrigin struct {
 	SourceOwner       uint64
 	SourcePolicyEpoch uint64
+	SourceReceipt     uint64
 	Local             bool
 	Paths             []SentPathSource
 }

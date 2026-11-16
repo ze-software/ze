@@ -30,6 +30,9 @@ type FlowSpecPath struct {
 	Attributes        []byte
 	MsgID             uint64
 	SourcePolicyEpoch uint64
+	// SourceReceipt is the original source Session, never a current-peer lookup.
+	// Zero is explicitly unrecorded.
+	SourceReceipt uint64
 }
 
 type flowSpecProvider struct {

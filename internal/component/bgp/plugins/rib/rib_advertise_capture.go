@@ -51,20 +51,19 @@ type advertiseKey struct {
 // handles. Snapshots share those bytes; replacing a selection replaces the
 // whole value, never its slices. Zero revision is not a completed capture.
 //
-// sourceReceipt is explicitly unrecorded until the source-authority event and
-// storage contract supplies it. A snapshot alone never authorizes output and
-// MUST NOT acquire a receipt or policy epoch from current peer metadata.
+// route carries its original source receipt and policy epoch from retained
+// storage. A snapshot alone never authorizes output and MUST NOT acquire
+// provenance from current peer metadata.
 type advertiseRoute struct {
-	key           advertiseKey
-	keyNLRI       []byte
-	revision      uint64
-	route         ribevents.RecoveryRoute
-	staleLevel    uint8
-	sourceReceipt uint64
-	fingerprint   uint64
-	attrLen       uint32
-	labels        []uint32
-	wireRoute     string
+	key         advertiseKey
+	keyNLRI     []byte
+	revision    uint64
+	route       ribevents.RecoveryRoute
+	staleLevel  uint8
+	fingerprint uint64
+	attrLen     uint32
+	labels      []uint32
+	wireRoute   string
 }
 
 // advertiseSnapshot returns the current immutable selections, never withdrawn
@@ -125,8 +124,8 @@ func (r *RIBManager) prepareAdvertise(fam family.Family, prefix netip.Prefix, na
 }
 
 // matches uses the retained route's semantic and admission identity. Message
-// IDs can advance on an identical receipt. A changed epoch or stale treatment
-// must instead get its own immutable snapshot even when bestPrev stays equal.
+// IDs can advance on an identical receipt. A changed source receipt, epoch or
+// stale treatment gets its own immutable snapshot even when bestPrev stays equal.
 func (route *advertiseRoute) matches(best *Candidate, stale uint8, labels []uint32) bool {
 	if route.route.Source != best.PeerIP {
 		return false
@@ -138,6 +137,9 @@ func (route *advertiseRoute) matches(best *Candidate, stale uint8, labels []uint
 		return false
 	}
 	if route.route.SourcePolicyEpoch != best.entry.SourcePolicyEpoch {
+		return false
+	}
+	if route.route.SourceReceipt != best.entry.SourceReceipt {
 		return false
 	}
 	if route.staleLevel != stale {

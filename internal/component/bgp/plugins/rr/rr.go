@@ -771,7 +771,7 @@ func (rr *routeReflector) dispatchText(text string) {
 		if err != nil {
 			return
 		}
-		sourcePolicyEpoch, err := textparse.SourcePolicyEpoch(text)
+		sourcePolicyEpoch, sourceReceipt, err := textparse.SourceProvenance(text)
 		if err != nil {
 			logger().Warn("received UPDATE provenance rejected", "peer", fields[1], "error", err)
 			ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
@@ -782,7 +782,7 @@ func (rr *routeReflector) dispatchText(text string) {
 			return
 		}
 		if enveloped {
-			if err := receipt.Validate(fields[1], msgID, sourcePolicyEpoch); err != nil {
+			if err := receipt.Validate(fields[1], msgID, sourcePolicyEpoch, sourceReceipt); err != nil {
 				logger().Warn("received UPDATE receipt rejected", "peer", fields[1], "message-id", msgID, "error", err)
 				ctx, cancel := context.WithTimeout(context.Background(), updateRouteTimeout)
 				if releaseErr := rr.plugin.ReleaseCached(ctx, []uint64{msgID}); releaseErr != nil {
@@ -1033,6 +1033,8 @@ func routeReflectorRegistration() *sdk.Registration {
 		// so the engine refuses rather than treats it as an observer
 		// (RFC 8212 Section 3).
 		SourcePolicyOwner: true,
+		Claims:            []string{"bgp-peer-up-replay", disseminationRole},
+		Dissemination:     disseminationDecls(),
 		Commands:          commandDecls(),
 		// The registry's edges, so a forked reflector takes a DOWN before
 		// the stores it depends on, as an internal one does.

@@ -362,7 +362,10 @@ type Session struct {
 	// without Peer.mu. Its release runs no protocol callbacks or owed work.
 	proposalMu sync.Mutex
 
-	// peerOpen stores the peer's OPEN for reference.
+	// peerOpen retains the immutable remote OPEN after every semantic admission
+	// check succeeds. Guarded by mu; nil means no OPEN has been admitted. It is
+	// visible to reload probes before negotiation advances, but publishes no
+	// negotiated capabilities or Peer state by itself.
 	peerOpen *message.Open
 
 	// extendedMessage records our advertised receive permission (RFC 8654 Section 6).
@@ -385,6 +388,10 @@ type Session struct {
 	// Section 4.3 ingress step and the relay rail's egress recovery read it
 	// through filterapi.PeerFilterInfo.LLGRAdvertised.
 	localLLGR atomic.Bool
+
+	// sourceReceipt captures this exact connection after negotiation. It stays
+	// immutable through its ordered DOWN and never reads a replacement Session.
+	sourceReceipt atomic.Pointer[liveSourceReceipt]
 
 	// writeMu serializes all access to writeBuf.
 	// Multiple goroutines send concurrently (keepalive timer, forward pool workers,

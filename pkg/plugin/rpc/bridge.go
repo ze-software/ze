@@ -74,18 +74,22 @@ type DirectBridge struct {
 	hasReleaseCached      atomic.Bool                  // set atomically when releaseCached is written
 	relayStoredRoute      RelayStoredRouteHandler      // Typed fast path (no JSON) -- egress-rail
 	hasRelayStoredRoute   atomic.Bool                  // set atomically when relayStoredRoute is written
-	injectWireRoute       InjectWireRouteHandler       // Typed fast path (no JSON) -- bmp-6
-	hasInjectWireRoute    atomic.Bool                  // set atomically when injectWireRoute is written
-	updateRouteSel        UpdateRouteSelHandler        // Typed fast path with *selector.Selector
-	hasUpdateRouteSel     atomic.Bool                  // set atomically when updateRouteSel is written
-	batchValidate         BatchValidateHandler         // Typed fast path (no string serialization) -- rpki batching
-	hasBatchValidate      atomic.Bool                  // set atomically when batchValidate is written
-	callbackCh            chan BridgeCallback          // Engine->plugin callbacks (replaces pipe after startup)
-	callbacksStopped      chan struct{}                // Wakes queue and result waiters before channel closure.
-	closeOnce             sync.Once                    // Guards callbackCh close (Stop may be called multiple times)
-	sendMu                sync.RWMutex                 // Held for reading by senders, for writing by CloseCallbacks
-	sendClosed            bool                         // Guarded by sendMu: the callback channels are closed
-	dispatchMu            sync.Mutex                   // Serializes dispatch admission with StopDispatch.
+	selectRoutes          SelectRoutesHandler
+	hasSelectRoutes       atomic.Bool
+	currentSelection      CurrentSelectionHandler
+	hasCurrentSelection   atomic.Bool
+	injectWireRoute       InjectWireRouteHandler // Typed fast path (no JSON) -- bmp-6
+	hasInjectWireRoute    atomic.Bool            // set atomically when injectWireRoute is written
+	updateRouteSel        UpdateRouteSelHandler  // Typed fast path with *selector.Selector
+	hasUpdateRouteSel     atomic.Bool            // set atomically when updateRouteSel is written
+	batchValidate         BatchValidateHandler   // Typed fast path (no string serialization) -- rpki batching
+	hasBatchValidate      atomic.Bool            // set atomically when batchValidate is written
+	callbackCh            chan BridgeCallback    // Engine->plugin callbacks (replaces pipe after startup)
+	callbacksStopped      chan struct{}          // Wakes queue and result waiters before channel closure.
+	closeOnce             sync.Once              // Guards callbackCh close (Stop may be called multiple times)
+	sendMu                sync.RWMutex           // Held for reading by senders, for writing by CloseCallbacks
+	sendClosed            bool                   // Guarded by sendMu: the callback channels are closed
+	dispatchMu            sync.Mutex             // Serializes dispatch admission with StopDispatch.
 	dispatchClosed        bool
 	dispatchWG            sync.WaitGroup
 	deliveryMu            sync.Mutex // Serializes event admission with StopDelivery.
@@ -1062,6 +1066,7 @@ type StructuredEvent struct {
 	SessionGeneration uint64
 	SourceID          uint32 // Registry identity for body-common forwarded source.
 	SourcePolicyEpoch uint64 // Original received policy admission, independent of session generation.
+	SourceReceipt     uint64 // Original engine-issued source session; zero is unrecorded.
 	Reason            string // For state events: close reason
 	// FSMEvent is, for a down state event, the RFC 4271 Section 8.1 number
 	// of the FSM event that closed the session; zero means no relevant event,
@@ -1109,6 +1114,7 @@ func PutStructuredEvent(se *StructuredEvent) {
 	se.SessionGeneration = 0
 	se.SourceID = 0
 	se.SourcePolicyEpoch = 0
+	se.SourceReceipt = 0
 	se.Reason = ""
 	se.FSMEvent = 0
 	se.RawMessage = nil

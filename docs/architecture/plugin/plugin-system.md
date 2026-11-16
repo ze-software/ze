@@ -142,6 +142,7 @@ Optional metadata:
 | `EventTypes` | `[]string` | Event types this plugin produces. Registered at startup |
 | `SendTypes` | `[]string` | Send types this plugin enables, such as `enhanced-refresh` |
 | `Claims` | `[]string` | Exclusive runtime roles this plugin takes over from another plugin's default |
+| `Dissemination` | `[]rpc.DisseminationDecl` | Opaque peer-output roles and their source/destination grant requirements. A declaration creates no grant; an eligible claimant takes precedence only at that destination |
 | `ProgramsFIB` | `bool` | The plugin writes the routes the system RIB selects into a forwarding path. It IS the operator's data-plane choice, so a config that names one gets no writer added to it |
 | `DataPlane` | `string` | The data plane a `ProgramsFIB` plugin reaches, spelled the way `interface { backend }` names it: `netlink`, `vpp`. A data plane has one writer, and a duplicate aborts startup. Empty means the plugin reaches no data plane and is never resolved as a producer's writer |
 | `NeedsDataPlane` | `bool` | The plugin's routes reach forwarding only through a `ProgramsFIB` plugin, so the engine loads the writer for the configured data plane |
@@ -689,8 +690,28 @@ every claim holds, which is the common case.
 Reference: `bgp-rs` claims `bgp-peer-up-replay`, and `bgp-adj-rib-in` stands
 down.
 
+Peer dissemination has a separate configured-owner lookup. The RIB declares
+`bgp-selected-output` as an ordinary role. RS and RR declare and claim that
+same token. Each supplies the grant sets its own implementation needs: RIB
+needs destination state, refresh and sent UPDATEs; RS needs state, received
+OPEN and refresh; RR needs state and received OPEN. All three require update
+send permission and received UPDATEs plus state on a source of that same
+configured process. Destination OPEN is what RS/RR use to capture replay
+families. These are declarations and ownership queries; the ordinary writer
+and config-verification integration remain separate consumers.
+
+Static registration checks declaration shape before storing it. Namespace
+and event resolution follow component initialization, at Stage 1 and owner
+resolution, so Go's sibling initialization order cannot decide validity. A
+runtime declaration, including an empty Claims list, is authoritative; it
+never inherits a compiled claim that the process did not declare.
+
 <!-- source: internal/component/bgp/plugins/rs/register.go -- Claims -->
 <!-- source: internal/component/bgp/plugins/adj_rib_in/rib_claims.go -- ClaimActive -->
+<!-- source: internal/component/plugin/registry/dissemination.go -- CheckDisseminationDeclarations, CheckDisseminationEvents -->
+<!-- source: internal/component/bgp/plugins/rib/rib_dissemination.go -- disseminationDecls -->
+<!-- source: internal/component/bgp/plugins/rs/dissemination.go -- disseminationDecls -->
+<!-- source: internal/component/bgp/plugins/rr/dissemination.go -- disseminationDecls -->
 
 ## Peer-up barrier
 

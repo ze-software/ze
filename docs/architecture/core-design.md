@@ -1277,10 +1277,21 @@ The fast path's decision is a per-message delivery receipt, not route metadata
 and not a writer deduplication rule. Structured route-server dispatch snapshots
 `ReactorForwarded` and an owned `FastPathSkipped` list into its worker item.
 Forked dispatch receives the same facts in the generic event envelope's opaque
-`metadata`, bound to the actual payload's peer, message ID and source-policy
-epoch. The BGP producer owns that metadata's shape; generic plugin transport
+`metadata`, bound to the actual payload's peer, message ID, source-policy epoch
+and source-session receipt. The BGP producer owns that metadata's shape; generic plugin transport
 does not interpret it. Text is a quoted JSON-string payload inside the envelope,
 and JSON payloads retain their original object.
+
+The original source-session receipt is captured from the exact negotiated
+Session before UP, after resolving a dynamic peer's AS. The factory preserves
+its callback identity and stamps received UPDATEs before their buffer transfers.
+The notifier's exact Peer binding distinguishes peers sharing an IP on different
+ports. Ordered DOWN releases the Session's delivery reference after handlers
+finish; only a deciding process's authorized retained lease can outlive it.
+The daemon-wide identity clock survives Reactor replacement, and failure to
+capture source facts closes the connection before UP rather than supplying zero.
+<!-- source: internal/component/bgp/reactor/source_session.go -- captureSourceReceipt, sourceMessageCallback, messageReceiverForPeer -->
+<!-- source: internal/component/bgp/reactor/peer_session_end.go -- sessionDown -->
 
 Both route-server rails therefore ask the cached forwarder only for the skipped
 targets and sessions established after the UPDATE was numbered, subject to the
@@ -1498,6 +1509,13 @@ filtering as well as egress.
 `ReceivedUpdate.Meta` (`map[string]any`) carries route-level metadata set at ingress by filters.
 Read-only after caching. `UpdateRouteInput.Meta` is plumbed to `CommandContext.Meta` for
 plugin-originated routes (not yet wired to ReceivedUpdate -- consuming specs connect this).
+
+Source provenance stays outside that mutable map. `ReceivedUpdate`, `RawMessage`
+and structured events carry the original `SourcePolicyEpoch` and `SourceReceipt`
+as typed scalars. JSON and parsed text carry the same exact uint64 values.
+An absent or zero receipt records an unrecorded source, never permission to
+derive the current session. Formatting and envelope construction copy these
+fields directly; filter metadata cannot replace them.
 
 Egress filters receive `meta` (read) and `*ModAccumulator` (write) per destination peer.
 `ModAccumulator` lazily allocates on first `Op()` call -- zero cost when no filter writes mods.

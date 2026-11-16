@@ -1148,12 +1148,32 @@ func (a *reactorAPIAdapter) reconcilePeersJournaled(newPeers []*PeerSettings, gl
 	r.mu.RLock()
 	currentPeers := make(map[netip.AddrPort]*PeerSettings)
 	currentSessions := make(map[netip.AddrPort]*Session)
+	openSnapshots := make(map[netip.AddrPort]peerOpenSnapshot)
 	for key, peer := range r.peers {
 		currentPeers[key] = peer.settingsSnapshot()
-		currentSessions[key] = peer.currentSession()
+		snapshot := peer.snapshotOpenSessions()
+		currentSessions[key] = snapshot.current
+		openSnapshots[key] = snapshot
 	}
 	created := maps.Clone(r.createdPeers)
 	r.mu.RUnlock()
+
+	// Plugin declarations were atomically published before BGP reconciliation.
+	// Check every retained connection, including pending and inbound handoffs.
+	// Constructors still hidden in pendingSocket must check before takeover.
+	for key, snapshot := range openSnapshots {
+		if _, configured := newPeerSettings[key]; configured {
+			snapshot.reconcilePluginOffers()
+			continue
+		}
+		if currentPeers[key].IsDynamic {
+			snapshot.reconcilePluginOffers()
+			continue
+		}
+		if _, runtime := created[key.Addr()]; runtime {
+			snapshot.reconcilePluginOffers()
+		}
+	}
 
 	// Categorize peers: to remove, to add, to swap in place, unchanged.
 	var toRemove []netip.AddrPort
@@ -1824,6 +1844,7 @@ func (a *reactorAPIAdapter) GetPeerProcessBindings(peerAddr netip.Addr) []plugin
 
 		result = append(result, plugin.PeerProcessBinding{
 			PluginName: b.PluginName,
+			Explicit:   b.Explicit,
 			Encoding:   encoding,
 			Format:     format,
 			ReceiveAll: b.ReceiveAll,

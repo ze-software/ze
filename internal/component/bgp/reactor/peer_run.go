@@ -262,6 +262,18 @@ func (p *Peer) safeRunOnce() (err error) {
 	return p.runOnce()
 }
 
+// abortDeliveryOwnership retires only the IDs this worker never finished
+// publishing. The captured reactor owns their cache even if Peer.reactor was
+// detached while the session unwound. Existing forward retains survive abort.
+func abortDeliveryOwnership(owner *Reactor, batch []deliveryItem) {
+	if owner == nil {
+		return
+	}
+	for i := range batch {
+		owner.recentUpdates.abortPublication(batch[i].msg.MessageID)
+	}
+}
+
 // describeConnect names the unit a contained connection-cycle or delivery
 // panic ended: the peer.
 func (p *Peer) describeConnect() taskguard.Context {
@@ -294,6 +306,155 @@ func (p *Peer) runOnce() (runErr error) {
 	// The factory installed every writer/timer input before TCP. Candidate
 	// adoption never replaces a callback a periodic writer may still read.
 	capture := session.captureWriter
+	// This fallback predates publication, including a direct Accept racing the
+	// delivery worker's setup. Normal cleanup closes after the ordered DOWN.
+	defer session.closeSourceReceipt()
+	published := false
+	defer func() {
+		if !published {
+			p.retireUnpublishedSession(candidate, session)
+		}
+	}()
+	// Avoid opening a strict BFD client for an admission already refused.
+	// The publication hold below rechecks both flags after BFD initialization.
+	if p.stopping.Load() || p.adminDown.Load() {
+		return nil
+	}
+
+	// draft-ietf-idr-bgp-bfd-strict-mode Section 7: "Implementations SHOULD
+	// start the BFD session associated with the BGP BFD strict-mode session
+	// prior to the BGP FSM starting." Keep this outside Peer.mu: starting
+	// the BFD subscriber can deliver a state change through this same Peer.
+	// Its initial reading is retained on the Peer before the FSM starts, so
+	// the first OPEN observes an already-Up session without another event.
+	if p.bfdStrict() {
+		p.startBFDClient()
+	}
+
+	// Construct publication before exposing the Session to direct Accept.
+	// The fresh FSM starts without this callback under Peer.mu, then installs
+	// it before publication. Every externally admitted TCP transition therefore
+	// has its observer, without invoking an owner callback under Peer.mu.
+	// The leave-Established arm fills this record and closes its signal; the
+	// down defer below waits on it (sessionDown).
+	leave := &sessionLeave{signal: make(chan struct{}), selected: candidate == nil}
+
+	// Monitor FSM state
+	publishTransition := func(from, to fsm.State, event fsm.Event) {
+		addr := p.settings.Address.String()
+		peerLogger().Debug("FSM transition", "peer", addr, "from", from.String(), "to", to.String())
+		// The engine's own facts first, so a process reads the transition
+		// before any event the new state produces (peer_fsm_events.go).
+		p.emitFSMEvents(from, to)
+
+		transitionReason := from.String() + " -> " + to.String()
+
+		// The OPENs are exchanged on entry to OpenConfirm, and the KEEPALIVE
+		// that answers the peer's OPEN is sent after this callback returns
+		// (Session.advanceAfterOpen), so the negotiated event precedes every
+		// message of the session that it describes (Peer.announceNegotiated).
+		if to == fsm.StateOpenConfirm {
+			p.mu.RLock()
+			reactor := p.reactor
+			p.mu.RUnlock()
+			if reactor != nil {
+				p.announceNegotiated(reactor, session, session.Negotiated())
+			}
+		}
+
+		if to == fsm.StateEstablished {
+			// Pre-compute negotiated capabilities for O(1) access during route sending
+			neg := session.Negotiated()
+			p.negotiated.Store(NewNegotiatedCapabilities(neg))
+			p.setEncodingContexts(neg)
+			// Before Established is published, so the first owed key has a worker.
+			session.startRecovery(p)
+			p.cycleReachedEstablished.Store(true)
+			// RFC 8212 Section 3: establishment joins the import swap's
+			// admission boundary before the first UPDATE is read.
+			p.enterEstablished(session)
+			p.setEstablishedNow()
+
+			// Start EOR timeout if GR was negotiated (AC-11).
+			if p.health != nil && neg != nil && neg.GracefulRestart != nil {
+				p.health.startEORTimer(neg.GracefulRestart.RestartTime, len(neg.Families()))
+			}
+
+			// Dynamic peers: set PeerAS from OPEN and resolve config variables.
+			// Re-resolve on every establishment (ASN may change on reconnection).
+			if p.settings.IsDynamic {
+				p.resolveDynamicPeerSettings(session)
+			}
+			if p.reactor != nil {
+				if err := session.captureSourceReceipt(p, &sourceReceipts); err != nil {
+					reportSourceReceiptAdmissionFailure(p, err)
+					session.setCloseReason(err)
+					session.closeConn()
+					return
+				}
+			}
+
+			peerLogger().Info("session established", "peer", addr, "localAS", p.settings.LocalAS, "peerAS", p.settings.PeerAS)
+			// RFC 8212 Section 3: say which direction the absent policy closes,
+			// once per session and after the dynamic AS is known.
+			p.warnRFC8212AbsentPolicy()
+
+			// The per-session API sync and the replay fence were reset and
+			// raised by enterEstablished above, before Established was
+			// published (Peer.resetAPISync, Peer.raiseReplayFence).
+
+			// Reset the peer-up barrier for this session BEFORE plugins are
+			// notified below: the dispatcher raises its expected count and the
+			// plugins acknowledge inside notifyPeerEstablished, so the barrier
+			// state those calls land on must already belong to this session.
+			p.ResetPeerUpBarrier()
+
+			// The initial-sync gate is already closed: enterEstablished above
+			// closes the session's gate before it publishes PeerStateEstablished,
+			// so shouldQueue() is true here and stays true through the
+			// notifications below. It used to be closed at THIS line instead, which
+			// left every line between the publication and here as a window in which
+			// an established peer's route ops bypassed opQueue and the
+			// bgp-peer-sync quiescer reported the peer settled.
+
+			// Notify the reactor that the session is established.
+			p.mu.RLock()
+			reactor := p.reactor
+			p.mu.RUnlock()
+			// announceEstablished marks the phases a reload racing this
+			// delivery reads (applyHotSwappableSettings).
+			if reactor != nil {
+				p.announceEstablished(reactor, session)
+			}
+
+			// Open a BFD session for this peer if the operator
+			// opted in via `bgp peer connection bfd { ... }` and
+			// the BFD plugin is loaded. No-op otherwise. Runs
+			// before sendInitialRoutes so the BFD subscriber is
+			// live before the first UPDATE leaves -- a BFD Down
+			// during initial flood should still tear the peer.
+			p.startBFDClient()
+
+			// Send static routes from config (one-time per-session lifecycle goroutine),
+			// unless the startup convergence hold owns this peer's initial routing
+			// update and will run it when it releases (update_delay.go).
+			peerLogger().Debug("spawning sendInitialRoutes", "peer", addr)
+			p.startInitialRoutes(session)
+			transitionReason = "established"
+		} else if from == fsm.StateEstablished {
+			p.leaveSession(session, leave, from, to, event)
+			// The down owes the history row, after the session's buffered
+			// UPDATEs were published (sessionDown).
+			return
+		}
+
+		p.history.append(FSMTransition{
+			Timestamp: p.clock.Now(),
+			From:      from.String(),
+			To:        to.String(),
+			Reason:    transitionReason,
+		})
+	}
 
 	// This assignment is one of the two places a conn becomes a session, the
 	// other being s.conn in Session.connectionEstablished (session_connection.go).
@@ -313,35 +474,58 @@ func (p *Peer) runOnce() (runErr error) {
 	// session out of this loop. The loop-top read in run() is the cheap early
 	// exit; this one is the correct one, because the loop top can be passed
 	// before the mark and the dial below then takes as long as a TCP handshake.
-	p.mu.Lock()
-	if p.stopping.Load() {
-		p.mu.Unlock()
-		p.retireUnpublishedSession(candidate, session)
-		// nil, not an error: run()'s loop top is the single place the seal ends
-		// the loop, and it is one statement away. An error here would send run()
-		// into its backoff select first, to sit there until the cancel.
+	publishErr := func() error {
+		p.mu.Lock()
+		defer p.mu.Unlock()
+		if p.stopping.Load() {
+			// nil, not an error: run()'s loop top ends the loop. An error
+			// would enter backoff before observing the stop.
+			return nil
+		}
+		// Disable shares this hold: either it refuses publication, or it
+		// sees and closes the admitted Session (peer_admin.go).
+		if p.adminDown.Load() {
+			return nil
+		}
+
+		// The first operator cycle takes ManualStart; a cycle following
+		// Established takes AutomaticStart; other retries remain damped.
+		// Consume that prior-cycle answer only after admission succeeds.
+		reachedEstablished := p.cycleReachedEstablished.Swap(false)
+		start := session.startDamped
+		if reachedEstablished {
+			// RFC 4271 Section 8.2.2
+			start = session.startAutomatic
+		}
+		if !p.operatorStarted.Swap(true) {
+			start = session.Start
+		}
+		if candidate == nil {
+			// This fresh FSM has no publication callback yet. Start it
+			// before exposing it to direct Accept: TCP-confirmed in Idle
+			// is ignored, even though Accept would still send local OPEN.
+			if err := start(); err != nil {
+				return err
+			}
+			// SetCallback only assigns the observer; it invokes no owner code.
+			// The next accept cannot see this Session until both are ready.
+			session.fsm.SetCallback(publishTransition)
+		}
+		p.session = session
+		published = true
+		// Both candidate receipts already own a validated remote
+		// identifier; advancement does not validate it a second time.
+		switch arrival := p.inbound.(type) {
+		case *candidateOpen:
+			p.remoteRouterID.Store(arrival.open.BGPIdentifier)
+		case *candidateReady:
+			p.remoteRouterID.Store(arrival.remoteID)
+		}
 		return nil
+	}()
+	if !published {
+		return publishErr
 	}
-	// The same hold for the administrative flag: Disable writes it under p.mu,
-	// so a Disable that ran before this point is seen here, and one that runs
-	// after it sees the published session and closes it (peer_admin.go). nil,
-	// not an error, for the same reason as the seal above: the loop top parks.
-	if p.adminDown.Load() {
-		p.mu.Unlock()
-		p.retireUnpublishedSession(candidate, session)
-		return nil
-	}
-	p.session = session
-	// Both candidate receipts already own a validated remote identifier.
-	// Incumbent cleanup cleared its publication; OPEN advancement does not
-	// validate again, so selection MUST publish either receipt's identity.
-	switch arrival := p.inbound.(type) {
-	case *candidateOpen:
-		p.remoteRouterID.Store(arrival.open.BGPIdentifier)
-	case *candidateReady:
-		p.remoteRouterID.Store(arrival.remoteID)
-	}
-	p.mu.Unlock()
 
 	defer func() {
 		// A buffered OPEN can fail before Run installs its finalizers.
@@ -437,176 +621,6 @@ func (p *Peer) runOnce() (runErr error) {
 		p.setState(PeerStateActive)
 	}
 
-	// Start FSM.
-	//
-	// RFC 4271 §8.1.1 ConnectRetryCounter: hand this cycle's FSM the PEER's
-	// counter before the start event, so the §8.2.2 clauses land on a value
-	// that survives the cycle. A counter created here would be destroyed with
-	// the Session and could never count a retry.
-
-	// draft-ietf-idr-bgp-bfd-strict-mode Section 7: "Implementations SHOULD
-	// start the BFD session associated with the BGP BFD strict-mode session
-	// prior to the BGP FSM starting. The motivation is to avoid delaying BGP
-	// FSM transitions while waiting for the BFD session reach the Up state."
-	//
-	// So a strict peer opens BFD HERE, one statement before the start event,
-	// and keeps it open across every retry: startBFDClient is idempotent and
-	// only Peer.cleanup releases it. A non-strict peer still opens on
-	// Established, in the FSM callback below, because RFC 5882 Section 10.2
-	// gives it nothing to detect before then.
-	if p.bfdStrict() {
-		p.startBFDClient()
-	}
-
-	// The operator's start is Event 1 (ManualStart), whose §8.2.2 clause sets
-	// the ConnectRetryCounter to zero. Every cycle after it is automatic. A
-	// cycle that follows one which reached Established is Event 3
-	// (AutomaticStart): §8.1.2 sets DampPeerOscillations FALSE for it, and
-	// §8.2.2 gives it Event 1's clause, so the counter starts again from zero.
-	// A cycle that follows a failed attempt is a retry the backoff in run()
-	// already damped, which is Event 6
-	// (AutomaticStart_with_DampPeerOscillations) and carries no such clause.
-	// Firing a zeroing event on every cycle would leave the counter
-	// structurally unable to read more than one.
-	//
-	// The Swap reads the previous cycle's answer and clears it for this one in
-	// one step, whatever error the previous cycle returned.
-	reachedEstablished := p.cycleReachedEstablished.Swap(false)
-	start := session.startDamped
-	if reachedEstablished {
-		// RFC 4271 Section 8.2.2
-		start = session.startAutomatic
-	}
-	if !p.operatorStarted.Swap(true) {
-		start = session.Start
-	}
-	if candidate == nil {
-		if err := start(); err != nil {
-			return err
-		}
-	}
-
-	// The callback is installed before the accept and dial below, because
-	// both fire Event 17 and enter OpenSent inside the call
-	// (Session.connectionEstablished, session_connection.go): installed after
-	// them, the `connected` event and the CONNECT -> OPENSENT `fsm` event
-	// would be lost.
-	// The leave-Established arm fills this record and closes its signal; the
-	// down defer below waits on it (sessionDown).
-	leave := &sessionLeave{signal: make(chan struct{}), selected: candidate == nil}
-
-	// Monitor FSM state
-	publishTransition := func(from, to fsm.State, event fsm.Event) {
-		addr := p.settings.Address.String()
-		peerLogger().Debug("FSM transition", "peer", addr, "from", from.String(), "to", to.String())
-		// The engine's own facts first, so a process reads the transition
-		// before any event the new state produces (peer_fsm_events.go).
-		p.emitFSMEvents(from, to)
-
-		transitionReason := from.String() + " -> " + to.String()
-
-		// The OPENs are exchanged on entry to OpenConfirm, and the KEEPALIVE
-		// that answers the peer's OPEN is sent after this callback returns
-		// (Session.advanceAfterOpen), so the negotiated event precedes every
-		// message of the session that it describes (Peer.announceNegotiated).
-		if to == fsm.StateOpenConfirm {
-			p.mu.RLock()
-			reactor := p.reactor
-			p.mu.RUnlock()
-			if reactor != nil {
-				p.announceNegotiated(reactor, session, session.Negotiated())
-			}
-		}
-
-		if to == fsm.StateEstablished {
-			// Pre-compute negotiated capabilities for O(1) access during route sending
-			neg := session.Negotiated()
-			p.negotiated.Store(NewNegotiatedCapabilities(neg))
-			p.setEncodingContexts(neg)
-			// Before Established is published, so the first owed key has a worker.
-			session.startRecovery(p)
-			p.cycleReachedEstablished.Store(true)
-			// RFC 8212 Section 3: establishment joins the import swap's
-			// admission boundary before the first UPDATE is read.
-			p.enterEstablished(session)
-			p.setEstablishedNow()
-
-			// Start EOR timeout if GR was negotiated (AC-11).
-			if p.health != nil && neg != nil && neg.GracefulRestart != nil {
-				p.health.startEORTimer(neg.GracefulRestart.RestartTime, len(neg.Families()))
-			}
-
-			// Dynamic peers: set PeerAS from OPEN and resolve config variables.
-			// Re-resolve on every establishment (ASN may change on reconnection).
-			if p.settings.IsDynamic {
-				p.resolveDynamicPeerSettings(session)
-			}
-
-			peerLogger().Info("session established", "peer", addr, "localAS", p.settings.LocalAS, "peerAS", p.settings.PeerAS)
-			// RFC 8212 Section 3: say which direction the absent policy closes,
-			// once per session and after the dynamic AS is known.
-			p.warnRFC8212AbsentPolicy()
-
-			// The per-session API sync and the replay fence were reset and
-			// raised by enterEstablished above, before Established was
-			// published (Peer.resetAPISync, Peer.raiseReplayFence).
-
-			// Reset the peer-up barrier for this session BEFORE plugins are
-			// notified below: the dispatcher raises its expected count and the
-			// plugins acknowledge inside notifyPeerEstablished, so the barrier
-			// state those calls land on must already belong to this session.
-			p.ResetPeerUpBarrier()
-
-			// The initial-sync gate is already closed: enterEstablished above
-			// closes the session's gate before it publishes PeerStateEstablished,
-			// so shouldQueue() is true here and stays true through the
-			// notifications below. It used to be closed at THIS line instead, which
-			// left every line between the publication and here as a window in which
-			// an established peer's route ops bypassed opQueue and the
-			// bgp-peer-sync quiescer reported the peer settled.
-
-			// Notify the reactor that the session is established.
-			p.mu.RLock()
-			reactor := p.reactor
-			p.mu.RUnlock()
-			// announceEstablished marks the phases a reload racing this
-			// delivery reads (applyHotSwappableSettings).
-			if reactor != nil {
-				p.announceEstablished(reactor, session)
-			}
-
-			// Open a BFD session for this peer if the operator
-			// opted in via `bgp peer connection bfd { ... }` and
-			// the BFD plugin is loaded. No-op otherwise. Runs
-			// before sendInitialRoutes so the BFD subscriber is
-			// live before the first UPDATE leaves -- a BFD Down
-			// during initial flood should still tear the peer.
-			p.startBFDClient()
-
-			// Send static routes from config (one-time per-session lifecycle goroutine),
-			// unless the startup convergence hold owns this peer's initial routing
-			// update and will run it when it releases (update_delay.go).
-			peerLogger().Debug("spawning sendInitialRoutes", "peer", addr)
-			p.startInitialRoutes(session)
-			transitionReason = "established"
-		} else if from == fsm.StateEstablished {
-			p.leaveSession(session, leave, from, to, event)
-			// The down owes the history row, after the session's buffered
-			// UPDATEs were published (sessionDown).
-			return
-		}
-
-		p.history.append(FSMTransition{
-			Timestamp: p.clock.Now(),
-			From:      from.String(),
-			To:        to.String(),
-			Reason:    transitionReason,
-		})
-	}
-	if candidate == nil {
-		session.fsm.SetCallback(publishTransition)
-	}
-
 	// Consume the Peer-owned inbound slot before dialing. A collision winner
 	// has already supplied its OPEN and MUST keep this exact socket and wire.
 	var readyIncoming *candidateReady
@@ -692,34 +706,51 @@ func (p *Peer) runOnce() (runErr error) {
 	// then Activate per message. This amortizes subscription lookup and format-mode
 	// computation across all messages in a batch.
 	deliverChan := make(chan deliveryItem, deliveryChannelCapacity)
+	p.mu.Lock()
 	p.deliverChan = deliverChan
+	deliveryOwner := p.reactor
+	p.mu.Unlock()
 	deliveryDone := make(chan struct{})
 	publication := &receivePublication{done: deliveryDone}
 	p.receivePublication.Store(publication)
 
 	// Long-lived delivery worker (channel + worker pattern, not per-event).
-	go func() { // goroutine-lifecycle: channel worker pattern: reads from p.deliverChan
+	go func() { // goroutine-lifecycle: channel worker pattern: reads from its captured deliverChan
 		defer close(deliveryDone)
-		// Recovery exits the loop, and the remaining buffered items are
-		// dropped: a panic indicates a bug. The failed publication tears the
-		// session down, so its UPDATEs that never reached the plugins end
-		// with it; the recovery ensures deliveryDone closes, which the down
-		// waits on.
+		var batchBuf []deliveryItem
+		var activeBatch []deliveryItem
+		deliveryFailed := false
+		// Failed publication closes lookup admission, but an acquired forward
+		// keeps its retain. Seal the source first: its down then closes this
+		// channel before waiting for deliveryDone, so draining cannot deadlock
+		// against a producer that is still admitting UPDATEs.
 		defer bgpPanics().delivery.Contain(p.describeConnect, func(*taskguard.Panic) {
 			// A recovered panic is a Ze defect, for which RFC 4486 has no
 			// subcode: Unspecific (ceaseAfterPanic has the RFC 4271 quotes).
 			failReceivePublication(session, publication, message.NotifyCeaseUnspecific)
+			abortDeliveryOwnership(deliveryOwner, activeBatch)
+			for item := range deliverChan {
+				abortDeliveryOwnership(deliveryOwner, []deliveryItem{item})
+			}
 		})
-		var batchBuf []deliveryItem
 		for first := range deliverChan {
 			batchBuf = drainDeliveryBatch(batchBuf, &first, deliverChan)
 			batch := batchBuf
+			activeBatch = batch
+			if deliveryFailed {
+				abortDeliveryOwnership(deliveryOwner, batch)
+				activeBatch = nil
+				continue
+			}
 
 			p.mu.RLock()
 			reactor := p.reactor
 			p.mu.RUnlock()
 			if reactor == nil {
 				failReceivePublication(session, publication, message.NotifyCeaseOutOfResources)
+				deliveryFailed = true
+				abortDeliveryOwnership(deliveryOwner, batch)
+				activeBatch = nil
 				continue
 			}
 			reactor.mu.RLock()
@@ -728,6 +759,9 @@ func (p *Peer) runOnce() (runErr error) {
 			receiver = p.sessionEndHooks.Load().receiverFor(receiver)
 			if receiver == nil {
 				failReceivePublication(session, publication, message.NotifyCeaseOutOfResources)
+				deliveryFailed = true
+				abortDeliveryOwnership(deliveryOwner, batch)
+				activeBatch = nil
 				continue
 			}
 
@@ -746,6 +780,7 @@ func (p *Peer) runOnce() (runErr error) {
 				}
 				reactor.recentUpdates.Activate(batch[i].msg.MessageID, count)
 			}
+			activeBatch = nil
 		}
 	}()
 

@@ -95,6 +95,7 @@ type fwdItem struct {
 	receivedPeer         *Peer
 	receivedGeneration   uint64
 	sourcePolicyEpoch    uint64
+	sourceReceipt        uint64 // Original source-session receipt, never a current-peer lookup.
 	recovery             *recoveryAdmission
 	aigpOrigin           sendOrigin
 	aigpRevision         uint64

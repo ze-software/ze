@@ -44,6 +44,7 @@ func (cache *updateEnvelopeCache) wrap(peer *plugin.PeerInfo, message *bgptypes.
 		metadata, err := json.Marshal(bgptypes.UpdateReceipt{
 			Peer: peer.Address, MessageID: message.MessageID,
 			SourcePolicyEpoch: message.SourcePolicyEpoch,
+			SourceReceipt:     message.SourceReceipt,
 			ReactorForwarded:  message.ReactorForwarded, FastPathSkipped: message.FastPathSkipped,
 		})
 		if err != nil {

@@ -43,6 +43,7 @@ func policyRemovalItem(parent *fwdItem, removal *fwdPolicyRemoval) fwdItem {
 		peer: parent.peer, session: parent.session, authority: authority,
 		meta: parent.meta, sourcePeerStr: parent.sourcePeerStr,
 		sourceMessageID: parent.sourceMessageID, sourcePolicyEpoch: parent.sourcePolicyEpoch,
+		sourceReceipt: parent.sourceReceipt,
 		receivedPeer: parent.receivedPeer, receivedGeneration: parent.receivedGeneration,
 		exportGeneration: parent.exportGeneration, initialUpdate: parent.initialUpdate,
 		expectedMessage: parent.expectedMessage, initialReplay: parent.initialReplay,

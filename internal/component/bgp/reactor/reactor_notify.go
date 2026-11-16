@@ -245,14 +245,40 @@ func (r *Reactor) emitCongestionEvent(peerAddr netip.Addr, eventType string) {
 // again on that generated body. It owes no further continuation, so the loop
 // ends without giving ordinary received messages any bypass authority.
 func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64) bool {
+	return r.notifyMessageReceiverFrom(nil, peerAddr, msgType, rawBytes, wireUpdate, ctxID, direction, buf, meta, sentSourcePeerStr, sourceMessageID)
+}
+
+// notifyMessageReceiverFrom retains an exact configured Peer when the Session
+// factory supplies one. Legacy callers supply nil and remain unrecorded unless
+// their original WireUpdate already carries a source receipt.
+func (r *Reactor) notifyMessageReceiverFrom(originalPeer *Peer, peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64) bool {
 	var follow []ingressPolicyContinuation
 	var sourceCtxID bgpctx.ContextID
 	var sourceID source.SourceID
+	var sourceReceipt uint64
 	if wireUpdate != nil {
 		// Read before the call: the UPDATE's ownership may leave with it.
 		sourceCtxID, sourceID = wireUpdate.SourceCtxID(), wireUpdate.SourceID()
+		sourceReceipt = wireUpdate.SourceReceipt()
 	}
-	kept := r.notifyOneMessage(peerAddr, msgType, rawBytes, wireUpdate, ctxID, direction, buf, meta, sentSourcePeerStr, sourceMessageID, ingressPolicyUndecided, 0, &follow)
+	var kept bool
+	defer func() {
+		cause := recover()
+		if cause == nil {
+			return
+		}
+		if !kept {
+			panic(cause)
+		}
+		// A successful primary already transferred the original receipt. A
+		// later heap-backed continuation can fail independently; carry the
+		// original ownership back to the reader without aborting that primary.
+		if transferred, ok := cause.(transferredReadBufferPanic); ok {
+			cause = transferred.cause
+		}
+		panic(transferredReadBufferPanic{cause: cause, buffer: buf})
+	}()
+	kept = r.notifyOneMessage(originalPeer, peerAddr, msgType, rawBytes, wireUpdate, ctxID, direction, buf, meta, sentSourcePeerStr, sourceMessageID, ingressPolicyUndecided, 0, &follow)
 	// One source decision yields at most two removal bodies and its surviving
 	// output. Already-judged continuations cannot enqueue another policy run.
 	for len(follow) > 0 {
@@ -261,11 +287,12 @@ func (r *Reactor) notifyMessageReceiver(peerAddr netip.Addr, msgType msgtype.Mes
 		follow = follow[1:]
 		followUpdate := wireu.NewWireUpdate(next.body, sourceCtxID)
 		followUpdate.SetSourceID(sourceID)
+		followUpdate.SetSourceReceipt(sourceReceipt)
 		buffer := next.buffer
 		if buffer.Buf == nil {
 			buffer = BufHandle{ID: noPoolBufID, Buf: next.body}
 		}
-		continuationKept := r.notifyOneMessage(peerAddr, msgtype.TypeUPDATE, next.body, followUpdate, ctxID, direction,
+		continuationKept := r.notifyOneMessage(originalPeer, peerAddr, msgtype.TypeUPDATE, next.body, followUpdate, ctxID, direction,
 			buffer, next.meta, "", 0, ingressPolicyAlreadyApplied, next.epoch, &follow)
 		if next.buffer.Buf != nil {
 			kept = continuationKept // Only the effective replacement owns the original receipt buffer.
@@ -299,7 +326,7 @@ const (
 // a whole-source withdrawal. The caller MUST pass
 // ingressPolicyAlreadyApplied only for that accepted policy continuation:
 // it uses the same cache and publication path without judging ingress twice.
-func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64, policyDisposition ingressPolicyDisposition, admissionEpoch uint64, follow *[]ingressPolicyContinuation) bool {
+func (r *Reactor) notifyOneMessage(originalPeer *Peer, peerAddr netip.Addr, msgType msgtype.MessageType, rawBytes []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, direction rpc.MessageDirection, buf BufHandle, meta map[string]any, sentSourcePeerStr string, sourceMessageID uint64, policyDisposition ingressPolicyDisposition, admissionEpoch uint64, follow *[]ingressPolicyContinuation) bool {
 	r.mu.RLock()
 	// The region below decodes the peer's UPDATE (IsEOR) and runs per-peer
 	// hooks under the reactor-wide lock. A panic there unwinds to the read
@@ -313,7 +340,10 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 		}
 	}()
 	receiver := r.messageReceiver
-	peer, hasPeer := r.findPeerByAddr(peerAddr)
+	peer, hasPeer := originalPeer, originalPeer != nil
+	if !hasPeer {
+		peer, hasPeer = r.findPeerByAddr(peerAddr)
+	}
 	// Capture before any ingress policy evaluation. A delayed filter result must
 	// never acquire the epoch current when caching or publishing finally finishes.
 	sourcePolicyEpoch := admissionEpoch
@@ -333,10 +363,12 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 	// which runs on that session's read goroutine, after negotiateWith stored
 	// localLLGR; the atomic load takes no session lock.
 	var llgrAdvertised bool
+	var deliverChan chan deliveryItem
 	if hasPeer {
 		s := peer.Settings()
 		peer.mu.RLock()
 		session := peer.session
+		deliverChan = peer.deliverChan
 		peer.mu.RUnlock()
 		// PeerAS via the guarded accessor: the sent direction runs on forward-pool /
 		// timer / plugin-RPC goroutines, which can race a dynamic peer's establishment
@@ -468,6 +500,19 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 
 	var msg bgptypes.RawMessage
 	var kept bool
+	defer func() {
+		cause := recover()
+		if cause == nil {
+			return
+		}
+		if kept {
+			r.recentUpdates.abortPublication(messageID)
+			// Ownership already left the read call. Its deferred finalizer
+			// needs that result even though this callback cannot return it.
+			panic(transferredReadBufferPanic{cause: cause, buffer: buf})
+		}
+		panic(cause)
+	}()
 
 	// Zero-copy path for received UPDATE messages
 	if wireUpdate != nil && direction == rpc.DirectionReceived {
@@ -488,6 +533,7 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 			Direction:         direction,
 			MessageID:         messageID,
 			SourcePolicyEpoch: sourcePolicyEpoch,
+			SourceReceipt:     wireUpdate.SourceReceipt(),
 			WireUpdate:        wireUpdate,
 			AttrsWire:         attrsWire, // Derived from WireUpdate
 		}
@@ -537,6 +583,7 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 			if origin := wireUpdate.SentOrigin(); origin != nil {
 				msg.SourceOwner = origin.SourceOwner
 				msg.SourcePolicyEpoch = origin.SourcePolicyEpoch
+				msg.SourceReceipt = origin.SourceReceipt
 				msg.SourceLocal = origin.Local
 				msg.SentPathSources = origin.Paths
 			}
@@ -675,6 +722,7 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 				wireUpdate = wireu.NewWireUpdate(payload, wireUpdate.SourceCtxID())
 				wireUpdate.SetMessageID(messageID)
 				wireUpdate.SetSourceID(sourceID)
+				wireUpdate.SetSourceReceipt(msg.SourceReceipt)
 				// Update RawMessage to use modified WireUpdate.
 				attrsWire, parseErr := wireUpdate.Attrs()
 				msg.RawBytes = payload
@@ -744,6 +792,7 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 			ReceivedAt:        timestamp,
 			Meta:              routeMeta,
 			SourcePolicyEpoch: sourcePolicyEpoch,
+			SourceReceipt:     msg.SourceReceipt,
 		}
 		if hasPeer {
 			ru.receivedPeer = peer
@@ -757,6 +806,7 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 		wireu.InitWireUpdate(&ru.wireUpdateInline, wireUpdate.Payload(), wireUpdate.SourceCtxID())
 		ru.wireUpdateInline.SetMessageID(wireUpdate.MessageID())
 		ru.wireUpdateInline.SetSourceID(wireUpdate.SourceID())
+		ru.wireUpdateInline.SetSourceReceipt(msg.SourceReceipt)
 		ru.WireUpdate = &ru.wireUpdateInline
 		r.recentUpdates.Add(ru)
 		kept = true // Cache always accepts
@@ -867,14 +917,14 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 	// goroutine from plugin processing.
 	// Non-UPDATE messages (OPEN, KEEPALIVE, NOTIFICATION) stay synchronous
 	// because they are infrequent and FSM-critical.
-	if hasPeer && peer.deliverChan != nil && msgType == msgtype.TypeUPDATE {
+	if hasPeer && deliverChan != nil && msgType == msgtype.TypeUPDATE {
 		select {
-		case peer.deliverChan <- deliveryItem{peerInfo: peerInfo, msg: msg}:
+		case deliverChan <- deliveryItem{peerInfo: peerInfo, msg: msg}:
 			publication = nil // The delivery worker owns completion.
 		case <-publication.done:
 			fwdLogger().Error("received UPDATE publication failed", "peer", peerAddr, "message-id", messageID)
 			if kept {
-				r.recentUpdates.Activate(messageID, 0)
+				r.recentUpdates.abortPublication(messageID)
 			}
 		}
 		return kept
@@ -885,7 +935,7 @@ func (r *Reactor) notifyOneMessage(peerAddr netip.Addr, msgType msgtype.MessageT
 	// publication cannot delay its HoldTimer restart. A failed wait skips only
 	// this observer event: the session must still handle the NOTIFICATION.
 	if hasPeer {
-		if peer.deliverChan != nil {
+		if deliverChan != nil {
 			if msgType == msgtype.TypeNOTIFICATION {
 				if err := peer.receiveCut().wait(peer.ctx); err != nil {
 					reportReceivedNotificationSkipped(peer.ctx, peer.addrString, err)

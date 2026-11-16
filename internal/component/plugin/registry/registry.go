@@ -89,6 +89,11 @@ type Registration struct {
 	// session establishment.
 	Claims []string
 
+	// Dissemination declares the peer-output roles and grants this plugin
+	// needs. A declaration grants nothing; explicit Claims of a declared role
+	// take precedence over ordinary owners only at eligible destinations.
+	Dissemination []rpc.DisseminationDecl
+
 	// ProgramsFIB declares that this plugin writes the routes the system RIB
 	// selects into a forwarding path. It IS the operator's data-plane choice,
 	// so a config that names such a plugin has already chosen and the engine
@@ -598,6 +603,9 @@ func Register(reg Registration) error { //nolint:gocritic // hugeParam: Registra
 		}
 	}
 	if err := validateConfigNeeds(&reg); err != nil {
+		return err
+	}
+	if err := CheckDisseminationDeclarations(reg.Name, reg.Dissemination); err != nil {
 		return err
 	}
 	// Filter types must be globally unique across plugins so chain refs

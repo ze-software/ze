@@ -203,13 +203,15 @@ const validateOpenTimeout = 5 * time.Second
 // generation is the newest forward generation the reactor had issued when it
 // read this OPEN (rpc.ValidateOpenInput.Generation): it orders the OPEN
 // against the peer's state events, which a plugin receives on another loop.
+// provisional asks validators to check an unselected connection without
+// publishing learned peer state; selection repeats the retained pair with false.
 //
 // policyPlugins names the plugins that declared a capability for THIS peer alone, which
 // the reactor resolved from the same declarations it injected into the local OPEN
 // (openPolicyPlugins, internal/component/bgp/reactor/peer.go). Each of them owes an
 // answer, and one that does not give it refuses the OPEN rather than passing for
 // consent: see OpenValidationUnavailableError.
-func broadcastStampedValidateOpen(s *pluginserver.Server, peerAddr, group string, generation uint64, policyPlugins []string, local, remote any) error {
+func broadcastStampedValidateOpen(s *pluginserver.Server, peerAddr, group string, generation uint64, provisional bool, policyPlugins []string, local, remote any) error {
 	localOpen, ok := local.(*message.Open)
 	if !ok {
 		return fmt.Errorf("broadcastStampedValidateOpen: local not *message.Open: %T", local)
@@ -246,11 +248,12 @@ func broadcastStampedValidateOpen(s *pluginserver.Server, peerAddr, group string
 			return fmt.Errorf("broadcastStampedValidateOpen: remote %w", err)
 		}
 		input := &rpc.ValidateOpenInput{
-			Peer:       peerAddr,
-			Group:      group,
-			Generation: generation,
-			Local:      localMsg,
-			Remote:     remoteMsg,
+			Provisional: provisional,
+			Peer:        peerAddr,
+			Group:       group,
+			Generation:  generation,
+			Local:       localMsg,
+			Remote:      remoteMsg,
 		}
 
 		if err := askOpenValidators(s.Context(), pm.AllProcesses(), input, pending); err != nil {

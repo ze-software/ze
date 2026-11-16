@@ -274,7 +274,8 @@ func recoveryCandidateWithLabels(fam family.Family, prefix netip.Prefix, best *C
 	}
 	route := ribevents.RecoveryRoute{Source: best.PeerIP, NLRI: raw, Attributes: attrs,
 		MessageID: best.entry.MsgID, SourcePolicyEpoch: best.entry.SourcePolicyEpoch,
-		PathID: best.PathID, AddPath: best.AddPath}
+		SourceReceipt: best.entry.SourceReceipt,
+		PathID:        best.PathID, AddPath: best.AddPath}
 	iter := attribute.NewAttrIterator(attrs)
 	for code, _, value, valid := iter.Next(); valid; code, _, value, valid = iter.Next() {
 		if code == attribute.AttrNextHop && fam == family.IPv4Unicast {

@@ -98,6 +98,22 @@ through their context.
 
 ## 5-Stage Startup Protocol
 
+Stage 1 can carry `dissemination`, a list of pure peer-role declarations.
+Each names `namespace`, `role`, `source-receive`, `destination-receive` and
+`destination-send`. Receive tokens use the attachment vocabulary, including
+direction suffixes. Each required list is nonempty and names specific grants.
+The engine validates the declaration, then retains it with that authenticated
+process's Stage 1 value on both transports. It creates no attachment or grant.
+A matching `claims` token identifies an explicit owner. The actual resolved
+peer graph decides whether that configured instance is eligible; source and
+destination grants on differently named instances never complete each other.
+The query-mode declaration carries these values and Claims too.
+<!-- source: pkg/plugin/rpc/dissemination.go -- DisseminationDecl -->
+<!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput -->
+<!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC -->
+<!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks -->
+<!-- source: internal/component/plugin/cli/main.go -- answerQuery -->
+
 Ze uses a synchronized 5-stage startup protocol with barriers between stages.
 Within each dependency tier, all plugins must complete each stage before any
 can proceed to the next. Tiers are sequenced by dependency order (see
@@ -1794,6 +1810,8 @@ filter-update answer").
 | `forward-cached` | `ForwardCachedInput` | - | Forward cached UPDATEs to destination peers |
 | `release-cached` | `ReleaseCachedInput` | - | Release cached UPDATEs and do not forward them |
 | `relay-stored-route` | `RelayStoredRouteInput` | - | Relay stored wire routes to one established peer |
+| `select-routes` | `SelectRoutesInput` | `SelectRoutesOutput` | Settle selected output for one captured destination session |
+| `cancel-request` | `CancelRequestInput` | `CancelRequestOutput` | Cancel and join an opt-in request on the same authenticated connection |
 | `route-install` | `RouteInstallInput` | `RouteInstallOutput` | Insert a batch of computed routes into the engine Loc-RIB (forked route-installing plugin) |
 | `route-remove` | `RouteRemoveInput` | `RouteRemoveOutput` | Withdraw a batch of routes from the engine Loc-RIB (forked route-installing plugin) |
 | `route-metrics` | `RouteMetricsInput` | `RouteMetricsOutput` | Read recursive next-hop costs and the engine Loc-RIB revision |
@@ -1819,6 +1837,210 @@ filter-update answer").
 | `decode-update` | `DecodeUpdateInput` | `DecodeUpdateOutput` | Decode full UPDATE |
 
 All methods are prefixed with `ze-plugin-engine:`.
+
+#### Selected-route output
+
+##### Current selection validation
+
+<!-- source: pkg/plugin/rpc/current_selection.go -- current-selection DTO and frame bounds -->
+<!-- source: pkg/plugin/sdk/sdk_current_selection.go -- OnCurrentSelection and independent worker -->
+
+An owner registers `OnCurrentSelection` before `Run`. Stage 1 derives
+`current-selection` from that registration; the declaration grants no peer
+permission. The engine calls `ze-plugin-callback:current-selection` on the exact
+selecting connection, so a similarly named plugin or a later process incarnation
+cannot answer for it. Both `MuxConn.CurrentSelection` and
+`DirectBridge.CurrentSelection` use the same bounded contract.
+The engine's `PluginConn.SendCurrentSelection` selects those transports on that
+exact connection and never falls back to ordinary queued callbacks after bridge
+cutover.
+<!-- source: internal/component/plugin/ipc/current_selection.go -- SendCurrentSelection -->
+
+Each request carries the destination, its exact session token, an absolute
+deadline and native keys with the requested revisions. Each answer echoes that
+scope and every ordered key/revision, the current global selection cut and an
+explicit presence (`1` present, `2` absent). A present result carries its nonzero
+current revision, at most the cut. An absent result carries current revision
+zero; cut zero is valid for an empty fresh scope. No candidate route payload is
+returned. Unknown presence, missing fields and incomplete or mismatched echoes
+fail validation. A key still current at revision 3 remains valid under cut 500;
+an absent key is rejected using the current cut without retaining engine
+tombstones. A request newer than the published cut is not proof of current
+authority and must fail selected admission.
+
+The callback reads only the owner's published desired-selection snapshot. It
+must not call the engine, perform I/O, or acquire peer or election locks. It runs
+on one long-lived worker per connection, independently of the ordinary callback
+and execute-command queue. Wire routing occurs in the Mux reader before that
+queue; typed routing enters the same worker directly. This lets a source-policy
+or retention handler await selected dispatch while its current-state lookup
+still completes. Both request and widest reply must fit `MaxMessageSize`;
+`CurrentSelectionExchangeSize` lets producers split larger queries. Queue
+admission is bounded. A full typed queue returns an error; a full wire queue
+ends the connection rather than blocking its sole reader or silently dropping
+authority checks. Stop cancels and joins the worker and refuses queued work.
+
+<!-- source: pkg/plugin/rpc/selected.go -- selected input and final receipts -->
+<!-- source: pkg/plugin/sdk/sdk_selected.go -- SelectRoutes -->
+<!-- source: internal/component/plugin/server/dispatch_selected.go -- authenticated dispatch -->
+
+`SelectRoutes(ctx, input)` submits one destination batch through the typed
+bridge or the same registered socket operation. It is separate from
+`relay-stored-route`: a selected revision can replace output from a different
+original source, while the legacy relay retains its source-owned semantics.
+The engine derives the caller's process incarnation from the authenticated
+connection. No caller-supplied process name, route metadata or source receipt
+grants send permission or overrides an explicit forwarding owner.
+
+The input carries `destination`, the exact UP event's `initial-replay` token
+as `destination-session`, and `routes`. That token is required for initial and
+live output. Each entry has `family`, `key-nlri` (base64 native advertisement
+bytes with the source ADD-PATH identifier removed), and a nonzero uint64
+`revision`. The engine derives the registered semantic identity, including
+families that are not IP prefixes. Revisions increase per native key and
+admitted scope within the selecting process incarnation; exhaustion requires
+a new incarnation and replay boundary rather than wrapping.
+
+The numeric `kind` selects one payload:
+
+| Kind | Payload |
+|------|---------|
+| `1` received | `route` (`StoredRoute`), nonzero engine-issued `source-receipt`, `source-add-path`, explicit `stale-level`, and `retained` when the owner authorizes retention |
+| `2` origin | `route`, nonzero engine-issued `origin-receipt`, and fresh `stale-level`; no received-source or retention authority |
+| `3` absent | No route or source/origin receipt; retire this selected stream's previous output |
+
+Received FlowSpec entries additionally carry `flowspec-redirect-refused` when
+the deciding owner authorizes that current revision without its redirect
+action. The engine refuses the flag on origins, absences and non-FlowSpec
+families, then uses the existing egress action-removal treatment. It does not
+call an ordinary receive-validation handler while that handler may be joining
+the selected writer. The selecting snapshot must bind this projection to the
+same current revision it publishes.
+
+`stale-level` is `1` fresh, `2` stale or `3` LLGR; zero is unrecorded and is
+allowed only on absence. Received `route` preserves the original message,
+source-policy epoch, NLRI framing and path identifier, including ADD-PATH zero.
+Neither reconnect nor replay restamps the original policy epoch. The generic
+boundary validates payload shape and owns its snapshot. The reactor must
+authenticate issued receipts, source retention/revocation, effective role,
+native identity and destination session before final admission. A reactor
+without selected-output support returns an error.
+
+Both the encoded request and its widest complete final answer must fit
+`rpc.MaxMessageSize` before admission. `rpc.SelectRoutesExchangeSize` measures
+the larger frame with the widest correlation ID, current revision and SDK
+deadline; an absence answer can be larger than its request. The existing
+`SelectRoutesFrameSize` measures the request alone. Route count alone cannot
+bound either frame. Callers keep input unchanged until return. The result contains one ordered identity/revision echo per input and
+the writer's `current-revision`. Numeric outcomes are `1` written, `2`
+suppressed, `3` absent, or `4` stale revision. Suppression and absence confirm
+retirement of the previous selected output. Missing, partial, unknown or
+mismatched results fail the operation.
+
+Success is final writer settlement, not queue admission or a later sent-event
+callback. The RIB scheduler must also join its queued and in-flight work to
+the process's applied-delivery settlement barrier before `request quiesce`
+can confirm it; a final writer callback alone does not drain unpublished work.
+Source-policy and retention lifecycle barriers use that same scheduler
+settlement, rather than an independent completion inventory.
+
+The current-selection server facade compares both process lifetime channels
+with the authenticated owner before and after querying its connection. A
+same-name replacement is a different owner. The reactor compares the reply's
+current desired revision, allowing a still-current key at revision 3 beneath a
+later scope cut of 500. An absent key keeps no historical revision: the scope
+cut and the serialized destination writer fence a stale reappearance.
+<!-- source: internal/component/plugin/server/selected_current.go -- CurrentSelection, selectedConnection -->
+<!-- source: internal/component/bgp/reactor/selected_current.go -- selectedCurrentRevision -->
+
+The SDK derives `deadline-ms` from the caller's context, with a thirty-second
+ceiling for one batch. The socket reader validates and enrolls the request's
+authenticated resource before starting its handler, so a later cancellation
+cannot overtake admission. A selected batch needs its destination's actual
+`update` send grant, and only one batch may be live for that destination.
+The final writer still rechecks all authority and the destination session.
+Other opt-in operations validate an existing owned resource before enrollment;
+the cancellation table holds only those live requests, not route state or a
+completion history.
+
+On cancellation, `MuxConn.CallRPCCancellable` sends `cancel-request` with the
+original `request-id` and `method`, then waits up to five seconds for the
+handler and writer to join. Outcomes are `1` settled or `2` no longer active
+on this connection. Unknown or non-opt-in methods, zero IDs, self/future IDs
+and a method different from the live request are refused. A completed entry
+is removed rather than retained as a tombstone. Another process connection
+cannot cancel it. The read loop cancels all its opt-in contexts before joining
+handlers on EOF, even while the process itself still exists.
+
+Correlation IDs remain reserved for every live request through its response
+attempt, including ordinary methods, cancellation controls and refused input.
+A frame reusing any live ID is connection-fatal: the daemon sends no collision
+reply under that occupied ID, cancels admitted contexts, closes the stream and
+joins the handlers. Such a reply could otherwise release the original caller
+while its writer still owned work. Completed IDs leave no stored history, and
+valid concurrent requests need not arrive in ID allocation order.
+Fatal transport closure precedes request cancellation and the filter queue's
+admission lock, so a waiting control cannot emit a reply under the corrupted
+identity and filter admission cannot keep that stream open. Normal connection
+closure keeps its existing order.
+<!-- source: internal/component/plugin/ipc/rpc.go -- PluginConn.AbortRuntime -->
+
+A transport failure or missing cancellation receipt is an explicit
+`CancellationUnsettledError`; a lifecycle barrier must fail instead of claiming
+that remote work joined. Cancellation during a partial request write closes
+the stream, because its incomplete frame cannot be reused. Typed calls carry
+the caller's context directly and have the same final-writer obligation.
+Ordinary non-opt-in RPC methods keep their existing cancellation behavior.
+<!-- source: pkg/plugin/rpc/cancel.go -- cancellation receipts, SelectedCallContext -->
+<!-- source: pkg/plugin/rpc/mux_cancel.go -- MuxConn.CallRPCCancellable, cancelAndJoin -->
+<!-- source: pkg/plugin/rpc/write_cancel.go -- Conn.armWriteCancellation -->
+<!-- source: internal/component/plugin/server/request_cancel.go -- runtimeRequests, selectedCancellationScope, opCancelRequest -->
+<!-- source: internal/component/plugin/server/request_runtime.go -- serveRuntimeRequests -->
+
+The reactor's source-receipt storage separates three lifetimes. An issued
+receipt owns the immutable forwarding facts of its original source session:
+its encoding, AS and router identities, peer classification and filter facts.
+The session's event-delivery reference lasts through its applied DOWN, so an
+earlier queued receive callback can acquire the receipt after the connection
+has physically closed. That reference permits storage admission, not output.
+The final writer still requires either the captured live generation or an
+existing selecting owner's retained lease. A different process incarnation
+cannot acquire that old source after the delivery reference closes.
+Configured-source removal also refuses acquisition, even while that reference
+is open. Process liveness is checked under the admission lock shared with
+owner cleanup, so an earlier check cannot authorize insertion after cleanup.
+
+The deciding plugin owns retention and MUST revoke its lease on expiry,
+purge or removal. Revocation first refuses new writes and cancels captured
+ones, then joins their final completion. A canceled wait leaves the lease
+revoked and its outstanding writes owned; process cleanup can still find
+and join them. Each write MUST complete after its final flush or cancellation,
+and copied completion tokens are idempotent. The writer rechecks original
+policy admission, process lifetime and source removal at its socket boundary;
+neither a reconnect nor a retained lease replaces those checks.
+
+This table stores facts and lifetime references, never candidates or GR
+durations. It retains only open session-delivery references, current leases
+and actual in-flight writes. Their final release deletes the entry; its
+monotonic receipt clock leaves no per-session history. The table is the
+engine-side lifetime primitive; selecting-owner grants and the selected writer
+are separate protocol boundaries. Its clock is daemon-wide: replacing the BGP
+reactor cannot reuse a receipt held by a deciding process.
+<!-- source: internal/component/bgp/reactor/source_receipt.go -- sourceReceiptStore, sourceReceiptFacts, liveSourceReceipt, sourceReceiptLease, sourceReceiptWrite -->
+
+The selected Session captures its source after negotiation and dynamic-AS
+resolution, before announcing UP. Its immutable callback stamps that receipt on
+received UPDATEs, including ingress-generated continuations and the retained
+cache value. The notifier is bound to the exact configured Peer, so a sibling
+using another port at the same IP cannot supply its facts. Its delivery reference
+closes after the ordered DOWN finishes; a fallback registered before publication
+also closes it on an early failure. Original sent provenance is read from the
+writer's `SentOrigin`, never from the destination's or source's current Session.
+Locally originated and reconstructed unrecorded messages keep an explicit zero.
+<!-- source: internal/component/bgp/reactor/source_session.go -- captureSourceReceipt, sourceMessageCallback, closeSourceReceipt, messageReceiverForPeer -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce capture before announceEstablished -->
+<!-- source: internal/component/bgp/reactor/peer_session_end.go -- sessionDown ordered receipt release -->
+<!-- source: internal/component/bgp/reactor/reactor_notify.go -- notifyMessageReceiverFrom, notifyOneMessage -->
 
 `update-route` also carries `source-policy-epoch` as a dedicated numeric
 provenance field on `UpdateRouteInput`, outside user `meta`. A retained
@@ -2350,10 +2572,11 @@ quoted text payload:
 | `peer` | IP address | The peer named by the payload |
 | `message-id` | uint64 | The payload's received message ID |
 | `source-policy-epoch` | uint64 | The payload's original policy admission, including an explicit unrecorded zero |
+| `source-receipt` | uint64 | The payload's original source session identity, including an explicit unrecorded zero |
 | `reactor-forwarded` | bool | The reactor fast path has already decided the eligible destinations |
 | `fast-path-skipped` | address:port list | Destinations handed back to the forwarding plugin; omitted when empty |
 
-`peer`, `message-id`, `source-policy-epoch` and `reactor-forwarded` are mandatory
+`peer`, `message-id`, `source-policy-epoch`, `source-receipt` and `reactor-forwarded` are mandatory
 and non-null. An explicit zero ID or unrecorded policy epoch and an explicit
 `false` decision remain values, not missing members. An omitted or null decision
 must not silently become `false` and send a second copy to a target the reactor
@@ -2361,7 +2584,7 @@ already served.
 
 These are delivery facts from the engine's `RawMessage`, never filter-writable
 `route-meta`. A reader binds the receipt to the actual payload's peer, message ID
-and policy epoch before using it. The route server snapshots the skipped list
+and policy epoch and source receipt before using it. The route server snapshots the skipped list
 into its worker item on structured delivery; JSON decoding owns the list on the
 forked rail. Neither rail keeps a mutable alias to a publisher's receipt.
 
@@ -2460,8 +2683,21 @@ member of the JSON and text forms (`json-format.md`, "State Events"); it is
 zero on every other event. For other wire messages (OPEN, NOTIFICATION, REFRESH), `RawMessage.RawBytes`
 contains the raw wire bytes.
 
+Decoded OPEN events name the selected connection. An unselected incoming
+connection retains its first actual sent and received OPEN observations
+without publishing them under the incumbent's peer identity. If selected,
+it publishes those exact bodies once before peer-up, after the previous
+connection's cleanup and selected OPEN validation. A rejected or losing
+connection publishes neither decoded OPEN. Packet capture and physical
+OPEN counters still observe its actual exchange.
+<!-- source: internal/component/bgp/reactor/session_open_publication.go -- privateNegotiationEpoch.messageCallback, observedOpen.publish -->
+<!-- source: internal/component/bgp/reactor/session_open_admission.go -- selectNegotiationEpoch -->
+
 `StructuredEvent` instances are pooled via `GetStructuredEvent`/`PutStructuredEvent`
 to eliminate per-event heap allocations on the hot path.
+`SourceReceipt` and `SourcePolicyEpoch` are copied directly from the raw message
+and cleared on pool return, so a later event cannot inherit another session's
+source identity.
 <!-- source: internal/component/bgp/server/events.go -- getStructuredEvent, getStructuredStateEvent -->
 
 Plugins that register both `OnStructuredEvent` and `OnEvent` receive structured events
@@ -2973,6 +3209,10 @@ to the dispatch or event loop code. See `rules/plugin-design.md` "SDK Is Generic
 Two lifecycle callbacks are admitted by both loops to their own workers instead:
 the stop `drain` and `source-policy`, whose handlers must wait while the loop
 keeps delivering (see their sections above).
+Current-selection lookup uses a registered ingress lane before that loop and
+its queue, with the same independent worker on the typed bridge. Its snapshot
+read must complete even when an ordinary handler is waiting for selected
+dispatch; admitting it from the blocked ordinary loop would deadlock.
 <!-- source: pkg/plugin/sdk/sdk_dispatch.go -- eventLoop, bridgeEventLoop, getCallback -->
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- initCallbackDefaults, On* methods -->
 
@@ -3425,6 +3665,19 @@ its roots and the restart that applies the change at startup:
 Plugins can validate incoming OPEN messages by registering `OnValidateOpen`.
 The engine sends both local and remote OPENs for inspection:
 <!-- source: pkg/plugin/rpc/types.go -- ValidateOpenInput, ValidateOpenOutput -->
+
+`provisional` is true for an incoming connection that has not been selected.
+The plugin checks its OPEN policy and returns the normal accept or rejection
+answer, but must leave peer-scoped learned state unchanged. A losing connection
+never publishes that state. After joining the previous connection's cleanup,
+selection repeats the exact retained OPEN pair with `provisional: false`, once,
+before the selected connection can announce peer-up or deliver routes. Ordinary
+selected connections use false on their initial validation. The callback's
+failure, elapsed original HoldTimer budget, or closed socket prevents adoption.
+This field has the same meaning over the internal and JSON RPC transports.
+<!-- source: internal/component/bgp/reactor/session_open_admission.go -- selectNegotiationEpoch -->
+<!-- source: internal/component/bgp/reactor/session_open_validation.go -- runOpenValidator -->
+<!-- source: internal/component/bgp/server/validate.go -- broadcastStampedValidateOpen -->
 
 ```
 #7 ze-plugin-callback:validate-open {"peer":"192.168.1.1","local":{"asn":65001,"router-id":"1.1.1.1","hold-time":90,"capabilities":[...]},"remote":{"asn":65002,...}}

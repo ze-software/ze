@@ -454,6 +454,21 @@ TCP recv → bufMuxStd / bufMuxExt block-backed buffer
 <!-- source: internal/component/bgp/reactor/forward_pool.go -- peerPool, peerPoolSize -->
 <!-- source: internal/component/bgp/reactor/bufmux.go -- BufMux, MixedBufMux, BufHandle -->
 
+The complete-frame reader transfers its parsed header and existing pooled
+buffer handle by value to the selected or incoming reader. It creates no
+separate heap wrapper for the frame. The receiving path must dispatch that
+frame or return its handle exactly once.
+If a received UPDATE callback panics after cache adoption, an exact-buffer
+ownership receipt prevents the read owner's deferred cleanup from returning
+that slot twice. The original panic still reaches the session task boundary.
+Aborting publication closes new cache lookups; existing forward retains keep
+the receipt and its adopted variants alive until their final release. Both
+standard reads and coalesced flushes use this ownership finalizer.
+<!-- source: internal/component/bgp/reactor/session_read.go -- readFrame, receivedFrame, dispatchFrame -->
+<!-- source: internal/component/bgp/reactor/recent_cache.go -- abortPublication, getRetained -->
+<!-- source: internal/component/bgp/reactor/session_coalesce.go -- flushCoalesce -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- readOpen, admitFrame -->
+
 ### When a copy is deliberate
 
 A copy on the wire path MUST match one of the triggers below. A copy that fits
@@ -461,6 +476,7 @@ none of them is a defect until this table names the new trigger.
 
 | Copy trigger | What forces it | Producer |
 |---|---|---|
+| A private incoming connection observes an OPEN | Its decoded event must wait for selection, while read and write buffers are reused. The private epoch owns at most one actual sent and one actual received body; selection replays only those observations, without another wire write or counter increment | `(*pendingOpenPublication).retain`, `observedOpen.publish` |
 | An attribute enters its pool for the first time | The pool owns the canonical copy, and the wire buffer is reused | `(*shard).intern` |
 | The destination has other capabilities | A `ContextID` mismatch (RFC 6793 ASN4 width) needs a re-encode | `buildFwdBody`, `fwdUpdateForDestination` |
 | The destination negotiated ADD-PATH | RFC 7911 Section 2: the source's Path Identifiers are rewritten, into a copy, even when the contexts match | `fwdRegenerateRawPathIDs` |
@@ -473,12 +489,13 @@ none of them is a defect until this table names the new trigger.
 | Ingress AS4 reconciliation | A 2-octet speaker, or an UPDATE that carries AS4_PATH or AS4_AGGREGATOR, gets one canonical four-octet AS path | `(*Session).collapseASPathFamily` |
 | An external plugin reads the UPDATE | The plugin needs JSON text, not wire bytes | `appendParsedUpdateJSONDirect` |
 | A forwarding receipt enters an asynchronous route-server worker | The worker outlives structured dispatch and must own the skipped-destination list independently of the publisher | `routeServer.dispatchStructured` |
-| A selected revision leaves received bgp-rib storage | The winner's native route, attributes and label values must outlive its retained pool references for ordinary output or monitoring subscribers. Capture owns the revision once and shares its immutable attribute bytes with best-change publication. Label comparison uses owned content because a released pool slot can be reused; reconstruction uses the winner's already resolved values. An unchanged route copies nothing; a changed admission epoch or stale treatment owns a new revision even when monitoring best-path identity stays equal | `prepareAdvertise`, `recoveryCandidateWithLabels`, `recoveryCandidate`, `storedAttributes` |
+| A selected revision leaves received bgp-rib storage | The winner's native route, attributes and label values must outlive its retained pool references for ordinary output or monitoring subscribers. Capture owns the revision once and shares its immutable attribute bytes with best-change publication. Label comparison uses owned content because a released pool slot can be reused; reconstruction uses the winner's already resolved values. An unchanged route copies nothing; a changed source receipt, admission epoch or stale treatment owns a new revision even when monitoring best-path identity stays equal | `prepareAdvertise`, `recoveryCandidateWithLabels`, `recoveryCandidate`, `storedAttributes` |
 | A domain event batch does not fit an RPC frame | The SDK takes one contiguous JSON string per event. Oversized best-change and redistribution arrays reuse their encoded entries inside independently framed payloads; validation rows are encoded once into owning chunks. `textbuf.Buffer.String` transfers each backing allocation because engine delivery may retain the string past its ACK; borrowing and resetting that storage would corrupt queued events | `sdkEventBus.Emit`, `AdjRIBInManager.emitValidationEvent` |
 | A recovery election writes several keys of one received UPDATE | Each owed key is staged as its own UPDATE; adjacent announcements of one source message with identical attributes are packed into one body, a fresh copy, so the staged items keep their buffers until the admission releases them | `recoveryBucketMerge` |
 | An owner withdrawal is owed to recovery | Twice. The writer stages the NLRI in its pooled staging storage, because a body that lost a path is copied over the session write buffer before the owe applies, and the owed path's bytes would then read as the emitted one. The owed record then copies them again, because it outlives the write and the pooled writer reuses that storage | `(*adjOutWrite).stageOwe`, `(*adjRIBOut).owe` |
 
 <!-- source: internal/component/bgp/attrpool/pool.go -- shard.intern -->
+<!-- source: internal/component/bgp/reactor/session_open_publication.go -- pendingOpenPublication.retain, observedOpen.publish -->
 <!-- source: internal/component/bgp/reactor/forward_body.go -- buildFwdBody, fwdUpdateForDestination, fwdSplitParsedUpdate -->
 <!-- source: internal/component/bgp/reactor/forward_path_id.go -- fwdRegenerateRawPathIDs -->
 <!-- source: internal/component/bgp/reactor/forward_build.go -- buildModifiedPayload, buildWithdrawalPayload -->

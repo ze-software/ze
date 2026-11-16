@@ -447,10 +447,11 @@ func (a *reactorAPIAdapter) sendRouteRefresh(sel *selector.Selector, afi uint16,
 // smaller UPDATEs that each fit within the limit.
 func (a *reactorAPIAdapter) ForwardUpdate(sel *selector.Selector, updateID uint64, pluginName string, sender plugin.Sender) error {
 	origin := announceOrigin(sender)
-	update, ok := a.r.recentUpdates.Get(updateID)
+	update, ok := a.r.recentUpdates.getRetained(updateID)
 	if !ok {
 		return ErrUpdateExpired
 	}
+	defer a.r.recentUpdates.Release(updateID)
 	if pluginName != "" {
 		defer func() {
 			if ackErr := a.r.recentUpdates.Ack(updateID, pluginName); ackErr != nil {
@@ -894,6 +895,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 				meta: update.Meta, sourcePeerStr: update.SourcePeerStr, sourceMessageID: sourceMessageID,
 				receivedPeer: update.receivedPeer, receivedGeneration: update.receivedGeneration,
 				sourcePolicyEpoch: update.SourcePolicyEpoch, exportGeneration: facts.exportGeneration,
+				sourceReceipt: update.SourceReceipt,
 				initialUpdate: srcInfo.initialUpdate}
 			if srcInfo.recovery != nil {
 				retirement.authority = adjOutRecovery
@@ -1269,6 +1271,7 @@ func (a *reactorAPIAdapter) forwardUpdateSection(update *ReceivedUpdate, updateI
 			item.session, item.authority = session, adjOutForwarded
 			item.receivedPeer, item.receivedGeneration = update.receivedPeer, update.receivedGeneration
 			item.sourcePolicyEpoch = update.SourcePolicyEpoch
+			item.sourceReceipt = update.SourceReceipt
 			item.exportGeneration = facts.exportGeneration
 			item.initialUpdate = srcInfo.initialUpdate
 			item.aigpOrigin = announceOrigin(srcInfo.sender)

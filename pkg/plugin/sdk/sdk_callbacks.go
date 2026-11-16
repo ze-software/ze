@@ -837,6 +837,8 @@ func (p *Plugin) OnConfigOperationCommit(fn ConfigOperationCommitHandler) {
 
 // OnValidateOpen sets the handler for OPEN validation requests.
 // The handler receives both local and remote OPEN messages and returns accept/reject.
+// A provisional input MUST check policy without publishing peer-scoped learned state.
+// Selection repeats that same pair once with Provisional false before peer-up.
 // When registered, WantsValidateOpen is automatically set in Stage 1 registration.
 // If no handler is registered, validate-open returns accept (no-op).
 func (p *Plugin) OnValidateOpen(fn ValidateOpenHandler) {

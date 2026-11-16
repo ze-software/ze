@@ -53,6 +53,12 @@ func stage1Cases() map[string]stage1Case {
 				return mustFail(t, err)
 			},
 		},
+		"dissemination": {
+			failing: &rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion, Dissemination: []rpc.DisseminationDecl{{}}},
+			want: func(t *testing.T, in *rpc.DeclareRegistrationInput) string {
+				return mustFail(t, registry.CheckDisseminationDeclarations(stage1Subject, in.Dissemination))
+			},
+		},
 		"filter-declarations": {
 			failing: &rpc.DeclareRegistrationInput{ProtocolVersion: rpc.ProtocolVersion, Filters: []rpc.FilterDecl{{}}},
 			want: func(t *testing.T, in *rpc.DeclareRegistrationInput) string {

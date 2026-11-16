@@ -29,6 +29,7 @@ type RawMessage struct {
 	SourcePeerStr     string                    // Source peer address for ribOut stale-scoping (sent events only)
 	SourceMessageID   uint64                    // Original received generation on every forwarded sent event
 	SourcePolicyEpoch uint64                    // Original received policy admission; zero is unrecorded.
+	SourceReceipt     uint64                    // Original engine-issued source session; zero is unrecorded.
 	SourceID          uint32                    // Registry source identity; SourceOwner proves the Peer incarnation.
 	SourceOwner       uint64                    // Stable source Peer incarnation, copied from the borrowed sent receipt.
 	SourceLocal       bool                      // Explicit local announcement origin, never inferred from absent source metadata.

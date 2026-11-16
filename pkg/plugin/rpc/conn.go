@@ -351,9 +351,15 @@ func (c *Conn) writeFrame(ctx context.Context, buf []byte) error {
 	}
 
 	c.mu.Lock()
+	joinCancellation, err := c.armWriteCancellation(ctx)
+	if err != nil {
+		c.mu.Unlock()
+		return err
+	}
 	dlWriter, hasDL := c.writeCloser.(writeDeadliner)
 	if hasDL {
 		if err := dlWriter.SetWriteDeadline(deadline); err != nil {
+			joinCancellation()
 			c.mu.Unlock()
 			return fmt.Errorf("set write deadline: %w", err)
 		}
@@ -367,6 +373,7 @@ func (c *Conn) writeFrame(ctx context.Context, buf []byte) error {
 	} else {
 		watchdogFired = c.disarmWatchdogLocked()
 	}
+	joinCancellation()
 	c.mu.Unlock()
 
 	if writeErr == nil {

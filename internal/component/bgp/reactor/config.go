@@ -949,7 +949,7 @@ func parseProcessBindingsFromTree(tree map[string]any, ps *PeerSettings) error {
 			continue
 		}
 
-		binding := ProcessBinding{PluginName: name}
+		binding := ProcessBinding{PluginName: name, Explicit: true}
 
 		// Content settings.
 		if contentMap, ok := mapMap(pMap, "content"); ok {

@@ -23,7 +23,7 @@ func receiptEnvelope(t *testing.T, message *bgptypes.RawMessage, peer string, ch
 		Address: netip.MustParseAddr(peer), PeerAS: rpc.RemoteASOf(65001),
 	}, *message, bgptypes.ContentConfig{Encoding: plugin.EncodingText, Format: plugin.FormatParsed}))
 	metadata := map[string]any{"peer": peer, "message-id": message.MessageID,
-		"source-policy-epoch": message.SourcePolicyEpoch, "reactor-forwarded": message.ReactorForwarded,
+		"source-policy-epoch": message.SourcePolicyEpoch, "source-receipt": message.SourceReceipt, "reactor-forwarded": message.ReactorForwarded,
 		"fast-path-skipped": message.FastPathSkipped}
 	if change != nil {
 		change(metadata)
@@ -117,7 +117,7 @@ func TestRSFastReceiptSkippedAndReplayTargets(t *testing.T) {
 // Each invalid envelope must enqueue no forwarding item, even though the body
 // is a valid announcement and its route metadata claims it was reactor-served.
 func TestRSFastReceiptRejectsMismatchedIdentity(t *testing.T) {
-	for _, field := range []string{"peer", "message-id", "source-policy-epoch"} {
+	for _, field := range []string{"peer", "message-id", "source-policy-epoch", "source-receipt"} {
 		t.Run(field, func(t *testing.T) {
 			rs := newTestRouteServer(t)
 			rs.workers.Stop()

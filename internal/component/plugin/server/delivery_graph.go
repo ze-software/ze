@@ -94,6 +94,7 @@ type peerDelivery struct {
 // rather than stored beside it, so an operator is shown what delivery reads.
 type processDelivery struct {
 	name       string
+	explicit   bool
 	send       []string
 	unresolved []string
 	implicit   []string
@@ -150,7 +151,7 @@ func newDeliveryGraph(namespace string, peers []DeliveryPeer) *DeliveryGraph {
 // addBinding indexes one `attach process` block and returns the half of it the
 // receive index does not carry.
 func (pd *peerDelivery) addBinding(namespace string, nsID events.NamespaceID, wildcard []string, b plugin.PeerProcessBinding) processDelivery {
-	edges := processDelivery{name: b.PluginName}
+	edges := processDelivery{name: b.PluginName, explicit: b.Explicit}
 
 	for _, et := range grantedTypes(wildcard, b) {
 		dir := grantDirection(wildcard, b, et)

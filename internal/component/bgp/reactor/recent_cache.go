@@ -176,6 +176,7 @@ func (c *RecentUpdateCache) assignUnorderedBitLocked(name string) {
 type cacheEntry struct {
 	update           *ReceivedUpdate
 	pending          bool         // True between Add() and Activate(); not evictable
+	aborted          bool         // Lookup is closed; existing retains still own its bytes.
 	retainedAt       time.Time    // When consumers first became > 0 (for safety valve)
 	pendingConsumers int          // How many plugin acks are still needed
 	earlyAckCount    int          // Acks received before Activate() (fast plugin race)
@@ -204,6 +205,9 @@ func (e *cacheEntry) totalConsumers() int {
 func (e *cacheEntry) isGapEvictable(now time.Time, entryID, highestFullyAcked uint64, valve time.Duration) bool {
 	if e.pending {
 		return false
+	}
+	if e.aborted {
+		return false // An active writer owns these bytes until its final Release.
 	}
 	if e.totalConsumers() <= 0 {
 		return false // Zero consumers — would be evicted normally
@@ -440,6 +444,9 @@ func (c *RecentUpdateCache) Activate(id uint64, count int) {
 	if !ok {
 		return
 	}
+	if e.aborted {
+		return
+	}
 
 	e.pending = false
 
@@ -457,10 +464,11 @@ func (c *RecentUpdateCache) Activate(id uint64, count int) {
 	}
 }
 
-// Get retrieves an update by ID without removing it from the cache.
-// Returns (nil, false) if not found. All entries in the map are valid
-// (no TTL — entries are evicted only by Ack or safety valve).
-// Thread-safe for concurrent access — multiple consumers can Get() simultaneously.
+// Get looks up an update without acquiring ownership. Missing and aborted
+// publications return (nil, false), even if existing retains keep an aborted
+// entry's bytes alive. Safe for concurrent lookup; the caller MUST already own
+// pending read admission or a retain while using the returned bytes. Cached
+// forward callers MUST use getRetained to acquire lookup and ownership together.
 func (c *RecentUpdateCache) Get(id uint64) (*ReceivedUpdate, bool) {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
@@ -469,7 +477,50 @@ func (c *RecentUpdateCache) Get(id uint64) (*ReceivedUpdate, bool) {
 	if !ok {
 		return nil, false
 	}
+	if entry.aborted {
+		return nil, false
+	}
 	return entry.update, true
+}
+
+// getRetained admits a cached forward and owns its bytes in the same cache
+// transaction. The caller MUST Release after its last read or after transferring
+// further retains to workers. Get followed by Retain would race an abort.
+func (c *RecentUpdateCache) getRetained(id uint64) (*ReceivedUpdate, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	e, ok := c.entries.Get(id)
+	if !ok {
+		return nil, false
+	}
+	if e.aborted {
+		return nil, false
+	}
+	e.retainCount.Add(1)
+	if e.retainedAt.IsZero() {
+		e.retainedAt = c.clock.Now()
+	}
+	return e.update, true
+}
+
+// abortPublication closes admission for a received UPDATE whose publication
+// failed. Consumers that have not acquired it can no longer forward it; acquired
+// forwards keep their existing retains, including all adopted wire variants.
+// The final Release returns the bytes. Delete would free those active borrows.
+func (c *RecentUpdateCache) abortPublication(id uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	e, ok := c.entries.Get(id)
+	if !ok {
+		return
+	}
+	e.aborted = true
+	e.pending = false
+	e.pendingConsumers = 0
+	e.earlyAckCount = 0
+	if e.totalConsumers() <= 0 {
+		c.evictLocked(id, e)
+	}
 }
 
 // Ack records that a plugin has processed (forwarded or dropped) an update.
@@ -648,14 +699,17 @@ func (c *RecentUpdateCache) Decrement(id uint64) bool {
 	return true
 }
 
-// Contains checks if an entry exists in the cache.
-// All entries in the map are valid (no TTL).
+// Contains checks whether an entry still admits lookup. An aborted entry with
+// existing retains stays physically cached but answers false here.
 // Does NOT remove the entry or transfer ownership.
 func (c *RecentUpdateCache) Contains(id uint64) bool {
 	c.mu.RLock()
 	defer c.mu.RUnlock()
-	_, ok := c.entries.Get(id)
-	return ok
+	e, ok := c.entries.Get(id)
+	if !ok {
+		return false
+	}
+	return !e.aborted
 }
 
 // Delete removes an update from the cache and returns its buffer to pool. It
@@ -668,6 +722,9 @@ func (c *RecentUpdateCache) Delete(id uint64) bool {
 	defer c.mu.Unlock()
 
 	if e, ok := c.entries.Get(id); ok {
+		if e.aborted {
+			return false // Its last active writer, rather than expire, owns release.
+		}
 		fwdReleaseWithdrawnPathIDs(e.update)
 		returnReadBuffer(e.update.poolBuf)
 		e.update.returnFwdHandles()
@@ -681,12 +738,16 @@ func (c *RecentUpdateCache) Delete(id uint64) bool {
 // Used by the `bgp cache N retain` API command.
 // Returns true if entry found, false if not found.
 func (c *RecentUpdateCache) Retain(id uint64) bool {
-	return c.retainN(id, 1)
+	_, ok := c.getRetained(id)
+	return ok
 }
 
 // retainN increments the retain count by n in a single lock acquisition.
 // Returns true if entry found, false if not found.
 // n must be positive; values <= 0 are no-ops.
+// Internal forwards MUST already own the entry (pending read admission or a
+// getRetained acquisition). They may extend that ownership after an abort;
+// public Retain and getRetained refuse new admission once publication failed.
 func (c *RecentUpdateCache) retainN(id uint64, n int) bool {
 	if n <= 0 {
 		return c.Contains(id)
@@ -713,8 +774,8 @@ func (c *RecentUpdateCache) Release(id uint64) bool {
 	return c.Decrement(id)
 }
 
-// Len returns the current number of entries in the cache.
-// All entries are valid (no TTL filtering).
+// Len returns the physical entry count, including aborted entries whose bytes
+// remain owned by existing retains. It does not count lookup-admitted entries.
 func (c *RecentUpdateCache) Len() int {
 	c.mu.RLock()
 	defer c.mu.RUnlock()

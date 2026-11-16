@@ -87,25 +87,7 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 		return
 	}
 
-	// WaitGroup tracks in-flight dispatches for clean shutdown.
-	var wg sync.WaitGroup
-	defer wg.Wait()
-
-	// Plugin->engine RPC loop: read requests, dispatch in goroutines.
-	for {
-		req, err := conn.ReadRequest(s.ctx)
-		if err != nil {
-			if s.ctx.Err() != nil {
-				return // Server shutting down
-			}
-			logger().Debug("rpc runtime: read failed", "plugin", proc.Name(), "error", err)
-			return // Connection closed (plugin exited)
-		}
-
-		wg.Go(func() {
-			s.dispatchPluginRPC(proc, conn, req)
-		})
-	}
+	s.serveRuntimeRequests(proc, conn)
 }
 
 // dispatchPluginRPC handles a single plugin->engine RPC request over the socket
@@ -120,6 +102,10 @@ func (s *Server) handleSingleProcessCommandsRPC(proc *process.Process) {
 // that request: the request is answered with an error and is not applied,
 // while the plugin connection and its other requests carry on.
 func (s *Server) dispatchPluginRPC(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
+	s.dispatchPluginRPCContext(s.Context(), proc, conn, req)
+}
+
+func (s *Server) dispatchPluginRPCContext(ctx context.Context, proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request) {
 	defer engineOpPanics().request.Contain(
 		func() taskguard.Context {
 			return taskguard.Context{Unit: "request from plugin " + proc.Name(), MessageType: req.Method}
@@ -132,7 +118,7 @@ func (s *Server) dispatchPluginRPC(proc *process.Process, conn *plugipc.PluginCo
 	)
 
 	if op := lookupEngineOp(req.Method); op != nil {
-		s.serveEngineOpJSON(proc, conn, req, op)
+		s.serveEngineOpJSONRequest(ctx, proc, conn, req, op)
 		return
 	}
 

@@ -20,6 +20,7 @@ type UpdateReceipt struct {
 	Peer              netip.Addr       `json:"peer"`
 	MessageID         uint64           `json:"message-id"`
 	SourcePolicyEpoch uint64           `json:"source-policy-epoch"`
+	SourceReceipt     uint64           `json:"source-receipt"`
 	ReactorForwarded  bool             `json:"reactor-forwarded"`
 	FastPathSkipped   []netip.AddrPort `json:"fast-path-skipped,omitempty"`
 }
@@ -35,6 +36,7 @@ func ParseUpdateReceipt(metadata json.RawMessage) (UpdateReceipt, error) {
 		Peer              netip.Addr       `json:"peer"`
 		MessageID         receiptUint64    `json:"message-id"`
 		SourcePolicyEpoch receiptUint64    `json:"source-policy-epoch"`
+		SourceReceipt     receiptUint64    `json:"source-receipt"`
 		ReactorForwarded  receiptDecision  `json:"reactor-forwarded"`
 		FastPathSkipped   []netip.AddrPort `json:"fast-path-skipped"`
 	}
@@ -50,12 +52,16 @@ func ParseUpdateReceipt(metadata json.RawMessage) (UpdateReceipt, error) {
 	if !fields.SourcePolicyEpoch.present {
 		return UpdateReceipt{}, fmt.Errorf("BGP UPDATE receipt requires source-policy-epoch")
 	}
+	if !fields.SourceReceipt.present {
+		return UpdateReceipt{}, fmt.Errorf("BGP UPDATE receipt requires source-receipt")
+	}
 	if fields.ReactorForwarded == receiptDecisionUnspecified {
 		return UpdateReceipt{}, fmt.Errorf("BGP UPDATE receipt requires reactor-forwarded")
 	}
 	return UpdateReceipt{
 		Peer: fields.Peer, MessageID: fields.MessageID.value,
 		SourcePolicyEpoch: fields.SourcePolicyEpoch.value,
+		SourceReceipt:     fields.SourceReceipt.value,
 		ReactorForwarded:  fields.ReactorForwarded == receiptDecisionForwarded,
 		FastPathSkipped:   fields.FastPathSkipped,
 	}, nil
@@ -64,7 +70,7 @@ func ParseUpdateReceipt(metadata json.RawMessage) (UpdateReceipt, error) {
 // Validate binds the receipt to the decoded payload's identity. A caller MUST
 // run this before using ReactorForwarded or FastPathSkipped. A zero receipt is
 // uninitialized and fails the peer comparison, never an accepted decision.
-func (receipt UpdateReceipt) Validate(peer string, messageID, sourcePolicyEpoch uint64) error {
+func (receipt UpdateReceipt) Validate(peer string, messageID, sourcePolicyEpoch, sourceReceipt uint64) error {
 	address, err := netip.ParseAddr(peer)
 	if err != nil {
 		return fmt.Errorf("BGP UPDATE payload peer: %w", err)
@@ -77,6 +83,9 @@ func (receipt UpdateReceipt) Validate(peer string, messageID, sourcePolicyEpoch 
 	}
 	if receipt.SourcePolicyEpoch != sourcePolicyEpoch {
 		return fmt.Errorf("BGP UPDATE receipt policy epoch does not match its payload")
+	}
+	if receipt.SourceReceipt != sourceReceipt {
+		return fmt.Errorf("BGP UPDATE receipt source session does not match its payload")
 	}
 	return nil
 }

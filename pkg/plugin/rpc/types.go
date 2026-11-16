@@ -354,6 +354,8 @@ type DeclareRegistrationInput struct {
 	SourcePolicyOwner bool `json:"source-policy-owner,omitempty"`
 	// SourcePolicy declares the acknowledged source-policy lifecycle handler.
 	SourcePolicy           bool         `json:"source-policy,omitempty"`
+	// CurrentSelection declares the independent desired-selection snapshot handler.
+	CurrentSelection       bool         `json:"current-selection,omitempty"`
 	VerifyBudget           int          `json:"verify-budget,omitempty"` // Estimated verify time in seconds (0 = trivial).
 	ApplyBudget            int          `json:"apply-budget,omitempty"`  // Estimated apply time in seconds (0 = trivial).
 	Schema                 *SchemaDecl  `json:"schema,omitempty"`
@@ -382,6 +384,10 @@ type DeclareRegistrationInput struct {
 	// opaque to the engine: the claiming plugin and the standing-down plugin
 	// agree on the spelling. Same shape as EventTypes/SendTypes.
 	Claims []string `json:"claims,omitempty"`
+
+	// Dissemination declares peer-output roles and their required grants. It
+	// creates no attachment; the engine judges the operator's actual blocks.
+	Dissemination []DisseminationDecl `json:"dissemination,omitempty"`
 
 	// FailurePolicy is what this plugin asks ze to do when the plugin fails:
 	// start it again, carry on without it, or stop the daemon. The declaration
@@ -1811,11 +1817,16 @@ type ValidateOpenMessage struct {
 // the peer this OPEN belongs to names a generation above it. Zero only from an
 // engine that does not stamp it.
 type ValidateOpenInput struct {
-	Peer       string              `json:"peer"`
-	Group      string              `json:"group,omitempty"`
-	Generation uint64              `json:"generation,omitempty"`
-	Local      ValidateOpenMessage `json:"local"`
-	Remote     ValidateOpenMessage `json:"remote"`
+	// Provisional validates an incoming connection that has not been selected.
+	// A plugin MUST check policy but MUST NOT publish peer-scoped learned state
+	// when true. Selection repeats the exact OPEN pair with false before the
+	// connection can publish peer-up or deliver routes. False is selected.
+	Provisional bool                `json:"provisional"`
+	Peer        string              `json:"peer"`
+	Group       string              `json:"group,omitempty"`
+	Generation  uint64              `json:"generation,omitempty"`
+	Local       ValidateOpenMessage `json:"local"`
+	Remote      ValidateOpenMessage `json:"remote"`
 }
 
 // ValidateOpenOutput is the output for ze-plugin-callback:validate-open.

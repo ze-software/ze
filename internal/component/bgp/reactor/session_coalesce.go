@@ -70,11 +70,7 @@ func (s *Session) readAndProcessCoalesced(conn net.Conn, bufReader *bufio.Reader
 	}
 
 	kept := false
-	defer func() {
-		if !kept {
-			s.returnReadBuffer(buf)
-		}
-	}()
+	defer s.finishReadBuffer(buf, &kept)
 
 	_, err := io.ReadFull(bufReader, buf.Buf[:message.HeaderLen])
 	if err != nil {
@@ -278,6 +274,8 @@ func (s *Session) flushCoalesce() error {
 	}
 
 	coalBuf := coal.buf
+	kept := false
+	defer s.finishReadBuffer(coalBuf, &kept)
 	body := coal.body
 	validation := coal.validation
 
@@ -292,10 +290,8 @@ func (s *Session) flushCoalesce() error {
 		Type:   msgtype.TypeUPDATE,
 	}
 
-	processErr, kept := s.processValidatedMessage(&hdr, body, coalBuf, &validation)
-	if !kept {
-		s.returnReadBuffer(coalBuf)
-	}
+	processErr, owned := s.processValidatedMessage(&hdr, body, coalBuf, &validation)
+	kept = owned
 	return processErr
 }
 

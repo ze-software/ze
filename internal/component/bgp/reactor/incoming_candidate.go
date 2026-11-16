@@ -8,6 +8,7 @@ import (
 	"bufio"
 	"bytes"
 	"context"
+	"errors"
 	"net"
 	"sync"
 	"time"
@@ -248,7 +249,10 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	if hold == 0 {
 		hold = 90 * time.Second
 	}
-	if err := conn.SetReadDeadline(r.clock.Now().Add(hold)); err != nil {
+	firstOpenDeadline := r.clock.Now().Add(hold)
+	firstOpenContext, cancelFirstOpen := context.WithDeadline(ctx, firstOpenDeadline)
+	defer cancelFirstOpen()
+	if err := conn.SetReadDeadline(firstOpenDeadline); err != nil {
 		return
 	}
 	// RFC 4271 Section 8.2.1: "For each incoming connection, a state machine MUST be instantiated."
@@ -267,7 +271,8 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 	peer.mu.Unlock()
 
 	reader := candidate.session.bufReader
-	initial, err := candidate.readOpen(reader)
+	initial, err := candidate.readOpen(firstOpenContext, reader)
+	cancelFirstOpen()
 	if err != nil {
 		return
 	}
@@ -315,7 +320,11 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 			}
 			continue
 		}
-		if err := candidate.session.readAndProcessMessage(conn, reader); err != nil {
+		frame, err := candidate.readFrame(ctx, reader)
+		if err != nil {
+			return
+		}
+		if err := candidate.session.dispatchFrame(frame); err != nil {
 			return
 		}
 	}
@@ -324,9 +333,9 @@ func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
 // readOpen dispatches every non-OPEN through the ordinary Session FSM. A
 // complete OPEN is admitted by the same semantic constructor before collision;
 // its retained wire owns a copy because the normal pool handle returns here.
-func (c *incomingCandidate) readOpen(reader *bufio.Reader) (*candidateOpen, error) {
+func (c *incomingCandidate) readOpen(ctx context.Context, reader *bufio.Reader) (*candidateOpen, error) {
 	for {
-		frame, err := c.session.readFrame(c.conn, reader)
+		frame, err := c.readFrame(ctx, reader)
 		if err != nil {
 			return nil, err
 		}
@@ -340,7 +349,30 @@ func (c *incomingCandidate) readOpen(reader *bufio.Reader) (*candidateOpen, erro
 	}
 }
 
-func (c *incomingCandidate) admitFrame(frame *receivedFrame) (*candidateOpen, error) {
+// readFrame preserves the ordinary Session read-pool backpressure on both
+// private read rails. Exhaustion occurs before reading a byte, so the same
+// frame can be retried without repeating capture, admission or negotiation.
+// The cancellation bridge owns peer/session failure; ctx also carries the
+// original first-OPEN deadline until that OPEN has been admitted.
+func (c *incomingCandidate) readFrame(ctx context.Context, reader *bufio.Reader) (receivedFrame, error) {
+	for {
+		frame, err := c.session.readFrame(c.conn, reader)
+		if errors.Is(err, errReadBufferExhaustedPoolAtMaximum) {
+			if waitErr := c.session.awaitReadBuffer(ctx, c.bridgeDone); waitErr != nil {
+				return receivedFrame{}, waitErr
+			}
+			continue
+		}
+		if err == nil && c.session.readBufferStarved {
+			c.session.readBufferStarved = false
+			sessionLogger().Info("session read resumed: a read buffer is available again",
+				"peer", c.session.settings.Address)
+		}
+		return frame, err
+	}
+}
+
+func (c *incomingCandidate) admitFrame(frame receivedFrame) (*candidateOpen, error) {
 	s := c.session
 	kept := false
 	defer func() {
@@ -385,6 +417,10 @@ func (c *incomingCandidate) resolve(arrival inboundConnection, remoteID uint32) 
 	}
 	// RFC 4271 Section 8.2.2, Event10: original expiry precedes arbitration.
 	if c.session.rejectExpiredHold() {
+		return incomingRejected
+	}
+	if !c.session.pluginCapabilitiesKept() {
+		c.session.refuseStalePluginOffer()
 		return incomingRejected
 	}
 	decision := c.peer.resolveIncoming(c, arrival, remoteID)
@@ -478,7 +514,10 @@ func (s *Session) adoptIncoming(publish func(fsm.State, fsm.State, fsm.Event), l
 	if s.Conn() == nil {
 		return ErrNotConnected
 	}
-	s.selectNegotiationEpoch()
+	if err := s.selectNegotiationEpoch(); err != nil {
+		return err
+	}
+	state = s.State()
 	s.fsm.SetCallback(publish)
 	leave.selected = true
 	if !ready {
@@ -578,9 +617,12 @@ func (p *Peer) finishIncomingHandoff(incumbent *Session, candidate *incomingCand
 		incumbent.closeConn()
 		candidate.session.closeConn()
 	})
-	retired := func() bool {
+	finished := func() bool {
 		incumbent.openMu.Lock()
 		defer incumbent.unlockOpen()
+		if candidate.session.tearingDown.Load() {
+			return true
+		}
 		if candidate.session.State() == fsm.StateEstablished {
 			if incumbent.State() == fsm.StateOpenSent {
 				incumbent.closeCollision(message.NotifyCease, message.NotifyCeaseConnectionCollision, true)
@@ -589,7 +631,7 @@ func (p *Peer) finishIncomingHandoff(incumbent *Session, candidate *incomingCand
 		}
 		return false
 	}()
-	if retired {
+	if finished {
 		return
 	}
 	p.finishCollisionHandoff(incumbent, candidate.conn, remoteID)

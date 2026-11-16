@@ -9,6 +9,7 @@ package reactor
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/netip"
 	"strconv"
 	"time"
@@ -206,7 +207,7 @@ func (r *Reactor) addPeerLocked(settings *PeerSettings) error {
 	peer.SetDialer(r.dialer)
 	peer.SetReactor(r)
 	// Set message callback to forward raw bytes to reactor's message receiver
-	peer.messageCallback = r.notifyMessageReceiver
+	peer.messageCallback = r.messageReceiverForPeer(peer)
 	// A reload that restarts a peer builds this Peer while the RIB's sent routes
 	// for the address survive, and their export decisions were the old Peer's.
 	peer.raiseExportPolicyFrom(nextMsgID())
@@ -478,22 +479,40 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (peerRemoval, err
 		r.fwdPool.unregisterOutgoingPool(fwdKey{peerAddr: key})
 	}
 
-	// Check whether anything else still uses this listener. A dynamic group
-	// counts: it accepts on the same socket, and no peer entry represents it.
-	// Counting peers alone shuts the ear of a route server whose last static
-	// peer leaves.
+	// Count all claims of the stored socket, not just one address spelling.
+	// Its exact configured key stays authoritative when TCP translates a
+	// wildcard; another spelling can identify its original declaration or
+	// observed endpoint. A dynamic group or unknown alias retains the socket.
+	// This scan is bounded by the configured per-address listeners and never
+	// touches the global listener.
 	if localAddr.IsValid() {
-		claimants, _ := r.listenerClaimants(localAddr, listenPort)
-
-		// Stop listener if no longer needed
-		if claimants == 0 {
-			if lkey, listener, ok := r.listenerForAddressPort(localAddr, listenPort); ok {
-				listener.Stop()
-				waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				_ = listener.Wait(waitCtx)
-				cancel()
-				delete(r.listeners, lkey)
+		configuredKey := net.JoinHostPort(localAddr.String(), strconv.Itoa(listenPort))
+		for lkey, listener := range r.listeners {
+			binding := newListenerBinding(netip.Addr{}, listenPort, listener).withStoredDeclaration(lkey)
+			if lkey != configuredKey {
+				if !binding.bound.IsValid() {
+					// Only an exact configured key identifies a simulation.
+					continue
+				}
+				localAddress := localAddr.Unmap().WithZone("")
+				if binding.bound.WithZone("") != localAddress {
+					if binding.declaration.WithZone("") != localAddress {
+						continue
+					}
+				}
 			}
+			claimants, _, known := r.listenerClaimantsForBinding(binding)
+			if !known {
+				continue
+			}
+			if claimants != 0 {
+				continue
+			}
+			listener.Stop()
+			waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+			_ = listener.Wait(waitCtx)
+			cancel()
+			delete(r.listeners, lkey)
 		}
 	}
 

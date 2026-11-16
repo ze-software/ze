@@ -384,6 +384,45 @@ module ze-plugin-engine {
                 ze:help "Declare acknowledged source-policy lifecycle support";
                 description "Implements prepare, apply, abort and finalize for retained source state. The SDK OnSourcePolicy registration declares both ownership and support.";
             }
+            leaf current-selection {
+                type boolean;
+                default false;
+                ze:help "Declare independent current selection lookup";
+                description "Derived from SDK OnCurrentSelection registration. Answers current desired native-key state on a separate bounded worker; this declaration grants no send permission.";
+            }
+            list dissemination {
+                key "namespace role";
+                ze:help "Declare peer output roles and required grants";
+                description "Each role names the grants one configured process needs on its source and destination peers. A declaration creates no attachment or permission. An eligible process that claims the role takes precedence over ordinary owners.";
+                leaf namespace {
+                    type string { length "1..max"; pattern '[^ \t\r\n]+'; }
+                    ze:help "Event namespace of the required grants";
+                    description "The namespace must exist in the event registry. Required receive tokens are resolved in this namespace without adding names to that registry.";
+                }
+                leaf role {
+                    type string { length "1..max"; pattern '[^ \t\r\n]+'; }
+                    ze:help "Opaque output role shared by participating plugins";
+                    description "A role is a nonempty token without whitespace or control characters. Claiming this same token identifies an explicit owner; declaring it alone identifies an ordinary owner.";
+                }
+                leaf-list source-receive {
+                    type string { length "1..max"; pattern '[^ \t\r\n]+'; }
+                    min-elements 1;
+                    ze:help "Receive grants needed on a source peer";
+                    description "Every token must name a registered event and direction in this namespace. At least one source peer must explicitly grant the complete set to this same configured process.";
+                }
+                leaf-list destination-receive {
+                    type string { length "1..max"; pattern '[^ \t\r\n]+'; }
+                    min-elements 1;
+                    ze:help "Receive grants needed on a destination peer";
+                    description "The destination must explicitly grant this complete event set to the process. A derived binding or an implicit receive addition does not complete the declaration.";
+                }
+                leaf-list destination-send {
+                    type string { length "1..max"; pattern '[^ \t\r\n]+'; }
+                    min-elements 1;
+                    ze:help "Send grants needed on a destination peer";
+                    description "The destination must explicitly grant each named send type to the process. A declaration lists specific required types rather than a wildcard, and raw permission does not imply update permission.";
+                }
+            }
             list family {
                 key "name";
                 description
@@ -1320,6 +1359,232 @@ matching namespace and event-type.";
                     "The count covers plugin processes alone. Engine-side subscribers run after
                      delivery and are not counted.";
                 ze:help "Number of plugins that received the event";
+            }
+        }
+    }
+
+    rpc cancel-request {
+        description
+            "Cancel one live opt-in request on this authenticated process connection.
+             The reader enrolls requests before dispatching them, so cancellation cannot
+             overtake admission. A settled answer follows the target handler and final writer.
+             Not-active means no cancellable request with that identity remains; it is not
+             a stored completion history. Unknown methods and self/future IDs are refused.";
+        ze:help "Cancel and join one admitted request";
+        input {
+            leaf request-id {
+                type uint64 { range "1..max"; }
+                mandatory true;
+                ze:help "Earlier correlation ID on this connection";
+            }
+            leaf method {
+                type string { length "1..128"; pattern '[a-zA-Z0-9_-]+:[a-zA-Z0-9_-]+'; }
+                mandatory true;
+                ze:help "Original operation supporting cancellation";
+            }
+        }
+        output {
+            leaf request-id {
+                type uint64 { range "1..max"; }
+                mandatory true;
+                ze:help "Target correlation ID";
+            }
+            leaf outcome {
+                type uint8 { range "1..2"; }
+                mandatory true;
+                description "1 settled after joining, 2 no longer active on this connection.";
+                ze:help "Explicit cancellation outcome";
+            }
+        }
+    }
+
+    rpc select-routes {
+        description
+            "Settle one bounded selected-output batch for a captured destination session.
+             The engine authenticates the selecting process incarnation from the connection;
+             input cannot grant send permission, claim a role or create source/origin receipts.
+             Success follows final writer completion, never queue admission or sent-event delivery.
+             Both the encoded request and its widest complete final receipt, including RPC
+             envelopes, are bounded by rpc.MaxMessageSize before admission. Socket cancellation
+             propagates through cancel-request and joins the admitted writer.";
+        ze:help "Settle selected routes at one destination writer";
+        input {
+            leaf destination {
+                type zt:ip-address;
+                mandatory true;
+                ze:help "Destination peer address";
+            }
+            leaf destination-session {
+                type uint64 { range "1..max"; }
+                mandatory true;
+                description "Exact initial-replay token from this destination's UP event.";
+                ze:help "Captured destination session receipt";
+            }
+            leaf deadline-ms {
+                type int64 { range "1..max"; }
+                mandatory true;
+                description
+                    "Absolute Unix-millisecond work deadline. The SDK derives it from the
+                     caller context, capped at thirty seconds; the receiver applies the same
+                     ceiling. Cancellation has a separate five-second settlement budget.";
+                ze:help "Absolute selected-operation deadline";
+            }
+            list routes {
+                description
+                    "Ordered selected values. Native identity is derived using the registered
+                     family, retaining opaque identities rather than projecting them to IP prefixes.";
+                must "kind != 3 or not(route)" {
+                    error-message "Selected absence cannot carry an announcement.";
+                }
+                must "kind = 3 or route" {
+                    error-message "Selected announcement requires stored wire data.";
+                }
+                must "kind != 1 or source-receipt" {
+                    error-message "Received selection requires a source receipt.";
+                }
+                must "kind != 2 or origin-receipt" {
+                    error-message "Origin selection requires an origin receipt.";
+                }
+                leaf kind {
+                    type uint8 { range "1..3"; }
+                    mandatory true;
+                    description "1 received, 2 admitted origin, 3 selected absence; zero is invalid.";
+                    ze:help "Selected payload variant";
+                }
+                leaf family {
+                    type string { length "1..max"; }
+                    mandatory true;
+                    ze:help "Registered address family";
+                }
+                leaf key-nlri {
+                    type binary { length "1..max"; }
+                    mandatory true;
+                    description "Native advertisement NLRI with source ADD-PATH identifier stripped.";
+                    ze:help "Native selected key bytes";
+                }
+                leaf revision {
+                    type uint64 { range "1..max"; }
+                    mandatory true;
+                    description "Monotonic per-key/scoped revision within the selecting incarnation.";
+                    ze:help "Selected revision";
+                }
+                leaf source-receipt {
+                    type uint64 { range "1..max"; }
+                    ze:help "Engine-issued original source-session receipt";
+                }
+                leaf origin-receipt {
+                    type uint64 { range "1..max"; }
+                    ze:help "Engine-issued scoped origin receipt";
+                }
+                leaf source-add-path {
+                    type boolean;
+                    default false;
+                    description "Preserves identifier presence independently from a legal identifier zero.";
+                    ze:help "Source negotiated ADD-PATH for this family";
+                }
+                leaf retained {
+                    type boolean;
+                    default false;
+                    description "The selecting owner authorizes retained use; the engine validates revocation.";
+                    ze:help "Plugin-owned received retention authorization";
+                }
+                leaf stale-level {
+                    type uint8 { range "0..3"; }
+                    default 0;
+                    description "0 unrecorded/absence only, 1 fresh, 2 stale, 3 LLGR.";
+                    ze:help "Explicit selected stale treatment";
+                }
+                leaf flowspec-redirect-refused {
+                    type boolean;
+                    default false;
+                    must ". = 'false' or ../kind = 1" {
+                        error-message "Redirect refusal belongs to a received FlowSpec selection.";
+                    }
+                    description "The selecting owner authorizes this FlowSpec revision without its redirect action. The engine additionally checks the registered family and applies its existing egress treatment.";
+                    ze:help "Received FlowSpec redirect action was refused";
+                }
+                container route {
+                    presence "Stored announcement wire value";
+                    description "The existing StoredRoute wire carrier, without selected authority.";
+                    leaf source-peer {
+                        type route-install-address;
+                        ze:help "Original received peer, absent for origins";
+                    }
+                    leaf family {
+                        type string;
+                        mandatory true;
+                        ze:help "Stored address family";
+                    }
+                    leaf attr-hex {
+                        type string;
+                        ze:help "Original path attributes as hex";
+                    }
+                    leaf next-hop-hex {
+                        type string;
+                        ze:help "Stored next hop as hex";
+                    }
+                    leaf nlri-hex {
+                        type string { length "2..max"; }
+                        mandatory true;
+                        ze:help "Stored native NLRI as hex";
+                    }
+                    leaf msg-id {
+                        type uint64;
+                        ze:help "Original received message generation";
+                    }
+                    leaf source-policy-epoch {
+                        type uint64;
+                        ze:help "Original policy admission, never replay epoch";
+                    }
+                    leaf initial-update {
+                        type boolean;
+                        default false;
+                        ze:help "Part of the captured session initial update";
+                    }
+                    leaf path-id {
+                        type uint32;
+                        ze:help "Source path identifier, including zero";
+                    }
+                    leaf nlri-framing {
+                        type enumeration {
+                            enum prefix-only;
+                            enum source-wire;
+                        }
+                        mandatory true;
+                        ze:help "Explicit stored NLRI framing";
+                    }
+                }
+            }
+        }
+        output {
+            list results {
+                description "One ordered final identity/revision receipt per requested route.";
+                leaf family {
+                    type string;
+                    mandatory true;
+                    ze:help "Requested address family";
+                }
+                leaf key-nlri {
+                    type binary;
+                    mandatory true;
+                    ze:help "Requested native key bytes";
+                }
+                leaf revision {
+                    type uint64 { range "1..max"; }
+                    mandatory true;
+                    ze:help "Requested selected revision";
+                }
+                leaf current-revision {
+                    type uint64 { range "1..max"; }
+                    mandatory true;
+                    ze:help "Final writer selected-stream frontier";
+                }
+                leaf outcome {
+                    type uint8 { range "1..4"; }
+                    mandatory true;
+                    description "1 written, 2 suppressed, 3 absent, 4 stale revision.";
+                    ze:help "Final selected-output outcome";
+                }
             }
         }
     }

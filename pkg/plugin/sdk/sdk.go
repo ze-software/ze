@@ -114,6 +114,7 @@ type Plugin struct {
 	// connection's source-policy worker (sdk_source_policy.go) and declared at
 	// Stage 1 as both source-policy owner and handler.
 	onSourcePolicy SourcePolicyHandler
+	onCurrentSelection CurrentSelectionHandler
 
 	// resolverCaches is the Stage 1 declaration OnResolverCacheClear records:
 	// the resolver caches whose clear this plugin answers.
@@ -464,7 +465,7 @@ var errNilRegistration = errors.New("plugin declaration is nil: the engine needs
 // Run copies the declaration at entry and never reads the caller's value
 // again, so the caller may reuse or change it once Run is called. A nil
 // declaration is refused with an error rather than a panic.
-func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
+func (p *Plugin) Run(ctx context.Context, declaration *Registration) (runErr error) {
 	if declaration == nil {
 		return startupFailure(1, "declare-registration", errNilRegistration)
 	}
@@ -493,6 +494,7 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	reg.StartedHandler = p.onStarted != nil
 	reg.ConfigCompletion = p.callbacks[callbackConfigComplete] != nil
 	reg.SourcePolicy = p.onSourcePolicy != nil
+	reg.CurrentSelection = p.onCurrentSelection != nil
 	if reg.SourcePolicy {
 		reg.SourcePolicyOwner = true
 	}
@@ -548,6 +550,13 @@ func (p *Plugin) Run(ctx context.Context, declaration *Registration) error {
 	}
 
 	// Stage 5: ready (with optional startup subscriptions and transport negotiation)
+	stopCurrentSelection, err := p.startCurrentSelectionWorker(ctx)
+	if err != nil { return startupFailure(5, "current-selection", err) }
+	defer func() {
+		if err := stopCurrentSelection(); err != nil {
+			if runErr == nil { runErr = err }
+		}
+	}()
 	p.mu.Lock()
 	readyInput := &rpc.ReadyInput{}
 	if p.startupSubscription != nil {

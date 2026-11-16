@@ -87,6 +87,93 @@ module ze-plugin-callback {
         }
     }
 
+    grouping current-selection-scope {
+        description "Exact destination incarnation shared by current selection queries and replies.";
+        leaf destination {
+            type string;
+            mandatory true;
+            ze:help "Destination peer address";
+            description "The exact selecting connection answers for this destination address.";
+        }
+        leaf destination-session {
+            type uint64 { range "1..max"; }
+            mandatory true;
+            ze:help "Destination session token";
+            description "The original destination UP event's initial-replay token, never a newer session.";
+        }
+    }
+
+    grouping current-selection-key {
+        description "Native advertisement key and the revision being checked.";
+        leaf family {
+            type string { length "1..max"; }
+            mandatory true;
+            ze:help "Registered native family";
+            description "Family of the native advertisement key; not necessarily an IP prefix.";
+        }
+        leaf key-nlri {
+            type binary { length "1..max"; }
+            mandatory true;
+            ze:help "Native advertisement key bytes";
+            description "Advertisement framing with the source ADD-PATH identifier removed, encoded as base64.";
+        }
+        leaf revision {
+            type uint64 { range "1..max"; }
+            mandatory true;
+            ze:help "Requested selection revision";
+            description "Echoed without substituting the current revision.";
+        }
+    }
+
+    rpc current-selection {
+        ze:method "ze-plugin-callback:current-selection";
+        ze:help "Read current desired selection independently of ordinary callbacks.";
+        description "Runs on one bounded independent connection worker before the ordinary callback queue. Reads only a published desired-selection snapshot, with no engine RPC, I/O, election locks or candidate payload. The exact authenticated selecting connection supplies process identity; the reply grants no forwarding permission.";
+        input {
+            uses current-selection-scope;
+            leaf deadline-ms {
+                type int64 { range "1..max"; }
+                mandatory true;
+                ze:help "Absolute lookup deadline";
+                description "Unix milliseconds, bounded to thirty seconds. Expired requests do not invoke the handler.";
+            }
+            list keys {
+                min-elements 1;
+                ordered-by user;
+                ze:help "Native keys whose current state is required";
+                description "Ordered lookup batch. Both its encoded request and widest complete reply must fit the RPC frame limit; larger queries are split before admission.";
+                uses current-selection-key;
+            }
+        }
+        output {
+            uses current-selection-scope;
+            leaf cut {
+                type uint64;
+                mandatory true;
+                ze:help "Current scope selection cut";
+                description "Published global selection frontier for this destination scope. Explicit zero is valid for a fresh empty scope; no per-key absence history is returned.";
+            }
+            list results {
+                ordered-by user;
+                ze:help "Exact ordered current-state results";
+                description "One result per requested key, preserving its family, bytes and requested revision.";
+                uses current-selection-key;
+                leaf presence {
+                    type uint8 { range "1..2"; }
+                    mandatory true;
+                    ze:help "Explicit present or absent state";
+                    description "One means present; two means absent. Zero and unknown values are refused.";
+                }
+                leaf current-revision {
+                    type uint64;
+                    mandatory true;
+                    ze:help "Current key revision or explicit zero";
+                    description "Nonzero and at most cut for a present key, zero for an absent key. An old but current key revision remains valid under a newer scope cut.";
+                }
+            }
+        }
+    }
+
     rpc source-policy {
         ze:method "ze-plugin-callback:source-policy";
         ze:help "Settle a captured source-policy lifecycle operation.";

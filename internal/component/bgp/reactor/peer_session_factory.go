@@ -19,7 +19,7 @@ func (p *Peer) newSession() *Session {
 }
 
 func (p *Peer) newIncomingSession() *Session {
-	return p.newSessionWithEpoch(privateNegotiationEpoch{})
+	return p.newSessionWithEpoch(newPrivateNegotiationEpoch())
 }
 
 func (p *Peer) newSessionWithEpoch(epoch negotiationEpoch) *Session {
@@ -42,7 +42,10 @@ func (p *Peer) newSessionWithEpoch(epoch negotiationEpoch) *Session {
 	session.setBFDStateReader(p.bfdSessionState)
 	session.adjOut = &p.adjOut
 	session.asMigrationFallback = &p.asMigrationFallback
-	session.onMessageReceived = p.messageCallback
+	session.onMessageReceived = session.sourceMessageCallback(p.messageCallback)
+	if private, ok := epoch.(*privateNegotiationEpoch); ok {
+		session.onMessageReceived = private.messageCallback(session.onMessageReceived)
+	}
 	session.aigpReactor = p.reactor
 	session.aigpPeer = p
 	session.egressFinalAccepts = func() bool {

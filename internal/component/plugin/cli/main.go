@@ -58,14 +58,16 @@ func Run(args []string) int {
 // rpc.WriteDeclaration's, the same writer the SDK gives a plugin binary ze does
 // not carry, so both answers are one message.
 //
-// Commands and pipes are the declaration fields the compiled-in registration
-// carries. The Stage 1 fields with no compiled-in twin are not answered
+// Commands, pipes, claims and dissemination requirements are answered from
+// their compiled-in values. Stage 1 fields with no compiled-in twin are not answered
 // (spec-plugin-declaration-fields-on-registration).
 func answerQuery(out io.Writer, reg *registry.Registration) int {
 	declaration := rpc.DeclareRegistrationInput{
 		ProtocolVersion: rpc.ProtocolVersion,
 		Commands:        reg.Commands,
 		Pipes:           reg.Pipes,
+		Claims:          reg.Claims,
+		Dissemination:   reg.Dissemination,
 	}
 
 	if err := rpc.WriteDeclaration(out, &declaration); err != nil {

@@ -101,7 +101,7 @@ func (r *Reactor) createDynamicPeer(dg *DynamicGroupConfig, remoteAddr netip.Add
 	peer.SetClock(r.clock)
 	peer.SetDialer(r.dialer)
 	peer.SetReactor(r)
-	peer.messageCallback = r.notifyMessageReceiver
+	peer.messageCallback = r.messageReceiverForPeer(peer)
 	// The RIB's sent routes for a returning address were judged by an older Peer.
 	peer.raiseExportPolicyFrom(nextMsgID())
 
@@ -493,9 +493,12 @@ func (r *Reactor) tryCreateDynamicPeerAt(addr netip.Addr, local netip.AddrPort) 
 		return nil
 	}
 	return r.tryCreateDynamicPeerEligible(addr, func(settings *PeerSettings) bool {
-		if settings.LocalAddress.IsValid() {
-			if !settings.LocalAddress.IsUnspecified() {
-				if !sameTransportAddress(settings.LocalAddress, local.Addr()) {
+		// A mapped IPv4 wildcard has the same bind semantics as its canonical
+		// address. Normalize this comparison, never the template declaration.
+		localAddress := settings.LocalAddress.Unmap()
+		if localAddress.IsValid() {
+			if !localAddress.IsUnspecified() {
+				if !sameTransportAddress(localAddress, local.Addr()) {
 					return false
 				}
 			}

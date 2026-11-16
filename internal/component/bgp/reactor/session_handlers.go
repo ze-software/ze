@@ -154,8 +154,9 @@ func (s *Session) checkOpenState() error {
 }
 
 // validateOpenLocked MUST run under openMu after checkOpenState. It builds
-// a pure result without publishing capabilities, advancing the FSM or sending
-// KEEPALIVE. Both wire and pre-parsed receipts use this one semantic policy.
+// a negotiated result and retains the admitted OPEN for reload probes, without
+// publishing negotiated capabilities, advancing the FSM or sending KEEPALIVE.
+// Both wire and pre-parsed receipts use this one semantic policy.
 func (s *Session) validateOpenLocked(open *message.Open) (*openAdmission, error) {
 
 	// Validate version.
@@ -282,6 +283,9 @@ func (s *Session) validateOpenLocked(open *message.Open) (*openAdmission, error)
 	if s.rejectExpiredHold() {
 		return nil, ErrHoldTimerExpired
 	}
+	s.mu.Lock()
+	s.peerOpen = open
+	s.mu.Unlock()
 	return &openAdmission{session: s, conn: conn, proposal: proposal, open: open, negotiated: negotiated, localCaps: localCaps}, nil
 }
 
@@ -390,18 +394,12 @@ func fsmErrorNotifies(state fsm.State) bool {
 	return false
 }
 
-// updateIsUnexpected answers whether RFC 4271 Section 8.2.2 files a received
-// UPDATE (Event 27, or Event 28 when malformed) under the "any other event"
-// list of state: OpenSent ("Events 9, 11-13, 20, 25-28") and OpenConfirm
-// ("Events 9, 12-13, 20, 27-28").
+// updateIsUnexpected keeps UPDATEs out of consumers before Established.
+// RFC 4271 Section 9: "An UPDATE message may be received only in the
+// Established state." The receiving state's existing event handling determines
+// teardown or Idle's ignore.
 func updateIsUnexpected(state fsm.State) bool {
-	// Predicate selecting pre-established states where a received UPDATE is unexpected.
-	//exhaustive:ignore
-	switch state {
-	case fsm.StateOpenSent, fsm.StateOpenConfirm:
-		return true
-	}
-	return false
+	return state != fsm.StateEstablished
 }
 
 // handleNotification processes a received NOTIFICATION message.
@@ -509,7 +507,10 @@ const (
 // earns and closed the connection.
 func (s *Session) screenRouteRefresh(body []byte) (bool, error) {
 	state := s.fsm.State()
-	if updateIsUnexpected(state) {
+	// Preserve the existing ROUTE-REFRESH diagnostic's receiving states.
+	//exhaustive:ignore
+	switch state {
+	case fsm.StateOpenSent, fsm.StateOpenConfirm:
 		// RFC 6608 Section 4 diagnoses an unexpected ROUTE-REFRESH before
 		// capability/family filtering can silently ignore it. RFC 2918 adds no
 		// received-message event to the base FSM, so this local rejection uses

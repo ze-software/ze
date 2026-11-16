@@ -72,6 +72,9 @@ type RouteEntry struct {
 	// SourcePolicyEpoch is the original admission provenance. Zero is
 	// unrecorded; retained bytes MUST NOT acquire the source's current epoch.
 	SourcePolicyEpoch uint64
+	// SourceReceipt identifies the original source Session. Zero is explicitly
+	// unrecorded; a retained route MUST NOT borrow a replacement session's receipt.
+	SourceReceipt uint64
 	// AttrFingerprint is an FNV-1a hash of the raw attribute wire bytes and
 	// ASN4 flag at insert time. AttrLen stores the raw byte length. Together
 	// they form a probabilistic equality check: matching hash + length skips
@@ -97,6 +100,21 @@ func NewRouteEntry() RouteEntry {
 		Bundle: attrpool.InvalidHandle,
 		ASPath: attrpool.InvalidHandle,
 	}
+}
+
+// receivedMatches separates a duplicate announcement from one with a new
+// admission identity, even when its pooled attributes are identical.
+func (e RouteEntry) receivedMatches(messageID, policyEpoch, sourceReceipt uint64) bool {
+	if e.StaleLevel != StaleLevelFresh {
+		return false
+	}
+	if e.MsgID != messageID {
+		return false
+	}
+	if e.SourcePolicyEpoch != policyEpoch {
+		return false
+	}
+	return e.SourceReceipt == sourceReceipt
 }
 
 // HasASPath returns true if AS_PATH attribute is present.
@@ -153,6 +171,7 @@ func (e *RouteEntry) Clone() *RouteEntry {
 		ReceivedLLGRStale: e.ReceivedLLGRStale,
 		MsgID:             e.MsgID,
 		SourcePolicyEpoch: e.SourcePolicyEpoch,
+		SourceReceipt:     e.SourceReceipt,
 		AttrFingerprint:   e.AttrFingerprint,
 		AttrLen:           e.AttrLen,
 		Bundle:            e.Bundle,

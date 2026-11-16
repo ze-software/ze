@@ -31,6 +31,7 @@ func deliveryPeersFromSettings(peers []*PeerSettings) []pluginserver.DeliveryPee
 		for _, b := range s.ProcessBindings {
 			bindings = append(bindings, plugin.PeerProcessBinding{
 				PluginName: b.PluginName,
+				Explicit:   b.Explicit,
 				Encoding:   b.Encoding,
 				Format:     b.Format,
 				ReceiveAll: b.ReceiveAll,

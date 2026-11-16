@@ -39,6 +39,11 @@ type engineOp struct {
 	// method is the ze-plugin-engine:* wire method string (rpc.Method* constant).
 	method string
 
+	// cancellationScope opts a socket request into authenticated cancellation.
+	// The single reader validates its owned resource and deadline before dispatch.
+	// Nil preserves ordinary operations' existing request-context contract.
+	cancellationScope func(*Server, *process.Process, json.RawMessage) (requestScope, error)
+
 	// handle unmarshals params, runs the shared CORE handler, and returns the
 	// value to marshal (or nil). proc is PASSED, never captured, so the entry is
 	// a single package-level value with zero per-request closure allocation (R-3).
@@ -157,6 +162,17 @@ var engineOps = []engineOp{
 		},
 	},
 	{
+		method:            rpc.MethodSelectRoutes,
+		handle:            (*Server).opSelectRoutes,
+		cancellationScope: selectedCancellationScope,
+		typedWire: func(s *Server, proc *process.Process, bridge *rpc.DirectBridge) {
+			bridge.SetSelectRoutes(func(ctx context.Context, input rpc.SelectRoutesInput) (*rpc.SelectRoutesOutput, error) {
+				return s.selectRoutes(ctx, proc, input)
+			})
+		},
+	},
+	{method: rpc.MethodCancelRequest, handle: (*Server).opCancelRequest},
+	{
 		method: rpc.MethodRouteInstall,
 		handle: (*Server).opRouteInstall,
 		// No typed slot: forked-plugin batch path, socket/Direct only.
@@ -205,7 +221,12 @@ var engineOps = []engineOp{
 
 // engineOpTable indexes builtins and owner operations by method for O(1)
 // lookup. Owner registration is guarded by engineOperationMu and registry.Seal.
-var engineOpTable = buildEngineOpTable()
+var engineOpTable map[string]*engineOp
+
+// Build the derived index after builtin operation values exist. A handler may
+// itself query that index (cancel-request validates its target's opt-in), so a
+// variable initializer would form a Go initialization cycle through handlers.
+func init() { engineOpTable = buildEngineOpTable() }
 
 func buildEngineOpTable() map[string]*engineOp {
 	m := make(map[string]*engineOp, len(engineOps))
@@ -260,7 +281,14 @@ func (a *recordAnswer) TransportComplete() {
 // (rpcErrMessage), matching what serveEngineOpDirect returns so external and
 // in-process callers see identical error text (AC-2).
 func (s *Server) serveEngineOpJSON(proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) {
-	result, err := op.handle(s, s.Context(), proc, req.Params)
+	s.serveEngineOpJSONRequest(s.Context(), proc, conn, req, op)
+}
+
+// serveEngineOpJSONRequest preserves the admitted socket request's context.
+// Ordinary calls supply the same server context they used before cancellation
+// opt-in; selected calls supply their authenticated connection-scoped context.
+func (s *Server) serveEngineOpJSONRequest(ctx context.Context, proc *process.Process, conn *plugipc.PluginConn, req *rpc.Request, op *engineOp) {
+	result, err := op.handle(s, ctx, proc, req.Params)
 	// A runtime request that the end of the plugin's engine session canceled
 	// is left unanswered: the connection close that ends the session answers
 	// it, as it answers every other call still pending then. An error line here

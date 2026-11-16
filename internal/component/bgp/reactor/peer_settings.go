@@ -663,6 +663,9 @@ type PeerSettings struct {
 // Controls what messages are forwarded and in what format.
 type ProcessBinding struct {
 	PluginName string // Reference to plugin name
+	// Explicit is set only while parsing an operator's attach-process block.
+	// Derived bindings and implicit-only grants leave it false.
+	Explicit bool
 
 	// Content settings (HOW messages are formatted)
 	Encoding string // "json" | "text" (empty = inherit from plugin)

@@ -192,6 +192,33 @@ func (pc *PluginConn) Close() error {
 	return pc.Conn.Close()
 }
 
+// AbortRuntime ends a protocol-corrupt runtime transport before stopping its
+// filter queue. A fatal ID collision MUST close the stream before canceling
+// handlers, so none can answer under the occupied correlation identity while
+// shutdown waits for a filter admission lock. Normal Close keeps its ordering.
+// cancelAdmitted MUST cancel this connection's runtime request lifetimes; it
+// runs after transport closure and before the filter admission lock. The caller
+// MUST still join admitted handlers after this returns.
+func (pc *PluginConn) AbortRuntime(cancelAdmitted context.CancelFunc) error {
+	var err error
+	if pc.mux != nil {
+		// Production mux transports have one bidirectional connection.
+		err = pc.mux.Close()
+	} else {
+		if writer := pc.Conn.WriteConn(); writer != nil {
+			err = writer.Close()
+		}
+		if readErr := pc.Conn.Close(); readErr != nil {
+			if !errors.Is(readErr, net.ErrClosed) {
+				err = errors.Join(err, readErr)
+			}
+		}
+	}
+	cancelAdmitted()
+	pc.filters.close()
+	return err
+}
+
 // Err reports an observed transport failure without sending a probe.
 // Safe for concurrent use, including during transport negotiation.
 func (pc *PluginConn) Err() error {

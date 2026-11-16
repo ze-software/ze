@@ -41,6 +41,8 @@ const (
 	KWAttr            = "attr"
 	// KWSourcePolicyEpoch is received provenance, not a route attribute.
 	KWSourcePolicyEpoch = "source-policy-epoch"
+	// KWSourceReceipt identifies the original engine-recorded source session.
+	KWSourceReceipt = "source-receipt"
 
 	// Action keywords (NLRI-only: MP_REACH vs MP_UNREACH).
 	KWAdd = "add"
@@ -169,6 +171,8 @@ var topLevelKeywords = map[string]bool{
 	KWAIGP:              true,
 	KWNextHop:           true,
 	KWNLRI:              true,
+	KWSourcePolicyEpoch: true,
+	KWSourceReceipt:     true,
 }
 
 // isAttributeKeyword returns true if the token is an attribute keyword.

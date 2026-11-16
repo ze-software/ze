@@ -122,6 +122,7 @@ Subscribers without the opt-in keep the bare document or text line.
 | bgp.message.id | int | Message identifier (omitted if 0) |
 | bgp.message.direction | string | "received" or "sent" (omitted if empty) |
 | bgp.source-policy-epoch | uint64 | Original received source-policy admission on UPDATE events; omitted when unrecorded or locally originated. Independent of message ID, dispatch session generation and source-DOWN revocation |
+| bgp.source-receipt | uint64 | Original engine-issued source session identity on UPDATE events; omitted when unrecorded or locally originated. Retained replay preserves this value rather than looking up the current peer session |
 | bgp.peer.remote.address | string | Peer IP address |
 | bgp.peer.remote.as | int | Peer AS number. Omitted while a dynamic peer's AS is not yet negotiated: the OPEN Ze sends it, a NOTIFICATION sent in OpenSent, and the `connected` and `fsm` events before OpenConfirm carry none. AS 0 is never written, because no peer can hold it (RFC 7607 Section 2) |
 | bgp.peer.remote.router-id | string | The PEER's BGP Identifier, dotted quad. Omitted before the peer's OPEN is read |
@@ -147,6 +148,16 @@ The parsed text encoding carries the same value as the reserved header pair
 attributes. The raw and empty text UPDATE lines have no message ID and carry no
 epoch, so a text reader records zero there (`text-parser.md`). The in-process
 `StructuredEvent` and raw message carry `SourcePolicyEpoch` directly.
+
+`source-receipt` identifies the exact source session whose facts the engine
+captured after negotiation and dynamic peer resolution. It is a separate typed
+uint64 field, outside `route-meta`. The parsed text header carries the reserved
+pair `source-receipt <uint64>`; it follows `source-policy-epoch` when both are
+present. Raw and empty text forms have no message identity and remain
+unrecorded. A receipt alone grants no forwarding authority: the engine also
+checks the selecting process, attachment grants, original policy admission and
+source lifetime. Reconstructed legacy route bytes carry zero until their
+storage records an original receipt; a current session cannot supply one.
 <!-- source: internal/component/bgp/format/text_update.go -- appendSourcePolicyEpochJSON, appendSourcePolicyEpochText -->
 <!-- source: internal/component/bgp/server/events.go -- getStructuredEvent -->
 <!-- source: internal/component/bgp/event.go -- Event, ParseEvent -->

@@ -132,7 +132,7 @@ func appendFramedKey(dst []byte, pathID uint32, route string) []byte {
 // so, it refreshes stale state and received ownership and reports true: the
 // UPDATE re-announced the same route. A new label stack under equal attributes
 // is a replacement (RFC 8277 Section 2.5), never a no-op.
-func (r *FamilyRIB) insertOpaqueNoOp(pathID uint32, key string, route []byte, fp uint64, attrLen uint32, messageID, sourcePolicyEpoch uint64) bool {
+func (r *FamilyRIB) insertOpaqueNoOp(pathID uint32, key string, route []byte, fp uint64, attrLen uint32, messageID, sourcePolicyEpoch, sourceReceipt uint64) bool {
 	if r.routeNLRI(pathID, key) != string(route) {
 		return false
 	}
@@ -148,7 +148,7 @@ func (r *FamilyRIB) insertOpaqueNoOp(pathID uint32, key string, route []byte, fp
 		if !fingerprintMatches(oldEntry, fp, attrLen) {
 			return false
 		}
-		ps.refresh(pathID, messageID, sourcePolicyEpoch)
+		ps.refresh(pathID, messageID, sourcePolicyEpoch, sourceReceipt)
 		return true
 	}
 	oldEntry, exists := r.opaque[key]
@@ -158,10 +158,11 @@ func (r *FamilyRIB) insertOpaqueNoOp(pathID uint32, key string, route []byte, fp
 	if !fingerprintMatches(oldEntry, fp, attrLen) {
 		return false
 	}
-	if oldEntry.StaleLevel != StaleLevelFresh || oldEntry.MsgID != messageID || oldEntry.SourcePolicyEpoch != sourcePolicyEpoch {
+	if !oldEntry.receivedMatches(messageID, sourcePolicyEpoch, sourceReceipt) {
 		oldEntry.StaleLevel = StaleLevelFresh
 		oldEntry.MsgID = messageID
 		oldEntry.SourcePolicyEpoch = sourcePolicyEpoch
+		oldEntry.SourceReceipt = sourceReceipt
 		r.opaque[key] = oldEntry
 	}
 	return true
@@ -183,7 +184,7 @@ func (r *FamilyRIB) insertOpaque(pathID uint32, key string, route []byte, newEnt
 	if r.addPath {
 		ps := r.opaqueMulti[key]
 		if oldEntry, have := ps.lookup(pathID); have && entriesEqual(oldEntry, newEntry) {
-			ps.refresh(pathID, newEntry.MsgID, newEntry.SourcePolicyEpoch)
+			ps.refresh(pathID, newEntry.MsgID, newEntry.SourcePolicyEpoch, newEntry.SourceReceipt)
 			newEntry.Release()
 			return
 		}
@@ -199,6 +200,7 @@ func (r *FamilyRIB) insertOpaque(pathID uint32, key string, route []byte, newEnt
 			oldEntry.StaleLevel = StaleLevelFresh
 			oldEntry.MsgID = newEntry.MsgID
 			oldEntry.SourcePolicyEpoch = newEntry.SourcePolicyEpoch
+			oldEntry.SourceReceipt = newEntry.SourceReceipt
 			r.opaque[key] = oldEntry
 			newEntry.Release()
 			return

@@ -751,14 +751,14 @@ func (rs *routeServer) dispatchText(text string) {
 		if peerAddr == "" {
 			return
 		}
-		sourcePolicyEpoch, err := textparse.SourcePolicyEpoch(text)
+		sourcePolicyEpoch, sourceReceipt, err := textparse.SourceProvenance(text)
 		if err != nil {
 			logger().Warn("received UPDATE provenance rejected", "peer", peerAddr, "error", err)
 			rs.releaseCache(msgID)
 			return
 		}
 		if enveloped {
-			if err := receipt.Validate(peerAddr, msgID, sourcePolicyEpoch); err != nil {
+			if err := receipt.Validate(peerAddr, msgID, sourcePolicyEpoch, sourceReceipt); err != nil {
 				logger().Warn("received UPDATE receipt rejected", "peer", peerAddr, "message-id", msgID, "error", err)
 				rs.releaseCache(msgID)
 				return
@@ -1065,6 +1065,8 @@ func routeServerRegistration() *sdk.Registration {
 		// handleSourcePolicy when the source's last accepting import policy is
 		// removed in place (RFC 8212 Section 3, source_policy.go).
 		SourcePolicyOwner: true,
+		Claims:            []string{ClaimPeerUpReplay, disseminationRole},
+		Dissemination:     disseminationDecls(),
 		// WantsConfig: the engine delivers only the roots a plugin declares
 		// here, so without it OnConfigure never sees bgp { route-server }
 		// and worker-queue-size takes effect from the env var alone.
