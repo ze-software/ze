@@ -23,6 +23,7 @@ import "strings"
 // Every comment the tokenizer read reaches exactly one of these places, and
 // none is dropped: a comment read inside a block no scope parses (a freeform
 // or flex body) is consumed with its token and leads the enclosing statement.
+// The one exception is a statement the first pass skips (drop).
 type commentScope struct {
 	parser  *Parser
 	block   *Tree
@@ -78,6 +79,15 @@ func (s *commentScope) end(tree *Tree, name, member string) {
 	slot.addLeading(commentTexts(s.parser.tok.takeConsumed(s.mark)))
 	s.leading = nil
 	s.prev, s.hasPrev = slot, true
+}
+
+// drop forgets the comments of a statement the parser skipped and stored
+// nowhere (Parser.SkipUnknownRoots): the leading ones begin kept, and those
+// read inside it. It is the one exception to "none is dropped", and the reason
+// a skipping parse's tree MUST NOT be serialized.
+func (s *commentScope) drop() {
+	s.parser.tok.takeConsumed(s.mark)
+	s.leading = nil
 }
 
 // closesBlock reports whether a token of kind ends the block a scope covers:

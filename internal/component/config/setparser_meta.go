@@ -213,6 +213,10 @@ func (p *SetParser) parseLineWithMeta(tree *Tree, meta *MetaTree, line string, e
 	tokens = tokens[1:]
 	p.lineTokens = tokens
 
+	if p.skipsLine(cmd, tokens) {
+		return nil
+	}
+
 	switch cmd {
 	case cmdSet:
 		return p.parseSetWithMeta(tree, meta, entry, tokens, lineNum)

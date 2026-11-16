@@ -105,7 +105,7 @@ func cmdPluginTest(args []string) int {
 	// Show schema if requested
 	if *showSchema {
 		fmt.Println("📋 Schema capability fields:")
-		schema, schemaErr := config.YANGSchemaWithPlugins(pluginYANG)
+		schema, schemaErr := config.YANGSchema()
 		if schemaErr != nil {
 			fmt.Fprintf(os.Stderr, "error: %v\n", schemaErr)
 			return 1
@@ -122,8 +122,9 @@ func cmdPluginTest(args []string) int {
 		fmt.Println()
 	}
 
-	// Parse config with plugin YANG
-	schema, schemaErr := config.YANGSchemaWithPlugins(pluginYANG)
+	// Parse config with the process-wide schema: the module of every internal
+	// plugin listed above is registered by init(), so it is already in it.
+	schema, schemaErr := config.YANGSchema()
 	if schemaErr != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", schemaErr)
 		return 1

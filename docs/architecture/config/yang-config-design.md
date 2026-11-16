@@ -377,14 +377,91 @@ set. The shared `Resolved` is read-only. Its `Loader` is unreachable and its
 module set refuses every load (`ErrLoaderResolved`). `Resolve` has already
 converted every module and submodule to its entry tree, so `GetEntry` reads
 goyang's lock-guarded entry cache and concurrent readers are safe. A caller
-MUST NOT write to an entry or a module it reads. A loader built from text or
-from plugin modules (`AddModuleFromText`, `YANGSchemaWithPlugins`) is not
-shared, because its module set is the caller's own. The plugin-free
+MUST NOT write to an entry or a module it reads. A loader built from text
+(`AddModuleFromText`) and the set the join answers for module texts
+(`YANGSchemaWithPlugins`, below) are not shared, because that module set is
+the caller's own. The plugin-free
 `config.YANGSchema()` and `config.YANGValidator()` are built over
 `DefaultLoader`'s `Resolved` and cached against that same `Resolved`
 (`resolvedCache`), so the schema, the value validator and the completer always
 answer from one module set, a registered test module included.
 <!-- source: internal/component/config/yang_schema.go -- YANGSchema, YANGValidator, resolvedCache, loadYANGModules -->
+
+### Joining a module that no `init()` registered
+
+An external plugin declares its YANG module in its Stage 1 declaration, so no
+`init()` registers it. Such a module enters a module set through one function,
+`yang.Join`. It takes the resolved compiled-in set, the declared modules (each
+with the plugin name, the declared module name, the declared namespace and the
+text) and the validator registry, and it answers a new `Resolved` or an
+operator error that names the plugin and the module. `config.JoinExternalModules`
+is its entry: it passes the set `DefaultLoader` shares and the registry
+`RegisterValidators` fills.
+
+The join exists and is tested alone. Nothing in the daemon's start path calls
+it with a plugin's declaration yet, so config under an external plugin's own
+root is still refused at load (`docs/plugin-development/schema.md`, "What works
+today"). Its callers today are `YANGSchemaWithPlugins` and
+`YANGValidatorWithPlugins`, which pass module texts a Go caller holds
+(`loadYANGModules`, with `yang.ExternalModuleFromText` reading each text's name
+and namespace).
+
+That text road has one rule of its own. A text whose module the compiled-in
+set already holds with the same content, byte for byte, is that module: it
+adds nothing, so it is left out before the join (`Resolved.HoldsModuleText`,
+which compares with the text the set recorded when it loaded the module,
+embedded or registered). A text with a held name and different content goes to
+the join and is refused as a name clash. When every text is left out, the
+answer is the shared compiled-in set and nothing is resolved. The rule does not
+apply to a module an external plugin declares: `JoinExternalModules` refuses a
+compiled-in name even when the text is identical.
+
+The joined set is resolved by a new `Loader` that holds every module text of
+the compiled-in set and the external ones, so every check `Resolve` runs is run
+over it. The compiled-in `Resolved` is not changed. With no external module the
+join answers the compiled-in `Resolved` itself and resolves nothing, so
+`YANGSchema` and `YANGValidator`, which are cached against that `Resolved`,
+build nothing twice.
+
+The join refuses each case below, and nothing is dropped in silence:
+
+| Case | The refusal names |
+|------|-------------------|
+| The text does not parse or resolve | The plugin, the module and the loader's error with its location |
+| The text holds no module, several modules, or a submodule | The plugin |
+| The declared module name or namespace differs from the text | The plugin and both values |
+| The module name is held by a compiled-in module, at any revision, or by an earlier external module | The plugin, the module and the holder |
+| The namespace is held the same way | The plugin and both modules |
+| The module adds nothing: its name does not end in `-conf` and it augments nothing | The plugin, the module and the naming rule |
+| A top-level node of an external `-conf` module is already defined by a `-conf` module | The plugin, the node, the module that defines it and the `augment` to write |
+| The module names a `ze:validate` function or a `ze:reference` source the daemon does not hold | The plugin, the module, the extension, the name and the schema path |
+
+goyang keys a module by name and revision, so it accepts a second revision of
+a held name as another module; the join compares names itself.
+
+The redefinition refusal judges external modules only. The compiled-in modules
+may share a top-level container by a second definition, which `Schema.Define`
+merges: six shipped modules each define `container service`. An external module
+reaches such a container with `augment`, importing one module that defines it.
+
+The registration check reads each extension's own registry: the
+`ValidatorRegistry` for `ze:validate` and the sources `RegisterReferenceSource`
+holds for `ze:reference`. It walks the joined entry trees and judges the
+entries an external module wrote, so a leaf augmented into a compiled-in
+container is judged too. Two registries cannot be reached from `config/yang`
+and are not judged by the join: the display decorators of `ze:decorate`
+(`internal/component/web`) and the backends of `ze:backend` (each component's
+`RegisterBackend`).
+
+The schema and the validator of a joined set are built by the functions that
+build them for the compiled-in set (`schemaFromResolved`,
+`validatorFromResolved`), so a range or a pattern of an external module
+refuses a value as a compiled-in one does.
+<!-- source: internal/component/config/yang/join.go -- Join, ExternalModule, ExternalModuleFromText, declaredModules, resolveJoined, refuseIdleModules, refuseRedefinedRoots, refuseUnheldRegistrations -->
+<!-- source: internal/component/config/yang_schema.go -- JoinExternalModules, loadYANGModules, newValidatorRegistry, schemaFromResolved, validatorFromResolved -->
+<!-- source: internal/component/config/yang/join_test.go -- TestJoinWithNoExternalModuleAnswersTheCompiledSet, TestJoinRefusesModuleNameClash, TestJoinRefusesTopLevelRedefinition -->
+<!-- source: internal/component/config/yang/join.go -- Resolved.HoldsModuleText -->
+<!-- source: internal/component/config/join_schema_test.go -- TestJoinedModuleRangeRefusesOutOfRangeValue, TestModuleTextRoadRefusesRegisteredModule, TestModuleTextRoadLeavesOutIdenticalRegisteredModule, TestJoinExternalModulesRefusesIdenticalCompiledInModule -->
 
 ### Registration Pattern
 

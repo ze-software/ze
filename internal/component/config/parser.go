@@ -39,11 +39,28 @@ type Parser struct {
 	// statements are collected at their terminator; no invalid tree escapes.
 	collecting bool
 	refusals   []error
+	// skipUnknownRoots is set by SkipUnknownRoots alone. Off, an unknown
+	// top-level keyword is refused, which is every parse but the first pass.
+	skipUnknownRoots bool
 }
 
 // NewParser creates a new parser with the given schema.
 func NewParser(schema *Schema) *Parser {
 	return &Parser{schema: schema}
+}
+
+// SkipUnknownRoots makes Parse skip a top-level statement whose keyword the
+// schema does not hold, with its whole block, where it would refuse it. It is
+// the mode of the first pass (FirstPass), which reads the plugin declarations
+// of a config before the modules of its external plugins are known.
+//
+// Only the top level of a whole file is covered: a keyword unknown inside a
+// root the schema holds is still refused, and so is every keyword of ParseAt.
+// The tree a skipping parse answers holds a part of the file, and the comments
+// of the skipped statements are dropped: it MUST NOT be serialized, saved,
+// diffed or handed to a validator as the operator's config.
+func (p *Parser) SkipUnknownRoots() {
+	p.skipUnknownRoots = true
 }
 
 // Parse parses the input string into a config tree.
@@ -99,11 +116,12 @@ func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
 	if parent, ok := p.schema.LookupTokenPath(context).(ChildProvider); ok {
 		known = parent.Children()
 	}
+	// A fragment never skips: SkipUnknownRoots covers the top level of a file.
 	tree, err := p.refuseUnterminated(p.parseBody("unknown keyword", func(name string, known []string) string {
 		return KeywordHint(context, name, known)
 	}, known, func(name string) Node {
 		return p.schema.LookupTokenPath(append(context, name))
-	}))
+	}, false))
 	if err != nil {
 		return nil, namedRefusal(prependSyntaxPath(err, contextPath...))
 	}
@@ -112,10 +130,10 @@ func (p *Parser) ParseAt(input string, contextPath []string) (*Tree, error) {
 
 // parseRoot parses the top level of the config. An unknown top-level keyword
 // that a compiled-out plugin owns is refused naming the build tag that carries
-// it (KeywordHint).
+// it (KeywordHint), unless the parser skips unknown roots (SkipUnknownRoots).
 func (p *Parser) parseRoot() (*Tree, error) {
 	topLevelHint := func(name string, known []string) string { return KeywordHint(nil, name, known) }
-	return p.parseBody("unknown top-level keyword", topLevelHint, p.schema.Children(), p.schema.Get)
+	return p.parseBody("unknown top-level keyword", topLevelHint, p.schema.Children(), p.schema.Get, p.skipUnknownRoots)
 }
 
 // parseBody parses statements until EOF, resolving each keyword through
@@ -123,7 +141,9 @@ func (p *Parser) parseRoot() (*Tree, error) {
 // lists the keywords valid there, and hint answers what a refusal of an unknown
 // keyword adds after its name (the closest key, a retired keyword's
 // replacement, or at the top level the build tag of a compiled-out plugin).
-func (p *Parser) parseBody(unknown string, hint func(name string, known []string) string, known []string, lookup func(name string) Node) (*Tree, error) {
+// With skipUnknown, a statement whose keyword lookup does not answer is
+// consumed whole and left out of the tree (skipStatement) instead of refused.
+func (p *Parser) parseBody(unknown string, hint func(name string, known []string) string, known []string, lookup func(name string) Node, skipUnknown bool) (*Tree, error) {
 	tree := NewTree()
 	comments := p.newCommentScope(tree)
 
@@ -166,6 +186,13 @@ func (p *Parser) parseBody(unknown string, hint func(name string, known []string
 
 		node := lookup(name)
 		if node == nil {
+			if skipUnknown {
+				if err := p.skipStatement(name, tok.line); err != nil {
+					return nil, err
+				}
+				comments.drop()
+				continue
+			}
 			return nil, p.errorf(tok, "%s: %s%s", unknown, name, hint(name, known))
 		}
 
@@ -185,6 +212,71 @@ func (p *Parser) parseBody(unknown string, hint func(name string, known []string
 	}
 
 	return tree, nil
+}
+
+// skipStatement consumes the rest of the statement that opened with the
+// keyword name on line, which the schema does not hold, and stores nothing.
+// The statement ends as the grammar ends any statement: at its terminator when
+// it opened no block, at the '}' that closes its first '{' when it did. Braces
+// are counted on tokens, and the tokenizer answers a quoted string as one
+// token, so a brace inside quotes neither opens nor closes a block.
+//
+// A '}' that closes nothing is left for parseBody, which refuses it. A block
+// still open at the end of the file is refused naming the line of its '{', and
+// so is a statement the end of the file cuts before its terminator: a skipped
+// statement is not parsed, and it is still a whole statement.
+//
+// The loop ends: each turn consumes one token or returns, and the tokenizer
+// answers EOF once the input is read.
+func (p *Parser) skipStatement(name string, line int) error {
+	depth := 0
+	openLine := 0
+	for {
+		tok := p.tok.peek()
+		if tok.kind == tokenEOF {
+			return unfinishedSkip(name, line, depth, openLine)
+		}
+		if tok.kind == tokenRBrace {
+			if depth == 0 {
+				return nil
+			}
+			p.tok.next()
+			depth--
+			if depth == 0 {
+				return nil
+			}
+			continue
+		}
+		p.tok.next()
+		if tok.kind == tokenLBrace {
+			if depth == 0 {
+				openLine = tok.line
+			}
+			depth++
+			continue
+		}
+		if tok.kind == tokenSemicolon {
+			if depth == 0 {
+				return nil
+			}
+		}
+	}
+}
+
+// unfinishedSkip is the refusal of a skipped statement the end of the file
+// cut: inside a block when depth counts one still open, whose '{' sits on
+// openLine, else before the terminator of the statement that began on line.
+func unfinishedSkip(name string, line, depth, openLine int) error {
+	if depth > 0 {
+		return newLineError(openLine, opererr.New(
+			"the block of "+name+" opened on this line never closes",
+			"every '{' needs a '}' after it, and the file ends with this block still open",
+			"add the '}' that closes "+name))
+	}
+	return newLineError(line, opererr.New(
+		"the statement "+name+" on this line never ends",
+		"a statement ends with ';', a newline after its value, or the '}' of its block, and the file ends before any of them",
+		"finish the "+name+" statement, or delete it"))
 }
 
 // parseNodeInactive parses one statement that carried the "inactive:"

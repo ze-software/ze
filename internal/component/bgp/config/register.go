@@ -217,10 +217,13 @@ func createReactorFromCoordinator(coord registry.CoordinatorAccessor, selected m
 	store := bs.Store
 
 	// Set YANG validator for runtime attribute validation (origin enum, med/local-pref ranges).
-	pluginYANG := plugin.CollectPluginYANG(cliPlugins)
-	if v, vErr := zeconfig.YANGValidatorWithPlugins(pluginYANG); vErr == nil && v != nil {
-		plugin.SetYANGValidator(v)
+	// It is the process-wide one: every internal plugin's module is registered
+	// by init(), so a plugin named on the command line adds none.
+	validator, err := zeconfig.YANGValidator()
+	if err != nil {
+		return nil, err
 	}
+	plugin.SetYANGValidator(validator)
 
 	result, err := zeconfig.LoadRunningConfig(selected, configPath, cliPlugins)
 	if err != nil {

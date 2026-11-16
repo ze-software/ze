@@ -75,11 +75,46 @@ type SetParser struct {
 	// quotedTokens parallels the full candidate command, including its verb.
 	// Only the candidate decoder records it; ordinary parsing stays unchanged.
 	quotedTokens []bool
+	// skipUnknownRoots is set by SkipUnknownRoots alone. Off, a line whose
+	// first keyword the schema does not hold is refused.
+	skipUnknownRoots bool
 }
 
 // NewSetParser creates a new set-style parser with the given schema.
 func NewSetParser(schema *Schema) *SetParser {
 	return &SetParser{schema: schema}
+}
+
+// SkipUnknownRoots makes Parse and ParseWithMeta leave out every line whose
+// first keyword the schema does not hold, where they would refuse it. It is
+// the set form of Parser.SkipUnknownRoots, for the first pass (FirstPass), and
+// the two forms then answer the same tree for the same config.
+//
+// It is narrower than SetPreMigration, which skips an unknown field at any
+// depth: here a field unknown inside a root the schema holds is still
+// refused, so a mistyped leaf of a plugin declaration is not lost. The tree
+// holds a part of the config and MUST NOT be serialized, saved, diffed or
+// handed to a validator as the operator's config.
+func (p *SetParser) SkipUnknownRoots() {
+	p.skipUnknownRoots = true
+}
+
+// skipsLine reports whether the first pass leaves a line out: the mode is on,
+// verb is one of the four a line starts with, and the root its path names is
+// one the schema does not hold. A line with no path, and a verb nobody knows,
+// stay with the refusal the strict parse gives them.
+func (p *SetParser) skipsLine(verb string, path []string) bool {
+	if !p.skipUnknownRoots {
+		return false
+	}
+	if len(path) == 0 {
+		return false
+	}
+	switch verb {
+	case cmdSet, cmdNop, cmdDelete, cmdInactive:
+		return p.schema.Get(path[0]) == nil
+	}
+	return false
 }
 
 // SetPreMigration enables pre-migration mode: an unknown field is skipped
@@ -140,6 +175,10 @@ func (p *SetParser) parseLine(tree *Tree, line string, lineNum int) error {
 	cmd := tokens[0]
 	tokens = tokens[1:]
 	p.lineTokens = tokens
+
+	if p.skipsLine(cmd, tokens) {
+		return nil
+	}
 
 	switch cmd {
 	case cmdSet:

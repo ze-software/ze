@@ -359,10 +359,10 @@ func TestOldSyntaxHint(t *testing.T) {
 }
 
 // TestLoadReactor_MVPNRouteReflector verifies full config→reactor flow for RFC 4456.
-// TestPluginOnlySchema verifies that config.PluginOnlySchema() only parses plugin blocks.
+// TestPluginOnlySchema verifies that config.PluginOnlySchema() parses plugin blocks.
 //
-// VALIDATES: First phase parsing extracts only plugin definitions.
-// PREVENTS: Non-plugin config blocks being parsed in first phase.
+// VALIDATES: First phase parsing extracts plugin definitions.
+// PREVENTS: The first-pass schema losing the plugin block it exists to read.
 func TestPluginOnlySchema(t *testing.T) {
 	// Input with ONLY plugin blocks (no peer block)
 	input := `
@@ -410,7 +410,8 @@ plugin {
 
 // TestPluginOnlySchemaRejectsUnknown verifies unknown blocks are rejected.
 //
-// VALIDATES: config.PluginOnlySchema only accepts plugin blocks.
+// VALIDATES: config.PluginOnlySchema holds the first-pass roots (plugin and
+// environment) alone, and a strict parse over it refuses every other root.
 // PREVENTS: Accidental parsing of peer/template blocks in first phase.
 func TestPluginOnlySchemaRejectsUnknown(t *testing.T) {
 	input := `

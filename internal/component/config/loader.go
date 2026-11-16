@@ -165,15 +165,9 @@ func finalizeConfigLoad(tree *Tree, configPath string, cliPlugins []string) (*Lo
 		return nil, err
 	}
 
-	var configDir string
-	if configPath != "" && configPath != "-" {
-		configDir = filepath.Dir(configPath)
-	} else {
-		cwd, cwdErr := os.Getwd()
-		if cwdErr != nil {
-			return nil, fmt.Errorf("get working directory: %w", cwdErr)
-		}
-		configDir = cwd
+	configDir, err := configDirOf(configPath)
+	if err != nil {
+		return nil, err
 	}
 
 	return &LoadConfigResult{
@@ -182,6 +176,23 @@ func finalizeConfigLoad(tree *Tree, configPath string, cliPlugins []string) (*Lo
 		ConfigDir:  configDir,
 		CLIPlugins: slices.Clone(cliPlugins),
 	}, nil
+}
+
+// configDirOf answers the directory a config's relative paths and its plugins'
+// work directory resolve against: the directory of configPath, or the
+// process's working directory for a config that came from no file ("" or "-").
+// The full load and the first pass both ask here, so a plugin the first pass
+// forks runs where the full load says it runs.
+func configDirOf(configPath string) (string, error) {
+	switch configPath {
+	case "", "-":
+		cwd, err := os.Getwd()
+		if err != nil {
+			return "", fmt.Errorf("get working directory: %w", err)
+		}
+		return cwd, nil
+	}
+	return filepath.Dir(configPath), nil
 }
 
 // ParseTreeWithYANG parses config with optional plugin YANG schemas.

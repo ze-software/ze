@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"log/slog"
+	"maps"
 	"slices"
 	"strings"
 	"sync"
@@ -98,42 +99,35 @@ func flattenChoiceCases(choice *gyang.Entry) []namedChild {
 	return out
 }
 
-// PluginOnlySchema returns a schema that only accepts plugin blocks.
-// Used for two-phase config parsing: first extract plugins, then parse full config.
-// This loads only the ze-plugin-conf.yang module.
+// PluginOnlySchema answers the schema of the first pass (FirstPass): the roots
+// Ze reads to RUN a declared plugin, before that plugin's own module is known.
+// They are `plugin`, which holds the declarations and the hub listener a
+// forked plugin connects back to, and `environment`. Every other root is
+// absent, so a strict parse over this schema refuses it and a parser in
+// SkipUnknownRoots mode skips it.
+//
+// The schema is cut from YANGSchema, never resolved again: each root is the
+// full schema's own node, with what every compiled-in module merged or
+// augmented into it. The first pass runs on every start, so a loader of its
+// own would cost each start a second resolve of the whole module set. The
+// nodes are shared with YANGSchema and MUST NOT be written through this
+// schema: a Define of a root it already holds would merge into the shared node.
+//
+// A root this build's schema does not hold is left out. No config of this
+// build can hold it either: the full parse refuses it.
 func PluginOnlySchema() (*Schema, error) {
-	resetSchemaBuildErrors()
-
-	loader := yang.NewLoader()
-	if err := loader.LoadEmbedded(); err != nil {
-		return nil, fmt.Errorf("load embedded YANG: %w", err)
-	}
-	if err := loader.LoadRegistered(); err != nil {
-		return nil, fmt.Errorf("load registered YANG: %w", err)
-	}
-	resolved, err := loader.Resolve()
+	full, err := YANGSchema()
 	if err != nil {
-		return nil, fmt.Errorf("resolve YANG modules: %w", err)
+		return nil, err
 	}
-
 	schema := NewSchema()
-
-	// Load only ze-plugin module
-	pluginEntry := resolved.GetEntry("ze-plugin-conf")
-	if pluginEntry != nil {
-		for _, name := range sortedKeys(pluginEntry.Dir) {
-			child := pluginEntry.Dir[name]
-			node := yangToNode(child, name)
-			if node != nil {
-				schema.Define(name, node)
-			}
+	for _, root := range firstPassRoots {
+		node := full.Get(root)
+		if node == nil {
+			continue
 		}
+		schema.Define(root, node)
 	}
-
-	if buildErr := flushSchemaBuildErrors(); buildErr != nil {
-		return nil, fmt.Errorf("schema build errors: %w", buildErr)
-	}
-
 	return schema, nil
 }
 
@@ -148,9 +142,9 @@ func PluginOnlySchema() (*Schema, error) {
 // for each of the five parses a reload performs (LoadConfig, the BGP reload
 // function, peersAndDynamicGroups), so a commit of one changed leaf cost
 // three seconds of schema builds and the REST commit missed a 5 s client
-// deadline. The schema built with EXTERNAL plugin modules stays uncached:
-// YANGSchemaWithPlugins takes those as an argument, and they change with the
-// configured plugins.
+// deadline. A schema built over module texts no init() registered is not
+// cached here: YANGSchemaWithPlugins takes those as an argument and joins them
+// on each call.
 func YANGSchema() (*Schema, error) {
 	return yangSchemaCache.get(schemaFromResolved)
 }
@@ -202,40 +196,72 @@ func (c *resolvedCache[T]) get(build func(*yang.Resolved) (T, error)) (T, error)
 	return c.value, c.err
 }
 
-// loadYANGModules answers every embedded, registered and plugin module,
-// resolved. Without plugin modules the set is DefaultLoader's, shared by the
-// whole process; with them it is resolved privately, because they change with
-// the configured plugins. Shared by YANGSchemaWithPlugins and
-// YANGValidatorWithPlugins.
-func loadYANGModules(pluginYANG map[string]string) (*yang.Resolved, error) {
-	if len(pluginYANG) == 0 {
-		resolved, err := yang.DefaultLoader()
-		if err != nil {
-			return nil, fmt.Errorf("resolve YANG modules: %w", err)
-		}
-		return resolved, nil
-	}
-	loader := yang.NewLoader()
-	if err := loader.LoadEmbedded(); err != nil {
-		return nil, fmt.Errorf("load embedded YANG: %w", err)
-	}
-	if err := loader.LoadRegistered(); err != nil {
-		return nil, fmt.Errorf("load registered YANG: %w", err)
-	}
-	// Load external plugin YANG modules not covered by init()-based registration.
-	// Skip duplicate modules — they may already be loaded via LoadRegistered().
-	for name, content := range pluginYANG {
-		if err := loader.AddModuleFromText(name, content); err != nil {
-			if !strings.Contains(err.Error(), "duplicate module") {
-				return nil, fmt.Errorf("add plugin YANG module %q: %w", name, err)
-			}
-		}
-	}
-	resolved, err := loader.Resolve()
+// loadYANGModules answers the module set DefaultLoader resolved, shared by the
+// whole process, or, given module texts, that set joined to them
+// (JoinExternalModules). The texts are a Go caller's: each has no plugin
+// declaration beside it, so its name and namespace are read from the text and
+// its file name takes the plugin's place in a refusal.
+//
+// A text whose module the compiled-in set already holds with the same content,
+// byte for byte, is that module: it adds nothing and is left out before the
+// join (Resolved.HoldsModuleText). A text with a held name and different
+// content goes to the join and is refused as a name clash. When every text is
+// left out the answer is the shared set, with no resolve. This rule is for
+// this road alone: a module an external plugin declares goes through
+// JoinExternalModules, which refuses a compiled-in name even for an identical
+// text. Shared by YANGSchemaWithPlugins and YANGValidatorWithPlugins.
+func loadYANGModules(moduleTexts map[string]string) (*yang.Resolved, error) {
+	resolved, err := yang.DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("resolve YANG modules: %w", err)
 	}
-	return resolved, nil
+	files := slices.Sorted(maps.Keys(moduleTexts))
+	externals := make([]yang.ExternalModule, 0, len(files))
+	for _, file := range files {
+		external, textErr := yang.ExternalModuleFromText(file, moduleTexts[file])
+		if textErr != nil {
+			return nil, textErr
+		}
+		if resolved.HoldsModuleText(external.Module, external.Text) {
+			continue
+		}
+		externals = append(externals, external)
+	}
+	if len(externals) == 0 {
+		return resolved, nil
+	}
+	return JoinExternalModules(externals)
+}
+
+// JoinExternalModules answers the compiled-in module set joined to the modules
+// external plugins declared, or the operator error that names the plugin and
+// the module the join refuses (yang.Join states each refusal). It is the one
+// entry through which a module that no init() registered reaches a schema.
+//
+// With no external module it answers the Resolved DefaultLoader shares, and
+// resolves nothing: YANGSchema and YANGValidator are cached against that same
+// Resolved, so a start that declares no external plugin builds nothing twice.
+// With external modules the answer is a new Resolved, which schemaFromResolved
+// and validatorFromResolved turn into the schema and the validator the same
+// way they do for the compiled-in set, so a range, a pattern or a mandatory
+// statement of an external module refuses a value as a compiled-in one does.
+func JoinExternalModules(externals []yang.ExternalModule) (*yang.Resolved, error) {
+	compiled, err := yang.DefaultLoader()
+	if err != nil {
+		return nil, fmt.Errorf("resolve YANG modules: %w", err)
+	}
+	return yang.Join(compiled, externals, newValidatorRegistry())
+}
+
+// newValidatorRegistry answers the registry of every custom validator the
+// daemon holds: the ones RegisterValidators lists, with the completions and
+// suggestions components registered from init(). The value validator is built
+// with it, and the join judges an external module's ze:validate against it.
+func newValidatorRegistry() *yang.ValidatorRegistry {
+	reg := yang.NewValidatorRegistry()
+	RegisterValidators(reg)
+	reg.MergeGlobalCompletions()
+	return reg
 }
 
 // YANGValidator answers the plugin-free YANG value validator, built once per
@@ -257,7 +283,9 @@ func YANGValidator() (*yang.Validator, error) {
 // yangSchemaCache holds the schema.
 var yangValidatorCache resolvedCache[*yang.Validator]
 
-// YANGValidatorWithPlugins creates a YANG value validator with all modules loaded.
+// YANGValidatorWithPlugins creates a YANG value validator over the compiled-in
+// modules joined to the module texts given (loadYANGModules), under the rule
+// YANGSchemaWithPlugins states for them.
 // Registers custom validators, attaches registry, and checks integrity.
 // Used for runtime attribute validation (origin enum, med/local-pref uint32 ranges).
 func YANGValidatorWithPlugins(pluginYANG map[string]string) (*yang.Validator, error) {
@@ -273,9 +301,7 @@ func validatorFromResolved(loader *yang.Resolved) (*yang.Validator, error) {
 	v := yang.NewValidator(loader)
 
 	// Register custom validators and attach to validator.
-	reg := yang.NewValidatorRegistry()
-	RegisterValidators(reg)
-	reg.MergeGlobalCompletions()
+	reg := newValidatorRegistry()
 	v.SetRegistry(reg)
 
 	// Startup integrity check: verify every ze:validate in YANG has a registered function.
@@ -291,8 +317,11 @@ func validatorFromResolved(loader *yang.Resolved) (*yang.Validator, error) {
 	return v, nil
 }
 
-// YANGSchemaWithPlugins loads YANG with additional plugin modules.
-// pluginYANG maps module filename to YANG content.
+// YANGSchemaWithPlugins answers the schema of the compiled-in modules joined to
+// the module texts given. pluginYANG maps a module file name to its YANG text,
+// and loadYANGModules states what happens to each: a text identical to a
+// module the compiled-in set holds is left out, a held name with another
+// content is refused, and every other text passes the join.
 func YANGSchemaWithPlugins(pluginYANG map[string]string) (*Schema, error) {
 	loader, err := loadYANGModules(pluginYANG)
 	if err != nil {

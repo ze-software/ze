@@ -782,6 +782,61 @@ bgp {
 ```
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- container bgp, list peer -->
 
+### The first pass: plugin declarations before the full parse
+
+An external plugin brings its own YANG module, so the root it adds is unknown
+until the plugin has run. `config.FirstPass` reads what is needed to run it
+from a config whose other sections the schema cannot judge yet. Nothing calls
+it at boot today: the daemon still parses the whole config first, and a config
+block under an external plugin's own root is refused there.
+
+The first pass is not a second parser. It runs the `Parser` and the
+`SetParser` of the full load, with two differences:
+
+| Difference | What it is |
+|------------|------------|
+| The schema | `PluginOnlySchema` holds the roots `plugin` and `environment` and no other. Each is the full schema's own node, so the first pass resolves no YANG module of its own |
+| The mode | `SkipUnknownRoots` skips a top-level statement whose keyword the schema does not hold. The mode is off by default, and every other parse refuses that keyword as before |
+
+In the brace form a skipped statement ends as any statement does. With no block
+it ends at its terminator. With a block it ends at the `}` that closes its
+first `{`, however deep its blocks nest. Braces are counted on tokens, and a
+quoted string is one token, so `description "a } here";` closes nothing. A
+block still open at the end of the file is refused, naming the line of its
+`{`. In the set form, every `set`, `nop`, `delete` and `inactive` line whose
+first keyword the schema does not hold is left out. The two forms answer the
+same result for the same config.
+
+The skip covers the top level of a whole file only. A keyword unknown inside
+`plugin` or `environment` is refused as the full parse refuses it, and a
+fragment parsed at an editor context (`ParseAt`) never skips. This is narrower
+than the set parser's pre-migration mode, which skips an unknown field at any
+depth to list them all in one refusal.
+
+The first pass answers:
+
+| Field | Content |
+|-------|---------|
+| `External` | Each declared plugin that runs as another program: an `external` block with a `run` string, or a command line given with `--plugin`. A plugin compiled into `ze`, an entry with no `run`, and an `inactive:` entry are absent |
+| `Hub` | The `plugin hub` listener a forked plugin connects back to |
+| `Environment` | The values of the `environment` block, applied to nothing |
+| `ConfigDir` | The directory the plugins' work directory resolves against |
+
+`External` is not the list of plugins the daemon runs. The full load answers
+that list: it adds the compiled-in plugins, the plugins a section declares
+inline, and their dependencies. A plugin declared inline under a root the first
+pass skips is not in `External`.
+
+The tree behind a skipping parse holds a part of the file and drops the
+comments of what it skipped. It never leaves `FirstPass`, and it is never
+serialized, saved or validated as the operator's config.
+<!-- source: internal/component/config/first_pass.go -- FirstPass, FirstPassResult, parseFirstPass, firstPassRoots -->
+<!-- source: internal/component/config/yang_schema.go -- PluginOnlySchema -->
+<!-- source: internal/component/config/parser.go -- SkipUnknownRoots, parseBody, skipStatement, unfinishedSkip -->
+<!-- source: internal/component/config/setparser.go -- SetParser.SkipUnknownRoots, skipsLine -->
+<!-- source: internal/component/config/parser_comments.go -- commentScope.drop -->
+<!-- source: internal/component/config/loader.go -- configDirOf, ExtractPluginsFromTree, MergeCliPlugins -->
+
 ---
 
 ## Section Types
