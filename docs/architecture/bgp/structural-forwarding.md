@@ -820,6 +820,13 @@ replacement supersedes recipient-owned received bytes before this decision.
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- effectiveNextHop, applyEgressNextHopScope -->
 <!-- test: internal/component/bgp/reactor/next_hop_effective_fields_test.go TestEffectiveNextHopFields, TestEffectiveNextHopScopePeerOwn -->
 
+FlowSpec family processing clears the outgoing next-hop field or keeps a
+permitted single redirect target. The later common-subnet scope pass leaves
+that decision intact. It does not read ignored or invalid input again or replace
+an empty field with part of an invalid pair.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyNextHopFamily, applyEgressNextHopScope -->
+<!-- test: internal/component/bgp/reactor/next_hop_scope_flowspec_test.go TestNextHopScopePreservesFlowSpecFamilyDecision -->
+
 The classifier reads complete fields through the actual family's shared profile.
 It records IPv6 wire identity before unmapping addresses for comparison.
 For forwarding families, the last nonempty MP Set is selected before width

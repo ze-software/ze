@@ -720,6 +720,11 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 	if baseFamily == (family.Family{}) {
 		return
 	}
+	// RFC 8955 Section 4: "The Network Address of the Next-Hop field
+	// MUST be ignored." applyNextHopFamily owns the redirect exception too.
+	if !baseFamily.NeedsNextHop() {
+		return
+	}
 	field := payloadMPNextHopField(basePayload)
 	for _, op := range mods.Ops() {
 		if op.Code != uint8(attribute.AttrMPReachNLRI) {

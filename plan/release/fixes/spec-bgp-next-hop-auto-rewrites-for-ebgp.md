@@ -17,6 +17,11 @@ Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
 
+The common-subnet scope pass must preserve the FlowSpec family normalizer's
+empty field or permitted single redirect target. Invalid received next-hop
+bytes must not restore a field that family processing cleared. Ordinary and
+unknown forwarding families retain their existing scope rules (AC-13).
+
 The YANG text and the code disagree about `next-hop auto`, which is the
 default. `ze-bgp-conf.yang` (leaf `next-hop`, about lines 858 to 879) says
 "auto rewrites the next hop for an eBGP peer, and preserves it for an iBGP
@@ -252,6 +257,7 @@ implementation for a next-hop assertion.
 | AC-6 | Route relayed under `auto` to an RS client, either rail | received next hop kept |
 | AC-7 | `auto` towards a multihop iBGP peer, route not locally originated, received next hop leaves nothing usable (A-3) | route withheld unless `self` is configured |
 | AC-8 | `unchanged`, `self`, explicit address | behaviour unchanged from HEAD |
+| AC-13 | FlowSpec or FlowSpecVPN family normalization followed by common-subnet scope processing, with ignored invalid next-hop bytes or a permitted single redirect target | An empty next-hop field stays empty. A permitted four- or sixteen-octet redirect target retains its selected form. The exact NLRI and borrowed input remain unchanged. Ordinary IPv6 and unknown forwarding families retain their useful scope transformations |
 
 ## End-to-End User Stories
 

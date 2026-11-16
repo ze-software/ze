@@ -490,6 +490,14 @@ ran before the RIB selected it.
 <!-- test: internal/component/bgp/reactor/flowspec_forward_wire_test.go TestFlowSpecForwardingOmitsNextHop -->
 <!-- test: internal/component/bgp/reactor/flowspec_rs_wire_test.go TestFlowSpecRouteServerOmitsNextHop -->
 
+The later common-subnet scope pass leaves that FlowSpec family decision alone.
+It neither reinterprets ignored received bytes as a forwarding address nor
+replaces an empty field with part of an invalid pair. Single redirect targets
+keep their selected form; ordinary and unknown forwarding families still use
+their next-hop scope rules.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope -->
+<!-- test: internal/component/bgp/reactor/next_hop_scope_flowspec_test.go TestNextHopScopePreservesFlowSpecFamilyDecision -->
+
 A received redirect-to-IP route is the exception on the forward rails too. When
 its EXTENDED_COMMUNITIES carry 0x0800 and its MP_REACH next hop is a 4- or
 16-octet address, that address is the redirect target, and each destination's
