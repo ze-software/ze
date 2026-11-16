@@ -124,7 +124,13 @@ A binding PeeringDB moves to a set with no pointer is not written yet: the
 consumers read the stored binding, and one naming a set nothing stored reads as
 no list. The owner fetches the new set first, in the same pass, and writes the
 binding once that set's pointer is stored. Until then the stored binding still
-names the set the consumers enforce, and that set is still fetched when due. A
+names the set the consumers enforce, whatever PeeringDB URL it was learned
+from (`store.ReadBinding` does not judge the URL), so that set is still
+fetched when due, and its due time asks PeeringDB again. A fetch that leaves
+the new set with no list Ze can store (no answer, an empty one, one over the
+caps, a refused write) is a `doctor-irr-dataset-unpublished` finding under the
+binding's key that names the move, fixed by `update irr asn <n>`; it clears
+once the binding is written, or once PeeringDB names the stored set again. A
 first binding, with no list to keep, is written at once.
 
 <!-- source: internal/plugins/irr/schedule.go -- dueOf, dueAfterAnswer, retryInterval -->
@@ -169,7 +175,13 @@ fetches the set. `update irr all` does both for everything referenced and
 names each set that failed. `clear irr as-set <s>` removes the pointer, then
 the dataset, raises the generation and sends a notice with `removed` true; its
 answer names every consumer whose interest still references the set.
-`clear irr asn <n>` also removes the binding. A cleared set is held: it is not
+`clear irr asn <n>` removes the stored copy of the set the AS number is bound
+to, then the binding, and drops the binding's findings, whose fix `update irr
+asn` would undo the clear. The set goes first, so a removal of it the store
+refuses changes nothing: the binding still names the set the consumers
+enforce, and the answer says nothing was cleared. A binding the store refuses
+to remove after its set went is held with the set, and the answer names the
+same clear, which finishes it. A cleared set is held: it is not
 fetched again until `update irr` or an interest that newly names it. The hold
 lives in the worker, so a restart fetches a still-referenced cleared set again.
 A pointer removal the store refuses changes nothing: the set stays stored,
@@ -235,8 +247,10 @@ over the caps was refused) and `doctor-irr-dataset-unpublished` (the store
 refused a write, or the consumers were not told). Each finding carries its fix
 command: `update irr asn <n>` for one under a binding's key. A finding clears
 with its cause: an unreadable pointer or dataset once the set is stored again,
-a refused fetch once the server answers, a PeeringDB failure once PeeringDB
-answers. A cleared set's findings go with it, and so do the findings of a set
+an unreadable binding once a binding is written under its key, a refused fetch
+once the server answers, a PeeringDB failure once PeeringDB answers. A cleared
+set's findings go with it, a cleared AS number's binding findings go with the
+binding, and so do the findings of a set
 no consumer names and no pointer names, and of a binding of an AS number no
 consumer names: nothing fetches those again. A finding under a stored key that
 is still unreadable stays. A stopped owner is reported by the engine's
@@ -385,8 +399,10 @@ the conversion, `clear irr` naming its consumers, and a bound AS number not
 asked at start. `failure_paths_test.go` proves a refused `clear irr` and a
 server changed and changed back keep the per-family merge base, an
 unannounced clear holds the set and is told by the next clear, findings clear
-with their cause, a PeeringDB failure is a finding, and a moving binding is
-written only after its new set's pointer. `discovery_test.go` follows PeeringDB across due times, never
+with their cause, a PeeringDB failure is a finding, a moving binding is
+written only after its new set's pointer, a move that cannot complete after a
+PeeringDB URL change keeps the enforced set refreshed and is a finding, and a
+`clear irr asn` whose set removal is refused keeps the binding. `discovery_test.go` follows PeeringDB across due times, never
 falls back to a set a consumer dropped, and keeps the stored copy when an
 `update irr` fails. `command_asn_test.go` runs `update irr asn` and `clear irr
 asn` on a running worker: a value outside the AS number range is refused

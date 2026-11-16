@@ -203,39 +203,61 @@ func errUnannounced(command, asSet string, err error) error {
 		"clear irr as-set "+asSet)
 }
 
-// clearASN removes the binding of number and the stored copy of the set it
-// names, and names every consumer still referencing either.
+// clearASN removes the stored copy of the set number is bound to, then the
+// binding, and names every consumer still referencing either. The set goes
+// first: a removal the store refuses then changes nothing, and the binding
+// still names the set the consumers enforce. A binding the store refuses to
+// remove after its set went is held with it, and the same clear finishes it.
+// The binding's findings go with the binding: their fix, `update irr asn`,
+// would undo the clear.
 func (o *owner) clearASN(ctx context.Context, number uint32) commandAnswer {
+	command := "clear irr asn " + asnText(number)
 	binding, bound := o.bindings[number]
 	consumers := o.consumersOfASN(number)
+	// unannounced is the set's removal no consumer was told of: the binding
+	// is still removed, and the answer says so.
+	var unannounced error
 	if bound {
 		consumers = mergeNames(consumers, o.consumersOf(binding.ASSet))
+		_, err := o.removeSet(ctx, binding.ASSet)
+		if err != nil && !errors.Is(err, errRemovalUnannounced) {
+			return commandAnswer{err: opererr.Wrap(err, command+" could not remove the stored copy of "+binding.ASSet,
+				"The store refused the removal, so nothing was cleared: AS "+asnText(number)+" stays bound to "+binding.ASSet+
+					" and the consumers keep enforcing it.", command)}
+		}
+		unannounced = err
 	}
 	if err := o.state.StateRemove(ctx, store.BindingKey(number)); err != nil {
-		return commandAnswer{err: opererr.Wrap(err, "clear irr asn "+asnText(number)+" could not remove the stored binding",
-			"The store refused the removal, so the AS number keeps its AS-SET.", "clear irr asn "+asnText(number))}
+		if !bound {
+			return commandAnswer{err: opererr.Wrap(err, command+" could not remove the stored binding",
+				"The store refused the removal, so the AS number keeps its stored binding.", command)}
+		}
+		// The set is gone and the binding still names it: nothing may fetch
+		// it again before the clear is run again.
+		o.holdCleared(binding.ASSet, o.consumersOf(binding.ASSet))
+		if len(consumers) > 0 {
+			o.heldASNs[number] = struct{}{}
+		}
+		return commandAnswer{err: opererr.Wrap(err, command+" removed the stored copy of "+binding.ASSet+" but not the binding",
+			"The store refused to remove the binding, so AS "+asnText(number)+" still names "+binding.ASSet+
+				", which is no longer stored and is not fetched again.", command)}
 	}
 	delete(o.bindings, number)
 	delete(o.discoverDue, number)
 	delete(o.movingTo, number)
-	answer := clearAnswer{ASN: number, Removed: bound, Consumers: nonNil(consumers)}
+	delete(o.problems, store.BindingKey(number))
 	if bound {
-		answer.ASSet = binding.ASSet
-		_, err := o.removeSet(ctx, binding.ASSet)
-		if err != nil && !errors.Is(err, errRemovalUnannounced) {
-			return commandAnswer{err: opererr.Wrap(err, "clear irr asn "+asnText(number)+" could not remove the stored copy of "+binding.ASSet,
-				"The store refused the removal, so the consumers keep enforcing it.", "clear irr as-set "+binding.ASSet)}
-		}
 		o.holdCleared(binding.ASSet, o.consumersOf(binding.ASSet))
-		if err != nil {
-			if len(consumers) > 0 {
-				o.heldASNs[number] = struct{}{}
-			}
-			return commandAnswer{err: errUnannounced("clear irr asn "+asnText(number), binding.ASSet, err)}
-		}
 	}
 	if len(consumers) > 0 {
 		o.heldASNs[number] = struct{}{}
+	}
+	if unannounced != nil {
+		return commandAnswer{err: errUnannounced(command, binding.ASSet, unannounced)}
+	}
+	answer := clearAnswer{ASN: number, Removed: bound, Consumers: nonNil(consumers)}
+	if bound {
+		answer.ASSet = binding.ASSet
 	}
 	return commandAnswer{data: answer}
 }

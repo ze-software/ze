@@ -391,7 +391,9 @@ func (o *owner) plan() {
 		}
 		if _, moving := o.movingTo[asn]; moving {
 			// PeeringDB answered: the set it named is fetched, and the
-			// binding is written once that set is stored.
+			// binding is written once that set is stored. PeeringDB is asked
+			// again when the set the stored binding names is due
+			// (rediscoverBoundTo, over enforcedBinding).
 			continue
 		}
 		if _, armed := o.discoverDue[asn]; !armed {
@@ -443,7 +445,8 @@ func (o *owner) stateOf(asSet string) setState {
 }
 
 // wantedSets is every AS-SET a consumer enforces: named, or bound to an AS
-// number it names.
+// number it names (enforcedBinding), and every set such a binding is moving
+// to.
 func (o *owner) wantedSets() map[string]struct{} {
 	wanted := make(map[string]struct{})
 	for _, in := range o.interest {
@@ -455,7 +458,7 @@ func (o *owner) wantedSets() map[string]struct{} {
 		if _, held := o.heldASNs[asn]; held {
 			continue
 		}
-		if binding, ok := o.validBinding(asn); ok {
+		if binding, ok := o.enforcedBinding(asn); ok {
 			wanted[binding.ASSet] = struct{}{}
 		}
 		if target, moving := o.movingTo[asn]; moving {
@@ -487,6 +490,24 @@ func (o *owner) validBinding(asn uint32) (store.Binding, bool) {
 	return binding, true
 }
 
+// enforcedBinding returns the binding the consumers enforce for asn: the valid
+// binding, or, while asn moves (movingTo), the stored one, whatever PeeringDB
+// URL it was learned from. store.ReadBinding does not judge the URL, and a
+// move writes the new binding only once its set is stored, so after a changed
+// `system peeringdb url` the old binding is what the consumers read until
+// then: its set stays wanted and fetched when due, and its due time asks
+// PeeringDB again (rediscoverBoundTo).
+func (o *owner) enforcedBinding(asn uint32) (store.Binding, bool) {
+	if binding, ok := o.validBinding(asn); ok {
+		return binding, true
+	}
+	if _, moving := o.movingTo[asn]; !moving {
+		return store.Binding{}, false
+	}
+	binding, ok := o.bindings[asn]
+	return binding, ok
+}
+
 // consumersOf names, sorted, every consumer whose interest names asSet or an
 // AS number bound to it.
 func (o *owner) consumersOf(asSet string) []string {
@@ -514,7 +535,7 @@ func (o *owner) consumersOfASN(asn uint32) []string {
 
 func (o *owner) bindsTo(asns []uint32, asSet string) bool {
 	for _, asn := range asns {
-		if binding, ok := o.validBinding(asn); ok && binding.ASSet == asSet {
+		if binding, ok := o.enforcedBinding(asn); ok && binding.ASSet == asSet {
 			return true
 		}
 	}
@@ -582,12 +603,14 @@ func (o *owner) movesOff(asSet string) []string {
 // rediscoverBoundTo asks PeeringDB again for each referenced AS number bound
 // to asSet, now that its dataset is due (AC-11): PeeringDB is asked when the
 // data is, never at start. A binding learned at or after dueAt is not asked
-// again: it is the answer that made a cold set due. It reports whether a
-// binding moved, or is moving, to another set.
+// again: it is the answer that made a cold set due. A binding still moving
+// counts as bound to the set the consumers enforce (enforcedBinding), so a
+// move that cannot complete is asked again at each due time. It reports
+// whether a binding moved, or is moving, to another set.
 func (o *owner) rediscoverBoundTo(ctx context.Context, asSet string, dueAt time.Time) bool {
 	moved := false
 	for asn := range o.wantedASNs() {
-		binding, ok := o.validBinding(asn)
+		binding, ok := o.enforcedBinding(asn)
 		if !ok || binding.ASSet != asSet {
 			continue
 		}
@@ -640,12 +663,19 @@ func (o *owner) discoverASN(ctx context.Context, asn uint32) {
 // written: it waits in movingTo, the set is fetched, and writeDataset writes
 // it once that set's pointer is stored. Until then the stored binding still
 // names the set the consumers enforce. A first binding has no list to keep and
-// is written at once.
+// is written at once. A move PeeringDB takes back, naming the stored set
+// again, writes that binding again: the write clears the finding of the move
+// that could not complete (reportStuckMoves).
 func (o *owner) bindTo(ctx context.Context, asn uint32, asSet string) {
+	_, wasMoving := o.movingTo[asn]
 	delete(o.movingTo, asn)
 	stored, bound := o.bindings[asn]
 	if bound && stored.ASSet == asSet {
 		if stored.PeeringDBURL != o.cfg.peeringDBURL {
+			o.writeBinding(ctx, asn, asSet)
+			return
+		}
+		if wasMoving {
 			o.writeBinding(ctx, asn, asSet)
 		}
 		return
@@ -672,9 +702,12 @@ func (o *owner) discoverPanicked(asn uint32, recovered any) {
 
 // refreshSet fetches asSet now, stores what the answer leaves to enforce and
 // re-arms the set. It returns the fetch's error, or the store's. A panic under
-// the fetch or the store is recovered here, per fetch (fetchPanicked).
+// the fetch or the store is recovered here, per fetch (fetchPanicked). Every
+// outcome that leaves a binding moving to asSet is reported, after the
+// recovery (reportStuckMoves).
 func (o *owner) refreshSet(ctx context.Context, asSet string) (err error) {
 	now := o.clock()
+	defer o.reportStuckMoves(ctx, asSet)
 	defer func() {
 		if recovered := recover(); recovered != nil {
 			err = o.fetchPanicked(asSet, now, recovered)
@@ -717,6 +750,34 @@ func (o *owner) refreshSet(ctx context.Context, asSet string) (err error) {
 	}
 	countOutcome(outcomeStored)
 	return err
+}
+
+// reportStuckMoves raises a doctor-irr-dataset-unpublished finding under the
+// binding of each AS number moving to asSet, once a fetch of asSet left it with
+// no pointer: PeeringDB named asSet, and the server gave no list Ze can store
+// for it (no answer, an empty one, one over the caps, a refused write). The
+// stored binding then still names the set the consumers enforce, and without
+// the finding the move would wait unseen. writeBinding clears it once the
+// binding is written; the move is tried again when the enforced set is due.
+func (o *owner) reportStuckMoves(ctx context.Context, asSet string) {
+	if ctx.Err() != nil {
+		return
+	}
+	if _, pointed := o.pointers[asSet]; pointed {
+		return
+	}
+	for asn, target := range o.movingTo {
+		if target != asSet {
+			continue
+		}
+		enforced := o.bindings[asn].ASSet
+		err := fmt.Errorf("PeeringDB names %s for AS%d, but the IRR server gave no list of %s that Ze can store, so AS%d stays bound to %s",
+			asSet, asn, asSet, asn, enforced)
+		o.raise(store.BindingKey(asn), codeIRRDatasetUnpublished, err)
+		logger().Warn("irr: an AS number cannot move to the AS-SET PeeringDB names, the consumers keep enforcing the AS-SET bound before",
+			"asn", asn, "as-set", enforced, "moving-to", asSet,
+			"code", codeIRRDatasetUnpublished, "fix", "update irr asn "+asnText(asn))
+	}
 }
 
 // fetchPanicked records a fetch of asSet that panicked: a defect in a client

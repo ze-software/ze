@@ -38,7 +38,9 @@ const (
 	// refuses (over 500,000 prefixes in a family), so the stored copy stays.
 	codeIRRDatasetOversized = "doctor-irr-dataset-oversized"
 	// codeIRRDatasetUnpublished fires when an answer was not stored, or the
-	// consumers were not told of it, so they enforce an older copy.
+	// consumers were not told of it, or an AS number cannot move to the set
+	// PeeringDB names because no list of that set could be stored, so they
+	// enforce an older copy.
 	codeIRRDatasetUnpublished = "doctor-irr-dataset-unpublished"
 )
 
@@ -93,7 +95,8 @@ var irrDiagnosticCodes = []diagnostic.CodeMeta{
 		Code:  codeIRRDatasetUnpublished,
 		Title: "An IRR answer was not stored or not announced",
 		Description: "The store refused an IRR dataset, its pointer or an AS number's binding, or the consumers were not told " +
-			"of a stored dataset. They keep enforcing the copy stored before. Ze retries the store every minute; a consumer " +
+			"of a stored dataset, or an AS number cannot move to the AS-SET PeeringDB now names because no list of that AS-SET " +
+			"could be stored. They keep enforcing the copy stored before. Ze retries the store every minute; a consumer " +
 			"that missed a notice catches up at the next one. Fix the store error in the message, then run " +
 			"'update irr as-set <name>'.",
 		Examples: []string{exampleDoctor, cmdShowIRR, "ze show diagnostic " + codeIRRDatasetUnpublished},
@@ -173,7 +176,7 @@ func (o *owner) publishView() {
 }
 
 // consumerIndex maps each referenced AS-SET to the sorted consumers naming
-// it, directly or through a bound AS number.
+// it, directly or through the binding they enforce for an AS number.
 func (o *owner) consumerIndex() map[string][]string {
 	index := make(map[string][]string)
 	for consumer, in := range o.interest {
@@ -182,7 +185,7 @@ func (o *owner) consumerIndex() map[string][]string {
 			seen[asSet] = struct{}{}
 		}
 		for _, number := range in.ASNs {
-			if binding, ok := o.validBinding(number); ok {
+			if binding, ok := o.enforcedBinding(number); ok {
 				seen[binding.ASSet] = struct{}{}
 			}
 		}
@@ -259,6 +262,14 @@ func problemFix(code, subject string) string {
 			return "update irr asn " + number
 		}
 	case codeIRRDatasetUnreadable:
+		if text, ok := strings.CutPrefix(subject, store.BindingPrefix); ok {
+			if number, parsed := parseASNSegment(text); parsed {
+				// A damaged binding: the PeeringDB question writes it again
+				// (writeBinding), whether or not a consumer names the AS
+				// number, which update irr all would not ask about.
+				return "update irr asn " + asnText(number)
+			}
+		}
 	}
 	return "update irr all"
 }

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/resolve/irr/store"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // familyResolver merges each answer per family into its seeded copy, as
@@ -231,11 +232,14 @@ func TestServerRevertKeepsMergeBase(t *testing.T) {
 }
 
 // VALIDATES: an unreadable pointer or dataset finding clears once the set is
-// fetched and stored again (AC-22); the findings of a set no consumer names
-// and no pointer names clear at the next plan; and a cleared set's findings
-// clear with it.
+// fetched and stored again (AC-22); an unreadable binding finding names
+// `update irr asn` and clears once the binding is written again; the findings
+// of a set no consumer names and no pointer names clear at the next plan; and
+// a cleared set's findings, and a cleared AS number's binding findings, clear
+// with it.
 // PREVENTS: `ze doctor` reporting a WARN about a copy already replaced, a set
-// nobody references or a set the operator removed, until a restart.
+// nobody references or a set the operator removed, until a restart; and a
+// cleared AS number keeping a finding whose fix undoes the clear.
 // METHOD: per row, reach the finding, then the step that must clear it, and
 // read the owner's recorded problems.
 func TestFindingsClearWithTheirCause(t *testing.T) {
@@ -286,6 +290,61 @@ func TestFindingsClearWithTheirCause(t *testing.T) {
 		h.pass()
 		if found, ok := h.owner.problems["AS-TEST"]; ok {
 			t.Fatalf("AS-TEST, which no consumer names and nothing stores, still reports %+v", found)
+		}
+	})
+
+	t.Run("unreadable binding written again", func(t *testing.T) {
+		state := newFakeState()
+		first := newHarness(t, state, defaultOwnerConfig())
+		first.resolver.sets[65001] = "AS-X"
+		first.resolver.answers["AS-X"] = fakeAnswer{ipv4: prefixes("192.0.2.0/24")}
+		first.writeInterest(consumerBGP, store.Interest{ASNs: []uint32{65001}})
+		first.boot()
+		key := store.BindingKey(65001)
+		if !state.has(key) {
+			t.Fatal("boot stored no binding: without it the test proves nothing")
+		}
+		state.values[key] = []byte("not a binding")
+
+		second := newHarness(t, state, defaultOwnerConfig())
+		second.resolver.sets[65001] = "AS-X"
+		second.resolver.answers["AS-X"] = fakeAnswer{ipv4: prefixes("192.0.2.0/24")}
+		second.owner.absorb(context.Background())
+		second.owner.load(context.Background())
+		if found, ok := second.owner.problems[key]; !ok || found.code != codeIRRDatasetUnreadable {
+			t.Fatalf("load recorded %+v for %s, want %s: without it the test proves nothing", found, key, codeIRRDatasetUnreadable)
+		}
+		if !hasFinding(second, codeIRRDatasetUnreadable, "update irr asn 65001") {
+			t.Errorf("findings %+v, want %s fixed by update irr asn 65001", second.owner.findings(), codeIRRDatasetUnreadable)
+		}
+		second.pass()
+		if binding, ok := second.storedBinding(65001); !ok || binding.ASSet != "AS-X" {
+			t.Fatalf("the pass stored binding %+v (%v), want AS-X: without the write the test proves nothing", binding, ok)
+		}
+		if found, ok := second.owner.problems[key]; ok {
+			t.Fatalf("%s still reported %+v after a good binding was written", key, found)
+		}
+	})
+
+	t.Run("cleared AS number", func(t *testing.T) {
+		h := newHarness(t, newFakeState(), defaultOwnerConfig())
+		h.resolver.sets[65001] = "AS-X"
+		h.resolver.answers["AS-X"] = fakeAnswer{ipv4: prefixes("192.0.2.0/24")}
+		h.writeInterest(consumerBGP, store.Interest{ASNs: []uint32{65001}})
+		h.boot()
+		h.resolver.pdbErr = errors.New("peeringdb timeout")
+		h.clock.at = h.clock.at.Add(time.Hour)
+		h.pass()
+		key := store.BindingKey(65001)
+		if found, ok := h.owner.problems[key]; !ok || found.code != codeIRRRefreshOverdue {
+			t.Fatalf("the failed PeeringDB question recorded %+v, want %s: without it the test proves nothing", found, codeIRRRefreshOverdue)
+		}
+		if answer := h.owner.clearASN(context.Background(), 65001); answer.err != nil {
+			t.Fatal(answer.err)
+		}
+		h.pass()
+		if found, ok := h.owner.problems[key]; ok {
+			t.Fatalf("the cleared AS 65001 still reports %+v, whose fix would undo the clear", found)
 		}
 	})
 
@@ -419,5 +478,114 @@ func TestMovedBindingFlipsAfterNewSetStored(t *testing.T) {
 	}
 	if pointerAt < 0 || bindingAt < pointerAt {
 		t.Fatalf("write order %v: the binding must be written after the pointer of AS-Y", log)
+	}
+}
+
+// VALIDATES: after a changed `system peeringdb url`, PeeringDB names AS-Y for
+// AS 65001 and the IRR server answers AS-Y empty: the binding stays AS-X, a
+// doctor-irr-dataset-unpublished finding under the binding's key names the
+// move that cannot complete, fixed by `update irr asn 65001`, and at AS-X's
+// due time AS-X is fetched and stored again and PeeringDB is asked again.
+// PREVENTS: the consumers enforcing a stale AS-X for ever, with no finding and
+// no further PeeringDB question, because a binding from another URL reads as
+// absent while the move waits for a set that never stores.
+// METHOD: bind AS 65001 to the stored AS-X, change the URL and PeeringDB's
+// answer, run a pass; read the stored binding and the findings; then answer
+// AS-X with a new prefix an hour later, run a pass, and read the queries, the
+// PeeringDB questions and the stored AS-X.
+func TestStuckMoveKeepsEnforcedSetRefreshed(t *testing.T) {
+	ctx := context.Background()
+	h := newHarness(t, newFakeState(), defaultOwnerConfig())
+	h.resolver.sets[65001] = "AS-X"
+	h.resolver.answers["AS-X"] = fakeAnswer{ipv4: prefixes("192.0.2.0/24")}
+	h.writeInterest(consumerBGP, store.Interest{ASNs: []uint32{65001}})
+	h.boot()
+	if binding, ok := h.storedBinding(65001); !ok || binding.ASSet != "AS-X" {
+		t.Fatalf("boot bound %+v, want AS-X", binding)
+	}
+
+	moved := defaultOwnerConfig()
+	moved.peeringDBURL = "https://pdb.example.net"
+	if err := h.owner.configure(moved); err != nil {
+		t.Fatal(err)
+	}
+	h.resolver.sets[65001] = "AS-Y"
+	h.resolver.answers["AS-Y"] = fakeAnswer{}
+	h.resolver.queries = nil
+	h.pass()
+	if !slices.Contains(h.resolver.queries, "AS-Y") {
+		t.Fatalf("the pass fetched %v, want AS-Y tried: without it the test proves nothing", h.resolver.queries)
+	}
+	if binding, err := store.ReadBinding(ctx, h.state, 65001); err != nil || binding.ASSet != "AS-X" {
+		t.Fatalf("a consumer reads binding %+v (%v) while AS-Y stores nothing, want AS-X", binding, err)
+	}
+	found, ok := h.owner.problems[store.BindingKey(65001)]
+	if !ok || found.code != codeIRRDatasetUnpublished || !strings.Contains(found.err.Error(), "AS-Y") {
+		t.Fatalf("binding finding %+v (%v), want %s naming the move to AS-Y", found, ok, codeIRRDatasetUnpublished)
+	}
+	if !hasFinding(h, codeIRRDatasetUnpublished, "update irr asn 65001") {
+		t.Errorf("findings %+v, want %s fixed by update irr asn 65001", h.owner.findings(), codeIRRDatasetUnpublished)
+	}
+
+	h.resolver.answers["AS-X"] = fakeAnswer{ipv4: prefixes("198.51.100.0/24")}
+	h.resolver.queries, h.resolver.asked = nil, nil
+	h.clock.at = h.clock.at.Add(time.Hour)
+	h.pass()
+	if !slices.Contains(h.resolver.queries, "AS-X") {
+		t.Fatalf("at its due time the pass fetched %v, want AS-X, which the consumers still enforce", h.resolver.queries)
+	}
+	if got := h.dataset("AS-X").IPv4(); !slices.Equal(got, prefixes("198.51.100.0/24")) {
+		t.Fatalf("stored AS-X %v, want the refreshed 198.51.100.0/24", got)
+	}
+	if !slices.Contains(h.resolver.asked, 65001) {
+		t.Fatalf("PeeringDB asked %v at AS-X's due time, want AS 65001 asked again", h.resolver.asked)
+	}
+	if _, ok := h.owner.problems[store.BindingKey(65001)]; !ok {
+		t.Fatal("the move to AS-Y still cannot complete and its finding is gone")
+	}
+}
+
+// VALIDATES: `clear irr asn` whose removal of the bound set's pointer the store
+// refuses changes nothing: the binding stays stored and in memory, the set's
+// pointer stays, the AS number is not held, and the answer says nothing was
+// cleared, with the same clear as its fix.
+// PREVENTS: the binding removed before the refusal, so consumers read no
+// binding, the next pass asks PeeringDB and writes it again, and the answer
+// claims the consumers keep enforcing a set no binding names.
+// METHOD: bind AS 65001 to the stored AS-X, refuse the pointer removal, clear
+// the AS number, then read the store, the owner's state and the answer.
+func TestRefusedClearASNKeepsBinding(t *testing.T) {
+	h := newHarness(t, newFakeState(), defaultOwnerConfig())
+	h.resolver.sets[65001] = "AS-X"
+	h.resolver.answers["AS-X"] = fakeAnswer{ipv4: prefixes("192.0.2.0/24")}
+	h.writeInterest(consumerBGP, store.Interest{ASNs: []uint32{65001}})
+	h.boot()
+
+	h.state.failRemove[store.PointerKey("AS-X")] = errors.New("store busy")
+	answer := h.owner.clearASN(context.Background(), 65001)
+	if answer.err == nil {
+		t.Fatal("a clear whose pointer removal was refused answered no error")
+	}
+	if binding, ok := h.storedBinding(65001); !ok || binding.ASSet != "AS-X" {
+		t.Errorf("the refused clear left stored binding %+v (%v), want AS-X", binding, ok)
+	}
+	if binding, ok := h.owner.bindings[65001]; !ok || binding.ASSet != "AS-X" {
+		t.Errorf("the refused clear left binding %+v (%v) in memory, want AS-X", binding, ok)
+	}
+	if _, ok := h.pointer("AS-X"); !ok {
+		t.Error("the refused clear removed the pointer of AS-X")
+	}
+	if _, held := h.owner.heldASNs[65001]; held {
+		t.Error("the refused clear holds AS 65001, which it did not clear")
+	}
+	var refusal *opererr.Error
+	if !errors.As(answer.err, &refusal) {
+		t.Fatalf("clear answered %T %v, want an operator error", answer.err, answer.err)
+	}
+	if !strings.Contains(refusal.Why(), "nothing was cleared") || !strings.Contains(refusal.Why(), "stays bound to AS-X") {
+		t.Errorf("clear said %q, want it to say nothing was cleared and AS 65001 stays bound to AS-X", refusal.Why())
+	}
+	if refusal.Fix() != "clear irr asn 65001" {
+		t.Errorf("clear named fix %q, want clear irr asn 65001", refusal.Fix())
 	}
 }

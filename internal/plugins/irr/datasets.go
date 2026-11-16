@@ -385,7 +385,10 @@ func (o *owner) moveBindingsTo(ctx context.Context, asSet string) {
 }
 
 // writeBinding stores the set asn is queried under. A refused write keeps
-// the binding in memory, so this run is consistent; a restart asks again.
+// the binding in memory, so this run is consistent; a restart asks again. A
+// stored binding replaces whatever was under its key, so it clears that key's
+// findings: a refused write, a move that could not complete, and a damaged
+// value readBindings could not decode.
 func (o *owner) writeBinding(ctx context.Context, asn uint32, asSet string) {
 	binding := store.Binding{ASSet: asSet, PeeringDBURL: o.cfg.peeringDBURL, DiscoveredAt: o.clock()}
 	o.bindings[asn] = binding
@@ -401,6 +404,7 @@ func (o *owner) writeBinding(ctx context.Context, asn uint32, asSet string) {
 		return
 	}
 	o.resolve(store.BindingKey(asn), codeIRRDatasetUnpublished)
+	o.resolve(store.BindingKey(asn), codeIRRDatasetUnreadable)
 }
 
 // errRemovalUnannounced marks a removal the store made and the consumers were
