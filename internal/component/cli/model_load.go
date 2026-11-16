@@ -252,13 +252,14 @@ func (m *Model) resolveConfigPath(path string) string {
 	return joinPath(configDir, path)
 }
 
-// parseLoadArgs parses the new load command syntax: load <source> <location> <action> [file]
+// ParseLoadArgs parses load command tokens after the verb. Browser transports
+// and corpus composition MUST use this parser rather than copy its grammar.
 // Returns (source, location, action, path, error).
 // source: "file" or "terminal"
 // location: "absolute" or "relative"
 // action: "replace" or "merge"
 // path: required when source="file", empty for "terminal"
-func parseLoadArgs(args []string) (source, location, action, path string, err error) {
+func ParseLoadArgs(args []string) (source, location, action, path string, err error) {
 	const usage = "usage: load file|terminal absolute|relative replace|merge [path]"
 
 	if len(args) < 1 {
@@ -301,7 +302,7 @@ func parseLoadArgs(args []string) (source, location, action, path string, err er
 // cmdLoadNew handles the redesigned load command syntax.
 // Syntax: load <source> <location> <action> [file].
 func (m *Model) cmdLoadNew(args []string) (commandResult, error) {
-	source, location, action, path, err := parseLoadArgs(args)
+	source, location, action, path, err := ParseLoadArgs(args)
 	if err != nil {
 		return commandResult{}, err
 	}

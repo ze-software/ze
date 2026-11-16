@@ -45,7 +45,7 @@ func (e *Editor) ExecuteConfigCommand(request contract.ConfigCommandRequest) (an
 		result, err = model.cmdHistory()
 	case cmdLoad:
 		var source, location, action, path string
-		source, location, action, path, err = parseLoadArgs(tokens[1:])
+		source, location, action, path, err = ParseLoadArgs(tokens[1:])
 		if err == nil {
 			if request.Content == nil {
 				answer.Input = source

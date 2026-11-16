@@ -23,6 +23,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config/storage"
 	webtesting "github.com/ze-software/ze/internal/component/web/testing"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/labconfig"
 	"github.com/ze-software/ze/internal/test/runner"
 	"github.com/ze-software/ze/internal/test/sessionpath"
 	"github.com/ze-software/ze/internal/test/trace"
@@ -599,49 +600,6 @@ func zeTestReadyTimeout(ctx context.Context) time.Duration {
 	return webtesting.Bound(ctx, 30*time.Second)
 }
 
-// daemonWebConfigTemplate is the config the daemon kind runs: one BGP peer
-// that never connects, so the editor has a running config to commit over.
-const daemonWebConfigTemplate = `bgp {
-	router-id 1.2.3.4
-	session {
-		asn {
-			local 65000
-		}
-	}
-	peer peer1 {
-		connection {
-			remote {
-				ip 127.0.0.2
-			}
-			local {
-				ip 127.0.0.1
-				accept false
-			}
-		}
-		session {
-			asn {
-				remote 65001
-			}
-		}
-	}
-}
-`
-
-// daemonWebConfig is daemonWebConfigTemplate with one `plugin { internal }`
-// entry for each plugin the test named with option=plugin.
-func daemonWebConfig(plugins []string) []byte {
-	var tb textbuf.Buffer
-	if len(plugins) > 0 {
-		tb.Str("plugin {\n")
-		for _, name := range plugins {
-			tb.Str("\tinternal ").Str(name).Str(" {\n\t\tuse ").Str(name).Str("\n\t}\n")
-		}
-		tb.Str("}\n")
-	}
-	tb.Str(daemonWebConfigTemplate)
-	return []byte(tb.String())
-}
-
 // zeTestStartDaemonWebServer starts the web UI on a running daemon: `ze start
 // <config> --web <port> --insecure-web`. Unlike --web-only, the daemon owns
 // the confirmed-commit window, so a web `commit confirmed` opens one.
@@ -658,7 +616,7 @@ func zeTestStartDaemonWebServer(ctx context.Context, zeBin, listenAddr string, e
 		return nil, errors.Join(fmt.Errorf("seed web users: %w", err), os.RemoveAll(tempDir))
 	}
 	configPath := filepath.Join(tempDir, "web-daemon.conf")
-	if err := os.WriteFile(configPath, daemonWebConfig(plugins), 0o600); err != nil {
+	if err := os.WriteFile(configPath, labconfig.WebDaemon(plugins), 0o600); err != nil {
 		return nil, errors.Join(fmt.Errorf("write daemon config: %w", err), os.RemoveAll(tempDir))
 	}
 	cmd := exec.CommandContext(ctx, zeBin, "start", configPath, "--web", portStr, "--insecure-web") //nolint:gosec // test binary path

@@ -101,6 +101,23 @@ Darwin, FreeBSD and OpenBSD build contexts. The fallback for other operating
 systems remains unsafe; those contexts also lack a loopback implementation in
 this package. No build context is removed by the ownership repair.
 <!-- source: internal/test/runner/process_owner.go -- ownedProcess, Wait, cleanup -->
+Linux also observes the signalled group's exit before reaping its pinned leader.
+A successful SIGKILL does not establish that every recipient has finished
+exiting, particularly when a descendant closed its inherited output. The owner
+checks the group's process and task tables for up to two seconds. A zombie
+thread-group leader counts as exited only when its lone remaining task is the
+expected zombie in that group. Additional tasks keep the wait open. Missing,
+unreadable or inconsistent observations remain lifecycle errors unless the
+descendant's disappearance is separately verified; the held leader must remain
+present. This observation adds no numeric signals and does not replace the sole
+`Cmd.Wait` or its separate output-drain bound.
+<!-- source: internal/test/runner/process_exit_linux.go -- beforeReap, waitLinuxProcessGroup, linuxProcessTasksExited, linuxProcessDisappearance -->
+Stress reproduction preserves its cancellation or deadline status and keeps the
+owner's error in the same error chain. Killing a running leader can therefore
+retain its ordinary `exec.ExitError` alongside the context cause. Cancellation
+after a successful leader exit can instead retain an output-drain failure;
+lifecycle observation failures also remain inspectable.
+<!-- source: internal/le/test/stressrepro/process.go -- runCommand -->
 <!-- source: internal/test/runner/process_exit_freebsd.go -- beforeReap -->
 <!-- source: internal/test/runner/process_exit_openbsd.go -- beforeReap, waitOpenBSDExit, openBSDChild -->
 <!-- source: internal/test/runner/runner_exec.go -- runTest, runOrchestrated -->
@@ -579,7 +596,27 @@ Unknown directives or kinds fail parsing immediately.
 
 <!-- source: internal/component/web/testing/parser.go -- parseWBOption: timeout, skip, viewport, locale, auth, server, env, plugin -->
 <!-- source: internal/component/web/testing/deadline.go -- CaseContext, Bound -->
-<!-- source: internal/test/cli/cmd_web.go -- daemonWebConfig -->
+<!-- source: internal/test/labconfig/web.go -- WebDaemon -->
+
+The daemon browser runner and repository config corpus use that same baseline
+producer, including each parsed plugin declaration. Its dummy peer explicitly
+rejects all imports and exports, retaining the closed routing behavior without
+leaving its policy unspecified. The corpus reads `.wb`
+actions through `ParseWBFile`, follows submitted editor commands and the selected
+file or pasted bytes, and judges each load against the editor's staging contract.
+Accepted intermediate drafts are counted separately from fully validated
+configurations: a load does not publish the candidate. A submitted commit command
+records the current candidate for the full configuration validator; merely filling
+the input with a commit command records no publication boundary. Invalid syntax,
+typed values and refused load operations still fail draft composition. A filename
+typed after `load file` is a label; the `upload` action names
+the physical source. Relative loads retain the replayed editor context, and
+replacement loads cannot borrow omitted mandatory settings from the baseline.
+An unsupported composition is a finding and leaves the physical file eligible
+for standalone validation. No fixture-specific validation exception is needed.
+
+<!-- source: internal/component/config/cli/validate_corpus_browser_test.go -- sweepContext.browserSequences, browserCorpus.command, browserCorpus.apply -->
+<!-- source: internal/component/config/cli/validate_corpus_test.go -- loadCorpusStep, sweepContext.judgeSequence -->
 The scheduler starts the case deadline before server startup. It passes the
 parsed case and that context to `RunWBCase`; browser execution does not re-read
 the authored file or restart its budget. Parse errors refuse execution before

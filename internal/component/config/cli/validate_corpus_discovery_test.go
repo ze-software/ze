@@ -21,7 +21,7 @@ import (
 // It is the one declaration of the population: sweepSourceFiles builds its Git
 // pathspec from it, runSweep files each discovered path under it, and
 // emptyKinds refuses a sweep in which any of them produced nothing.
-var sweepCarrierKinds = []string{".conf", ".ci", ".tape"}
+var sweepCarrierKinds = []string{".conf", ".ci", ".tape", ".wb"}
 
 // sweepSourceFiles uses the trackableFiles population from le/feature:
 // tracked files plus untracked files Git's ignore rules permit. Git owns the

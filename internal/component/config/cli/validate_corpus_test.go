@@ -36,7 +36,7 @@ import (
 // files outside the runner's draft tree: each `.conf`, each `.ci` tmpfs
 // `.conf`, each `.ci` stdin block a command
 // hands to ze as a daemon config or a `ze config` input, each fragment a test
-// or a demo tape loads into a running config (validated merged, in the order
+// or a demo tape or browser workflow loads into a running config (validated merged, in the order
 // it is loaded), and the `ze exabgp migrate` output of every ExaBGP config. Every
 // config a carrying test declares refused (refused=<code> on its tmpfs or
 // stdin block) must be
@@ -147,6 +147,7 @@ type sweepCarrier struct {
 type loadStep struct {
 	source  string
 	body    string
+	path    []string // nil means absolute; relative loads name their actual editor context
 	replace bool
 	refused string
 }
@@ -156,6 +157,7 @@ type loadSequence struct {
 	source string
 	base   string
 	steps  []loadStep
+	draft  bool // A parsed browser load stages a candidate; its commit is a separate boundary.
 }
 
 // sweepReport is what one sweep found and counted.
@@ -168,6 +170,7 @@ type sweepReport struct {
 	skipped      int
 	sequences    int
 	steps        int
+	stagedDrafts int
 	legacyNative []string
 	hostVerdicts map[string]int
 	// kinds counts, per sweepCarrierKinds extension, the carriers and load
@@ -207,9 +210,9 @@ func (r *sweepReport) log(t *testing.T) {
 	}
 	slices.Sort(codes)
 	t.Logf("validated %d Ze configs and %d migrated ExaBGP configs; %d declared refused and asserted refused; "+
-		"%d skipped as refused by an exit expectation; %d load sequences (%d steps); %d legacy native fixtures skipped; "+
+		"%d skipped as refused by an exit expectation; %d load sequences (%d steps); %d accepted editor draft loads; %d legacy native fixtures skipped; "+
 		"host verdicts skipped: [%s]",
-		r.zeConfigs, r.migrated, r.refused, r.skipped, r.sequences, r.steps, len(r.legacyNative), strings.Join(codes, " "))
+		r.zeConfigs, r.migrated, r.refused, r.skipped, r.sequences, r.steps, r.stagedDrafts, len(r.legacyNative), strings.Join(codes, " "))
 	for _, legacy := range r.legacyNative {
 		t.Logf("legacy native fixture, not validated: %s", legacy)
 	}
@@ -262,7 +265,7 @@ func runSweep(t *testing.T, off sweepRule, keep sweepKeep) *sweepReport {
 		report: &sweepReport{hostVerdicts: map[string]int{}, kinds: map[string]int{}},
 	}
 
-	var confs, cis, tapes []string
+	var confs, cis, tapes, browsers []string
 	files, err := sweepSourceFiles(t.Context(), s.root, keep)
 	if err != nil {
 		t.Fatalf("discover %s: %v", s.root, err)
@@ -275,6 +278,8 @@ func runSweep(t *testing.T, off sweepRule, keep sweepKeep) *sweepReport {
 			cis = append(cis, path)
 		case ".tape":
 			tapes = append(tapes, path)
+		case ".wb":
+			browsers = append(browsers, path)
 		}
 	}
 
@@ -284,6 +289,11 @@ func runSweep(t *testing.T, off sweepRule, keep sweepKeep) *sweepReport {
 		tapeSequences := s.tapeSequences(tape, loaded)
 		s.report.kinds[".tape"] += len(tapeSequences)
 		sequences = append(sequences, tapeSequences...)
+	}
+	for _, browser := range browsers {
+		browserSequences := s.browserSequences(browser, loaded)
+		s.report.kinds[".wb"] += len(browserSequences)
+		sequences = append(sequences, browserSequences...)
 	}
 	var carriers []sweepCarrier
 	for _, path := range confs {
@@ -642,7 +652,8 @@ func (s *sweepContext) judgeCarrier(c *sweepCarrier) {
 	s.checkBody(*c)
 }
 
-// judgeSequence validates the running config after each step of a sequence.
+// judgeSequence judges each load against its consumer's contract. Browser loads
+// stage editor drafts; explicit commit snapshots retain the full config oracle.
 // The steps load through the editor's own LoadMerge and LoadReplace, so the
 // running config after a step is the one an operator's `load file` leaves.
 func (s *sweepContext) judgeSequence(seq *loadSequence) {
@@ -665,6 +676,10 @@ func (s *sweepContext) judgeSequence(seq *loadSequence) {
 		if err != nil {
 			s.report.find(source + ": " + err.Error())
 			continue // Reported; later steps load onto the config before it.
+		}
+		if seq.draft {
+			s.report.stagedDrafts++
+			continue
 		}
 		s.checkBody(sweepCarrier{source: source, body: loaded})
 	}
@@ -694,29 +709,28 @@ func (s *sweepContext) load(running string, step *loadStep) (string, error) {
 	if err != nil {
 		return "", err
 	}
-	fragment, err := parseAnyFormat(s.schema, step.body)
-	if err != nil {
-		return "", errors.New("config-parse: " + err.Error())
-	}
-	if step.replace {
-		err = editor.LoadReplace(nil, fragment)
-	} else {
-		err = editor.LoadMerge(nil, fragment)
-	}
-	if err != nil {
+	defer func() {
+		if err := editor.Close(); err != nil {
+			s.t.Errorf("close corpus editor: %v", err)
+		}
+	}()
+	if err := loadCorpusStep(editor, step); err != nil {
 		return "", err
 	}
 	return editor.WorkingContent(), nil
 }
 
-// parseAnyFormat parses a body in whichever format it is written, as
-// `ze config migrate` does.
-func parseAnyFormat(schema *config.Schema, body string) (*config.Tree, error) {
-	format := config.DetectFormat(body)
-	if format == config.FormatSet || format == config.FormatSetMeta {
-		return config.NewSetParser(schema).Parse(body)
+// loadCorpusStep is shared by sequence validation and browser command replay,
+// so relative parsing and replacement have the same meaning in both readers.
+func loadCorpusStep(editor *editorcli.Editor, step *loadStep) error {
+	fragment, err := editor.ParseLoad(step.body, step.path)
+	if err != nil {
+		return errors.New("config-parse: " + err.Error())
 	}
-	return config.NewParser(schema).Parse(body)
+	if step.replace {
+		return editor.LoadReplace(step.path, fragment)
+	}
+	return editor.LoadMerge(step.path, fragment)
 }
 
 // checkBody validates one body and records each error and each RFC 8212

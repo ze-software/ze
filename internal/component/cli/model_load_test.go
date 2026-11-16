@@ -383,7 +383,7 @@ func TestModelLoadRelativePath(t *testing.T) {
 // New syntax: load <source> <location> <action> [file]
 // =============================================================================
 
-// TestParseLoadArgsValid verifies parseLoadArgs handles all valid keyword combinations.
+// TestParseLoadArgsValid verifies ParseLoadArgs handles all valid keyword combinations.
 //
 // VALIDATES: All 8 valid keyword combinations are parsed correctly.
 // PREVENTS: Valid load commands rejected.
@@ -464,7 +464,7 @@ func TestParseLoadArgsValid(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			source, location, action, path, err := parseLoadArgs(tt.args)
+			source, location, action, path, err := ParseLoadArgs(tt.args)
 			require.NoError(t, err, "valid args should not error")
 			assert.Equal(t, tt.wantSource, source, "source mismatch")
 			assert.Equal(t, tt.wantLocation, location, "location mismatch")
@@ -474,7 +474,7 @@ func TestParseLoadArgsValid(t *testing.T) {
 	}
 }
 
-// TestParseLoadArgsErrors verifies parseLoadArgs rejects invalid inputs.
+// TestParseLoadArgsErrors verifies ParseLoadArgs rejects invalid inputs.
 //
 // VALIDATES: Missing/invalid keywords produce clear errors.
 // PREVENTS: Silent failures or cryptic error messages.
@@ -533,7 +533,7 @@ func TestParseLoadArgsErrors(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			_, _, _, _, err := parseLoadArgs(tt.args)
+			_, _, _, _, err := ParseLoadArgs(tt.args)
 			require.Error(t, err, "invalid args should error")
 			assert.Contains(t, err.Error(), tt.wantErrText, "error should mention %s", tt.wantErrText)
 		})

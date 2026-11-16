@@ -414,6 +414,16 @@ regression corpus. Discovery warnings and source read errors fail the sweep,
 including when a narrowed exclusion test would not select that file.
 <!-- source: internal/component/config/cli/validate_corpus_discovery_test.go -- sweepSourceFiles -->
 
+Its carrier population also includes browser `.wb` workflows. A browser-selected
+file is judged in the parsed workflow's load composition, using the browser
+daemon's own baseline and the shared editor's merge or replace operation. An
+accepted editor draft is counted separately; its submitted commit snapshot uses
+the full configuration validator. Standalone and applied config oracles remain
+unchanged. The fragment is
+not made standalone by adding settings that the running daemon already supplies.
+Unconsumed `.conf` files retain their standalone validation.
+<!-- source: internal/component/config/cli/validate_corpus_browser_test.go -- sweepContext.browserSequences -->
+
 ### Mode Defaults
 
 A file with no `mode=` takes its mode from its extension: `0755` for `.py`,
