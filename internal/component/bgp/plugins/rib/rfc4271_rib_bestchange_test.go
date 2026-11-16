@@ -284,13 +284,11 @@ func TestPurgeBestPrevForPeerUnknown(t *testing.T) {
 // VALIDATES: purgeBestPrevForPeer calls r.locRIB.Remove for every victim
 // so cross-protocol consumers see the withdrawal at DOWN time rather than
 // when a later UPDATE fires.
-// PREVENTS: a regression that skips the locrib mirror (TestPurgeBestPrev-
-// ForPeer uses locRIB == nil, so it could not catch this).
+// PREVENTS: a regression that skips the locrib mirror.
 func TestPurgeBestPrevForPeerLocRIB(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.7.7"))
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	peerAddr := netip.MustParseAddr("192.0.2.10")
@@ -333,6 +331,7 @@ func TestPurgeBestPrevForPeerLocRIB(t *testing.T) {
 func TestPurgeBestPrevForPeerAddPath(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.20.20"), netip.MustParseAddr("192.168.21.21"))
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	leavingPeer := netip.MustParseAddr("192.0.2.20")
@@ -413,6 +412,7 @@ func TestPurgeBestPrevForPeerAddPath(t *testing.T) {
 func TestBestChangeEntryPathIDPropagation(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.30.30"))
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	leavingPeer := netip.MustParseAddr("192.0.2.30")
@@ -500,6 +500,7 @@ func TestBestChangeEntryPathIDPropagation(t *testing.T) {
 func TestBestChangeEntryPathIDNonAddPath(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.40.40"))
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	peerAddr := netip.MustParseAddr("192.0.2.40")
@@ -538,6 +539,7 @@ func TestBestChangeEntryPathIDNonAddPath(t *testing.T) {
 func TestBestChangeEntryAddPathZeroPathID(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.41.41"))
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	peerAddr := netip.MustParseAddr("192.0.2.41")
@@ -574,6 +576,7 @@ func TestBestChangeEntryAddPathZeroPathID(t *testing.T) {
 func TestPurgeBestPrevForPeerMultiFamily(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.30.30"))
 
 	family4 := family.Family{AFI: 1, SAFI: 1} // ipv4/unicast
 	family6 := family.Family{AFI: 2, SAFI: 1} // ipv6/unicast
@@ -637,6 +640,7 @@ func TestPurgeBestPrevForPeerMultiFamily(t *testing.T) {
 func TestPurgeBestPrevForPeerHandleState(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.40.40"))
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	peerAddr := netip.MustParseAddr("192.0.2.40")
@@ -670,6 +674,7 @@ func TestPurgeBestPrevForPeerHandleState(t *testing.T) {
 func TestRIBBestChangeNoPublishSameBest(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
@@ -699,6 +704,7 @@ func TestRIBBestChangeNoPublishSameBest(t *testing.T) {
 func TestRIBBestChangeWithdraw(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
@@ -730,6 +736,7 @@ func TestRIBBestChangeWithdraw(t *testing.T) {
 func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
@@ -788,6 +795,7 @@ func TestRIBBestChangeBatchPeerDown(t *testing.T) {
 func TestRIBBestChangeEBGPMetadata(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
@@ -817,6 +825,7 @@ func TestRIBBestChangeEBGPMetadata(t *testing.T) {
 func TestRIBBestChangeIBGPMetadata(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65000, LocalASN: 65000} // same AS = iBGP
@@ -839,6 +848,7 @@ func TestRIBBestChangeIBGPMetadata(t *testing.T) {
 func TestRIBBestChangeEBGPPriority(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
@@ -861,6 +871,7 @@ func TestRIBBestChangeEBGPPriority(t *testing.T) {
 func TestRIBBestChangeIBGPPriority(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65000, LocalASN: 65000} // same AS = iBGP
@@ -883,6 +894,7 @@ func TestRIBBestChangeIBGPPriority(t *testing.T) {
 func TestRIBBestChangeUpdate(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"))
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
@@ -918,6 +930,7 @@ func TestRIBBestChangeUpdate(t *testing.T) {
 func TestRIBReplayOnSubscribe(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	// Set up a peer with a route and establish best path.
 	peerAddr := netip.MustParseAddr("192.0.2.1")
@@ -969,6 +982,7 @@ func TestRIBReplayOnSubscribe(t *testing.T) {
 func TestRIBReplayCarriesASPath(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
@@ -1006,6 +1020,7 @@ func TestRIBReplayCarriesASPath(t *testing.T) {
 func TestRIBBestChangeCarriesTheWinnerAttributes(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
@@ -1043,6 +1058,7 @@ func TestRIBBestChangeCarriesTheWinnerAttributes(t *testing.T) {
 func TestRIBBestChangeOnAttributeOnlyChange(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
@@ -1080,6 +1096,7 @@ func TestRIBBestChangeOnAttributeOnlyChange(t *testing.T) {
 func TestRIBBroadcastReplayCharacterization(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	// Two prefixes so the assertion is a genuine full-table walk, not a single
 	// entry that could pass by coincidence.
@@ -1415,6 +1432,7 @@ func TestBestPrevInternerChurnBounded(t *testing.T) {
 func TestPurgeBestPrevForPeerReclaimsInternerSlot(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.9.9"))
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	peerA := netip.MustParseAddr("192.0.2.50")
@@ -1657,8 +1675,7 @@ func TestLocRIBMirror(t *testing.T) {
 // which would regress the feature back to "library only" state.
 func TestLocRIBMirrorPropagatesForwardHandle(t *testing.T) {
 	r := newTestRIBManager(t)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	var seen []locrib.Change
 	loc.OnChange(func(c locrib.Change) { seen = append(seen, c) })
@@ -1931,8 +1948,7 @@ func TestBgpStampsTheDeclaredDistanceNotItsOwn(t *testing.T) {
 	defer ribdistance.Set(nil)
 
 	r := newTestRIBManager(t)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
@@ -1967,8 +1983,7 @@ func TestBgpFallsBackToItsBootstrapBeforeConfigure(t *testing.T) {
 	ribdistance.Set(nil)
 
 	r := newTestRIBManager(t)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}

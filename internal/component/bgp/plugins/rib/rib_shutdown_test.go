@@ -15,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
+	"github.com/ze-software/ze/internal/core/redistevents"
 	"github.com/ze-software/ze/internal/core/rib/igpcost"
 	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -34,6 +35,11 @@ func TestRIBShutdownDrainsStructuredPeerDown(t *testing.T) {
 	release := make(chan struct{})
 	var releaseOnce sync.Once
 	var loc *locrib.RIB
+	peer := netip.MustParseAddr("192.0.2.254")
+	nextHopPrefix := netip.PrefixFrom(peer, 32)
+	connected := redistevents.RegisterProtocol("connected")
+	const nextHopInstance = 1
+	var nextHopInserted bool
 	prefix := netip.MustParsePrefix("198.18.255.0/24")
 	go func() {
 		defer close(exited)
@@ -52,6 +58,9 @@ func TestRIBShutdownDrainsStructuredPeerDown(t *testing.T) {
 		case <-exited:
 			if loc != nil {
 				loc.Remove(family.IPv4Unicast, prefix, bgpProtocolID, 0)
+				if nextHopInserted {
+					loc.Remove(family.IPv4Unicast, nextHopPrefix, connected, nextHopInstance)
+				}
 			}
 		case <-time.After(5 * time.Second):
 			t.Error("RIB plugin did not join during cleanup")
@@ -85,7 +94,27 @@ func TestRIBShutdownDrainsStructuredPeerDown(t *testing.T) {
 	if loc == nil {
 		t.Fatal("the in-process RIB plugin has no Loc-RIB")
 	}
-	peer := netip.MustParseAddr("192.0.2.254")
+	var nextHopExists bool
+	loc.Inspect(family.IPv4Unicast, nextHopPrefix, func(group locrib.PathGroup) {
+		for _, path := range group.Paths {
+			if path.Source != connected {
+				continue
+			}
+			if path.Instance == nextHopInstance {
+				nextHopExists = true
+			}
+		}
+	})
+	if nextHopExists {
+		t.Fatal("shared Loc-RIB already holds the fixture's connected next-hop contribution")
+	}
+	loc.Insert(family.IPv4Unicast, nextHopPrefix, locrib.Path{
+		Source: connected, Instance: nextHopInstance, Interface: "rib-shutdown-fixture0",
+	})
+	nextHopInserted = true
+	if !igpcost.Resolve(loc, peer).Resolved {
+		t.Fatal("independent connected next-hop prerequisite did not resolve")
+	}
 	r.peerMu.Lock()
 	purgeTestPeer(r, peer, 65001)
 	r.bgpPeers[peer].Insert(family.IPv4Unicast, makeAttrBytes([4]byte{192, 0, 2, 254}), []byte{24, 198, 18, 255})
@@ -226,9 +255,7 @@ func TestRIBPeerDownFencesPendingElection(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	r := newTestRIBManager(t)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
-	t.Cleanup(func() { r.SetLocRIB(nil) })
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.253"))
 	peer := netip.MustParseAddr("192.0.2.253")
 	prefix := netip.MustParsePrefix("198.18.252.0/24")
 	wirePrefix := []byte{24, 198, 18, 252}
@@ -378,9 +405,7 @@ func TestRIBPublicationAllowsPeerReaderDuringDown(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	r := newTestRIBManager(t)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
-	t.Cleanup(func() { r.SetLocRIB(nil) })
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.252"))
 	peer := netip.MustParseAddr("192.0.2.252")
 	purgeTestPeer(r, peer, 65001)
 	wirePrefix := []byte{24, 198, 18, 251}
@@ -451,9 +476,8 @@ func TestRIBReplacementDuringPurgeKeepsPeerSlot(t *testing.T) {
 	defer cancel()
 	r := newTestRIBManager(t)
 	r.bestPrev.nShards = 2
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
-	t.Cleanup(func() { r.SetLocRIB(nil) })
+	loc := electionFixtureLocRIB(t, r,
+		netip.MustParseAddr("192.0.2.251"), netip.MustParseAddr("192.0.2.250"))
 	var prefixes [2]netip.Prefix
 	var wirePrefixes [2][]byte
 	for i := range 256 {
@@ -560,6 +584,7 @@ func TestRIBPeerSlotReferencesFollowBestRecords(t *testing.T) {
 	r := newTestRIBManager(t)
 	peerA := netip.MustParseAddr("192.0.2.247")
 	peerB := netip.MustParseAddr("192.0.2.248")
+	electionFixtureLocRIB(t, r, peerA, peerB)
 	purgeTestPeer(r, peerA, 65001)
 	purgeTestPeer(r, peerB, 65002)
 	prefixes := [][]byte{{24, 198, 18, 247}, {24, 198, 18, 248}}
@@ -605,6 +630,8 @@ func TestRIBCandidateSnapshotSurvivesRouteMutation(t *testing.T) {
 			ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 			defer cancel()
 			r := newTestRIBManager(t)
+			electionFixtureLocRIB(t, r,
+				netip.MustParseAddr("192.0.2.246"), netip.MustParseAddr("192.0.2.245"))
 			peer := netip.MustParseAddr("192.0.2.246")
 			purgeTestPeer(r, peer, 65001)
 			routes := r.bgpPeers[peer]
@@ -679,9 +706,7 @@ func TestRIBPeerDownFencesUnrecordedElection(t *testing.T) {
 	ctx, cancel := context.WithTimeout(t.Context(), 5*time.Second)
 	defer cancel()
 	r := newTestRIBManager(t)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
-	t.Cleanup(func() { r.SetLocRIB(nil) })
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.244"))
 	peer := netip.MustParseAddr("192.0.2.244")
 	peerName := peer.String()
 	prefix := netip.MustParsePrefix("198.18.244.0/24")
@@ -790,9 +815,7 @@ func TestRIBFailedPublicationReleasesPeerAdmission(t *testing.T) {
 	for _, table := range []string{"next-hop", "metric"} {
 		t.Run(table, func(t *testing.T) {
 			r := newTestRIBManager(t)
-			loc := locrib.NewRIB()
-			r.SetLocRIB(loc)
-			t.Cleanup(func() { r.SetLocRIB(nil) })
+			loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.243"))
 			for i := range internerCap {
 				var ok bool
 				if table == "next-hop" {

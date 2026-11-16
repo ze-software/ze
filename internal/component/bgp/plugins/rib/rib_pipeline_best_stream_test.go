@@ -48,6 +48,7 @@ const bestPathGoldenPayload = `{"best-path":[{"family":"ipv4/unicast","prefix":"
 // that lost an attribute, or gained one, is visible in the golden above.
 func seedBestPathFixture(t *testing.T, r *RIBManager) {
 	t.Helper()
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 
 	fam := family.IPv4Unicast
 
@@ -117,6 +118,7 @@ var seededASNs atomic.Uint32
 // prefix and its own AS path.
 func seedBestPathRows(t testing.TB, r *RIBManager, rows int) *storage.PeerRIB {
 	t.Helper()
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	require.Less(t, rows, 1<<24, "the seeded prefixes must fit 10.x.y.z/32")
 
 	base := 65000 + seededASNs.Add(uint32(rows)) - uint32(rows)
@@ -259,6 +261,7 @@ func TestBestPipelineNoLockAcrossWrite(t *testing.T) {
 // carry another route's attributes rather than an error.
 func TestBestPipelineHandleSafeOutsideLock(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 
 	fam := family.IPv4Unicast
 	nlri := []byte{24, 10, 0, 0}

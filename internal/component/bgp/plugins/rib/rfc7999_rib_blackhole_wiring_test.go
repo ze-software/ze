@@ -52,8 +52,7 @@ var (
 func blackholeRIB(t *testing.T, peer netip.Addr, cfg blackholeConfig) (*RIBManager, *locrib.RIB) {
 	t.Helper()
 	r := newTestRIBManagerWithBus(newTestEventBus())
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
 	r.bgpPeers[peer] = storage.NewPeerRIB(peer.String())
 	if cfg.hasAnyRule() {
@@ -73,8 +72,7 @@ func blackholeMemberRIB(t *testing.T, peer netip.Addr, group string,
 ) (*RIBManager, *locrib.RIB) {
 	t.Helper()
 	r := newTestRIBManagerWithBus(newTestEventBus())
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000, GroupName: group}
 	r.bgpPeers[peer] = storage.NewPeerRIB(peer.String())
 	r.blackholeCfg.Store(&rules)

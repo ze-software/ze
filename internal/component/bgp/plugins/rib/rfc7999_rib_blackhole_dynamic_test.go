@@ -19,7 +19,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/configjson"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
-	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/internal/core/rib/routetype"
 )
 
@@ -37,8 +36,7 @@ import (
 func TestBlackholeGroupIdentityArrivesOnAStructuredEvent(t *testing.T) {
 	member := netip.MustParseAddr("192.0.2.9")
 	r := newTestRIBManagerWithBus(newTestEventBus())
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 	rules := map[configjson.PeerConfigKey]blackholeConfig{
 		configjson.GroupKey("ix"): {
 			communities: agreedBlackhole,
@@ -56,7 +54,7 @@ func TestBlackholeGroupIdentityArrivesOnAStructuredEvent(t *testing.T) {
 		0x00, 0x15, // Total Path Attribute Length 21
 		0x40, 0x01, 0x01, 0x00, // ORIGIN = IGP
 		0x40, 0x02, 0x00, // AS_PATH = empty
-		0x40, 0x03, 0x04, 0x0a, 0x00, 0x00, 0x01, // NEXT_HOP = 10.0.0.1
+		0x40, 0x03, 0x04, 0xc0, 0xa8, 0x01, 0x01, // NEXT_HOP = 192.168.1.1
 		0xC0, 0x08, 0x04, 0xFF, 0xFF, 0x02, 0x9A, // COMMUNITIES = 65535:666
 		0x20, 0x0a, 0x00, 0x00, 0x01, // NLRI 10.0.0.1/32
 	})

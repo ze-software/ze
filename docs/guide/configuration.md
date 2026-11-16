@@ -891,9 +891,10 @@ A peer can ask Ze to discard the traffic for a prefix. It does this by tagging
 the announcement with the BLACKHOLE community, 65535:666. Ze installs a discard
 route for that prefix, and the traffic is dropped in the kernel FIB or in VPP.
 
-Ze installs the discard route itself. There is no next-hop to allocate and no
-static route to pre-create: the community is read on the session and the prefix
-is programmed as a discard directly.
+Ze installs the discard route itself; the discard action needs no separate
+blackhole next hop or static discard route. The received BGP path must still
+pass ordinary admission and best-path selection, including resolution of its
+advertised NEXT_HOP.
 
 Honoring is off by default and is configured per session. Each leaf-list is a
 separate condition from RFC 7999 Section 3.3.
