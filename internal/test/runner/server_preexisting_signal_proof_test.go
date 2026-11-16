@@ -28,11 +28,12 @@ import (
 func TestServerCloseAndStopPreservePreexistingSignalsWithHeldPipe(t *testing.T) {
 	for _, action := range []string{"close-kill", "stop-kill", "stop-term"} {
 		t.Run(action, func(t *testing.T) {
-			listener, err := net.Listen("tcp", "127.0.0.1:0")
+			var listenConfig net.ListenConfig
+			listener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer listener.Close()
+			defer listener.Close() //nolint:errcheck // Teardown releases the listener after the socket assertions; it has no buffered output.
 			self, err := os.Executable()
 			if err != nil {
 				t.Fatal(err)
@@ -78,14 +79,18 @@ func TestServerCloseAndStopPreservePreexistingSignalsWithHeldPipe(t *testing.T) 
 				cancel()
 				_ = server.Close() // The cached unexpected failure is asserted below.
 			})
-			if err := listener.(*net.TCPListener).SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			tcpListener, ok := listener.(*net.TCPListener)
+			if !ok {
+				t.Fatalf("TCP listener has type %T", listener)
+			}
+			if err := tcpListener.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
 				t.Fatal(err)
 			}
 			connection, err := listener.Accept()
 			if err != nil {
 				t.Fatal(err)
 			}
-			defer connection.Close()
+			defer connection.Close() //nolint:errcheck // The read-only observer socket has no buffered output to flush.
 			var descendantPID int
 			if err := json.NewDecoder(connection).Decode(&descendantPID); err != nil {
 				t.Fatal(err)
@@ -118,13 +123,15 @@ func TestServerCloseAndStopPreservePreexistingSignalsWithHeldPipe(t *testing.T) 
 			releaseOnce.Do(func() { close(release) })
 			select {
 			case result := <-done:
-				var exited *exec.ExitError
-				if !errors.As(result, &exited) {
+				if exited, ok := errors.AsType[*exec.ExitError](result); !ok {
 					t.Errorf("%s concealed the preexisting signal death: %v", action, result)
 				} else if status, ok := exited.Sys().(syscall.WaitStatus); !ok || !status.Signaled() || status.Signal() != wantSignal {
 					t.Errorf("%s lost the actual preexisting signal %v: %v", action, wantSignal, result)
 				}
-				if repeated := server.Close(); result == nil || repeated != result {
+				repeated := server.Close()
+				if result == nil {
+					t.Errorf("%s did not retain its single cached unexpected failure: %v / %v", action, result, repeated)
+				} else if repeated != result { //nolint:errorlint // Repeated Close must return this identical cached failure, not an error wrapping it.
 					t.Errorf("%s did not retain its single cached unexpected failure: %v / %v", action, result, repeated)
 				}
 			case <-ctx.Done():
@@ -136,8 +143,10 @@ func TestServerCloseAndStopPreservePreexistingSignalsWithHeldPipe(t *testing.T) 
 			var one [1]byte
 			if _, err := connection.Read(one[:]); err == nil {
 				t.Error("held-pipe descendant wrote after cleanup")
-			} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
-				t.Error("held-pipe descendant survived cleanup")
+			} else if timeout, ok := errors.AsType[net.Error](err); ok {
+				if timeout.Timeout() {
+					t.Error("held-pipe descendant survived cleanup")
+				}
 			}
 		})
 	}
@@ -148,7 +157,7 @@ func TestServerPreexistingSignalParent(t *testing.T) {
 	if name == "" {
 		return
 	}
-	child := exec.Command(os.Args[0], "-test.run=^TestServerHeldPipeProcess$")
+	child := exec.Command(os.Args[0], "-test.run=^TestServerHeldPipeProcess$") //nolint:noctx // The descendant must retain the pipe after this parent dies; owned group cleanup stops it.
 	child.Env = append(os.Environ(), "SERVER_HELD_PIPE_ROLE=descendant")
 	child.Stdout, child.Stderr = os.Stdout, os.Stderr
 	if err := child.Start(); err != nil {

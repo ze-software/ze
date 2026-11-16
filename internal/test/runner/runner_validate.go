@@ -635,7 +635,7 @@ func (r *Runner) httpClientForCheck(chk *httpCheck, rec *Record) *http.Client {
 	transport := &http.Transport{}
 	if netnsModeActive() {
 		// The daemon listens inside the test's own namespace, which the
-		// transport's dialling goroutine is not in (netnsDialContext).
+		// transport's dialing goroutine is not in (netnsDialContext).
 		transport.DialContext = netnsDialContext(testNetnsName(rec.Nick, rec.Port))
 	}
 	if chk.InsecureTLS {

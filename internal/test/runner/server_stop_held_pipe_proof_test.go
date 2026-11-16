@@ -27,11 +27,12 @@ import (
 // still holds stdout and its observer socket; the owner has not retired. Stop
 // must not reinterpret that preexisting exit as its expected deliberate exit 1.
 func TestServerStopRejectsPreexistingExitWithHeldPipe(t *testing.T) {
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	var listenConfig net.ListenConfig
+	listener, err := listenConfig.Listen(t.Context(), "tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer listener.Close()
+	defer listener.Close() //nolint:errcheck // Teardown releases the listener after the socket assertions; it has no buffered output.
 	self, err := os.Executable()
 	if err != nil {
 		t.Fatal(err)
@@ -73,14 +74,18 @@ func TestServerStopRejectsPreexistingExitWithHeldPipe(t *testing.T) {
 		cancel()
 		_ = server.Close() // The same cleanup failure is asserted below on ordinary paths.
 	})
-	if err := listener.(*net.TCPListener).SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
+	tcpListener, ok := listener.(*net.TCPListener)
+	if !ok {
+		t.Fatalf("TCP listener has type %T", listener)
+	}
+	if err := tcpListener.SetDeadline(time.Now().Add(5 * time.Second)); err != nil {
 		t.Fatal(err)
 	}
 	connection, err := listener.Accept()
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer connection.Close()
+	defer connection.Close() //nolint:errcheck // The read-only observer socket has no buffered output to flush.
 	var descendantPID int
 	if err := json.NewDecoder(connection).Decode(&descendantPID); err != nil {
 		t.Fatal(err)
@@ -138,15 +143,17 @@ func TestServerStopRejectsPreexistingExitWithHeldPipe(t *testing.T) {
 	var one [1]byte
 	if _, err := connection.Read(one[:]); err == nil {
 		t.Error("held-pipe descendant wrote after Stop")
-	} else if timeout, ok := err.(net.Error); ok && timeout.Timeout() {
-		t.Error("held-pipe descendant survived Stop")
+	} else if timeout, ok := errors.AsType[net.Error](err); ok {
+		if timeout.Timeout() {
+			t.Error("held-pipe descendant survived Stop")
+		}
 	}
 }
 
 func TestServerHeldPipeProcess(t *testing.T) {
 	switch os.Getenv("SERVER_HELD_PIPE_ROLE") {
 	case "parent":
-		child := exec.Command(os.Args[0], "-test.run=^TestServerHeldPipeProcess$")
+		child := exec.Command(os.Args[0], "-test.run=^TestServerHeldPipeProcess$") //nolint:noctx // The descendant must retain the pipe after this parent exits; owned group cleanup stops it.
 		child.Env = append(os.Environ(), "SERVER_HELD_PIPE_ROLE=descendant")
 		child.Stdout, child.Stderr = os.Stdout, os.Stderr
 		if err := child.Start(); err != nil {
@@ -155,11 +162,12 @@ func TestServerHeldPipeProcess(t *testing.T) {
 		os.Exit(1)
 	case "descendant":
 		signal.Ignore(syscall.SIGTERM)
-		connection, err := net.DialTimeout("tcp", os.Getenv("SERVER_HELD_PIPE_ADDRESS"), 5*time.Second)
+		dialer := net.Dialer{Timeout: 5 * time.Second}
+		connection, err := dialer.DialContext(t.Context(), "tcp", os.Getenv("SERVER_HELD_PIPE_ADDRESS"))
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer connection.Close()
+		defer connection.Close() //nolint:errcheck // The peer reads the PID before this process exits; no buffered output remains.
 		if err := json.NewEncoder(connection).Encode(os.Getpid()); err != nil {
 			t.Fatal(err)
 		}
@@ -167,6 +175,6 @@ func TestServerHeldPipeProcess(t *testing.T) {
 		if _, err := connection.Read(control[:]); err == nil {
 			t.Fatal("unexpected held-pipe control byte")
 		}
-		os.Exit(0)
+		os.Exit(0) //nolint:gocritic // Deliberate subprocess exit closes the socket in the kernel; the defer still covers Fatal paths.
 	}
 }

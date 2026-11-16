@@ -178,7 +178,7 @@ func TestProvisionNetnsLinksMakesNextHopRoutable(t *testing.T) {
 // daemon listening on the per-test namespace's loopback. Method: a listener is
 // opened on 127.0.0.1 inside a fresh named namespace and the thread returns to
 // the original namespace, as the runner's locked thread does not hold the
-// transport's dialling goroutine. A client built the way the runner builds it
+// transport's dialing goroutine. A client built the way the runner builds it
 // in netns mode must answer 200; a plain client on the same address must be
 // refused, which is the defect the dialer exists to fix (pppoe-service-name,
 // pppoe-per-mac-cap and pppoe-realm-relay-nomatch were refused this way).
@@ -207,7 +207,8 @@ func TestNetnsDialContextReachesTheTestNamespace(t *testing.T) {
 	if err := bringLoopbackUp(); err != nil {
 		t.Fatalf("bring loopback up in %q: %v", nsName, err)
 	}
-	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	var listenConfig net.ListenConfig
+	listener, err := listenConfig.Listen(t.Context(), "tcp4", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen inside %q: %v", nsName, err)
 	}

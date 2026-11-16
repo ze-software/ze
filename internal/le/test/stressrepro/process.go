@@ -54,14 +54,14 @@ func (realProcessRunner) Invoke(ctx context.Context, spec invocation) processRes
 // argument boundaries, including quoted selectors and registered suite options.
 func (spec invocation) argv() ([]string, error) {
 	var testWords []string
-	if spec.selector != "" {
-		testWords = []string{spec.selector}
-	} else {
+	if spec.selector == "" {
 		var err error
 		testWords, err = shellWords(spec.test)
 		if err != nil {
 			return nil, fmt.Errorf("split test: %w", err)
 		}
+	} else {
+		testWords = []string{spec.selector}
 	}
 	argv := make([]string, 0, len(spec.harness)+2+max(1, len(testWords)))
 	argv = append(argv, "test")

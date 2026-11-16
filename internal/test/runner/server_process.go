@@ -83,7 +83,7 @@ func (s *ServerProcess) StopGroup(signal syscall.Signal, grace time.Duration, ex
 }
 
 func (s *ServerProcess) stop(signal syscall.Signal, grace time.Duration, expectedExitCode int, wholeGroup bool) {
-	signalErr, acceptedSignal, acceptedExitCode := s.signalStop(signal, expectedExitCode, wholeGroup)
+	acceptedSignal, acceptedExitCode, signalErr := s.signalStop(signal, expectedExitCode, wholeGroup)
 	timer := time.NewTimer(grace)
 	defer timer.Stop()
 	select {
@@ -96,15 +96,15 @@ func (s *ServerProcess) stop(signal syscall.Signal, grace time.Duration, expecte
 
 // signalStop MUST hold the identity lock through the nonreaping exit probe and
 // signal. An unretired identity alone is not proof that its parent is alive.
-func (s *ServerProcess) signalStop(signal syscall.Signal, expectedExitCode int, wholeGroup bool) (error, syscall.Signal, int) {
+func (s *ServerProcess) signalStop(signal syscall.Signal, expectedExitCode int, wholeGroup bool) (syscall.Signal, int, error) {
 	s.process.signalMu.Lock()
 	defer s.process.signalMu.Unlock()
 	if s.process.retired {
-		return nil, 0, 0
+		return 0, 0, nil
 	}
 	exited, probeErr := s.process.exitBeforeSignal()
 	if probeErr == nil && exited {
-		return nil, 0, 0
+		return 0, 0, nil
 	}
 	target := s.process.cmd.Process.Pid
 	if wholeGroup {
@@ -112,12 +112,12 @@ func (s *ServerProcess) signalStop(signal syscall.Signal, expectedExitCode int, 
 	}
 	signalErr := s.process.groupSignal(target, signal)
 	if probeErr != nil || signalErr != nil {
-		return serverSignalError(signalErr), 0, 0
+		return 0, 0, serverSignalError(signalErr)
 	}
 	if signal == syscall.SIGKILL {
 		s.process.intentionalKill = true
 	}
-	return nil, signal, expectedExitCode
+	return signal, expectedExitCode, nil
 }
 
 func (s *ServerProcess) closeResult(signalErr error, expected syscall.Signal, expectedExitCode int) error {

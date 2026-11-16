@@ -54,7 +54,7 @@ func (p *ownedProcess) reap() {
 // observeExit retries interrupted kernel observations. An error other than
 // ECHILD still leaves this sole waiter owning the child, so stop it before
 // retiring cancellation. ECHILD grants no permission to signal a number.
-func (p *ownedProcess) observeExit(wait func() error) error {
+func (p *ownedProcess) observeExit(wait func() error) error { //nolint:unused // Linux, Darwin, FreeBSD and OpenBSD call this; other platforms retain the beforeReap fallback.
 	for {
 		err := wait()
 		if errors.Is(err, syscall.EINTR) {

@@ -247,7 +247,7 @@ func testNetnsName(nick string, port int) string {
 // connection stays in the test's namespace after the thread leaves it.
 //
 // FallbackDelay is negative so a name that resolves to both families is
-// dialled serially on this thread: the dual-stack racer starts goroutines of
+// dialed serially on this thread: the dual-stack racer starts goroutines of
 // its own, which would dial from the host namespace again.
 func netnsDialContext(name string) func(ctx context.Context, network, address string) (net.Conn, error) {
 	return func(ctx context.Context, network, address string) (net.Conn, error) {
@@ -261,7 +261,7 @@ func netnsDialContext(name string) func(ctx context.Context, network, address st
 		orig, err := netns.Get()
 		if err != nil {
 			runtime.UnlockOSThread()
-			return nil, fmt.Errorf("read the dialling thread's network namespace: %w", err)
+			return nil, fmt.Errorf("read the dialing thread's network namespace: %w", err)
 		}
 		defer orig.Close() //nolint:errcheck // a read-only namespace handle, nothing to flush
 

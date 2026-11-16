@@ -211,7 +211,7 @@ func TestServerProcessReportsUnexpectedExit(t *testing.T) {
 	if !errors.As(err, &exited) || exited.ExitCode() != 13 {
 		t.Fatalf("cleanup lost unexpected server exit: %v", err)
 	}
-	if repeated := server.Close(); repeated != err {
+	if repeated := server.Close(); repeated != err { //nolint:errorlint // Close must return the identical cached error, not merely an error wrapping it.
 		t.Fatalf("repeated Close did not return the one cached failure: %v / %v", err, repeated)
 	}
 }

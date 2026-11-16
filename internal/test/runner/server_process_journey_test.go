@@ -92,7 +92,14 @@ func TestServerProcessJourneyStop(t *testing.T) {
 				t.Errorf("Stop left an unjoined child: pid=%d error=%v", pid, err)
 			}
 			first, second := server.Wait(), server.Wait()
-			if first != second && (first == nil || second == nil || first.Error() != second.Error()) {
+			switch {
+			case first == nil:
+				if second != nil {
+					t.Errorf("Wait observers saw different cached exits: %v / %v", first, second)
+				}
+			case second == nil:
+				t.Errorf("Wait observers saw different cached exits: %v / %v", first, second)
+			case first.Error() != second.Error():
 				t.Errorf("Wait observers saw different cached exits: %v / %v", first, second)
 			}
 		})
