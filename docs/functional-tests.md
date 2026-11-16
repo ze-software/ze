@@ -2857,6 +2857,15 @@ removal separately. It checks that the build container is removed before the
 ownership-repair container is created, and that the repair container is removed
 before the build returns, while keeping the worker's fragment, mount and
 provenance assertions. It is not daemon-lifetime evidence.
+
+The synthetic worker uses compiled `make` and `merge_config.sh` stand-ins that
+validate command arguments and preserve the seeded resolved config and artifacts.
+The worker's real required-symbol checks still read that config and its manifests.
+This proves worker orchestration and manifest enforcement. Kernel compilation
+and guest boot require their own proofs.
+<!-- source: internal/test/fixture/install_worker_commands.go -- installWorkerMake, installWorkerMergeStub -->
+<!-- source: internal/test/fixture/install_fixture.go -- runSyntheticWorker -->
+
 `TestKernelContainerCancellationJoinsBeforeRepair` supplies that separate
 lifecycle proof against a real Docker daemon when
 `KERNEL_CONTAINER_PROOF_IMAGE` names a locally cached image containing `/bin/sh`,
@@ -3219,6 +3228,24 @@ as successful teardown.
 <!-- source: internal/test/fixture/plugin_fixture_03_bfd.go -- runZeUntilLogsRejecting03 -->
 
 #### Payload-predicate waits
+
+The FlowSpec orphan scenarios use compiled drivers. The restore-cause driver
+copies the test's original configuration over the active input, requests a
+reload and uses `daemon/await-answer` to require an authenticated BGP answer
+with the peer established. The repair drivers take the fix from the orphan
+diagnostic itself, split its quoted command into literal argv and execute it.
+The removed-section case then executes the record-removal command named by
+that same diagnostic while the daemon owns the store, and requires a second
+answered doctor report without the orphan or runtime-not-checked diagnostic.
+They never edit the daemon's store directly.
+<!-- source: internal/test/fixture/ddos_flowspec_native.go -- ddosFlowspecRestoreCause, ddosFlowspecRunRestart, ddosFlowspecClearOrphan -->
+
+The fatal-plugin driver owns a real `ze start running.conf` subprocess and
+waits for it before the next local doctor command. It forwards stdout and
+stderr separately and succeeds only after reaping a normal child exit 1.
+Cancellation, a signal, a start failure and every other status fail the driver.
+The functional test retains the fatal-stop log and persistent-record assertions.
+<!-- source: internal/test/fixture/doctor_plugin_fatal_stop.go -- doctorPluginFatalStop, doctorPluginFatalWait -->
 
 When the wait is "block until an *observed payload* matches a condition" (not a
 one-shot barrier), use a payload-predicate wait so the test blocks exactly until

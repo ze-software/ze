@@ -39,6 +39,10 @@ func init() {
 		os.Exit(installXorrisoStub(os.Args[1:]))
 	case "tar":
 		os.Exit(installWorkerTarStub(os.Args[1:]))
+	case "make":
+		os.Exit(installWorkerMakeStub(os.Args[1:]))
+	case "merge_config.sh":
+		os.Exit(installWorkerMergeStub(os.Args[1:]))
 	}
 
 	Register("appliance/appliance-iso-arm64/prepare", isoARM64Prepare)
@@ -1276,8 +1280,8 @@ func kernelBuilderNativeFixture(ctx context.Context, args []string) error {
 		return fmt.Errorf("native builder entrypoint: %w", err)
 	}
 
-	if _, err := runSyntheticWorker(ctx, "CONFIG_REQUIRED=y\nCONFIG_EQUALS=y\n", "runtime", "yes"); err != nil {
-		return fmt.Errorf("valid required symbols: %w", err)
+	if output, err := runSyntheticWorker(ctx, "CONFIG_REQUIRED=y\nCONFIG_EQUALS=y\n", "runtime", "yes"); err != nil {
+		return fmt.Errorf("valid required symbols: %w: %s", err, output)
 	}
 	_, err = runSyntheticWorker(ctx, "CONFIG_REQUIRED=m\nCONFIG_EQUALS=y\n", "runtime", "yes")
 	if err == nil || !strings.Contains(err.Error(), "CONFIG_REQUIRED did not resolve to =y") {
@@ -1348,22 +1352,18 @@ func runSyntheticWorker(ctx context.Context, config, profile, modules string) (s
 			return "", err
 		}
 	}
-	noop, err := noopBinary()
+	self, err := os.Executable()
 	if err != nil {
 		return "", err
 	}
-	if err := os.Symlink(noop, filepath.Join(tree, "scripts", "kconfig", "merge_config.sh")); err != nil {
+	if err := os.Symlink(self, filepath.Join(tree, "scripts", "kconfig", "merge_config.sh")); err != nil {
 		return "", err
 	}
 	bin := filepath.Join(root, "bin")
 	if err := os.MkdirAll(bin, 0o750); err != nil {
 		return "", err
 	}
-	if err := os.Symlink("/bin/echo", filepath.Join(bin, "make")); err != nil {
-		return "", err
-	}
-	self, err := os.Executable()
-	if err != nil {
+	if err := os.Symlink(self, filepath.Join(bin, "make")); err != nil {
 		return "", err
 	}
 	if err := os.Symlink(self, filepath.Join(bin, "tar")); err != nil {
