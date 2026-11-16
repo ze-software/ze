@@ -112,6 +112,22 @@ enables cgo for this third-party peer. The runtime remains the maintained
 Alpine LAC image. Ze and the relay retain their own build settings.
 <!-- source: test/interop-l2tp/Dockerfile.kl2tpd -->
 
+The v0.1.8 peer includes one build-time diff for autonomous HELLOs. Upstream
+`sendHelloMessage` bypasses the ACK queue, so a genuine ACK cannot complete
+the send. The stock peer retried an acknowledged HELLO and closed its
+sessions after three retry attempts in the real guest. The diff sends HELLO
+through the existing reliable queue.
+
+The five-second HELLO inputs, retry
+settings and all scale assertions remain required. The builder checks the
+original and patched source hashes, applies the diff with zero fuzz, and
+builds from that source. The runtime image retains the diff and pinned
+module-download identity under `/usr/local/share/ze/`.
+[Pinned peer source](https://github.com/katalix/go-l2tp/blob/v0.1.8/l2tp/transport.go#L628-L651).
+<!-- source: test/interop-l2tp/Dockerfile.kl2tpd -->
+<!-- source: test/interop-l2tp/kl2tpd-v0.1.8-hello-queue.patch -->
+<!-- source: test/interop-l2tp/Dockerfile.kl2tpd.dockerignore -->
+
 The independent control decoder requires the omitted Receive Window Size AVP
 in each SCCRQ. Three genuine cumulative ACK advances warm the window before
 the relay holds Nr alone. The assertion requires five distinct

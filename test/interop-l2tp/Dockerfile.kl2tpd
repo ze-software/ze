@@ -1,8 +1,24 @@
 # Reuse the maintained pppd 2.5.5 build and add the pinned multi-session LAC.
+# Apply the reviewed HELLO queueing diff to the v0.1.8 release at build time.
 FROM golang:1.27-alpine AS builder
 # Upstream cmd/kl2tpd/pppox.go uses cgo for the Linux PPPoX socket ABI.
-RUN apk add --no-cache gcc musl-dev linux-headers
-RUN CGO_ENABLED=1 go install github.com/katalix/go-l2tp/cmd/kl2tpd@v0.1.8
+# This binary MUST build from the patched source, not a versioned go install.
+COPY kl2tpd-v0.1.8-hello-queue.patch /kl2tpd-v0.1.8-hello-queue.patch
+RUN set -eu; \
+    apk add --no-cache gcc musl-dev linux-headers patch; \
+    go mod download -json github.com/katalix/go-l2tp@v0.1.8 > /kl2tpd-module.json; \
+    module=$(sed -n 's/^[[:space:]]*"Dir": "\(.*\)",$/\1/p' /kl2tpd-module.json); \
+    test -n "$module"; \
+    cp -R "$module" /kl2tpd-source; \
+    chmod -R u+w /kl2tpd-source; \
+    cd /kl2tpd-source; \
+    printf '%s  %s\n' 'ff2607eee38b4c1fe6266f0119e69f4815d87a3cd5c894488b83988f30d09930' 'l2tp/transport.go' | sha256sum -c -; \
+    patch --batch --forward --fuzz=0 -p1 < /kl2tpd-v0.1.8-hello-queue.patch; \
+    printf '%s  %s\n' 'f9d8c4477b8fc5d40e60829c93e34b4d3a3b4892a6158aecf1d86a484412cbf5' 'l2tp/transport.go' | sha256sum -c -; \
+    CGO_ENABLED=1 go build -o /go/bin/kl2tpd ./cmd/kl2tpd
 
 FROM ze-l2tp-lac
 COPY --from=builder /go/bin/kl2tpd /usr/local/bin/kl2tpd
+# The runtime image MUST retain the applied diff and release download identity.
+COPY --from=builder /kl2tpd-v0.1.8-hello-queue.patch /usr/local/share/ze/kl2tpd-v0.1.8-hello-queue.patch
+COPY --from=builder /kl2tpd-module.json /usr/local/share/ze/kl2tpd-v0.1.8-module.json

@@ -1,0 +1,23 @@
+Ze-Reviewed-Against: github.com/katalix/go-l2tp v0.1.8
+Upstream-PR: none opened
+Purpose: use the reliable sender queue for autonomous HELLO, so a real peer ACK
+completes it and cancels its retry timer without bypassing the send window.
+Source: https://github.com/katalix/go-l2tp/blob/v0.1.8/l2tp/transport.go
+Source-SHA256: ff2607eee38b4c1fe6266f0119e69f4815d87a3cd5c894488b83988f30d09930
+
+--- a/l2tp/transport.go
++++ b/l2tp/transport.go
+@@ -643,11 +643,12 @@ func (xport *transport) sendHelloMessage() error {
+ 		return fmt.Errorf("failed to build hello message: %v", err)
+ 	}
+ 
+-	return xport.sendMessage(&xmitMsg{
++	xport.txQueue = append(xport.txQueue, &xmitMsg{
+ 		xport:      xport,
+ 		msg:        msg,
+ 		onComplete: helloSendComplete,
+ 	})
++	return xport.processTxQueue()
+ }
+ 
+ func helloSendComplete(m *xmitMsg, err error) {

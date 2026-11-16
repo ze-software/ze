@@ -1,3 +1,4 @@
 **
 !Dockerfile.kl2tpd
 !Dockerfile.kl2tpd.dockerignore
+!kl2tpd-v0.1.8-hello-queue.patch
