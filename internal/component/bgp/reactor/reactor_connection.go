@@ -34,24 +34,12 @@ func (r *Reactor) handleConnection(conn net.Conn) {
 		closeConnQuietly(conn)
 		return
 	}
-	peerIP, _ := netip.AddrFromSlice(remoteAddr.IP)
-	peerIP = peerIP.Unmap() // Handle IPv4-mapped IPv6
+	peerIP := remoteAddr.AddrPort().Addr().Unmap()
 
-	r.mu.RLock()
-	peer, exists := r.findPeerByAddr(peerIP)
-	cb := r.connCallback
-	r.mu.RUnlock()
-
-	if !exists {
-		peer = r.tryCreateDynamicPeer(peerIP)
-		if peer == nil {
-			closeConnQuietly(conn)
-			return
-		}
-		// Re-read callback under lock (consistent with peer creation).
-		r.mu.RLock()
-		cb = r.connCallback
-		r.mu.RUnlock()
+	peer, cb := r.peerForConnection(conn, peerIP)
+	if peer == nil {
+		closeConnQuietly(conn)
+		return
 	}
 
 	r.acceptOrReject(conn, peer, cb)
@@ -59,41 +47,69 @@ func (r *Reactor) handleConnection(conn net.Conn) {
 
 // handleConnectionWithContext handles an incoming TCP connection with listener context.
 // listenerAddr is the local address the listener is bound to.
-// This validates that the connection arrived on the expected listener for RFC compliance.
+// Static peers must match that binding. Dynamic peers are already qualified by
+// the actual accepted endpoint, which can differ from a wildcard declaration.
 func (r *Reactor) handleConnectionWithContext(conn net.Conn, listenerAddr netip.Addr) {
 	remoteAddr, ok := conn.RemoteAddr().(*net.TCPAddr)
 	if !ok {
 		closeConnQuietly(conn)
 		return
 	}
-	peerIP, _ := netip.AddrFromSlice(remoteAddr.IP)
-	peerIP = peerIP.Unmap() // Handle IPv4-mapped IPv6
+	peerIP := remoteAddr.AddrPort().Addr().Unmap()
 
-	r.mu.RLock()
-	peer, exists := r.findPeerByAddr(peerIP)
-	cb := r.connCallback
-	r.mu.RUnlock()
-
-	if !exists {
-		peer = r.tryCreateDynamicPeer(peerIP)
-		if peer == nil {
-			closeConnQuietly(conn)
-			return
-		}
-		r.mu.RLock()
-		cb = r.connCallback
-		r.mu.RUnlock()
-	}
-
-	settings := peer.Settings()
-
-	// RFC compliance: verify connection arrived on expected listener
-	if settings.LocalAddress.IsValid() && settings.LocalAddress != listenerAddr {
+	peer, cb := r.peerForConnection(conn, peerIP)
+	if peer == nil {
 		closeConnQuietly(conn)
 		return
 	}
 
+	settings := peer.Settings()
+
+	// A dynamic template's wildcard declaration need not match the listener's
+	// declaration: peerForConnection has already checked its actual endpoint.
+	if !settings.IsDynamic {
+		if settings.LocalAddress.IsValid() {
+			if !sameTransportAddress(settings.LocalAddress, listenerAddr) {
+				closeConnQuietly(conn)
+				return
+			}
+		}
+	}
+
 	r.acceptOrReject(conn, peer, cb)
+}
+
+// peerForConnection preserves configured static-peer attribution, then qualifies
+// every dynamic admission and reuse by the accepted socket's actual local
+// endpoint. It MUST supply that endpoint to tryCreateDynamicPeerAt before any
+// member can be published. A caller receiving nil MUST close the connection.
+// Thread-safe: peer lookup and creation acquire r.mu internally.
+func (r *Reactor) peerForConnection(conn net.Conn, addr netip.Addr) (*Peer, connectionCallback) {
+	r.mu.RLock()
+	peer, exists := r.findPeerByAddr(addr)
+	cb := r.connCallback
+	r.mu.RUnlock()
+	if exists {
+		if !peer.Settings().IsDynamic {
+			return peer, cb
+		}
+	}
+
+	local, ok := conn.LocalAddr().(*net.TCPAddr)
+	if !ok {
+		return nil, nil
+	}
+	endpoint := local.AddrPort()
+	endpoint = netip.AddrPortFrom(endpoint.Addr().Unmap(), endpoint.Port())
+	peer = r.tryCreateDynamicPeerAt(addr, endpoint)
+	if peer == nil {
+		return nil, nil
+	}
+	// Read the callback again after creation or its existing-member race recheck.
+	r.mu.RLock()
+	cb = r.connCallback
+	r.mu.RUnlock()
+	return peer, cb
 }
 
 // handleListenerConnection attributes an inbound connection that arrived on the
@@ -174,7 +190,10 @@ func (r *Reactor) listenerClaimants(addr netip.Addr, port int) (int, *PeerSettin
 		if !s.LocalAddress.IsValid() || !s.Connection.IsPassive() {
 			continue
 		}
-		if s.LocalAddress != addr || r.peerListenPort(s) != port {
+		if r.peerListenPort(s) != port {
+			continue
+		}
+		if !sameTransportAddress(s.LocalAddress, addr) {
 			continue
 		}
 		count++
@@ -184,7 +203,10 @@ func (r *Reactor) listenerClaimants(addr netip.Addr, port int) (int, *PeerSettin
 		if dg.Settings == nil || !dg.Settings.LocalAddress.IsValid() || !dg.Settings.Connection.IsPassive() {
 			continue
 		}
-		if dg.Settings.LocalAddress != addr || r.peerListenPort(dg.Settings) != port {
+		if r.peerListenPort(dg.Settings) != port {
+			continue
+		}
+		if !sameTransportAddress(dg.Settings.LocalAddress, addr) {
 			continue
 		}
 		count++

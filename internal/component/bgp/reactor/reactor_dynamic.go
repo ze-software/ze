@@ -9,6 +9,7 @@ import (
 	"errors"
 	"fmt"
 	"maps"
+	"net"
 	"net/netip"
 	"strings"
 	"sync/atomic"
@@ -42,6 +43,8 @@ type DynamicGroupConfig struct {
 
 // containsAddr reports whether addr falls within any of the group's ranges.
 func (d *DynamicGroupConfig) containsAddr(addr netip.Addr) bool {
+	// Prefix membership uses address bits. The caller keeps its transport zone.
+	addr = addr.WithZone("")
 	for _, r := range d.Ranges {
 		if r.Contains(addr) {
 			return true
@@ -50,13 +53,28 @@ func (d *DynamicGroupConfig) containsAddr(addr netip.Addr) bool {
 	return false
 }
 
-// findDynamicGroup returns the dynamic group config whose range contains addr
-// using longest-prefix-match for overlapping ranges.
+// findDynamicGroup answers the address-only range question used by non-socket
+// lifecycle callers. Socket admission MUST use tryCreateDynamicPeerAt instead.
 // Must be called with r.mu held (RLock or Lock).
 func (r *Reactor) findDynamicGroup(addr netip.Addr) *DynamicGroupConfig {
+	return r.findDynamicGroupEligible(addr, func(*PeerSettings) bool { return true })
+}
+
+// findDynamicGroupEligible chooses the longest matching remote prefix among
+// templates eligible for this admission. It never publishes or counts a peer.
+// Must be called with r.mu held (RLock or Lock).
+func (r *Reactor) findDynamicGroupEligible(addr netip.Addr, eligible func(*PeerSettings) bool) *DynamicGroupConfig {
+	// Match address bits without changing the scoped identity used to create a peer.
+	addr = addr.WithZone("")
 	var best *DynamicGroupConfig
 	bestBits := -1
 	for _, dg := range r.dynamicGroups {
+		if dg.Settings == nil {
+			continue
+		}
+		if !eligible(dg.Settings) {
+			continue
+		}
 		for _, prefix := range dg.Ranges {
 			if prefix.Contains(addr) && prefix.Bits() > bestBits {
 				best = dg
@@ -457,15 +475,80 @@ func (r *Reactor) dynamicTemplatePair(old, next *DynamicGroupConfig, addr netip.
 	return oldBuilt, nextBuilt, ""
 }
 
-// tryCreateDynamicPeer checks dynamic groups for the given address and creates a
-// peer if a matching group is found. Returns nil if no group matches or max-peers
-// is exceeded. Thread-safe: acquires r.mu internally.
+// tryCreateDynamicPeer provides address-only creation for non-socket lifecycle
+// callers testing startup, stop and range identity. It shares selection and
+// publication with socket admission; TCP handlers MUST use tryCreateDynamicPeerAt.
+// Thread-safe: acquires r.mu internally through tryCreateDynamicPeerEligible.
 func (r *Reactor) tryCreateDynamicPeer(addr netip.Addr) *Peer {
+	return r.tryCreateDynamicPeerEligible(addr, func(*PeerSettings) bool { return true })
+}
+
+// tryCreateDynamicPeerAt admits a new or existing dynamic member only on its
+// configured local address or wildcard bind, and its listen port. The caller
+// MUST supply the actual accepted socket's local endpoint, never its remote
+// ephemeral source port.
+// Thread-safe: acquires r.mu internally through tryCreateDynamicPeerEligible.
+func (r *Reactor) tryCreateDynamicPeerAt(addr netip.Addr, local netip.AddrPort) *Peer {
+	if !local.IsValid() {
+		return nil
+	}
+	return r.tryCreateDynamicPeerEligible(addr, func(settings *PeerSettings) bool {
+		if settings.LocalAddress.IsValid() {
+			if !settings.LocalAddress.IsUnspecified() {
+				if !sameTransportAddress(settings.LocalAddress, local.Addr()) {
+					return false
+				}
+			}
+		}
+		return r.dynamicPeerAcceptsPort(settings, local.Port())
+	})
+}
+
+// dynamicPeerAcceptsPort checks the socket that can serve these settings. An
+// auto-local template with a default port shares the actual global listener,
+// including the port assigned to a ListenAddr ending in :0. An explicit local
+// address or custom port keeps peerListenPort's configured socket identity.
+// A global listener without a valid TCP bound endpoint refuses admission.
+// The caller MUST hold r.mu; tryCreateDynamicPeerEligible supplies that hold.
+func (r *Reactor) dynamicPeerAcceptsPort(settings *PeerSettings, port uint16) bool {
+	if settings.LocalAddress.IsValid() {
+		return r.peerListenPort(settings) == int(port)
+	}
+	if settings.LocalPort != 0 {
+		if settings.LocalPort != DefaultBGPPort {
+			return r.peerListenPort(settings) == int(port)
+		}
+	}
+	if r.listener == nil {
+		return r.peerListenPort(settings) == int(port)
+	}
+	bound, ok := r.listener.Addr().(*net.TCPAddr)
+	if !ok {
+		return false
+	}
+	endpoint := bound.AddrPort()
+	if !endpoint.IsValid() {
+		return false
+	}
+	return endpoint.Port() == port
+}
+
+// tryCreateDynamicPeerEligible applies one admission decision to both the
+// locked existing-member recheck and candidate selection before publication.
+// A nil result means no member is admitted; the socket caller MUST close it.
+// Thread-safe: acquires r.mu internally.
+func (r *Reactor) tryCreateDynamicPeerEligible(addr netip.Addr, eligible func(*PeerSettings) bool) *Peer {
 	r.mu.Lock()
 	defer r.mu.Unlock()
 
 	// Re-check: another goroutine may have created this peer concurrently.
 	if peer, exists := r.findPeerByAddr(addr); exists {
+		settings := peer.Settings()
+		if settings.IsDynamic {
+			if !eligible(settings) {
+				return nil
+			}
+		}
 		return peer
 	}
 
@@ -482,7 +565,7 @@ func (r *Reactor) tryCreateDynamicPeer(addr netip.Addr) *Peer {
 		return nil
 	}
 
-	dg := r.findDynamicGroup(addr)
+	dg := r.findDynamicGroupEligible(addr, eligible)
 	if dg == nil {
 		return nil
 	}

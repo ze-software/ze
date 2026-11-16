@@ -1086,11 +1086,11 @@ func TestAddPeerSelfReferential(t *testing.T) {
 	require.Contains(t, err.Error(), "cannot equal local-address")
 }
 
-// TestAddPeerLinkLocalIPv6 verifies link-local IPv6 LocalAddress is rejected.
+// TestAddPeerLinkLocalIPv6 verifies an unscoped link-local source is rejected.
 //
-// VALIDATES: Link-local IPv6 addresses are rejected for LocalAddress.
+// VALIDATES: An IPv6 link-local LocalAddress without an interface zone is rejected.
 //
-// PREVENTS: Configuration with zone-dependent addresses that aren't portable.
+// PREVENTS: Attempting a local TCP bind without its interface scope.
 func TestAddPeerLinkLocalIPv6(t *testing.T) {
 	cfg := &Config{LocalAS: 65000}
 	reactor := New(cfg)

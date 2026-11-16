@@ -332,6 +332,23 @@ The kernel-driven path is still there and is not a substitute.
 watch. Neither stops a peer, and neither is ordered against the commit.
 <!-- source: internal/component/bgp/reactor/reactor_iface.go -- handleAddressAdded, handleAddressRemoved -->
 
+BGP keeps prospective scoped endpoint spellings distinct while constructing a
+configuration. A current numeric fallback cannot merge future device names such
+as `3` and `03`. The physical duplicate/self check runs at the binder boundary:
+before startup resources open, and before a live addition is published. The
+startup path orders BGP after a selected interface plugin's startup handshake
+through its registration's `StartAfter` edge. Synchronous kernel apply creates
+devices and addresses during that handshake; a deferred VPP apply can remain
+owed after it. Reload additions follow the address provider operations in the
+graph above, and the startup edge itself provides no deferred VPP settlement
+guarantee. Neither path rewrites configured peer keys. Local listener declarations
+likewise retain both names until actual bound sockets can establish whether they
+are aliases.
+<!-- source: internal/component/bgp/reactor/transport_scope.go -- validatePeerTransportsLocked -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- addPeerLocked -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- StartWithContext, listenerSpecs, startListenerForAddressPort -->
+<!-- source: internal/component/bgp/plugin/register.go -- StartAfter -->
+
 ## The pipeline
 
 `BuildOperationGraph` builds the graph. `TopologicalSort` orders it, taking the

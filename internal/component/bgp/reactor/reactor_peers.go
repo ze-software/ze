@@ -9,13 +9,14 @@ package reactor
 import (
 	"context"
 	"fmt"
-	"net"
 	"net/netip"
 	"strconv"
 	"time"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // envKeyTestPort names the BGP port every peer of this daemon dials, for the
@@ -53,9 +54,18 @@ func (r *Reactor) findPeerByAddr(addr netip.Addr) (*Peer, bool) {
 	if peer, ok := r.peers[peerKeyFromAddrPort(addr, DefaultBGPPort)]; ok {
 		return peer, true
 	}
+	// A default-port peer still wins when its interface is spelled as an alias.
+	for key, peer := range r.peers {
+		if key.Port() != DefaultBGPPort {
+			continue
+		}
+		if sameTransportAddress(peer.Settings().Address, addr) {
+			return peer, true
+		}
+	}
 	// Slow path: search by IP (custom per-peer ports)
 	for _, peer := range r.peers {
-		if peer.Settings().Address == addr {
+		if sameTransportAddress(peer.Settings().Address, addr) {
 			return peer, true
 		}
 	}
@@ -70,7 +80,15 @@ func (r *Reactor) findPeerKeyByAddr(addr netip.Addr) (netip.AddrPort, *Peer, boo
 		return key, peer, true
 	}
 	for k, peer := range r.peers {
-		if peer.Settings().Address == addr {
+		if k.Port() != DefaultBGPPort {
+			continue
+		}
+		if sameTransportAddress(peer.Settings().Address, addr) {
+			return k, peer, true
+		}
+	}
+	for k, peer := range r.peers {
+		if sameTransportAddress(peer.Settings().Address, addr) {
 			return k, peer, true
 		}
 	}
@@ -131,19 +149,55 @@ func (r *Reactor) addPeerLocked(settings *PeerSettings) error {
 		// Check self-referential (Address == LocalAddress)
 		// Allow for loopback (127.0.0.0/8 or ::1) to support testing with next-hop self
 		isLoopback := settings.Address.IsLoopback() && settings.LocalAddress.IsLoopback()
-		if settings.Address == settings.LocalAddress && !isLoopback {
-			return fmt.Errorf("peer %s: address cannot equal local-address", settings.Address)
+		if settings.Address == settings.LocalAddress {
+			if !isLoopback {
+				return fmt.Errorf("peer %s: address cannot equal local-address", settings.Address)
+			}
 		}
 
-		// Check link-local IPv6 (requires zone ID, not portable)
-		if settings.LocalAddress.Is6() && settings.LocalAddress.IsLinkLocalUnicast() {
-			return fmt.Errorf("peer %s: link-local addresses not supported for local-address", settings.Address)
+		// Linux binds a link-local TCP source to an interface. The dialer
+		// supplies that interface through the local address's zone.
+		if settings.LocalAddress.Is6() {
+			if settings.LocalAddress.IsLinkLocalUnicast() {
+				if settings.LocalAddress.Zone() == "" {
+					fix := "ze show interface brief"
+					if zone := settings.Address.Zone(); zone != "" {
+						if settings.Name != "" {
+							target := "set bgp peer " + configtext.QuoteCommandWord(settings.Name)
+							if settings.GroupName != "" {
+								target = "set bgp group " + configtext.QuoteCommandWord(settings.GroupName)
+								if !settings.IsDynamic {
+									target += " peer " + configtext.QuoteCommandWord(settings.Name)
+								}
+							}
+							fix = target + " connection local ip " +
+								configtext.QuoteCommandWord(settings.LocalAddress.WithZone(zone).String())
+						}
+					}
+					return opererr.New(
+						fmt.Sprintf("peer %s: link-local local-address %s has no interface zone", settings.Address, settings.LocalAddress),
+						"TCP cannot bind a link-local source unless its interface is specified.",
+						fix,
+					)
+				}
+			}
 		}
 
 		// Check address family mismatch (IPv4 peer with IPv6 LocalAddress or vice versa)
 		// Note: Both Address and LocalAddress are already unmapped at this point
 		if settings.Address.Is4() != settings.LocalAddress.Is4() {
 			return fmt.Errorf("peer %s: address family mismatch (IPv4/IPv6)", settings.Address)
+		}
+	}
+
+	// Before binding, scoped spellings are declarations: the same config can
+	// still create numeric literal names that change Go's name-first lookup.
+	// Once the listener pass runs, additions must obey startup's check against
+	// current kernel interfaces; deferred VPP work may remain owed. This covers
+	// the listener-open window while running and peersStarted are still false.
+	if r.listenersStarted {
+		if err := r.validatePeerTransportsLocked(settings); err != nil {
+			return err
 		}
 	}
 
@@ -222,8 +276,8 @@ func (r *Reactor) addPeerLocked(settings *PeerSettings) error {
 	if r.listenersStarted && !r.stopping {
 		if settings.LocalAddress.IsValid() && settings.Connection.IsPassive() {
 			listenPort := r.peerListenPort(settings)
-			lkey := net.JoinHostPort(settings.LocalAddress.String(), strconv.Itoa(listenPort))
-			if existing, hasListener := r.listeners[lkey]; !hasListener {
+			lkey, existing, hasListener := r.listenerForAddressPort(settings.LocalAddress, listenPort)
+			if !hasListener {
 				if err := r.startListenerForAddressPort(settings.LocalAddress, listenPort); err != nil {
 					// Rollback peer addition
 					delete(r.peers, key)
@@ -433,8 +487,7 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (peerRemoval, err
 
 		// Stop listener if no longer needed
 		if claimants == 0 {
-			lkey := net.JoinHostPort(localAddr.String(), strconv.Itoa(listenPort))
-			if listener, ok := r.listeners[lkey]; ok {
+			if lkey, listener, ok := r.listenerForAddressPort(localAddr, listenPort); ok {
 				listener.Stop()
 				waitCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				_ = listener.Wait(waitCtx)

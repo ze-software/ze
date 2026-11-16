@@ -92,7 +92,11 @@ func init() {
 		ConfigReads: []string{bfdapi.ConfigRoot},
 		// policy is a hard dependency of every protocol with a filter attachment:
 		// the filter instances its chains name live under the policy root.
-		Dependencies:       []string{policy.PluginName},
+		Dependencies: []string{policy.PluginName},
+		// A selected interface provider completes its startup handshake first.
+		// Synchronous kernel apply creates our listener's devices and addresses;
+		// deferred VPP work is not settled by this edge. BGP-only boot is unchanged.
+		StartAfter:         []string{"interface"},
 		FatalOnConfigError: true,
 		RunEngine:          runBGPEngine,
 		ConfigureEngineLogger: func(loggerName string) {

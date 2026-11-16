@@ -45,6 +45,20 @@ concatenation.** Concatenation produces `::1:179` for IPv6 instead of
 `[::1]:179`, and every lookup then misses. An earlier hand-written helper had
 exactly that defect.
 
+The stored key keeps the spelling used to bind the socket. A later address event
+or configuration may use the same interface's name or numeric index instead.
+`sameTransportAddress` compares those aliases using Go's name-first physical
+interface namespace. `listenerForAddressPort` returns the existing listener and
+its original key, so adding an alias reuses the socket and removing its last
+claimant closes that entry. A different interface or listen port stays distinct.
+An unresolved alias never removes a listener on an assumed interface.
+The declaration list retains distinct zone spellings, including future numeric
+device names. Only the runtime lookup against an actual bound listener merges
+physical aliases; building the declarations never drops a prospective socket.
+<!-- source: internal/component/bgp/reactor/transport_scope.go -- sameTransportAddress, listenerForAddressPort -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- listenerSpecs, startListenerForAddressPort -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- addPeerLocked, doRemovePeer -->
+
 **Addresses are normalized with `addr.Unmap()` before comparison.** An IPv4
 address can be read as `::ffff:10.0.0.1`. Without `Unmap`, the match against a
 peer `LocalAddress` of `10.0.0.1` fails in silence.

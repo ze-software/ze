@@ -569,7 +569,22 @@ peer is still accepted at once and resets the delay.
 ## Inbound connection handling for passive peers
 
 Passive peers do not dial. They wait for inbound connections dispatched
-by the reactor's accept loop. Two race conditions need handling:
+by the reactor's accept loop. A known static peer is attributed by remote
+address on a shared socket. Dynamic members also qualify the actual receiving
+local address and listen port before longest-prefix group selection, creation
+or reuse. This check runs again under the creation lock, so a concurrent
+creation cannot admit a different local socket through the same remote key.
+An ineligible connection closes without publishing or counting a member.
+An auto-local dynamic template whose local port is default uses the existing
+global listener's actual bound port. This also applies to the supported
+`Config.ListenAddr` form when `:0` lets the operating system assign the port.
+An explicit custom port or configured local address retains its own listener
+identity. The member keeps its configured fields; the live socket supplies the
+actual connected transport facts.
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- peerForConnection -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- tryCreateDynamicPeerAt, dynamicPeerAcceptsPort, tryCreateDynamicPeerEligible -->
+
+Two race conditions need handling:
 
 1. **Remote reconnects faster than our backoff.** The peer is in the
    `delay` select after a session failure. The reactor's accept loop

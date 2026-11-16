@@ -1287,6 +1287,13 @@ func (r *Reactor) StartWithContext(ctx context.Context) error {
 	if r.running {
 		return ErrAlreadyRunning
 	}
+	// The daemon orders a selected provider's startup handshake before this
+	// boundary; deferred VPP work may remain owed. Keep this validation under
+	// r.mu until startMultiListeners publishes listenersStarted, so an AddPeer
+	// cannot slip between the startup check and live admission checks.
+	if err := r.validatePeerTransportsLocked(nil); err != nil {
+		return err
+	}
 
 	// A fresh run is not stopped by the previous one's seal, and lifting the
 	// seal is one act rather than two: this is the only place either half of it
@@ -1542,6 +1549,9 @@ type listenerSpec struct {
 // The start (startMultiListeners) and an address the kernel adds
 // (handleAddressAdded, through listenPortsAt) both read it, so the two cannot
 // disagree on a peer's port or on whether the peer listens at all.
+// Distinct scope spellings remain separate declarations: a later provider
+// apply can create either literal name. startListenerForAddressPort compares
+// actual bound sockets to deduplicate physical aliases at runtime.
 // Caller MUST hold r.mu (read or write).
 func (r *Reactor) listenerSpecs() []listenerSpec {
 	seen := make(map[string]struct{})
@@ -2020,7 +2030,7 @@ func (r *Reactor) startListenerForAddressPort(addr netip.Addr, port int) error {
 
 	lkey := net.JoinHostPort(addr.String(), strconv.Itoa(port))
 
-	if _, exists := r.listeners[lkey]; exists {
+	if _, _, exists := r.listenerForAddressPort(addr, port); exists {
 		return nil // Already listening
 	}
 

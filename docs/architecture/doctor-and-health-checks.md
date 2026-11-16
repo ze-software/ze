@@ -1339,6 +1339,18 @@ one the daemon runs on.
 
 ## Which check a new dependency needs
 
+BGP's `bgp-transport-scopes` check reads the host interface names and indices
+when the configuration has a BGP block. Its
+`doctor-bgp-transport-scope-unknown` warning means differently spelled TCP
+interface zones cannot safely be equated. Runtime comparison refuses that alias
+and raises the same code on the report bus until an interface read succeeds.
+Scoped peer startup and live admission also refuse when this read fails, because
+their physical duplicate/self checks cannot establish a safe binding identity.
+The configured addresses and peer keys remain intact. The warning names the
+host read failure and offers `ze show interface brief` as the next inspection.
+<!-- source: internal/component/bgp/reactor/register_transport_scope.go -- doctorTransportScopes, transportScopeDiagnostic -->
+<!-- source: internal/component/bgp/reactor/transport_scope.go -- sameTransportAddress, readTransportInterfaces, validatePeerTransportsLocked -->
+
 | New dependency | Doctor check |
 |----------------|--------------|
 | Config leaf that references a file path (cert, key, binary) | File existence check |

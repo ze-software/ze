@@ -543,6 +543,21 @@ section never loads the interface plugin through this edge.
 <!-- source: internal/plugins/tftpserver/register.go -- StartAfter -->
 <!-- source: internal/plugins/imageserver/register.go -- StartAfter -->
 
+BGP uses the same `StartAfter: ["interface"]` edge. Its Configure builds peer
+settings and opens listeners after the selected interface plugin's startup
+handshake. On synchronous kernel apply, this places device and address creation
+before BGP reads kernel interface scopes and binds. Interface Configure can
+instead leave a VPP apply owed until its backend connects; the queued VPP worker
+runs that apply asynchronously. The startup graph does not wait for that work to
+settle. A BGP-only configuration does not activate the interface plugin through
+this edge. The peer-start barrier still waits for every selected plugin to finish
+its startup handshake.
+<!-- source: internal/component/bgp/plugin/register.go -- StartAfter, OnConfigure -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- StartWithContext, StartPeers -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfig, applyOwedConfig -->
+<!-- source: internal/component/iface/register.go -- runEngine -->
+<!-- test: internal/component/bgp/plugin/transport_startup_order_test.go TestBGPStartupPlannerWaitsForSelectedInterfaces -->
+
 The daemon checks its config-path and explicit startup selections together.
 Already-selected explicit prerequisites move into the config-path phase when
 needed; unrelated explicit plugins remain later. Thus an explicitly selected

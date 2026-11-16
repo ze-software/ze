@@ -1175,11 +1175,54 @@ Peer configuration is organized into nested containers by concern.
 | `connection { md5 { password; ip; } }` | container | TCP MD5 authentication (RFC 2385) |
 | `connection { ttl { max; set; min; } }` | container | GTSM max (RFC 5082), outgoing TTL, minimum incoming TTL |
 
-A local TCP address can be IPv6 link-local. Include its interface zone when
-needed, for example `fe80::1%eth0`. Ze retains the configured zones of both TCP
-endpoints. The `auto` value lets the operating system select the local address.
+A local TCP address can be IPv6 link-local. Specify its interface zone, for
+example `fe80::1%eth0`. Peer admission refuses a link-local local address without
+a zone because TCP needs the interface to bind that source. Ze retains the
+configured zones of both TCP endpoints. The `auto` value lets the operating
+system select the local address.
 <!-- source: internal/component/bgp/reactor/config_nexthop_form.go -- applyLocalAddress -->
 <!-- source: internal/component/bgp/reactor/config.go -- parsePeerFromTree -->
+<!-- source: internal/component/bgp/reactor/reactor_peers.go -- addPeerLocked -->
+
+Before binding starts, interface zones are declarations. Ze retains different
+spellings such as `%3` and `%03` even when neither device exists yet: the same
+configuration can create two devices with those literal names. Exact duplicate
+peer keys and exact self-addresses are still refused during construction. After
+the selected interface plugin completes its startup handshake, BGP checks
+physical duplicate and self-address aliases against the current kernel interface
+table before opening startup resources. With synchronous kernel apply, that
+handshake follows device and address creation. It does not settle a deferred
+VPP apply. A peer added after the listener pass receives the same physical check
+before it is installed.
+<!-- source: internal/component/bgp/reactor/transport_scope.go -- validatePeerTransportsLocked, transportAddressKeyOn -->
+<!-- source: internal/component/bgp/reactor/reactor.go -- StartWithContext -->
+<!-- source: internal/component/bgp/plugin/register.go -- StartAfter -->
+
+Shared listeners retain the incoming peer's interface zone during address
+lookup. The same link-local address on another interface does not select that
+configured peer. An interface name and its numeric index identify the same
+physical TCP endpoint. Ze compares those aliases without rewriting the configured
+peer key; an interface whose name is numeric takes precedence over a numeric
+index, as it does when Go opens the socket. Local listener declarations retain
+their distinct spellings; runtime binding reuses one physical socket for aliases
+with all of its configured claimants. This applies
+when a listener starts, gains or loses a claimant, and follows address events.
+An unreadable host interface table refuses an alias match and scoped peer
+startup or live admission. It appears in
+`ze doctor` under `doctor-bgp-transport-scope-unknown`; inspect the reported
+access failure and run `ze show interface brief`.
+<!-- source: internal/component/bgp/reactor/transport_scope.go -- sameTransportAddress, transportZoneIndex, listenerForAddressPort -->
+<!-- source: internal/component/bgp/reactor/register_transport_scope.go -- doctorTransportScopes, transportScopeDiagnostic -->
+
+Dynamic groups first qualify the accepted socket's actual local address and
+listen port, then choose the longest matching remote prefix among those groups.
+An `auto` local address accepts any local address on the group's listen port.
+Explicit wildcard addresses `0.0.0.0` and `::` retain TCP wildcard binding
+semantics; the actual receiving port still has to match the group's listen port.
+The member retains the incoming remote zone in its identity. A connection on
+an ineligible local address or port cannot create, count or reuse that group's member.
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- handleConnection, handleConnectionWithContext -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- containsAddr, findDynamicGroupEligible, tryCreateDynamicPeerAt, buildDynamicPeerSettings -->
 
 `next-hop self` uses the connected local endpoint. A link-local-only next hop
 still requires negotiated capability 77 and the route's permitted next-hop

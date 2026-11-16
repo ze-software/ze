@@ -231,7 +231,7 @@ func (r *Reactor) refreshPeerLinkScopes() {
 func (r *Reactor) listenPortsAt(addr netip.Addr) []int {
 	var ports []int
 	for _, spec := range r.listenerSpecs() {
-		if spec.addr == addr {
+		if sameTransportAddress(spec.addr, addr) {
 			ports = append(ports, spec.port)
 		}
 	}
@@ -243,12 +243,15 @@ func (r *Reactor) listenPortsAt(addr netip.Addr) []int {
 // Caller MUST hold r.mu (read or write).
 func (r *Reactor) addressBound(addr netip.Addr) bool {
 	for _, peer := range r.peers {
-		if peer.Settings().LocalAddress == addr {
+		if sameTransportAddress(peer.Settings().LocalAddress, addr) {
 			return true
 		}
 	}
 	for _, dg := range r.dynamicGroups {
-		if dg.Settings != nil && dg.Settings.LocalAddress == addr {
+		if dg.Settings == nil {
+			continue
+		}
+		if sameTransportAddress(dg.Settings.LocalAddress, addr) {
 			return true
 		}
 	}
@@ -352,7 +355,7 @@ func (r *Reactor) handleAddressRemoved(addr netip.Addr) {
 				"fix", "none: this is a ze defect, report it with this log line")
 			continue
 		}
-		if bound.Addr() != addr {
+		if !sameTransportAddress(bound.Addr(), addr) {
 			continue
 		}
 		reactorLogger().Info("iface: address removed, stopping listener",
