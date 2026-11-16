@@ -10,6 +10,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // VALIDATES: Peer Send methods return ErrNotConnected when no session is active.
@@ -155,6 +156,7 @@ func newAnnouncePeer(t *testing.T, peerAddr string) (*Peer, *recordingConn) {
 // interface provisioning or claiming third-party entity-adjacency proof.
 func TestSendAnnounceAppendsLinkLocalWhenSection3Holds(t *testing.T) {
 	peer, conn := newAnnouncePeer(t, "2001:db8:1::2")
+	negotiateForwardTestFamilies(peer, family.IPv6Unicast)
 	peer.settings.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
 	peer.refreshLinkScopeFrom([]netip.Prefix{
 		netip.MustParsePrefix("2001:db8:1::/64"),
@@ -186,6 +188,7 @@ func TestSendAnnounceAppendsLinkLocalWhenSection3Holds(t *testing.T) {
 // positive test above.
 func TestSendAnnounceOmitsLinkLocalWhenPeerOffLink(t *testing.T) {
 	peer, conn := newAnnouncePeer(t, "2001:db8:dead:beef::2")
+	negotiateForwardTestFamilies(peer, family.IPv6Unicast)
 	peer.settings.LocalAddress = netip.MustParseAddr("2001:db8:1::1")
 	peer.refreshLinkScopeFrom([]netip.Prefix{
 		netip.MustParsePrefix("2001:db8:1::/64"),

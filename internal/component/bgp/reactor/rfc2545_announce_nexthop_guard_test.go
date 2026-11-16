@@ -8,6 +8,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // VALIDATES: the single-route announce rail refuses a next hop it cannot encode,
@@ -89,6 +90,7 @@ func TestSendAnnounceRefusesUnusableIPv6NextHop(t *testing.T) {
 			// Keep the recipient distinct from every refused next hop, so the
 			// peer-own withholding rule cannot mask the encoding refusal.
 			peer, conn := newAnnouncePeer(t, "2001:db8::2")
+			negotiateForwardTestFamilies(peer, family.IPv6Unicast)
 			route := bgptypes.RouteSpec{
 				Prefix:  netip.MustParsePrefix("2001:db8:1::/64"),
 				NextHop: bgptypes.NewNextHopExplicit(tc.nextHop),
@@ -155,6 +157,7 @@ func TestSessionSendAnnounceRefusesNonLinkLocalSecondAddress(t *testing.T) {
 // address is included.
 func TestSessionSendAnnounceAcceptsLinkLocalSecondAddress(t *testing.T) {
 	peer, conn := newAnnouncePeer(t, "::1")
+	negotiateForwardTestFamilies(peer, family.IPv6Unicast)
 	peer.mu.RLock()
 	session := peer.session
 	peer.mu.RUnlock()

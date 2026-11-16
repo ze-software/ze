@@ -597,6 +597,7 @@ func newDefaultOriginatePeer(t *testing.T, peerAddr string) (*Peer, *recordingCo
 
 	peer.mu.Lock()
 	peer.session = session
+	negotiateForwardTestFamilies(peer, family.IPv6Unicast)
 	peer.mu.Unlock()
 
 	// setEncodingContexts (peer.go) refreshes the link scope at establishment.

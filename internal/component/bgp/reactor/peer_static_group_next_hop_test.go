@@ -62,6 +62,7 @@ func TestStaticGroupedResolvedNextHopWire(t *testing.T) {
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
 			peer, conn := newInitialSyncPeer(t, true, tc.fam)
+			negotiateForwardTestFamilies(peer, tc.fam)
 			peer.settings.GroupUpdates = true
 			nextHop := netip.MustParseAddr(tc.nextHop)
 			policy := bgptypes.NewNextHopExplicit(nextHop)
