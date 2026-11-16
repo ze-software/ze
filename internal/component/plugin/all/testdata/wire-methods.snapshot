@@ -115,6 +115,7 @@ ze-config:data-key-update
 ze-config:data-repair
 ze-config:data-restore
 ze-config:show-config-running
+ze-container:request-restart
 ze-crashes:show-crashes
 ze-ddos:show-flowspec
 ze-ddos:show-incidents

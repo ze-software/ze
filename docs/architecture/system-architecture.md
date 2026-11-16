@@ -101,6 +101,38 @@ explicit wrong identity still refuses the child.
 <!-- source: internal/le/test/functional/binaries.go -- BinarySet.Environment -->
 
 
+### A role taken before command dispatch
+
+A `ze` process is not always answering a command line. Two roles replace it,
+and `dispatchMain` selects each from the environment before crash logging,
+version stamping, flag parsing and command dispatch, in this order:
+
+| Order | Selected by | Role | Owner |
+|-------|-------------|------|-------|
+| 1 | An environment key a package registered with `earlyrole.Register` | Whatever that package registered. The process is another program's child, so none of ze's own startup applies to it | The registering package |
+| 2 | The session seed directory key | The session seed init (`docs/contributing/running-commands.md`) | `internal/core/seedinit` |
+
+`internal/core/earlyrole` is an always-on leaf that names no feature. A role's
+owner registers its key and its function from its own `init()`, so a build
+without the owner holds no such role, and `earlyrole.Dispatch` answers "not
+handled" for every environment. A key selects its role by being present,
+whatever its value: the role judges the value, and a damaged one is never read
+as an ordinary command line. Two registered keys in one environment are
+refused before either role runs.
+
+The one role registered today is the container init: the runtime library
+starts `ze` again as a container's first process and marks it with its own
+environment key, and the container plugin registers that key
+(`docs/architecture/container/runtime.md`, "The init role"). The seed role
+stays a leaf of its own, because its contract checks arguments and inherited
+descriptors that an early role has none of.
+
+<!-- source: cmd/ze/dispatch.go -- dispatchMain -->
+<!-- source: internal/core/earlyrole/earlyrole.go -- Register, Dispatch -->
+<!-- source: internal/plugins/container/register_initrole_linux.go -- libraryInitKey, runInitRole -->
+
+### Composition roots
+
 Both personalities use the command registry and pipe engine. Their composition
 roots remain separate: a normal `ze` build imports no `internal/le` package,
 while the non-default `ze_le` build companion imports `internal/le/register.go`

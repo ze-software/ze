@@ -128,6 +128,12 @@ func TestBuildTag_Gate12_AbsentBinaryDropsSymbols(t *testing.T) {
 		// the events contract and every BNG plugin) and the RADIUS client.
 		"internal/component/l2tp",
 		"internal/component/radius",
+		// ze_container: the plugin with its filter and schema packages, and
+		// the vendored runtime library with the control group module it
+		// brings. Nothing else in ze imports either module.
+		"internal/plugins/container",
+		"github.com/opencontainers/runc",
+		"github.com/opencontainers/cgroups",
 	}
 	for line := range strings.SplitSeq(syms, "\n") {
 		for _, needle := range needles {

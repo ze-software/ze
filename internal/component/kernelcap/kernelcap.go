@@ -116,7 +116,11 @@ type Capability struct {
 	// daemon starts.
 	Degrades string
 	// CodeAbsent and CodeUnknown are the diagnostic codes for the two faulty
-	// states. Both must be registered in internal/core/diagnostic/codes.go.
+	// states. Both MUST be registered by the package that owns the
+	// capability: in internal/core/diagnostic/codes.go for an always-on
+	// owner, and through diagnostic.Register from its own registration for a
+	// plugin a build can leave out, so a build without the plugin holds
+	// neither code.
 	CodeAbsent  string
 	CodeUnknown string
 	// Order places this capability's check among the registered doctor checks.

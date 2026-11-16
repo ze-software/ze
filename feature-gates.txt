@@ -126,6 +126,15 @@ ze_cos     internal/plugins/cos
 # ze_copp -- control-plane policing.
 ze_copp    internal/plugins/copp
 
+# ze_container -- OCI containers Ze runs itself, through the vendored runtime
+# library. Plugin compile-out: the plugin and its system-call filter package,
+# with all.go as the only composition root. The init role a container's first
+# process takes reaches the plugin through a registration in the always-on
+# leaf internal/core/earlyrole, so no always-on code imports either package.
+# Each sibling package of the container work adds its own line under this tag.
+ze_container  internal/plugins/container
+ze_container  internal/plugins/container/seccomp
+
 # ze_mpls -- the MPLS show-forwarding component + `show mpls` command schema.
 # Closes the inconsistency where ldp/rsvpte are gated but the shared MPLS
 # operational surface was not. Kernel MPLS forwarding (fib/kernel) stays on.

@@ -22,6 +22,10 @@ const exampleConfigValidate = "ze config validate ze.conf"
 // codes name because only the daemon route runs their checks.
 const exampleShowDoctor = "ze show doctor"
 
+// exampleShowWarnings lists the warnings the report bus holds now, the record
+// behind every warning code that names it.
+const exampleShowWarnings = "ze show warnings"
+
 // exampleShowSystemDNS shows the resolver list the dns-source codes judge.
 const exampleShowSystemDNS = "ze show system dns"
 
@@ -610,7 +614,7 @@ var builtinCodes = append([]CodeMeta{
 		Code:        CodeDoctorRecentEvents,
 		Title:       "A problem happened recently and may have recovered",
 		Description: "A component raised an event on the report bus, such as a peer session reset or a failed retry, and the event is still in the recent-event ring. The row names the event's own code, its subject, how many times it happened and when it last happened. It does not make the box read not ready, because the component may have recovered. Run show errors and show warnings to see each event, and ze show diagnostic <code> for the event's own code.",
-		Examples:    []string{exampleShowDoctor, exampleShowErrors, "ze show warnings"},
+		Examples:    []string{exampleShowDoctor, exampleShowErrors, exampleShowWarnings},
 	},
 	{
 		Code:        CodeDoctorRuntimeNotChecked,
@@ -970,7 +974,7 @@ var builtinCodes = append([]CodeMeta{
 		Code:        CodeDoctorPPPCleanup,
 		Title:       "PPP session resource removal is unconfirmed",
 		Description: "A PPP transport, session handle, or IPv6 service reported a cleanup failure. The running daemon retains the created interface identity and backend cause; a successful cleanup for another resource does not confirm this removal. Inspect the warning, repair the reported backend, and confirm that the affected resources were removed before restarting service.",
-		Examples:    []string{exampleShowDoctor, "ze show warnings"},
+		Examples:    []string{exampleShowDoctor, exampleShowWarnings},
 	},
 	{
 		Code:  CodeDoctorWireGuardUnavailable,

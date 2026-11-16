@@ -123,6 +123,7 @@ const (
 	suiteVrrp       = "vrrp"
 	suiteBfd        = "bfd"
 	suiteDhcp       = "dhcp"
+	suiteContainer  = "container"
 )
 
 // allTests is the le test flag that selects every .ci of a suite, and bgpVerb
@@ -294,6 +295,13 @@ var Suites = []Suite{
 		Summary: "run the PPPoE access-concentrator suite",
 		Why: "PPPoE; discovery and data-plane scenarios need network namespaces and" +
 			" ze's runtime kernel (release evidence only)",
+	},
+	{
+		Name: suiteContainer, Args: []string{"container", allTests},
+		Summary: "run the container suite as root on Linux",
+		Why: "containers ze runs itself; a test that starts one needs root, control" +
+			" groups and ze's runtime kernel, so the suite runs in the QEMU guest" +
+			" (release evidence only)",
 	},
 }
 

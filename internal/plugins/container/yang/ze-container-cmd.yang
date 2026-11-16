@@ -1,0 +1,56 @@
+module ze-container-cmd {
+    namespace "urn:ze:container:cmd";
+    prefix containercmd;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "Operational commands of the container plugin. Owned by the plugin, so
+         deleting it removes the commands, their schema and their handlers
+         together. The wire methods these nodes bind are registered by the
+         plugin's package as proxies to the plugin's process. Every package of
+         the plugin adds the commands it realizes to this module.";
+
+    revision 2026-11-16 {
+        description "Initial revision: request container restart name.";
+    }
+
+    container request {
+        config false;
+
+        container container {
+            config false;
+            description "Actions on the containers Ze runs. Nothing here writes configuration:
+whether a container runs is stated by its enabled leaf.";
+            ze:help "Actions on the containers Ze runs.";
+
+            container restart {
+                config false;
+                description "A restart needs the name of one container, after the name keyword:
+request container restart name <container>.";
+                ze:help "Restart one container: name <container>.";
+
+                container name {
+                    config false;
+                    ze:command "ze-container:request-restart";
+                    description "A running container is stopped, with its stop signal and then a kill
+after its stop timeout, and started again as a new process. A container in the
+stopped or failed state is started. A disabled container and one that waits for
+its image are refused, with the statement or command that lets it run.";
+                    ze:help "Stop the named container, then start it again.";
+
+                    leaf value {
+                        type string {
+                            length "1..63";
+                            pattern "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
+                        }
+                        mandatory true;
+                        description "The name of a configured container, as its instance entry spells it.
+The word after the name keyword is the value.";
+                        ze:help "Name of the container.";
+                    }
+                }
+            }
+        }
+    }
+}

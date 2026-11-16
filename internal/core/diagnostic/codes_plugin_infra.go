@@ -165,7 +165,7 @@ var pluginInfraCodes = []CodeMeta{
 		Description: "The report bus reached its warning cap and dropped its oldest active warning, or its error ring wrapped and overwrote its oldest error event. " +
 			"show warnings, show errors and the health rows that read the bus no longer see what was dropped. " +
 			"Raise ze.report.warnings.max or ze.report.errors.max, both clamped to 10000.",
-		Examples: []string{exampleShowDoctor, "ze show warnings", "ze show diagnostic doctor-report-bus-full"},
+		Examples: []string{exampleShowDoctor, exampleShowWarnings, "ze show diagnostic doctor-report-bus-full"},
 	},
 	{
 		Code:  CodeDoctorPluginFatalStop,

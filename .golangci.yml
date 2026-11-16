@@ -61,6 +61,7 @@ run:
     - ze_policyroute
     - ze_cos
     - ze_copp
+    - ze_container
     - ze_mpls
     - ze_tacacs
     - ze_exabgp

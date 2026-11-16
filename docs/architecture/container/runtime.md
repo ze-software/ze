@@ -5,10 +5,12 @@ How Ze runs an OCI container itself: the upstream `runc` library
 module, behind a series of six patches, with the container's init role inside
 the one `ze` binary.
 
-**Status: wiring.** The patch series, its guard test and the call that enters
-the library's init exist. The plugin that describes, starts, supervises and
-removes a container is not built yet, so no `ze` build starts a container
-today. This page states what exists and grows with the work.
+**Status: wiring.** The patch series and its guard test, the init role, the
+`container` plugin with its config root, its static verifier and its restart
+command, the seams toward the image store, the participants and the filter,
+and the build gate exist. The start sequence is not built: no `ze` build
+starts a container today, and a config that enables one is refused. This page
+states what exists and grows with the work.
 
 ## Why the library needs a diff
 
@@ -96,6 +98,60 @@ init configuration from the inherited socket, prepares the root and the
 confinement, and executes the entrypoint. It never returns.
 
 <!-- source: internal/plugins/container/initrole_linux.go -- runLibraryInit -->
+
+The library marks the process it starts with the environment key
+`_LIBCONTAINER_INITPIPE`. The plugin registers that key with the always-on
+leaf `internal/core/earlyrole`, and `dispatchMain` asks the leaf before
+anything else of `ze` starts (`docs/architecture/system-architecture.md`, "A
+role taken before command dispatch"). No always-on file names the plugin or
+the library, so a build without `ze_container` holds no such role. The init
+role links the filter package, because it is the process that loads a filter.
+
+<!-- source: internal/plugins/container/register_initrole_linux.go -- libraryInitKey, runInitRole -->
+
+## The plugin
+
+The plugin is `container`, in `internal/plugins/container`, gated by
+`ze_container` in `feature-gates.txt` with its filter package. It owns the
+`container` config root and reaches the engine by registration only.
+
+| Piece | What it does today |
+|-------|--------------------|
+| Config root | `container instance NAME` with `enabled`. Every other node of the container work lands with the package that realizes it |
+| One rule set | `parseContainerSections` parses and judges a delivery. The registration's static verifier, the reload's verify and the boot configure all call it, so `ze config validate` accepts exactly what starts |
+| A removed root | Arrives as an empty body and parses to a config with no container. Installing that config stops every container. Only a delivery with no container section means "unchanged" |
+| Apply | The supervisor records the desired set and returns. It never waits for a start |
+| `request container restart name NAME` | A YANG command node bound to a wire method the plugin's package proxies to the plugin's process. A disabled container is refused with the statement that enables it |
+| Daemon stop | The plugin declares a drain budget of 37 seconds and stops every running container in its drain handler, the one call of a daemon stop that waits for a plugin |
+| Failure policy | `restart` |
+
+Until the start sequence exists, the rule set refuses a config that enables a
+container, with the statement that disables it, and the supervisor gives the
+same refusal for a start it is asked to make. A disabled container is
+accepted and held in the `disabled` state.
+
+<!-- source: internal/plugins/container/register.go -- registerContainer, verifyContainerSections, forwardRestart -->
+<!-- source: internal/plugins/container/config.go -- parseContainerSections, checkConfigRules, refuseUnbuiltRuntime -->
+<!-- source: internal/plugins/container/container.go -- runContainerEngine, handleCommand -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.install, supervisor.restart, supervisor.drain -->
+
+## The seams inside the plugin
+
+The image store, the container networks and the shell are sibling packages of
+this plugin and run in its process. Each registers from its own `init()`, and
+the runtime package imports none of them.
+
+| Seam | Declared in | Direction |
+|------|-------------|-----------|
+| Image store | `storeseam.go`: `Store`, `StoreNotices`, `SetStoreFactory` | The runtime asks the store to resolve and hold a container (`Ready` or `Absent`, never an empty answer). The store tells the runtime that an image is present, or to restart a container |
+| Participants | `participant.go`: `Participant`, `RegisterParticipant` | Before create, a participant contributes read-only file mounts. After create and before the entrypoint runs it gets the created call, with the container's name, its init process id and its network namespace path. After the container's processes are gone it gets the ended call |
+| Runtime library | `supervise.go`: `runtimeLibrary`, `createdContainer` | The supervisor orders create, release and destroy through an interface, so the order of a start is proven with a library that creates nothing |
+| Filter | `seccomp/register_linux.go`: `initFilter` | The library's `InitSeccomp` calls the function the filter package registered. A profile is refused until the filter builder exists |
+
+<!-- source: internal/plugins/container/storeseam.go -- Store, StoreNotices, SetStoreFactory -->
+<!-- source: internal/plugins/container/participant.go -- Participant, RegisterParticipant -->
+<!-- source: internal/plugins/container/supervise.go -- runtimeLibrary, createdContainer -->
+<!-- source: internal/plugins/container/seccomp/register_linux.go -- initFilter, installFilter -->
 
 ## What a module bump owes
 

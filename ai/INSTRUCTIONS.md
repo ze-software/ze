@@ -115,12 +115,12 @@ trafficfeature, trafficstat, vpp, web
 **System plugins** (`internal/plugins/`) handle domain policy outside the BGP engine: DHCP, NTP, sysctl, static routes, firewall lowering, TFTP/image servers, and CLI verb providers (`*-cmd`). Communication: JSON events down, text commands up.
 
 <!-- BEGIN GENERATED: arch-system-plugins (internal/le/repo/archmap.Update; ./le repo arch-map update) -->
-68 directories under `internal/plugins/`:
+70 directories under `internal/plugins/`:
 
-aaa-cmd, anomaly, as112, completion, config-archive-cmd, config-cli,
-config-schema, config-storage, config-yang, connect, connected, copp, cos,
-crashes, ddos, debug, dhcpserver, diag, dnsresolver, env, exabgp, explain,
-fib, firewall, flowexport, flowexport-cmd, flowspec-firewall, geodns,
+aaa-cmd, anomaly, as112, coldplug, completion, config-archive-cmd, config-cli,
+config-schema, config-storage, config-yang, connect, connected, container,
+copp, cos, crashes, ddos, debug, dhcpserver, diag, dnsresolver, env, exabgp,
+explain, fib, firewall, flowexport, flowexport-cmd, flowspec-firewall, geodns,
 gnmi-cmd, help, host, host-cmd, iface, imageserver, init, irr, isis, kernel,
 ldp, local, log, memlock, meta, mpls-cmd, mrt, ntp, ospf, passwd, pki-cmd,
 policyroute, provision, redistribute, resolve-cmd, routingtable, rsvpte,

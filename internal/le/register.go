@@ -156,6 +156,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/test/attribution"
 	_ "github.com/ze-software/ze/internal/le/test/bfd"
 	_ "github.com/ze-software/ze/internal/le/test/bgp"
+	_ "github.com/ze-software/ze/internal/le/test/container"
 	_ "github.com/ze-software/ze/internal/le/test/cost"
 	_ "github.com/ze-software/ze/internal/le/test/deployment"
 	_ "github.com/ze-software/ze/internal/le/test/deployment/vpppppoe"

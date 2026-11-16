@@ -44,6 +44,7 @@ bgp-rs
 bgp-softver
 bgp-watchdog
 connected
+container
 copp
 cos
 crashes

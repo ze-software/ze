@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/cmd/ze/internal/helpfmt"
 	"github.com/ze-software/ze/internal/component/command/registry"
 	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/earlyrole"
 	"github.com/ze-software/ze/internal/core/seedinit"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	zeversion "github.com/ze-software/ze/internal/core/version"
@@ -134,6 +135,13 @@ func binaryName() string {
 
 // dispatchMain is the unified entry point called by main(). Returns exit code.
 func dispatchMain(args []string) int {
+	// A role its owner registered under an environment key replaces the whole
+	// command line. It runs first: before the seed role, crash logging and
+	// every flag, because the process is then another program's child and
+	// none of ze's own startup applies to it.
+	if handled, code := earlyrole.Dispatch(); handled {
+		return code
+	}
 	if handled, code := seedinit.Dispatch(args); handled {
 		return code
 	}

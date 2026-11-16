@@ -32,7 +32,6 @@ import (
 	_ "github.com/ze-software/ze/internal/component/firewall/yang"
 	_ "github.com/ze-software/ze/internal/component/hub/yang"
 	_ "github.com/ze-software/ze/internal/component/iface/yang"
-	_ "github.com/ze-software/ze/internal/component/l2tp/ppp/yang"
 	_ "github.com/ze-software/ze/internal/component/mtu/yang"
 	_ "github.com/ze-software/ze/internal/component/ping/yang"
 	_ "github.com/ze-software/ze/internal/component/pki/yang"

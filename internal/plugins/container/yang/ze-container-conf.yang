@@ -1,0 +1,54 @@
+module ze-container-conf {
+    namespace "urn:ze:container:conf";
+    prefix containerconf;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "Configuration of the containers Ze runs from OCI images. Owned by the
+         container plugin, so a build without the plugin has no container
+         keyword. The words are the one table of the container work: every
+         package of the plugin adds the nodes it realizes to this module, with
+         the names, types and help texts that table gives them.";
+
+    revision 2026-11-16 {
+        description "Initial revision: the instance list with its name and enabled leaf.";
+    }
+
+    container container {
+        description "A container is a workload Ze starts from an image and confines: its own
+                     namespaces, a limited control group, a reduced capability set and a
+                     system-call filter. Ze starts each configured container, restarts it
+                     under its policy and removes it when the configuration no longer
+                     holds it.";
+        ze:help "Containers Ze runs from OCI images.";
+
+        list instance {
+            key "name";
+            description "One entry is one container. Whether it runs is stated here and nowhere
+                         else: Ze has no start command and no stop command, and the enabled
+                         leaf says whether the container runs.";
+            ze:help "A container Ze runs from an image.";
+
+            leaf name {
+                type string {
+                    length "1..63";
+                    pattern "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
+                }
+                description "The name selects the container in every command and is its host name
+                             unless one is configured. It holds lowercase letters, digits and
+                             hyphens, and it neither starts nor ends with a hyphen.";
+                ze:help "Name of the container.";
+            }
+
+            leaf enabled {
+                type boolean;
+                default true;
+                description "The default is true. False keeps every other statement of the
+                             container in the configuration and keeps the container stopped,
+                             in the disabled state, until the leaf is true again.";
+                ze:help "Run this container; false keeps its config and stops it.";
+            }
+        }
+    }
+}

@@ -111,10 +111,16 @@ repeat it.
   internal plugin can deadlock the five-stage startup when both sides wait
   (`plan/learned/DESIGN-HISTORY.md`, "Plugin system: architecture",
   load-bearing invariants).
-- **A new plugin breaks two hand-kept lists**: `TestAvailablePlugins`
-  (`cmd/ze/main_test.go`) and `TestAllPluginsRegistered`
-  (`internal/component/plugin/all/all_test.go`)
-  (`plan/learned/RECURRING-PATTERNS.md`, "Plugin list hardcoded in two test files").
+- **A new plugin breaks three snapshots, and no hand-kept list.**
+  `TestRegisteredPluginNames`, `TestRegisteredWireMethods` and
+  `TestYANGSchemaProviders` (`internal/component/plugin/all/all_test.go`)
+  compare the registry with the files under `testdata/`, which are
+  regenerated with `-update` (`ai/patterns/plugin.md`, checklist).
+  `TestAvailablePlugins` (`cmd/ze/main_test.go`) compares with
+  `registry.Names()`, and `TestAllPluginsRegistered` only refuses test-only
+  plugins, so neither needs an edit. The entry "Plugin list hardcoded in two
+  test files" of `plan/learned/RECURRING-PATTERNS.md` describes the lists
+  before that.
 
 ## Gates
 
