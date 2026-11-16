@@ -1576,6 +1576,76 @@ derived from the rule rather than written by the operator. See
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- publishBestChanges -->
 <!-- source: internal/component/bgp/redistribute/producer.go -- EmitBestChange -->
 
+### Retained selection for ordinary advertisement
+
+The RIB also captures its current learned winners as immutable native route
+values. `checkRouteBestChange` prepares each value while its winning candidate
+still retains the received entry and labels. It commits the value under the
+same selection shard that records the winner. The FlowSpec authorization pass
+captures its own winner before releasing its retained entry. Neither path runs
+another election or reads the route again after releasing that entry.
+
+The snapshot owns its attributes, next hop and NLRI independently of received
+pool storage. Its native advertisement NLRI without the source ADD-PATH prefix
+is kept separately from the received path framing. Path identifier zero remains
+an ADD-PATH identifier when the framing says so. CIDR routes use their prefix as
+the internal key; other families use their registered native identity, so VPN
+and EVPN routes sharing an IP portion remain distinct.
+
+Each changed selection gets a positive revision from one manager-wide clock.
+An identical receipt or a losing candidate does not advance it. A change to the
+stored source-policy epoch or stale treatment does: those facts belong to the
+captured revision even when the monitoring best-path record stays equal. The
+mark-stale command re-runs the existing election after releasing the peer lock,
+so a GR or LLGR transition updates the selected value without another UPDATE.
+An old snapshot is never restamped or mutated.
+
+Label comparison uses owned label values rather than a released pool handle:
+the production pool can reuse a numeric slot for a different label stack.
+Capture borrows the winner's already resolved values for comparison and owns
+a copy only when the selection changes. The same resolved values reach
+`recoveryCandidateWithLabels`, so wire reconstruction does not decode the
+label pool again. Legacy recovery callers retain `recoveryCandidate`, which
+resolves their labels and delegates to that shared reconstruction.
+
+The capture retains current selections only. Removing an unsent route releases
+its current record; reappearance uses a newer revision without a historical
+per-key counter or tombstone. A failed extraction or exhausted revision clock
+refuses the snapshot explicitly instead of presenting an old table as current.
+The selection shard or FlowSpec lock precedes the capture mutex; code holding
+that mutex takes no selection or peer lock and calls no engine operation.
+
+An extraction failure or exhausted revision clock latches the original cause.
+The RIB declares `bgp-rib-selected-output` at Stage 1 and answers that runtime
+doctor check in its own process, so a forked RIB reads the same state as an
+internal one. The finding and report-bus event use
+`doctor-bgp-selected-output` and give the restart command for the configured
+instance. Before an instance name is acknowledged, the repair is
+`ze request restart`. Capture cannot resume from an incomplete snapshot, so
+the failure remains visible until the deciding process restarts.
+
+The selection, purge and FlowSpec return paths report only after releasing
+their locks. A healthy election reads one atomic reporting flag. A failed
+capture has at most one report request in flight, bounded to five seconds;
+an unacknowledged request stays owed and retries at most once per report-bus
+window. An acknowledged raise is sent once. Doctor reads the failure without
+mutating or re-reporting it.
+
+This capture does not yet send routes or complete destination replay. Its
+source receipt is explicitly unrecorded until the source-authority event and
+storage contract supplies the original receipt. Current peer metadata cannot
+authorize an older retained path. Destination dispatch, final-writer authority,
+retention revocation and completion barriers remain required before ordinary
+output can use this snapshot. Existing route-server and reflector recovery
+continues to use its own candidate population.
+
+<!-- source: internal/component/bgp/plugins/rib/rib_advertise_capture.go -- advertiseState, advertiseSnapshot, prepareAdvertise, commitAdvertise, removeAdvertise, reelectAdvertiseStale -->
+<!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- checkRouteBestChange, withdrawIfUnheld -->
+<!-- source: internal/component/bgp/plugins/rib/rib_flowspec_validation.go -- reconcileFlowSpecs -->
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- markStaleCommand -->
+<!-- source: internal/component/bgp/plugins/rib/rib_advertise_diagnostic.go -- advertiseDoctorDeclaration, advertiseDoctorCheck, reportAdvertiseAfterElection, reportAdvertiseIssue -->
+<!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoveryCandidate, recoveryCandidateWithLabels -->
+
 ### Generic `Store[T]` and bestPrev Consolidation
 
 The BART-vs-map dispatch is factored into `storage.Store[T]` (a generic

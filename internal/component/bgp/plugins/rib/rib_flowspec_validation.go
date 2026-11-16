@@ -59,6 +59,7 @@ type flowSpecState struct {
 
 type flowSpecRoute struct {
 	key         ribevents.ValidationRoute
+	addPath     bool
 	domain      flowSpecDomain
 	destination netip.Prefix
 	originator  netip.Addr
@@ -372,6 +373,7 @@ func flowSpecIPv6Communities(entry storage.RouteEntry) ([]byte, bool) {
 // locks, publishes eligibility atomically, then emits after releasing all locks.
 // Work is bounded by stored routes and no unicast scan occurs without FlowSpec.
 func (r *RIBManager) reconcileFlowSpecs() {
+	defer r.reportAdvertiseAfterElection()
 	r.flowSpecMu.Lock()
 	r.peerMu.RLock()
 	previous := r.flowSpec.Load()
@@ -417,7 +419,7 @@ func (r *RIBManager) reconcileFlowSpecs() {
 				if external && r.flowSpecRedirectChecked(peer) {
 					target = flowSpecRedirectTarget(entry)
 				}
-				flows = append(flows, flowSpecRoute{key: key, domain: domain, destination: destination, matchable: matchable,
+				flows = append(flows, flowSpecRoute{key: key, addPath: addPath, domain: domain, destination: destination, matchable: matchable,
 					originator: flowSpecOriginator(peer, entry), firstAS: first, localDomain: local, validPath: valid,
 					redirectTarget: target, candidate: candidate, entry: entry})
 				return true
@@ -530,6 +532,14 @@ func (r *RIBManager) reconcileFlowSpecs() {
 		change := bestChangeEntry{Action: routeaction.Add, NLRI: []byte(rule.nlri), Metric: flow.candidate.MED,
 			Priority: priority, ProtocolType: protoType, AIGP: flow.candidate.AIGP, AIGPPresent: flow.candidate.HasAIGP}
 		next.best[rule] = &flowSpecWinner{key: flow.key, communities: communities, ipv6Communities: ipv6Communities, change: change}
+		r.commitAdvertise(r.prepareFlowSpecAdvertise(flow))
+	}
+	if previous != nil {
+		for rule := range previous.best {
+			if _, held := next.best[rule]; !held {
+				r.removeAdvertise(rule.family, netip.Prefix{}, []byte(rule.nlri))
+			}
+		}
 	}
 	for i := range flows {
 		flows[i].entry.Release()

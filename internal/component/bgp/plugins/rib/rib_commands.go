@@ -975,6 +975,7 @@ func (r *RIBManager) markStaleCommand(args []string) (string, any, error) {
 	}
 
 	defer r.reconcileFlowSpecs()
+	defer r.reelectAdvertiseStale(peerAddr, selected)
 	r.peerMu.Lock()
 	defer r.peerMu.Unlock()
 

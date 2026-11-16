@@ -49,6 +49,14 @@ runs the `runtime` phase itself (`runChecks` runs the four config phases
 only), because in its process that state is empty and the check would report
 a box it never looked at as healthy. It asks the daemon instead (next section).
 
+The BGP RIB's `bgp-rib-selected-output` callback reads a failed selected-route
+capture where that RIB runs. It declares `doctor-bgp-selected-output`, retains
+the first cause, and names the configured instance's restart command as its
+fix. The same code is raised through the SDK report bus after selection locks
+are released. An acknowledged error raise is sent once; the runtime finding
+continues to report the cause until the RIB restarts.
+<!-- source: internal/component/bgp/plugins/rib/rib_advertise_diagnostic.go -- advertiseDoctorDeclaration, advertiseDoctorCheck, reportAdvertiseIssue -->
+
 A `runtime` check only reads, and applies nothing. It is handed the platform
 and the configuration doctor read: the tree the `post-config` phase of the same
 answer judged, or no tree when that phase did not run (the configuration is

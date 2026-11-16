@@ -232,6 +232,20 @@ func (r *RIBManager) recoveryEligibleLocked(request *ribevents.RecoveryRequest, 
 // attributes and has the same address prefix as the original route."
 // The retained snapshot supplies both the identity and its attributes.
 func recoveryCandidate(fam family.Family, prefix netip.Prefix, best *Candidate) (ribevents.RecoveryRoute, error) {
+	var labels []uint32
+	if prefix.IsValid() {
+		if fam.SAFI == family.SAFIMPLSLabel {
+			labels = pool.ResolveLabels(best.labelHandle)
+		}
+	}
+	return recoveryCandidateWithLabels(fam, prefix, best, labels)
+}
+
+// recoveryCandidateWithLabels shares reconstruction with callers that already
+// resolved the winner's label stack. The caller MUST retain best and supply
+// labels from that same revision; this helper MUST own all resulting bytes
+// before returning, without retaining the supplied label slice.
+func recoveryCandidateWithLabels(fam family.Family, prefix netip.Prefix, best *Candidate, labels []uint32) (ribevents.RecoveryRoute, error) {
 	attrs, err := best.entry.ToWireBytes()
 	if err != nil {
 		return ribevents.RecoveryRoute{}, err
@@ -241,7 +255,6 @@ func recoveryCandidate(fam family.Family, prefix netip.Prefix, best *Candidate) 
 		var scratch [cidrKeyOctetsMax]byte
 		cidr := candidateNLRI(best, prefix, scratch[:])
 		if fam.SAFI == family.SAFIMPLSLabel {
-			labels := pool.ResolveLabels(best.labelHandle)
 			head := 0
 			if best.AddPath {
 				head = 4

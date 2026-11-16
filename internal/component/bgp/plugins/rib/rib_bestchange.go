@@ -697,6 +697,7 @@ func (r *RIBManager) emitPurgedWithdraws(pending map[family.Family][]bestChangeE
 // route and the Loc-RIB holds nothing this RIB mirrored for it: the answer is
 // "not held" with no removal, and no shards are created to give it.
 func (r *RIBManager) withdrawIfUnheld(fam family.Family, pfx netip.Prefix, route []byte) bool {
+	defer r.reportAdvertiseAfterElection()
 	fs := r.bestPrev.familyShards(fam, false)
 	if fs == nil {
 		return true
@@ -727,6 +728,7 @@ func (r *RIBManager) withdrawIfUnheld(fam family.Family, pfx netip.Prefix, route
 		}
 		r.removeLocRIB(fam, pfx)
 	}
+	r.removeAdvertise(fam, pfx, routeKey)
 	return true
 }
 
@@ -786,6 +788,7 @@ func (r *RIBManager) checkBestPathChange(fam family.Family, nlriBytes []byte, ad
 // Caller MUST NOT hold peerMu. Election order is shard.mu -> peerMu.RLock;
 // peer writers MUST release peerMu before waiting for any bestPrev shard.
 func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, addPath, withdraw bool, forward locrib.ForwardHandle) (bestChangeEntry, bool) {
+	defer r.reportAdvertiseAfterElection()
 	if ribevents.IsFlowSpec(fam) {
 		r.reconcileFlowSpecs()
 		return bestChangeEntry{}, false
@@ -941,6 +944,7 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 			return bestChangeEntry{}, false
 		}
 		sh.store.delete(pfx, routeKey)
+		r.removeAdvertise(fam, pfx, routeKey)
 		r.bestPathInterner.releasePeer(prev.rec.peerIdx())
 		// The Loc-RIB is prefix-keyed and feeds the kernel FIB, so it takes
 		// CIDR families only. See mirrorToLocRIB below for why.
@@ -996,14 +1000,23 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	}
 	// The winner's attribute set, read while the candidate still retains its
 	// entry: releaseCandidates may drop the last reference to its handles.
+	// Selected output captures this same retained revision, including an epoch
+	// or stale-treatment change that leaves the monitoring best record equal.
+	selected := r.prepareAdvertise(fam, pfx, routeKey, newBest, bestLabels)
 	var attrs []byte
 	if !sameBest {
-		var attrsErr error
-		attrs, attrsErr = storedAttributes(&newBest.entry)
-		if attrsErr != nil {
-			// The best change still names the winner; a consumer that needs
-			// the attribute set (BMP Loc-RIB) refuses the entry that lacks it.
-			logger().Warn("bgp-rib: best change published without its attribute set", "prefix", pfx, "error", attrsErr)
+		if selected != nil {
+			// Both consumers own this immutable representation; reconstructing
+			// it again would make two copies of one selected attribute set.
+			attrs = selected.route.Attributes
+		} else {
+			var attrsErr error
+			attrs, attrsErr = storedAttributes(&newBest.entry)
+			if attrsErr != nil {
+				// Monitoring preserves its existing refusal contract while the
+				// selected snapshot separately fails closed on capture failure.
+				logger().Warn("bgp-rib: best change published without its attribute set", "prefix", pfx, "error", attrsErr)
+			}
 		}
 	}
 	releaseCandidates(candidates)
@@ -1067,6 +1080,7 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	if sameBest {
 		// A changed multipath set still reaches the Loc-RIB, which deduplicates
 		// true no-ops, but the best itself needs no new record or event.
+		r.commitAdvertise(selected)
 		mirrorToLocRIB()
 		return bestChangeEntry{}, false
 	}
@@ -1110,6 +1124,7 @@ func (r *RIBManager) checkRouteBestChange(fam family.Family, nlriBytes []byte, a
 	} else {
 		delete(sh.store.labels, pfx)
 	}
+	r.commitAdvertise(selected)
 	// Mirror the best path (and its equal-cost multipath set) into the shared
 	// Loc-RIB via the same closure the same-best short-circuit uses.
 	mirrorToLocRIB()

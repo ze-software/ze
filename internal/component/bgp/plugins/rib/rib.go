@@ -379,6 +379,10 @@ type RIBManager struct {
 	// the owning shard's lock. NOT protected by r.peerMu.
 	bestPrev *bestPrevShards
 
+	// advertise owns immutable current learned selections for ordinary output.
+	// It captures retained winners; it never runs another candidate election.
+	advertise advertiseState
+
 	// flowSpec is the immutable authorization and winning-action snapshot.
 	// flowSpecMu serializes recomputation; events run after it is released.
 	flowSpec              atomic.Pointer[flowSpecState]
@@ -722,6 +726,7 @@ func runRIBPlugin(conn net.Conn) int {
 	// raw wire bytes from RawMessage's AttrsWire/WireUpdate.
 	// RFC 8212 Section 3: the source-policy lifecycle (source_policy.go).
 	p.OnSourcePolicy(r.handleSourcePolicy)
+	p.OnDoctorCheck(r.advertiseDoctorCheck)
 
 	p.OnStructuredEvent(func(events []any) error {
 		for _, event := range events {
@@ -816,8 +821,9 @@ func runRIBPlugin(conn net.Conn) int {
 	err := p.Run(ctx, &sdk.Registration{
 		// WantsConfig: receive the bgp subtree at Stage 2 and on every reload
 		// that changes it, for the config transaction (config_tx.go).
-		WantsConfig: []string{configRootBGP},
-		Commands:    commandDecls(),
+		WantsConfig:  []string{configRootBGP},
+		Commands:     commandDecls(),
+		DoctorChecks: []rpc.DoctorCheckDecl{advertiseDoctorDeclaration()},
 		// ApplyBudget bounds a reload's apply: a selection-rule edit
 		// (maximum-paths, relax-as-path, blackhole honoring) reselects every
 		// stored route inside it (installConfig), one election per route. With

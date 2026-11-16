@@ -154,6 +154,7 @@ const (
 	CodeDoctorBGPPeerNotReading                    = "doctor-bgp-peer-not-reading"
 	CodeDoctorBGPWritePathHeld                     = "doctor-bgp-write-path-held"
 	CodeDoctorBGPASZeroOutbound                    = "doctor-bgp-as-zero-outbound"
+	CodeDoctorBGPSelectedOutput                    = "doctor-bgp-selected-output"
 	CodeDoctorImageListen                          = "doctor-image-listen"
 	CodeDoctorIPsecListen                          = "doctor-ipsec-listen"
 	CodeDoctorListenUnavailable                    = "doctor-listen-unavailable"
@@ -1503,6 +1504,14 @@ var builtinCodes = append([]CodeMeta{
 			"Remedy: remove AS zero from the route source, plugin or export policy and send the corrected route again. " +
 			"Use ze show errors to find the affected peer and attribute.",
 		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-bgp-as-zero-outbound"},
+	},
+	{
+		Code:  CodeDoctorBGPSelectedOutput,
+		Title: "BGP selected routes are unavailable",
+		Description: "The deciding RIB could not record or send its selected routes. It refuses an incomplete snapshot rather than replaying old route data. " +
+			"The runtime doctor finding names the original failure and the configured plugin instance. " +
+			"Run the restart command in that finding to rebuild the selected state; use ze show errors to inspect the retained cause.",
+		Examples: []string{exampleShowDoctor, exampleShowErrors, "ze show diagnostic doctor-bgp-selected-output"},
 	},
 	{
 		Code:        "doctor-bgp-md5",
