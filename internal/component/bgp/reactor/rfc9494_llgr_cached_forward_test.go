@@ -119,6 +119,7 @@ func receiveAndForward(t *testing.T, localLLGR, rs bool) llgrForwardRun {
 	dest := NewPeer(&PeerSettings{
 		Connection:    ConnectionBoth,
 		Address:       netip.MustParseAddr("198.51.100.9"),
+		LocalAddress:  netip.MustParseAddr("198.51.100.1"),
 		LocalAS:       65000,
 		GlobalLocalAS: 65000,
 		PeerAS:        65002,
