@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/radius-tacacs.json](.
 
 ## Figures
 
-- **MUST bar**: Ze proven 123, Proof pending 29, Exclusion unchecked 2, Not assessed 56, Not built 23
-- **Overview bar**: Ze MUST proven 123, SHOULD proven 5, Proof pending 29, Exclusion unchecked 2, Not assessed 190, Not built 23
+- **MUST bar**: Ze proven 124, Proof pending 28, Exclusion unchecked 2, Not assessed 56, Not built 23
+- **Overview bar**: Ze MUST proven 124, SHOULD proven 5, Proof pending 28, Exclusion unchecked 2, Not assessed 190, Not built 23
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/radius-tacacs.json](.
 | Mandatory requirements complete | not complete |
 | MUST rows | 233 |
 | MUST rows kept (the MUST bar) | 233 |
-| Ze proven | 123 |
+| Ze proven | 124 |
 | OS verified | 0 |
-| Proof pending | 29 |
+| Proof pending | 28 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 2 |
 | Not assessed | 56 |
@@ -53,7 +53,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 2865](../../rfc2865/) (cycle with rfc2866) | Remote Authentication Dial In User Service (RADIUS) | Ze proven 26, Proof pending 5 | Ze MUST proven 26, Proof pending 5, Not assessed 1 |
-| [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze proven 7, Proof pending 8 | Ze MUST proven 7, Proof pending 8, Not assessed 1 |
+| [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze proven 8, Proof pending 7 | Ze MUST proven 8, Proof pending 7, Not assessed 1 |
 
 ### Level 3
 

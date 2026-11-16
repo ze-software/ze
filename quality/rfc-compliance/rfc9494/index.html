@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>0</strong><b>of 25 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 25 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 25 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>65</strong><b>65 of 98 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>61</strong><b>61 of 98 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -1264,7 +1264,7 @@ Main read the two actual Atomic notifyMessageReceiver refreshes in f4fe4e33: bot
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go#L117" title="internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go" target="_blank" rel="noopener"><code>TestRFC9494ReceivedEventNoLLGRSessionStaysFresh</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go#L48" title="internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go" target="_blank" rel="noopener"><code>TestRFC9494NegotiateWithKeysOnAdvertisedLLGR</code></a></td>
@@ -1304,7 +1304,7 @@ Main read the two actual Atomic notifyMessageReceiver refreshes in f4fe4e33: bot
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go#L101" title="internal/component/bgp/reactor/rfc9494_llgr_ingress_meta_test.go" target="_blank" rel="noopener"><code>TestRFC9494ReceivedEventCarriesIngressStale</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go#L46" title="internal/component/bgp/reactor/rfc9494_llgr_trigger_test.go" target="_blank" rel="noopener"><code>TestRFC9494NegotiateWithKeysOnAdvertisedLLGR</code></a></td>
@@ -1514,7 +1514,7 @@ Main read the two actual Atomic notifyMessageReceiver refreshes in f4fe4e33: bot
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L265" title="internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go" target="_blank" rel="noopener"><code>TestRFC9494CachedForwardWithholdsReceivedStale</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L298" title="internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go" target="_blank" rel="noopener"><code>TestRFC9494RouteServerForwardWithholdsReceivedStale</code></a></td>
@@ -1554,7 +1554,7 @@ Main read the two actual Atomic notifyMessageReceiver refreshes in f4fe4e33: bot
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L263" title="internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go" target="_blank" rel="noopener"><code>TestRFC9494CachedForwardWithholdsReceivedStale</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go#L296" title="internal/component/bgp/reactor/rfc9494_llgr_cached_forward_test.go" target="_blank" rel="noopener"><code>TestRFC9494RouteServerForwardWithholdsReceivedStale</code></a></td>
@@ -1858,7 +1858,7 @@ Main read the two actual Atomic notifyMessageReceiver refreshes in f4fe4e33: bot
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 15:23 UTC</span>
                 </div>
             </div>
         </footer>

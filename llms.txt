@@ -14,7 +14,7 @@ This file collects information for AI tools in one place. It describes the produ
 - Dataplane: Linux netlink, nftables, eBPF, AF_PACKET, psample, optional VPP integrations, and namespace-aware testing.
 - Release state: pre-release, main-branch builds, no tagged stable release yet.
 - License and repos: AGPLv3. Canonical repository: https://github.com/ze-software/ze. Discord: https://discord.gg/T8s7CjPDne.
-- Current generated counts: 52 shipped or experimental feature cards, 512 CLI commands, 39 config sections, 98 plugin registrations, 60 direct Go dependencies, 46 update reports.
+- Current generated counts: 52 shipped or experimental feature cards, 513 CLI commands, 39 config sections, 98 plugin registrations, 60 direct Go dependencies, 46 update reports.
 - Test evidence counts: 47,400+ unit tests, 110 fuzz targets, 3,000+ end-to-end transcript steps, 410+ interop scenarios across 8 lab suites; the main recorded set has 13 test images, and other suites use additional images.
 - Plans for the release and later improvements (a plan does not mean a feature is ready): [roadmap](https://ze-software.net/project/roadmap/index.md), [snapshot JSON](https://ze-software.net/data/release-roadmap.json).
 - Generated date: 2026-11-16.
@@ -252,7 +252,7 @@ Each registration comes from the Go runtime registry. Config roots come from plu
 
 ## CLI command surface
 
-The command catalog is generated from `ze help command --json`, not hand-written. Modes: 142 daemon, 12 daemon, offline, 3 offline, 314 read-only, 41 read-only, offline.
+The command catalog is generated from `ze help command --json`, not hand-written. Modes: 143 daemon, 12 daemon, offline, 3 offline, 314 read-only, 41 read-only, offline.
 `daemon` commands require a running Ze daemon. `read-only` commands query state. `offline` commands can run without daemon state. `pipes` groups operators as `always`, `with-rows`, `when-streaming`, or `local-only`; these qualifiers are part of the contract. An operator absent from those groups is refused by name.
 
 ### `clear` commands (32)
@@ -348,7 +348,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `plugin session ping` (read-only; wire ze-plugin:session-ping; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `plugin session ping`): Answer a health check with the daemon process id\.
 - `plugin session ready` (read-only; wire ze-plugin:session-ready; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `plugin session ready`): Signal that this plugin process finished its initialization\.
 
-### `request` commands (66)
+### `request` commands (67)
 - `request as112 healthcheck` (daemon; wire ze-as112:health; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args target:string; usage `request as112 healthcheck [target <target>]`): Send one authoritative query and check the AS112 answer\.
 - `request bgp adj-rib-in accept-routes` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp adj-rib-in accept-routes`): Install one pending route under the validation state given\.
 - `request bgp adj-rib-in batch-validate` (daemon; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request bgp adj-rib-in batch-validate`): Apply up to 256 validation decisions in one call\.
@@ -409,6 +409,7 @@ The command catalog is generated from `ze help command --json`, not hand-written
 - `request quiesce` (daemon; wire ze-plugin:system-quiesce; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request quiesce`): Block until every subsystem has drained pending async work\, then reply\.
 - `request reboot` (daemon; wire ze-plugin:system-daemon-reboot; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request reboot`): Gracefully shutdown then reboot the system\.
 - `request reload` (daemon; wire ze-plugin:system-daemon-reload; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request reload`): Reload the configuration without restarting\.
+- `request restart` (daemon; wire ze-plugin:system-daemon-restart; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request restart`): Restart the daemon in place with graceful\-restart state\; keep the host running\.
 - `request shutdown` (daemon; wire ze-plugin:system-daemon-shutdown; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request shutdown`): Gracefully shutdown\: drain connections\, close peers\, exit\.
 - `request subscribe` (daemon; wire ze-cmd:bgp-subscribe; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; usage `request subscribe`): Start receiving events of one or more types\.
 - `request support archive` (daemon, offline; wire ze-support:request-support-archive; pipes always: json ndjson table text yaml raw no-more save, with-rows: match count first last display fill, when-streaming: log, local-only: save; args module:string, exclude:string, since:string, reason:string; usage `request support archive [module <module>] [exclude <exclude>] [since <since>] [reason <reason>]`): Collect logs\, config\, state and diagnostics into one archive\.
@@ -1132,7 +1133,7 @@ Every link points to the page Markdown mirror first. The web URL is the human-re
 
 ### Live system
 - [Reference index](https://ze-software.net/reference/index.md): Commands, configuration, plugins, standards, and feature status (web: https://ze-software.net/reference/)
-- [CLI reference](https://ze-software.net/reference/cli/index.md): 512 commands, generated from Ze's live binary (web: https://ze-software.net/reference/cli/)
+- [CLI reference](https://ze-software.net/reference/cli/index.md): 513 commands, generated from Ze's live binary (web: https://ze-software.net/reference/cli/)
 - [Configuration reference](https://ze-software.net/reference/configuration/index.md): 39 sections, generated from Ze's YANG schemas (web: https://ze-software.net/reference/configuration/)
 - [Plugin catalogue](https://ze-software.net/reference/plugins/index.md): Find runtime plugins by purpose, config, or dependency (web: https://ze-software.net/reference/plugins/)
 ### Standards and lookup

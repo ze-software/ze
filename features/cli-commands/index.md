@@ -9,9 +9,10 @@ reload` is now `request reload`, `daemon status` is `show status`, `daemon quit`
 is `request halt`, `daemon shutdown` is `request shutdown`, and `bgp summary` is
 `show bgp`.
 
-`stop`, `restart`, and `reboot` are the exception, and they keep their bare
-spelling. The SSH exec middleware intercepts those three lifecycle verbs before
-the dispatcher, which registers no key for them.
+`stop`, `restart`, and `reboot` retain their bare SSH exec spelling as controls.
+The adapter sends their canonical `request shutdown`, `request restart` and
+`request reboot` commands through the authenticated session executor. Interactive
+stop/restart controls require confirmation before that same dispatch.
 <!-- source: internal/plugins/signal/main.go -- Commands table ExecCommand column -->
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware lifecycle interception -->
 
@@ -222,8 +223,9 @@ active writer's store lock. For a running daemon, omit `-f`.
 
 Each `ze signal` subcommand sends one SSH exec command to the daemon. `reload`
 sends `request reload`, `status` sends `show status`, and `quit` sends `request
-halt`. `stop`, `restart`, and `reboot` keep their bare spelling because the SSH
-exec middleware intercepts them before the dispatcher.
+halt`. `stop`, `restart`, and `reboot` keep their bare spelling on the SSH wire;
+the adapter maps them to the canonical lifecycle request before authorization,
+accounting and response completion.
 <!-- source: internal/plugins/signal/main.go -- Commands registry, ExecCommand column -->
 
 ### Runtime Interaction

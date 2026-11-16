@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 15 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 15 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 15 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 22 | 22 of 48 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 25 | 25 of 48 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Neutral
 
@@ -86,9 +86,9 @@ Included in automatic checks: ze is a RADIUS accounting client (NAS); the four g
 
 **Area:** RADIUS accounting
 
-**Proof:** 7 of 15 MUST proven
+**Proof:** 8 of 15 MUST proven
 
-**Evidence:** functional 1, unit 6
+**Evidence:** functional 1, unit 7
 
 **Unmet:** -
 
@@ -110,8 +110,8 @@ Included in automatic checks: ze is a RADIUS accounting client (NAS); the four g
 
 ## Figures
 
-- **MUST bar**: Ze proven 7, Proof pending 8
-- **Overview bar**: Ze MUST proven 7, Proof pending 8, Not assessed 1
+- **MUST bar**: Ze proven 8, Proof pending 7
+- **Overview bar**: Ze MUST proven 8, Proof pending 7, Not assessed 1
 
 | Figure | Rows |
 |---|---|
@@ -120,9 +120,9 @@ Included in automatic checks: ze is a RADIUS accounting client (NAS); the four g
 | Mandatory requirements complete | not complete |
 | MUST rows | 15 |
 | MUST rows kept (the MUST bar) | 15 |
-| Ze proven | 7 |
+| Ze proven | 8 |
 | OS verified | 0 |
-| Proof pending | 8 |
+| Proof pending | 7 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -214,10 +214,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | negative | [`TestAcctFramedIPAddressOmittedWhenNotIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L79) | unit/verify | revert, verified |
 | negative | [`TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go#L82) | unit/verify | revert, verified |
 | positive | [`TestAcctFramedIPAddressPresent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L32) | unit/verify | revert, verified |
-| positive | [`TestSessionEventDrivesAddressAndPortID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L121) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestSessionEventDrivesAddressAndPortID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L121) | unit/verify | revert, verified |
 | positive | [`TestAccountingAddressFamiliesShareLifetime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go#L13) | unit/verify | revert, verified |
 | positive | [`TestRFC2866AccountingReportsTheAddressTheNASAssigned`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go#L39) | unit/verify | revert, verified |
-| positive | [`radius-acct-wire.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/radius-acct-wire.ci#L40) | functional/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`radius-acct-wire.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/radius-acct-wire.ci#L40) | functional/verify | revert, verified |
 
 ### [`RFC2866-5-1`](#rfc2866-5-1)
 
@@ -346,7 +346,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2866AcctSessionIDDiffersBetweenSessions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L200) | unit/verify | unproven |
-| positive | [`TestAccountingAddressFamiliesShareLifetime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go#L11) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestAccountingAddressFamiliesShareLifetime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go#L11) | unit/verify | revert, verified |
 | positive | [`TestRFC2866AcctSessionIDSameAcrossRecords`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L181) | unit/verify | unproven |
 
 ### [`RFC2866-5.5-3`](#rfc2866-5.5-3)

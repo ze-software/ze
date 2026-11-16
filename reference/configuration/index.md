@@ -3809,7 +3809,7 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
     A lower value is preferred. The default 254 ranks this learned default below a static default and below a protocol-learned one, and it matches the route-priority default on a unit. Write 0 to put the route on the kernel metric that an operator's static default also uses. The two then share one kernel route, and the last writer owns it.
   - **service-name** `string`: Desired PPPoE service name. Empty or absent means accept any service (RFC 2516 Section 5.1).
     Ze puts the value in the Service-Name tag of the PADI frame and of the PADR frame. An empty value sends a zero-length tag, which every access concentrator answers.
-  - **source-interface** `string`: Physical Ethernet interface for PPPoE discovery (e.g. eth2). Must be declared under interface ethernet.
+  - **source-interface** `string`: Declared interface for PPPoE discovery (e.g. eth2), usually an ethernet entry.
     The name must be an interface this config declares, usually an ethernet entry, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze opens a raw discovery socket bound to this device and sends the PADI frame on it. The source MAC of the frame is the device's own hardware address.
 - **tunnel <name>** `list`: Tunnel interface, in the GRE, GRETAP, IPIP, SIT or IP6TNL family.
   The choice below selects the encapsulation kind, and each case carries only the leaves that are valid for that kind. The local endpoint and remote endpoint pattern matches bgp peer connection { local { ip ... } remote { ip ... } }.

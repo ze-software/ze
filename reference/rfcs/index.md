@@ -340,7 +340,7 @@ These are not RFCs, but they sit next to RFC implementation status and are usefu
 | RFC | Area | Proof | Evidence | Unmet |
 |-----|------|-------|----------|-------|
 | RFC 2865 | RADIUS authentication | 26 of 31 MUST proven | unit 26 | - |
-| RFC 2866 | RADIUS accounting | 7 of 15 MUST proven | functional 1, unit 6 | - |
+| RFC 2866 | RADIUS accounting | 8 of 15 MUST proven | functional 1, unit 7 | - |
 | RFC 2548 | Microsoft vendor-specific RADIUS attributes | 0 of 31 MUST proven | - | - |
 | RFC 6911 | RADIUS IPv6 access attributes | 0 of 3 MUST proven | - | - |
 | RFC 4818 | RADIUS DHCPv6 prefix delegation | 0 of 3 MUST proven | - | - |

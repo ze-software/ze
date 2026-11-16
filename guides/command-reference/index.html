@@ -61,6 +61,7 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#ze-config-validate">ze config validate</a></li>
 <li><a href="#ze-config">ze config</a></li>
 <li><a href="#ze-secret">ze secret</a></li>
+<li><a href="#request-restart">request restart</a></li>
 <li><a href="#ze-signal">ze signal</a></li>
 <li><a href="#ze-status">ze status</a></li>
 <li><a href="#ze-bgp">ze bgp</a></li>
@@ -627,6 +628,19 @@ config reads such a value as encoded.</p>
 </tbody>
 </table>
 <!-- source: internal/component/config/cli/cmd_secret.go -- runSecret, decodeSecret, encodeSecret -->
+<h3 id="request-restart">request restart</h3>
+<p><code>ze request restart</code> restarts the daemon in place through the same dispatcher
+as SSH and the browser CLI. It requires permission to run <code>request restart</code>.
+The daemon answers <code>restart initiated</code> before it prepares its graceful stop.
+With BGP, the existing restart action writes the graceful-restart marker and
+closes sessions without a shutdown notification. Starting the process again
+uses exit 75 after teardown. The generated systemd unit and gokrazy's normal
+supervision loop start the next process; a foreground caller must start it
+again itself. The command
+does not reboot the host and takes no arguments.</p>
+<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request restart -->
+<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart -->
+<!-- source: cmd/ze/hub/infra_setup.go -- infraSetup -->
 <h3 id="ze-signal">ze signal</h3>
 <p>Send commands to the running daemon via SSH.</p>
 <pre><code>ze signal reload                 # Reload configuration
@@ -5745,7 +5759,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 15:40 UTC</span>
                 </div>
             </div>
         </footer>

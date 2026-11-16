@@ -17140,6 +17140,117 @@
     ]
   },
   {
+    "path": "request restart",
+    "short-help": "Restart the daemon in place with graceful-restart state; keep the host running.",
+    "description": "Ze writes 'restart initiated' before it prepares an in-place daemon\nrestart and signals the daemon stop. A BGP daemon writes its graceful-restart\nmarker and closes sessions without a shutdown notification, through the same\naction SSH restart uses. Starting the daemon again requires a supervisor\nconfigured to restart it after this stop. This command does not reboot the\nhost and takes no arguments.",
+    "mode": "daemon",
+    "wire-method": "ze-plugin:system-daemon-restart",
+    "usage": "request restart",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "restart",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
     "path": "request shutdown",
     "short-help": "Gracefully shutdown: drain connections, close peers, exit.",
     "description": "Ze writes the accepted answer first and stops after, so teardown cannot close\nthe requesting connection under its own reply. The answer message is 'shutdown\ninitiated'. A daemon with no reactor uses the same signal-based teardown that\nSIGTERM triggers.",

@@ -806,11 +806,44 @@ typo from causing memory exhaustion.
 
 ```
 request shutdown         # Graceful shutdown
+request restart          # Graceful daemon restart; host stays running
 request reboot           # Graceful shutdown + OS reboot (requires root on Linux)
 request reload           # Reload configuration
 request halt             # Goroutine dump, then graceful shutdown (stop drain included)
 show status              # Get process status
 ```
+<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request lifecycle commands -->
+
+`request restart` uses the shared dispatcher, authorization and accounting on
+every command surface. It answers `restart initiated` before the transport
+releases the daemon's restart action. With BGP, the action writes the existing
+graceful-restart marker and stops sessions without a shutdown notification.
+After teardown the daemon exits 75. The generated systemd unit classifies this
+as successful and forces a new start; gokrazy's normal supervision loop also
+retries this exit. A foreground invocation exits 75 and its caller must start
+the next process. A daemon without BGP uses the same stop notification, with no
+BGP marker. The host stays running.
+Bare interactive `stop` and `restart` require confirmation and dispatch the
+canonical `request shutdown` or `request restart` through the session executor.
+SSH exec also maps its bare `reboot` to `request reboot`. A missing authenticated
+SSH policy refuses the command rather than using a daemon fallback policy.
+<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart, SetRestartFunc -->
+<!-- source: cmd/ze/hub/infra_setup.go -- infraSetup -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
+<!-- source: cmd/ze/hub/service_ssh.go -- sshWireImpl -->
+<!-- source: internal/component/cli/model_keys.go -- handleKeyMsg -->
+<!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
+
+A request canceled before acceptance is refused. Once accepted, restart runs
+after the response write attempt even if the connection closes during delivery.
+Separate accepted requests share one restart action. Restart takes no arguments;
+an extra argument is refused before any action is accepted.
+gRPC releases an accepted action on its payload write or terminal RPC `End`,
+whichever first completes it, so an accepted call that loses its response still
+runs the action once. A rejected call installs no lifecycle action.
+<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart, SetRestartFunc -->
+<!-- source: internal/component/api/grpc/server.go -- transportCompletionStatsHandler.HandleRPC -->
 
 ### Session Commands
 
@@ -1123,6 +1156,7 @@ config. The value after
 
 ```
 request shutdown         # Gracefully shutdown
+request restart          # Restart the daemon in place; keep the host running
 request reboot           # Gracefully shutdown then reboot the system
 show status              # Show process status
 request reload           # Reload the configuration

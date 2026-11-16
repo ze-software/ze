@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 116 | of 133 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 2 | of 133 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0 | of 133 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 292 | 292 of 503 tests linked to requirements, 0 without a fault test and 17 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 296 | 296 of 503 tests linked to requirements, 0 without a fault test and 15 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -81,7 +81,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 503 |
 | Tests linked to requirements | 503 |
 | Recorded audit verdicts | 102 |
-| Fault test records | 309 |
+| Fault test records | 311 |
 | Summary | `rfc/short/rfc4271.md` |
 | Requirement table | `rfc/requirements/rfc4271.md` |
 | RFC text | `rfc/full/rfc4271.txt` |
@@ -625,9 +625,9 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestQueuedDefaultNextHopDrains`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L31) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| negative | [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L329) | unit/verify | unproven |
-| negative | [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L288) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| negative | [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L215) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L329) | unit/verify | mutant, verified |
+| negative | [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L288) | unit/verify | mutant, verified |
+| negative | [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L215) | unit/verify | mutant, verified |
 | negative | [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L524) | unit/verify | mutant, verified |
 | negative | [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L487) | unit/verify | mutant, verified |
 | negative | [`TestRawOriginatedUpdateWithholdsPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_raw_originated_next_hop_test.go#L26) | unit/verify | mutant, verified |
@@ -636,10 +636,10 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 | negative | [`originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/originated-nexthop-peer-own.ci#L15) | functional/verify | unproven |
 | negative | [`raw-originated-nexthop-peer-own.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/raw-originated-nexthop-peer-own.ci#L8) | functional/verify | mutant, verified |
 | positive | [`TestQueuedDefaultNextHopDrains`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L28) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
-| positive | [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L325) | unit/verify | unproven |
-| positive | [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L285) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L325) | unit/verify | mutant, verified |
+| positive | [`TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L285) | unit/verify | mutant, verified |
 | positive | [`TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L250) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
-| positive | [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L210) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L210) | unit/verify | mutant, verified |
 | positive | [`TestSendAnnounceWithholdsRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L522) | unit/verify | mutant, verified |
 | positive | [`TestSendUpdateWithholdsOriginatedRouteWithPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L483) | unit/verify | mutant, verified |
 | positive | [`TestRawOriginatedUpdateWithholdsPeerOwnNextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_raw_originated_next_hop_test.go#L25) | unit/verify | mutant, verified |
@@ -859,7 +859,7 @@ Audit verdict: partial (the tests enforce only the declared tested scope; the wh
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC4271ExactOuterOPENFramingCompletesTheHandshake`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go#L42) | unit/verify | mutant, verified |
-| negative | [`TestRFC4271ValidPendingOPENRemainsACollision`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go#L109) | unit/verify | mutant, verified |
+| negative | [`TestRFC4271ValidPendingOPENRemainsACollision`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go#L109) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC4271OuterOPENFramingErrorsNotify`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go#L25) | unit/verify | mutant, verified |
 | positive | [`TestRFC4271PendingOuterOPENFramingErrorsNotify`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go#L60) | unit/verify | mutant, verified |
 
@@ -1642,7 +1642,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 | negative | [`TestRFC4271OverlappingRouteArrivalDisplacesNeither`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L317) | unit/verify | revert, verified |
 | negative | [`TestRFC4271OverlappingRouteRejectedByPolicyIsNotConsidered`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go#L122) | unit/verify | revert, verified |
 | positive | [`TestRFC4271OverlappingReceivedRoutesAreBothInstalled`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go#L290) | unit/verify | revert, verified |
-| positive | [`TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go#L99) | unit/verify | revert, verified |
+| positive | [`TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go#L99) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4271-9.2-5`](#rfc4271-9.2-5)
 

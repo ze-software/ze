@@ -434,7 +434,11 @@ make Ze unattractive to its neighbours before the sessions close, and Ze waits
 for the answers. The wait ends at the latest 60 s after the stop began. Only
 then does teardown start, and BGP sends Cease (Administrative Shutdown) to every
 peer. With no drain-registered plugin the stop is as fast as it was.</p>
-<p><code>ze start</code> exits 0 after a stop nothing failed in. A stop a plugin caused
+<p><code>ze start</code> exits 0 after an ordinary clean stop. An intentional in-place restart
+exits 75 after teardown: the generated systemd unit marks it successful and
+forces restart, and gokrazy's normal supervision loop starts the next process.
+A foreground invocation exits 75 and needs its caller to start it again.
+A stop a plugin caused
 exits 1, as a refused startup does: a plugin under the <code>fatal</code> policy failed,
 or a plugin declares it must not be restarted while its block asks for
 <code>respawn true</code>. The error ze writes to stderr names the plugin and the reason,
@@ -447,7 +451,7 @@ ze in a loop under <code>Restart=on-failure</code> until systemd's start limit
 (<code>StartLimitBurst</code> within <code>StartLimitIntervalSec</code>) stops it. A plugin that
 exits after the stop has begun does not change its exit status. A forced exit
 (a signal during teardown) is also 1.</p>
-<p><code>ze signal restart</code>, <code>ze signal reboot</code> and <code>request reboot</code> drain with kind
+<p><code>request restart</code>, <code>ze signal restart</code>, <code>ze signal reboot</code> and <code>request reboot</code> drain with kind
 <code>restart</code>: BGP sessions are dropped without a Cease so peers keep the routes for
 graceful restart. Any IGP wait during that drain runs while BGP peers hold the
 routes as stale, so the BGP restart time must exceed the drain plus teardown and
@@ -1124,7 +1128,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 15:40 UTC</span>
                 </div>
             </div>
         </footer>

@@ -1,6 +1,6 @@
 # Command Equivalents
 
-512 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+513 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -241,6 +241,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request quiesce` | Daemon | - | - | - | - | [details](request-quiesce/) |
 | `request reboot` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reboot/) |
 | `request reload` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-reload/) |
+| `request restart` | Daemon | - | - | - | - | [details](request-restart/) |
 | `request shutdown` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-shutdown/) |
 | `request subscribe` | Daemon | - | - | - | - | [details](request-subscribe/) |
 | `request support archive` | daemon, offline | - | - | - | - | [details](request-support-archive/) |

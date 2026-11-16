@@ -174,7 +174,7 @@ Inspect the requirements and remaining gaps for your network role, alongside the
 
 45.7%
 
-2,171 of 4,752 requirements for Ze or the OS.
+2,172 of 4,752 requirements for Ze or the OS.
 
 **196**RFCs implemented **0**unreviewed requirement lists excluded
 
@@ -270,7 +270,7 @@ Feature pages explain behavior and limits. The [maturity record](https://ze-soft
 [Open page](https://ze-software.net/reference/configuration/)
 **Commands**
 
-**512 CLI commands** Syntax, arguments and pipe operators →
+**513 CLI commands** Syntax, arguments and pipe operators →
 
 [Open page](https://ze-software.net/reference/cli/)
 **Plugins**

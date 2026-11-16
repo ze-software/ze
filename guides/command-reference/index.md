@@ -365,6 +365,21 @@ config reads such a value as encoded.
 | 2 | Usage error (no value, two values, an unknown option or action), or stdin could not be read |
 <!-- source: internal/component/config/cli/cmd_secret.go -- runSecret, decodeSecret, encodeSecret -->
 
+### request restart
+
+`ze request restart` restarts the daemon in place through the same dispatcher
+as SSH and the browser CLI. It requires permission to run `request restart`.
+The daemon answers `restart initiated` before it prepares its graceful stop.
+With BGP, the existing restart action writes the graceful-restart marker and
+closes sessions without a shutdown notification. Starting the process again
+uses exit 75 after teardown. The generated systemd unit and gokrazy's normal
+supervision loop start the next process; a foreground caller must start it
+again itself. The command
+does not reboot the host and takes no arguments.
+<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request restart -->
+<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart -->
+<!-- source: cmd/ze/hub/infra_setup.go -- infraSetup -->
+
 ### ze signal
 
 Send commands to the running daemon via SSH.

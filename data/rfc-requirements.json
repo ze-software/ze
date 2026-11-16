@@ -17504,7 +17504,7 @@
           "gated": false,
           "positive-test": "`internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661InvalidOptionLengthDrawsNak` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661LCPInvalidOptionLengthDrawsNak` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661LCPWrongLengthMagicIsNakedNotRejected` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661ReplyListsEachOptionTypeOnce` (unit/verify), `internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go` `TestRFC1661ClientInvalidOptionLengthDrawsNak` (unit/verify)",
           "negative-test": "`internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661InvalidOptionLengthDrawsNak` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661LCPInvalidOptionLengthDrawsNak` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661LCPWrongLengthMagicIsNakedNotRejected` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661ReplyListsEachOptionTypeOnce` (unit/verify), `internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go` `TestRFC1661ClientInvalidOptionLengthDrawsNak` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, shifted**",
           "nightly-only": false,
           "covers": [
             {
@@ -17547,7 +17547,7 @@
               "polarity": "negative",
               "unit": "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce",
               "file": "internal/component/l2tp/ppp/rfc1661_option_length_test.go",
-              "line": 748,
+              "line": 806,
               "carrier": "unit/verify",
               "claim": "-- the option the fault earns is dropped only when the reply already names its Type. A request whose earlier instance of that Type was acceptable, and so is absent from the reply, still draws the desired option, so ze does not answer the invalid Length with silence about the option it wants.",
               "tags": 1
@@ -17592,7 +17592,7 @@
               "polarity": "positive",
               "unit": "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce",
               "file": "internal/component/l2tp/ppp/rfc1661_option_length_test.go",
-              "line": 744,
+              "line": 802,
               "carrier": "unit/verify",
               "claim": "-- the Configure-Nak an invalid Length draws carries the desired Configuration Option, once, whatever the request listed before the fault (producer LCPNakOrReject and its appendUnlessListed, internal/component/l2tp/ppp/session_run.go).",
               "tags": 1
@@ -17611,7 +17611,18 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Sentence: a negotiable option received with an invalid or unrecognized Length SHOULD draw a Configure-Nak carrying the desired option with an appropriate Length and Data. (a) Rejecting or ignoring it, or Naking with a bad Length or value: TestRFC1661LCPInvalidOptionLengthDrawsNak (Length 3, 1, 0) goes red on onlyLCPNak, ParseLCPOptions, len(opts[0].Data) != 2 and value != 1500; TestRFC1661LCPWrongLengthMagicIsNakedNotRejected checks Magic at 4 octets, non-zero; TestRFC1661InvalidOptionLengthDrawsNak and TestRFC1661ClientInvalidOptionLengthDrawsNak cover IPCP and the PPPoE client. Negative: valid Length draws an Ack, unrecognized Type draws a Reject.",
-            "freshness": "fresh"
+            "freshness": "shifted",
+            "moved": [
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661InvalidOptionLengthDrawsNak",
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661InvalidOptionLengthDrawsNak#2",
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPInvalidOptionLengthDrawsNak",
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPInvalidOptionLengthDrawsNak#2",
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength",
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPWrongLengthMagicIsNakedNotRejected",
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPWrongLengthMagicIsNakedNotRejected#2",
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce",
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661ReplyListsEachOptionTypeOnce#2"
+            ]
           }
         },
         {
@@ -17622,7 +17633,7 @@
           "gated": true,
           "positive-test": "`internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661TruncatedOptionSilentlyDiscarded` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661LCPTruncatedOptionSilentlyDiscarded` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661LCPReplyWithOptionsPastEndDiscarded` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661NCPReplyWithOptionsPastEndDiscarded` (unit/verify), `internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go` `TestRFC1661ClientRequestPastEndSilentlyDiscarded` (unit/verify)",
           "negative-test": "`internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661TruncatedOptionSilentlyDiscarded` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661LCPTruncatedOptionSilentlyDiscarded` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661LCPReplyWithOptionsPastEndDiscarded` (unit/verify), `internal/component/l2tp/ppp/rfc1661_option_length_test.go` `TestRFC1661NCPReplyWithOptionsPastEndDiscarded` (unit/verify), `internal/component/l2tp/pppoeclient/rfc1661_option_length_test.go` `TestRFC1661ClientRequestPastEndSilentlyDiscarded` (unit/verify)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -17649,7 +17660,7 @@
               "file": "internal/component/l2tp/ppp/rfc1661_option_length_test.go",
               "line": 680,
               "carrier": "unit/verify",
-              "claim": "-- a Configure-Reject whose options fit is still acted on: a peer Reject of IP-Address remains fatal, so the discard has not disabled the path.",
+              "claim": "-- the discard is confined to invalid replies: a complete IP-Address Configure-Reject with the actual outstanding request's Identifier and unmodified option Data still ends the session.",
               "tags": 1
             },
             {
@@ -17694,7 +17705,7 @@
               "file": "internal/component/l2tp/ppp/rfc1661_option_length_test.go",
               "line": 675,
               "carrier": "unit/verify",
-              "claim": "-- the same Code-blind discard binds the NCPs. An IPCP Configure-Reject whose option Data runs past the end of the packet is dropped rather than read, so the session it would otherwise tear down survives and keeps answering (producer handleNCPPacket's reply-code gate, fed by scanNCPOptions, internal/component/l2tp/ppp/ncp.go).",
+              "claim": "-- an IPCP Configure-Reject whose option Data extends beyond the packet is discarded even when its Identifier matches the still-outstanding Configure-Request: no reply or lifecycle event is emitted, and the original request can still complete IPCP to SessionUp (producer validNCPReply -\u003e ValidateLCPReply, before scanNCPOptions).",
               "tags": 1
             },
             {
@@ -17720,7 +17731,11 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Sentence: when an option Data is indicated by its Length to extend beyond the Information field, the entire packet is silently discarded without affecting the automaton. (a) Replying: TestRFC1661LCPTruncatedOptionSilentlyDiscarded goes red on rec.count() != 0 for three layouts. (b) Moving the automaton: the same test starts in ReqSent and AckSent and asserts currentState() == start, then that a valid request is still Acked. TestRFC1661TruncatedOptionSilentlyDiscarded (IPCP, IPv6CP), the reply-direction units and TestRFC1661ClientRequestPastEndSilentlyDiscarded extend it. Negative: a contained unacceptable option still draws a Nak.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded",
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPReplyWithOptionsPastEndDiscarded#2"
+            ]
           }
         },
         {
@@ -19578,6 +19593,9 @@
             "note": "Clause (a) unrecognized: TestRFC1661ConfigureRejectForUnrecognizedOption and the OutranksInvalidLength units. Clause (b) refused by configuration: TestRFC1661ConfigureRejectForOptionRefusedByConfiguration sends Auth-Protocol (any session) and ACCM (PPPoE), red unless the Reject carries exactly that option and no Ack is written; the same ACCM on L2TP, which configuration accepts, must be Acked with no Reject.",
             "freshness": "shifted",
             "moved": [
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPUnrecognizedTypeOutranksInvalidLength",
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength",
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661NCPUnrecognizedTypeOutranksInvalidLength#2",
               "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption",
               "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoConfigureRejectWhenAllOptionsRecognized"
             ]
@@ -19598,7 +19616,7 @@
               "polarity": "negative",
               "unit": "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified",
               "file": "internal/component/l2tp/ppp/rfc1661_option_length_test.go",
-              "line": 839,
+              "line": 897,
               "carrier": "unit/verify",
               "claim": "-- \"modified in any way\" governs the options the Reject carries, never which options it carries. An option ze recognizes and can negotiate is still filtered OUT, so the echo does not turn the Configure-Reject into a copy of the request.",
               "tags": 1
@@ -19642,7 +19660,7 @@
               "polarity": "positive",
               "unit": "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified",
               "file": "internal/component/l2tp/ppp/rfc1661_option_length_test.go",
-              "line": 828,
+              "line": 886,
               "carrier": "unit/verify",
               "claim": "-- the Configure-Reject carries the refused option exactly as it arrived, its own Length octet included, for the two Lengths ze cannot re-encode. RFC 1661 Section 5.4: \"The Options field is filled with only the unacceptable Configuration Options from the Configure- Request. All recognizable and negotiable Configuration Options are filtered out of the Configure-Reject, but otherwise the Configuration Options MUST NOT be reordered or modified in any way.\" A Length below 2 is one the option encoder can never write, so rebuilding the option from its Type sends back an option the peer never sent (producer LCPNakOrReject's LCPOptionsBadLength arm feeding LCPOption.Raw through WriteLCPOptions, internal/component/l2tp/ppp/session_run.go).",
               "tags": 1
@@ -19672,6 +19690,8 @@
             "note": "Sentence: all recognizable and negotiable options are filtered out of the Configure-Reject, but otherwise the options MUST NOT be reordered or modified in any way. (a) Keeping a recognizable option: TestRFC1661ConfigureRejectForUnrecognizedOption sends MRU(1400)+type 99 and bytes.Equal(pkt.Data, optStream(unknown)) goes red if MRU stays. (b) Reordering: TestRFC1661ConfigureRejectDoesNotReorderOptions compares Types in both orders. (c) Modifying: the same test compares each Data, and TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified / TestRFC1661ClientRejectEchoesTheRefusedOptionUnmodified check the echoed bytes.",
             "freshness": "shifted",
             "moved": [
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified",
+              "internal/component/l2tp/ppp/rfc1661_option_length_test.go::TestRFC1661LCPRejectEchoesTheRefusedOptionUnmodified#2",
               "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectDoesNotReorderOptions",
               "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661ConfigureRejectForUnrecognizedOption"
             ]
@@ -60717,7 +60737,7 @@
         "audited": 12,
         "discrimination-records": 30,
         "escapes": 0,
-        "stale-records": 8
+        "stale-records": 5
       },
       "requirements": [
         {
@@ -60950,11 +60970,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",
                 "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -61002,11 +61021,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",
                 "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             }
@@ -61617,11 +61635,10 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "state": "verified",
                 "producer": "internal/component/l2tp/plugins/authradius/acct.go::onSessionIPAssigned",
                 "break": "body of onSessionIPAssigned replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "verified": true,
                 "proves": true
               }
             },
@@ -62003,7 +62020,7 @@
         "optional-profiles": [],
         "path": "",
         "walked": true,
-        "mandatory-proven": 7,
+        "mandatory-proven": 8,
         "mandatory-total": 15,
         "optional-proven": 0,
         "optional-total": 1,
@@ -62011,10 +62028,10 @@
           "must": {
             "total": 15,
             "kept": 15,
-            "ze-proven": 7,
+            "ze-proven": 8,
             "os-verified": 0,
             "os-gap": 0,
-            "proof-pending": 8,
+            "proof-pending": 7,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
             "not-built": 0,
@@ -62036,7 +62053,7 @@
         },
         "mandatory-by-kind": {
           "functional": 1,
-          "unit": 6
+          "unit": 7
         },
         "unmet": []
       }
@@ -99864,9 +99881,9 @@
         "tags": 503,
         "units": 503,
         "audited": 102,
-        "discrimination-records": 309,
+        "discrimination-records": 311,
         "escapes": 0,
-        "stale-records": 17
+        "stale-records": 15
       },
       "requirements": [
         {
@@ -101095,7 +101112,15 @@
               "line": 329,
               "carrier": "unit/verify",
               "claim": "-- a rewrite to another address is not classified as peer-own, so this guard allows it. The predicate reads the rewritten value rather than classifying every rewrite as peer-own.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
+                "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"effectiveNextHop(mods, base).valid()\"",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "negative",
@@ -101106,12 +101131,11 @@
               "claim": "-- the second client on the same rail still receives the route, so the route server keeps relaying third-party next hops that RFC 7947 Section 2.2.2 requires it to pass through untouched.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
-                "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"effectiveNextHop(mods, base).valid()\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -101124,12 +101148,11 @@
               "claim": "-- the refusal is confined to the peer whose address the NEXT_HOP names. A second destination on the same rail, in the same fan-out, over the same UPDATE, receives the announcement whole. That half is what makes the positive non-vacuous: a change that dropped the route for every destination fails it.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
-                "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"effectiveNextHop(mods, base).valid()\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -101261,7 +101284,15 @@
               "line": 325,
               "carrier": "unit/verify",
               "claim": "-- egressNextHopIsPeerOwn reads the operation applyFactsNextHop records, so `next-hop explicit` pointed at a peer's own address is caught at the same gate as a relayed third-party next hop. A policy or a configuration may not grant what the RFC refuses.",
-              "tags": 1
+              "tags": 1,
+              "proof": {
+                "route": "mutant",
+                "state": "verified",
+                "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
+                "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"base.has(f.addr)\"",
+                "verified": true,
+                "proves": true
+              }
             },
             {
               "polarity": "positive",
@@ -101272,12 +101303,11 @@
               "claim": "-- reactorForwardRS (forward_rs.go) asks egressNextHopIsPeerOwn the same question, so a deployment running rs-fast-path is held to Section 5.1.3 too.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
-                "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"false\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -101308,12 +101338,11 @@
               "claim": "-- \"A route originated by a BGP speaker SHALL NOT be advertised to a peer using an address of that peer as NEXT_HOP\" (Section 5.1.3). egressNextHopIsPeerOwn (forward_next_hop.go) compares the address about to be written against peerForwardFacts.addr, and forwardUpdateCore withholds the announcement from the destination that owns it.",
               "tags": 1,
               "proof": {
-                "route": "revert",
-                "state": "producer-changed",
-                "detail": "the producer's behavior changed since the break was applied to it",
+                "route": "mutant",
+                "state": "verified",
                 "producer": "internal/component/bgp/reactor/forward_next_hop.go::egressNextHopIsPeerOwn",
-                "break": "body of egressNextHopIsPeerOwn replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": false,
+                "break": "line 518: \"effectiveNextHop(mods, base).has(f.addr)\" -\u003e \"false\"",
+                "verified": true,
                 "proves": true
               }
             },
@@ -102653,7 +102682,7 @@
           "gated": true,
           "positive-test": "scoped evidence: `internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go` `TestRFC4271OuterOPENFramingErrorsNotify` (unit/verify), `internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go` `TestRFC4271PendingOuterOPENFramingErrorsNotify` (unit/verify)",
           "negative-test": "scoped evidence: `internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go` `TestRFC4271ExactOuterOPENFramingCompletesTheHandshake` (unit/verify), `internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go` `TestRFC4271ValidPendingOPENRemainsACollision` (unit/verify)",
-          "note": "**audit: partial** {partial} tested \"NOTIFICATION message with the Error Code OPEN Message Error\"; gap \"All errors detected\"; standard and RFC 9072 outer OPEN framing failures now produce exact NOTIFICATION 2/0 through the ordinary decoder and pending-connection reader; exact-length OPEN controls advance the ordinary handshake, while a valid pending collision retains Cease 6/7. These matrices do not bound every detected OPEN validation class; internal/component/bgp/reactor/session_handlers.go::handleOpen remains the gap-context for the full all-errors obligation. A nine-octet OPEN body is a message-header length error, not the Section 6.2 framing witness Parent quote: All errors detected while processing the OPEN message MUST be indicated by sending the NOTIFICATION message with the Error Code OPEN Message Error. (§6.2) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: fresh",
+          "note": "**audit: partial** {partial} tested \"NOTIFICATION message with the Error Code OPEN Message Error\"; gap \"All errors detected\"; standard and RFC 9072 outer OPEN framing failures now produce exact NOTIFICATION 2/0 through the ordinary decoder and pending-connection reader; exact-length OPEN controls advance the ordinary handshake, while a valid pending collision retains Cease 6/7. These matrices do not bound every detected OPEN validation class; internal/component/bgp/reactor/session_handlers.go::handleOpen remains the gap-context for the full all-errors obligation. A nine-octet OPEN body is a message-header length error, not the Section 6.2 framing witness Parent quote: All errors detected while processing the OPEN message MUST be indicated by sending the NOTIFICATION message with the Error Code OPEN Message Error. (§6.2) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: fresh scoped tag claims are not all backed by current producer-break records",
           "nightly-only": false,
           "annotation": {
             "kind": "partial",
@@ -102690,10 +102719,11 @@
               "tags": 1,
               "proof": {
                 "route": "mutant",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/incoming_candidate.go::handlePendingCollision",
                 "break": "line 284: \"session.CloseWithNotification(message.NotifyCease, message.NotifyCeaseConnectionCollision)\" -\u003e \"session.CloseWithNotification(message.NotifyOpenMessage, message.NotifyCeaseConnectionCollision)\"",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -107637,10 +107667,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiver",
                 "break": "body of Reactor.notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             }
@@ -128183,7 +128214,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go` `TestRFC4659APIVPNv6LinkLocalCommonSubnet` (unit/verify), `internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go` `TestRFC4659VPNv6LinkLocalLoopbackGlobal` (unit/verify), `internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go` `TestRFC4659StaticVPNv6LinkLocalCommonSubnet` (unit/verify), `internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go` `TestRFC4659ForwardVPNv6LinkLocalCommonSubnet` (unit/verify), `internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go` `TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkVPNFRR` (interop/nightly), `test/encode/rfc4659-vpnv6-link-local-off-subnet.ci` (functional/verify)",
           "negative-test": "`internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go` `TestRFC4659APIVPNv6LinkLocalCommonSubnet` (unit/verify), `internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go` `TestRFC4659StaticVPNv6LinkLocalCommonSubnet` (unit/verify), `internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go` `TestRFC4659ForwardVPNv6LinkLocalCommonSubnet` (unit/verify), `internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go` `TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD` (unit/verify), `internal/le/interoplab/bgp/check_rfc.go` `checkVPNFRR` (interop/nightly)",
-          "note": "**audit: weak**",
+          "note": "**audit: weak, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -128385,7 +128416,10 @@
             "verdict": "weak",
             "meaning": "the tests pass over code that does not enforce the requirement",
             "note": "Independent AC12 rejudgment on 2026-11-16 against RFC 4659 Section 3.2.1.1 and every current tagged carrier: the Go units assert exact zero-RD 48-octet pairs for speaker-owned globals with a configured usable LinkLocal on a common subnet, and exact 24-octet fields for recipients on no connected subnet. The loopback-global controls correctly distinguish VPN peer-only scope from RFC2545 joint scope. The functional positive covers the same configured case. The interop positive requires BIRD exact ordered global and topology-owned Link-Local; its negative is only third-party omission on those same on-link sessions, not a no-common-subnet negative. These narrow assertions remain useful. Whole-row enforced is unsupported: applyLinkLocal accepts an absent leaf, the only production assignment of PeerSettings.LinkLocal is that parser, and linkScope.linkLocalNextHop returns no address for the speaker when that configured value is absent. The shared normalizer and builder then retain the global-only field even when the actual speaker/peer common-subnet condition holds. No tagged carrier exercises interface-derived own Link-Local without this override. This is a source-demonstrated pre-existing implementation/testing gap, not an observed runtime failure. Existing spec-bgp-link-local-only-next-hop AC9-19/AC20 owns interface-derived address selection and actual-interface binding. Verdict weak until that required case is proven and fixed; a later valid partial annotation may preserve the tested scope with an explicit gap, but no partial or enforced claim is made now. No tests, records, audit stamps, compilation or runtime checks were executed by this reviewer.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/forward_next_hop.go::applyEgressNextHopScope"
+            ]
           }
         },
         {
@@ -277889,7 +277923,7 @@
         "audited": 8,
         "discrimination-records": 42,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 3
       },
       "requirements": [
         {
@@ -278501,10 +278535,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced",
                 "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -278578,10 +278613,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced",
                 "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -278635,7 +278671,7 @@
           "gated": true,
           "positive-test": "`internal/component/bgp/message/header_test.go` `TestValidateLengthWithMax` (unit/verify), `internal/component/bgp/reactor/rfc8654_directional_session_test.go` `TestRFC8654ReceiveLimitFollowsLocalOPEN` (unit/verify)",
           "negative-test": "`internal/component/bgp/message/header_test.go` `TestValidateLengthWithMax` (unit/verify), `internal/component/bgp/reactor/rfc8654_directional_session_test.go` `TestRFC8654ReceiveLimitFollowsLocalOPEN` (unit/verify), `internal/le/interoplab/bgp/check_extended_message_scenarios.go` `checkExtendedRemoteOnlyRejectFRR` (interop/nightly), `internal/le/interoplab/bgp/check_extended_message_scenarios.go` `checkExtendedNeitherRejectFRR` (interop/nightly)",
-          "note": "",
+          "note": "**audit: enforced, stale-unit**",
           "nightly-only": false,
           "covers": [
             {
@@ -278729,7 +278765,10 @@
             "verdict": "enforced",
             "meaning": "the tests do what the requirement demands",
             "note": "Independent rejudgment against the complete RFC 8654 Section 5: \"A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message.\" The immutable prepared OPEN pair now feeds prepareNegotiation and publishNegotiation; the receive permission still comes only from capability.Negotiate's local advertisement, while writer resizing follows the independent peer advertisement. readFrame and the coalesced reader both call ValidateLengthWithMax before reading the declared body. The tagged live OPEN-exchange matrix covers all four local/peer advertisement combinations through both readers at 4096, 4097 and 65535 octets. Local absence above 4096 requires an error, zero dispatch and exact NOTIFICATION 1/2 with the offending Length; local presence requires one intact dispatch, Established and no answer bytes. The header table independently distinguishes accepted and rejected limits. Read both tagged FRR checker bodies and their shared receive-rejection predicate: they inspect original Ze OPEN advertisement separately from the relay-delivered copy, require FRR's actual large UPDATE, exact rejection and teardown of the original session. No new test or FRR execution is claimed by this source audit. Further independent rejudgment after receivedFrame value transfer: reread the full RFC, this row, all tagged units and their assertion-producing helpers, both prior judgments, and the complete changed readFrame/dispatchFrame/admitFrame paths. Only the frame wrapper and error returns changed representation; advertised receive permission, per-type length validation before body read, exact notification and borrowed buffer ownership are preserved. Tagged bodies and claims are unchanged. Main renewed the existing readFrame permission break under native receipt 52883: clean PASS for all three RFC7606 handling variants and own named broken failures when extended receive permission is forced false. That receipt belongs to RFC8654-3-1 and supports reader preservation; it does not replace this row's own unchanged tagged evidence. Verdict remains enforced and all existing producer keys are retained.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced"
+            ]
           }
         },
         {
@@ -278786,7 +278825,7 @@
           "gated": true,
           "positive-test": "scoped evidence: `internal/component/bgp/message/header_test.go` `TestValidateLengthWithMax` (unit/verify), `internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go` `TestRFC8654FatalLengthReleasesInstalledRoutes` (unit/verify), `internal/component/bgp/reactor/rfc8654_rib_recovery_test.go` `TestRFC8654FatalLengthReelectsAlternateBest` (unit/verify)",
           "negative-test": "scoped evidence: `internal/component/bgp/message/header_test.go` `TestValidateLengthWithMax` (unit/verify), `internal/component/bgp/message/rfc8654_length_bounds_test.go` `TestRFC8654LengthBoundsPerTypeAndCapability` (unit/verify), `internal/component/bgp/reactor/rfc8654_bad_length_session_test.go` `TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling` (unit/verify), `internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go` `TestRFC8654ValidLengthRetainsInstalledRoutes` (unit/verify)",
-          "note": "**audit: partial** {partial} tested \"treats an improper BGP Extended Message as a fatal error\"; gap \"follow the error-handling procedures of [RFC4271]\"; live TCP tests prove exact fatal-length notification, completed session/resource/RIB cleanup and downstream withdrawal or alternate replacement, with valid-length retention controls. They do not observe the last invalid-route or advertisement owner's lifetime through outbound admission; internal/component/bgp/reactor/relay_recovery.go::admitRecovery is the inspected admission boundary. Header helpers assert returned Notification values or no error, not socket cleanup or owner lifetime. The whole row remains unproven Parent quote: Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: fresh",
+          "note": "**audit: partial, stale-unit** {partial} tested \"treats an improper BGP Extended Message as a fatal error\"; gap \"follow the error-handling procedures of [RFC4271]\"; live TCP tests prove exact fatal-length notification, completed session/resource/RIB cleanup and downstream withdrawal or alternate replacement, with valid-length retention controls. They do not observe the last invalid-route or advertisement owner's lifetime through outbound admission; internal/component/bgp/reactor/relay_recovery.go::admitRecovery is the inspected admission boundary. Header helpers assert returned Notification values or no error, not socket cleanup or owner lifetime. The whole row remains unproven Parent quote: Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5) Scoped evidence only; all obligations outside tested remain unmet or unproven; zero whole-requirement credit. scope audit: stale-unit scoped tag claims are not all backed by current producer-break records",
           "nightly-only": false,
           "annotation": {
             "kind": "partial",
@@ -278857,10 +278896,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced",
                 "break": "body of readAndProcessCoalesced replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -278920,7 +278960,10 @@
             "verdict": "partial",
             "meaning": "the tests enforce only the declared tested scope; the whole requirement remains unmet",
             "note": "Tested \"treats an improper BGP Extended Message as a fatal error\"; Gap \"follow the error-handling procedures of [RFC4271]\"; Producer internal/component/bgp/reactor/relay_recovery.go::admitRecovery. Independent rejudgment from complete RFC 8654 and RFC 4271 Sections 6 and 6.1, every tagged unit, and the current reader/publication and recovery boundaries. RFC 8654 Section 5 says, \"Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271].\" Extracting readFrame preserves exact Bad Message Length notification, Event21, transport closure and the pre-body limit check. Header helpers assert returned notification values or no error; they do not observe socket or route cleanup. Actual TCP tests first establish real received routes, Loc-RIB state and downstream advertisements, then assert exact 1/2 Data 1001, EOF, Idle, timer/context/session cleanup, source storage removal and both downstream withdrawals. The alternate-best carrier checks both replacement attributes together on recipient TCP through a causal post-recovery marker, a single Loc-RIB replacement and withdrawal without a survivor. The adjacent 4096-octet control retains the original session/resources/routes and forwards its changed MED without notification or withdrawal. These assertions remain useful after the shared-reader extraction. RFC 4271 Section 6 also requires withdrawal or replacement before final invalid-route deletion. None of these end-state observations measures the last invalid-route or advertisement owner's lifetime through outbound admission; the tests explicitly disclaim that proof. admitRecovery stages owned references and dispatches completion-bound work, but reading that implementation cannot substitute for a lifecycle observation or a discriminating fault at its final-owner boundary. The existing partial annotation remains accurate and earns zero whole-requirement credit. No new execution or imported ordering conformance is claimed. Further independent rejudgment after receivedFrame value transfer: reread the full RFC, exact partial annotation, every tagged unit and assertion-producing helper, prior judgment and complete changed reader/candidate paths. The frame wrapper now transfers by value with unchanged error, notification, closure and buffer-handle ownership. Main renewed this row's existing misclassified-fatal-length break under native receipt 70610: the exact tagged unit passes clean and fails broken when expected notification code 1 becomes 6. Tagged bodies/claims and the Tested/Gap/Producer scope are unchanged. Verdict remains partial, with the same unproven final-owner lifetime ordering and every existing producer key retained.",
-            "freshness": "fresh"
+            "freshness": "stale-unit",
+            "moved": [
+              "internal/component/bgp/reactor/session_coalesce.go::readAndProcessCoalesced"
+            ]
           }
         },
         {
@@ -320630,7 +320673,7 @@
         "audited": 19,
         "discrimination-records": 65,
         "escapes": 0,
-        "stale-records": 0
+        "stale-records": 4
       },
       "requirements": [
         {
@@ -321651,10 +321694,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiver",
                 "break": "body of Reactor.notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -321787,10 +321831,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiver",
                 "break": "body of Reactor.notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -322310,10 +322355,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiver",
                 "break": "body of Reactor.notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -322446,10 +322492,11 @@
               "tags": 1,
               "proof": {
                 "route": "revert",
-                "state": "verified",
+                "state": "producer-changed",
+                "detail": "the producer's behavior changed since the break was applied to it",
                 "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiver",
                 "break": "body of Reactor.notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")",
-                "verified": true,
+                "verified": false,
                 "proves": true
               }
             },
@@ -350767,7 +350814,7 @@
         "optional-profiles": [],
         "path": "",
         "walked": true,
-        "mandatory-proven": 7,
+        "mandatory-proven": 8,
         "mandatory-total": 15,
         "optional-proven": 0,
         "optional-total": 1,
@@ -350775,10 +350822,10 @@
           "must": {
             "total": 15,
             "kept": 15,
-            "ze-proven": 7,
+            "ze-proven": 8,
             "os-verified": 0,
             "os-gap": 0,
-            "proof-pending": 8,
+            "proof-pending": 7,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
             "not-built": 0,
@@ -350800,7 +350847,7 @@
         },
         "mandatory-by-kind": {
           "functional": 1,
-          "unit": 6
+          "unit": 7
         },
         "unmet": []
       },
@@ -378250,7 +378297,7 @@
       "rollup": {
         "rfcs": 14,
         "not-walked": 0,
-        "mandatory-proven": 268,
+        "mandatory-proven": 269,
         "mandatory-total": 459,
         "optional-proven": 9,
         "optional-total": 161,
@@ -378258,10 +378305,10 @@
           "must": {
             "total": 459,
             "kept": 459,
-            "ze-proven": 268,
+            "ze-proven": 269,
             "os-verified": 0,
             "os-gap": 94,
-            "proof-pending": 56,
+            "proof-pending": 55,
             "exclusion-unchecked": 0,
             "not-assessed": 0,
             "not-built": 41,
@@ -378492,7 +378539,7 @@
           "optional-profiles": [],
           "path": "lns: required by rfc/short/rfc2866.md",
           "walked": true,
-          "mandatory-proven": 7,
+          "mandatory-proven": 8,
           "mandatory-total": 15,
           "optional-proven": 0,
           "optional-total": 1,
@@ -378500,10 +378547,10 @@
             "must": {
               "total": 15,
               "kept": 15,
-              "ze-proven": 7,
+              "ze-proven": 8,
               "os-verified": 0,
               "os-gap": 0,
-              "proof-pending": 8,
+              "proof-pending": 7,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
               "not-built": 0,
@@ -378525,7 +378572,7 @@
           },
           "mandatory-by-kind": {
             "functional": 1,
-            "unit": 6
+            "unit": 7
           },
           "unmet": []
         },
@@ -403810,7 +403857,7 @@
       "rollup": {
         "rfcs": 12,
         "not-walked": 0,
-        "mandatory-proven": 123,
+        "mandatory-proven": 124,
         "mandatory-total": 233,
         "optional-proven": 5,
         "optional-total": 139,
@@ -403818,10 +403865,10 @@
           "must": {
             "total": 233,
             "kept": 233,
-            "ze-proven": 123,
+            "ze-proven": 124,
             "os-verified": 0,
             "os-gap": 0,
-            "proof-pending": 29,
+            "proof-pending": 28,
             "exclusion-unchecked": 2,
             "not-assessed": 56,
             "not-built": 23,
@@ -403928,7 +403975,7 @@
           "optional-profiles": [],
           "path": "radius-tacacs: aggregate named by rfc/short/rfc2866.md",
           "walked": true,
-          "mandatory-proven": 7,
+          "mandatory-proven": 8,
           "mandatory-total": 15,
           "optional-proven": 0,
           "optional-total": 1,
@@ -403936,10 +403983,10 @@
             "must": {
               "total": 15,
               "kept": 15,
-              "ze-proven": 7,
+              "ze-proven": 8,
               "os-verified": 0,
               "os-gap": 0,
-              "proof-pending": 8,
+              "proof-pending": 7,
               "exclusion-unchecked": 0,
               "not-assessed": 0,
               "not-built": 0,
@@ -403961,7 +404008,7 @@
           },
           "mandatory-by-kind": {
             "functional": 1,
-            "unit": 6
+            "unit": 7
           },
           "unmet": []
         },

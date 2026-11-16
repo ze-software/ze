@@ -15508,7 +15508,7 @@
             "description": "The name must be an interface this config declares, usually an ethernet\nentry, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze opens a raw discovery socket bound to this\ndevice and sends the PADI frame on it. The source MAC of the frame is\nthe device's own hardware address.",
             "kind": "leaf",
             "name": "source-interface",
-            "short-help": "Physical Ethernet interface for PPPoE discovery\n(e.g. eth2). Must be declared under interface ethernet.",
+            "short-help": "Declared interface for PPPoE discovery (e.g. eth2), usually an ethernet entry.",
             "source": "config",
             "type": "string"
           }

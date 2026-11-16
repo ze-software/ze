@@ -462,6 +462,16 @@ Accounts with edit permission can disconnect another session; use Discard for
 your own changes. <strong>Display preferences</strong> changes the shared editor's columns
 and diagnostic presentation for your account. These inspection and preference
 controls are available to read-only accounts.</p>
+<p>In <strong>Edit</strong>, open <strong>Import into candidate</strong> to select a local file or paste
+configuration. Choose <strong>Configuration root</strong> for a complete configuration or
+<strong>Selected item</strong> for a body relative to the item you are viewing. <strong>Merge</strong>
+retains omitted settings; <strong>Replace</strong> removes settings omitted from that scope.
+The request is limited to 4 MiB, including form fields and file headers.
+An import changes only your candidate. Review its changes, then commit to apply
+them. A refused import keeps both the candidate and your form available for
+correction. Read-only accounts have no import controls.</p>
+<!-- source: internal/component/web/component_graphical_import.templ -- graphicalImportPanel -->
+<!-- source: internal/component/web/graphical_import.go -- HandleGraphicalImport -->
 <!-- source: internal/component/web/component_graphical_values.templ -- graphicalValues, graphicalInlineList -->
 <!-- source: internal/component/web/component_graphical_actions.templ -- graphicalActionPanel -->
 <!-- source: internal/component/web/graphical_actions.go -- HandleGraphicalAction, rollbackGraphicalRevision -->
@@ -659,7 +669,19 @@ provides configuration editing without an operational command service.</p>
 </tr>
 <tr>
 <td><code>exit</code>, <code>configure</code></td>
-<td>Switch between operational mode and configuration mode</td>
+<td>Leave configuration mode or enter it; operational <code>exit</code> returns to the graphical editor</td>
+</tr>
+<tr>
+<td><code>quit</code></td>
+<td>Return to the graphical editor</td>
+</tr>
+<tr>
+<td><code>clear</code></td>
+<td>Restore the current candidate view in configuration mode, or clear operational output</td>
+</tr>
+<tr>
+<td><code>stop</code>, <code>restart</code></td>
+<td>Ask for explicit confirmation, then submit the daemon's authorized shutdown or restart operation</td>
 </tr>
 <tr>
 <td><code>help</code></td>
@@ -670,6 +692,19 @@ provides configuration editing without an operational command service.</p>
 <p>The <a href="../config-editor/">config editor guide</a> describes the command grammar and
 commit conflict handling. An explicit <code>force</code> option can override warnings and
 conflicting drafts where the shared commit command permits it.</p>
+<p>Leaving with pending changes asks for confirmation and keeps your candidate.
+Clearing the display also keeps those changes and your current position.
+Configuration-mode <code>top clear</code> and <code>run clear</code> have the same effect as <code>clear</code>.
+Help in both modes uses the CLI's shared command catalog.
+The confirmation appears beside the terminal input with <strong>Confirm</strong> and
+<strong>Cancel</strong> buttons. Cancel keeps you in the current mode with your output and
+candidate unchanged.</p>
+<p>Daemon <code>stop</code> and <code>restart</code> affect every connected user. They always ask for
+confirmation and still require permission through the normal command service.
+<code>top stop</code> and <code>top restart</code> have the same effect from configuration mode.
+These actions keep your candidate and are separate from clearing the display.</p>
+<!-- source: internal/component/cli/contract/lifecycle.go -- LifecycleCommand -->
+<!-- source: internal/component/web/cli_controls.go -- executeTerminalControl, terminalEditorHelp -->
 <!-- source: internal/component/web/cli_terminal.go -- executeTerminalCommand, executeTerminalConfigMode -->
 <!-- source: internal/component/web/cli_editor.go -- executeTerminalEditorCommand -->
 <!-- source: internal/component/cli/editor_transport.go -- ExecuteConfigCommand -->
@@ -684,10 +719,15 @@ loads can also use set-format statements.</p>
 <!-- source: internal/component/web/assets/cli.js -- initTerminal -->
 <!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace -->
 <h3 id="completion-and-output-format">Completion and Output Format</h3>
-<p>Tab or an unquoted <code>?</code> offers schema and command completions for the terminal's
-current position. Arrow keys select an item, Enter accepts it, and a quoted <code>?</code>
-remains data. Enum values declared in YANG, including enum members of a union,
-are offered by the shared completer.</p>
+<p>Tab offers schema and command completions for the terminal's current position.
+Arrow keys or Tab select an item and Enter accepts it. An unquoted <code>?</code> explains
+the selected candidate or completed command using its declared long help; a
+quoted <code>?</code> remains data. Tab also reveals long help once no completion remains.
+Escape closes the explanation before closing a menu beneath it. Enum values
+declared in YANG, including enum members of a union, are offered by the shared
+completer. A failed runtime query displays its reason and correction, so it
+cannot be mistaken for an empty set of values.</p>
+<!-- source: internal/component/web/assets/cli.js -- completionResponse, initTerminal -->
 <p>In operational mode, <code>set cli format</code> queries the output preference and
 <code>set cli format json</code> selects a format for this authenticated user's session.
 The preference also applies to config-mode <code>run</code> commands; an explicit format
@@ -697,12 +737,20 @@ unchanged, and raw live streams retain their existing text format.</p>
 <!-- source: internal/component/cli/session_format.go -- ExecuteSessionFormat, SessionFormatCompletions -->
 <!-- source: internal/component/web/cli_format.go -- sessionFormatCommand, executeTerminalOperationalForUser -->
 <h3 id="live-commands">Live Commands</h3>
-<p>Registered monitoring commands stream successive daemon answers into the page.
+<p>Registered interactive monitors show the same live view as the CLI, with buttons
+for the actions that view offers. For <code>run monitor bgp</code>, use <strong>Next sort column</strong>
+and <strong>Reverse order</strong> to sort, <strong>Previous peer</strong> or <strong>Next peer</strong> to select a row,
+<strong>Peer detail</strong> to inspect it and <strong>Back to peers</strong> to return. <strong>Help</strong> shows the
+view's own explanation. The highlighted row, detail and updates come from the
+same producer as the terminal dashboard.</p>
+<p>Other registered monitoring commands stream successive daemon answers into the page.
 <strong>Stop</strong> or Ctrl+C ends the stream, and submitting a new command stops the active
 stream before running the next command. Leaving the page also cancels it. The
-server bounds each stream at 4 MiB; the browser keeps at most 1 MiB of visible
-output and marks older output that it has removed. A producer failure is shown
-in the output, and unsupported live pipe filters are refused with a reason.</p>
+browser removes ended controls and shows why a failed action or producer could
+not continue. Raw text streams are bounded at 4 MiB by the server; the browser
+keeps at most 1 MiB of visible text and marks older output that it has removed.
+Interactive views retain only the latest frame, limited to 64 KiB. Unsupported
+live pipe filters are refused with a reason.</p>
 <!-- source: internal/component/web/cli_stream.go -- HandleCLITerminalStream, cliStreamWriter.Write -->
 <!-- source: cmd/ze/hub/server_stream.go -- serverStreamDispatcher -->
 <!-- source: internal/component/web/assets/cli.js -- initTerminal -->
@@ -785,7 +833,7 @@ data: &lt;html-fragment&gt;
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 16:06 UTC</span>
                 </div>
             </div>
         </footer>

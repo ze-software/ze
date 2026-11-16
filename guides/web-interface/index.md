@@ -273,6 +273,18 @@ your own changes. **Display preferences** changes the shared editor's columns
 and diagnostic presentation for your account. These inspection and preference
 controls are available to read-only accounts.
 
+In **Edit**, open **Import into candidate** to select a local file or paste
+configuration. Choose **Configuration root** for a complete configuration or
+**Selected item** for a body relative to the item you are viewing. **Merge**
+retains omitted settings; **Replace** removes settings omitted from that scope.
+The request is limited to 4 MiB, including form fields and file headers.
+An import changes only your candidate. Review its changes, then commit to apply
+them. A refused import keeps both the candidate and your form available for
+correction. Read-only accounts have no import controls.
+
+<!-- source: internal/component/web/component_graphical_import.templ -- graphicalImportPanel -->
+<!-- source: internal/component/web/graphical_import.go -- HandleGraphicalImport -->
+
 <!-- source: internal/component/web/component_graphical_values.templ -- graphicalValues, graphicalInlineList -->
 <!-- source: internal/component/web/component_graphical_actions.templ -- graphicalActionPanel -->
 <!-- source: internal/component/web/graphical_actions.go -- HandleGraphicalAction, rollbackGraphicalRevision -->
@@ -427,12 +439,32 @@ provides configuration editing without an operational command service.
 | `commit now`, `commit confirmed <seconds>`, `commit accept`, `commit abort`, `commit verify` | Apply, confirm, revert or validate through the shared commit machinery; `commit` alone lists the accepted subcommands |
 | `discard [all\|<path>]` | Drop all candidate changes or only changes under the supplied path |
 | `run <command>` | Run an operational command while keeping the configuration position |
-| `exit`, `configure` | Switch between operational mode and configuration mode |
+| `exit`, `configure` | Leave configuration mode or enter it; operational `exit` returns to the graphical editor |
+| `quit` | Return to the graphical editor |
+| `clear` | Restore the current candidate view in configuration mode, or clear operational output |
+| `stop`, `restart` | Ask for explicit confirmation, then submit the daemon's authorized shutdown or restart operation |
 | `help` | Display the available commands |
 
 The [config editor guide](../config-editor/index.md) describes the command grammar and
 commit conflict handling. An explicit `force` option can override warnings and
 conflicting drafts where the shared commit command permits it.
+
+Leaving with pending changes asks for confirmation and keeps your candidate.
+Clearing the display also keeps those changes and your current position.
+Configuration-mode `top clear` and `run clear` have the same effect as `clear`.
+Help in both modes uses the CLI's shared command catalog.
+The confirmation appears beside the terminal input with **Confirm** and
+**Cancel** buttons. Cancel keeps you in the current mode with your output and
+candidate unchanged.
+
+Daemon `stop` and `restart` affect every connected user. They always ask for
+confirmation and still require permission through the normal command service.
+`top stop` and `top restart` have the same effect from configuration mode.
+These actions keep your candidate and are separate from clearing the display.
+
+<!-- source: internal/component/cli/contract/lifecycle.go -- LifecycleCommand -->
+
+<!-- source: internal/component/web/cli_controls.go -- executeTerminalControl, terminalEditorHelp -->
 
 <!-- source: internal/component/web/cli_terminal.go -- executeTerminalCommand, executeTerminalConfigMode -->
 <!-- source: internal/component/web/cli_editor.go -- executeTerminalEditorCommand -->
@@ -453,10 +485,16 @@ loads can also use set-format statements.
 
 ### Completion and Output Format
 
-Tab or an unquoted `?` offers schema and command completions for the terminal's
-current position. Arrow keys select an item, Enter accepts it, and a quoted `?`
-remains data. Enum values declared in YANG, including enum members of a union,
-are offered by the shared completer.
+Tab offers schema and command completions for the terminal's current position.
+Arrow keys or Tab select an item and Enter accepts it. An unquoted `?` explains
+the selected candidate or completed command using its declared long help; a
+quoted `?` remains data. Tab also reveals long help once no completion remains.
+Escape closes the explanation before closing a menu beneath it. Enum values
+declared in YANG, including enum members of a union, are offered by the shared
+completer. A failed runtime query displays its reason and correction, so it
+cannot be mistaken for an empty set of values.
+
+<!-- source: internal/component/web/assets/cli.js -- completionResponse, initTerminal -->
 
 In operational mode, `set cli format` queries the output preference and
 `set cli format json` selects a format for this authenticated user's session.
@@ -470,12 +508,21 @@ unchanged, and raw live streams retain their existing text format.
 
 ### Live Commands
 
-Registered monitoring commands stream successive daemon answers into the page.
+Registered interactive monitors show the same live view as the CLI, with buttons
+for the actions that view offers. For `run monitor bgp`, use **Next sort column**
+and **Reverse order** to sort, **Previous peer** or **Next peer** to select a row,
+**Peer detail** to inspect it and **Back to peers** to return. **Help** shows the
+view's own explanation. The highlighted row, detail and updates come from the
+same producer as the terminal dashboard.
+
+Other registered monitoring commands stream successive daemon answers into the page.
 **Stop** or Ctrl+C ends the stream, and submitting a new command stops the active
 stream before running the next command. Leaving the page also cancels it. The
-server bounds each stream at 4 MiB; the browser keeps at most 1 MiB of visible
-output and marks older output that it has removed. A producer failure is shown
-in the output, and unsupported live pipe filters are refused with a reason.
+browser removes ended controls and shows why a failed action or producer could
+not continue. Raw text streams are bounded at 4 MiB by the server; the browser
+keeps at most 1 MiB of visible text and marks older output that it has removed.
+Interactive views retain only the latest frame, limited to 64 KiB. Unsupported
+live pipe filters are refused with a reason.
 
 <!-- source: internal/component/web/cli_stream.go -- HandleCLITerminalStream, cliStreamWriter.Write -->
 <!-- source: cmd/ze/hub/server_stream.go -- serverStreamDispatcher -->

@@ -131,7 +131,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>116</strong><b>of 133 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 133 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 133 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>292</strong><b>292 of 503 tests linked to requirements, 0 without a fault test and 17 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>296</strong><b>296 of 503 tests linked to requirements, 0 without a fault test and 15 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -260,7 +260,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>102</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>309</td>
+<td>311</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc4271.md</code></td>
@@ -2841,17 +2841,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L329" title="internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go" target="_blank" rel="noopener"><code>TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L288" title="internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go" target="_blank" rel="noopener"><code>TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L215" title="internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go" target="_blank" rel="noopener"><code>TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L524" title="internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceWithholdsRouteWithPeerOwnNextHop</code></a></td>
@@ -2896,12 +2896,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L325" title="internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go" target="_blank" rel="noopener"><code>TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L285" title="internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go" target="_blank" rel="noopener"><code>TestForwardRSWithholdsRouteWhoseNextHopIsTheClientsOwnAddress</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L250" title="internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go" target="_blank" rel="noopener"><code>TestForwardWithdrawsFromDestinationWhoseNextHopIsItsOwnAddress</code></a></td>
@@ -2911,7 +2911,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L210" title="internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go" target="_blank" rel="noopener"><code>TestForwardWithholdsRouteWhoseNextHopIsTheDestinationsOwnAddress</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go#L522" title="internal/component/bgp/reactor/rfc4271_forward_next_hop_test.go" target="_blank" rel="noopener"><code>TestSendAnnounceWithholdsRouteWithPeerOwnNextHop</code></a></td>
@@ -3460,7 +3460,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go#L109" title="internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go" target="_blank" rel="noopener"><code>TestRFC4271ValidPendingOPENRemainsACollision</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go#L25" title="internal/component/bgp/reactor/rfc4271_open_framing_proof_test.go" target="_blank" rel="noopener"><code>TestRFC4271OuterOPENFramingErrorsNotify</code></a></td>
@@ -5253,7 +5253,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go#L99" title="internal/component/bgp/reactor/rfc4271_overlap_acceptance_test.go" target="_blank" rel="noopener"><code>TestRFC4271OverlappingRoutesAcceptedByPolicyBothReachTheDecisionProcess</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -6764,7 +6764,7 @@ Pending note: use the preceding RFC quote, population, assertions and producer c
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 15:40 UTC</span>
                 </div>
             </div>
         </footer>

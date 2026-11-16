@@ -297,6 +297,8 @@ Group=ze
 ExecStart=/bin/sh -c 'trap "" HUP; exec &lt;prefix&gt;/bin/ze start'
 ExecReload=/bin/sh -c 'kill -HUP $MAINPID'
 Restart=on-failure
+SuccessExitStatus=75
+RestartForceExitStatus=75
 RestartSec=5
 TimeoutStopSec=90
 KillMode=mixed
@@ -318,6 +320,19 @@ RuntimeDirectory=ze
 [Install]
 WantedBy=multi-user.target
 </code></pre>
+<p>An intentional daemon restart exits 75 after teardown. <code>SuccessExitStatus=75</code>
+keeps it from being reported as a daemon failure, and <code>RestartForceExitStatus=75</code>
+starts the next process even with <code>Restart=on-failure</code>. Ordinary shutdown exits
+0 and stays stopped; startup and plugin failures still exit 1 and restart under
+the failure policy. This describes the generated policy; a supervisor restart
+roundtrip must be verified on the deployment host.
+<code>ze doctor</code> checks the effective restart properties, including drop-ins, under
+<code>doctor-service-restart</code>. An older unit missing this policy needs
+<code>sudo ze install systemd --force</code> followed by <code>sudo systemctl daemon-reload</code>;
+remove any overriding drop-in shown by <code>systemctl cat ze.service</code>.</p>
+<!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: internal/plugins/systemd/doctor.go -- checkServicePolicy, checkServiceRestartOutput -->
 <p><code>CAP_BPF</code> lets ze load the eBPF programs of the IPsec ESP form fast path, the
 IPsec application override guard and traffic-usage; without it the kernel
 refuses each load, so a unit written by an older ze is rewritten with
@@ -1411,7 +1426,7 @@ real network and <code>./ze-host install remote</code> on port 80.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 15:40 UTC</span>
                 </div>
             </div>
         </footer>

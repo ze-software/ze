@@ -69,9 +69,10 @@ words after the verb are the YANG path. A bare form with no verb is not in the
 command tree, and the dispatcher answers <code>unknown command</code> for it. <code>daemon reload</code> is now <code>request reload</code>, <code>daemon status</code> is <code>show status</code>, <code>daemon quit</code>
 is <code>request halt</code>, <code>daemon shutdown</code> is <code>request shutdown</code>, and <code>bgp summary</code> is
 <code>show bgp</code>.</p>
-<p><code>stop</code>, <code>restart</code>, and <code>reboot</code> are the exception, and they keep their bare
-spelling. The SSH exec middleware intercepts those three lifecycle verbs before
-the dispatcher, which registers no key for them.</p>
+<p><code>stop</code>, <code>restart</code>, and <code>reboot</code> retain their bare SSH exec spelling as controls.
+The adapter sends their canonical <code>request shutdown</code>, <code>request restart</code> and
+<code>request reboot</code> commands through the authenticated session executor. Interactive
+stop/restart controls require confirmation before that same dispatch.</p>
 <!-- source: internal/plugins/signal/main.go -- Commands table ExecCommand column -->
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware lifecycle interception -->
 <p>Every subcommand of <code>ze show</code>, <code>ze clear</code>, <code>ze monitor</code>, <code>ze request</code>, <code>ze set</code>,
@@ -354,8 +355,9 @@ active writer's store lock. For a running daemon, omit <code>-f</code>.</p>
 </tbody>
 </table>
 <p>Each <code>ze signal</code> subcommand sends one SSH exec command to the daemon. <code>reload</code>
-sends <code>request reload</code>, <code>status</code> sends <code>show status</code>, and <code>quit</code> sends <code>request halt</code>. <code>stop</code>, <code>restart</code>, and <code>reboot</code> keep their bare spelling because the SSH
-exec middleware intercepts them before the dispatcher.</p>
+sends <code>request reload</code>, <code>status</code> sends <code>show status</code>, and <code>quit</code> sends <code>request halt</code>. <code>stop</code>, <code>restart</code>, and <code>reboot</code> keep their bare spelling on the SSH wire;
+the adapter maps them to the canonical lifecycle request before authorization,
+accounting and response completion.</p>
 <!-- source: internal/plugins/signal/main.go -- Commands registry, ExecCommand column -->
 <h3 id="runtime-interaction">Runtime Interaction</h3>
 <table>
@@ -531,7 +533,7 @@ owners keep the documented whole-snapshot overwrite behavior.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 16:06 UTC</span>
                 </div>
             </div>
         </footer>

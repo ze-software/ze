@@ -97,19 +97,31 @@
 </tr>
 <tr>
 <td>External plugin (a separate process, SDK or any language)</td>
-<td><strong>Not yet used.</strong> Ze stores the <code>YANGText</code> it declares but never parses it, so the config parser does not know the plugin's root</td>
-<td>Only roots that a compiled-in module already defines (for example <code>bgp</code>)</td>
+<td>Joined to the schema at <code>ze start</code>, from the <code>YANGText</code> of its Stage 1 declaration; the operator writes config under its roots. <code>ze config validate</code> and the other commands that run with no daemon do not join it yet</td>
+<td>The roots it declares, its own included</td>
 </tr>
 </tbody>
 </table>
-<p>A config block under an external plugin's own root is refused when the config
-is loaded, before any plugin starts: <code>ze config validate</code> reports
-<code>unknown top-level keyword: &lt;root&gt;</code>. Compiling an external plugin's module at
-startup, so its own root becomes valid config, is planned
-(<code>plan/post-release/features/spec-plugin-external-yang-at-startup.md</code>). The <code>acme-monitor</code> example
-at the end of this page shows that planned behavior for an external plugin.</p>
-<!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC, deliverConfigRPC -->
-<!-- source: internal/component/config/loader.go -- LoadConfig, parseTreeWithYANG (compiled-in schema plus CollectPluginYANG of internal plugins) -->
+<p>At <code>ze start</code> the daemon reads the plugin declarations first (the <code>plugin</code>
+block and the plugins named on the command line), runs each declared external
+plugin, reads its Stage 1 declaration, joins the module it carries and only
+then parses the full config. The plugin waits for its Stage 1 answer in the
+meantime, so a plugin MUST NOT time out between sending its declaration and
+receiving the answer. A module that does not compile, or that clashes with a
+module Ze holds, refuses the start and names the plugin. A plugin and its
+module change only when <code>ze</code> restarts.</p>
+<p>A plugin that cannot be run, or that sends no declaration within its stage
+timeout, declares nothing: a config section only its module defines is then
+refused as <code>unknown top-level keyword: &lt;root&gt;</code>, and the refusal names the
+plugin, why it did not declare and the command that checks it
+(<code>ze show plugin conformance run "&lt;command&gt;"</code>).</p>
+<p>With no daemon, <code>ze config validate</code> still reports
+<code>unknown top-level keyword: &lt;root&gt;</code> for an external plugin's section: joining
+the module there is the rest of
+<code>plan/post-release/features/spec-plugin-external-yang-at-startup.md</code>.</p>
+<!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins, undeclaredPluginLines -->
+<!-- source: internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins -->
+<!-- source: internal/component/config/first_pass.go -- FirstPass -->
 <!-- source: internal/component/config/plugin_verify.go -- BuildPluginConfigSections -->
 <h2 id="registering-a-schema">Registering a Schema</h2>
 <p>Schemas are declared via the <code>Schema</code> field of <code>sdk.Registration</code>, which is passed to
@@ -498,7 +510,7 @@ func main() {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 15:23 UTC</span>
                 </div>
             </div>
         </footer>

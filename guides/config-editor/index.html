@@ -155,6 +155,12 @@ configured entry count, and deduplicate consecutive displayed commands.</p>
 <!-- source: cmd/ze/hub/infra_setup.go -- setupInfraHook -->
 <!-- source: cmd/ze/hub/ssh_infra.go -- sshServer -->
 <h2 id="editor-commands">Editor Commands</h2>
+<p>The graphical web editor's <strong>Import into candidate</strong> forms use the same load
+producer as these editor commands. A local file or pasted text can merge into
+or replace the root or selected subtree. Import stages changes for your account;
+review and commit them separately to publish them. A refused import leaves your
+candidate intact. See <a href="../web-interface/#collections-and-configuration-actions">Web interface</a>.</p>
+<!-- source: internal/component/web/graphical_import.go -- HandleGraphicalImport -->
 <table>
 <thead>
 <tr>
@@ -510,9 +516,13 @@ includes the operations that commit will apply.</p>
 <!-- source: internal/component/config/change_file.go -- StructuralOp and its seven types -->
 <p><code>show</code> follows the working configuration's recorded list-entry order.
 <code>show | compare saved</code> reports <code>(no saved draft)</code> when that baseline does not exist.
-An unchanged scoped comparison produces empty output. Modified leaves show the
-replacement value with a <code>*</code> marker.</p>
+An unchanged scoped comparison produces empty output. Tree comparisons can show
+a modified leaf's replacement value with a <code>*</code> marker. The line comparison used
+for flat set commands keeps separate removed and added statements: matching
+indentation alone cannot prove that two flat statements address the same item,
+and must not hide a deleted setting when another setting changes.</p>
 <!-- source: internal/component/cli/model_commands_show.go -- Model.compareView -->
+<!-- source: internal/component/cli/diff.go -- detectModifications, diffRunHasFlatStatements -->
 <p><code>show | compare</code> omits unchanged entries, except for the context retained within
 a reordered <code>ordered-by user</code> list. Reordering a plain list alone creates no
 change marker. For a list declared <code>ordered-by user</code> in YANG, order is part of
@@ -1284,7 +1294,7 @@ ze config archive prod config.conf # Archive to named destination
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 16:06 UTC</span>
                 </div>
             </div>
         </footer>

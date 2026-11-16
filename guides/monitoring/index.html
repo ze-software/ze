@@ -98,6 +98,14 @@
 <p>Each column sorts by the value it holds, not by the text it prints. Addresses sort numerically, so 10.0.0.9 comes before 10.0.0.10 and every IPv4 peer comes before every IPv6 one. Uptime sorts by duration, so 59s comes before 1m0s. State sorts by how far the session has progressed, from stopped to established. Rows that hold the same value in the sorted column come out in address order. The highlighted peer therefore stays under the cursor from one refresh to the next, and when you change the sort column or reverse the direction.</p>
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand, dashboardPollInterval -->
 <!-- source: internal/component/cli/model_dashboard_sort.go -- comparePeers -->
+<p>In the browser CLI, enter <code>run monitor bgp</code> in configuration mode, or
+<code>monitor bgp</code> in operational mode. The live view offers buttons for sorting,
+selection, detail, returning to peers and help. <strong>Stop</strong> or Ctrl+C ends updates
+and leaves the input ready for another command. A new command also ends the
+active view. These controls drive the same dashboard state and use your signed-in
+account for its reads and detail requests.</p>
+<!-- source: internal/component/cli/register_view_dashboard.go -- dashboardBrowserControls -->
+<!-- source: internal/component/web/assets/cli.js -- initTerminal -->
 <h2 id="event-streaming">Event Streaming</h2>
 <pre><code>ze cli -c "monitor event"
 </code></pre>
@@ -1397,7 +1405,7 @@ ze cli -c "show bgp rpki status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 16:06 UTC</span>
                 </div>
             </div>
         </footer>

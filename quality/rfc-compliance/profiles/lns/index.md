@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 
 ## Figures
 
-- **MUST bar**: Ze proven 268, Proof pending 56, OS testing gap 94, Not built 41
-- **Overview bar**: Ze MUST proven 268, SHOULD proven 9, Proof pending 57, OS testing gap 94, Not assessed 151, Not built 41
+- **MUST bar**: Ze proven 269, Proof pending 55, OS testing gap 94, Not built 41
+- **Overview bar**: Ze MUST proven 269, SHOULD proven 9, Proof pending 56, OS testing gap 94, Not assessed 151, Not built 41
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 459 |
 | MUST rows kept (the MUST bar) | 459 |
-| Ze proven | 268 |
+| Ze proven | 269 |
 | OS verified | 0 |
-| Proof pending | 56 |
+| Proof pending | 55 |
 | OS testing gap | 94 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -60,7 +60,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 |---|---|---|---|---|
 | [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze proven 6, Proof pending 8, Not built 2 | Ze MUST proven 6, SHOULD proven 2, Proof pending 8, Not assessed 9, Not built 2 | lns: required by rfc/short/rfc1994.md |
 | [RFC 2865](../../rfc2865/) (cycle with rfc2866) | Remote Authentication Dial In User Service (RADIUS) | Ze proven 26, Proof pending 5 | Ze MUST proven 26, Proof pending 5, Not assessed 1 | lns: required by rfc/short/rfc2865.md |
-| [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze proven 7, Proof pending 8 | Ze MUST proven 7, Proof pending 8, Not assessed 1 | lns: required by rfc/short/rfc2866.md |
+| [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze proven 8, Proof pending 7 | Ze MUST proven 8, Proof pending 7, Not assessed 1 | lns: required by rfc/short/rfc2866.md |
 
 ### Level 2
 

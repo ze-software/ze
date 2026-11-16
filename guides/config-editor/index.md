@@ -97,6 +97,13 @@ configured entry count, and deduplicate consecutive displayed commands.
 
 ## Editor Commands
 
+The graphical web editor's **Import into candidate** forms use the same load
+producer as these editor commands. A local file or pasted text can merge into
+or replace the root or selected subtree. Import stages changes for your account;
+review and commit them separately to publish them. A refused import leaves your
+candidate intact. See [Web interface](../web-interface/index.md#collections-and-configuration-actions).
+<!-- source: internal/component/web/graphical_import.go -- HandleGraphicalImport -->
+
 | Command | Description |
 |---------|-------------|
 | `set <path> <value>` | Set a configuration value |
@@ -403,9 +410,13 @@ includes the operations that commit will apply.
 
 `show` follows the working configuration's recorded list-entry order.
 `show | compare saved` reports `(no saved draft)` when that baseline does not exist.
-An unchanged scoped comparison produces empty output. Modified leaves show the
-replacement value with a `*` marker.
+An unchanged scoped comparison produces empty output. Tree comparisons can show
+a modified leaf's replacement value with a `*` marker. The line comparison used
+for flat set commands keeps separate removed and added statements: matching
+indentation alone cannot prove that two flat statements address the same item,
+and must not hide a deleted setting when another setting changes.
 <!-- source: internal/component/cli/model_commands_show.go -- Model.compareView -->
+<!-- source: internal/component/cli/diff.go -- detectModifications, diffRunHasFlatStatements -->
 
 `show | compare` omits unchanged entries, except for the context retained within
 a reordered `ordered-by user` list. Reordering a plain list alone creates no

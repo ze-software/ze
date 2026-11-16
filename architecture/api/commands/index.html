@@ -1553,11 +1553,42 @@ typo from causing memory exhaustion.</p>
 <h2 id="target-first-syntax">Target-First Syntax</h2>
 <h3 id="process-lifecycle-commands">Process Lifecycle Commands</h3>
 <pre><code>request shutdown         # Graceful shutdown
+request restart          # Graceful daemon restart; host stays running
 request reboot           # Graceful shutdown + OS reboot (requires root on Linux)
 request reload           # Reload configuration
 request halt             # Goroutine dump, then graceful shutdown (stop drain included)
 show status              # Get process status
 </code></pre>
+<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request lifecycle commands -->
+<p><code>request restart</code> uses the shared dispatcher, authorization and accounting on
+every command surface. It answers <code>restart initiated</code> before the transport
+releases the daemon's restart action. With BGP, the action writes the existing
+graceful-restart marker and stops sessions without a shutdown notification.
+After teardown the daemon exits 75. The generated systemd unit classifies this
+as successful and forces a new start; gokrazy's normal supervision loop also
+retries this exit. A foreground invocation exits 75 and its caller must start
+the next process. A daemon without BGP uses the same stop notification, with no
+BGP marker. The host stays running.
+Bare interactive <code>stop</code> and <code>restart</code> require confirmation and dispatch the
+canonical <code>request shutdown</code> or <code>request restart</code> through the session executor.
+SSH exec also maps its bare <code>reboot</code> to <code>request reboot</code>. A missing authenticated
+SSH policy refuses the command rather than using a daemon fallback policy.</p>
+<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart, SetRestartFunc -->
+<!-- source: cmd/ze/hub/infra_setup.go -- infraSetup -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
+<!-- source: cmd/ze/hub/service_ssh.go -- sshWireImpl -->
+<!-- source: internal/component/cli/model_keys.go -- handleKeyMsg -->
+<!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
+<p>A request canceled before acceptance is refused. Once accepted, restart runs
+after the response write attempt even if the connection closes during delivery.
+Separate accepted requests share one restart action. Restart takes no arguments;
+an extra argument is refused before any action is accepted.
+gRPC releases an accepted action on its payload write or terminal RPC <code>End</code>,
+whichever first completes it, so an accepted call that loses its response still
+runs the action once. A rejected call installs no lifecycle action.</p>
+<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart, SetRestartFunc -->
+<!-- source: internal/component/api/grpc/server.go -- transportCompletionStatsHandler.HandleRPC -->
 <h3 id="session-commands">Session Commands</h3>
 <pre><code>plugin session ready     # Signal plugin init complete
 plugin session ping      # Health check
@@ -1957,6 +1988,7 @@ config. The value after
 <!-- source: internal/component/plugin/server/command.go -- recordCommandAudit, LoadBuiltins, loadBuiltinsWithAliases -->
 <h3 id="process-lifecycle-commands_1">Process Lifecycle Commands</h3>
 <pre><code>request shutdown         # Gracefully shutdown
+request restart          # Restart the daemon in place; keep the host running
 request reboot           # Gracefully shutdown then reboot the system
 show status              # Show process status
 request reload           # Reload the configuration
@@ -5133,7 +5165,7 @@ unconditionally, and the <code>ui://</code> asset it points at is readable by ev
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 16:06 UTC</span>
                 </div>
             </div>
         </footer>

@@ -15,6 +15,16 @@ Each column sorts by the value it holds, not by the text it prints. Addresses so
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand, dashboardPollInterval -->
 <!-- source: internal/component/cli/model_dashboard_sort.go -- comparePeers -->
 
+In the browser CLI, enter `run monitor bgp` in configuration mode, or
+`monitor bgp` in operational mode. The live view offers buttons for sorting,
+selection, detail, returning to peers and help. **Stop** or Ctrl+C ends updates
+and leaves the input ready for another command. A new command also ends the
+active view. These controls drive the same dashboard state and use your signed-in
+account for its reads and detail requests.
+<!-- source: internal/component/cli/register_view_dashboard.go -- dashboardBrowserControls -->
+<!-- source: internal/component/web/assets/cli.js -- initTerminal -->
+
+
 ## Event Streaming
 
 ```

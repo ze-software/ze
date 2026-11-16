@@ -7,16 +7,30 @@ Plugins declare their configuration schema using YANG (RFC 7950). This guide cov
 | Plugin kind | Its own YANG module | Config it receives |
 |-------------|---------------------|--------------------|
 | Internal plugin, compiled into `ze` (package added to `internal/component/plugin/all`) | Registered at build, parsed and validated; the operator writes config under its roots | Its `WantsConfig` roots |
-| External plugin (a separate process, SDK or any language) | **Not yet used.** Ze stores the `YANGText` it declares but never parses it, so the config parser does not know the plugin's root | Only roots that a compiled-in module already defines (for example `bgp`) |
+| External plugin (a separate process, SDK or any language) | Joined to the schema at `ze start`, from the `YANGText` of its Stage 1 declaration; the operator writes config under its roots. `ze config validate` and the other commands that run with no daemon do not join it yet | The roots it declares, its own included |
 
-A config block under an external plugin's own root is refused when the config
-is loaded, before any plugin starts: `ze config validate` reports
-`unknown top-level keyword: <root>`. Compiling an external plugin's module at
-startup, so its own root becomes valid config, is planned
-(`plan/post-release/features/spec-plugin-external-yang-at-startup.md`). The `acme-monitor` example
-at the end of this page shows that planned behavior for an external plugin.
-<!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC, deliverConfigRPC -->
-<!-- source: internal/component/config/loader.go -- LoadConfig, parseTreeWithYANG (compiled-in schema plus CollectPluginYANG of internal plugins) -->
+At `ze start` the daemon reads the plugin declarations first (the `plugin`
+block and the plugins named on the command line), runs each declared external
+plugin, reads its Stage 1 declaration, joins the module it carries and only
+then parses the full config. The plugin waits for its Stage 1 answer in the
+meantime, so a plugin MUST NOT time out between sending its declaration and
+receiving the answer. A module that does not compile, or that clashes with a
+module Ze holds, refuses the start and names the plugin. A plugin and its
+module change only when `ze` restarts.
+
+A plugin that cannot be run, or that sends no declaration within its stage
+timeout, declares nothing: a config section only its module defines is then
+refused as `unknown top-level keyword: <root>`, and the refusal names the
+plugin, why it did not declare and the command that checks it
+(`ze show plugin conformance run "<command>"`).
+
+With no daemon, `ze config validate` still reports
+`unknown top-level keyword: <root>` for an external plugin's section: joining
+the module there is the rest of
+`plan/post-release/features/spec-plugin-external-yang-at-startup.md`.
+<!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins, undeclaredPluginLines -->
+<!-- source: internal/component/plugin/server/early_stage1.go -- HoldDeclaredPlugins -->
+<!-- source: internal/component/config/first_pass.go -- FirstPass -->
 <!-- source: internal/component/config/plugin_verify.go -- BuildPluginConfigSections -->
 
 ## Registering a Schema

@@ -227,6 +227,10 @@ the message (JSON carries it under <code>fix</code>):</p>
 <td>The stop settings systemd applies to the installed <code>ze.service</code> (<code>systemctl show -p TimeoutStopUSec -p KillMode</code>, drop-ins included) give ze its whole stop: a timeout of at least 90 s (60 s drain ceiling plus 30 s teardown) and <code>KillMode=mixed</code>. A host with no <code>systemctl</code> is told it does not run systemd and that the unit file is stale; any other failed query carries systemctl's own error <!-- source: internal/plugins/systemd/doctor.go -- checkServiceStop, stopQueryFailure --></td>
 </tr>
 <tr>
+<td><code>doctor-service-restart</code></td>
+<td>The effective systemd policy preserves clean stop, intentional restart and failure recovery: <code>Restart=on-failure</code>, <code>SuccessExitStatus=75</code>, <code>RestartForceExitStatus=75</code> and no restart-prevention override. Missing or unreadable policy is a warning with the query or reinstall command that resolves it <!-- source: internal/plugins/systemd/doctor.go -- checkServicePolicy, checkServiceRestartOutput --></td>
+</tr>
+<tr>
 <td><code>doctor-ssh-hostkey-missing</code></td>
 <td>SSH host key</td>
 </tr>
@@ -542,6 +546,12 @@ show warnings source bgp
 <td>A plugin was restarted before ze finished stopping its previous process (2s after the stop for a forked plugin, 1s for one in the daemon). The message says what was left: an engine that had not returned or a process that had not exited, which may hold the same resources as the replacement, or only the event delivery or stderr relay of one that had ended. ze takes no further step to end it, and a second restart does not help, because it replaces the new process. The fix shows what is left: <code>ze show system goroutines full</code> for a plugin in the daemon, <code>ze show log recent component plugin.relay</code> for a forked plugin</td>
 </tr>
 <tr>
+<td><code>doctor-plugin-stop-unfinished</code></td>
+<td>plugin</td>
+<td>error</td>
+<td>An external plugin ze started at boot, before it parsed the whole configuration, was stopped (it sent no declaration, the parsed configuration no longer names it, or its startup phase was refused) and had not finished stopping within its bound (2s after the stop for a forked plugin). ze went on and removed it from the plugins it runs. The message says what was left: a process that had not exited, which ze had sent the kill and which may still be running, or only the event delivery or stderr relay of one that had ended. ze takes no further step to end it. The fix shows what is left: <code>ze show log recent component plugin.relay</code> for a forked plugin, <code>ze show system goroutines full</code> for a plugin in the daemon</td>
+</tr>
+<tr>
 <td><code>doctor-config-reload-refused</code></td>
 <td>plugin-server</td>
 <td>error</td>
@@ -709,7 +719,7 @@ is present and emits the registered code.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 15:40 UTC</span>
                 </div>
             </div>
         </footer>
