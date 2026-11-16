@@ -59,6 +59,27 @@ resolving its current provider.
 <!-- source: internal/component/l2tp/drain.go -- startAuthDrain, startPoolDrain -->
 <!-- source: internal/component/l2tp/pppoe/drain.go -- startPPPoEAuthDrain, startPPPoEPoolDrain -->
 
+## Packed L2TP identity value
+
+`subscriberid.L2TPBirth` is a comparable 128-bit value in the dependency-free
+`internal/core/subscriberid` package. Its private words keep an accepted value
+immutable. `NewL2TPBirth` draws sixteen cryptographic bytes and refuses an
+all-zero draw; no tunnel number, listener index or shared registry contributes
+to that value. Zero is absent, rather than an admitted subscriber.
+
+The external representation is `l2tp-` followed by exactly 32 lowercase
+hexadecimal digits. Parsing rejects a zero value or a noncanonical spelling.
+Text decoding changes its receiver only after the entire input is accepted.
+Internal equality and map keys use the packed value; text conversion belongs
+at the wire or human boundary. Possessing the value grants no authority to
+admit, mutate or clean up a session.
+
+The optional `Session.L2TPBirth` field uses the JSON key `l2tp-birth`. An absent
+value is omitted, so a PPPoE snapshot still serializes with its complete access
+index and session ID. A populated value round-trips without changing the
+packed identity or the snapshot's existing canonical ID and numeric labels.
+<!-- source: internal/core/subscriberid/l2tp_birth.go -- L2TPBirth, NewL2TPBirth, ParseL2TPBirth, IsValid, IsZero, MarshalText, UnmarshalText -->
+
 ## Subscriber transmit limit
 
 ### Owner requirement, 2026-11-04
