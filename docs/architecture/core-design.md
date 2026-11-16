@@ -3692,7 +3692,7 @@ different identity from the proposed capabilities.
 
 An identical outcome and header let the session continue under the new
 configuration. Missing or unparsable OPEN inputs force a restart. RFC 5492
-Section 2 obtains the peer's capabilities from its OPEN, so a changed capability
+Section 2 gets the peer's capabilities from its OPEN, so a changed capability
 takes effect through another OPEN.
 
 <!-- source: internal/component/bgp/reactor/peer_settings_negotiation.go -- negotiationOutcomeUnchanged, openHeaderEqual -->
