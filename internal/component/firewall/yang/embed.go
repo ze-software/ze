@@ -4,6 +4,9 @@ package yang
 
 import _ "embed"
 
+//go:embed ze-firewall-api.yang
+var ZeFirewallAPIYANG string
+
 //go:embed ze-firewall-cmd.yang
 var ZeFirewallCmdYANG string
 

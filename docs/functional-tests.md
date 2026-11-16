@@ -2607,6 +2607,23 @@ and fakel2tp without polluting normal `cmd/ze` builds.
 <!-- source: internal/test/plugins/all/all.go -- test-only aggregator -->
 <!-- source: cmd/ze/plugins_zetest.go -- zetest-only import -->
 
+`fakeowner` calls the interface and firewall engine operations the way a
+feature plugin that owns kernel state would. Its `init()` grants it the device
+name prefix `zfo` and reserves the table `ze_fakeowner`. Once started it
+declares the bridge `zfo-wire` (MTU 1500, `192.0.2.1/24`), contributes the
+table `fakeowner` with one input base chain, and asks for a link from that
+bridge into a network namespace it holds. The namespace holder is the ze binary
+re-run as `ze plugin fakeowner hold-namespace` in a new network namespace,
+which needs `CAP_SYS_ADMIN`. `show fakeowner outcome` answers one token per
+request, `bridge-accepted` or `bridge-refused: <reason>` and the same for
+`table` and `link`, which is the barrier the container wiring tests wait on
+before they read the kernel. A forked fakeowner must be declared under the
+name `fakeowner`, because the engine judges the authenticated process name.
+
+<!-- source: internal/test/plugins/fakeowner/register.go -- init -->
+<!-- source: internal/test/plugins/fakeowner/fakeowner.go -- makeRequests, dispatchCommand -->
+<!-- source: internal/test/plugins/fakeowner/namespace_linux.go -- startNamespaceHolder -->
+
 The pool reload test uses the same internal `fakel2tp` plugin as a synthetic
 subscriber. Its hidden `request fakel2tp pool address id <id> pool <default|name>`
 and `request fakel2tp pool prefix id <id> pool <default|name>` commands invoke

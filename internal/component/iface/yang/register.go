@@ -12,5 +12,6 @@ func init() {
 	configyang.RegisterModule("ze-iface-conf.yang", ZeIfaceConfYANG)
 	configyang.RegisterModule("ze-iface-interface-cmd.yang", ZeIfaceInterfaceCmdYANG)
 	configyang.RegisterModule("ze-iface-monitor-cmd.yang", ZeIfaceMonitorCmdYANG)
+	configyang.RegisterModule("ze-iface-owned-api.yang", ZeIfaceOwnedAPIYANG)
 	configyang.RegisterModule("ze-iface-show-cmd.yang", ZeIfaceShowCmdYANG)
 }

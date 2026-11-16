@@ -3353,6 +3353,57 @@ The SDK's [routing-view reference](../../plugin-development/protocol.md#system-r
 defines the public types and calls. The [Loc-RIB architecture](../rib/unified-locrib.md#authoritative-selected-views)
 defines snapshot retention, overflow and worker lifetimes.
 
+### Owned interface devices and firewall table contribution
+
+The interface and firewall components each register engine operations in their
+own namespace, so a plugin that owns kernel state reaches them over the direct
+path internal and over RPC forked. The kernel state they create is the
+interface component's and the firewall component's, never the plugin's: the
+plugin holds no netlink or nftables call. The owner of every device and table
+is the authenticated process name, never a name in the request.
+<!-- source: internal/component/iface/cmd/owned_devices.go -- init, ownedBridgesReplaceHandler -->
+<!-- source: internal/component/firewall/register_contribution.go -- init, tablesReplaceHandler -->
+
+| Method | Request | Result | Startup admission |
+|--------|---------|--------|-------------------|
+| `ze-iface:owned-bridges-replace` | The caller's complete set of bridges: name, MTU and addresses | The bridges the caller owns after it | Configure-safe |
+| `ze-iface:owned-link-create` | A record key, the owned bridge, a slot, the process id and namespace inode of the target network namespace, the peer end's name, hardware address, MTU, addresses and gateways | The host end's name | Configure-safe |
+| `ze-iface:owned-link-remove` | A record key | The host ends removed | Configure-safe |
+| `ze-firewall:tables-replace` | The caller's complete set of tables as a firewall config section, `{"firewall":{"table":{...}}}` | The kernel tables the caller contributes after it | Configure-safe |
+<!-- source: pkg/plugin/rpc/owned_devices.go -- OwnedBridgesReplaceInput through OwnedLinkRemoveOutput -->
+<!-- source: pkg/plugin/rpc/firewall_tables.go -- FirewallTablesReplaceInput, FirewallTablesReplaceOutput -->
+<!-- source: internal/component/iface/yang/ze-iface-owned-api.yang -- owned-bridges-replace through owned-link-remove -->
+<!-- source: internal/component/firewall/yang/ze-firewall-api.yang -- tables-replace -->
+
+Who may call them is decided by declarations made from `init()`, so every
+process of the ze binary holds the same set and a plugin built outside the
+binary holds none:
+
+- The interface requests are accepted only from an owner that granted itself
+  device name prefixes with `iface.MustGrantOwnedDeviceNames`. Any other caller
+  is refused with an operator error before its request is read.
+- The firewall request is accepted only from an owner that reserved table names
+  with `firewall.MustReserveTableNames`, and only for tables it reserved. A name
+  another owner reserved, and a `ze_` name no owner reserved (an operator's
+  firewall table), are refused. A section with no `firewall` table map is
+  refused rather than read as the withdrawal of every table: the withdrawal is
+  an explicit empty table map.
+<!-- source: internal/component/iface/device_owner.go -- MustGrantOwnedDeviceNames, RefuseUngrantedDeviceOwner -->
+<!-- source: internal/component/firewall/contribution.go -- refuseOwnerWithoutReservation, refuseUnreservedContribution -->
+<!-- source: internal/component/firewall/register_contribution.go -- refuseSectionWithoutTableMap -->
+
+Each request is decoded strictly: one JSON object holding only the declared
+fields, within the frame bound on both transports
+(`pluginserver.DecodeEngineOperationInput`).
+<!-- source: internal/component/plugin/server/engine_op_decode.go -- DecodeEngineOperationInput -->
+
+What is built today: the four operations are declared, admitted and judged as
+above, and every request a permitted caller sends is then refused with an
+operator error saying the operation is not implemented in this build. No
+device or table is created yet.
+<!-- source: internal/component/iface/cmd/owned_devices.go -- ownedDevicesNotBuilt -->
+<!-- source: internal/component/firewall/register_contribution.go -- tablesContributionNotBuilt -->
+
 ### Direct bridge calls and shutdown
 
 Generic direct calls use `DispatchRPC(ctx, method, params)`. The typed route and

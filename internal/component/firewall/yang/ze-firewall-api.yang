@@ -1,0 +1,38 @@
+module ze-firewall-api {
+    namespace "urn:ze:firewall:api";
+    prefix firewallapi;
+
+    import ze-extensions { prefix ze; }
+
+    description
+        "Engine operations a plugin compiled into ze calls to contribute firewall
+         tables. The owner of every table is the authenticated calling process,
+         never a name in the request, and only a kernel table name that plugin
+         reserved from its init() is accepted.";
+
+    revision 2026-11-16 {
+        description "Table contribution, declared and refused until implemented.";
+    }
+
+    rpc tables-replace {
+        ze:method "ze-firewall:tables-replace";
+        ze:help "Replace the caller's complete set of firewall tables.";
+        description
+            "Available during Stage 2. The section is the wrapped firewall config
+             form, an object holding firewall and its table map, which the
+             operator's firewall config also takes. An empty table map withdraws
+             every table the caller contributed.";
+        input {
+            anyxml section {
+                mandatory true;
+                ze:help "The caller's tables as a firewall config section.";
+            }
+        }
+        output {
+            leaf-list tables {
+                type string { length "1..64"; }
+                ze:help "The kernel tables the caller contributes after the replacement.";
+            }
+        }
+    }
+}

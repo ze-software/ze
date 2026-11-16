@@ -7,6 +7,7 @@ import (
 )
 
 func init() {
+	configyang.RegisterModule("ze-firewall-api.yang", ZeFirewallAPIYANG)
 	configyang.RegisterModule("ze-firewall-cmd.yang", ZeFirewallCmdYANG)
 	configyang.RegisterModule("ze-firewall-conf.yang", ZeFirewallConfYANG)
 }

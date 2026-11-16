@@ -3,11 +3,71 @@
 package iface
 
 import (
+	"errors"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/metrics"
+	"github.com/ze-software/ze/internal/core/opererr"
 )
+
+// TestOwnedBridgeRequestRefusesCallerWithoutGrant checks the grant the owned
+// device engine operations judge before any state changes: an owner that made
+// no grant is refused with an operator error naming it, and an owner that
+// granted itself a prefix passes. Method: grant a prefix no producer uses, ask
+// for both owners, and delete the test grant in cleanup.
+func TestOwnedBridgeRequestRefusesCallerWithoutGrant(t *testing.T) {
+	const grantedOwner = "test-granted-owner"
+	const ungrantedOwner = "test-ungranted-owner"
+	t.Cleanup(func() {
+		deviceNameGrants.mu.Lock()
+		delete(deviceNameGrants.owners, grantedOwner)
+		deviceNameGrants.mu.Unlock()
+	})
+	MustGrantOwnedDeviceNames(grantedOwner, "zto")
+
+	err := RefuseUngrantedDeviceOwner(ungrantedOwner)
+	if err == nil {
+		t.Fatalf("owner %q made no grant and was not refused", ungrantedOwner)
+	}
+	var failure *opererr.Error
+	if !errors.As(err, &failure) {
+		t.Fatalf("refusal is not an operator error: %T %v", err, err)
+	}
+	if !strings.Contains(failure.Problem(), ungrantedOwner) {
+		t.Fatalf("refusal does not name the caller %q: %q", ungrantedOwner, failure.Problem())
+	}
+
+	if err := RefuseUngrantedDeviceOwner(grantedOwner); err != nil {
+		t.Fatalf("owner %q granted itself a prefix and was refused: %v", grantedOwner, err)
+	}
+}
+
+// TestOwnedDeviceGrantRefusesOverlappingPrefix checks that two owners cannot
+// hold prefixes where one starts the other, since both could then ask for the
+// same device name. Method: grant one prefix, then expect a panic for a longer
+// and a shorter overlapping prefix under another owner.
+func TestOwnedDeviceGrantRefusesOverlappingPrefix(t *testing.T) {
+	const holder = "test-prefix-holder"
+	const intruder = "test-prefix-intruder"
+	t.Cleanup(func() {
+		deviceNameGrants.mu.Lock()
+		delete(deviceNameGrants.owners, holder)
+		delete(deviceNameGrants.owners, intruder)
+		deviceNameGrants.mu.Unlock()
+	})
+	MustGrantOwnedDeviceNames(holder, "ztp")
+	for _, prefix := range []string{"ztpx", "zt"} {
+		func() {
+			defer func() {
+				if recover() == nil {
+					t.Fatalf("prefix %q overlaps %q held by %q and was granted", prefix, "ztp", holder)
+				}
+			}()
+			MustGrantOwnedDeviceNames(intruder, prefix)
+		}()
+	}
+}
 
 // resetDeviceOwners clears the owned-macvlan registry and gauge bookkeeping
 // between tests, mirroring resetAddressOwners.

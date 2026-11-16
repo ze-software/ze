@@ -1225,6 +1225,37 @@ releases the empty ledger.
 <!-- source: internal/component/sysrib/route_view.go -- cleanupLocked -->
 <!-- source: internal/component/sysrib/route_view_output.go -- withdraw -->
 
+### Owned interface devices and firewall tables
+
+A plugin compiled into ze that owns kernel state asks the interface and firewall
+components to create it, so the same calls work internal and forked. Only a
+plugin that granted itself device name prefixes (`iface.MustGrantOwnedDeviceNames`)
+or reserved table names (`firewall.MustReserveTableNames`) from its `init()` is
+accepted. A plugin built outside the ze binary cannot make either declaration,
+so every call it makes is refused. The owner is the plugin's authenticated
+name: a forked plugin MUST be declared under its registry name.
+<!-- source: pkg/plugin/sdk/sdk_owned_devices.go -- OwnedBridgesReplace, OwnedLinkCreate, OwnedLinkRemove -->
+<!-- source: pkg/plugin/sdk/sdk_firewall_tables.go -- FirewallTablesReplace -->
+
+| Method | SDK method | Input/output types | Available |
+|--------|------------|--------------------|-----------|
+| `ze-iface:owned-bridges-replace` | `OwnedBridgesReplace` | `OwnedBridgesReplaceInput` / `OwnedBridgesReplaceOutput` | Stage 2 and runtime |
+| `ze-iface:owned-link-create` | `OwnedLinkCreate` | `OwnedLinkCreateInput` / `OwnedLinkCreateOutput` | Stage 2 and runtime |
+| `ze-iface:owned-link-remove` | `OwnedLinkRemove` | `OwnedLinkRemoveInput` / `OwnedLinkRemoveOutput` | Stage 2 and runtime |
+| `ze-firewall:tables-replace` | `FirewallTablesReplace` | `FirewallTablesReplaceInput` / `FirewallTablesReplaceOutput` | Stage 2 and runtime |
+<!-- source: pkg/plugin/rpc/owned_devices.go -- MethodOwnedBridgesReplace, MethodOwnedLinkCreate, MethodOwnedLinkRemove -->
+<!-- source: pkg/plugin/rpc/firewall_tables.go -- MethodFirewallTablesReplace -->
+
+The bridge and table calls replace the caller's complete set; an empty set
+withdraws everything the caller holds. `FirewallTablesReplace` carries its
+tables as a firewall config section, `{"firewall":{"table":{...}}}`, the form
+the operator's firewall config takes. `OwnedLinkCreate` names the target
+network namespace by a process id and that namespace's inode number together,
+and is refused when they disagree. Today every accepted caller's request is
+refused as not implemented in this build, and nothing is created
+(`docs/architecture/api/process-protocol.md`, "Owned interface devices and
+firewall table contribution").
+
 ## Message Flow Example
 
 ```

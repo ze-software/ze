@@ -1,0 +1,85 @@
+module ze-iface-owned-api {
+    namespace "urn:ze:iface:owned-api";
+    prefix ifaceowned;
+
+    import ze-extensions { prefix ze; }
+    import ze-types { prefix zt; }
+
+    description
+        "Engine operations a plugin compiled into ze calls to have the interface
+         component create and remove devices it owns. The owner of every device
+         is the authenticated calling process, never a name in the request, and
+         a caller that granted itself no device names is refused before any
+         state changes. These requests are bound to no operator command, so
+         they live apart from ze-iface-api, whose every rpc is a command.";
+
+    revision 2026-11-16 {
+        description "Owned bridges and links, declared and refused until implemented.";
+    }
+
+    typedef device-name {
+        type string { length "1..15"; }
+        description "A kernel link name, at most 15 bytes.";
+    }
+    typedef device-mtu {
+        type uint32 { range "68..16000"; }
+        description "A link MTU.";
+    }
+
+    rpc owned-bridges-replace {
+        ze:method "ze-iface:owned-bridges-replace";
+        ze:help "Replace the caller's complete set of owned bridges.";
+        description
+            "Available during Stage 2. An empty set withdraws every bridge the
+             caller owns.";
+        input {
+            list bridges {
+                key "name";
+                max-elements 256;
+                ze:help "One owned bridge.";
+                leaf name { type device-name; ze:help "The bridge device name."; }
+                leaf mtu { type device-mtu; mandatory true; ze:help "The bridge MTU."; }
+                leaf-list addresses { type zt:ip-prefix; max-elements 16; ze:help "The addresses on the bridge, with their prefix length."; }
+            }
+        }
+        output {
+            leaf-list bridges { type device-name; ze:help "The bridges the caller owns after the replacement."; }
+        }
+    }
+
+    rpc owned-link-create {
+        ze:method "ze-iface:owned-link-create";
+        ze:help "Create one link from an owned bridge into a network namespace.";
+        description
+            "Available during Stage 2. The namespace is the one of process pid,
+             and the request is refused when its inode number is not
+             namespace-inode, so a reused process id cannot redirect the link.";
+        input {
+            leaf key { type string { length "1..64"; } mandatory true; ze:help "The caller's record name for the link."; }
+            leaf bridge { type device-name; mandatory true; ze:help "The owned bridge the host end joins."; }
+            leaf slot { type uint16; mandatory true; ze:help "The caller's slot number, part of the host end name."; }
+            leaf pid { type uint32 { range "1..max"; } mandatory true; ze:help "A process inside the target network namespace."; }
+            leaf namespace-inode { type uint64 { range "1..max"; } mandatory true; ze:help "The inode number of that namespace."; }
+            leaf name { type device-name; mandatory true; ze:help "The peer end name inside the namespace."; }
+            leaf hardware-address { type string { length "17"; } ze:help "The peer end hardware address."; }
+            leaf mtu { type device-mtu; mandatory true; ze:help "The MTU of both ends."; }
+            leaf-list addresses { type zt:ip-prefix; max-elements 2; ze:help "The peer end addresses, one per family."; }
+            leaf-list gateways { type zt:ip-address; max-elements 2; ze:help "The default route gateways, one per family."; }
+        }
+        output {
+            leaf host-end { type device-name; ze:help "The host end name."; }
+        }
+    }
+
+    rpc owned-link-remove {
+        ze:method "ze-iface:owned-link-remove";
+        ze:help "Remove every link the caller recorded under one key.";
+        description "Available during Stage 2.";
+        input {
+            leaf key { type string { length "1..64"; } mandatory true; ze:help "The caller's record name."; }
+        }
+        output {
+            leaf-list removed { type device-name; ze:help "The host ends that were removed."; }
+        }
+    }
+}

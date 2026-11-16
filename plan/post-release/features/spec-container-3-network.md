@@ -665,7 +665,11 @@ device cannot run.
 - `internal/component/iface/device_owner.go` - owned bridge and link records, the `init()` grant of a name prefix to an owner, the gauge
 - `internal/component/iface/config_apply.go` - `reconcileOwnedDevices` handles the new kinds
 - `internal/component/iface/register.go` - the stop path deletes marked devices before `CloseBackend`
-- `internal/component/iface/yang/ze-iface-api.yang` - the three requests
+- `internal/component/iface/yang/embed.go`, `register.go` - the glue lines of `ze-iface-owned-api.yang` (the three requests are not in `ze-iface-api.yang`, see Design Insights)
+- `internal/component/firewall/yang/embed.go`, `register.go` - the glue lines of `ze-firewall-api.yang`
+- `internal/component/iface/device_owner_test.go` - `TestOwnedBridgeRequestRefusesCallerWithoutGrant`, `TestOwnedDeviceGrantRefusesOverlappingPrefix`
+- `internal/test/plugins/all/all.go` - the blank import of `fakeowner`
+- `docs/plugin-development/protocol.md`, `docs/functional-tests.md` - the SDK methods and the `fakeowner` test plugin
 - `internal/plugins/iface/vpp/ifacevpp.go`, and the non-Linux backend - refuse both new methods
 - `internal/component/firewall/model.go`, `config.go`, `validate.go`, `yang/ze-firewall-conf.yang` - the local-address match
 - `internal/plugins/firewall/nft/lower_linux.go` - its lowering
@@ -691,6 +695,10 @@ device cannot run.
 - `internal/plugins/iface/netlink/owned_bridge_linux.go`, `owned_link_linux.go` - the kernel side
 - `internal/component/firewall/contribution.go`, `register_contribution.go` - the firewall request and cleanup
 - `internal/component/firewall/yang/ze-firewall-api.yang` - the request
+- `internal/component/firewall/contribution_test.go` - `TestContributionRefusesUnreservedTable`
+- `internal/component/iface/yang/ze-iface-owned-api.yang` - the three interface requests
+- `internal/component/plugin/server/engine_op_decode.go` - `DecodeEngineOperationInput`, the strict request decoder both components use
+- `test/draft/container/container-network-wiring-external.ci`, `container-network-wiring-internal.ci`, `container-link-wiring-external.ci`, `container-table-wiring-external.ci` - the phase 1 drafts of the four wiring tests, promoted to `test/container/` when green
 - `pkg/plugin/rpc/owned_devices.go`, `pkg/plugin/rpc/firewall_tables.go` - the value types and method names
 - `pkg/plugin/sdk/sdk_owned_devices.go`, `pkg/plugin/sdk/sdk_firewall_tables.go` - the SDK methods
 - `internal/plugins/container/network/` - `verify.go`, `address.go`, `name.go`, `tables.go`, `resolver.go`, `listeners.go`, `attach.go` (the participant), `command.go` (the two listings and the read function), `register_tables.go`, `register_kernelcap_linux.go`, `kernelcap_linux.go`, `doctor.go`, and the tests named above
@@ -815,6 +823,8 @@ device cannot run.
 
 - Permission: the owner allowed this spec to be claimed above the work-in-progress cap on 2026-11-16.
 - Phase 1 deviation, to be ruled by the main session: the three interface requests cannot live in `ze-iface-api.yang`. `TestAPIRPCInputMatchesCommandTree` (`internal/component/iface/yang/api_rpc_input_test.go`) requires every rpc of that module to be bound to a command path, and an engine operation is bound to none. They go in a module of their own, `ze-iface-owned-api.yang`, beside it in the same package, as the system RIB's operations live in `ze-sysrib-api.yang`.
+- Decision of the main session, 2026-11-16: phase 1 does not stub the Wiring Test rows 5 to 9 (reach-gateway, port-published, host-network-refused, listings, `TestNetworkParticipantIsRegistered`). They need the network package and the participant, and they land with phase 4, where the step order puts that package.
+- Phase 1 as applied: the strict request decoder is one exported helper, `pluginserver.DecodeEngineOperationInput` (`internal/component/plugin/server/engine_op_decode.go`), used by both components, instead of a copy per component beside the system RIB's own. The firewall handler refuses a section with no `firewall` table map, because `ParseFirewallConfig` answers no table both for that and for an empty map, and a contribution with no table withdraws everything: only an explicit empty map withdraws. A caller that reserved no table at all is refused before its section is read. The SDK reply bound reuses `rpc.RouteViewResultBudget`, the frame budget, so the direct path refuses what RPC cannot frame; its name is the route view's.
 
 ## Owned journal rows
 | Class file | Date | Surface (short) |

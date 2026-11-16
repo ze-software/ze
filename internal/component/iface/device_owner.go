@@ -2,12 +2,16 @@
 // Related: macvlan.go -- MacvlanSpec and ComposeOwnedDeviceName
 // Related: address_owner.go -- the sibling plugin-owned ADDRESS registry
 // Related: config_apply.go -- reconcileOwnedDevices consumes ownedMacvlans()
+// Related: cmd/owned_devices.go -- the engine operations that check the grant
 
 package iface
 
 import (
 	"fmt"
+	"strings"
 	"sync"
+
+	"github.com/ze-software/ze/internal/core/opererr"
 )
 
 // ownedDeviceAliasPrefix marks a kernel link as owned by ze's owned-device
@@ -181,4 +185,84 @@ func updateOwnedDeviceGauge() {
 		}
 	}
 	gaugeOwners = seen
+}
+
+// ownedDevicePrefixMax bounds a granted device name prefix. A kernel link name
+// holds at most 15 bytes, so a prefix of 15 leaves no room for the device's
+// own part.
+const ownedDevicePrefixMax = 14
+
+// deviceNameGrants maps an owner to the device name prefixes it granted itself
+// from init(). The grants are filled from init() only, so every process of the
+// ze binary holds the same set, a forked plugin's included, and a plugin built
+// outside the binary holds none. Safe for concurrent use.
+var deviceNameGrants = struct {
+	mu     sync.RWMutex
+	owners map[string][]string
+}{
+	owners: make(map[string][]string),
+}
+
+// MustGrantOwnedDeviceNames records that owner may ask the interface component,
+// through its engine operations, for devices whose names start with one of
+// prefixes. owner is the plugin's registry name, which is the authenticated
+// name of its process. An empty owner, an empty or over-long prefix, and a
+// prefix that overlaps one another owner holds are defects in the calling
+// package, so it panics. MUST be called from init().
+func MustGrantOwnedDeviceNames(owner string, prefixes ...string) {
+	if owner == "" {
+		panic("BUG: iface: owned device names granted to an empty owner")
+	}
+	if len(prefixes) == 0 {
+		panic("BUG: iface: owner " + owner + " granted itself no owned device name prefix")
+	}
+	deviceNameGrants.mu.Lock()
+	defer deviceNameGrants.mu.Unlock()
+	for _, prefix := range prefixes {
+		if prefix == "" {
+			panic("BUG: iface: owner " + owner + " granted itself an empty owned device name prefix")
+		}
+		if len(prefix) > ownedDevicePrefixMax {
+			panic("BUG: iface: owner " + owner + " granted itself owned device name prefix " + prefix + ", longer than a link name allows")
+		}
+		refuseOverlappingGrant(owner, prefix)
+		deviceNameGrants.owners[owner] = append(deviceNameGrants.owners[owner], prefix)
+	}
+}
+
+// refuseOverlappingGrant panics when another owner holds a prefix that starts
+// prefix or that prefix starts: two such owners could ask for one device name.
+// The caller MUST hold deviceNameGrants.mu.
+func refuseOverlappingGrant(owner, prefix string) {
+	for holder, held := range deviceNameGrants.owners {
+		if holder == owner {
+			continue
+		}
+		for _, other := range held {
+			if strings.HasPrefix(prefix, other) {
+				panic("BUG: iface: owner " + owner + " granted itself owned device name prefix " + prefix + ", inside prefix " + other + " that owner " + holder + " holds")
+			}
+			if strings.HasPrefix(other, prefix) {
+				panic("BUG: iface: owner " + owner + " granted itself owned device name prefix " + prefix + ", which holds prefix " + other + " that owner " + holder + " holds")
+			}
+		}
+	}
+}
+
+// RefuseUngrantedDeviceOwner answers an operator error when owner made no
+// grant with MustGrantOwnedDeviceNames, and nil when it did. The engine
+// operations call it with the authenticated process name before they change
+// any state. Safe for concurrent use.
+func RefuseUngrantedDeviceOwner(owner string) error {
+	deviceNameGrants.mu.RLock()
+	_, granted := deviceNameGrants.owners[owner]
+	deviceNameGrants.mu.RUnlock()
+	if granted {
+		return nil
+	}
+	return opererr.New(
+		"Plugin "+owner+" may not ask for owned interface devices",
+		"Only a plugin compiled into this ze binary that granted itself device names may create bridges and links, so no outside process can place a device in any network namespace",
+		"Run the plugin compiled into ze under its own name: set plugin external <name> run \"ze plugin <name>\"",
+	)
 }
