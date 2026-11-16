@@ -124,92 +124,80 @@ func (t *tunnelTimer) Stop() {
 // when stop is closed.
 func (t *tunnelTimer) run() {
 	defer t.wg.Done()
-
 	var timer *time.Timer
 	defer func() {
 		if timer != nil {
 			timer.Stop()
 		}
 	}()
-
-	// timerC returns the channel to select on: nil if the heap is empty
-	// (blocks forever in select), otherwise the timer's channel.
+	// This is the already popped expired heap entry. It stays owned
+	// until its tick is delivered; later same-TID updates occupy the existing
+	// heap independently and cannot erase this already due observation.
+	var pending *timerEntry
 	timerC := func() <-chan time.Time {
+		// A pending tick disables timer reception until its delivery completes.
+		if pending != nil {
+			return nil
+		}
 		if timer == nil {
 			return nil
 		}
 		return timer.C
 	}
-
-	// setTimer creates or resets the timer to fire at the heap's earliest
-	// deadline. consumed indicates whether the caller already drained
-	// timer.C (true after case <-timerC(); false after case update).
-	setTimer := func(consumed bool) {
+	setTimer := func() {
 		if t.h.Len() == 0 {
 			if timer != nil {
-				if !consumed {
-					timer.Stop()
-				}
+				timer.Stop()
 				timer = nil
 			}
 			return
 		}
-		earliest := t.h[0].deadline
-		d := max(time.Until(earliest), 0)
+		delay := max(time.Until(t.h[0].deadline), 0)
 		if timer == nil {
-			timer = time.NewTimer(d)
+			timer = time.NewTimer(delay)
 			return
 		}
-		if consumed {
-			// Timer already fired and we consumed it. Stop the old
-			// timer (no-op since it already fired, but lets the runtime
-			// reclaim it promptly) and create fresh.
-			timer.Stop()
-			timer = time.NewTimer(d)
-			return
-		}
-		// Timer may or may not have fired. Stop it, drain if it fired,
-		// then reset. Since we are the only reader of timer.C, a
-		// non-stopped timer has its value sitting in the channel and
-		// the receive will not block.
+		// No consumed timer reaches this branch: the receive case retires its
+		// original timer before accepting updates while the tick is pending.
 		if !timer.Stop() {
 			<-timer.C
 		}
-		timer.Reset(d)
+		timer.Reset(delay)
 	}
-
 	for {
+		var output chan<- tickReq
+		var request tickReq
+		if pending != nil {
+			output = t.tick
+			request.tunnelID = pending.tunnelID
+		}
 		select {
 		case <-t.stop:
 			return
-
-		case upd, ok := <-t.update:
+		case update, ok := <-t.update:
 			if !ok {
 				return
 			}
-			t.applyUpdate(upd)
-			setTimer(false)
-
+			t.applyUpdate(update)
+			if pending == nil {
+				setTimer()
+			}
+		case output <- request:
+			pending = nil
+			setTimer()
 		case <-timerC():
-			// Earliest deadline fired. We consumed the channel value.
+			// The timer value was consumed. Retire it now rather than later trying
+			// to drain its already consumed channel during an intervening update.
+			timer.Stop()
+			timer = nil
 			if t.h.Len() == 0 {
-				timer = nil
 				continue
 			}
-			entry, _ := heap.Pop(&t.h).(*timerEntry) //nolint:errcheck // heap only contains *timerEntry
+			entry, _ := heap.Pop(&t.h).(*timerEntry) //nolint:errcheck // heap contains only timerEntry
 			delete(t.byTunnel, entry.tunnelID)
-
-			// Send tickReq. If the reactor is stopped, the stop
-			// channel will fire and we exit. Backpressure is
-			// intentional per the handover design.
-			select {
-			case t.tick <- tickReq{tunnelID: entry.tunnelID}:
-			case <-t.stop:
-				return
-			}
-			// The reactor will send a heapUpdate in response; we loop
-			// back and pick it up from the update channel.
-			setTimer(true)
+			pending = entry
+			// Sending is a case of the outer select. A blocked reactor can still
+			// publish every heap update or stop this existing worker.
 		}
 	}
 }

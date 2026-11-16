@@ -1113,8 +1113,11 @@ Single goroutine manages all timers:
 - Hello keepalive timers (per-tunnel)
 - Session establishment timeouts (per-session)
 
-Uses a priority queue (min-heap by deadline). Wakes up on the nearest
-deadline, processes all expired timers, calculates next wake.
+The worker keeps deadlines in a min-heap and waits for the nearest one. A due
+tick remains pending until the reactor receives it. While delivery is blocked,
+the worker continues accepting deadline updates and stop signals. Updates for
+the same tunnel ID keep their own heap entry, preserving the new deadline.
+<!-- source: internal/component/l2tp/timer.go -- run -->
 
 ### 11.3 PPP session ownership
 
