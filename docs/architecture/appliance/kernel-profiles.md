@@ -201,12 +201,28 @@ The runtime profile is one kernel for hardware, QEMU and Xen. Its rule:
 | A networking feature Ze configures | Built in (`=y`) | Routing, firewall, IPsec, WireGuard, MPLS, traffic control, PPP/L2TP, tunnels |
 | A virtual or boot-critical device | Built in (`=y`) | virtio, the Xen guest frontends, NVMe, SATA/AHCI, SCSI disk, USB host and storage, HID core with generic and USB HID, the watchdogs, PWM fan control, KVM, the console |
 | A driver for physical hardware | Loadable (`=m`) | Physical NICs and their PHYs, wireless, sound, i915 graphics, PC Card, vendor HID devices, board sensors, laptop platform drivers |
+| A facility no Ze feature uses at boot, which a host may want | Loadable (`=m`) | The NFS client with its RPC and lock layers, software RAID, device mapper |
 
 A guest then holds only the drivers of the devices it has. A networking
 feature never depends on module loading. A hardware driver reaches its device
 only when a loader inserts it: gokrazy's boot loader inserts only
 `pwm-fan.ko`, which this profile builds in. Modules are not signed.
 <!-- source: gokrazy/kernel/runtime.config -- loadable hardware drivers, CONFIG_MODULES -->
+
+The last row is the same rule applied to software. Ze mounts no NFS export,
+assembles no RAID array and maps no device, so the appliance never loads
+these modules; a Docker or lab host that boots this kernel loads one when it
+needs it. `CONFIG_NFS_FS`, `CONFIG_NFS_V3` and `CONFIG_NFS_V4` are requested
+as modules, and the promptless RPC and lock layers follow them.
+`CONFIG_ROOT_NFS` depends on `NFS_FS=y`, so it drops out and this kernel
+cannot mount its root file system over NFS. `CONFIG_BLK_DEV_MD` and
+`CONFIG_BLK_DEV_DM` are requested as modules, and their children follow.
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_NFS_FS, CONFIG_BLK_DEV_MD, CONFIG_BLK_DEV_DM -->
+
+The profile turns `CONFIG_KALLSYMS_ALL` off and keeps `CONFIG_KALLSYMS`. The
+kernel's symbol table then holds function names and no data symbols, so the
+backtrace in a captured oops or panic still names its functions.
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_KALLSYMS_ALL -->
 <!-- source: gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/modules.go -- loadModules -->
 
 The `=m` lines name only drivers with a Kconfig prompt. Promptless helpers
