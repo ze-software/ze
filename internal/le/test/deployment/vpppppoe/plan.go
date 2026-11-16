@@ -41,6 +41,37 @@ const (
 	baselineProofVariant   = "baseline"
 	testCommand            = "test"
 	runAction              = "run"
+
+	showCommand         = "show"
+	accessDevice        = "eth0"
+	vlanAccessDevice    = "eth0.100"
+	controlNamespace    = "cp-ns"
+	mtuToken            = "mtu"
+	pingCommand         = "ping"
+	hostAccessInterface = "host-eth0"
+	pppdDebugOption     = "debug"
+	packetsToken        = "packets"
+	helpCommand         = "help"
+	vppEvidenceLog      = "/evidence/vpp.log"
+	productService      = "internet"
+	pppdCommand         = "pppd"
+	pppdPluginOption    = "plugin"
+	pppdNoAuthOption    = "noauth"
+	pppdNoACCompOption  = "noaccomp"
+	imageKeyword        = "image"
+	addressToken        = "address"
+	versionCommand      = "version"
+	pppdLogfileOption   = "logfile"
+	pppdPPPoEPlugin     = "pppoe.so"
+	pppdNoCCPOption     = "noccp"
+	imageReferenceValue = "reference"
+	pppdNICPrefix       = "nic-"
+	pppdNoPCompOption   = "nopcomp"
+	pppdNoVJOption      = "novj"
+	pppdNoDefaultRoute  = "nodefaultroute"
+	pppdMRUOption       = "mru"
+	pppdMaxFailOption   = "maxfail"
+	pppdNoDetachOption  = "nodetach"
 )
 
 // Run builds the mechanism's dependencies and runs three isolated topologies.
@@ -74,7 +105,7 @@ func Run(ctx context.Context, root, image string) (report interoplab.SuiteReport
 	}
 	binaries := []interoplab.LabBinary{
 		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: filepath.Join(relative, "ze")},
-		{Name: "le", Base: repofeaturetags.LEBase, Output: filepath.Join(relative, "le"), StartProbe: []string{"help"}},
+		{Name: "le", Base: repofeaturetags.LEBase, Output: filepath.Join(relative, "le"), StartProbe: []string{helpCommand}},
 	}
 	builds, _, err := interoplab.ResolveImages(interoplab.ImageContext{Root: root}, []string{buildvpp.ImageName, clientImage})
 	if err != nil {
@@ -182,7 +213,7 @@ func mechanismPlan(_, work, suffix string) interoplab.ScenarioPlan {
 			// Bound the allowance with headroom instead of granting IPC_LOCK.
 			{Name: vppPeer, Container: "ze-vpp-pppoe-vpp-" + suffix, Image: buildvpp.ImageName, Host: 2,
 				Capabilities: []string{networkAdminCapability, "SYS_ADMIN"}, Mounts: []interoplab.Mount{helper, evidence},
-				LogFiles:  []string{"/evidence/vpp.log", "/evidence/vpp-start.log", "/evidence/control-launch.log", "/evidence/control.error", "/evidence/control.state", "/evidence/discovery.log"},
+				LogFiles:  []string{vppEvidenceLog, "/evidence/vpp-start.log", "/evidence/control-launch.log", "/evidence/control.error", "/evidence/control.state", "/evidence/discovery.log"},
 				Arguments: []string{"--ulimit", "memlock=268435456:268435456", "--device", "/dev/net/tun", "--device", "/dev/vhost-net", "--entrypoint", "sleep"}, Command: []string{"infinity"}},
 			{Name: clientPeer, Container: "ze-vpp-pppoe-client-" + suffix, Image: clientImage, Host: 3,
 				LogFiles:     []string{"/var/log/ppp/mechanism.log"},

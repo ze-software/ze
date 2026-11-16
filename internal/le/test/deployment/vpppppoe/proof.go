@@ -153,7 +153,7 @@ func prepareMechanismHost(ctx context.Context, root string, docker *interoplab.D
 	}
 	binaries := []interoplab.LabBinary{
 		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: filepath.Join(relative, "ze")},
-		{Name: "le", Base: repofeaturetags.LEBase, Output: filepath.Join(relative, "le"), StartProbe: []string{"help"}},
+		{Name: "le", Base: repofeaturetags.LEBase, Output: filepath.Join(relative, "le"), StartProbe: []string{helpCommand}},
 	}
 	return prepareVPPHost(ctx, docker, interoplab.StageBinaries(root, false, binaries...), interoplab.StagedZePath(root, binaries))
 }
@@ -341,9 +341,9 @@ func singleVPPProofPlan(work, suffix, name, imageName string, checker interoplab
 				{Source: filepath.Join(work, "startup.conf"), Target: "/run/vpp/startup.conf", ReadOnly: true},
 			},
 			Command:  []string{"vpp", "-c", "/run/vpp/startup.conf"},
-			LogFiles: []string{"/evidence/vpp.log"},
+			LogFiles: []string{vppEvidenceLog},
 			Ready: &interoplab.ReadyProbe{
-				Command:  []string{vppctlCommand, "-s", vppCLIPath, "show", "version"},
+				Command:  []string{vppctlCommand, "-s", vppCLIPath, showCommand, versionCommand},
 				Contains: []string{"vpp"}, Timeout: controlCommandBudget, Interval: 250 * time.Millisecond,
 			},
 		}},

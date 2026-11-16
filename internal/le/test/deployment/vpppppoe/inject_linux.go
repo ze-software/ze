@@ -23,7 +23,7 @@ func injectFrames(device, remote string, ipv6 bool) (err error) {
 	if len(peer) != 6 {
 		return errors.New("mechanism requires an Ethernet peer MAC")
 	}
-	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(network16(unix.ETH_P_ALL)))
+	fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(etherTypeAllNetwork))
 	if err != nil {
 		return err
 	}

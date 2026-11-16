@@ -61,7 +61,7 @@ var heavyCensus = []censusArea{
 	{area: "perf", heavy: []string{"run", "filter", "send"}},
 	{area: "doc yang-contract", heavy: []string{"doc-drift"}},
 	{area: "feature", heavy: []string{"run"}},
-	{area: "site", heavy: []string{"build", "config-tree", "talk"}},
+	{area: "site", heavy: []string{"build", "config-tree", "record", "talk"}},
 	{area: "site terminal-demo", heavy: []string{"build", "render", "pty"}},
 	{area: "setup", heavy: []string{"install", "tools", "proto", "claude-server", "web", "appliance-modules"}},
 	{area: "setup docker host", heavy: []string{"build", "start", "stop"}},
@@ -250,12 +250,15 @@ var censusSelfAdmitting = []string{
 // censusNoSlot names every heavy command that takes no job slot, with the
 // reason its declaration gives.
 var censusNoSlot = map[string]string{
-	"ai hooks unit":                     "an in-process selftest of the hooks, single process, seconds",
-	"test integration clean":            "removes containers and adds no load; queueing it protects nothing",
-	"setup docker host stop":            "stops the Docker host and adds no load",
-	"test deployment vpp-pppoe control": "the parent mechanism action owns admission; this bounded socket helper performs no build",
-	"test deployment vpp-pppoe bounds":  "the parent mechanism action owns admission; this helper sends three bounded frames",
-	"test deployment vpp-pppoe ipv6":    "the parent mechanism action owns admission; this helper sends two bounded frames",
+	"test deployment vpp-pppoe product-ipv6-peer":   "the parent IPv6 product action owns admission; this CPE helper performs one bounded RS and DHCPv6 exchange",
+	"test deployment vpp-pppoe product-family-peer": "the parent IPv6 product action owns admission; this helper performs one bounded exact-session exchange",
+	"test deployment vpp-pppoe observe":             "the parent product action owns admission; this helper performs one bounded loopback HTTP observation",
+	"ai hooks unit":                                 "an in-process selftest of the hooks, single process, seconds",
+	"test integration clean":                        "removes containers and adds no load; queueing it protects nothing",
+	"setup docker host stop":                        "stops the Docker host and adds no load",
+	"test deployment vpp-pppoe control":             "the parent mechanism action owns admission; this bounded socket helper performs no build",
+	"test deployment vpp-pppoe bounds":              "the parent mechanism action owns admission; this helper sends three bounded frames",
+	"test deployment vpp-pppoe ipv6":                "the parent mechanism action owns admission; this helper sends two bounded frames",
 }
 
 // TestCensusHeavyActionsAreAdmitted asks whether every heavy line le holds

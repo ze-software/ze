@@ -1,0 +1,156 @@
+// Design: docs/labs/pppoe-interop.md -- actual Ze PPPoE over the native VPP provider.
+// Related: product_check.go -- independent pppd and traffic assertions.
+package testvpppppoe
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/netip"
+	"os"
+	"path/filepath"
+	"strconv"
+
+	buildvpp "github.com/ze-software/ze/internal/le/build/vpp"
+	"github.com/ze-software/ze/internal/le/interoplab"
+	lepath "github.com/ze-software/ze/internal/le/le/path"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+)
+
+// RunProduct deliberately shares the existing image registry, binary staging,
+// Docker/kernel preflight and Suite resource lifetime. No helper impersonates
+// the access concentrator: the staged daemon owns PPP, native sessions and FIB.
+func RunProduct(ctx context.Context, root, image string) (report interoplab.SuiteReport) {
+	return runProductSuite(ctx, root, image, false)
+}
+
+func runProductSuite(ctx context.Context, root, image string, ipv6 bool) (report interoplab.SuiteReport) {
+	paths, err := lepath.ResolveSession(root, true)
+	if err != nil {
+		return setupFailure(err)
+	}
+	work, err := os.MkdirTemp(filepath.Join(root, paths.Scratch), "vpp-pppoe-product-")
+	if err != nil {
+		return setupFailure(err)
+	}
+	defer func() {
+		if err := os.RemoveAll(work); err != nil {
+			report.SetupError = errors.Join(errors.New(report.SetupError), fmt.Errorf("remove product scratch: %w", err)).Error()
+			report.Code = 1
+		}
+	}()
+	if err := os.WriteFile(filepath.Join(work, "startup.conf"), []byte(startupConfig), 0o600); err != nil {
+		return setupFailure(err)
+	}
+	relative, err := filepath.Rel(root, work)
+	if err != nil {
+		return setupFailure(err)
+	}
+	binaries := []interoplab.LabBinary{
+		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: filepath.Join(relative, "ze")},
+		{Name: "le", Base: repofeaturetags.LEBase, Output: filepath.Join(relative, "le"), StartProbe: []string{helpCommand}},
+	}
+	builds, _, err := interoplab.ResolveImages(interoplab.ImageContext{Root: root}, []string{buildvpp.ImageName, clientImage})
+	if err != nil {
+		return setupFailure(err)
+	}
+	docker := interoplab.NewDocker()
+	var leased []interoplab.ImageResult
+	defer func() { releaseMechanismImages(ctx, docker, leased, &report) }()
+	preflight := interoplab.StageBinaries(root, false, binaries...)
+	if image != "" {
+		if !immutableImage(image) {
+			return setupFailure(errors.New("image requires a complete sha256 image ID from the build report"))
+		}
+		if err := prepareVPPHost(ctx, docker, preflight, interoplab.StagedZePath(root, binaries)); err != nil {
+			return setupFailure(err)
+		}
+		preflight = nil
+		for index := range builds {
+			if builds[index].Name == buildvpp.ImageName {
+				builds[index].Tag = image
+				continue
+			}
+			built, err := docker.Build(ctx, builds[index])
+			if err != nil {
+				return setupFailure(err)
+			}
+			leased = append(leased, built)
+			builds[index].Tag = built.Reference
+		}
+	}
+	var plans []interoplab.ScenarioPlan
+	if ipv6 {
+		for _, mode := range []mechanismMode{modePlain, modeNamespace, modeVLAN} {
+			plans = append(plans, productIPv6Plan(root, work, strconv.Itoa(os.Getpid())+"-"+mode.name(), mode))
+		}
+	} else {
+		for _, mode := range []mechanismMode{modePlain, modeNamespace, modeVLAN} {
+			plan := productPlan(root, work, strconv.Itoa(os.Getpid())+"-"+mode.name(), mode, 1)
+			plans = append(plans, plan)
+		}
+		plans = append(plans, productPlan(root, work, strconv.Itoa(os.Getpid())+"-hundred", modePlain, 100))
+	}
+	return (&interoplab.Suite{Docker: docker, Checkout: root, Preflight: preflight, StagedZe: interoplab.StagedZePath(root, binaries), Images: builds, Scenarios: plans, NoBuild: image != ""}).Run(ctx)
+}
+
+func productPlan(root, work, suffix string, mode mechanismMode, count int) interoplab.ScenarioPlan {
+	plan := mechanismPlan(root, work, "product-"+suffix)
+	plan.Source.Name = "pppoe-vpp-ze-ac-pppd-client-" + mode.name()
+	if mode == modePlain {
+		plan.Source.Name = "pppoe-vpp-ze-ac-pppd-client"
+	}
+	if count == 100 {
+		plan.Source.Name = "pppoe-vpp-ze-ac-pppd-client-hundred"
+	}
+	plan.Source.Checker = func(ctx context.Context, check *interoplab.CheckContext) error {
+		return checkProduct(ctx, check, mode, count)
+	}
+	plan.Network.Candidates = []interoplab.Subnet{{IPv4: netip.MustParsePrefix("198.19.40.0/24")}, {IPv4: netip.MustParsePrefix("198.19.41.0/24")}}
+	for index := range plan.Peers {
+		mounts := plan.Peers[index].Mounts[:0]
+		for _, mount := range plan.Peers[index].Mounts {
+			if mount.Target != helperPath {
+				mounts = append(mounts, mount)
+			}
+		}
+		plan.Peers[index].Mounts = mounts
+		if plan.Peers[index].Name != vppPeer {
+			continue
+		}
+		plan.Peers[index].Mounts = append(plan.Peers[index].Mounts,
+			interoplab.Mount{Source: filepath.Join(work, "ze"), Target: "/product/ze", ReadOnly: true},
+			interoplab.Mount{Source: filepath.Join(work, "le"), Target: productHelper, ReadOnly: true})
+		plan.Peers[index].LogFiles = []string{vppEvidenceLog, "/evidence/vpp-start.log", "/evidence/product-ze.log", "/evidence/product-cp.log", "/evidence/product-discovery.log"}
+	}
+	return plan
+}
+
+func productConfig(access, namespace string) string {
+	return fmt.Sprintf(`interface { backend vpp; }
+vpp {
+ enabled true;
+ external true;
+ api-socket /run/vpp/api.sock;
+ stats { socket-path /run/vpp/stats.sock; }
+ lcp { enabled true; netns %q; }
+}
+pppoe {
+ enabled true;
+ ac-name ze-vpp-bng;
+ service-name internet;
+ auth-method chap-md5;
+ max-sessions 100;
+ padi-rate-limit 1000;
+ interface %s { }
+}
+l2tp {
+ auth { local { user alice { password s3cr3t; } } }
+ pool { ipv4 { gateway 10.20.0.1; start 10.20.0.2; end 10.20.0.102;
+ dns-primary 192.0.2.53; dns-secondary 192.0.2.54; } }
+}
+environment {
+ api-server { token %q; rest { enabled true; server main { ip 127.0.0.1; port 9099; } } }
+}
+`, namespace, access, productToken)
+}

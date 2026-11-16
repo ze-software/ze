@@ -34,10 +34,10 @@ func checkMechanism(ctx context.Context, check *interoplab.CheckContext, mode me
 	if err := lab.ExecDetached(ctx, vppPeer, []string{"sh", "-c", "exec vpp -c /evidence/startup.conf > /evidence/vpp-start.log 2>&1"}, nil); err != nil {
 		return err
 	}
-	if _, err := waitText(ctx, lab, []string{vppctlCommand, "-s", vppCLIPath, "show", "version"}, "vpp"); err != nil {
+	if _, err := waitText(ctx, lab, []string{vppctlCommand, "-s", vppCLIPath, showCommand, versionCommand}, "vpp"); err != nil {
 		return err
 	}
-	plugins, err := cli(ctx, lab, "show", "plugins")
+	plugins, err := cli(ctx, lab, showCommand, "plugins")
 	if err != nil {
 		return err
 	}
@@ -46,11 +46,11 @@ func checkMechanism(ctx context.Context, check *interoplab.CheckContext, mode me
 			return fmt.Errorf("running VPP lacks %s: %s", plugin, plugins)
 		}
 	}
-	mac, err := interfaceMAC(ctx, lab, vppPeer, "eth0")
+	mac, err := interfaceMAC(ctx, lab)
 	if err != nil {
 		return err
 	}
-	if _, err = query(ctx, lab, vppPeer, "ip", "-4", "address", "flush", "dev", "eth0"); err != nil {
+	if _, err = query(ctx, lab, vppPeer, "ip", "-4", addressToken, "flush", "dev", accessDevice); err != nil {
 		return err
 	}
 	address, err := networkHost(check.Network.IPv4, 2)
@@ -59,20 +59,20 @@ func checkMechanism(ctx context.Context, check *interoplab.CheckContext, mode me
 	}
 	// Pinned af_packet_create_command_fn accepts hw-addr; without it,
 	// af_packet_create_if generates a random 02:fe address unrelated to eth0.
-	if _, err = cli(ctx, lab, "create", "host-interface", nameToken, "eth0", "hw-addr", mac); err != nil {
+	if _, err = cli(ctx, lab, "create", "host-interface", nameToken, accessDevice, "hw-addr", mac); err != nil {
 		return err
 	}
-	hardware, err := cli(ctx, lab, "show", "hardware-interfaces", "host-eth0")
+	hardware, err := cli(ctx, lab, showCommand, "hardware-interfaces", hostAccessInterface)
 	if err != nil {
 		return err
 	}
 	if !strings.Contains(hardware, mac) {
 		return fmt.Errorf("VPP access MAC differs from the wire peer's destination %s: %s", mac, hardware)
 	}
-	if _, err = cli(ctx, lab, setCommand, interfaceKeyword, "state", "host-eth0", "up"); err != nil {
+	if _, err = cli(ctx, lab, setCommand, interfaceKeyword, "state", hostAccessInterface, "up"); err != nil {
 		return err
 	}
-	if _, err = cli(ctx, lab, setCommand, interfaceKeyword, "ip", "address", "host-eth0", address+"/24"); err != nil {
+	if _, err = cli(ctx, lab, setCommand, interfaceKeyword, "ip", addressToken, hostAccessInterface, address+"/24"); err != nil {
 		return err
 	}
 	device, namespace, err := prepareControlPair(ctx, lab, mode)
@@ -89,10 +89,10 @@ func checkMechanism(ctx context.Context, check *interoplab.CheckContext, mode me
 	if _, err = waitText(ctx, lab, []string{readFileCommand, "/evidence/control.ready"}, "ready"); err != nil {
 		return err
 	}
-	clientDevice := "eth0"
+	clientDevice := accessDevice
 	if mode == modeVLAN {
-		clientDevice = "eth0.100"
-		if _, err = query(ctx, lab, clientPeer, "ip", "link", "add", "link", "eth0", nameToken, clientDevice, "type", "vlan", "id", "100"); err != nil {
+		clientDevice = vlanAccessDevice
+		if _, err = query(ctx, lab, clientPeer, "ip", "link", "add", "link", accessDevice, nameToken, clientDevice, "type", "vlan", "id", "100"); err != nil {
 			return err
 		}
 		if _, err = query(ctx, lab, clientPeer, "ip", "link", setCommand, clientDevice, "up"); err != nil {
@@ -138,11 +138,11 @@ func checkMechanism(ctx context.Context, check *interoplab.CheckContext, mode me
 		return errors.New("the socket was not returned to the caller's namespace")
 	}
 	if mode == modeNamespace {
-		if state.SocketNamespace != "cp-ns" {
+		if state.SocketNamespace != controlNamespace {
 			return errors.New("control socket was not opened in the LCP namespace")
 		}
 	}
-	links, err := query(ctx, lab, vppPeer, "ip", "-o", "link", "show", "type", "ppp")
+	links, err := query(ctx, lab, vppPeer, "ip", "-o", "link", showCommand, "type", "ppp")
 	if err != nil {
 		return err
 	}
@@ -151,7 +151,7 @@ func checkMechanism(ctx context.Context, check *interoplab.CheckContext, mode me
 	}
 	for _, command := range [][]string{
 		{setCommand, interfaceKeyword, "state", sessionInterface, "up"},
-		{setCommand, interfaceKeyword, "mtu", "ip4", "1492", sessionInterface},
+		{setCommand, interfaceKeyword, mtuToken, "ip4", "1492", sessionInterface},
 		{setCommand, interfaceKeyword, "feature", sessionInterface, "ip4-not-enabled", "arc", "ip4-unicast", "disable"},
 		{"ip", "route", "add", peerAddress + "/32", "via", sessionInterface},
 	} {
@@ -185,20 +185,20 @@ func checkMechanism(ctx context.Context, check *interoplab.CheckContext, mode me
 	// Pinned format_vnet_sw_interface_cntrs omits zero counters. Prime one
 	// real round trip, then measure a separate burst against explicit rows;
 	// an omitted row is never interpreted as a zero baseline.
-	if _, err = query(ctx, lab, trafficPeer, "ping", "-n", "-c", "1", "-W", "3", "-s", "64", peerAddress); err != nil {
+	if _, err = query(ctx, lab, trafficPeer, pingCommand, "-n", "-c", "1", "-W", "3", "-s", "64", peerAddress); err != nil {
 		return fmt.Errorf("counter warm-up round trip failed: %w", err)
 	}
 	baseline, err := waitPacketCounters(ctx, lab)
 	if err != nil {
 		return err
 	}
-	if _, err = query(ctx, lab, trafficPeer, "ping", "-n", "-c", "2", "-W", "3", "-M", "do", "-s", "1464", peerAddress); err != nil {
+	if _, err = query(ctx, lab, trafficPeer, pingCommand, "-n", "-c", "2", "-W", "3", "-M", "do", "-s", "1464", peerAddress); err != nil {
 		return fmt.Errorf("1492-byte positive-control traffic failed: %w", err)
 	}
 	if err := waitCounterIncrease(ctx, lab, baseline); err != nil {
 		return err
 	}
-	oversize, oversizeErr := lab.Exec(ctx, trafficPeer, []string{"ping", "-n", "-c", "1", "-W", "3", "-M", "do", "-s", "1465", peerAddress}, nil)
+	oversize, oversizeErr := lab.Exec(ctx, trafficPeer, []string{pingCommand, "-n", "-c", "1", "-W", "3", "-M", "do", "-s", "1465", peerAddress}, nil)
 	if oversizeErr == nil {
 		return errors.New("VPP forwarded a 1493-byte DF packet through a 1492-byte session")
 	}
@@ -215,7 +215,7 @@ func checkMechanism(ctx context.Context, check *interoplab.CheckContext, mode me
 	if err := checkIndependentMTU(ctx, lab, clientPPP); err != nil {
 		return err
 	}
-	counters, err := cli(ctx, lab, "show", interfaceKeyword, sessionInterface)
+	counters, err := cli(ctx, lab, showCommand, interfaceKeyword, sessionInterface)
 	if err != nil {
 		return err
 	}
@@ -234,7 +234,7 @@ func checkMechanism(ctx context.Context, check *interoplab.CheckContext, mode me
 	if _, err = waitText(ctx, lab, []string{readFileCommand, "/evidence/control.done"}, "done"); err != nil {
 		return err
 	}
-	remaining, err := cli(ctx, lab, "show", "pppoe", "session")
+	remaining, err := cli(ctx, lab, showCommand, "pppoe", "session")
 	if err != nil {
 		return err
 	}
@@ -264,7 +264,7 @@ func checkBoundsWire(ctx context.Context, lab interoplab.CheckerLab, device, mac
 	if err := boundsEmptySessions(ctx, lab); err != nil {
 		return err
 	}
-	beforeText, err := boundsReadback(ctx, lab, "show", "errors")
+	beforeText, err := boundsReadback(ctx, lab, showCommand, "errors")
 	if err != nil {
 		return err
 	}
@@ -281,7 +281,7 @@ func checkBoundsWire(ctx context.Context, lab interoplab.CheckerLab, device, mac
 	if err := boundsEmptySessions(ctx, lab); err != nil {
 		return err
 	}
-	afterText, err := boundsReadback(ctx, lab, "show", "errors")
+	afterText, err := boundsReadback(ctx, lab, showCommand, "errors")
 	if err != nil {
 		return err
 	}
@@ -301,7 +301,7 @@ func checkBoundsWire(ctx context.Context, lab interoplab.CheckerLab, device, mac
 // The pinned session command emits this complete answer only for an empty pool.
 // Blank output and CLI errors do not prove the absence of installed sessions.
 func boundsEmptySessions(ctx context.Context, lab interoplab.CheckerLab) error {
-	output, err := boundsReadback(ctx, lab, "show", "pppoe", "session")
+	output, err := boundsReadback(ctx, lab, showCommand, "pppoe", "session")
 	if err != nil {
 		return err
 	}
@@ -372,9 +372,9 @@ func boundsMalformedCount(output string) (uint64, error) {
 
 func prepareControlPair(ctx context.Context, lab interoplab.CheckerLab, mode mechanismMode) (device, namespace string, err error) {
 	device = controlInterface
-	arguments := []string{"lcp", "create", "host-eth0", "host-if", controlInterface}
+	arguments := []string{"lcp", "create", hostAccessInterface, "host-if", controlInterface}
 	if mode == modeNamespace {
-		namespace = "cp-ns"
+		namespace = controlNamespace
 		if _, err = query(ctx, lab, vppPeer, "ip", "netns", "add", namespace); err != nil {
 			return "", "", err
 		}
@@ -383,7 +383,7 @@ func prepareControlPair(ctx context.Context, lab interoplab.CheckerLab, mode mec
 	if _, err = cli(ctx, lab, arguments...); err != nil {
 		return "", "", err
 	}
-	pairs, err := cli(ctx, lab, "show", "lcp")
+	pairs, err := cli(ctx, lab, showCommand, "lcp")
 	if err != nil {
 		return "", "", err
 	}
@@ -391,9 +391,9 @@ func prepareControlPair(ctx context.Context, lab interoplab.CheckerLab, mode mec
 	if err != nil {
 		return "", "", err
 	}
-	dp := "host-eth0"
+	dp := hostAccessInterface
 	if mode == modeVLAN {
-		if _, err = cli(ctx, lab, "create", "sub-interfaces", "host-eth0", "100"); err != nil {
+		if _, err = cli(ctx, lab, "create", "sub-interfaces", hostAccessInterface, "100"); err != nil {
 			return "", "", err
 		}
 		dp = "host-eth0.100"
@@ -406,7 +406,7 @@ func prepareControlPair(ctx context.Context, lab interoplab.CheckerLab, mode mec
 		if _, err = cli(ctx, lab, "lcp", "create", dp, "host-if", device); err != nil {
 			return "", "", err
 		}
-		pairs, err = cli(ctx, lab, "show", "lcp")
+		pairs, err = cli(ctx, lab, showCommand, "lcp")
 		if err != nil {
 			return "", "", err
 		}
@@ -462,7 +462,7 @@ func controlVPPName(output, device string) (string, error) {
 }
 
 func startPPPD(ctx context.Context, lab interoplab.CheckerLab, device string) error {
-	return lab.ExecDetached(ctx, clientPeer, []string{"pppd", "plugin", "pppoe.so", "nic-" + device, "noauth", "noaccomp", "nopcomp", "nomagic", "noccp", "novj", "noipv6", "nodefaultroute", "10.20.0.2:10.20.0.1", "mtu", "1492", "mru", "1492", "maxfail", "1", "nodetach", "debug", "logfile", "/var/log/ppp/mechanism.log"}, nil)
+	return lab.ExecDetached(ctx, clientPeer, []string{pppdCommand, pppdPluginOption, pppdPPPoEPlugin, pppdNICPrefix + device, pppdNoAuthOption, pppdNoACCompOption, pppdNoPCompOption, "nomagic", pppdNoCCPOption, pppdNoVJOption, "noipv6", pppdNoDefaultRoute, "10.20.0.2:10.20.0.1", mtuToken, "1492", pppdMRUOption, "1492", pppdMaxFailOption, "1", pppdNoDetachOption, pppdDebugOption, pppdLogfileOption, "/var/log/ppp/mechanism.log"}, nil)
 }
 
 func query(ctx context.Context, lab interoplab.CheckerLab, peer string, args ...string) (string, error) {
@@ -519,8 +519,8 @@ func readControlState(ctx context.Context, lab interoplab.CheckerLab) (controlRe
 	return result, nil
 }
 
-func interfaceMAC(ctx context.Context, lab interoplab.CheckerLab, peer, device string) (string, error) {
-	text, err := query(ctx, lab, peer, readFileCommand, "/sys/class/net/"+device+"/address")
+func interfaceMAC(ctx context.Context, lab interoplab.CheckerLab) (string, error) {
+	text, err := query(ctx, lab, vppPeer, readFileCommand, "/sys/class/net/"+accessDevice+"/address")
 	if err != nil {
 		return "", err
 	}
@@ -529,7 +529,7 @@ func interfaceMAC(ctx context.Context, lab interoplab.CheckerLab, peer, device s
 		return "", err
 	}
 	if len(mac) != 6 {
-		return "", fmt.Errorf("interface %s does not have an Ethernet MAC: %s", device, text)
+		return "", fmt.Errorf("interface %s does not have an Ethernet MAC: %s", accessDevice, text)
 	}
 	return mac.String(), nil
 }
@@ -554,7 +554,7 @@ func readPacketCounters(output string) (packetCounters, error) {
 	for line := range strings.SplitSeq(output, "\n") {
 		fields := strings.Fields(line)
 		for index := 0; index+2 < len(fields); index++ {
-			if fields[index+1] != "packets" {
+			if fields[index+1] != packetsToken {
 				continue
 			}
 			if fields[index] != "rx" {
@@ -597,7 +597,7 @@ func counterIncrease(before, after packetCounters) error {
 
 func waitPacketCounters(ctx context.Context, lab interoplab.CheckerLab) (packetCounters, error) {
 	counters, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 5 * time.Second, Interval: 250 * time.Millisecond, Description: "explicit VPP packet counters after warm-up traffic"}, func(ctx context.Context) (packetCounters, error) {
-		text, err := cli(ctx, lab, "show", interfaceKeyword, sessionInterface)
+		text, err := cli(ctx, lab, showCommand, interfaceKeyword, sessionInterface)
 		if err != nil {
 			return packetCounters{}, err
 		}
@@ -613,7 +613,7 @@ func waitPacketCounters(ctx context.Context, lab interoplab.CheckerLab) (packetC
 
 func waitCounterIncrease(ctx context.Context, lab interoplab.CheckerLab, before packetCounters) error {
 	_, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 5 * time.Second, Interval: 250 * time.Millisecond, Description: "both VPP counters to increase across controlled ping"}, func(ctx context.Context) (packetCounters, error) {
-		text, err := cli(ctx, lab, "show", interfaceKeyword, sessionInterface)
+		text, err := cli(ctx, lab, showCommand, interfaceKeyword, sessionInterface)
 		if err != nil {
 			return packetCounters{}, err
 		}
@@ -638,7 +638,7 @@ func interfaceTraffic(output string) error {
 
 func waitClientPPP(ctx context.Context, lab interoplab.CheckerLab) (string, error) {
 	device, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{Timeout: 15 * time.Second, Interval: 250 * time.Millisecond, Description: "pppd's negotiated client interface and address"}, func(ctx context.Context) (string, error) {
-		text, err := query(ctx, lab, clientPeer, "ip", "-j", "address", "show", "type", "ppp")
+		text, err := query(ctx, lab, clientPeer, "ip", "-j", addressToken, showCommand, "type", "ppp")
 		if err != nil {
 			return "", err
 		}

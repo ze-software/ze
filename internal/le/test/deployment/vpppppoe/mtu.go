@@ -20,7 +20,7 @@ import (
 func checkIndependentMTU(ctx context.Context, lab interoplab.CheckerLab, device string) (err error) {
 	ctx, cancel := context.WithTimeout(ctx, controlCommandBudget)
 	defer cancel()
-	output, err := query(ctx, lab, clientPeer, "ip", "-j", "link", "show", "dev", device)
+	output, err := query(ctx, lab, clientPeer, "ip", "-j", "link", showCommand, "dev", device)
 	if err != nil {
 		return err
 	}
@@ -33,7 +33,7 @@ func checkIndependentMTU(ctx context.Context, lab interoplab.CheckerLab, device 
 	defer func() {
 		restoreCtx, restoreCancel := context.WithTimeout(context.WithoutCancel(ctx), controlCommandBudget)
 		defer restoreCancel()
-		_, restoreErr := cli(restoreCtx, lab, "set", interfaceKeyword, "mtu", "ip4", "1492", sessionInterface)
+		_, restoreErr := cli(restoreCtx, lab, "set", interfaceKeyword, mtuToken, "ip4", "1492", sessionInterface)
 		if restoreErr == nil {
 			restoreErr = requireVPPIP4MTU(restoreCtx, lab, 1492)
 		}
@@ -41,16 +41,16 @@ func checkIndependentMTU(ctx context.Context, lab interoplab.CheckerLab, device 
 			err = errors.Join(err, fmt.Errorf("restore VPP session MTU to 1492: %w", restoreErr))
 		}
 	}()
-	if _, err = cli(ctx, lab, "set", interfaceKeyword, "mtu", "ip4", "1400", sessionInterface); err != nil {
+	if _, err = cli(ctx, lab, "set", interfaceKeyword, mtuToken, "ip4", "1400", sessionInterface); err != nil {
 		return err
 	}
 	if err := requireVPPIP4MTU(ctx, lab, 1400); err != nil {
 		return err
 	}
-	if _, err = query(ctx, lab, trafficPeer, "ping", "-n", "-c", "1", "-W", "3", "-M", "do", "-s", "1372", peerAddress); err != nil {
+	if _, err = query(ctx, lab, trafficPeer, pingCommand, "-n", "-c", "1", "-W", "3", "-M", "do", "-s", "1372", peerAddress); err != nil {
 		return fmt.Errorf("1400-byte positive-control traffic failed: %w", err)
 	}
-	oversize, oversizeErr := lab.Exec(ctx, trafficPeer, []string{"ping", "-n", "-c", "1", "-W", "3", "-M", "do", "-s", "1373", peerAddress}, nil)
+	oversize, oversizeErr := lab.Exec(ctx, trafficPeer, []string{pingCommand, "-n", "-c", "1", "-W", "3", "-M", "do", "-s", "1373", peerAddress}, nil)
 	if oversizeErr == nil {
 		return errors.New("VPP forwarded a 1401-byte DF packet through a 1400-byte session")
 	}
@@ -92,7 +92,7 @@ func independentClientMTU(output, device string) error {
 // Pinned format_vnet_sw_interface_mtu prints L3/IP4/IP6/MPLS in one field.
 // Exactly one named row must contain the requested IP4 value.
 func requireVPPIP4MTU(ctx context.Context, lab interoplab.CheckerLab, wanted int) error {
-	output, err := cli(ctx, lab, "show", interfaceKeyword, sessionInterface)
+	output, err := cli(ctx, lab, showCommand, interfaceKeyword, sessionInterface)
 	if err != nil {
 		return err
 	}

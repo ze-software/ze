@@ -49,11 +49,11 @@ func runControl(ctx context.Context, device, namespace string) (result controlRe
 		}
 		raw.index = link.Index
 		copy(raw.mac[:], link.HardwareAddr)
-		fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(network16(unix.ETH_P_ALL)))
+		fd, err := unix.Socket(unix.AF_PACKET, unix.SOCK_RAW|unix.SOCK_CLOEXEC, int(etherTypeAllNetwork))
 		if err != nil {
 			return err
 		}
-		if bindErr := unix.Bind(fd, &unix.SockaddrLinklayer{Ifindex: raw.index, Protocol: network16(unix.ETH_P_ALL)}); bindErr != nil {
+		if bindErr := unix.Bind(fd, &unix.SockaddrLinklayer{Ifindex: raw.index, Protocol: etherTypeAllNetwork}); bindErr != nil {
 			return errors.Join(bindErr, unix.Close(fd))
 		}
 		raw.fd = fd
@@ -91,7 +91,7 @@ func runControl(ctx context.Context, device, namespace string) (result controlRe
 		_, endErr := vppCommand(context.WithoutCancel(ctx), "create", "pppoe", "session", "client-ip", "0.0.0.0", "session-id", "17", "client-mac", client, "del")
 		err = errors.Join(err, endErr)
 	}()
-	sessions, err := vppCommand(ctx, "show", "pppoe", "session")
+	sessions, err := vppCommand(ctx, showCommand, "pppoe", "session")
 	if err != nil {
 		return result, err
 	}
@@ -377,7 +377,7 @@ func writeControl(ctx context.Context, fd int, packet []byte) error {
 	return nil
 }
 
-func network16(value uint16) uint16 { return value<<8 | value>>8 }
+const etherTypeAllNetwork uint16 = unix.ETH_P_ALL<<8 | unix.ETH_P_ALL>>8
 
 func (socket *packetSocket) discover(ctx context.Context, result *controlResult) (discoveryFrame, error) {
 	buffer := make([]byte, 4096)

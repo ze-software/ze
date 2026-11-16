@@ -20,8 +20,41 @@ import (
 const area = "test deployment vpp-pppoe"
 
 var actions = leaction.New(area,
+	leaction.Action{Verb: "product-ipv6", Does: runAction, Heavy: true, Writes: true,
+		Summary:    "prove actual Ze IPv6 subscriber service over VPP",
+		Why:        "Run staged Ze and pinned pppd in plain, namespace and VLAN topologies. Requires RA prefix, IA_NA/IA_PD, source-specific native routes, bidirectional data and independent-family closure. The Ze-kernel QEMU docker-lab carrier supplies kernel prerequisites.",
+		Parameters: []leaction.Parameter{{Keyword: imageKeyword, Kind: leaction.KindString, Value: imageReferenceValue, Requirement: leaction.Optional, Help: "an immutable prebuilt VPP image identity"}}, AnswerArgs: answerProductIPv6},
+	leaction.Action{Verb: "product-ipv6-peer", Does: runAction, Heavy: true,
+		NoSlot:  "the parent IPv6 product action owns admission; this CPE helper performs one bounded RS and DHCPv6 exchange",
+		Summary: "receive actual subscriber IPv6 control replies",
+		Why:     "Internal independent CPE helper. It binds only the client's negotiated PPP interface, sends RS and DHCPv6, and returns received wire bytes; it never serves Ze or installs VPP state.",
+		Parameters: []leaction.Parameter{
+			{Keyword: "interface", Kind: leaction.KindString, Value: nameToken, Requirement: leaction.Required, Help: "the independent CPE PPP interface"},
+			{Keyword: "local", Kind: leaction.KindString, Value: addressToken, Requirement: leaction.Required, Help: "the negotiated CPE link-local address"},
+		}, AnswerArgs: answerProductIPv6Peer},
+	leaction.Action{Verb: "product-family-peer", Does: runAction, Heavy: true,
+		NoSlot:  "the parent IPv6 product action owns admission; this helper performs one bounded exact-session exchange",
+		Summary: "probe or close one actual negotiated family",
+		Why:     "Internal exact-session wire stimulus. Paired positive and negative raw echo probes distinguish VPP receive gates from the independent CPE kernel's NCP mode.",
+		Parameters: []leaction.Parameter{
+			{Keyword: "interface", Kind: leaction.KindString, Value: nameToken, Requirement: leaction.Required, Help: "the independent CPE access interface"},
+			{Keyword: "peer", Kind: leaction.KindString, Value: "MAC", Requirement: leaction.Required, Help: "the observed physical AC address"},
+			{Keyword: "sid", Kind: leaction.KindString, Value: "number", Requirement: leaction.Required, Help: "the actual negotiated nonzero session identifier"},
+			{Keyword: "operation", Kind: leaction.KindString, Value: nameToken, Requirement: leaction.Required, Help: "probe4, probe6, close4 or close6"},
+			{Keyword: "source", Kind: leaction.KindString, Value: addressToken, Requirement: leaction.Required, Help: "the negotiated source address; :: for close"},
+			{Keyword: "target", Kind: leaction.KindString, Value: addressToken, Requirement: leaction.Required, Help: "the independent traffic peer; :: for close"},
+		}, AnswerArgs: answerProductFamily},
+	leaction.Action{Verb: "product", Does: runAction, Heavy: true, Writes: true,
+		Summary:    "prove configured Ze PPPoE over native VPP",
+		Why:        "Run the actual staged daemon with the VPP backend, independent pppd and a traffic peer in plain, named-namespace, VLAN and hundred-client topologies. Requires Ze's runtime kernel; the QEMU docker-lab route supplies it. The optional image must be an immutable VPP image identity.",
+		Parameters: []leaction.Parameter{{Keyword: imageKeyword, Kind: leaction.KindString, Value: imageReferenceValue, Requirement: leaction.Optional, Help: "the immutable prebuilt VPP image to test"}}, AnswerArgs: answerProduct},
+	leaction.Action{Verb: "observe", Does: runAction, Heavy: true,
+		NoSlot:     "the parent product action owns admission; this helper performs one bounded loopback HTTP observation",
+		Summary:    "read the actual product daemon's lab state",
+		Why:        "Internal helper for the product lab's authenticated loopback REST show commands. It starts no process, builds nothing and changes no daemon state.",
+		Parameters: []leaction.Parameter{{Keyword: "command", Kind: leaction.KindString, Value: "show-command", Requirement: leaction.Required, Help: "show pppoe sessions or show pppoe interfaces"}}, AnswerArgs: answerProductObserve},
 	leaction.Action{Verb: runAction, Heavy: true, Writes: true, Summary: "prove the patched VPP PPPoE control mechanism",
-		Why: "Run real VPP and pppd in isolated containers, with an independent traffic sender. Requires Ze's runtime kernel; the QEMU docker-lab route supplies it. image pins a prebuilt VPP identity for counterfactual runs, while the helper and independent peer are freshly prepared.", Parameters: []leaction.Parameter{{Keyword: "image", Kind: leaction.KindString, Value: "reference", Requirement: leaction.Optional, Help: "the immutable prebuilt VPP image to test"}}, AnswerArgs: answerRun},
+		Why: "Run real VPP and pppd in isolated containers, with an independent traffic sender. Requires Ze's runtime kernel; the QEMU docker-lab route supplies it. image pins a prebuilt VPP identity for counterfactual runs, while the helper and independent peer are freshly prepared.", Parameters: []leaction.Parameter{{Keyword: imageKeyword, Kind: leaction.KindString, Value: imageReferenceValue, Requirement: leaction.Optional, Help: "the immutable prebuilt VPP image to test"}}, AnswerArgs: answerRun},
 	leaction.Action{Verb: "proof", Does: runAction, Heavy: true, Writes: true,
 		Summary: "prove mechanism, bindings and parser discrimination",
 		Why:     "Run the complete baseline mechanism, the isolated control-binding API regression using that same immutable image, then the missing-metadata parser oracle on the same Docker daemon. Requires Ze's runtime kernel through the QEMU docker-lab carrier. All three results and their image identities appear in the report.", Answer: answerProof},
@@ -52,7 +85,7 @@ func answerRun(args leaction.Arguments) (any, int) {
 	}
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer cancel()
-	report := Run(ctx, root, args.One("image"))
+	report := Run(ctx, root, args.One(imageKeyword))
 	return report, report.Code
 }
 
