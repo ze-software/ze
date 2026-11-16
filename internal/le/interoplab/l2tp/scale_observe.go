@@ -100,7 +100,18 @@ func requireScaleTopology(population scalePopulation) error {
 	return nil
 }
 
-func requireScaleFRR(ctx context.Context, lab labOperations, original, current scalePopulation) error {
+// requireScaleFRR MUST retain its current BGP witness on census failure and
+// MUST check again after a successful census, so a route error is attributable.
+func requireScaleFRR(ctx context.Context, lab labOperations, original, current scalePopulation) (resultErr error) {
+	state, err := frrSessionEvidence(ctx, lab, zeAddress)
+	if err != nil {
+		return err
+	}
+	defer func() {
+		if resultErr != nil {
+			resultErr = fmt.Errorf("%w; FRR BGP before route census:\n%s", resultErr, state)
+		}
+	}()
 	users := scaleUsers(scaleLACCount)
 	arguments := make([]string, 1, 1+2*len(users))
 	arguments[0] = commandVTYSH

@@ -450,16 +450,25 @@ func waitFRRSession(ctx context.Context, lab labOperations, neighbor string, tim
 }
 
 func requireFRRSession(ctx context.Context, lab labOperations, neighbor string) error {
+	_, err := frrSessionEvidence(ctx, lab, neighbor)
+	return err
+}
+
+// frrSessionEvidence returns the actual positive state line. A later assertion
+// MUST retain this witness rather than infer current BGP state from an old wait.
+func frrSessionEvidence(ctx context.Context, lab labOperations, neighbor string) (string, error) {
 	var tb textbuf.Buffer
 	command := tb.Str(commandShow).Str(" bgp neighbor ").Str(neighbor).String()
 	output, err := execOutput(ctx, lab, peerFRR, []string{commandVTYSH, "-c", command})
 	if err != nil {
-		return err
+		return "", err
 	}
-	if !strings.Contains(output, "BGP state = Established") {
-		return interoplab.WithSearchedOutput(errors.New("BGP session dropped after withdrawal"), output)
+	for line := range strings.SplitSeq(output, "\n") {
+		if strings.Contains(line, "BGP state = Established") {
+			return strings.TrimSpace(line), nil
+		}
 	}
-	return nil
+	return "", interoplab.WithSearchedOutput(errors.New("BGP session dropped after withdrawal"), output)
 }
 
 func waitFRRRoute(ctx context.Context, lab labOperations, prefix string, present bool, timeout time.Duration) error {

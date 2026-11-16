@@ -155,8 +155,14 @@ registered FreeRADIUS server's Accounting-Starts join by full Acct-Session-Id,
 username and Framed-IP-Address. FRR must report each exact subscriber /32
 with a positive path count and a nonempty valid path received from Ze;
 presence of a JSON key or a direct kernel route does not prove redistribution.
+
+Before each FRR route census, the checker requires the current BGP peer
+to be Established. A failed census retains the actual state line beside the
+missing-prefix evidence. A complete valid census must also pass the existing
+BGP check afterward.
 <!-- source: internal/le/interoplab/l2tp/scale.go -- checkScaleSessions -->
 <!-- source: internal/le/interoplab/l2tp/scale_observe.go -- requireScaleTopology, requireScaleFRR, requireScaleTraffic, waitScaleAccounting -->
+<!-- source: internal/le/interoplab/l2tp/checkers.go -- frrSessionEvidence, requireFRRSession -->
 <!-- source: internal/le/interoplab/l2tp/scale_evidence.go -- readScaleSessions, readScaleRoute, readScaleAccounting -->
 <!-- source: internal/le/interoplab/l2tp/scale_kernel.go -- requireScaleKernel, requireScaleIPCP -->
 
