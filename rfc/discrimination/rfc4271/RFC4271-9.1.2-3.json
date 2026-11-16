@@ -1,0 +1,13 @@
+[
+  {
+    "rid": "RFC4271-9.1.2-3",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/plugins/rib/rfc4271_test.go::TestRFC4271LocRIBNextHopComesFromNextHopAttribute",
+    "unit-sha": "126b17e7c6604186",
+    "claim-sha": "9a38b10f0fc53738",
+    "route": "mutant",
+    "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::entryNextHopAddr",
+    "producer-sha": "a2c8bcfda8dc029a",
+    "break": "line 1571: \"return netip.Addr{}\" -\u003e \"return netip.MustParseAddr(\\\"192.168.1.1\\\")\""
+  }
+]

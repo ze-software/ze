@@ -9,7 +9,6 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/plugins/rib/storage"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
 // rfc4271Candidate builds a candidate with the given peer address and preference.
@@ -118,14 +117,13 @@ func TestRFC4271DegreeOfPreferenceFollowsOwnAttributes(t *testing.T) {
 //
 // PREVENTS: Installing a route with a next hop that was never advertised.
 //
-// RFC requirement: RFC4271-9.1.2-3 negative -- bestCandidateNextHopAddr returns an invalid
+// RFC requirement: RFC4271-9.1.2-3 negative -- entryNextHopAddr returns an invalid
 // address when the route carries neither a NEXT_HOP attribute nor an MP_REACH next hop, so
 // the immediate next hop is taken from the attribute rather than invented
-// (internal/component/bgp/plugins/rib/rib_bestchange.go:1060-1090).
+// (internal/component/bgp/plugins/rib/rib_bestchange.go::entryNextHopAddr).
 func TestRFC4271LocRIBNextHopComesFromNextHopAttribute(t *testing.T) {
 	r := newTestRIBManager(t)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}
