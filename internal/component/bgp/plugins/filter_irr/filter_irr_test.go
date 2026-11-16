@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/component/resolve/irr"
+	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	sdk "github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -520,12 +521,12 @@ func TestReloadKeepingTheSetKeepsItsList(t *testing.T) {
 	}
 }
 
-// oversizedIRRList builds an IRR answer whose IPv4 half alone fills the cap and
-// whose IPv6 half carries one prefix.
+// oversizedIRRList builds an IRR answer whose IPv4 half alone is one prefix
+// over the per-family bound and whose IPv6 half carries one prefix.
 func oversizedIRRList() irr.PrefixList {
 	pl := irr.PrefixList{IPv6: []netip.Prefix{netip.MustParsePrefix("2001:db8::/32")}}
-	pl.IPv4 = make([]netip.Prefix, 0, maxPrefixEntries)
-	for i := range maxPrefixEntries {
+	pl.IPv4 = make([]netip.Prefix, 0, store.DatasetFamilyMax+1)
+	for i := range store.DatasetFamilyMax + 1 {
 		pl.IPv4 = append(pl.IPv4, netip.PrefixFrom(netip.AddrFrom4([4]byte{10, byte(i >> 16), byte(i >> 8), byte(i)}), 32))
 	}
 	return pl
@@ -542,6 +543,57 @@ func TestPrefixListFromIRRRefusesOversizedList(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "1 IPv6") {
 		t.Errorf("refusal %q does not count the IPv6 half", err)
+	}
+}
+
+// irrListOf builds an IRR answer of v4 distinct IPv4 /32s and v6 distinct
+// IPv6 /128s.
+func irrListOf(v4, v6 int) irr.PrefixList {
+	pl := irr.PrefixList{
+		IPv4: make([]netip.Prefix, 0, v4),
+		IPv6: make([]netip.Prefix, 0, v6),
+	}
+	for i := range v4 {
+		pl.IPv4 = append(pl.IPv4, netip.PrefixFrom(netip.AddrFrom4([4]byte{10, byte(i >> 16), byte(i >> 8), byte(i)}), 32))
+	}
+	for i := range v6 {
+		a := [16]byte{0x20, 0x01, 0x0d, 0xb8}
+		a[13], a[14], a[15] = byte(i>>16), byte(i>>8), byte(i)
+		pl.IPv6 = append(pl.IPv6, netip.PrefixFrom(netip.AddrFrom16(a), 128))
+	}
+	return pl
+}
+
+// TestPrefixListFromIRRRefusesOversizedIPv6 proves the IPv6 family is bounded
+// on its own: one prefix over store.DatasetFamilyMax is refused whole, with
+// both counts named, while IPv4 holds one prefix.
+func TestPrefixListFromIRRRefusesOversizedIPv6(t *testing.T) {
+	entries, err := prefixListFromIRR(irrListOf(1, store.DatasetFamilyMax+1))
+	if err == nil {
+		t.Fatalf("oversized IPv6 list answered %d entries, want a refusal", len(entries))
+	}
+	if !strings.Contains(err.Error(), "1 IPv4") {
+		t.Errorf("refusal %q does not count the IPv4 half", err)
+	}
+}
+
+// TestPrefixListFromIRREnforcesWhatTheStoreHolds proves the bound is per
+// family, the store's: 400,000 IPv4 and 200,000 IPv6 prefixes, over the
+// 500,000 the two families once shared, is a list the store holds and the
+// firewall enforces, so BGP must enforce it too (AC-8, AC-12).
+// PREVENTS: a combined cap that refused a stored list and named a fix no
+// store action could satisfy.
+func TestPrefixListFromIRREnforcesWhatTheStoreHolds(t *testing.T) {
+	const v4, v6 = 400_000, 200_000
+	entries, err := prefixListFromIRR(irrListOf(v4, v6))
+	if err != nil {
+		t.Fatalf("a list the store holds was refused: %v", err)
+	}
+	if len(entries) != v4+v6 {
+		t.Fatalf("entries = %d, want %d", len(entries), v4+v6)
+	}
+	if got := entries[v4].prefix; !got.Addr().Is6() {
+		t.Errorf("entry %d = %v, want the first IPv6 prefix", v4, got)
 	}
 }
 

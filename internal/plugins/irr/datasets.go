@@ -19,6 +19,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -223,9 +224,12 @@ func (o *owner) unreadable(key string, err error) {
 }
 
 // writeDataset stores entry as the dataset of asSet from the configured
-// server, answered at checkedAt, then flips the pointer and tells the
-// consumers. A list over the caps is refused whole and the stored copy stays
-// (AC-12); a store write that fails is retried in a minute.
+// server, answered at checkedAt, then flips the pointer, writes each binding
+// waiting to move to asSet (bindTo) and tells the consumers. A list over the
+// caps is refused whole and the stored copy stays (AC-12); a store write that
+// fails is retried in a minute. Either way the resolver goes back to the
+// stored copy (restoreEnforced). A stored copy clears the unreadable findings
+// of the pointer and of the dataset it replaced (AC-22).
 func (o *owner) writeDataset(ctx context.Context, asSet string, entry store.CachedEntry, checkedAt time.Time) error {
 	dataset, err := store.NewDataset(store.DatasetInput{
 		ASSet: asSet, Server: o.cfg.server, IPv4: entry.IPv4, IPv6: entry.IPv6,
@@ -253,26 +257,32 @@ func (o *owner) writeDataset(ctx context.Context, asSet string, entry store.Cach
 	// the torn write's leftover nor as the dataset the flip replaced.
 	sharesKey := had && previous.DatasetKey(asSet) == key
 	if err := o.state.StatePut(ctx, key, value); err != nil {
-		return o.unpublished(asSet, checkedAt, err)
+		return o.unpublished(ctx, asSet, checkedAt, err)
 	}
 	generation, err := o.state.StateIncrement(ctx, store.GenerationKey())
 	if err != nil {
 		o.removeTorn(ctx, asSet, key, sharesKey)
-		return o.unpublished(asSet, checkedAt, err)
+		return o.unpublished(ctx, asSet, checkedAt, err)
 	}
 	pointer.Generation = generation
 	encoded, err := store.EncodePointer(pointer)
 	if err != nil {
 		o.removeTorn(ctx, asSet, key, sharesKey)
-		return o.unpublished(asSet, checkedAt, err)
+		return o.unpublished(ctx, asSet, checkedAt, err)
 	}
 	if err := o.state.StatePut(ctx, store.PointerKey(asSet), encoded); err != nil {
 		o.removeTorn(ctx, asSet, key, sharesKey)
-		return o.unpublished(asSet, checkedAt, err)
+		return o.unpublished(ctx, asSet, checkedAt, err)
 	}
 	o.pointers[asSet] = pointer
 	o.datasets[asSet] = infoOf(dataset)
+	delete(o.unannounced, asSet)
 	o.resolve(asSet, codeIRRDatasetUnpublished)
+	o.resolve(store.PointerKey(asSet), codeIRRDatasetUnreadable)
+	o.resolve(key, codeIRRDatasetUnreadable)
+	if had {
+		o.resolve(previous.DatasetKey(asSet), codeIRRDatasetUnreadable)
+	}
 	if had && !sharesKey {
 		// The pointer names the new copy now, so the old one is enforced by
 		// nobody (R-7), whether the server changed or not.
@@ -281,6 +291,10 @@ func (o *owner) writeDataset(ctx context.Context, asSet string, entry store.Cach
 				"as-set", asSet, "error", err, "code", codeIRRDatasetUnpublished, "fix", "update irr as-set "+asSet)
 		}
 	}
+	// A binding moves after the pointer of its new set, so a consumer never
+	// reads a binding to a set with no pointer, and before the notice, which
+	// is what makes a consumer read every binding again.
+	o.moveBindingsTo(ctx, asSet)
 	o.emitNotice(ctx, store.DatasetNotice{ASSet: asSet, Server: pointer.Server, Generation: generation, Digest: pointer.Digest})
 	logger().Info("irr dataset stored", "as-set", asSet, "server", pointer.Server,
 		"ipv4-count", len(dataset.IPv4()), "ipv6-count", len(dataset.IPv6()), "generation", generation)
@@ -311,9 +325,10 @@ func (o *owner) removeTorn(ctx context.Context, asSet, key string, sharesKey boo
 	}
 }
 
-// unpublished records a dataset the store or the notice refused, and arms a
-// retry in a minute.
-func (o *owner) unpublished(asSet string, checkedAt time.Time, err error) error {
+// unpublished records a dataset the store refused, puts the resolver back to
+// the stored copy and arms a retry in a minute.
+func (o *owner) unpublished(ctx context.Context, asSet string, checkedAt time.Time, err error) error {
+	o.restoreEnforced(ctx, asSet)
 	o.retryAt[asSet] = checkedAt.Add(retryInterval)
 	o.raise(asSet, codeIRRDatasetUnpublished, err)
 	logger().Warn("irr: the IRR answer was not stored, the stored list stays enforced and the store is retried in a minute",
@@ -326,20 +341,46 @@ func (o *owner) unpublished(asSet string, checkedAt time.Time, err error) error 
 // memory, and the next answer must merge into what is enforced.
 func (o *owner) restoreEnforced(ctx context.Context, asSet string) {
 	o.res.forget(asSet)
+	o.seedStored(ctx, asSet)
+}
+
+// seedStored seeds the resolver with the dataset the pointer of asSet names,
+// when that dataset is from the configured server: a copy from another server
+// is no merge base for this one's answer. A dataset that cannot be read is
+// logged and raised, and leaves the resolver without a copy of asSet.
+func (o *owner) seedStored(ctx context.Context, asSet string) {
 	pointer, ok := o.pointers[asSet]
 	if !ok {
 		return
 	}
-	value, found, err := o.state.StateGet(ctx, pointer.DatasetKey(asSet))
-	if err != nil || !found {
+	if pointer.Server != o.serverKey {
 		return
 	}
-	dataset, err := store.DecodeDataset(pointer.DatasetKey(asSet), value)
-	if err != nil || dataset.Server() != o.serverKey {
+	key := pointer.DatasetKey(asSet)
+	value, found, err := o.state.StateGet(ctx, key)
+	if err != nil || !found {
+		o.unreadable(key, errors.Join(err, errNotFound(found)))
+		return
+	}
+	dataset, err := store.DecodeDataset(key, value)
+	if err != nil {
+		o.unreadable(key, err)
 		return
 	}
 	if err := o.res.seed(entryOf(dataset)); err != nil {
-		o.unreadable(pointer.DatasetKey(asSet), err)
+		o.unreadable(key, err)
+	}
+}
+
+// moveBindingsTo writes each binding waiting to move to asSet, now that its
+// pointer is stored.
+func (o *owner) moveBindingsTo(ctx context.Context, asSet string) {
+	for asn, target := range o.movingTo {
+		if target != asSet {
+			continue
+		}
+		delete(o.movingTo, asn)
+		o.writeBinding(ctx, asn, asSet)
 	}
 }
 
@@ -362,33 +403,70 @@ func (o *owner) writeBinding(ctx context.Context, asn uint32, asSet string) {
 	o.resolve(store.BindingKey(asn), codeIRRDatasetUnpublished)
 }
 
+// errRemovalUnannounced marks a removal the store made and the consumers were
+// not told of: the generation could not be raised.
+var errRemovalUnannounced = errors.New("the consumers were not told of the removal")
+
 // removeSet removes the pointer, then the dataset, of asSet, raises the
 // generation and tells the consumers it is gone. It reports whether a stored
-// copy existed.
+// copy existed. A refused pointer removal changes nothing: the set stays
+// pointed, stored, scheduled and seeded as the next answer's merge base. A
+// removal the consumers were not told of answers errRemovalUnannounced, and
+// the next removeSet of the set, with nothing left to remove, tells them.
 func (o *owner) removeSet(ctx context.Context, asSet string) (bool, error) {
 	pointer, ok := o.pointers[asSet]
-	o.res.forget(asSet)
-	o.schedule.drop(asSet)
-	delete(o.answeredAt, asSet)
-	delete(o.retryAt, asSet)
 	if !ok {
+		o.forgetSet(asSet)
+		// Nothing is stored, so a refused write or fetch of the set is moot.
+		delete(o.problems, asSet)
+		if server, waiting := o.unannounced[asSet]; waiting {
+			return false, o.announceRemoval(ctx, asSet, server)
+		}
 		return false, nil
 	}
 	if err := o.state.StateRemove(ctx, store.PointerKey(asSet)); err != nil {
 		return false, err
 	}
+	o.forgetSet(asSet)
 	delete(o.pointers, asSet)
 	delete(o.datasets, asSet)
+	// What was stored is gone, so every finding about it describes nothing.
+	delete(o.problems, asSet)
+	delete(o.problems, store.PointerKey(asSet))
+	delete(o.problems, pointer.DatasetKey(asSet))
 	if err := o.state.StateRemove(ctx, pointer.DatasetKey(asSet)); err != nil {
 		logger().Warn("irr: the cleared dataset could not be removed, no pointer names it",
 			"as-set", asSet, "error", err, "code", codeIRRDatasetUnpublished, "fix", "clear irr as-set "+asSet)
 	}
+	return true, o.announceRemoval(ctx, asSet, pointer.Server)
+}
+
+// forgetSet drops what the worker holds in memory of asSet for fetching it:
+// the resolver's copy, its due time and its answer and retry times.
+func (o *owner) forgetSet(asSet string) {
+	o.res.forget(asSet)
+	o.schedule.drop(asSet)
+	delete(o.answeredAt, asSet)
+	delete(o.retryAt, asSet)
+}
+
+// announceRemoval raises the generation and sends the notice that asSet,
+// stored from server, is gone. A refused increment is recorded in
+// unannounced and raised with the clear that retries it as its fix.
+func (o *owner) announceRemoval(ctx context.Context, asSet, server string) error {
 	generation, err := o.state.StateIncrement(ctx, store.GenerationKey())
 	if err != nil {
-		return true, err
+		o.unannounced[asSet] = server
+		fix := "clear irr as-set " + asSet
+		o.raiseFix(asSet, codeIRRDatasetUnpublished, err, fix)
+		logger().Warn("irr: the stored copy was removed but the consumers were not told, they keep enforcing it",
+			"as-set", asSet, "error", err, "code", codeIRRDatasetUnpublished, "fix", fix)
+		return fmt.Errorf("%w: %w", errRemovalUnannounced, err)
 	}
-	o.emitNotice(ctx, store.DatasetNotice{ASSet: asSet, Server: pointer.Server, Generation: generation, Removed: true})
-	return true, nil
+	delete(o.unannounced, asSet)
+	o.resolve(asSet, codeIRRDatasetUnpublished)
+	o.emitNotice(ctx, store.DatasetNotice{ASSet: asSet, Server: server, Generation: generation, Removed: true})
+	return nil
 }
 
 // emitNotice sends irr/dataset-stored. A notice that is not delivered is

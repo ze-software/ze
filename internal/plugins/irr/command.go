@@ -11,6 +11,7 @@ package irr
 
 import (
 	"context"
+	"errors"
 	"slices"
 	"time"
 
@@ -96,12 +97,21 @@ func (o *owner) updateASSet(ctx context.Context, asSet string) commandAnswer {
 func (o *owner) updateASN(ctx context.Context, number uint32) commandAnswer {
 	delete(o.heldASNs, number)
 	o.discoverASN(ctx, number)
-	binding, ok := o.validBinding(number)
-	if !ok {
-		return commandAnswer{err: opererr.New("update irr asn "+asnText(number)+": no AS-SET is bound to the AS number",
-			"The PeeringDB answer could not be stored, so the set to fetch is unknown.", "update irr asn "+asnText(number))}
+	// The set to fetch is the one the binding moves to, which writeDataset
+	// binds once it is stored; else the one it names.
+	target, moving := o.movingTo[number]
+	if !moving {
+		binding, ok := o.validBinding(number)
+		if !ok {
+			// discoverASN binds the AS number on every path but a panic,
+			// which discoverPanicked logged and raised.
+			return commandAnswer{err: opererr.New("update irr asn "+asnText(number)+": the PeeringDB question about the AS number failed",
+				"A defect in the irr plugin stopped the question, so no AS-SET is bound and nothing was fetched; the log holds the panic.",
+				"update irr asn "+asnText(number))}
+		}
+		target = binding.ASSet
 	}
-	answer := o.updateASSet(ctx, binding.ASSet)
+	answer := o.updateASSet(ctx, target)
 	if row, ok := answer.data.(datasetRow); ok {
 		return commandAnswer{data: asnAnswer{ASN: number, datasetRow: row}, err: answer.err}
 	}
@@ -165,14 +175,32 @@ func (o *owner) fetchAnswer(asSet string, err error) commandAnswer {
 func (o *owner) clearASSet(ctx context.Context, asSet string) commandAnswer {
 	consumers := o.consumersOf(asSet)
 	removed, err := o.removeSet(ctx, asSet)
+	if errors.Is(err, errRemovalUnannounced) {
+		o.holdCleared(asSet, consumers)
+		return commandAnswer{err: errUnannounced("clear irr as-set "+asSet, asSet, err)}
+	}
 	if err != nil {
 		return commandAnswer{err: opererr.Wrap(err, "clear irr as-set "+asSet+" could not remove the stored copy",
 			"The store refused the removal, so the consumers keep enforcing it.", "clear irr as-set "+asSet)}
 	}
+	o.holdCleared(asSet, consumers)
+	return commandAnswer{data: clearAnswer{ASSet: asSet, Removed: removed, Consumers: nonNil(consumers)}}
+}
+
+// holdCleared holds a cleared set that consumers still reference, so no pass
+// fetches it again (AC-16).
+func (o *owner) holdCleared(asSet string, consumers []string) {
 	if len(consumers) > 0 {
 		o.heldSets[asSet] = struct{}{}
 	}
-	return commandAnswer{data: clearAnswer{ASSet: asSet, Removed: removed, Consumers: nonNil(consumers)}}
+}
+
+// errUnannounced is the answer of a clear whose removal the consumers were
+// not told of: the stored copy is gone, and the same clear tells them.
+func errUnannounced(command, asSet string, err error) error {
+	return opererr.Wrap(err, command+" removed the stored copy of "+asSet+", but the consumers were not told",
+		"The store refused to raise the IRR generation, so each consumer keeps enforcing the removed list until it is told.",
+		"clear irr as-set "+asSet)
 }
 
 // clearASN removes the binding of number and the stored copy of the set it
@@ -189,15 +217,21 @@ func (o *owner) clearASN(ctx context.Context, number uint32) commandAnswer {
 	}
 	delete(o.bindings, number)
 	delete(o.discoverDue, number)
+	delete(o.movingTo, number)
 	answer := clearAnswer{ASN: number, Removed: bound, Consumers: nonNil(consumers)}
 	if bound {
 		answer.ASSet = binding.ASSet
-		if _, err := o.removeSet(ctx, binding.ASSet); err != nil {
+		_, err := o.removeSet(ctx, binding.ASSet)
+		if err != nil && !errors.Is(err, errRemovalUnannounced) {
 			return commandAnswer{err: opererr.Wrap(err, "clear irr asn "+asnText(number)+" could not remove the stored copy of "+binding.ASSet,
 				"The store refused the removal, so the consumers keep enforcing it.", "clear irr as-set "+binding.ASSet)}
 		}
-		if len(o.consumersOf(binding.ASSet)) > 0 {
-			o.heldSets[binding.ASSet] = struct{}{}
+		o.holdCleared(binding.ASSet, o.consumersOf(binding.ASSet))
+		if err != nil {
+			if len(consumers) > 0 {
+				o.heldASNs[number] = struct{}{}
+			}
+			return commandAnswer{err: errUnannounced("clear irr asn "+asnText(number), binding.ASSet, err)}
 		}
 	}
 	if len(consumers) > 0 {

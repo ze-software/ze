@@ -19,8 +19,8 @@ import (
 // fakeState is the daemon store as the SDK state RPCs show it, with a log of
 // every write in order and per-key write failures: failPut refuses one key,
 // failPutPrefix every key under a prefix (a dataset key ends in a digest the
-// test cannot name in advance), and failRemove one removal. Safe for
-// concurrent use.
+// test cannot name in advance), failRemove one removal, and failIncrement
+// every increment. Safe for concurrent use.
 type fakeState struct {
 	mu            sync.Mutex
 	values        map[string][]byte
@@ -28,6 +28,7 @@ type fakeState struct {
 	failPut       map[string]error
 	failPutPrefix map[string]error
 	failRemove    map[string]error
+	failIncrement error
 }
 
 func newFakeState() *fakeState {
@@ -90,6 +91,10 @@ func (s *fakeState) StateList(_ context.Context, prefix string) ([]string, error
 func (s *fakeState) StateIncrement(_ context.Context, key string) (uint32, error) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
+	if s.failIncrement != nil {
+		s.ops = append(s.ops, "increment-refused "+key)
+		return 0, s.failIncrement
+	}
 	var value uint32
 	if stored, ok := s.values[key]; ok && len(stored) == 4 {
 		value = binary.BigEndian.Uint32(stored)
@@ -165,6 +170,8 @@ type fakeResolver struct {
 	// panicOn is an AS-SET whose fetch panics, as a parser defect on a
 	// malformed answer would.
 	panicOn string
+	// panicASN is an AS number whose PeeringDB question panics; 0 is none.
+	panicASN uint32
 }
 
 func newFakeResolver(clock func() time.Time) *fakeResolver {
@@ -210,6 +217,9 @@ func (r *fakeResolver) forget(asSet string) { delete(r.seeded, asSet) }
 
 func (r *fakeResolver) discover(_ context.Context, asn uint32) (string, error) {
 	r.asked = append(r.asked, asn)
+	if r.panicASN != 0 && asn == r.panicASN {
+		panic("malformed PeeringDB answer")
+	}
 	if r.pdbErr != nil {
 		return "", r.pdbErr
 	}

@@ -18,15 +18,22 @@
 #
 # DISCRIMINATION: 10.0.0.0/24 is in AS-TEST and absent from AS-V4ONLY, so the one
 # filter decision on it names which as-set the running filter holds. Without the
-# apply handler the decision is "irr filter reject"; with it, "irr filter accept".
+# apply handler the filter keeps AS-V4ONLY, show bgp irr never reports AS-TEST
+# enforced, the observer fails and stops the daemon, and no "irr filter accept"
+# is logged; with it, "irr filter accept".
 #
-# ORDERING: ze-peer has no sleep, so the reload is ordered ahead of the peer's
-# UPDATE by a sentinel. The new config adds 192.168.1.0/24 to peer1; ze announces
-# it only once the reload is applied, and the peer sends its UPDATE only after it
-# has received that announcement. The engine applies every participant of the
-# transaction before it reports the reload done, and the IRR filter holds a
-# filtered UPDATE (bounded, firstResolveWait) until the new as-set's first
-# resolution has finished, so the decision cannot read a half-applied state.
+# ORDERING: ze-peer has no sleep, so two fences order the peer's UPDATE. The
+# new config adds 192.168.1.0/24 to peer1; ze announces it only once the reload
+# is applied, which proves the reload and not the list. The irr plugin fetches
+# AS-TEST only after the commit names it, and the filter publishes it on the
+# owner's notice; an UPDATE judged before that is rejected "no-prefix-list"
+# and held, and this peer negotiates no route-refresh to be asked again. So the
+# observer (internal/test/fixture/register_irr_reload_fence.go) polls show bgp
+# irr for AS-TEST enforced, then announces 192.168.2.0/24, and the peer sends
+# its UPDATE only after it has received that route. The observer then waits
+# for the accepted UPDATE before it stops the daemon. The plugin block and its
+# attach are in both configs, byte for byte, so the reload keeps the observer
+# running.
 
 option=env:var=ze.log.bgp.filter.irr:value=info
 
@@ -46,13 +53,23 @@ action=sighup:conn=1:seq=2
 #   NEXT_HOP 4003040A000001, NLRI 18C0A801
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE84003040A00000118C0A801
 
+# The fence: 192.168.2.0/24, which the observer announces once show bgp irr
+# reports AS-TEST enforced (see ORDERING).
+expect=bgp:conn=1:seq=4:announced=18C0A802
+
 # UPDATE from AS 65001 carrying 10.0.0.0/24, in AS-TEST and not in AS-V4ONLY.
 #   ORIGIN 40010100, AS_PATH 40020602010000FDE9 (AS_SEQ [65001]),
 #   NEXT_HOP 40030401010101, NLRI 180A0000
-action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external irr-listed-fence {
+		run "le test fixture reload/irr-listed-fence"
+		encoder json
+	}
+}
 	system {
 		irr {
 			server 127.0.0.1:$PORT2
@@ -92,6 +109,10 @@ bgp {
 				as-set AS-V4ONLY
 			}
 		}
+		attach process irr-listed-fence {
+			receive [ update ]
+			send [ update ]
+		}
 		behavior {
 			group-updates disable
 		}
@@ -105,6 +126,12 @@ EOF_CONF
 
 # Rewritten config: the as-set and the sentinel route are the only differences.
 tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external irr-listed-fence {
+		run "le test fixture reload/irr-listed-fence"
+		encoder json
+	}
+}
 	system {
 		irr {
 			server 127.0.0.1:$PORT2
@@ -143,6 +170,10 @@ bgp {
 			irr {
 				as-set AS-TEST
 			}
+		}
+		attach process irr-listed-fence {
+			receive [ update ]
+			send [ update ]
 		}
 		behavior {
 			group-updates disable

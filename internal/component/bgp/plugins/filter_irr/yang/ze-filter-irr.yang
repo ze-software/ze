@@ -25,9 +25,9 @@ module ze-filter-irr {
 
             leaf as-set {
                 type string;
-                description "The IRR filter queries an IRR database for the prefixes of one AS-SET.
-This leaf names that AS-SET. If this leaf is empty, Ze reads the remote ASN of the
-peer and discovers the AS-SET from PeeringDB.";
+                description "The AS-SET whose prefixes the IRR filter enforces for this peer. The irr plugin
+fetches and stores that AS-SET's prefix list, and the filter reads the stored copy. If this leaf
+is empty, the irr plugin asks PeeringDB which AS-SET the peer's remote ASN names.";
                 ze:help "Explicit AS-SET name for the IRR prefix lookup.";
                 // A completion, never a rule: the irr owner offers the AS-SET
                 // names the store holds (internal/plugins/irr/register_completion.go).
@@ -44,8 +44,8 @@ peer and discovers the AS-SET from PeeringDB.";
                     }
                 }
                 default "enable";
-                description "disable takes the peer out of the resolution, so Ze runs no whois query and no PeeringDB
-                    query for it. The other peers of the same remote ASN keep their list.";
+                description "disable takes the peer out of the filter, so the filter does not ask the irr plugin to
+                    fetch a list for it. The other peers of the same remote ASN keep their list.";
                 ze:help "Enable or disable IRR filtering for this peer.";
             }
         }

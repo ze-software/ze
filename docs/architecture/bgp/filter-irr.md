@@ -156,8 +156,8 @@ never under `plug.mu`:
 A read answers one of three ways, and `apply` treats each differently: nothing
 stored (`store.ErrNotStored`: not fetched yet, or `clear irr` removed it) drops
 the list, so the peer's announcements are rejected and held; a stored value
-that cannot be used (a failed digest or decode, a store error, a list over the
-500,000-prefix cap) keeps the list enforced before, logs a WARN and reports
+that cannot be used (a failed digest or decode, a store error, a family over
+the 500,000-prefix bound) keeps the list enforced before, logs a WARN and reports
 `doctor-bgp-irr-stored-copy-unreadable`; a copy read is installed.
 
 An UPDATE that arrives before an ASN has a list is judged at once, with no
@@ -199,12 +199,17 @@ not an AS number fails the load instead of rejecting every route at run time;
 `extractASNFromFilter` still reads the number from the name of each call.
 <!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- irrSnapshot, publishLocked, evaluate, handleFilterUpdate, filterDecls, asnFilterNamePattern, handleConfigure, apply -->
 
-A resolved prefix list over the entry cap is refused whole, never cut: the
-refresh fails with an error naming the IPv4 and IPv6 counts and the cap, and
-the previous list stays in force. A cut filled the budget with IPv4 first, so
-every IPv6 route was rejected while the refresh reported success.
-<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- prefixListFromIRR -->
-<!-- source: pkg/plugin/rpc/types.go -- FilterUpdateTimeout -->
+Each family of a stored list is bounded on its own by the store's
+`store.DatasetFamilyMax` (500,000), the one declaration of the bound: the `irr`
+plugin stores no family longer, and the firewall bounds each family by the same
+constant, so a list both consumers name is enforced by both or by neither. The
+two families shared one 500,000-entry cap here until 2026-11-15, which refused
+a list of 400,000 IPv4 and 200,000 IPv6 prefixes the store held and the
+firewall enforced. A list with a family over the bound is refused whole, never
+cut: the read fails with an error naming the IPv4 and IPv6 counts and the
+bound, and the previous list stays in force. A cut filled the budget with IPv4
+first, so every IPv6 route was rejected while the refresh reported success.
+<!-- source: internal/component/bgp/plugins/filter_irr/filter_irr.go -- prefixListFromIRR, oversizedListError -->
 
 **A route rejected for a list reason is asked for again, by ROUTE-REFRESH.** The
 owner asked for it on 2026-10-17. No RFC obliges it: RFC 2918 Section 1 says

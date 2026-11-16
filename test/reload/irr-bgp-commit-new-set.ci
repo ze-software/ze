@@ -12,10 +12,9 @@
 # PREVENTS: a commit-time AS-SET that only the BGP filter's memory ever holds
 # WIRING: BGP commit adding an unstored AS-SET -> interest notice, owner fetch, readmit
 #
-# Red until the irr plugin stores datasets: it never logs "irr dataset stored".
-#
-# ORDERING: as in bgp-filter-irr-first-add-live.ci, the sentinel route announced
-# by the reload orders the peer's UPDATE after it.
+# ORDERING: as in bgp-filter-irr-added-live.ci, the reload's sentinel route and
+# then the observer's fence, announced once show bgp irr reports AS-TEST
+# enforced, order the peer's UPDATE after the stored list is enforced.
 
 option=env:var=ze.log.bgp.filter.irr:value=info
 option=env:var=ze.log.irr:value=info
@@ -36,13 +35,23 @@ action=sighup:conn=1:seq=2
 #   NEXT_HOP 4003040A000001, NLRI 18C0A801
 expect=bgp:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE84003040A00000118C0A801
 
+# The fence: 192.168.2.0/24, which the observer announces once show bgp irr
+# reports AS-TEST enforced (see ORDERING).
+expect=bgp:conn=1:seq=4:announced=18C0A802
+
 # UPDATE from AS 65001 carrying 10.0.0.0/24, in AS-TEST.
 #   ORIGIN 40010100, AS_PATH 40020602010000FDE9 (AS_SEQ [65001]),
 #   NEXT_HOP 40030401010101, NLRI 180A0000
-action=send:conn=1:seq=4:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
+action=send:conn=1:seq=5:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF002F02000000144001010040020602010000FDE940030401010101180A0000
 EOF_PEER
 
 stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+	external irr-listed-fence {
+		run "le test fixture reload/irr-listed-fence"
+		encoder json
+	}
+}
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
@@ -76,6 +85,10 @@ bgp {
 				graceful-restart disable
 			}
 		}
+		attach process irr-listed-fence {
+			receive [ update ]
+			send [ update ]
+		}
 		behavior {
 			group-updates disable
 		}
@@ -86,6 +99,12 @@ EOF_CONF
 # Rewritten config: the IRR as-set, the import filter and the sentinel route are
 # the only differences.
 tmpfs=config2.conf:terminator=EOF_CONF2
+plugin {
+	external irr-listed-fence {
+		run "le test fixture reload/irr-listed-fence"
+		encoder json
+	}
+}
 system {
 	irr { server 127.0.0.1:$PORT2; }
 }
@@ -121,6 +140,10 @@ bgp {
 			irr {
 				as-set AS-TEST
 			}
+		}
+		attach process irr-listed-fence {
+			receive [ update ]
+			send [ update ]
 		}
 		behavior {
 			group-updates disable

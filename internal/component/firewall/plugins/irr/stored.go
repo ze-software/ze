@@ -416,11 +416,16 @@ func (plug *irrPlugin) record(targets []readTarget, outcomes map[string]readOutc
 }
 
 // interest is what the plugin enforces, for its interest key: every keyed
-// AS-SET and every AS number its references name.
+// AS-SET and every AS number its references name, each once, sorted. The
+// references are a map, so without the sort two passes over one config
+// encode two orders, writeInterest reads that as a change, and every pass
+// rewrites the key and notifies the irr plugin; two references to one set
+// (or one AS number) would name it twice. The BGP filter's interest builds
+// the same shape.
 func (plug *irrPlugin) interest() store.Interest {
 	plug.mu.RLock()
 	defer plug.mu.RUnlock()
-	var in store.Interest
+	in := store.Interest{ASSets: []string{}, ASNs: []uint32{}}
 	for _, st := range plug.refs {
 		switch {
 		case st.keyErr != "":
@@ -430,6 +435,10 @@ func (plug *irrPlugin) interest() store.Interest {
 			in.ASNs = append(in.ASNs, st.asn)
 		}
 	}
+	slices.Sort(in.ASSets)
+	in.ASSets = slices.Compact(in.ASSets)
+	slices.Sort(in.ASNs)
+	in.ASNs = slices.Compact(in.ASNs)
 	return in
 }
 

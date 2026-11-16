@@ -20,6 +20,7 @@ import (
 	"fmt"
 	"runtime/debug"
 	"slices"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -74,6 +75,9 @@ type problem struct {
 	code  string
 	since time.Time
 	err   error
+	// fix is the command that fixes the finding, when problemFix would name
+	// another one; empty means problemFix answers.
+	fix string
 }
 
 // owner is the IRR owner. Create it with newOwner, configure it at any time,
@@ -111,6 +115,10 @@ type owner struct {
 	// bindings is every binding read or written, valid for the current URL or
 	// not (validBinding judges).
 	bindings map[uint32]store.Binding
+	// movingTo is the set a binding moves to once that set's dataset and
+	// pointer are stored (bindTo): until then the stored binding names the
+	// set the consumers enforce.
+	movingTo map[uint32]string
 	schedule schedule
 	// discoverDue arms the PeeringDB question of a referenced AS number with no
 	// valid binding.
@@ -122,6 +130,10 @@ type owner struct {
 	// until `update irr` or an interest that newly names them.
 	heldSets map[string]struct{}
 	heldASNs map[uint32]struct{}
+	// unannounced is each set whose pointer `clear irr` removed while the
+	// generation could not be raised, by the server its pointer named: no
+	// consumer was told, so the next clear of the set tells them.
+	unannounced map[string]string
 	// problems are the doctor findings, keyed by AS-SET or state key.
 	problems map[string]problem
 }
@@ -141,12 +153,14 @@ func newOwner(state stateAccess, notices noticeEmitter, newResolver func(ownerCo
 		pointers:    make(map[string]store.Pointer),
 		datasets:    make(map[string]datasetInfo),
 		bindings:    make(map[uint32]store.Binding),
+		movingTo:    make(map[uint32]string),
 		schedule:    newSchedule(),
 		discoverDue: make(map[uint32]time.Time),
 		answeredAt:  make(map[string]time.Time),
 		retryAt:     make(map[string]time.Time),
 		heldSets:    make(map[string]struct{}),
 		heldASNs:    make(map[uint32]struct{}),
+		unannounced: make(map[string]string),
 		problems:    make(map[string]problem),
 	}
 	cfg := defaultOwnerConfig()
@@ -303,7 +317,7 @@ func (o *owner) absorb(ctx context.Context) {
 	o.pendingConfig, o.interestDirty = nil, false
 	o.mu.Unlock()
 	if cfg != nil {
-		o.installConfig(*cfg)
+		o.installConfig(ctx, *cfg)
 	}
 	if dirty {
 		o.readInterest(ctx)
@@ -316,8 +330,11 @@ func (o *owner) absorb(ctx context.Context) {
 // installConfig makes cfg the worker's config. A new server gets a new
 // resolver and forgets the answers of the old one; the datasets of the old
 // server stay enforced until the new server's copy flips each pointer
-// (writeDataset removes the old dataset then).
-func (o *owner) installConfig(cfg ownerConfig) {
+// (writeDataset removes the old dataset then). The new resolver is seeded
+// with every stored dataset of the new server, as load seeds the first: a
+// server changed and changed back still merges the next answer per family
+// into the copy it stored (AC-7).
+func (o *owner) installConfig(ctx context.Context, cfg ownerConfig) {
 	serverKey, err := store.DatasetServer(cfg.server)
 	if err != nil {
 		// parseOwnerConfig refused this server at verify, so only a defect
@@ -332,16 +349,21 @@ func (o *owner) installConfig(cfg ownerConfig) {
 		o.res = o.newResolver(cfg)
 		clear(o.answeredAt)
 		clear(o.retryAt)
+		for asSet := range o.pointers {
+			o.seedStored(ctx, asSet)
+		}
 		return
 	}
 	o.res.useClients(cfg)
 }
 
-// plan computes the schedule from what the worker knows. It makes no call.
+// plan computes the schedule from what the worker knows, and drops the
+// findings of what nothing names any more. It makes no call.
 func (o *owner) plan() {
 	now := o.clock()
 	o.schedule = newSchedule()
-	for asSet := range o.wantedSets() {
+	wantedSets := o.wantedSets()
+	for asSet := range wantedSets {
 		if _, held := o.heldSets[asSet]; held {
 			continue
 		}
@@ -355,6 +377,11 @@ func (o *owner) plan() {
 			delete(o.discoverDue, asn)
 		}
 	}
+	for asn := range o.movingTo {
+		if _, ok := wanted[asn]; !ok {
+			delete(o.movingTo, asn)
+		}
+	}
 	for asn := range wanted {
 		if _, held := o.heldASNs[asn]; held {
 			continue
@@ -362,9 +389,47 @@ func (o *owner) plan() {
 		if _, ok := o.validBinding(asn); ok {
 			continue
 		}
+		if _, moving := o.movingTo[asn]; moving {
+			// PeeringDB answered: the set it named is fetched, and the
+			// binding is written once that set is stored.
+			continue
+		}
 		if _, armed := o.discoverDue[asn]; !armed {
 			o.discoverDue[asn] = now
 		}
+	}
+	o.dropUnnamedFindings(wantedSets, wanted)
+}
+
+// dropUnnamedFindings removes the findings of every AS-SET no consumer names
+// and no pointer names, and of every binding of an AS number no consumer
+// names: nothing fetches them again, so a finding there would never clear,
+// and no consumer enforces what it describes. An unreadable finding under a
+// stored key stays: that key is still stored and still unreadable.
+func (o *owner) dropUnnamedFindings(wantedSets map[string]struct{}, wantedASNs map[uint32]struct{}) {
+	for subject, found := range o.problems {
+		if found.code == codeIRRDatasetUnreadable {
+			continue
+		}
+		if number, ok := strings.CutPrefix(subject, store.BindingPrefix); ok {
+			if asn, parsed := parseASNSegment(number); parsed {
+				if _, named := wantedASNs[asn]; !named {
+					delete(o.problems, subject)
+				}
+			}
+			continue
+		}
+		if !isASSetSubject(subject) {
+			continue
+		}
+		if _, named := wantedSets[subject]; named {
+			continue
+		}
+		if _, pointed := o.pointers[subject]; pointed {
+			continue
+		}
+		delete(o.problems, subject)
+		delete(o.unannounced, subject)
 	}
 }
 
@@ -392,6 +457,9 @@ func (o *owner) wantedSets() map[string]struct{} {
 		}
 		if binding, ok := o.validBinding(asn); ok {
 			wanted[binding.ASSet] = struct{}{}
+		}
+		if target, moving := o.movingTo[asn]; moving {
+			wanted[target] = struct{}{}
 		}
 	}
 	return wanted
@@ -468,29 +536,54 @@ func (o *owner) fetchDue(ctx context.Context) {
 	}
 	o.plan()
 	wanted := o.wantedSets()
+	// fetched is a guard: a set a moving binding made the worker fetch early
+	// in this pass is not fetched a second time when the loop reaches it.
+	fetched := make(map[string]struct{})
 	for _, asSet := range o.schedule.dueBy(now) {
 		if ctx.Err() != nil {
 			return
 		}
+		if _, done := fetched[asSet]; done {
+			continue
+		}
 		dueAt, _ := o.schedule.at(asSet)
 		if o.rediscoverBoundTo(ctx, asSet, dueAt) {
-			// A binding moved off the set: it is fetched only if something
-			// still names it.
+			// A binding moves off the set: the set it moves to is fetched
+			// first, and a stored copy flips the binding (writeDataset). The
+			// set is then fetched only if something still names it.
+			for _, target := range o.movesOff(asSet) {
+				fetched[target] = struct{}{}
+				_ = o.refreshSet(ctx, target) //nolint:errcheck // refreshSet logs, raises and re-arms every failure
+			}
 			wanted = o.wantedSets()
 		}
 		if _, still := wanted[asSet]; !still {
 			continue
 		}
+		fetched[asSet] = struct{}{}
 		_ = o.refreshSet(ctx, asSet) //nolint:errcheck // refreshSet logs, raises and re-arms every failure
 	}
 	o.plan()
+}
+
+// movesOff answers, sorted and once each, the sets the bindings of asSet are
+// moving to.
+func (o *owner) movesOff(asSet string) []string {
+	var targets []string
+	for asn, target := range o.movingTo {
+		if binding, ok := o.bindings[asn]; ok && binding.ASSet == asSet {
+			targets = append(targets, target)
+		}
+	}
+	slices.Sort(targets)
+	return slices.Compact(targets)
 }
 
 // rediscoverBoundTo asks PeeringDB again for each referenced AS number bound
 // to asSet, now that its dataset is due (AC-11): PeeringDB is asked when the
 // data is, never at start. A binding learned at or after dueAt is not asked
 // again: it is the answer that made a cold set due. It reports whether a
-// binding moved to another set.
+// binding moved, or is moving, to another set.
 func (o *owner) rediscoverBoundTo(ctx context.Context, asSet string, dueAt time.Time) bool {
 	moved := false
 	for asn := range o.wantedASNs() {
@@ -505,14 +598,18 @@ func (o *owner) rediscoverBoundTo(ctx context.Context, asSet string, dueAt time.
 		if now, ok := o.validBinding(asn); ok && now.ASSet != asSet {
 			moved = true
 		}
+		if _, moving := o.movingTo[asn]; moving {
+			moved = true
+		}
 	}
 	return moved
 }
 
-// discoverASN asks PeeringDB for the set of asn and stores the binding. It is
+// discoverASN asks PeeringDB for the set of asn and binds it (bindTo). It is
 // the one AS-SET discovery Ze runs for a bare AS number. A PeeringDB failure
 // keeps a valid binding; with none, the literal AS<asn> is bound, so the set
-// is fixed until the next due time rather than flipping per outage.
+// is fixed until the next due time rather than flipping per outage. A failure
+// is a doctor finding under the binding's key until PeeringDB answers.
 func (o *owner) discoverASN(ctx context.Context, asn uint32) {
 	delete(o.discoverDue, asn)
 	defer func() {
@@ -522,6 +619,7 @@ func (o *owner) discoverASN(ctx context.Context, asn uint32) {
 	}()
 	asSet, err := o.res.discover(ctx, asn)
 	if err != nil {
+		o.raise(store.BindingKey(asn), codeIRRRefreshOverdue, err)
 		if _, ok := o.validBinding(asn); ok {
 			logger().Warn("irr: PeeringDB did not answer, keeping the stored AS-SET",
 				"asn", asn, "error", err, "code", codeIRRRefreshOverdue, "fix", "update irr asn "+asnText(asn))
@@ -530,8 +628,30 @@ func (o *owner) discoverASN(ctx context.Context, asn uint32) {
 		logger().Warn("irr: PeeringDB did not answer and nothing is bound, querying the AS number itself",
 			"asn", asn, "error", err, "code", codeIRRRefreshOverdue, "fix", "update irr asn "+asnText(asn))
 		asSet = literalASSet(asn)
+	} else {
+		o.resolve(store.BindingKey(asn), codeIRRRefreshOverdue)
 	}
-	if binding, ok := o.validBinding(asn); ok && binding.ASSet == asSet {
+	o.bindTo(ctx, asn, asSet)
+}
+
+// bindTo binds asn to asSet. The consumers read the stored binding, and one
+// naming a set nothing stored yet reads as no list (store.ErrNotStored), so a
+// binding that moves from a stored binding to a set with no pointer is not
+// written: it waits in movingTo, the set is fetched, and writeDataset writes
+// it once that set's pointer is stored. Until then the stored binding still
+// names the set the consumers enforce. A first binding has no list to keep and
+// is written at once.
+func (o *owner) bindTo(ctx context.Context, asn uint32, asSet string) {
+	delete(o.movingTo, asn)
+	stored, bound := o.bindings[asn]
+	if bound && stored.ASSet == asSet {
+		if stored.PeeringDBURL != o.cfg.peeringDBURL {
+			o.writeBinding(ctx, asn, asSet)
+		}
+		return
+	}
+	if _, pointed := o.pointers[asSet]; bound && !pointed {
+		o.movingTo[asn] = asSet
 		return
 	}
 	o.writeBinding(ctx, asn, asSet)
@@ -543,6 +663,7 @@ func (o *owner) discoverASN(ctx context.Context, asn uint32) {
 // minute rather than on the next pass, which would panic in a loop.
 func (o *owner) discoverPanicked(asn uint32, recovered any) {
 	o.discoverDue[asn] = o.clock().Add(retryInterval)
+	o.raise(store.BindingKey(asn), codeIRRRefreshOverdue, fmt.Errorf("the PeeringDB question about AS%d panicked: %v", asn, recovered))
 	countOutcome(outcomePanic)
 	logger().Error("irr: the PeeringDB question about an AS number panicked, the stored AS-SET stays and the question is asked again in a minute",
 		"asn", asn, "panic", recovered, "stack", string(debug.Stack()),
@@ -614,13 +735,20 @@ func (o *owner) fetchPanicked(asSet string, now time.Time, recovered any) error 
 	return err
 }
 
-// raise records a doctor finding under key, keeping the time it first held.
+// raise records a doctor finding under key, keeping the time it first held;
+// problemFix names its fix.
 func (o *owner) raise(key, code string, err error) {
+	o.raiseFix(key, code, err, "")
+}
+
+// raiseFix records a doctor finding under key whose fix is not the one
+// problemFix names for its code.
+func (o *owner) raiseFix(key, code string, err error, fix string) {
 	since := o.clock()
 	if previous, ok := o.problems[key]; ok && previous.code == code {
 		since = previous.since
 	}
-	o.problems[key] = problem{code: code, since: since, err: err}
+	o.problems[key] = problem{code: code, since: since, err: err, fix: fix}
 }
 
 // resolve clears the finding of key when it carries code.

@@ -258,10 +258,17 @@ func (plug *domainPlugin) verify(cfg *domainConfig) error {
 		return nil
 	}
 
-	// Verify runs before configure on a fresh start, so the cache may not be
-	// open yet. Reading it here is what makes the refusal true rather than
-	// unconditional.
-	if err := plug.cache.open(cfg.groups); err != nil {
+	// The candidate's groups are read into a store of their own, over the same
+	// keys. Reading them is what makes the refusal true rather than
+	// unconditional, and reading them into the running store is what verify
+	// MUST NOT do: open replaces its entries and drops the unsaved records of
+	// every unit the candidate leaves out, clearing their report-bus warnings,
+	// and a commit that another plugin's verify then aborts would leave the
+	// running config enforcing a store that no longer holds its groups. Only
+	// configure opens the running store. The candidate store has no report bus
+	// (issues nil), so it raises and clears nothing.
+	candidate := newStore(plug.cache.keys)
+	if err := candidate.open(cfg.groups); err != nil {
 		return err
 	}
 
@@ -278,7 +285,7 @@ func (plug *domainPlugin) verify(cfg *domainConfig) error {
 			tb.Str("firewall domain-group: group ").Str(name).Str(" holds no domain-names, so it filters nothing")
 			return errors.New(tb.String())
 		}
-		if plug.cache.hasAddresses(g) {
+		if candidate.hasAddresses(g) {
 			continue
 		}
 		return errors.New(uncachedGroupMessage(name))

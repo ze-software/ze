@@ -542,6 +542,57 @@ func TestDomainGroupVerifyAcceptsAResolvedGroup(t *testing.T) {
 	assert.NoError(t, plug.verify(oneGroupConfig()), "a group with addresses commits")
 }
 
+// TestDomainGroupVerifyLeavesTheRunningStoreAlone proves verify reads the
+// candidate's groups without touching the store the running config enforces.
+//
+// Method: the running config's group cdn holds an address and an unsaved
+// answer raised on the bus; a candidate naming only another stored group is
+// verified, and no configure follows, as when another plugin's verify aborts
+// the commit. The running store must still hold cdn's address, its unsaved
+// record and its warning.
+// PREVENTS: verify opening the running store over the candidate, which
+// dropped cdn's entries (the next applyTables programmed its sets empty) and
+// its unsaved record, clearing a warning whose cause still stood.
+func TestDomainGroupVerifyLeavesTheRunningStoreAlone(t *testing.T) {
+	plug, _ := newTestPlugin(t, oneGroupConfig(), map[string]answer{
+		stubKey("a.invalid", mdns.TypeA): {records: []string{"192.0.2.1"}, ttl: 300, status: "NOERROR"},
+	})
+	_, err := plug.resolveAndRecord(v4Key())
+	require.NoError(t, err)
+
+	other := nameKey{group: "other", name: "b.invalid", family: familyV4}
+	seed := newStore(plug.cache.keys)
+	require.NoError(t, seed.put(other, resolvedName{
+		Addresses: []string{"198.51.100.1"}, ResolvedAt: time.Now(), Status: "NOERROR",
+	}))
+
+	keys := &failingWrites{cacheKeys: plug.cache.keys, refuse: true}
+	plug.cache.keys = keys
+	bus := &recordedIssues{}
+	plug.cache.issues = bus
+	_, err = plug.resolveAndRecord(v4Key())
+	require.NoError(t, err)
+	require.Len(t, bus.active, 1, "the refused confirming write is raised")
+
+	candidate := &domainConfig{
+		groups: []group{{Name: "other", Names: []string{"b.invalid"}, TTLFloor: 60}},
+		refs:   []termRef{{Group: "other", TableName: "ze_filter"}},
+	}
+	require.NoError(t, plug.verify(candidate), "the candidate's group has a stored address")
+
+	assert.Len(t, bus.active, 1, "verify cleared the running group's warning")
+	diags, err := plug.answerDoctorCheck(unsavedAnswerCheckName)
+	require.NoError(t, err)
+	assert.Len(t, diags, 1, "verify dropped the running group's unsaved record")
+	got, ok := plug.cache.get(v4Key())
+	require.True(t, ok, "verify dropped the running group's entry")
+	assert.Equal(t, []string{"192.0.2.1"}, got.Addresses)
+	assert.Equal(t, []string{"192.0.2.1"}, plug.cache.groupAddresses("cdn", []string{"a.invalid"}, familyV4),
+		"the running group's set would be programmed empty")
+	_, leaked := plug.cache.get(other)
+	assert.False(t, leaked, "verify loaded the candidate's group into the running store")
+}
+
 // TestDomainGroupVerifyIgnoresAnUnreferencedGroup proves a group no rule names
 // does not refuse a commit. It enforces nothing, so refusing for it would
 // refuse a config that harms nobody.

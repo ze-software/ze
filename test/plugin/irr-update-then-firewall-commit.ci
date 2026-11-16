@@ -9,8 +9,6 @@
 # then writes config2.conf over the config, which adds table wan with a
 # source-as-set AS-TEST term, and sends SIGHUP; the observer requires wan to be
 # programmed.
-#
-# Red until the irr plugin stores datasets: update irr answers "not available yet".
 
 option=storage:value=disk
 # This test programs nftables, so it needs CAP_NET_ADMIN, and it shares the

@@ -606,19 +606,27 @@ func (plug *irrPlugin) publishLocked() {
 	plug.snapshot.Store(snap)
 }
 
-const maxPrefixEntries = 500_000
-
+// prefixListFromIRR builds the entries the evaluator matches from a stored
+// list. Each family is bounded on its own by store.DatasetFamilyMax, the one
+// declaration of the bound: the irr plugin stores no family longer and the
+// firewall enforces the same per-family bound, so a list both consumers name
+// is enforced by both or by neither. A combined cap here refused a list the
+// store held and the firewall enforced, 400,000 IPv4 and 200,000 IPv6, and
+// pointed the operator at a doctor fix no store action could satisfy.
+//
+// A list over the bound is refused whole, never cut. A cut fills the budget
+// with IPv4 first, so the IPv6 half is lost and every IPv6 route rejected
+// while the refresh reports success. The store refuses such a list before
+// it is written (store.NewDataset) and when it is decoded, so this check is
+// the second path of that bound.
 func prefixListFromIRR(pl irr.PrefixList) ([]prefixEntry, error) {
-	// A list over the cap is refused whole, never cut. A cut fills the budget
-	// with IPv4 first, so the IPv6 half is lost and every IPv6 route rejected
-	// while the refresh reports success.
-	total := len(pl.IPv4) + len(pl.IPv6)
-	if total > maxPrefixEntries {
-		return nil, fmt.Errorf("irr: prefix list of %d entries (%d IPv4, %d IPv6) exceeds the %d-entry cap, "+
-			"so it is refused and the previous list stays in force: narrow the AS-SET",
-			total, len(pl.IPv4), len(pl.IPv6), maxPrefixEntries)
+	if len(pl.IPv4) > store.DatasetFamilyMax {
+		return nil, oversizedListError("IPv4", pl)
 	}
-	entries := make([]prefixEntry, 0, total)
+	if len(pl.IPv6) > store.DatasetFamilyMax {
+		return nil, oversizedListError("IPv6", pl)
+	}
+	entries := make([]prefixEntry, 0, len(pl.IPv4)+len(pl.IPv6))
 	for _, p := range pl.IPv4 {
 		entries = append(entries, prefixEntry{
 			prefix: p,
@@ -634,6 +642,14 @@ func prefixListFromIRR(pl irr.PrefixList) ([]prefixEntry, error) {
 		})
 	}
 	return entries, nil
+}
+
+// oversizedListError names the family over the bound, both counts and the
+// bound, and what stays in force.
+func oversizedListError(family string, pl irr.PrefixList) error {
+	return fmt.Errorf("irr: prefix list of %d IPv4 and %d IPv6 prefixes holds more %s prefixes than the "+
+		"%d a family may hold, so it is refused and the previous list stays in force: narrow the AS-SET",
+		len(pl.IPv4), len(pl.IPv6), family, store.DatasetFamilyMax)
 }
 
 // commandDecls names the commands this plugin serves and states what each

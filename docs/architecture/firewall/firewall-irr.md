@@ -240,7 +240,9 @@ AS-SET deregistered upstream would be enforced forever.
 <!-- source: internal/component/firewall/plugins/irr/sets.go -- maxPrefixesPerFamily, oversizedEntryError -->
 <!-- source: internal/component/firewall/plugins/irr/irr.go -- applyTables, verifyStored -->
 
-One firewall set holds 500000 prefixes. The bound used to TRUNCATE: the builder
+One firewall set holds 500000 prefixes, the store's `store.DatasetFamilyMax`:
+`maxPrefixesPerFamily` is initialised from it, so the firewall, the BGP filter
+and the store state one bound. The bound used to TRUNCATE: the builder
 stopped there, logged one WARN and returned the entries that fit, and
 the refresh read that short list as a refresh that worked
 and programmed it. Nothing downstream could see it. `Set.Validate`

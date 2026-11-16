@@ -13,8 +13,6 @@
 # waits for the stored dataset in the first run and records the query count
 # and refreshed-at, and the second run requires both unchanged while show
 # firewall irr names AS-TEST.
-#
-# Red until the irr plugin stores datasets: show irr answers "not available yet".
 
 option=storage:value=disk
 # This test programs nftables, so it needs CAP_NET_ADMIN, and it shares the
@@ -25,8 +23,8 @@ option=env:var=ze.log.irr:value=debug
 option=env:var=ze.log.firewall.irr:value=debug
 option=timeout:value=60s
 
-# firewall irr server keeps the firewall's own fetch on the mock while it
-# still fetches for itself; the leaf goes when it stops.
+# system irr server points the irr plugin, the only fetcher, at the mock; the
+# firewall reads the copy it stores and fetches nothing itself.
 stdin=ze-irr:terminator=EOF_CONF
 plugin {
 	external irr-restart-keeps-firewall-sets-test {

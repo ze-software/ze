@@ -13,8 +13,6 @@
 # waits for the stored dataset in the first run, requires exactly one
 # !a4AS-TEST query, and records the query count and refreshed-at; the second
 # run requires both unchanged.
-#
-# Red until the irr plugin stores datasets: show irr answers "not available yet".
 
 option=storage:value=disk
 option=env:var=ze.log.irr:value=debug

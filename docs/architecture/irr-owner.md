@@ -82,7 +82,12 @@ At its first pass the worker converts the old firewall lists, then reads every
 interest key, every pointer with the dataset it names, and every binding. Each
 dataset of the configured server seeds the resolver as the copy the next
 answer merges into, so the per-family last-known-good rule
-(`store.PrefixStore.Refresh`, `Seed`) holds across a restart.
+(`store.PrefixStore.Refresh`, `Seed`) holds across a restart. A config that
+changes the server builds a new resolver and seeds it the same way, from every
+stored dataset of the new server, so a server changed and changed back still
+merges the next answer into the copy it stored. An answer the store refused
+puts the resolver's copy back to the stored dataset, so the next answer merges
+into what the consumers enforce.
 
 <!-- source: internal/plugins/irr/owner.go -- owner, run, absorb, installConfig, plan, fetchDue -->
 <!-- source: internal/plugins/irr/datasets.go -- load, readInterest, readPointers, readDataset, readBindings -->
@@ -112,9 +117,18 @@ the literal `AS<asn>` when PeeringDB holds no set, is stored as the binding;
 with PeeringDB unreachable and nothing bound the literal is bound too, so the
 queried set does not flip with each outage. A bound AS number is asked again
 only when its set is due, and a PeeringDB failure then keeps the stored set.
+A PeeringDB failure, or a question that panicked, is a doctor finding under the
+binding's key until PeeringDB answers.
+
+A binding PeeringDB moves to a set with no pointer is not written yet: the
+consumers read the stored binding, and one naming a set nothing stored reads as
+no list. The owner fetches the new set first, in the same pass, and writes the
+binding once that set's pointer is stored. Until then the stored binding still
+names the set the consumers enforce, and that set is still fetched when due. A
+first binding, with no list to keep, is written at once.
 
 <!-- source: internal/plugins/irr/schedule.go -- dueOf, dueAfterAnswer, retryInterval -->
-<!-- source: internal/plugins/irr/owner.go -- refreshSet, discoverASN, rediscoverBoundTo -->
+<!-- source: internal/plugins/irr/owner.go -- refreshSet, discoverASN, rediscoverBoundTo, bindTo -->
 
 ## Writing a dataset
 
@@ -126,7 +140,9 @@ pointer and the old dataset, both intact, whether the server changed or not.
 
 Each write runs in one order: the dataset under its digest key, then
 `StateIncrement` on the generation, then the pointer carrying that generation,
-then the notice. The generation is raised before the pointer because the
+then each binding waiting to move to the set, then the notice. A binding moves
+before the notice because the notice is what makes a consumer read every
+binding again. The generation is raised before the pointer because the
 pointer carries it; a pointer write that then fails leaves a generation no
 pointer names, which a consumer reads as a gap and recovers by reading every
 pointer. A failed generation or pointer write also removes the dataset it just
@@ -142,7 +158,7 @@ generation.
 AS-SET names are keyed in upper case (`store.ASSetName`), so a consumer that
 wrote `AS-Foo` and an operator who typed `AS-FOO` name one dataset.
 
-<!-- source: internal/plugins/irr/datasets.go -- writeDataset, removeTorn, removeUnpointed, removeSet, emitNotice -->
+<!-- source: internal/plugins/irr/datasets.go -- writeDataset, removeTorn, removeUnpointed, removeSet, announceRemoval, moveBindingsTo, seedStored, emitNotice -->
 <!-- source: internal/component/resolve/irr/store/pointer.go -- ASSetName, Pointer, Binding, Interest -->
 
 ## Commands
@@ -156,6 +172,12 @@ answer names every consumer whose interest still references the set.
 `clear irr asn <n>` also removes the binding. A cleared set is held: it is not
 fetched again until `update irr` or an interest that newly names it. The hold
 lives in the worker, so a restart fetches a still-referenced cleared set again.
+A pointer removal the store refuses changes nothing: the set stays stored,
+scheduled and seeded as the next answer's merge base. A removal whose
+generation the store refuses removed the copy and told no consumer: the set is
+held, the answer says so, `doctor-irr-dataset-unpublished` names `clear irr
+as-set <s>` as its fix, and that clear, with nothing left to remove, raises the
+generation and sends the notice.
 `clear irr cache` and `clear peeringdb cache` reach the owner's clients
 through `OnResolverCacheClear`; the stored datasets stay.
 
@@ -211,7 +233,14 @@ digest and reads as absent), `doctor-irr-refresh-overdue` (the server or
 PeeringDB did not answer when due), `doctor-irr-dataset-oversized` (an answer
 over the caps was refused) and `doctor-irr-dataset-unpublished` (the store
 refused a write, or the consumers were not told). Each finding carries its fix
-command. A stopped owner is reported by the engine's plugin-stopped check.
+command: `update irr asn <n>` for one under a binding's key. A finding clears
+with its cause: an unreadable pointer or dataset once the set is stored again,
+a refused fetch once the server answers, a PeeringDB failure once PeeringDB
+answers. A cleared set's findings go with it, and so do the findings of a set
+no consumer names and no pointer names, and of a binding of an AS number no
+consumer names: nothing fetches those again. A finding under a stored key that
+is still unreadable stays. A stopped owner is reported by the engine's
+plugin-stopped check.
 
 <!-- source: internal/plugins/irr/doctor.go -- datasetCheckDecl, irrDiagnosticCodes, answerDoctorCheck, findings -->
 
@@ -353,7 +382,11 @@ copies programs them once and logs no WARN.
 over a fake store, a fake notice sink and a fake resolver: the write order,
 a failed fetch, an empty answer, a restart with nothing due, a server change,
 the conversion, `clear irr` naming its consumers, and a bound AS number not
-asked at start. `discovery_test.go` follows PeeringDB across due times, never
+asked at start. `failure_paths_test.go` proves a refused `clear irr` and a
+server changed and changed back keep the per-family merge base, an
+unannounced clear holds the set and is told by the next clear, findings clear
+with their cause, a PeeringDB failure is a finding, and a moving binding is
+written only after its new set's pointer. `discovery_test.go` follows PeeringDB across due times, never
 falls back to a set a consumer dropped, and keeps the stored copy when an
 `update irr` fails. `command_asn_test.go` runs `update irr asn` and `clear irr
 asn` on a running worker: a value outside the AS number range is refused

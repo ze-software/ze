@@ -7,8 +7,6 @@
 # (internal/test/fixture/irr_owner_fixture.go) waits for the stored AS-TEST,
 # requires show irr to name both consumers and each consumer's show to name
 # the set, then requires exactly one !a4AS-TEST query.
-#
-# Red until the irr plugin stores datasets: show irr answers "not available yet".
 
 option=storage:value=disk
 # This test programs nftables, so it needs CAP_NET_ADMIN, and it shares the

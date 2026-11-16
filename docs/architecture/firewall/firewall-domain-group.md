@@ -268,6 +268,14 @@ performs no network I/O: verify runs while the commit is held open, so a DNS
 round trip there would put every timeout it can hit in the path of an operator
 pressing return.
 
+Verify reads the candidate's groups into a store of its own over the same keys,
+and only `configure` opens the store the running config enforces. Opening the
+running store at verify replaced its entries with the candidate's and dropped
+the unsaved records of every group the candidate removed, clearing their
+warnings; a commit that another plugin's verify then aborted left the running
+groups with no addresses for the next apply to program.
+<!-- source: internal/component/firewall/plugins/domain/domain.go -- verify -->
+
 An empty set was rejected as an alternative because it inverts meaning: an empty
 deny matches nothing, and an empty permit blocks everything.
 

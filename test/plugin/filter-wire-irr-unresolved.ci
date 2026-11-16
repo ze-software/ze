@@ -1,8 +1,9 @@
 # Test: an UPDATE judged before its ASN's first IRR resolution
 #
 # VALIDATES: spec-filter-wire-0-umbrella AC-32 (FR-10, D-12): the IRR filter
-# never waits for a list. An UPDATE that arrives while the mock IRR holds its
-# first answer longer than rpc.FilterUpdateTimeout is judged at once: its
+# never waits for a list. An UPDATE that arrives while the irr plugin's first
+# fetch of the ASN's AS-SET is still unanswered, so nothing is stored, is
+# judged at once: its
 # announced 10.0.0.0/24 takes the filter's on-error verdict (reject), its
 # withdrawal of 10.9.0.0/24 still applies (RFC 4271 Section 9), and
 # `show bgp irr` still reports the ASN pending. Once the mock answers, the
@@ -13,8 +14,10 @@
 # and a route rejected for a missing list staying rejected.
 #
 # Flow:
-# 1. The mock IRR holds its first answer 7 s (-delay-first), past the 5 s
-#    rpc.FilterUpdateTimeout and within the IRR client's 10 s query timeout.
+# 1. The mock IRR holds its first answer 7 s (-delay-first), so the irr
+#    plugin's first fetch is still in flight when the UPDATE arrives and the
+#    filter has no stored list; 7 s stays within the IRR client's 10 s query
+#    timeout, so the fetch then succeeds.
 # 2. The peer sends one UPDATE announcing 10.0.0.0/24 and withdrawing
 #    10.9.0.0/24, then an End-of-RIB.
 # 3. The observer (internal/test/fixture/plugin_fixture_07_irr.go,

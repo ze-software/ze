@@ -11,6 +11,7 @@ package irr
 // enforcing an empty list where a stored one exists.
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"encoding/hex"
@@ -837,5 +838,40 @@ func TestStoredCopiesRuntimeFindings(t *testing.T) {
 	plug, _ := startedPlugin(t, newFakeConsumerState(), termConfig())
 	if _, err := plug.answerDoctorCheck("firewall-irr-unknown"); err == nil {
 		t.Error("the doctor callback answered a check the plugin never declared")
+	}
+}
+
+// TestInterestIsSortedAndOnce proves the interest the plugin writes is one
+// value per config: every AS-SET and AS number once, in sorted order,
+// whatever order the reference map yields.
+//
+// Method: references naming AS-B, AS-A twice (two reference names) and AS
+// numbers 65002 and 65001, with 65001 named twice, and a reference with a
+// key error; interest is encoded twenty times and each encoding compared with
+// the sorted, deduplicated one.
+// PREVENTS: writeInterest reading a reordered map as a change, and rewriting
+// the key and notifying the irr plugin on every pass.
+func TestInterestIsSortedAndOnce(t *testing.T) {
+	plug := &irrPlugin{refs: map[string]*refState{
+		"as-b":    {configured: "AS-B"},
+		"as-a":    {configured: "AS-A"},
+		"AS-A":    {configured: "AS-A"},
+		"AS65002": {asn: 65002},
+		"AS65001": {asn: 65001},
+		"65001":   {asn: 65001},
+		"bad":     {keyErr: "no key"},
+	}}
+	want, err := store.EncodeInterest(store.Interest{ASSets: []string{"AS-A", "AS-B"}, ASNs: []uint32{65001, 65002}})
+	if err != nil {
+		t.Fatalf("encode the expected interest: %v", err)
+	}
+	for range 20 {
+		got, err := store.EncodeInterest(plug.interest())
+		if err != nil {
+			t.Fatalf("encode interest: %v", err)
+		}
+		if !bytes.Equal(got, want) {
+			t.Fatalf("interest = %s, want %s", got, want)
+		}
 	}
 }

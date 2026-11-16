@@ -16,8 +16,10 @@ package irr
 import (
 	"fmt"
 	"slices"
+	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/component/resolve/irr/store"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -212,7 +214,7 @@ func (o *owner) findings() []sdk.DoctorCheckDiagnostic {
 			Code:     found.code,
 			Severity: string(diagnostic.SeverityWarning),
 			Message:  tb.String(),
-			Fix:      problemFix(found.code, subject),
+			Fix:      fixOf(found, subject),
 		})
 	}
 	return out
@@ -233,6 +235,15 @@ func problemText(code string) string {
 	return "has a problem"
 }
 
+// fixOf is the command that fixes found: the one it was raised with, or else
+// the one problemFix names for its code.
+func fixOf(found problem, subject string) string {
+	if found.fix != "" {
+		return found.fix
+	}
+	return problemFix(found.code, subject)
+}
+
 // problemFix is the command that fixes a finding.
 func problemFix(code, subject string) string {
 	switch code {
@@ -241,6 +252,11 @@ func problemFix(code, subject string) string {
 	case codeIRRRefreshOverdue, codeIRRDatasetUnpublished:
 		if isASSetSubject(subject) {
 			return "update irr as-set " + subject
+		}
+		if number, ok := strings.CutPrefix(subject, store.BindingPrefix); ok {
+			// A binding's finding: PeeringDB did not answer, or the store
+			// refused the binding.
+			return "update irr asn " + number
 		}
 	case codeIRRDatasetUnreadable:
 	}

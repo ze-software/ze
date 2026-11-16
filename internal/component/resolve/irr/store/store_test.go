@@ -132,11 +132,10 @@ func TestPrefixStoreGet(t *testing.T) {
 	}
 }
 
-// TestPrefixStoreRefreshAll (AC-6) and TestPrefixStoreList (AC-11)
-// removed. List and RefreshAll were descoped from this spec (no in-tree consumer
-// -- the BGP plugin uses Get/Refresh/Open and its own per-ASN refreshAllNow) and
-// moved to spec-firewall-irr, which will re-add them with their consumer and
-// tests. No coverage lost for delivered code.
+// The store has no RefreshAll and no List, so neither has a test. Its one
+// user is the irr plugin's resolver (internal/plugins/irr/resolver.go), which
+// calls Seed, Refresh and Purge; the consumers read the stored datasets
+// and never hold a PrefixStore.
 
 // VALIDATES: AC-7 -- a failed refresh preserves existing cached data.
 // Uses a fresh client pointed at an unreachable server, seeded with the entry
@@ -454,9 +453,9 @@ func TestRefreshStoresNothingOnFirstEmptyAnswer(t *testing.T) {
 
 // VALIDATES: AC-8 -- a refresh inside the client's 1h prefix cache reaches the
 // server, and reports what the server now holds.
-// PREVENTS: "update firewall irr as-set X", the one command an operator has to
-// correct data the server changed, being answered from memory and reporting a
-// refresh that queried nothing.
+// PREVENTS: "update irr as-set X", the one command an operator has to correct
+// data the server changed, being answered from memory and reporting a refresh
+// that queried nothing.
 func TestRefreshQueriesServerWithinCacheTTL(t *testing.T) {
 	var v4Queries atomic.Int32 // one per refresh that reached the server
 	addr := whoisServer(t, func(query string) string {

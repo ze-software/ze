@@ -25,11 +25,14 @@ const (
 // depend on the length of the IPv4 list: a full IPv4 list left IPv6 with a set
 // of no elements, and that set matches no address.
 //
-// It is a var so a test can lower it. One IRR reply is cut at 4 MB
-// (maxResponse, internal/component/resolve/irr/client.go), so 500000 prefixes
-// reach the store only through the many member queries of a large AS-SET, and
-// a test that drives the whole refresh cannot afford to build them.
-var maxPrefixesPerFamily = 500_000
+// The bound is the store's, store.DatasetFamilyMax: the irr plugin stores no
+// family longer, and every consumer enforces what it stores, so a second
+// number here could only disagree with it. It is a var so a test can lower
+// it. One IRR reply is cut at 4 MB (maxResponse,
+// internal/component/resolve/irr/client.go), so 500000 prefixes reach the
+// store only through the many member queries of a large AS-SET, and a test
+// that drives the whole refresh cannot afford to build them.
+var maxPrefixesPerFamily = store.DatasetFamilyMax
 
 func setNames(name string) (v4, v6 string) {
 	var tb textbuf.Buffer
@@ -73,9 +76,9 @@ func familySet(name string, setType firewall.SetType, prefixes []netip.Prefix) f
 // Two paths carry the check. verifyStored refuses the commit, and applyTables
 // refuses the apply for a copy the reader read after the commit: the irr
 // plugin's refresh of a set already committed, or a restart reading the
-// stored copy. The irr plugin bounds a family at the same 500,000
-// (store.DatasetFamilyMax); this bound is the firewall set's own, and a test
-// lowers it.
+// stored copy. The bound is store.DatasetFamilyMax, so a copy the store
+// decoded always fits; the check stays as the second path of that bound, and
+// a test lowers it.
 func oversizedEntryError(name string, entry *store.CachedEntry) error {
 	if entry == nil {
 		return nil
