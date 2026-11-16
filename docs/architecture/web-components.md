@@ -429,6 +429,16 @@ sibling.
 <!-- source: internal/test/markupcheck/assets.go -- AssertAssetsResolve -->
 <!-- source: internal/test/templcheck/templcheck.go -- AssertTyped -->
 
+For candidate review, golden capture tests accept `-update-golden -golden-output
+<directory>`. The capture mirrors each fixture path under that directory and
+leaves the original fixture unchanged. Without `-update-golden`, comparison
+still reads the original fixture. Directory coverage still checks the original
+fixtures, so new cases report missing fixtures after their candidate bytes are
+written. Run capture through the named `./le job run` action with the package's
+feature tags, as described in `docs/contributing/running-commands.md`.
+<!-- source: internal/test/golden/golden.go -- Compare -->
+<!-- source: internal/test/golden/names.go -- AssertCoversDir -->
+
 Direct string literals and concatenations in `opererr.New` and `opererr.Wrap`
 text arguments follow their plain-text contract, so multiword command
 placeholders stay text. The guard resolves the canonical import and its alias,

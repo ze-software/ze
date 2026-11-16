@@ -44,6 +44,11 @@ import (
 var update = flag.Bool("update-golden", false,
 	"rewrite the golden fixtures in testdata/golden from the current templates")
 
+// output keeps candidate captures separate from the fixtures under review.
+// It changes only update writes, so a comparison always reads its fixture.
+var output = flag.String("golden-output", "",
+	"mirror captured fixture paths under this directory with -update-golden")
+
 // Updating reports whether -update-golden was given. A capture run writes every
 // fixture, so the checks that judge a comparison do not apply to it.
 func Updating() bool { return *update }
@@ -387,12 +392,17 @@ func (s Set) FixturePath(root, file, fixture string) string {
 	return filepath.Join(root, dir, tb.Str(strings.TrimSuffix(fixture, ".html")).Str(".html").String())
 }
 
-// Compare diffs rendered bytes against the fixture, or rewrites the fixture
-// when -update-golden is set.
+// Compare diffs rendered bytes against the fixture, or captures the bytes when
+// -update-golden is set. With -golden-output, the capture mirrors the fixture
+// path under that directory and leaves the original fixture unchanged.
 func Compare(t *testing.T, path string, got []byte) {
 	t.Helper()
 
 	if *update {
+		if *output != "" {
+			path = filepath.Join(*output, path)
+		}
+
 		if err := os.MkdirAll(filepath.Dir(path), 0o750); err != nil {
 			t.Fatalf("create %s: %v", filepath.Dir(path), err)
 		}

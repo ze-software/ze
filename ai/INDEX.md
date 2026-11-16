@@ -595,7 +595,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | graphical configuration actions, confirmed commit, browser CLI format, set cli format | `docs/guide/config-editor.md`, `internal/component/web/graphical_actions.go`, `internal/component/web/cli_format.go`, `internal/component/cli/session_format.go`, `test/web/cli-session-format.wb` |
 | templ, `.templ`, generated markup, view-model type safety | `./le doc check templ-output` (Dev Tools above), `tools.go`, `internal/component/web/templ_typesafety_test.go` |
 | per-page asset imports, `page_assets.go`, `pageAssets`, `//ze:page`, htmx extension per page | `./le web assets check` (Dev Tools above), `internal/le/web/assets.Write`, `internal/test/markupcheck/head.go` |
-| golden fixture, rendered markup, template bytes, byte-for-byte HTML | `go test ./internal/component/web ./internal/component/lg`, `internal/test/golden`, `web-interface.md` |
+| golden fixture, candidate capture, golden-output, rendered markup, template bytes, byte-for-byte HTML | `docs/architecture/web-components.md` (Markup guards), `internal/test/golden` |
 | rendering-engine port, pre-port bytes, normalized HTML comparison | `go test -run 'Test(Web|LG)TemplPortFidelity' ./internal/component/web ./internal/component/lg -port-ref=<sha>`, `internal/test/golden/portcheck.go`, `internal/test/golden/normalize.go` |
 | HTML in a Go string, inline script, inline style, `onclick`, `hx-on`, CSP `'self'`, asset 404, `map[string]any` in a component | `internal/test/markupcheck`, `internal/test/templcheck` (Dev Tools above), `ai/rules/architecture.md` ("Server-Rendered Markup") |
 | subsystem, wiring, plugin manager | `subsystem-wiring.md`, `plugin-manager-wiring.md` |
