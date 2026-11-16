@@ -61,6 +61,7 @@ native owner of each hook family is listed in `.claude/hooks/README.md`.
 | design-source gate locks a spec over `cache/go-cache`; daemon-proof refusal names no path | 1 (2026-11-14) | Fixed at the source 2026-11-14 | [entry](#a-cache-directory-locked-a-spec-and-the-proof-refusal-named-no-path-2026-11-14) |
 | design-source gate judges a historical `### Current Behavior` and refuses a check name under the `ze` file; the daemon-proof gate refuses the same name | 1 (2026-11-15) | Fixed at the source 2026-11-15 | [entry](#the-design-gate-read-a-github-check-name-as-a-producer-path-2026-11-15) |
 | `pretool-bash` identity rewrite (`updatedInput`) voided by auto mode | about 490 (three weeks to 2026-11-11) | Rewrite removed 2026-11-11; live probe passed the same day, retired | [entry](#the-bash-hook-rewrote-every-subagent-command-and-auto-mode-voided-the-call-2026-11-11) |
+| `pretool-bash` `bashSystemTmp` and `bashSubagentHeavy` read a here-document body a reader writes to a file as commands | 2 (2026-11-14, 2026-11-16) | Open | [entry](#the-bash-hook-read-a-report-saved-through-a-here-document-as-commands-2026-11-16) |
 
 ### Renamed checks
 
@@ -2184,3 +2185,43 @@ name under a file would still refuse instead of resolving as shorthand.
 its heading line, never by a substring, or the rest of the document becomes
 the section. And ENOTDIR is an answer, not a failure to look: a path below a
 regular file does not exist.
+
+---
+
+## The Bash hook read a report saved through a here-document as commands (2026-11-16)
+
+**Hook:** `bashSystemTmp` over `namesSystemTmp`
+(`internal/le/hookruntime/systemtmp.go`), and `bashSubagentHeavy` over
+`heavyWork` and `unquotedSegments`
+(`internal/le/hookruntime/subagent_heavy.go`).
+
+**Trigger.** A subagent saved a report with `cat > <file under its session
+scratch directory> <<'DELIM'`. The body was a markdown report that cited, as
+prose, a `go build` command line and a path under the system temporary
+directory. Nothing in the body runs: the delimiter is quoted and `cat` prints
+what it is handed.
+
+**Blocks.** The call was refused with `BLOCKED: a subagent does not run go
+build` and with `Blocked: /tmp access is forbidden`.
+
+**Cause, read at the producers.** The write redirection makes the line no
+reader line (`ctxReaderLine`), so each guard falls back to a judgment of the
+text. `namesSystemTmp` then matches the `systemTmp` pattern over the whole
+command, the body included. `heavyWork` reads the commands of the parse
+first, and `cat` is not heavy, then cuts the command with `unquotedSegments`,
+which sets aside single-quoted and double-quoted parts and no here-document
+body, so each body line is read as a command. `bashScratch` is the one guard
+that blanks such a body first (`withoutReaderData`,
+`internal/le/hookruntime/readerdata.go`), from the same parse the other two
+hold.
+
+**Workaround.** None was used, and none is sanctioned: a refused command is
+never run from a wrapper (`ai/META-DECISIONS.md`, "How agents work"). The
+Write tool saves the same report without a shell line.
+
+**Evidence.** The two refusal texts above, met by a subagent of the session
+holding `spec-container-0-umbrella` on 2026-11-16. The command was not kept,
+and the cause is read from the code, not reproduced.
+`plan/journal/hook-existing-patterns-false-positive.md` holds the row, and
+its 2026-11-14 `unquotedSegments` row is the heavy-work half met earlier.
+`plan/post-release/engineering/spec-hook-le-data-arguments.md` owns both.

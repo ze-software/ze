@@ -39,6 +39,18 @@ by decision ("a quoted string may be run by the command that receives it").
 A `./le commit create` line is not a reader line, so the refusal survives that
 spec.
 
+**Second symptom, same class (2026-11-14, 2026-11-16).** A here-document body
+that a reader only prints into a file (`cat > <session scratch file>
+<<'DELIM'`) is data too, and three guards read it as commands. `heavyWork`
+(`internal/le/hookruntime/subagent_heavy.go`) cuts it into lines through
+`unquotedSegments`, which sets aside quoted parts and no here-document body.
+`namesSystemTmp` (`internal/le/hookruntime/systemtmp.go`) matches `systemTmp`
+over the whole command text of any line that is not a reader line, and a
+write redirection makes it one. `bashTestDeletion` adds every body word.
+`bashScratch` alone blanks such a body first (`withoutReaderData`,
+`internal/le/hookruntime/readerdata.go`). The owned rows below name each
+occurrence.
+
 **Goal.** The bash guards know which arguments of a `./le` command are data
 that no shell runs (a commit subject or body, a review or approval reason, a
 `no-news` reason), declared by the command that owns them rather than listed
@@ -130,3 +142,4 @@ job typed anywhere it can run.
 | `hook-existing-patterns-false-positive` | 2026-11-14 | `heavyWork` over `unquotedSegments`: launcher words in a here-document body written to a file read as a subagent's heavy run |
 | `hook-existing-patterns-false-positive` | 2026-11-14 | `bashTestDeletion` (`readDeletionWords` adds every here-document word): the word `rm` in a note appended to a session state file read as deleting the test paths it names |
 | `hook-existing-patterns-false-positive` | 2026-11-14 | `testPath` matches `_test.go` in any tree: deleting an untracked scratch copy under `tmp/`, and moving a test file aside, read as deleting a test |
+| `hook-existing-patterns-false-positive` | 2026-11-16 | `bashSystemTmp` over `namesSystemTmp`, and `heavyWork` again: a `/tmp/` path and a `go build` line quoted as prose in a here-document body `cat` writes to session scratch read as `/tmp` access and a subagent's build |
