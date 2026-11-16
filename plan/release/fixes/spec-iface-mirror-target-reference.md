@@ -50,7 +50,7 @@ The scope is widened to two parts:
 | Part | Leaves | State |
 |------|--------|-------|
 | 1 | `mirror ingress`, `mirror egress` (AC-1 to AC-5) | Implemented: AC-1 and AC-2 in b2bb71058e, AC-3 and the mirrors installed after the per-entry loop in 38906b1d12. AC-4 and AC-5 unchanged behavior, with AC-4 extended to a VLAN-unit target. The two privileged `.ci` tests passed as root in Ze's QEMU guest on 2026-11-15 |
-| 2 | Every other leaf that names an interface (AC-6 to AC-9) | Design below, decided 2026-11-15 (Option B): a leaf that configures an interface Ze owns becomes a reference, and a protocol or match leaf keeps naming kernel devices. Not implemented |
+| 2 | Every other leaf that names an interface (AC-6 to AC-11), and the shared resolver's VLAN units (AC-12, Part 3) | Design below, decided 2026-11-15 (Option B): a leaf that configures an interface Ze owns becomes a reference, and a protocol or match leaf keeps naming kernel devices. Implemented: AC-6 to AC-11 in beabc01283, AC-12 in 820ded2b0d |
 
 ## Required Reading
 
@@ -276,6 +276,28 @@ device it needs appears.
 | 2 | Config syntax changed? | No | the grammar is unchanged; the accepted values narrow, as the leaf descriptions say |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/iface/logical-name-resolution.md` (done) |
 
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| `configured-interface` reference source registered by iface | `grep -n 'RegisterReferenceSource(ConfiguredInterfaceReference' internal/component/iface/register_interface_reference.go` |
+| The reference on mirror ingress and egress, bridge member, both tunnel local interfaces, pppoe-client source-interface, PPPoE server interface key | `grep -c 'ze:reference "configured-interface"' internal/component/iface/yang/ze-iface-conf.yang internal/component/l2tp/pppoe/yang/ze-pppoe-conf.yang` (6 and 1) |
+| One binder for every reference leaf | `grep -n 'func newInterfaceTargets\|func (t interfaceTargets) device\|func tunnelSpecOnDevices' internal/component/iface/interface_targets.go` |
+| Bridge VLAN-unit members enslaved after the VLAN loop | `grep -n 'enslaveBridgeMembers' internal/component/iface/config_apply.go` (two calls) |
+| The resolver binds a VLAN unit through its parent | `grep -n 'func (r \*resolver) unitDeviceFor\|func (c \*ifaceConfig) selectedUnitMap' internal/component/iface/resolve.go` |
+| Parse, reload and privileged functional tests | `ls test/parse/iface-mirror-target-undeclared.ci test/parse/iface-reference-leaves-undeclared.ci test/reload/iface-mirror-target-undeclared-refused.ci test/reload/tx-iface-mirror-target-delete-refused.ci test/plugin/iface-mirror-vlan-target-selector.ci test/pppoe/pppoe-vlan-unit-of-selected-parent.ci` |
+| Repository users converted | `./le test unit pkg path ./internal/component/config/cli/ run TestRepositoryConfigsValidate` refuses no config naming an undeclared interface |
+| Design page states the rule | `grep -n 'configured-interface' docs/architecture/iface/logical-name-resolution.md` |
+
+### Security Review Checklist
+
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | Every value of a reference leaf is checked against the names the candidate config declares, at validate, boot, reload and commit; the refusal text quotes the value, and the value is a YANG string with no shell or path use |
+| Wrong-device binding | No reference leaf reaches the kernel by its literal logical name: mirror, bridge member, tunnel local interface and the resolver's VLAN units bind through the selector map, and an unbound name defers or fails, never falls back |
+| Resource exhaustion | The refusal lists at most `configuredInterfaceChoicesMax` names; the resolver's unit map and the appearing superset are bounded by the config's declared units |
+| Error leakage | Refusals name config names and the fix command only, never kernel internals beyond the device name the operator configured |
+
 ## Implementation Steps
 1. **Phase: Wiring** -- the failing `.ci` tests (done for AC-1, AC-2: b2bb71058e)
 2. **Phase: Verify check** -- AC-1, AC-2 (done: b2bb71058e)
@@ -312,13 +334,13 @@ device it needs appears.
 ## Checklist
 
 ### Goal Gates (MUST pass)
-- [ ] `./le test bgp parse` and `./le test bgp reload` for the new `.ci` files; the iface unit package through `./le test unit pkg path` (Part 1: the parse and reload `.ci` files red without the `ze:reference` lines and green with them, b2bb71058e; the iface package passes, 38906b1d12)
-- [ ] The two privileged `.ci` files (`tx-iface-mirror-target-delete-refused`, `iface-mirror-vlan-target-selector`) run on Linux with CAP_NET_ADMIN, and each passes the ze-test stress run (Part 1: both PASS as root in Ze's QEMU guest on 2026-11-15; no stress run recorded)
+- [x] `./le test bgp parse` and `./le test bgp reload` for the new `.ci` files; the iface unit package through `./le test unit pkg path` (Part 1: the parse and reload `.ci` files red without the `ze:reference` lines and green with them, b2bb71058e; the iface package passes, 38906b1d12, beabc01283, 820ded2b0d)
+- [x] The privileged `.ci` files (`tx-iface-mirror-target-delete-refused`, `iface-mirror-vlan-target-selector`, `pppoe-vlan-unit-of-selected-parent`) run on Linux with CAP_NET_ADMIN (all PASS as root in Ze's QEMU guest, 2026-11-15 and 2026-11-16). No ze-test stress run is possible for a `caps=` test today: `plan/journal/gate-excludes-part-of-its-population.md`, 2026-11-16 row, owned by `spec-gates-share-one-semantic-population`
 
 ### TDD
 - [x] Tests written
-- [ ] Tests FAIL (paste output) (Part 1: red before the fix, recorded in b2bb71058e and 38906b1d12)
-- [ ] Tests PASS (paste output) (Part 1: green in the same commits, and the two QEMU runs above)
+- [x] Tests FAIL (red before each fix, recorded in b2bb71058e, 38906b1d12, beabc01283 and 820ded2b0d)
+- [x] Tests PASS (green in the same commits, and the QEMU runs above)
 
 ## Owned journal rows
 
@@ -326,3 +348,142 @@ device it needs appears.
 |------------|------|-----------------|
 | `validate-accepts-what-start-refuses.md` | 2026-11-08 | mirror target is an unchecked free string (fixed: b2bb71058e, 38906b1d12) |
 | `validate-accepts-what-start-refuses.md` | 2026-11-16 | the shared resolver resolved a VLAN unit of a selector-bound entry by its literal name (AC-12, fixed) |
+
+## Closure
+
+### Bugs Found/Fixed
+- Mirrors installed inside the Phase 2 loop failed toward a later entry's VLAN (38906b1d12; `TestMirrorTowardALaterEntrysVLANWaitsForTheVLAN`)
+- A VLAN-unit bridge member was enslaved by its literal name before the VLAN existed (beabc01283; `TestBridgeMemberVLANUnitFollowsItsParentsSelector`, `TestBridgeMemberVLANUnitWaitsForTheVLAN`)
+- A tunnel's local interface reached the backend as a logical name (beabc01283; `TestTunnelLocalInterfaceFollowsItsSelector`, `TestTunnelOnAnUnboundLocalInterfaceFailsNamingIt`)
+- The PPPoE server `interface` description claimed an absent device is skipped (beabc01283, description corrected)
+- Closure: the pppoe-client `source-interface` `ze:help` was 103 characters, over the 96-character summary cap `./le doc check all` enforces, and named only `interface ethernet` while the reference accepts any declared kind and VLAN units (rewritten in `ze-iface-conf.yang`)
+- Closure: `register_interface_reference.go` said only the mirror leaves use the source, and both reference files' headers named `config_mirror.go` as the binder (now `interface_targets.go`)
+
+### Documentation Updates
+- `docs/architecture/iface/logical-name-resolution.md` (b2bb71058e, 38906b1d12, beabc01283, 820ded2b0d), `docs/features/interfaces.md` (b2bb71058e, 38906b1d12), `docs/guide/pppoe.md` and `docs/guide/configuration.md` (beabc01283), `ai/digests/iface.md` (38906b1d12, beabc01283), each with source anchors
+- `./le doc check all` at closure: the only failure this spec caused was the `source-interface` summary cap, fixed in commit A's YANG; it reads the built schema, so the rerun is owed after a rebuild. Its other failures (`docs/research/l2tpv2-ze-integration.md` anchors to two deleted VPP files) are not this spec's
+
+### Deviations from Plan
+- Part 2 dropped the planned wildcard source `configured-interface-match`: under Option B no reference leaf takes a wildcard (Part 2 as built)
+- `ipv4 unnumbered` kept its own donor check rather than becoming a reference (Part 2 as built)
+- AC-12 was added as Part 3 after the Part 2 census found the resolver gap; the owner-approved scope covers it (Owned journal rows)
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Part 2 changed the `source-interface` `ze:help` without checking the summary rules | `./le doc check all` caps a one-line summary at 96 characters | the closure's doc check | Fixed in commit A; the YANG write hook warns on a `ze:help` it can judge, and the doc check is the gate |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| Refuse an undeclared mirror target | Done | `interface_reference.go` `checkConfiguredInterface`; `ze-iface-conf.yang` mirror leaves | AC-1 |
+| Refuse deleting a referenced target | Done | the same whole-tree `ValidateReferences` walk | AC-2 |
+| Bind a unit target through its parent's selector | Done | `interface_targets.go` `interfaceTargets.device` | AC-3 |
+| Part 2 leaves become references, Option B | Done | `ze-iface-conf.yang`, `ze-pppoe-conf.yang` | AC-6 to AC-11 |
+| Shared resolver binds selector-bound VLAN units | Done | `resolve.go` `unitDeviceFor`, `selectedUnitMap` | AC-12 |
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `test/parse/iface-mirror-target-undeclared.ci`, `test/reload/iface-mirror-target-undeclared-refused.ci` | red without the reference lines |
+| AC-2 | Done | `test/reload/tx-iface-mirror-target-delete-refused.ci` | QEMU root PASS |
+| AC-3 | Done | `test/plugin/iface-mirror-vlan-target-selector.ci`, `TestMirrorToAVLANUnitFollowsItsParentsSelector` | QEMU root PASS |
+| AC-4 | Done | `TestMirrorDefersWhenItsDestinationIsAbsent`, `TestMirrorToAVLANUnitDefersWhenItsParentIsUnbound` | |
+| AC-5 | Done | `TestMirrorDestinationFollowsItsSelector`, AC-3's `.ci` | |
+| AC-6 | Done | `test/parse/iface-reference-leaves-undeclared.ci` seq 1 to 4; `TestUnnumberedCommitRefusals` for the donor | each seq red with its leaf's reference removed |
+| AC-7 | Done | the same `.ci`, seq 5: `pppoe` and every user written before the `interface` entries | |
+| AC-8 | Done | seq 5: `unnumbered loopback`, firewall `ppp*`, OSPF `eth7` undeclared, tunnel on declared `pppoe0` | |
+| AC-9 | Done | `TestRepositoryConfigsValidate` validated 3337 configs; only `test/web/fixtures/cli-load.conf` refused, for BGP mandatory leaves | |
+| AC-10 | Done | `TestBridgeMemberVLANUnitFollowsItsParentsSelector`, `TestBridgeMemberVLANUnitWaitsForTheVLAN` | red against the previous apply |
+| AC-11 | Done | `TestTunnelLocalInterfaceFollowsItsSelector`, `TestTunnelOnAnUnboundLocalInterfaceFailsNamingIt` | |
+| AC-12 | Done | `TestResolveVLANUnit*`, `TestSubscribeVLANUnitReceivesItsDevicesEvents`, `test/pppoe/pppoe-vlan-unit-of-selected-parent.ci` | QEMU root PASS, red without the change |
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| `TestConfiguredInterfaceReference*` (three) | Done | `internal/component/iface/interface_reference_test.go` | |
+| `TestMirrorToAVLANUnit*`, `TestMirrorTowardALaterEntrysVLANWaitsForTheVLAN` | Done | `internal/component/iface/config_mirror_test.go` | |
+| AC-10, AC-11 tests (four) | Done | `internal/component/iface/interface_targets_test.go` | |
+| AC-12 tests (four, `TestSelectedUnitMapScope` included) | Done | `internal/component/iface/resolve_unit_test.go` | |
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+| Part 1 files (Files to Modify, Files to Create) | Done | b2bb71058e, 38906b1d12, 0639008115 |
+| `interface_targets.go`, `config_bridge_members.go`, `interface_targets_test.go`, `ze-pppoe-conf.yang`, `test/parse/iface-reference-leaves-undeclared.ci`, 54 converted configs | Done | beabc01283; not listed in Files to Modify, which predates Part 2 |
+| `resolve.go`, `resolve_unit_test.go`, `test/pppoe/pppoe-vlan-unit-of-selected-parent.ci` | Done | 820ded2b0d |
+
+### Audit Summary
+- **Total items:** 12 AC, 5 requirements
+- **Done:** all
+- **Partial:** 0
+- **Skipped:** 0
+- **Changed:** 3 (Deviations from Plan)
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| Verify refuses a target the `interface` tree does not declare | functional, negative | `test/parse/iface-mirror-target-undeclared.ci`, `test/parse/iface-reference-leaves-undeclared.ci` (red with each reference removed), `test/reload/iface-mirror-target-undeclared-refused.ci` |
+| Verify refuses deleting a referenced target, naming the user | functional, real kernel | `test/reload/tx-iface-mirror-target-delete-refused.ci`, root in Ze's QEMU guest: the refused reload leaves the tc mirred filter copying to the target |
+| The apply binds a unit target through its parent's selector | functional, real kernel | `test/plugin/iface-mirror-vlan-target-selector.ci` (MIRROR-TO `zvmt0.100`, decoy untouched) and `test/pppoe/pppoe-vlan-unit-of-selected-parent.ci` (PADO and PADS on the VLAN of the os-name device), both root in Ze's QEMU guest |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| A tunnel whose `local interface` is a VLAN unit of the same config fails its first apply | Phase 1 creates the tunnel before Phase 2 creates the VLAN; the fix applies an entry when its device appears | `plan/release/fixes/spec-iface-apply-on-device-appear.md` (journal row 2026-11-16 in its Owned journal rows) |
+| The ze-test stress run of the three privileged `.ci` files | `le test stress-repro run` cannot stress a `caps=` test: skipped on the host, no Go toolchain in Ze's guest | `plan/post-release/engineering/spec-gates-share-one-semantic-population.md` (journal row 2026-11-16 of `gate-excludes-part-of-its-population.md`) |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | recorded by `./le spec review record` (path in the closing agent's report) |
+| `./le spec review check` | run by the closing agent after recording |
+| Rounds | 2 |
+| Reviewer lenses used | logic and wiring over the five commits' Go and YANG (`git show b2bb71058e 38906b1d12 0639008115 beabc01283 820ded2b0d`); security and edge cases (input bounds, wrong-device fallback, os-name plus mac match parents); docs and style (`./le doc check all`, `./le repo check`, `./le test weakened check base b2bb71058e~1`: clean) |
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| 1 | ISSUE | pppoe-client `source-interface` `ze:help` over the 96-character summary cap, and narrower than the reference it describes | `internal/component/iface/yang/ze-iface-conf.yang` | rewritten as "Declared interface for PPPoE discovery (e.g. eth2), usually an ethernet entry." |
+| 2 | ISSUE | stale comments: the source's registration names only the mirror leaves, and both headers name `config_mirror.go` as the binder | `register_interface_reference.go` `init`, `interface_reference.go` header | comment and headers restated for the six leaves and `interface_targets.go` |
+
+NOTEs (no change): a VLAN unit of an entry carrying both `os-name` and `mac match` is in the reverse map under the `os-name` device, so an event on that device reaches it, exactly as it already reaches the parent; apply-time tunnel errors are `fmt.Errorf` like the rest of the apply path. Round 2 read the two fixes: no finding.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+| the six `.ci` files and five Go files of Deliverables | yes | `ls` at closure listed all eleven |
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-6 | six references in ze-iface-conf, one in ze-pppoe-conf | `grep -c 'ze:reference "configured-interface"'` answered 6 and 1 |
+| AC-3, AC-10, AC-11 | one binder | `interface_targets.go` defines `newInterfaceTargets`, `interfaceTargets.device` and `tunnelSpecOnDevices`; `applyConfigPass` calls `enslaveBridgeMembers` twice |
+| AC-12 | resolver binds units | `selectedDeviceFor` calls `unitDeviceFor`; `setResolverConfig` publishes `selectedUnitMap` |
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| `ze config validate` | `test/parse/iface-reference-leaves-undeclared.ci` | read: seq 1 to 4 refuse with path and fix, seq 5 accepts |
+| PPPoE server start | `test/pppoe/pppoe-vlan-unit-of-selected-parent.ci` | read: `interface access.100` on `os-name veth-bng`, fixture asserts PADO and PADS |
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| none declared | n/a | the spec carries no Risks and Assumptions rows |
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| Architecture: which leaves are references, one binder, resolver units | `logical-name-resolution.md`, the reference and resolution-path sections, against `interface_targets.go` and `resolve.go` | yes |
+| User guide: declared access and source interfaces | `docs/guide/pppoe.md`, `docs/guide/configuration.md` against `checkConfiguredInterface` | yes |
+| Config syntax | grammar unchanged; the YANG descriptions state the narrowed values | yes |
+| CLI, API, plugin SDK, wire, RFC | No: no command, RPC, SDK, wire or RFC change (`git show --stat` of the five commits) | yes |

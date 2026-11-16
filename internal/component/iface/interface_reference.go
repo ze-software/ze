@@ -1,6 +1,6 @@
-// Design: docs/architecture/iface/logical-name-resolution.md -- a mirror destination names an interface the config declares
+// Design: docs/architecture/iface/logical-name-resolution.md -- a leaf that configures an interface Ze owns names one the config declares
 // Related: register_interface_reference.go -- the registration of this source
-// Related: config_mirror.go -- mirrorDestination, which binds the name this source accepted
+// Related: interface_targets.go -- interfaceTargets, which binds the name this source accepted
 
 package iface
 

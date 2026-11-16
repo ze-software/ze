@@ -1909,8 +1909,7 @@ Ze sends a priority with no entry as PCP 0.";
                              refuses any other name. Ze opens a raw discovery socket bound to this
                              device and sends the PADI frame on it. The source MAC of the frame is
                              the device's own hardware address.";
-                ze:help "Physical Ethernet interface for PPPoE discovery
-                         (e.g. eth2). Must be declared under interface ethernet.";
+                ze:help "Declared interface for PPPoE discovery (e.g. eth2), usually an ethernet entry.";
             }
 
             container authentication {
