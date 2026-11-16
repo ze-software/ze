@@ -12,7 +12,6 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -54,8 +53,8 @@ func purgedBatches(bus *testEventBus) []*bestChangeBatch {
 func TestPurgeWithdrawKeepsABestElectedConcurrently(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r,
+		netip.MustParseAddr("192.168.40.40"), netip.MustParseAddr("192.168.41.41"))
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	leaving := netip.MustParseAddr("192.0.2.40")
@@ -117,6 +116,8 @@ func TestPurgeWithdrawKeepsABestElectedConcurrently(t *testing.T) {
 func TestPurgePublishesEachRouteAsItIsElected(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r,
+		netip.MustParseAddr("192.168.50.50"), netip.MustParseAddr("192.168.51.51"))
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	leaving := netip.MustParseAddr("192.0.2.50")

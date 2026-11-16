@@ -313,6 +313,7 @@ func TestRecoveryAnswersOrderedCandidates(t *testing.T) {
 	recoveryTestCleanup(t, r)
 	dest := netip.MustParseAddr("192.0.2.20")
 	low, mid, high := netip.MustParseAddr("192.0.2.11"), netip.MustParseAddr("192.0.2.12"), netip.MustParseAddr("192.0.2.13")
+	electionFixtureLocRIB(t, r, low, mid, high)
 	ladder := []byte{24, 198, 51, 100}
 	recoveryReceived(r, low, ladder, 100, 81, false, nil)
 	recoveryReceived(r, high, ladder, 250, 83, false, nil)
@@ -709,6 +710,7 @@ func TestRecoveryLimitedAddPathElectionOrder(t *testing.T) {
 	dest := netip.MustParseAddr("192.0.2.20")
 	multi := netip.MustParseAddr("192.0.2.11")
 	mid, high := netip.MustParseAddr("192.0.2.12"), netip.MustParseAddr("192.0.2.13")
+	electionFixtureLocRIB(t, r, multi, mid, high, netip.MustParseAddr("192.0.2.14"))
 	key := limitedFixture(t, r, dest, multi, mid, high)
 	limited := func(limit uint16, keys ...ribevents.RecoveryKey) []ribevents.RecoveryOutcome {
 		t.Helper()
