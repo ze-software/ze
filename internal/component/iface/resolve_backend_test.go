@@ -75,7 +75,7 @@ func TestResolveForBackendBypassesForeignCache(t *testing.T) {
 	if err := LoadBackend(selected); err != nil {
 		t.Fatal(err)
 	}
-	globalResolver.setMapping(map[string]string{"logical": "actual0"}, nil)
+	globalResolver.setMapping(map[string]string{"logical": "actual0"}, nil, nil)
 	globalResolver.cache["logical"] = Binding{OsName: "foreign0", Ifindex: 999}
 	got, err := ResolveForBackend(selected, "logical")
 	if err != nil {
@@ -116,7 +116,7 @@ func TestResolveForBackendUsesCapturedMACListing(t *testing.T) {
 	if err := LoadBackend(selected); err != nil {
 		t.Fatal(err)
 	}
-	globalResolver.setMapping(map[string]string{"logical": "wrong0"}, map[string]string{"logical": "02:03:04:05:06:07"})
+	globalResolver.setMapping(map[string]string{"logical": "wrong0"}, map[string]string{"logical": "02:03:04:05:06:07"}, nil)
 	got, err := ResolveForBackend(selected, "logical")
 	if err != nil {
 		t.Fatal(err)

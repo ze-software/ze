@@ -1,0 +1,49 @@
+# Test: a PPPoE access VLAN unit of an os-name-bound entry serves the VLAN of
+# the device the selector chose.
+#
+# QUESTION: does the shared resolver, which the PPPoE server uses to turn its
+#           access interface into a kernel device, bind a VLAN unit
+#           <entry>.<vlan-id> through its parent's selector? A unit test of the
+#           resolver cannot decide it: only a running server answering PADI on
+#           the tagged segment shows the binding reached the dataplane.
+# VALIDATES: spec-iface-mirror-target-reference AC-12. The access interface is
+#            access.100, a unit of the ethernet entry access, which os-name
+#            binds to veth-bng. The server binds veth-bng.100 and answers PADI
+#            and PADR on the tagged segment.
+# PREVENTS: the measured defect. The resolver looked access.100 up literally,
+#           found no device of that name, and the access concentrator never
+#           started, so the client on veth-sub.100 got no PADO.
+#
+# The runner builds the veth pair and both .100 sub-interfaces inside this
+# test's own network namespace. Ze keeps the VLAN it finds rather than creating
+# a second one.
+option=needs-linux:caps=net-admin,net-raw
+option=netns-link:name=veth-bng:peer=veth-sub:vlan=100
+
+
+stdin=config:terminator=EOF_CONF
+interface {
+    ethernet access {
+        os-name veth-bng
+        unit 100 {
+            vlan-id 100
+        }
+    }
+}
+
+pppoe {
+    enabled true
+    ac-name ze-vlan-unit-test
+    interface access.100 {
+    }
+}
+EOF_CONF
+
+option=env:var=ze.log.pppoe:value=debug
+option=env:var=TEST_IFACE:value=veth-sub.100
+
+cmd=background:seq=1:exec=ze -:stdin=config
+cmd=foreground:seq=2:exec=le test fixture pppoe/vlan:timeout=45s
+expect=exit:code=0
+expect=stdout:contains=OK: PADO received on VLAN interface
+expect=stdout:contains=OK: PADS received on VLAN

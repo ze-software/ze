@@ -194,7 +194,7 @@ func TestResolveByOsName(t *testing.T) {
 		"eth0": {Name: "eth0", OsName: "eth0", Index: 9, MTU: 1500, State: "up"},
 	}})
 	r := freshResolver()
-	r.setMapping(map[string]string{"uplink": "eth0"}, nil)
+	r.setMapping(map[string]string{"uplink": "eth0"}, nil, nil)
 
 	b, err := r.resolve("uplink")
 	if err != nil {
@@ -233,7 +233,7 @@ func TestAddressesScopeSplit(t *testing.T) {
 // a late-appearing interface, including across an os-name mapping (AC-4).
 func TestSubscribeAppeared(t *testing.T) {
 	r := freshResolver()
-	r.setMapping(map[string]string{"uplink": "eth0"}, nil)
+	r.setMapping(map[string]string{"uplink": "eth0"}, nil, nil)
 
 	ch, cancel := r.subscribe("uplink")
 	defer cancel()
@@ -324,7 +324,7 @@ func TestNoNetlinkLeakInAPI(t *testing.T) {
 // confirms the same event invalidates the cache entry for the logical name.
 func TestBindEventsDeliversRemappedEvent(t *testing.T) {
 	r := freshResolver()
-	r.setMapping(map[string]string{"uplink": "eth0"}, nil)
+	r.setMapping(map[string]string{"uplink": "eth0"}, nil, nil)
 
 	bus := newEmitBus()
 	r.bindEvents(bus)
@@ -365,7 +365,7 @@ func TestPublicResolveWiring(t *testing.T) {
 	withResolveBackend(t, &resolveStubBackend{ifaces: map[string]*InterfaceInfo{
 		"lo": {Name: "lo", OsName: "lo", Index: 1, MTU: 65536, State: "up"},
 	}})
-	globalResolver.setMapping(nil, nil)
+	globalResolver.setMapping(nil, nil, nil)
 	globalResolver.mu.Lock()
 	globalResolver.cache = make(map[string]Binding)
 	globalResolver.mu.Unlock()
@@ -410,7 +410,7 @@ func TestResolveByPermMAC(t *testing.T) {
 	))
 	r := freshResolver()
 	// An uppercase config value must normalize and still match eth1.
-	r.setMapping(nil, map[string]string{"uplink": "AA:BB:CC:DD:EE:02"})
+	r.setMapping(nil, map[string]string{"uplink": "AA:BB:CC:DD:EE:02"}, nil)
 
 	b, err := r.resolve("uplink")
 	if err != nil {
@@ -434,7 +434,7 @@ func TestResolveByPermMACPrefersPermanentOverCurrent(t *testing.T) {
 	r.setMapping(nil, map[string]string{
 		"perm": "aa:bb:cc:dd:ee:ff", // permanent -> binds
 		"oper": "02:00:00:00:00:99", // overridden current -> must NOT bind
-	})
+	}, nil)
 
 	if b, err := r.resolve("perm"); err != nil || b.Ifindex != 7 {
 		t.Errorf("match on permanent MAC must bind eth0: b=%+v err=%v", b, err)
@@ -451,7 +451,7 @@ func TestResolveByPermMACFallsBackToCurrent(t *testing.T) {
 		&InterfaceInfo{Name: "veth9", OsName: "veth9", Index: 12, MTU: 1500, State: "up", MAC: "02:00:00:00:00:0c"},
 	))
 	r := freshResolver()
-	r.setMapping(nil, map[string]string{"lab": "02:00:00:00:00:0c"})
+	r.setMapping(nil, map[string]string{"lab": "02:00:00:00:00:0c"}, nil)
 
 	b, err := r.resolve("lab")
 	if err != nil {
@@ -473,6 +473,7 @@ func TestResolveByPermMACPrecedence(t *testing.T) {
 	r.setMapping(
 		map[string]string{"uplink": "eth0"},              // os-name -> eth0
 		map[string]string{"uplink": "aa:bb:cc:00:00:02"}, // mac/match -> eth1 (wins)
+		nil,
 	)
 
 	b, err := r.resolve("uplink")
@@ -491,7 +492,7 @@ func TestResolveByPermMACAbsent(t *testing.T) {
 		&InterfaceInfo{Name: "eth0", OsName: "eth0", Index: 1, MTU: 1500, State: "up", PermanentMAC: "aa:bb:cc:00:00:01"},
 	))
 	r := freshResolver()
-	r.setMapping(nil, map[string]string{"uplink": "de:ad:be:ef:00:01"})
+	r.setMapping(nil, map[string]string{"uplink": "de:ad:be:ef:00:01"}, nil)
 
 	if _, err := r.resolve("uplink"); err == nil {
 		t.Fatal("absent mac/match device must return not-found, not a binding")
@@ -513,7 +514,7 @@ func TestSubscribePermMACAppeared(t *testing.T) {
 		&InterfaceInfo{Name: "eth5", OsName: "eth5", Index: 5, MTU: 1500, State: "up", PermanentMAC: "aa:bb:cc:dd:ee:05"},
 	))
 	r := freshResolver()
-	r.setMapping(nil, map[string]string{"uplink": "aa:bb:cc:dd:ee:05"})
+	r.setMapping(nil, map[string]string{"uplink": "aa:bb:cc:dd:ee:05"}, nil)
 
 	ch, cancel := r.subscribe("uplink")
 	defer cancel()
@@ -540,7 +541,7 @@ func TestPermMACDownInvalidatesBoundDevice(t *testing.T) {
 	)
 	withResolveBackend(t, stub)
 	r := freshResolver()
-	r.setMapping(nil, map[string]string{"uplink": "aa:bb:cc:dd:ee:05"})
+	r.setMapping(nil, map[string]string{"uplink": "aa:bb:cc:dd:ee:05"}, nil)
 
 	if _, err := r.resolve("uplink"); err != nil {
 		t.Fatalf("initial resolve: %v", err)
@@ -624,7 +625,7 @@ func TestLinkEventHandlerMakesNoBackendCall(t *testing.T) {
 	withResolveBackend(t, backend)
 
 	r := freshResolver()
-	r.setMapping(nil, map[string]string{"uplink": "aa:bb:cc:dd:ee:05"})
+	r.setMapping(nil, map[string]string{"uplink": "aa:bb:cc:dd:ee:05"}, nil)
 	bus := newEmitBus()
 	r.bindEvents(bus)
 

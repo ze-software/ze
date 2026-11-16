@@ -306,6 +306,21 @@ name bound to it.
 absent leaf, so every configuration where `name == os-name`, and every `ze init`
 output, stays a no-op.
 
+A VLAN unit of an entry that carries a selector is published too
+(`selectedUnitMap`), keyed by its `<entry>.<vlan-id>` name. The resolver binds
+it as `<parent device>.<vlan-id>`, the name the apply gives the VLAN, after
+resolving the parent through its own selector, and an unbound parent leaves the
+unit unbound and selector-bound, so `ResolveDevice` refuses it rather than
+falling back to the literal name. Looking the unit name up literally reached
+whatever device carried it, or none: a PPPoE server on `access.100`, a unit of
+`ethernet access { os-name veth-bng; }`, never started. Link events reach the
+unit through the reverse map for an `os-name` parent, and through the same
+not-yet-bound superset the `mac/match` names use for a `mac/match` parent. A
+unit of an entry with no selector is not published, because its literal name
+already is its device.
+
+<!-- source: internal/component/iface/resolve.go -- selectedUnitMap, unitDeviceFor, logicalsForLocked -->
+
 `os-name` applies to matched kinds only. The map is built from `Ethernet`
 entries, the physical kind ze matches. Created kinds such as veth, bridge,
 tunnel and the `pppoe-client` session device are made by ze under the logical

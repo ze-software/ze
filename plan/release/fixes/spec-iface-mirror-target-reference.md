@@ -305,6 +305,10 @@ device it needs appears.
 - Found and fixed in passing: the PPPoE server `interface` description said an absent device is logged and skipped, but start and reload both fail on it (`prepareAccessConfiguration`)
 - Evidence: `test/parse/iface-reference-leaves-undeclared.ci` passes, and goes red at its own case with each leaf's reference removed alone (member seq 1, tunnel seq 2, client seq 3, server seq 4). The four AC-10 and AC-11 unit tests pass and are red against the previous `config_apply.go` and `config_mirror.go` (decoy `wan.100` enslaved; missing VLAN port; tunnel on decoy `wan`; unbound tunnel built on the decoy). `TestRepositoryConfigsValidate` validated 3337 configs and refused only `test/web/fixtures/cli-load.conf`, for two missing BGP mandatory leaves this work does not touch
 
+### What Was Implemented (2026-11-16, Part 3)
+- AC-12: the config publishes the VLAN units of selector-bound ethernet entries to the shared resolver (`selectedUnitMap`), which binds each as `<parent device>.<vlan-id>` (`unitDeviceFor`), treats it as selector-bound so `ResolveDevice` never falls back to the literal name, and routes its device's link events to it (the `os-name` reverse map, the not-yet-bound superset for `mac/match`)
+- Evidence: `TestResolveVLANUnitFollowsItsParentsSelector`, `TestResolveVLANUnitRefusesWhenItsParentIsUnbound` and `TestSubscribeVLANUnitReceivesItsDevicesEvents` pass and are red against the resolver without the change (decoy bound; unbound parent resolved to the decoy; no event). `test/pppoe/pppoe-vlan-unit-of-selected-parent.ci` passes as root in Ze's QEMU guest and is red without the change: the PPPoE server failed to start with `get "access.100": interface not found`
+
 ## Checklist
 
 ### Goal Gates (MUST pass)
@@ -321,4 +325,4 @@ device it needs appears.
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
 | `validate-accepts-what-start-refuses.md` | 2026-11-08 | mirror target is an unchecked free string (fixed: b2bb71058e, 38906b1d12) |
-| `validate-accepts-what-start-refuses.md` | 2026-11-16 | the shared resolver resolves a VLAN unit of a selector-bound entry by its literal name (AC-12) |
+| `validate-accepts-what-start-refuses.md` | 2026-11-16 | the shared resolver resolved a VLAN unit of a selector-bound entry by its literal name (AC-12, fixed) |

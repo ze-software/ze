@@ -36,8 +36,8 @@ func TestResolveRemapsLogicalNameToOSDevice(t *testing.T) {
 
 		// Map logical "uplink" -> kernel "zeosdev0" (as an iface config os-name
 		// selector would via setResolverConfig).
-		globalResolver.setMapping(map[string]string{"uplink": osDev}, nil)
-		t.Cleanup(func() { globalResolver.setMapping(nil, nil) })
+		globalResolver.setMapping(map[string]string{"uplink": osDev}, nil, nil)
+		t.Cleanup(func() { globalResolver.setMapping(nil, nil, nil) })
 
 		b, err := Resolve("uplink")
 		if err != nil {
@@ -90,8 +90,8 @@ func TestAddressesRemapAndClassify(t *testing.T) {
 			t.Fatalf("add v6: %v", err)
 		}
 
-		globalResolver.setMapping(map[string]string{"core": osDev}, nil)
-		t.Cleanup(func() { globalResolver.setMapping(nil, nil) })
+		globalResolver.setMapping(map[string]string{"core": osDev}, nil, nil)
+		t.Cleanup(func() { globalResolver.setMapping(nil, nil, nil) })
 
 		addrs, err := Addresses("core")
 		if err != nil {
@@ -145,8 +145,8 @@ func TestResolveByMACBindsToDevice(t *testing.T) {
 
 		// Match logical "uplink" by the device MAC (uppercase to prove
 		// normalization), with NO os-name mapping for it.
-		globalResolver.setMapping(nil, map[string]string{"uplink": "02:00:00:00:BE:EF"})
-		t.Cleanup(func() { globalResolver.setMapping(nil, nil) })
+		globalResolver.setMapping(nil, map[string]string{"uplink": "02:00:00:00:BE:EF"}, nil)
+		t.Cleanup(func() { globalResolver.setMapping(nil, nil, nil) })
 
 		b, err := Resolve("uplink")
 		if err != nil {
@@ -164,7 +164,7 @@ func TestResolveByMACBindsToDevice(t *testing.T) {
 		}
 
 		// A MAC no device carries is a deferred binding, not a stale hit.
-		globalResolver.setMapping(nil, map[string]string{"ghost": "de:ad:be:ef:00:99"})
+		globalResolver.setMapping(nil, map[string]string{"ghost": "de:ad:be:ef:00:99"}, nil)
 		if _, err := Resolve("ghost"); err == nil {
 			t.Error("Resolve(ghost) must fail when no device carries the MAC")
 		}

@@ -16,6 +16,7 @@ import (
 	"sync"
 
 	ifaceevents "github.com/ze-software/ze/internal/core/iface/events"
+	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/ze"
 )
 
@@ -49,6 +50,11 @@ type resolver struct {
 	// event handler meant a backend call on the monitor's read loop, and
 	// logicalsForLocked reaches the same names without it.
 	permMACs map[string]string
+	// units maps each VLAN unit of a selector-bound ethernet entry, by its
+	// <entry>.<vlan-id> name, to its parent and VLAN id (selectedUnitMap).
+	// Such a unit resolves as <parent's device>.<vlan-id>, never by its
+	// literal name.
+	units map[string]resolverUnit
 	// boundOS records the kernel device each logical name last resolved to. It
 	// outlives a cache invalidation so a down/delete event for a device whose
 	// MAC can no longer be read still reaches the mac/match binding it backed.
@@ -244,8 +250,12 @@ func (r *resolver) selectedDeviceFor(name string, read func(string) (*InterfaceI
 	r.mu.Lock()
 	wantMAC := r.permMACs[name]
 	osn := r.osNames[name]
+	unit, isUnit := r.units[name]
 	r.mu.Unlock()
 
+	if isUnit {
+		return r.unitDeviceFor(name, unit, read, list)
+	}
 	if wantMAC != "" {
 		return r.matchByMACFrom(name, wantMAC, list)
 	}
@@ -255,6 +265,24 @@ func (r *resolver) selectedDeviceFor(name string, read func(string) (*InterfaceI
 		osName = name
 	}
 	return read(osName)
+}
+
+// unitDeviceFor resolves a VLAN unit of a selector-bound entry: the parent is
+// resolved through its own selector, and the unit is the device
+// <parent device>.<vlan-id>, which is how the apply names it (unitOSName). The
+// recursion is one level deep: a parent is an ethernet entry, and
+// selectedUnitMap never keys an entry's name, so a parent is never a unit.
+func (r *resolver) unitDeviceFor(name string, unit resolverUnit, read func(string) (*InterfaceInfo, error),
+	list func() ([]InterfaceInfo, error)) (*InterfaceInfo, error) {
+	parent, err := r.selectedDeviceFor(unit.parent, read, list)
+	if err != nil {
+		return nil, fmt.Errorf("iface: VLAN %q: its parent %q resolves to no device: %w", name, unit.parent, err)
+	}
+	if parent.OsName == "" {
+		return nil, fmt.Errorf("iface: VLAN %q: its parent %q resolved to a device with no name", name, unit.parent)
+	}
+	var device textbuf.Buffer
+	return read(device.Str(parent.OsName).Byte('.').Int(int64(unit.vlanID)).String())
 }
 
 // matchByMACFrom returns the interface whose hardware MAC equals want. It matches
@@ -478,6 +506,9 @@ func (r *resolver) hasSelector(name string) bool {
 	if _, ok := r.permMACs[name]; ok {
 		return true
 	}
+	if _, ok := r.units[name]; ok {
+		return true
+	}
 	_, ok := r.osNames[name]
 	return ok
 }
@@ -528,18 +559,40 @@ func (r *resolver) logicalsForLocked(kernelName string, appearing bool) []string
 				add(ln)
 			}
 		}
+		// A VLAN unit of a mac/match parent is in the same position: its
+		// device's name depends on which device the parent bound to, which
+		// this loop cannot read, so every unit that does not know its device
+		// is woken. A unit of an os-name parent is also reached exactly
+		// through logicalOf, which setMapping fills for it.
+		for ln := range r.units {
+			if _, known := r.cache[ln]; !known {
+				add(ln)
+			}
+		}
 	}
 	return out
 }
 
 // setMapping publishes the logical<->os-name and logical<->match-MAC selector
-// maps after a config apply and drops the per-name cache and learned bindings
+// maps, and the VLAN units of selector-bound entries (selectedUnitMap), after a
+// config apply and drops the per-name cache and learned bindings
 // (a config change can move any binding). The match-MAC values are normalized
 // once here so the hot lookups compare canonical forms.
-func (r *resolver) setMapping(logicalToOS, logicalToMAC map[string]string) {
+func (r *resolver) setMapping(logicalToOS, logicalToMAC map[string]string, units map[string]resolverUnit) {
 	rev := make(map[string][]string, len(logicalToOS))
 	for ln, osn := range logicalToOS {
 		rev[osn] = append(rev[osn], ln)
+	}
+	// A unit of an os-name parent has a fixed kernel name, so its events
+	// reach it through the same reverse map as its parent's.
+	for ln, unit := range units {
+		osn, aliased := logicalToOS[unit.parent]
+		if !aliased {
+			continue
+		}
+		var device textbuf.Buffer
+		kernel := device.Str(osn).Byte('.').Int(int64(unit.vlanID)).String()
+		rev[kernel] = append(rev[kernel], ln)
 	}
 	macs := make(map[string]string, len(logicalToMAC))
 	for ln, mac := range logicalToMAC {
@@ -553,6 +606,7 @@ func (r *resolver) setMapping(logicalToOS, logicalToMAC map[string]string) {
 	r.osNames = logicalToOS
 	r.logicalOf = rev
 	r.permMACs = macs
+	r.units = units
 	r.cache = make(map[string]Binding)
 	r.boundOS = make(map[string]string)
 	r.mu.Unlock()
@@ -607,10 +661,55 @@ func decodeLinkEvent(p any) (string, int, bool) {
 	return sp.Name, sp.Index, true
 }
 
-// setResolverConfig publishes the iface config's os-name mapping to the shared
-// resolver. Called from the iface component's config-apply path.
+// resolverUnit is one VLAN unit the shared resolver binds through its parent:
+// the logical name of the ethernet entry that declares it, and its VLAN id.
+type resolverUnit struct {
+	parent string
+	vlanID int
+}
+
+// selectedUnitMap returns every VLAN unit of an ethernet entry that carries a
+// selector (mac/match, or an os-name other than its own name), keyed by the
+// unit's <entry>.<vlan-id> name, the form the configured-interface reference
+// accepts. Such a unit's kernel device is named after the device its parent's
+// selector chose, so the literal name reaches whatever else carries it. A unit
+// of an entry with no selector is omitted: its literal name IS its device. A
+// key that is itself an ethernet entry's name is omitted too, because the entry
+// is a direct declaration (interfaceTargets.unitNamed), which also keeps a
+// parent from ever being a unit key.
+func (c *ifaceConfig) selectedUnitMap() map[string]resolverUnit {
+	if c == nil {
+		return nil
+	}
+	entries := make(map[string]struct{}, len(c.Ethernet))
+	for i := range c.Ethernet {
+		entries[c.Ethernet[i].Name] = struct{}{}
+	}
+	out := make(map[string]resolverUnit)
+	for i := range c.Ethernet {
+		e := &c.Ethernet[i]
+		if e.MatchMAC == "" && (e.OSName == "" || e.OSName == e.Name) {
+			continue
+		}
+		for j := range e.Units {
+			u := &e.Units[j]
+			if u.VLANID <= 0 {
+				continue
+			}
+			name := unitOSName(e.Name, u)
+			if _, isEntry := entries[name]; isEntry {
+				continue
+			}
+			out[name] = resolverUnit{parent: e.Name, vlanID: u.VLANID}
+		}
+	}
+	return out
+}
+
+// setResolverConfig publishes the iface config's selectors (os-name, mac/match
+// and the VLAN units of the entries that carry one) to the shared resolver. Called from the iface component's config-apply path.
 func setResolverConfig(cfg *ifaceConfig) {
-	globalResolver.setMapping(cfg.osNameMap(), cfg.permMACMap())
+	globalResolver.setMapping(cfg.osNameMap(), cfg.permMACMap(), cfg.selectedUnitMap())
 }
 
 // bindResolverEvents wires the shared resolver to the event bus. Called from

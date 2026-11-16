@@ -13,7 +13,7 @@ import "github.com/ze-software/ze/pkg/ze"
 // A test MUST restore the empty mapping in its cleanup, because the resolver is
 // process-wide.
 func SetResolverMappingForTest(logicalToOS map[string]string) {
-	globalResolver.setMapping(logicalToOS, nil)
+	globalResolver.setMapping(logicalToOS, nil, nil)
 }
 
 // DHCPClientFactoryForTest returns the factory SetDHCPClientFactory installed,

@@ -37,8 +37,8 @@ func TestDispatchTranslatesLogicalToOSDevice(t *testing.T) {
 
 		// Map logical "uplink" -> kernel "zedisp0"; no device is literally named
 		// "uplink", so an untranslated SetMTU would fail to find it.
-		globalResolver.setMapping(map[string]string{"uplink": osDev}, nil)
-		t.Cleanup(func() { globalResolver.setMapping(nil, nil) })
+		globalResolver.setMapping(map[string]string{"uplink": osDev}, nil, nil)
+		t.Cleanup(func() { globalResolver.setMapping(nil, nil, nil) })
 
 		const wantMTU = 1400
 		if err := SetMTU("uplink", wantMTU); err != nil {
@@ -82,8 +82,8 @@ func TestDispatchStatsBaselineKeyedByOSDevice(t *testing.T) {
 		if err := SetAdminUp(osDev); err != nil {
 			t.Fatalf("up: %v", err)
 		}
-		globalResolver.setMapping(map[string]string{"wan": osDev}, nil)
-		t.Cleanup(func() { globalResolver.setMapping(nil, nil) })
+		globalResolver.setMapping(map[string]string{"wan": osDev}, nil, nil)
+		t.Cleanup(func() { globalResolver.setMapping(nil, nil, nil) })
 
 		if _, err := GetStats("wan"); err != nil {
 			t.Fatalf("GetStats(wan): %v", err)

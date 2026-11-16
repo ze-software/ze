@@ -31,8 +31,8 @@ func BindResolverEventsForConsumerTest(eb ze.EventBus) func() {
 // The returned function restores the empty mapping; a test MUST call it in its
 // cleanup, because the resolver is process-wide.
 func SetResolverMappingForConsumerTest(logicalToOS map[string]string) func() {
-	globalResolver.setMapping(logicalToOS, nil)
-	return func() { globalResolver.setMapping(nil, nil) }
+	globalResolver.setMapping(logicalToOS, nil, nil)
+	return func() { globalResolver.setMapping(nil, nil, nil) }
 }
 
 // bindEventsUndoable is bindEvents plus the function that undoes it, which a
