@@ -1,5 +1,7 @@
 // Design: docs/architecture/appliance/builder.md -- helper completion is not an image.
 
+//go:build linux || darwin
+
 package appliance
 
 import (
