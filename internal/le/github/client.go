@@ -99,13 +99,14 @@ func NewClient(transport http.RoundTripper) (*Client, error) {
 		CheckRedirect: func(_ *http.Request, _ []*http.Request) error { return http.ErrUseLastResponse }}}, nil
 }
 
-// reach bounds one complete report, rather than resetting its budget per page.
+// reach bounds one complete operation, rather than resetting its budget per page.
 // It is not safe for concurrent use; each public operation owns a fresh reach.
 type reach struct {
-	client   *Client
-	ctx      context.Context
-	requests int
-	bytes    int64
+	client       *Client
+	ctx          context.Context
+	requests     int
+	requestLimit int
+	bytes        int64
 }
 
 func (client *Client) start(ctx context.Context) (*reach, context.CancelFunc, error) {
@@ -116,14 +117,14 @@ func (client *Client) start(ctx context.Context) (*reach, context.CancelFunc, er
 		return nil, nil, errors.New("GitHub client has no HTTP configuration")
 	}
 	bounded, cancel := context.WithTimeout(ctx, operationTimeout)
-	return &reach{client: client, ctx: bounded}, cancel, nil
+	return &reach{client: client, ctx: bounded, requestLimit: requestsMax}, cancel, nil
 }
 
 // get reads only a fixed-repository GET. Link targets are checked but never
 // followed: collection pagination constructs its own bounded page numbers.
 func (read *reach) get(path string, query url.Values, target any) error {
-	if read.requests >= requestsMax {
-		return errors.New("GitHub report exceeded its request bound")
+	if read.requests >= read.requestLimit {
+		return fmt.Errorf("GitHub API read exceeded its request bound (%d)", read.requestLimit)
 	}
 	read.requests++
 	endpoint := apiRoot + path

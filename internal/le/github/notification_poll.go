@@ -18,6 +18,7 @@ import (
 )
 
 const notificationPollWorkflowsMax = 6
+const notificationPollRequestsMax = 30
 
 type notificationPollFile struct {
 	Version           uint8    `json:"version"`
@@ -178,6 +179,9 @@ func (poll notificationPoll) run(ctx context.Context, client *Client, transport 
 		return report, err
 	}
 	defer cancel()
+	// Public polling leaves room for other readers. This is an operation bound,
+	// not a reservation of the shared source-IP quota or a report-client change.
+	read.requestLimit = notificationPollRequestsMax
 	runs, err := poll.discover(read)
 	if err != nil {
 		return report, err
@@ -242,6 +246,12 @@ func (scope notificationPollScope) process(read *reach, discovered apiRun, trans
 		}
 		if ready.state.scanRunID < scope.scanRunID {
 			return errors.New("notification scan history moved backwards after discovery")
+		}
+		// Discovery validated identity, trust and API state before this lock.
+		// Keep its active barrier even if another poll advanced the receipt:
+		// discovery omitted this workflow's snapshot recheck because of it.
+		if discovered.Status != notificationWireCompleted {
+			return errors.New("notification earlier run is still active")
 		}
 		if notificationPollScanned(discovered.ID, discovered.RunAttempt, ready.state.scanRunID, ready.state.scanAttempt) {
 			report.State = notificationWireQuiet
@@ -324,6 +334,17 @@ func (scope notificationPollScope) readPreview(read *reach, discovered apiRun) (
 	if raw.HeadSHA != discovered.HeadSHA {
 		return notificationPreview{}, errors.New("notification source revision changed after discovery")
 	}
+	if problems := runIdentity(raw, "", discovered.ID); len(problems) != 0 {
+		return notificationPreview{}, errors.New("notification run detail contains an invalid identity")
+	}
+	if problems := read.client.stateProblems(raw.Status, raw.Conclusion); len(problems) != 0 {
+		return notificationPreview{}, errors.New("notification run detail contains an unknown or inconsistent state")
+	}
+	// A completed listing can race a rerun becoming active. Preserve the event
+	// for a later poll without reading jobs from an unfinished attempt.
+	if raw.Status != notificationWireCompleted {
+		return notificationPreview{}, errors.New("notification earlier run is still active")
+	}
 	report := newReport()
 	report.RequestedRunID = discovered.ID
 	report.addRun(read, raw, "", discovered.ID)
@@ -387,16 +408,24 @@ func (poll notificationPoll) discover(read *reach) ([]apiRun, error) {
 			}
 			identities[raw.ID] = true
 		}
-		rows = append(rows, listed...)
-		for index := range listed {
-			raw := &listed[index]
+		selected, err := poll.selectRuns(listed)
+		if err != nil {
+			return nil, err
+		}
+		rows = append(rows, selected...)
+		// Selected entries are trusted and oldest first. Only a completed
+		// candidate reachable before the active barrier can change history.
+		for index := range selected {
+			raw := &selected[index]
 			if raw.ID < poll.start {
 				continue
 			}
 			if notificationPollScanned(raw.ID, raw.RunAttempt, scope.scanRunID, scope.scanAttempt) {
 				continue
 			}
-			snapshots = append(snapshots, notificationPollSnapshot{workflowID: scope.workflowID, page: first})
+			if raw.Status == notificationWireCompleted {
+				snapshots = append(snapshots, notificationPollSnapshot{workflowID: scope.workflowID, page: first})
+			}
 			break
 		}
 	}
@@ -417,7 +446,7 @@ func (poll notificationPoll) discover(read *reach) ([]apiRun, error) {
 			return nil, errors.New("notification run listing changed before delivery")
 		}
 	}
-	return poll.selectRuns(rows)
+	return rows, nil
 }
 
 type notificationPollSnapshot struct {

@@ -5,11 +5,14 @@ approved failure and recovery messages to one identified Discord destination.
 It never checks out or executes the reported revision, starts tests, or publishes
 source or website changes. Public news retains its separate approval process.
 
-The Linux installation uses one short-lived systemd service every fifteen minutes.
+The Linux installation uses one short-lived systemd service each hour, with a
+persistent timer and up to 20 seconds of jitter.
 The reviewed executable lives outside the development checkout; private receipt
 files survive each invocation and upgrades. GitHub/API uncertainty stops the
 affected work. An uncertain Discord POST stops that workflow until an operator
 reconciles its attempted event and channel; it is never retried automatically.
+<!-- source: contrib/github-notifier/ze-github-notifier.timer -- Timer -->
+<!-- source: internal/le/github/notification_poll.go -- notificationPollReady, process -->
 
 ## Build the exact reviewed revision
 
@@ -195,22 +198,45 @@ sudo journalctl -u ze-github-notifier.service -n 30 --no-pager
 A successful invocation returns structured results. Missing/corrupt/private
 authority errors occur before listing. Discovery reads a bounded `main` run
 suffix from each initialized workflow's own feed. Quiet workflows therefore do
-not turn unrelated repository activity into a backlog. Every feed is checked
-before delivery starts; a feed with new candidate events has its first page
-checked again before sending. Polling refuses a
+not turn unrelated repository activity into a backlog. Every feed is validated
+before delivery starts. A workflow with an unscanned completed candidate before
+its oldest active entry has its first page checked again before processing.
+An active entry stops its workflow before detailed run or job requests.
+That discovered barrier stays in force for the whole poll, even if another poll
+advances the receipt. A fresh poll can resume after completion.
+Completed entries behind that active entry wait for the next poll. Polling refuses a
 changed snapshot, duplicate identity, unknown state, or page/request/byte/time
 exhaustion. Discovery stops at its cursor boundary or after reading the complete
 workflow feed; reaching the page bound before either condition refuses polling.
-All API work shares the existing 45-second,
-200-request and 32 MiB operation limits, ten pages per listing and 100 entries
-per page. HTTP redirects are refused. There is no API credential.
+All GitHub reads in one poll share a 30-request limit, including discovery,
+snapshot rechecks, run details and every job page. Request 30 is permitted;
+request 31 is refused before network access. The existing 45-second and 32 MiB
+operation limits, ten pages per listing and 100 entries per page also apply.
+The separate report operation retains its 200-request limit.
+HTTP redirects are refused. There is no API credential.
+<!-- source: internal/le/github/notification_poll.go -- run, discover, process, readPreview -->
+<!-- source: internal/le/github/client.go -- start, get -->
 
-The fifteen-minute default leaves room under the public API quota: six quiet
-feeds normally need 24 listing requests per hour; if every feed has candidate
-events, the first-page rechecks raise that baseline to 48, before detailed run
-and job reads. Busy installations can still meet rate limits. Such a refusal
-preserves state and remains visible in the journal; reduce polling frequency
-when needed. No token or quota workaround is installed automatically.
+With one page per feed, six quiet feeds or six feeds whose oldest unscanned
+entries are active need six GitHub GETs per poll. The hourly default makes that
+nominally six per hour. The previous fifteen-minute schedule needed 24 quiet
+listing reads per hour, and active entries also caused rechecks and detail/job
+reads. Completed work adds at most one snapshot recheck per affected workflow,
+one run-detail read per candidate, and all required job pages within the shared
+30-request bound. A detail response that has become active stops before jobs.
+<!-- source: internal/le/github/notification_poll.go -- discover, process, readPreview -->
+<!-- source: contrib/github-notifier/ze-github-notifier.timer -- OnCalendar -->
+
+The request limit bounds one operation, not the shared source-IP quota. Other
+public clients, initialization, manual polls and persistent timer catch-up can
+consume the same quota window. Rate-limit refusals remain possible. A refusal
+during discovery or snapshot validation changes no receipts. A refusal during
+processing preserves confirmed deliveries and completed scan progress, while
+the blocked candidate and all later unscanned history remain eligible.
+Keep the receipts and inspect the journal before the next scheduled invocation.
+No token or quota workaround is installed automatically.
+<!-- source: internal/le/github/client.go -- get -->
+<!-- source: internal/le/github/notification_poll.go -- run, discover, process -->
 
 Within each workflow, earlier active/incomplete evidence blocks later events;
 other initialized workflows may proceed. Skipped, cancelled and complete
@@ -229,8 +255,11 @@ the event. An in-flight or blocked receipt permits no further send.
 
 For an API/rate-limit problem, inspect the journal's bounded status/quota facts;
 the next timer invocation rereads evidence. Keep the cursor/history intact. A
-large backlog exceeding the page bound requires an explicit operator catch-up
-decision; moving `start-run-id` must not discard required unscanned history.
+large backlog exceeding the page or request bound requires an explicit operator
+catch-up decision. If discovery and snapshot rechecks consume the entire budget,
+another poll can encounter the same limit without progress. Moving `start-run-id`
+must not discard required unscanned history.
+<!-- source: internal/le/github/notification_poll.go -- discover, run -->
 
 For an ambiguous POST, stop the timer and inspect the private attempted run,
 attempt, kind and destination. Check that exact event in the approved channel.
