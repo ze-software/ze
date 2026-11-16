@@ -1,4 +1,4 @@
-// RFC: rfc/short/rfc4364.md -- Section 4.3.4 the VPN-IPv4 NLRI, Section 6.1 its next hop
+// RFC: rfc/short/rfc4364.md -- Section 4.3.4 the VPN-IPv4 NLRI, Section 4.3.2 its next hop
 // Related: rib_bestchange.go -- checkBestPathChange, the producer under test
 // Related: rfc9252_srv6_transposition_test.go -- feedReceived, the ingest entry point these drive
 
@@ -35,7 +35,7 @@ func vpnv4NLRI(label uint32, rd [8]byte, prefixOctets ...byte) []byte {
 // vpnv4AnnounceBody builds an UPDATE body announcing nlri via MP_REACH_NLRI
 // (AFI 1 / SAFI 128) with ORIGIN, a one-hop AS_PATH and a MED.
 //
-// RFC 4364 Section 6.1: the next hop "is encoded as a VPN-IPv4 address with an
+// RFC 4364 Section 4.3.2: the next hop "is encoded as a VPN-IPv4 address with an
 // RD of 0", so the Network Address of Next Hop is 12 octets, not 4.
 func vpnv4AnnounceBody(nextHop [4]byte, med uint32, nlri []byte) []byte {
 	mpReach := []byte{0x00, 0x01, 0x80, 12,
@@ -97,7 +97,7 @@ func vpnBestChanges(bus *testEventBus, fam family.Family) []ribevents.BestChange
 // VALIDATES: a family whose NLRI is not a CIDR prefix reaches best-path
 // selection and publishes on (bgp-rib, best-change), identified by its wire
 // NLRI. RFC 4364 Section 4.3.4 gives that NLRI a length octet counting the
-// label stack and the Route Distinguisher, and Section 6.1 gives it an
+// label stack and the Route Distinguisher, and Section 4.3.2 gives it an
 // RD-prefixed next hop; both are read here.
 // PREVENTS: the silent fall-through this file was written for -- keying the
 // best-prev record through store.NLRIToPrefix, which refuses a length octet
@@ -108,6 +108,7 @@ func vpnBestChanges(bus *testEventBus, fam family.Family) []ribevents.BestChange
 func TestVPNv4BestChangeIsPublished(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"))
 
 	peerA := netip.MustParseAddr("192.0.2.1")
 	peerB := netip.MustParseAddr("192.0.2.2")
@@ -135,7 +136,7 @@ func TestVPNv4BestChangeIsPublished(t *testing.T) {
 	if add.Prefix.IsValid() {
 		t.Errorf("Prefix = %v, want the zero prefix: a VPN NLRI names no CIDR prefix", add.Prefix)
 	}
-	// RFC 4364 Section 6.1: the 8-octet RD ahead of the address is not part of it.
+	// RFC 4364 Section 4.3.2: the 8-octet RD ahead of the address is not part of it.
 	if want := netip.MustParseAddr("10.0.0.1"); add.NextHop != want {
 		t.Errorf("NextHop = %v, want %v", add.NextHop, want)
 	}
@@ -200,6 +201,7 @@ func TestVPNv4BestChangeIsPublished(t *testing.T) {
 func TestVPNv4BestChangeKeysOnTheWholeNLRI(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"))
 
 	peer := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peer] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}

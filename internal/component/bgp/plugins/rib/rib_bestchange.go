@@ -1615,7 +1615,7 @@ func extractMPNextHopAddr(b storage.Bundle) netip.Addr {
 // Next Hop field of nhLen octets.
 //
 // RFC 4760 Section 3 leaves the encoding to the family, and the VPN families
-// prefix it with a Route Distinguisher: RFC 4364 Section 6.1 says a PE's own
+// prefix it with a Route Distinguisher: RFC 4364 Section 4.3.2 says a PE's own
 // address "is encoded as a VPN-IPv4 address with an RD of 0", 12 octets, and
 // RFC 4659 Section 3.2.1.1 says the VPN-IPv6 form is "24 when only a global
 // address is present, and 48 if a link-local address is also included". Read

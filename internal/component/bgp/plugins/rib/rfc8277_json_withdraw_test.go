@@ -12,7 +12,6 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/routeaction"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/rib/locrib"
 )
 
 // TestJSONWithdrawalReconcilesNativeIdentity sends real formatted JSON UPDATE
@@ -44,8 +43,9 @@ func testJSONWithdrawalReconcilesNativeIdentity(t *testing.T, fam family.Family,
 	t.Helper()
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r,
+		netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"),
+		netip.MustParseAddr("10.0.0.3"), netip.MustParseAddr("10.0.0.4"))
 	ctxID, err := bgpctx.Registry.Register(bgpctx.EncodingContextWithAddPath(true, map[family.Family]bool{fam: addPath}))
 	if err != nil {
 		t.Fatal(err)
