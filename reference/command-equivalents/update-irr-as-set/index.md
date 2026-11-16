@@ -1,13 +1,13 @@
-# `update bgp irr all`
+# `update irr as-set`
 
-Refresh all IRR prefix\-lists immediately\.
+Fetch the IRR dataset of an AS\-SET now\.
 
 ## Ze command
 
-- Registry path: `update bgp irr all`
-- Usage: `update bgp irr all`
+- Registry path: `update irr as-set`
+- Usage: `update irr as-set <as-set>`
 - Mode: Daemon
-- Wire method: `ze-bgp:update-irr-all`
+- Wire method: `ze-irr:update-irr-as-set`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,11 +21,13 @@ Refresh all IRR prefix\-lists immediately\.
 - Command pipes: none
 - Pipe aliases: none
 
-Re\-queries the IRR server for every enrolled ASN and atomically swaps prefix\-lists on success\. Failed refreshes preserve the existing prefix\-list and report an error\.
+Fetches and stores the prefixes of one AS\-SET\. A firewall commit naming an AS\-SET with nothing stored is refused until this has run\.
 
 ## Arguments
 
-No command-specific arguments listed.
+| Name | Type | Required | Values | Summary | Description |
+| --- | --- | --- | --- | --- | --- |
+| `as-set` | string | yes | any value of this type | AS\-SET name\. | The RPSL set name\, for example AS\-EXAMPLE or RIPE\:\:AS\-EXAMPLE\. Letters\, digits\, hyphen\, underscore\, colon and period are accepted\. |
 
 ## Mapping intents
 

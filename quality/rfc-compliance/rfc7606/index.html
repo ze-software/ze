@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7606 requirements and tests - Ze</title>
         <meta name="description" content="RFC 7606: Revised Error Handling for BGP UPDATE Messages. 53 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7606 requirements and tests - Ze" />
@@ -132,13 +132,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5</strong><b>of 53 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 53 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 53 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>77</strong><b>77 of 232 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>100</strong><b>100 of 232 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>1</strong><b>of 53 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>53</strong><b>of 53 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>53</strong><b>of 53 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 4 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -260,7 +260,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>53</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>77</td>
+<td>102</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7606.md</code></td>
@@ -280,8 +280,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Revised UPDATE error handling</p>
-<p><strong>Proof:</strong> 28 of 53 MUST proven</p>
-<p><strong>Evidence:</strong> interop 2, functional 4, unit 22</p>
+<p><strong>Proof:</strong> 33 of 53 MUST proven</p>
+<p><strong>Evidence:</strong> interop 2, functional 5, unit 26</p>
 <p><strong>Unmet:</strong> RFC7606-8-1</p>
 
 </section>
@@ -327,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7606:must">Ze proven 28, Proof pending 24, Not built 1</div>
+<div data-ze-rfc-bar="rfc7606:must">Ze proven 33, Proof pending 19, Not built 1</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7606:overview">Ze MUST proven 28, Proof pending 24, Not assessed 4, Not built 1</div>
+<div data-ze-rfc-bar="rfc7606:overview">Ze MUST proven 33, Proof pending 19, Not assessed 4, Not built 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -350,13 +350,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7606:must.kept">53</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc7606:must.ze-proven">28</span></td>
+<td><span data-ze-rfc="rfc7606:must.ze-proven">33</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7606:must.os-verified">0</span></td>
 </tr>
 <tr><td>Proof pending</td>
-<td><span data-ze-rfc="rfc7606:must.proof-pending">24</span></td>
+<td><span data-ze-rfc="rfc7606:must.proof-pending">19</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc7606:must.os-gap">0</span></td>
@@ -435,7 +435,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7606-2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_session_structural_test.go#L279" title="internal/component/bgp/reactor/rfc7606_session_structural_test.go" target="_blank" rel="noopener"><code>TestSessionRFC7606ValidUpdateDispatchesAnnouncement</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go#L166" title="internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go" target="_blank" rel="noopener"><code>TestRIBTreatAsWithdrawAddPathPreservesPathID</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go#L167" title="internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go" target="_blank" rel="noopener"><code>TestRIBTreatAsWithdrawAddPathPreservesPathID</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go#L92" title="internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go" target="_blank" rel="noopener"><code>TestRIBTreatAsWithdrawRemovesInstalledRoute</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1979" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_withdraw_test.go#L57" title="internal/component/bgp/message/rfc7606_withdraw_test.go" target="_blank" rel="noopener"><code>TestSynthesizeWithdrawConvertsMPReachToMPUnreach</code></a></span></div>
@@ -594,7 +594,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7606-5.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/wireu/rfc7606_split_mp_first_test.go#L21" title="internal/component/bgp/wireu/rfc7606_split_mp_first_test.go" target="_blank" rel="noopener"><code>TestBuildUpdatePayloadMPAttributeFirst</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L62" title="internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>TestEgressOverrideMovesTrailingMPAttributeFirst</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L65" title="internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>TestEgressOverrideMovesTrailingMPAttributeFirst</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go#L101" title="internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>TestForwardMovesTrailingMPAttributeFirstAcrossContexts</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go#L59" title="internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>TestForwardMovesTrailingMPAttributeFirstSameContext</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go#L133" title="internal/component/bgp/reactor/rfc7606_forward_mp_first_test.go" target="_blank" rel="noopener"><code>TestForwardRebuildMovesSourcedMPAttributeFirst</code></a></span></div>
@@ -609,7 +609,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>5.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7606-5.1-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L89" title="internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>TestEgressOverrideSplitsMixedShape</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L92" title="internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>TestEgressOverrideSplitsMixedShape</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_body_test.go#L156" title="internal/component/bgp/reactor/rfc7606_forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitsMixedShapeAcrossContextsThatFits</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_forward_body_test.go#L51" title="internal/component/bgp/reactor/rfc7606_forward_body_test.go" target="_blank" rel="noopener"><code>TestForwardSplitsMixedShapeSameContextThatFits</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_shape_test.go#L57" title="internal/component/bgp/message/rfc7606_shape_test.go" target="_blank" rel="noopener"><code>TestNLRIBearingFieldCountEveryCombination</code></a></span></div>
@@ -1096,7 +1096,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc7606-2-1"><code>RFC7606-2-1</code></a></h3>
 <p>o Treat-as-withdraw: In this approach, the UPDATE message containing the path attribute in question MUST be treated as though all contained routes had been withdrawn just as if they had been listed in the WITHDRAWN ROUTES field (or in the MP_UNREACH_NLRI attribute if appropriate) of the UPDATE message, thus causing them to be removed from the Adj-RIB-In according to the procedures of [RFC4271]. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal (session_test.go) sends a malformed-ORIGIN UPDATE announcing 10.0.0.0/8 and asserts the DISPATCHED body has withdrawn=={0x08,0x0a}, nlri empty, attrLen zero; the message-level TestSynthesizeWithdrawMovesNLRIToWithdrawn and ...ConvertsMPReachToMPUnreach pin the rewrite exactly. Positive TestSessionRFC7606ValidUpdateDispatchesAnnouncement requires a valid UPDATE to stay byte-for-byte an announcement. 2026-07-20 re-audit: coverage STRENGTHENED beyond message synthesis. TestRIBTreatAsWithdrawRemovesInstalledRoute (rib_structured_test.go) now proves the route actually LEAVES the RIB -- Adj-RIB-In Len()==0 and a best-change Withdraw for 10.0.0.0/8 published to the Loc-RIB -- and that a treat-as-withdraw for a never-installed prefix publishes no spurious event. TestRIBTreatAsWithdrawAddPathPreservesPathID proves exactly the re-advertised ADD-PATH path (ID 42) is withdrawn while its sibling (ID 43) for the same prefix survives. Section 2 says the routes MUST be withdrawn; until these, the evidence stopped at &#39;a withdrawal-shaped message was dispatched&#39;. Assertions are exact and fail on the old suppression bug. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*-&gt;routeaction.*, message.Type*-&gt;msgtype.Type*, rib/events-&gt;core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-09-24 re-audit: commit 515bbc3b68 changed TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal and TestSessionRFC7606ValidUpdateDispatchesAnnouncement only in their fixtures (an AS_SEQUENCE carrying the eBGP neighbor AS 65002 so the new first-AS check passes, and a NEXT_HOP of 192.0.2.254) and in the callback signature; every assertion is unchanged, so malformed ORIGIN still has to yield the exact withdrawn-routes body and a valid UPDATE the exact announcement. Enforced. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote adds two clauses the paraphrase dropped: &#34;(or in the MP_UNREACH_NLRI attribute if appropriate)&#34; is pinned by TestSynthesizeWithdrawConvertsMPReachToMPUnreach, and &#34;thus causing them to be removed from the Adj-RIB-In&#34; by TestRIBTreatAsWithdrawRemovesInstalledRoute (Adj-RIB-In Len()==0). Both units carry this tag. Verdict unchanged. Rejudged 2026-10-16 (independent reader) after the owner-approved multi-label withdrawal change (RFC 8277 Section 2.4, nlrisplit.LabeledWithdrawal): SynthesizeWithdraw gained an addPath bool and SynthesizeWithdrawFamilies/mpReachToUnreach an addPath predicate, which mpReachToUnreach reads only for a family nlrisplit.CarriesCompatibility names (labeled unicast, VPN). Every edit in the tagged units (TestSynthesizeWithdrawMovesNLRIToWithdrawn, TestSynthesizeWithdrawConvertsMPReachToMPUnreach, TestRIBTreatAsWithdrawRemovesInstalledRoute, TestRIBTreatAsWithdrawAddPathPreservesPathID) is the call-site signature change passing false; their inputs are legacy IPv4 NLRI and IPv6 unicast MP_REACH, which never reach the labeled branch, so producer behavior, inputs and assertions are unchanged (the ADD-PATH unit&#39;s path IDs ride the legacy Withdrawn Routes field, untouched by the flag). The new labeled branch is covered by the untagged TestSynthesizeWithdrawLabeledOneCompatibilityField and TestSynthesizeWithdrawLabeledMalformedSkipped, outside this verdict&#39;s cited set. RFC 7606 Section 2: &#34;the UPDATE message containing the path attribute in question MUST be treated as though all contained routes had been withdrawn just as if they had been listed in the WITHDRAWN ROUTES field (or in the MP_UNREACH_NLRI attribute if appropriate)&#34;. Verdict stands.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal (session_test.go) sends a malformed-ORIGIN UPDATE announcing 10.0.0.0/8 and asserts the DISPATCHED body has withdrawn=={0x08,0x0a}, nlri empty, attrLen zero; the message-level TestSynthesizeWithdrawMovesNLRIToWithdrawn and ...ConvertsMPReachToMPUnreach pin the rewrite exactly. Positive TestSessionRFC7606ValidUpdateDispatchesAnnouncement requires a valid UPDATE to stay byte-for-byte an announcement. 2026-07-20 re-audit: coverage STRENGTHENED beyond message synthesis. TestRIBTreatAsWithdrawRemovesInstalledRoute (rib_structured_test.go) now proves the route actually LEAVES the RIB -- Adj-RIB-In Len()==0 and a best-change Withdraw for 10.0.0.0/8 published to the Loc-RIB -- and that a treat-as-withdraw for a never-installed prefix publishes no spurious event. TestRIBTreatAsWithdrawAddPathPreservesPathID proves exactly the re-advertised ADD-PATH path (ID 42) is withdrawn while its sibling (ID 43) for the same prefix survives. Section 2 says the routes MUST be withdrawn; until these, the evidence stopped at &#39;a withdrawal-shaped message was dispatched&#39;. Assertions are exact and fail on the old suppression bug. 2026-07-22 re-stamp: the verdict went stale only because commit c4038def0 prepended an rfc-test-change-approved header and swapped package qualifiers (bgptypes.RouteAction*-&gt;routeaction.*, message.Type*-&gt;msgtype.Type*, rib/events-&gt;core/bgp/ribevents) in the tagged files; tagged_unit_shas fingerprints the whole enclosing file. Normalising the 254772452..HEAD diff under that rename cancels with ZERO unmatched assertion deletions, and rfc/short/rfc7606.md is byte-identical since the audit, so the judgement above still describes exactly what it judged. 2026-09-24 re-audit: commit 515bbc3b68 changed TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal and TestSessionRFC7606ValidUpdateDispatchesAnnouncement only in their fixtures (an AS_SEQUENCE carrying the eBGP neighbor AS 65002 so the new first-AS check passes, and a NEXT_HOP of 192.0.2.254) and in the callback signature; every assertion is unchanged, so malformed ORIGIN still has to yield the exact withdrawn-routes body and a valid UPDATE the exact announcement. Enforced. 2026-09-26 RE-AUDIT, stale-requirement: the checklist line was rewritten to a verbatim span of rfc/full/rfc7606.txt (spec-rfc-requirement-verbatim-quote). The tagged units are byte-identical to the last judgement, so its reading of them stands; this pass compared the new sentence clause by clause against what those units assert. The quote adds two clauses the paraphrase dropped: &#34;(or in the MP_UNREACH_NLRI attribute if appropriate)&#34; is pinned by TestSynthesizeWithdrawConvertsMPReachToMPUnreach, and &#34;thus causing them to be removed from the Adj-RIB-In&#34; by TestRIBTreatAsWithdrawRemovesInstalledRoute (Adj-RIB-In Len()==0). Both units carry this tag. Verdict unchanged. Rejudged 2026-10-16 (independent reader) after the owner-approved multi-label withdrawal change (RFC 8277 Section 2.4, nlrisplit.LabeledWithdrawal): SynthesizeWithdraw gained an addPath bool and SynthesizeWithdrawFamilies/mpReachToUnreach an addPath predicate, which mpReachToUnreach reads only for a family nlrisplit.CarriesCompatibility names (labeled unicast, VPN). Every edit in the tagged units (TestSynthesizeWithdrawMovesNLRIToWithdrawn, TestSynthesizeWithdrawConvertsMPReachToMPUnreach, TestRIBTreatAsWithdrawRemovesInstalledRoute, TestRIBTreatAsWithdrawAddPathPreservesPathID) is the call-site signature change passing false; their inputs are legacy IPv4 NLRI and IPv6 unicast MP_REACH, which never reach the labeled branch, so producer behavior, inputs and assertions are unchanged (the ADD-PATH unit&#39;s path IDs ride the legacy Withdrawn Routes field, untouched by the flag). The new labeled branch is covered by the untagged TestSynthesizeWithdrawLabeledOneCompatibilityField and TestSynthesizeWithdrawLabeledMalformedSkipped, outside this verdict&#39;s cited set. RFC 7606 Section 2: &#34;the UPDATE message containing the path attribute in question MUST be treated as though all contained routes had been withdrawn just as if they had been listed in the WITHDRAWN ROUTES field (or in the MP_UNREACH_NLRI attribute if appropriate)&#34;. Verdict stands. Independent current-source rejudgment retains all six existing tests/units keys and the enforced verdict. TestRIBTreatAsWithdrawRemovesInstalledRoute adds only the connected terminal route for the unchanged 10.0.0.1 next hop: the initial Add prerequisite now reaches the ordinary election, and malformed reannouncement must still remove Adj-RIB-In state and publish its Withdraw; never-installed-prefix assertions remain unchanged. The ADD-PATH sibling/path-ID test, legacy and MP synthesis tests, malformed session dispatch and byte-identical valid-announcement control remain intact. This population proves synthesis, dispatch and RIB effects compositionally; the selected RIB root is not itself a socket-level malformed-UPDATE test. At initial proposal time RFC7606-2-1 had no discrimination file, and the proposed normal-return SynthesizeWithdraw mutation was untested. The parent subsequently supplied main-thread native recorder receipt cd2e1588: clean selected-root PASS (0.291s), then a compiling, normal-return broken run RED (0.492s), with the original assertions detecting retained Adj-RIB-In state, missing best-change Withdraw, unwanted never-installed-prefix state and additional events; the recorder completed successfully (reported exit 0). That observation is bounded to TestRIBTreatAsWithdrawRemovesInstalledRoute under SynthesizeWithdraw returning the received body while changed=true. It does not prove the session socket path, another tagged unit, or an unobserved clause; this planner authored no computed proof fields and did not run the observation.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1112,14 +1112,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go#L166" title="internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go" target="_blank" rel="noopener"><code>TestRIBTreatAsWithdrawAddPathPreservesPathID</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go#L167" title="internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go" target="_blank" rel="noopener"><code>TestRIBTreatAsWithdrawAddPathPreservesPathID</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go#L92" title="internal/component/bgp/plugins/rib/rfc7606_rib_structured_test.go" target="_blank" rel="noopener"><code>TestRIBTreatAsWithdrawRemovesInstalledRoute</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1979" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestSessionRFC7606TreatAsWithdrawDispatchesWithdrawal</code></a></td>
@@ -1264,12 +1264,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L155" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606MissingASPath</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L137" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606MissingOrigin</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2322" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
@@ -1279,7 +1279,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L192" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ValidUpdate</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1294,17 +1294,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L459" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ASPathUnrecognizedSegmentType</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1028" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606LocalPrefIBGPInvalid</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L21" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606MalformedOriginLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1634" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606SystematicLengthCorruption</code></a></td>
@@ -1531,7 +1531,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7606-5.1-1"><code>RFC7606-5.1-1</code></a></h3>
 <p>o The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the very first path attribute in an UPDATE message. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against RFC 7606 Section 5.1: &#34;The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the very first path attribute in an UPDATE message.&#34; Read every tagged unit and its producer. Builder and parsed-split tests assert first type 14 with lower-code attributes present; wire payload construction asserts [14,1,2] for announcement and [15] for withdrawal. Same-context, cross-context, rebuilt forwarding, stored-route relay and raw export override tests compare concrete emitted attributes/body bytes, not a generic successful parse. The compliant-leading control checks backing-array identity rather than accepting an unnecessary copy. MPAttributesTrail still marks an MP attribute after another type, and reach-before-unreach; WriteMPAttributesFirst copies unreach, reach, then other attributes. writeOrdinaryUpdateBody applies this normalization to overrides before compliant splitting, and buildFwdBody handles both forwarding contexts. The newly argument-free exhaustive-ignore comment documents the narrow position-classification switch without changing its branches. These tests retain falsifiable MP-first assertions. Verdict enforced; no execution or current discrimination freshness is claimed.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go::TestEgressOverrideMovesTrailingMPAttributeFirst moved. Independent source rejudgment against RFC 7606 Section 5.1: &#34;The MP_REACH_NLRI or MP_UNREACH_NLRI attribute (if present) SHALL be encoded as the very first path attribute in an UPDATE message.&#34; Read every tagged unit and its producer. Builder and parsed-split tests assert first type 14 with lower-code attributes present; wire payload construction asserts [14,1,2] for announcement and [15] for withdrawal. Same-context, cross-context, rebuilt forwarding, stored-route relay and raw export override tests compare concrete emitted attributes/body bytes, not a generic successful parse. The compliant-leading control checks backing-array identity rather than accepting an unnecessary copy. MPAttributesTrail still marks an MP attribute after another type, and reach-before-unreach; WriteMPAttributesFirst copies unreach, reach, then other attributes. writeOrdinaryUpdateBody applies this normalization to overrides before compliant splitting, and buildFwdBody handles both forwarding contexts. The newly argument-free exhaustive-ignore comment documents the narrow position-classification switch without changing its branches. These tests retain falsifiable MP-first assertions. Verdict enforced; no execution or current discrimination freshness is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1552,7 +1552,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L62" title="internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>TestEgressOverrideMovesTrailingMPAttributeFirst</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L65" title="internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>TestEgressOverrideMovesTrailingMPAttributeFirst</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -1586,7 +1586,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7606-5.1-2"><code>RFC7606-5.1-2</code></a></h3>
 <p>o An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against the complete RFC 7606 Section 5.1 sender restriction: &#34;An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute.&#34; Read every tag, including the functional file and EoR test. The 16-combination matrix counts all four fields exactly, including MP attributes independently of NLRI contents. Parsed and wire splitters are forced by mixed shape while the input fits; their outputs assert at most one field and preservation of the announcements/withdrawals. Forwarding checks both matching and different contexts, export override checks two independently preserved fields, and compliant controls assert identity. The degenerate-empty-MP_UNREACH test also forbids a manufactured EoR while retaining all withdrawals. The functional test asserts a complete withdrawal-only wire frame, followed by the announcement, through the parsed daemon relay; it does not prove the zero-copy branch or every combination. NLRIBearingFieldCount&#39;s current exhaustive-ignore directive leaves its two MP cases unchanged. Receiver acceptance of old mixed senders remains distinct from the sender split. Verdict enforced. No test or gate execution was performed.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/rfc7606-relay-one-field.ci moved. Independent source rejudgment against the complete RFC 7606 Section 5.1 sender restriction: &#34;An UPDATE message MUST NOT contain more than one of the following: non-empty Withdrawn Routes field, non-empty Network Layer Reachability Information field, MP_REACH_NLRI attribute, and MP_UNREACH_NLRI attribute.&#34; Read every tag, including the functional file and EoR test. The 16-combination matrix counts all four fields exactly, including MP attributes independently of NLRI contents. Parsed and wire splitters are forced by mixed shape while the input fits; their outputs assert at most one field and preservation of the announcements/withdrawals. Forwarding checks both matching and different contexts, export override checks two independently preserved fields, and compliant controls assert identity. The degenerate-empty-MP_UNREACH test also forbids a manufactured EoR while retaining all withdrawals. The functional test asserts a complete withdrawal-only wire frame, followed by the announcement, through the parsed daemon relay; it does not prove the zero-copy branch or every combination. NLRIBearingFieldCount&#39;s current exhaustive-ignore directive leaves its two MP cases unchanged. Receiver acceptance of old mixed senders remains distinct from the sender split. Verdict enforced. No test or gate execution was performed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1617,7 +1617,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L89" title="internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>TestEgressOverrideSplitsMixedShape</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go#L92" title="internal/component/bgp/reactor/rfc7606_egress_override_shape_test.go" target="_blank" rel="noopener"><code>TestEgressOverrideSplitsMixedShape</code></a></td>
 <td>unit/verify</td>
 <td>mutant, verified</td>
 </tr>
@@ -1644,14 +1644,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-relay-one-field.ci#L4" title="test/plugin/rfc7606-relay-one-field.ci" target="_blank" rel="noopener"><code>rfc7606-relay-one-field.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7606-5.1-3"><code>RFC7606-5.1-3</code></a></h3>
 <p>Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination. (§5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 by an independent auditor who authored none of the change, after 96ead494aa moved the body of checkRFC7606MixedUpdate into checkMixedUpdateWire (internal/le/interoplab/bgp/check_mixed_discard.go); the tagged unit is now a one-line delegate to it. RFC 7606 Section 5.1: &#34;Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination.&#34; The Go units (TestRFC7606MPReachIPv4NextHopValid and the four TestRFC7606Section51Accepts* units) and the two functional carriers are unchanged, and Session.applyRFC7606 is unchanged. The new interop body is stricter than the one judged before: it requires the FRR session and both Ze peers up, then the replayed and seeded prefixes both in FRR&#39;s BGP table and installed via the injector, the client AS_PATH 65004, and only then releases the ONE mixed UPDATE through the source fence; it then requires the announced half and the trailing fence installed, the seeded prefix withdrawn from FRR&#39;s BGP table and absent from the installed table beside the fence, an exact capture of Ze&#39;s output (requireMixedSplitWire: one valid OPEN, one split withdrawal of exactly the seed, no repeated attribute, unchanged ORIGIN, NEXT_HOP and AS_PATH, each prefix once, in order) and the session still up. The withdrawn half is now seeded, so its removal is credited as withdrawal delivery, which the earlier note withheld. Receiver tolerance of the mixed shape is still what the carrier proves; a reset, a drop or a stripped half each fails it. Caveat for the next auditor: the unit fingerprint covers only the delegate, so a later edit of checkMixedUpdateWire will not stale this verdict. This is a source rejudgment; no runtime or producer-break result is claimed.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: test/plugin/rfc7606-relay-one-field.ci moved. Re-judged 2026-11-14 by an independent auditor who authored none of the change, after 96ead494aa moved the body of checkRFC7606MixedUpdate into checkMixedUpdateWire (internal/le/interoplab/bgp/check_mixed_discard.go); the tagged unit is now a one-line delegate to it. RFC 7606 Section 5.1: &#34;Since older BGP speakers may not implement these restrictions, an implementation MUST still be prepared to receive these fields in any position or combination.&#34; The Go units (TestRFC7606MPReachIPv4NextHopValid and the four TestRFC7606Section51Accepts* units) and the two functional carriers are unchanged, and Session.applyRFC7606 is unchanged. The new interop body is stricter than the one judged before: it requires the FRR session and both Ze peers up, then the replayed and seeded prefixes both in FRR&#39;s BGP table and installed via the injector, the client AS_PATH 65004, and only then releases the ONE mixed UPDATE through the source fence; it then requires the announced half and the trailing fence installed, the seeded prefix withdrawn from FRR&#39;s BGP table and absent from the installed table beside the fence, an exact capture of Ze&#39;s output (requireMixedSplitWire: one valid OPEN, one split withdrawal of exactly the seed, no repeated attribute, unchanged ORIGIN, NEXT_HOP and AS_PATH, each prefix once, in order) and the session still up. The withdrawn half is now seeded, so its removal is credited as withdrawal delivery, which the earlier note withheld. Receiver tolerance of the mixed shape is still what the carrier proves; a reset, a drop or a stripped half each fails it. Caveat for the next auditor: the unit fingerprint covers only the delegate, so a later edit of checkMixedUpdateWire will not stale this verdict. This is a source rejudgment; no runtime or producer-break result is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1694,7 +1694,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-relay-one-field.ci#L8" title="test/plugin/rfc7606-relay-one-field.ci" target="_blank" rel="noopener"><code>rfc7606-relay-one-field.ci</code></a></td>
 <td>functional/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -1771,7 +1771,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7606-5.4-1"><code>RFC7606-5.4-1</code></a></h3>
 <p>A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise. (§5.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 by an independent auditor who authored none of the change. RFC 7606 Section 5.4: &#34;A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.&#34; The only edit to the tagged unit checkRFC7606TypedNLRIDiscard since the last judgement is 96ead494aa, which rewrites the comment above assertion 2; the code is unchanged and still calls requireSpeakerEVPNDiscard on the speaker&#39;s report. In the same commit requireSpeakerEVPNDiscard (check_rfc_predicate.go) gained a final requireTypedEVPNWire check after its oracle, Established, route-bearing UPDATE, decoded EVPN NLRI and PASS checks, so the carrier now also requires the wire capture to hold exactly the fixture&#39;s assigned type-2 NLRI and no other EVPN announcement or withdrawal: stronger, not weaker. Every other tagged Go unit and .ci file is byte-identical to the last judgement. Verdict unchanged: enforced. This is a source rejudgment; no runtime or producer-break result is claimed.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkRFC7606TypedNLRIDiscard moved. Re-judged 2026-11-14 by an independent auditor who authored none of the change. RFC 7606 Section 5.4: &#34;A BGP speaker advertising support for such a typed address family MUST handle routes with unrecognized NLRI types within that address family by discarding them, unless the relevant specification for that address family specifies otherwise.&#34; The only edit to the tagged unit checkRFC7606TypedNLRIDiscard since the last judgement is 96ead494aa, which rewrites the comment above assertion 2; the code is unchanged and still calls requireSpeakerEVPNDiscard on the speaker&#39;s report. In the same commit requireSpeakerEVPNDiscard (check_rfc_predicate.go) gained a final requireTypedEVPNWire check after its oracle, Established, route-bearing UPDATE, decoded EVPN NLRI and PASS checks, so the carrier now also requires the wire capture to hold exactly the fixture&#39;s assigned type-2 NLRI and no other EVPN announcement or withdrawal: stronger, not weaker. Every other tagged Go unit and .ci file is byte-identical to the last judgement. Verdict unchanged: enforced. This is a source rejudgment; no runtime or producer-break result is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1864,12 +1864,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L20" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606MalformedOriginLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L606" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606OriginValueInvalid</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rfc7606-withdraw.ci#L8" title="test/plugin/rfc7606-withdraw.ci" target="_blank" rel="noopener"><code>rfc7606-withdraw.ci</code></a></td>
@@ -1879,17 +1879,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L572" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606OriginValueEGP</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L555" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606OriginValueIGP</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L589" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606OriginValueIncomplete</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1904,42 +1904,42 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L2391" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ASPath4ByteASNOverrun</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L481" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ASPathSegmentOverrun</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L503" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ASPathSegmentUnderrun</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L458" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ASPathUnrecognizedSegmentType</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L530" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ASPathZeroSegmentLength</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1396" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ASPath4ByteASN</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L412" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ASPathValidSequence</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L436" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ASPathValidSet</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1959,7 +1959,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L193" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606ValidUpdate</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1999,7 +1999,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L986" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606LocalPrefEBGPDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L2060" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestSessionRFC7606AttributeDiscardContinues</code></a></td>
@@ -2009,7 +2009,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1007" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606LocalPrefIBGPValid</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -2024,12 +2024,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1027" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606LocalPrefIBGPInvalid</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7606_test.go#L1008" title="internal/component/bgp/message/rfc7606_test.go" target="_blank" rel="noopener"><code>TestRFC7606LocalPrefIBGPValid</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -3102,7 +3102,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

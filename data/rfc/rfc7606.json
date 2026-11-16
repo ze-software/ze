@@ -8,10 +8,10 @@
   "must": {
     "total": 53,
     "kept": 53,
-    "ze-proven": 28,
+    "ze-proven": 33,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 24,
+    "proof-pending": 19,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
     "not-built": 1,
@@ -31,9 +31,9 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "functional": 4,
+    "functional": 5,
     "interop": 2,
-    "unit": 22
+    "unit": 26
   },
   "unmet": [
     "RFC7606-8-1"

@@ -10,10 +10,11 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 13 | of 19 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 14 | of 19 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 2 | of 19 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
+| One polarity, unexcused | 0 | of 19 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 19 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 37 | 37 of 70 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 20 | 20 of 71 tests linked to requirements, 0 without a fault test and 17 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -21,9 +22,8 @@ what Ze owes
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| One polarity, unexcused | 1 | of 19 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Declared gap or no test | 3 | of 19 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Audit verdicts | 17 | of 19 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Audit verdicts | 17 | of 19 mandatory requirements reviewed | 1 weak, wrong or unimplemented, 2 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -54,7 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Out of scope | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Tested both ways | ok | green at every value: a test pair is the outcome this gate exists to produce, and the count under the label is what says how far Ze has got |
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
-| One polarity, unexcused | bad | green at zero, RED above it: half a proof with no reason for the other half |
+| One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
 | Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
@@ -78,8 +78,8 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 75 |
-| Tests linked to requirements | 70 |
+| Test tags | 76 |
+| Tests linked to requirements | 71 |
 | Recorded audit verdicts | 17 |
 | Fault test records | 37 |
 | Summary | `rfc/short/rfc9234.md` |
@@ -94,9 +94,9 @@ Included in automatic checks: BGP Open Policy / Roles + Only-To-Customer OTC att
 
 **Area:** BGP Role and OTC
 
-**Proof:** 12 of 19 MUST proven
+**Proof:** 8 of 19 MUST proven
 
-**Evidence:** interop 1, functional 5, unit 6
+**Evidence:** interop 1, functional 5, unit 2
 
 **Unmet:** RFC9234-5-7, RFC9234-5-8, RFC9234-6-1
 
@@ -105,25 +105,23 @@ Included in automatic checks: BGP Open Policy / Roles + Only-To-Customer OTC att
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 13 | one part of the mandatory requirements |
+| Positive and negative tests | 14 | one part of the mandatory requirements |
 | Annotated (including scoped evidence) | 5 | one part of the mandatory requirements |
-| Only a positive or negative test | 1 | one part of the mandatory requirements |
+| Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
 | Evidence that runs nightly only | 0 | also counted in one of the groups above |
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **19** | every mandatory requirement appears in exactly one group above |
 
-**Positive and negative tests (13):** [`RFC9234-4.1-1`](#rfc9234-4.1-1), [`RFC9234-4.2-1`](#rfc9234-4.2-1), [`RFC9234-4.2-2`](#rfc9234-4.2-2), [`RFC9234-4.2-3`](#rfc9234-4.2-3), [`RFC9234-5-1`](#rfc9234-5-1), [`RFC9234-5-2`](#rfc9234-5-2), [`RFC9234-5-3`](#rfc9234-5-3), [`RFC9234-5-4`](#rfc9234-5-4), [`RFC9234-5-5`](#rfc9234-5-5), [`RFC9234-5-6`](#rfc9234-5-6), [`RFC9234-5-10`](#rfc9234-5-10), [`RFC9234-3.1-1`](#rfc9234-3.1-1), [`RFC9234-5-12`](#rfc9234-5-12)
+**Positive and negative tests (14):** [`RFC9234-4.1-1`](#rfc9234-4.1-1), [`RFC9234-4.2-1`](#rfc9234-4.2-1), [`RFC9234-4.2-2`](#rfc9234-4.2-2), [`RFC9234-4.2-3`](#rfc9234-4.2-3), [`RFC9234-5-1`](#rfc9234-5-1), [`RFC9234-5-2`](#rfc9234-5-2), [`RFC9234-5-3`](#rfc9234-5-3), [`RFC9234-5-4`](#rfc9234-5-4), [`RFC9234-5-5`](#rfc9234-5-5), [`RFC9234-5-6`](#rfc9234-5-6), [`RFC9234-5-9`](#rfc9234-5-9), [`RFC9234-5-10`](#rfc9234-5-10), [`RFC9234-3.1-1`](#rfc9234-3.1-1), [`RFC9234-5-12`](#rfc9234-5-12)
 
 **Annotated (including scoped evidence) (5):** [`RFC9234-4.1-2`](#rfc9234-4.1-2), [`RFC9234-5-7`](#rfc9234-5-7), [`RFC9234-5-8`](#rfc9234-5-8), [`RFC9234-5-11`](#rfc9234-5-11), [`RFC9234-6-1`](#rfc9234-6-1)
 
-**Only a positive or negative test (1):** [`RFC9234-5-9`](#rfc9234-5-9)
-
 ## Figures
 
-- **MUST bar**: Ze proven 12, Proof pending 4, Not built 3
-- **Overview bar**: Ze MUST proven 12, SHOULD proven 1, Proof pending 4, Not assessed 4, Not built 3
+- **MUST bar**: Ze proven 8, Proof pending 8, Not built 3
+- **Overview bar**: Ze MUST proven 8, SHOULD proven 1, Proof pending 8, Not assessed 4, Not built 3
 
 | Figure | Rows |
 |---|---|
@@ -132,9 +130,9 @@ Included in automatic checks: BGP Open Policy / Roles + Only-To-Customer OTC att
 | Mandatory requirements complete | not complete |
 | MUST rows | 19 |
 | MUST rows kept (the MUST bar) | 19 |
-| Ze proven | 12 |
+| Ze proven | 8 |
 | OS verified | 0 |
-| Proof pending | 4 |
+| Proof pending | 8 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -177,7 +175,7 @@ Source: [data/rfc/rfc9234.json](../../../data/rfc/rfc9234.json).
 | `RFC9234-5-6` | Once the OTC Attribute has been set, it MUST be preserved unchanged (this also applies to an AS Confederation). (S5) | MUST | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCAttrModHandlerExistingPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1526). **positive:** `unit/verify` [`TestOTCEgressExistingOTCNotRewrittenToLocalASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1352). **negative:** `unit/verify` [`TestOTCAttrModHandlerNewAttr`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1505) |
 | `RFC9234-5-7` | If an OTC Attribute is added on egress from the AS Confederation, its value MUST equal the AS Confederation Identifier. (S5) | MUST | 5 - BGP Only to Customer (OTC) Attribute | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no AS Confederation and no owner decision declines it: no confederation-identifier or member-AS leaf exists in the BGP YANG, and the egress OTC stamp (internal/component/bgp/plugins/role/otc.go) uses only the destination's local AS, so no confederation egress stamps the Confederation Identifier |
 | `RFC9234-5-8` | Also, on egress from the AS Confederation, an UPDATE MUST NOT contain an OTC Attribute with a value corresponding to any Member-AS Number other than the AS Confederation Identifier. (S5) | MUST NOT | 5 - BGP Only to Customer (OTC) Attribute | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze implements no AS Confederation and no owner decision declines it: with no member-AS or confederation-identifier configuration, internal/component/bgp/plugins/role/otc.go has no confederation egress boundary at which to strip a Member-AS OTC value |
-| `RFC9234-5-9` | On egress from the Internet- facing AS, the OTC Attribute MUST NOT contain a value other than the Internet-facing ASN. (S5) | MUST NOT | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCEgressStampLocalASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1307). **negative:** no negative test |
+| `RFC9234-5-9` | On egress from the Internet- facing AS, the OTC Attribute MUST NOT contain a value other than the Internet-facing ASN. (S5) | MUST NOT | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCEgressStampLocalASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1307). **negative:** `unit/verify` [`TestRFC9234PrivateOTCDoesNotLeavePublicEgress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_private_otc_test.go#L20) |
 | `RFC9234-5-10` | The described ingress and egress procedures are applicable only for the address families AFI 1 (IPv4) and AFI 2 (IPv6) with SAFI 1 (unicast) in both cases and MUST NOT be applied to other address families by default. (S5) | MUST NOT | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestIsPayloadUnicastMPUnreachFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2038). **positive:** `unit/verify` [`TestOTCEgressNonUnicastWithdrawalNotProcessed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2081). **positive:** `unit/verify` [`TestOTCEgressUnicastOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1383). **positive:** `unit/verify` [`TestOTCNonUnicastWithdrawalSkipsOTCProcedures`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2121). **negative:** `unit/verify` [`TestOTCEgressStampMod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L931) |
 | `RFC9234-5-11` | The operator MUST NOT have the ability to modify the procedures defined in this section. (S5) | MUST NOT | 5 - BGP Only to Customer (OTC) Attribute | **positive:** `unit/verify` [`TestOTCEgressWireBytesCheck`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1744). **positive:** `unit/verify` [`TestRFC9234OTCProceduresSurviveOperatorSettings`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L92). **negative:** no negative test. **{single-polarity}:** checkOTCIngress (internal/component/bgp/plugins/role/otc.go:164) and OTCEgressFilter (otc.go:384) take no operator override, peerRoleConfig (config.go:17) exposes no disable flag, and the wire-bytes OTC suppression at otc.go:384 runs before and independent of the export policy, so the procedures cannot be switched off by configuration and a modifiable negative is not constructible |
 | `RFC9234-6-1` | Roles MUST NOT be configured on an eBGP session with a Complex peering relationship. (S6) | MUST NOT | 6 - Additional Considerations | **positive:** no positive test. **negative:** no negative test. **{gap}:** this MUST binds the operator's configuration, and ze cannot know whether a peering relationship is Complex (internal/component/bgp/plugins/role/config.go::parseRoleContainer reads one role per peer). What is owed is operator documentation stating that a role must not be configured on a Complex eBGP session, and no test asserts that the documentation carries it |
@@ -205,7 +203,7 @@ A test reads unproven when no record shows it failing after a deliberate fault. 
 
 If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message. (S4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-02 by an independent auditor who authored none of the bgp-role changes. RFC 9234 Section 4.1: "If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message." The only change to the file-scoped .ci units it judged (655d07b59b, 3459b6e390) deletes the `policy { reject-asn NO-TRANSIT { indirect [ 3356 ] } }` block, its four comment lines, and `filters [ inactive:NO-TRANSIT ];` from each bound import and export chain, leaving `final accept;`. That filter was deactivated and never ran; it existed only because the config then required a role's bound chain to name a transit-refusing filter, and 655d07b59b made that check a filter the bgp-role plugin inserts itself. Every OPEN capability option, every action=send and every expect/reject line (the exact NOTIFICATION or UPDATE hex) is byte-identical, so each case still isolates the same condition and asserts the same exact outcome. Verdict unchanged: enforced. Earlier judgement follows. Rejudged 2026-10-31 by an auditor who authored none of the change. The only change to test/plugin/dynamic-peer-gets-group-role-capability.ci since the last stamp is cabb706c11 moving the policy block from inside bgp {} to the top-level policy root, the same lines re-indented; every action, expect, reject and option line is byte-identical, so the carriers drive the same inputs and assert the same outcomes. Verdict unchanged. RFC 9234 Section 4.1: "If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message." Producer internal/component/bgp/plugins/role/config.go::extractRoleCapabilities emits code 9 and one-octet role values from extractPeerRoleConfigs; reactor/peer.go::getPluginCapabilities consumes the selector declarations, including dynamic groups. TestExtractRoleCapabilities_ParseBGPConfig checks all five values, exactly one declaration and peer, and no declaration for absent/empty/invalid roles. dynamic-peer-gets-group-role-capability.ci pins the entire 002E OPEN ending 090101, then the EoR and dynamic-session establishment, with local AS 65533 and peer AS 65010. A missing, duplicate or wrong-valued capability fails the wire assertion. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged independently against RFC 9234 Section 4.1: "If the BGP Role is locally configured, the eBGP speaker MUST advertise the BGP Role Capability in the BGP OPEN message." TestExtractRoleCapabilities_ParseBGPConfig asserts one code-9 hex declaration and its selector for every role value 00 through 04, and no declaration for absent, empty or invalid roles. dynamic-peer-gets-group-role-capability.ci drives a real dynamic group with local Role RS, compares the entire OPEN including lengths and exactly one 090101 TLV, then requires End-of-RIB, dynamic-peer creation and establishment. Missing, wrong-valued or duplicate Role emission changes that exact wire assertion. The current path is extractRoleCapabilities through GetCapabilitiesForSelectors and Peer.pluginCapabilitySnapshot to buildOpenFromSnapshot; the snapshot preserves both the selected declaration and the capabilities derived from it. The local-role configuration and wire assertions are unchanged by this work. This replaces the obsolete current-producer references in the prior note and makes no new runtime or discrimination claim.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -217,7 +215,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability. (S4.1)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-02 by an independent auditor who authored none of the bgp-role changes. RFC 9234 Section 4.1: "An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability." The only change to the file-scoped .ci units it judged (655d07b59b, 3459b6e390) deletes the `policy { reject-asn NO-TRANSIT { indirect [ 3356 ] } }` block, its four comment lines, and `filters [ inactive:NO-TRANSIT ];` from each bound import and export chain, leaving `final accept;`. That filter was deactivated and never ran; it existed only because the config then required a role's bound chain to name a transit-refusing filter, and 655d07b59b made that check a filter the bgp-role plugin inserts itself. Every OPEN capability option, every action=send and every expect/reject line (the exact NOTIFICATION or UPDATE hex) is byte-identical, so each case still isolates the same condition and asserts the same exact outcome. Verdict unchanged: enforced. Earlier judgement follows. Rejudged 2026-10-31 by an auditor who authored none of the change. The only change to test/plugin/dynamic-peer-gets-group-role-capability.ci since the last stamp is cabb706c11 moving the policy block from inside bgp {} to the top-level policy root, the same lines re-indented; every action, expect, reject and option line is byte-identical, so the carriers drive the same inputs and assert the same outcomes. Verdict unchanged. RFC 9234 Section 4.1: "An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability." The single-polarity annotation remains justified: config.go::parseRoleContainer reads one scalar import role and extractRoleCapabilities emits one declaration per selected peer; reactor/peer.go::getPluginCapabilities consumes those declarations for its selector set. TestExtractRoleCapabilities_ParseBGPConfig requires exactly one capability and one peer for every configured role. dynamic-peer-gets-group-role-capability.ci asserts the whole OPEN with exactly one 090101 TLV, including all enclosing lengths; duplicate emission cannot hide behind a substring assertion. No fabricated negative configuration is required. Rejudged independently against RFC source and every tagged carrier on 2026-10-22. Functional judgments use the corresponding test/draft/plugin files, not the unpromoted old-syntax live files. Their inactive NO-TRANSIT import/export policies explicitly end in accept; reactor runEgressPolicyChain applies that final only after mandatory in-process OTC, and OPEN validation is independent. This is a source judgment, not a new runtime or discrimination result; parent owns promotion and native freshness before stamping.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged independently against RFC 9234 Section 4.1: "An eBGP speaker MUST NOT advertise multiple versions of the BGP Role Capability." The single-polarity annotation remains supported by parseRoleContainer reading one scalar import role, extractRoleCapabilities emitting one declaration per selected peer, and GetCapabilitiesForSelectors selecting one injected capability per code across peer, address, group and global selectors. TestExtractRoleCapabilities_ParseBGPConfig requires exactly one capability and one selector for each configured role. dynamic-peer-gets-group-role-capability.ci compares the complete OPEN and all enclosing lengths with one 090101 TLV, so duplicate wire emission cannot pass as a substring match. Peer.pluginCapabilitySnapshot derives the encoded capabilities from that one selector snapshot, and buildOpenFromSnapshot packs them. The test inputs, tags and wire assertions are unchanged. This replaces the obsolete current-producer references in the prior note and makes no new runtime or discrimination claim.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -306,21 +304,21 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 If a route is to be advertised to a Customer, a Peer, or an RS- Client (when the sender is an RS), and the OTC Attribute is not present, then when advertising the route, an OTC Attribute MUST be added with a value equal to the AS number of the local AS. (§5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against the full Section 5 egress sentence and Section 4.2 local-role prerequisite. TestRFC9234OTCStampedToEveryDownstreamDestination checks Customer, Peer and RS-Client with reachable NLRI, no OTC, a nonzero destination local AS, and exact code-35/set/four-byte/local-AS operations. TestRFC9234OTCNotStampedOutsideTheDownstreamScope checks Provider/RS and existing-OTC controls. TestOTCEgressStampMod pins the same operation; TestOTCEgressNoStampProvider and the no-source-role-config case isolate destination scope. Pure withdrawal, MP_UNREACH-only and mixed withdraw/advertise units distinguish the route-advertisement condition. All tagged native fixtures were read: receiver exact wire expectations include the OTC advertisement and attribute-free withdrawals/EOR; their observer barriers require the corresponding destination updates before shutdown. Both RS-Client fixtures configure the sender as RS. checkOTCWithdrawal requires an established FRR session, an observed advertised route with exact OTC 65001, then observed withdrawal, no receiver attribute error and a surviving session; injector barriers prevent disappearance-by-disconnect from satisfying the negative. OTCEgressFilter, evaluateOTCEgress and PayloadAdvertisesNLRI implement those decisions. Added complementary destination configurations repair RFC applicability while retaining assertions and payloads. Three existing direct producer-break records require renewal; the unchanged interop tuple also needs runtime reproof through the changed OTCEgressFilter dependency. No current runtime or discrimination success is claimed.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal, internal/le/interoplab/bgp/check_rfc.go::checkOTCWithdrawal#2 moved. Independent source rejudgment against the full Section 5 egress sentence and Section 4.2 local-role prerequisite. TestRFC9234OTCStampedToEveryDownstreamDestination checks Customer, Peer and RS-Client with reachable NLRI, no OTC, a nonzero destination local AS, and exact code-35/set/four-byte/local-AS operations. TestRFC9234OTCNotStampedOutsideTheDownstreamScope checks Provider/RS and existing-OTC controls. TestOTCEgressStampMod pins the same operation; TestOTCEgressNoStampProvider and the no-source-role-config case isolate destination scope. Pure withdrawal, MP_UNREACH-only and mixed withdraw/advertise units distinguish the route-advertisement condition. All tagged native fixtures were read: receiver exact wire expectations include the OTC advertisement and attribute-free withdrawals/EOR; their observer barriers require the corresponding destination updates before shutdown. Both RS-Client fixtures configure the sender as RS. checkOTCWithdrawal requires an established FRR session, an observed advertised route with exact OTC 65001, then observed withdrawal, no receiver attribute error and a surviving session; injector barriers prevent disappearance-by-disconnect from satisfying the negative. OTCEgressFilter, evaluateOTCEgress and PayloadAdvertisesNLRI implement those decisions. Added complementary destination configurations repair RFC applicability while retaining assertions and payloads. Three existing direct producer-break records require renewal; the unchanged interop tuple also needs runtime reproof through the changed OTCEgressFilter dependency. No current runtime or discrimination success is claimed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9234OTCNotStampedOutsideTheDownstreamScope`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L72) | unit/verify | mutant, verified |
-| negative | [`TestOTCEgressNoStampOnMPUnreachOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1903) | unit/verify | mutant, verified |
-| negative | [`TestOTCEgressNoStampOnPureWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1882) | unit/verify | mutant, verified |
-| negative | [`TestOTCEgressNoStampProvider`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L970) | unit/verify | mutant, verified |
+| negative | [`TestRFC9234OTCNotStampedOutsideTheDownstreamScope`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L72) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestOTCEgressNoStampOnMPUnreachOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1903) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestOTCEgressNoStampOnPureWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1882) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| negative | [`TestOTCEgressNoStampProvider`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L970) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 | negative | [`checkOTCWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L935) | interop/nightly | unproven |
 | negative | [`role-otc-fwd-withdraw.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-fwd-withdraw.ci#L11) | functional/verify | unproven |
 | negative | [`role-otc-rs-withdraw-eor.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-withdraw-eor.ci#L17) | functional/verify | unproven |
-| positive | [`TestRFC9234OTCStampedToEveryDownstreamDestination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L53) | unit/verify | mutant, verified |
-| positive | [`TestOTCEgressStampMod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L930) | unit/verify | mutant, verified |
-| positive | [`TestOTCEgressStampsMixedWithdrawAndAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1944) | unit/verify | mutant, verified |
-| positive | [`TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1096) | unit/verify | mutant, verified |
+| positive | [`TestRFC9234OTCStampedToEveryDownstreamDestination`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_procedures_test.go#L53) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestOTCEgressStampMod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L930) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestOTCEgressStampsMixedWithdrawAndAnnounce`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1944) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestOTCEgressStampsToCustomerWhenSourceHasNoRoleConfig`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1096) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`checkOTCWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L934) | interop/nightly | mutant, verified |
 | positive | [`role-otc-fwd-withdraw.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-fwd-withdraw.ci#L8) | functional/verify | unproven |
 | positive | [`role-otc-rs-client-dest-stamp-forked.ci`](https://github.com/ze-software/ze/blob/main/test/plugin/role-otc-rs-client-dest-stamp-forked.ci#L22) | functional/verify | unproven |
@@ -348,7 +346,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 |---|---|---|---|
 | negative | [`TestOTCAttrModHandlerNewAttr`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1505) | unit/verify | unproven |
 | positive | [`TestOTCAttrModHandlerExistingPreserved`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1526) | unit/verify | unproven |
-| positive | [`TestOTCEgressExistingOTCNotRewrittenToLocalASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1352) | unit/verify | mutant, verified |
+| positive | [`TestOTCEgressExistingOTCNotRewrittenToLocalASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1352) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC9234-5-7`](#rfc9234-5-7)
 
@@ -370,11 +368,12 @@ No test carries RFC9234-5-8, so there is no linked test.
 
 On egress from the Internet- facing AS, the OTC Attribute MUST NOT contain a value other than the Internet-facing ASN. (S5)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), fresh. Independent rejudgment against the complete private-AS paragraph of RFC 9234 Section 5: 'On egress from the Internet-facing AS, the OTC Attribute MUST NOT contain a value other than the Internet-facing ASN.' The requirement row is now unannotated: it retains the exact obligation, permanent id, level and section without the unsupported single-polarity exemption or a gap annotation incompatible with its existing positive tag. The sole tagged unit, TestOTCEgressStampLocalASN in internal/component/bgp/plugins/role/rfc9234_otc_test.go, supplies reachable unicast NLRI with no OTC and a locally configured downstream destination. It asserts exactly one operation whose decoded value is dest.LocalAS 64999, distinguished from source ASN 65001 and destination ASN 65002. This remains useful isolated proof of absent-OTC synthesis. OTCEgressFilter in internal/component/bgp/plugins/role/otc.go creates OTC only when it is absent and otherwise preserves the existing value. The tagged unit does not supply an already-present OTC carrying a wrong private or internal ASN at the Internet-facing boundary, so it cannot detect noncompliance in that part of the requirement. No negative polarity currently covers the requirement. The existing positive test and claim remain unchanged; removing the unsupported exemption exposes the genuine missing-negative finding rather than inventing coverage or retagging the test. This is a testing limitation and not an observed wire violation, a justification to rewrite arbitrary received OTC, or a whole-requirement conformance claim. No runtime or producer-break replay was run for this source rejudgment.
+Audit verdict: weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/component/bgp/plugins/role/rfc9234_private_otc_test.go::TestRFC9234PrivateOTCDoesNotLeavePublicEgress moved. Independent rejudgment against the complete private-AS paragraph of RFC 9234 Section 5: 'On egress from the Internet-facing AS, the OTC Attribute MUST NOT contain a value other than the Internet-facing ASN.' The requirement row is now unannotated: it retains the exact obligation, permanent id, level and section without the unsupported single-polarity exemption or a gap annotation incompatible with its existing positive tag. The sole tagged unit, TestOTCEgressStampLocalASN in internal/component/bgp/plugins/role/rfc9234_otc_test.go, supplies reachable unicast NLRI with no OTC and a locally configured downstream destination. It asserts exactly one operation whose decoded value is dest.LocalAS 64999, distinguished from source ASN 65001 and destination ASN 65002. This remains useful isolated proof of absent-OTC synthesis. OTCEgressFilter in internal/component/bgp/plugins/role/otc.go creates OTC only when it is absent and otherwise preserves the existing value. The tagged unit does not supply an already-present OTC carrying a wrong private or internal ASN at the Internet-facing boundary, so it cannot detect noncompliance in that part of the requirement. No negative polarity currently covers the requirement. The existing positive test and claim remain unchanged; removing the unsupported exemption exposes the genuine missing-negative finding rather than inventing coverage or retagging the test. This is a testing limitation and not an observed wire violation, a justification to rewrite arbitrary received OTC, or a whole-requirement conformance claim. No runtime or producer-break replay was run for this source rejudgment.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestOTCEgressStampLocalASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1307) | unit/verify | mutant, verified |
+| negative | [`TestRFC9234PrivateOTCDoesNotLeavePublicEgress`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_private_otc_test.go#L20) | unit/verify | unproven |
+| positive | [`TestOTCEgressStampLocalASN`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1307) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC9234-5-10`](#rfc9234-5-10)
 
@@ -384,11 +383,11 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOTCEgressStampMod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L931) | unit/verify | mutant, verified |
+| negative | [`TestOTCEgressStampMod`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L931) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestIsPayloadUnicastMPUnreachFamily`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2038) | unit/verify | unproven |
-| positive | [`TestOTCEgressNonUnicastWithdrawalNotProcessed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2081) | unit/verify | mutant, verified |
-| positive | [`TestOTCEgressUnicastOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1383) | unit/verify | mutant, verified |
-| positive | [`TestOTCNonUnicastWithdrawalSkipsOTCProcedures`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2121) | unit/verify | mutant, verified |
+| positive | [`TestOTCEgressNonUnicastWithdrawalNotProcessed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2081) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestOTCEgressUnicastOnly`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1383) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestOTCNonUnicastWithdrawalSkipsOTCProcedures`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L2121) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC9234-5-11`](#rfc9234-5-11)
 
@@ -417,9 +416,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestOTCEgressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L588) | unit/verify | mutant, verified |
-| positive | [`TestOTCEgressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L578) | unit/verify | mutant, verified |
-| positive | [`TestOTCEgressSuppressProviderLearnedWithoutMeta`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1041) | unit/verify | mutant, verified |
+| negative | [`TestOTCEgressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L588) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestOTCEgressFilter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L578) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestOTCEgressSuppressProviderLearnedWithoutMeta`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/role/rfc9234_otc_test.go#L1041) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC9234-5-12`](#rfc9234-5-12)
 

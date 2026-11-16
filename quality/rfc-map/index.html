@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC dependency map - Ze</title>
         <meta name="description" content="Explore RFC dependencies, proposed release layers and the specifications associated with each requirement." />
         <meta property="og:title" content="RFC dependency map - Ze" />
@@ -56,7 +56,7 @@
 <div class="rfc-map-fallback"><h2>Explore the recorded evidence</h2>
 <p>The interactive graph is loading. The recorded RFC list and evidence links below remain available if JavaScript is disabled or the graph cannot load.</p>
 <p><a href="../rfc-compliance/">RFC evidence</a> · <a href="../rfc-compliance/profiles/">Existing release profiles</a> · <a href="../../project/roadmap/">Specification inventory</a></p>
-<p>RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: <code>f7a3d3e4ad72d7233ccfeff630ea8e911b613ea8</code>. These inputs do not certify one release candidate.</p>
+<p>RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: <code>9ea1d7aaeb85eaba270b6e6d30c8fd5e66e08582</code>. These inputs do not certify one release candidate.</p>
 <noscript><p>The graph needs JavaScript. Use the recorded list below or the existing evidence pages to continue.</p></noscript>
 <details><summary>Recorded RFC list</summary><ul>
 <li><a href="../rfc-compliance/rfc1661/"><code>rfc1661</code></a> — The Point-to-Point Protocol (PPP)</li>
@@ -138,7 +138,6 @@
 <li><code>rfc2211</code> — no recorded summary</li>
 <li><code>rfc2215</code> — no recorded summary</li>
 <li><a href="../rfc-compliance/rfc2385/"><code>rfc2385</code></a> — Protection of BGP Sessions via the TCP MD5 Signature Option</li>
-<li><code>rfc2845</code> — no recorded summary</li>
 <li><code>rfc3526</code> — no recorded summary</li>
 <li><code>rfc3610</code> — no recorded summary</li>
 <li><code>rfc3704</code> — no recorded summary</li>
@@ -162,6 +161,7 @@
 <li><code>draft-mangin-netcapstring-00</code> — no recorded summary</li>
 <li><code>rfc952</code> — no recorded summary</li>
 <li><a href="../rfc-compliance/rfc1570/"><code>rfc1570</code></a> — PPP LCP Extensions</li>
+<li><code>rfc1662</code> — no recorded summary</li>
 <li><code>rfc2961</code> — no recorded summary</li>
 <li><code>rfc2997</code> — no recorded summary</li>
 <li><a href="../rfc-compliance/rfc5036/"><code>rfc5036</code></a> — LDP Specification</li>
@@ -270,6 +270,7 @@
 <li><a href="../rfc-compliance/rfc9370/"><code>rfc9370</code></a> — Multiple Key Exchanges in the Internet Key Exchange Protocol Version 2 (IKEv2)</li>
 <li><code>rfc9463</code> — no recorded summary</li>
 <li><a href="../rfc-compliance/draft-walton-bgp-hostname-capability/"><code>draft-walton-bgp-hostname-capability</code></a> — Hostname Capability for BGP</li>
+<li><code>rfc2845</code> — no recorded summary</li>
 <li><a href="../rfc-compliance/rfc2867/"><code>rfc2867</code></a> — RADIUS Accounting Modifications for Tunnel Protocol Support</li>
 <li><a href="../rfc-compliance/rfc2868/"><code>rfc2868</code></a> — RADIUS Attributes for Tunnel Protocol Support</li>
 <li><a href="../rfc-compliance/rfc2918/"><code>rfc2918</code></a> — Route Refresh Capability for BGP-4</li>
@@ -411,7 +412,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:42 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

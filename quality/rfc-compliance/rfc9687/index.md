@@ -15,8 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 13 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 13 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 13 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 9 | 9 of 36 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
-| Audit verdicts | 13 | of 13 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Tests shown to detect a fault | 29 | 29 of 39 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Neutral
 
@@ -55,7 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
-| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
@@ -71,25 +70,25 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 36 |
-| Tests linked to requirements | 36 |
+| Test tags | 39 |
+| Tests linked to requirements | 39 |
 | Recorded audit verdicts | 13 |
-| Fault test records | 9 |
+| Fault test records | 30 |
 | Summary | `rfc/short/rfc9687.md` |
 | Requirement table | `rfc/requirements/rfc9687.md` |
 | RFC text | `rfc/full/rfc9687.txt` |
 
 ## Automatic checks
 
-Included in automatic checks: BGP-4 Send Hold Timer: thirteen MUST-level requirements, every one proven in both polarities over the real session (internal/component/bgp/reactor/rfc9687_test.go, a Session driven to Established on a net.Pipe with Run executing and a FakeClock behind every timer). Ten of the thirteen are read from section 4.3, whose obligations are written in the indicative inside quoted NEW blocks that replace text in RFC 4271 section 8.2.2; RFC 4271 section 8 makes an implementation "support the described functionality and exhibit the same externally visible behavior", which is the same ground on which rfc/short/rfc4271.md gates eighteen rows of that section. RFC9687-4.3-1 is the OpenConfirm Event 26 arming, RFC9687-4.3-2 through -7 are the Event 29 action list (log, release resources, zero the ConnectRetryTimer, drop TCP, increment the ConnectRetryCounter, go to Idle), RFC9687-4.3-8 is the restart on every message sent, RFC9687-4.3-9 the stop when the negotiated HoldTime is zero, RFC9687-4.3-10 the stop on any transition out of Established. RFC9687-5-1 and -2 restate the close and the log as capitalised MUSTs and RFC9687-4.4-1 is the section 4.4 constraint on the attribute. Two of the thirteen were UNMET when the walk started and were fixed in the same change: startSendHoldTimer armed the timer whatever the negotiated HoldTime was, so a peering with a zero Hold Time (RFC 4271 section 4.2, which stops KEEPALIVEs in both directions) was torn down every eight minutes although it sent nothing by design; and parsePeerFromTree accepted send-hold-time 480 beside receive-hold-time 3600, an attribute section 4.4 forbids. Both fixes were proven red before green. The remaining seven rows are 1 RECOMMENDED, 2 SHOULD and 4 MAY. The section-by-section walk is recorded in rfc/extraction/rfc9687.json at register prose. Enrolled 2026-08-31.
+Included in automatic checks: Ze implements the BGP Send Hold Timer and the expiry actions introduced by this update to the RFC 4271 FSM: arming, restart after successful transmission, negotiated-zero stopping, resource release, logging, socket closure, retry accounting and transition to Idle. The quoted NEW action lists in Section 4.3 replace the base FSM behavior, whose required externally visible behavior remains binding. Section 4.4 constrains configured SendHoldTime relative to HoldTime. Conditional action fixtures isolate individual expiry actions; they do not establish the elapsed-timer behavior of a valid configuration under blocked output. That integration is assessed separately using a configured duration at or above the production minimum and greater than negotiated HoldTime, while inbound KEEPALIVEs keep the receive timer alive. Requirement rows, test bindings, independent audits and verified discrimination records determine proof coverage; this Meta row declares no completed share.
 
 ## Published support status
 
 **Area:** Send Hold Timer
 
-**Proof:** 4 of 13 MUST proven
+**Proof:** 13 of 13 MUST proven
 
-**Evidence:** unit 4
+**Evidence:** unit 13
 
 **Unmet:** -
 
@@ -111,19 +110,19 @@ Included in automatic checks: BGP-4 Send Hold Timer: thirteen MUST-level require
 
 ## Figures
 
-- **MUST bar**: Ze proven 4, Proof pending 9
-- **Overview bar**: Ze MUST proven 4, Proof pending 9, Not assessed 7
+- **MUST bar**: Ze proven 13
+- **Overview bar**: Ze MUST proven 13, Not assessed 7
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 13 |
 | MUST rows kept (the MUST bar) | 13 |
-| Ze proven | 4 |
+| Ze proven | 13 |
 | OS verified | 0 |
-| Proof pending | 9 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -159,12 +158,12 @@ Source: [data/rfc/rfc9687.json](../../../data/rfc/rfc9687.json).
 | `RFC9687-4.3-4` | sets the ConnectRetryTimer to zero (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L176). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L271) |
 | `RFC9687-4.3-5` | drops the TCP connection (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L178). **positive:** `unit/verify` [`TestSendHoldExpiryClosesBehindStuckWriter`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_wedge_test.go#L234). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L273) |
 | `RFC9687-4.3-6` | increments the ConnectRetryCounter by 1 (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L180). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L275) |
-| `RFC9687-4.3-7` | changes its state to Idle (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L182). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L277) |
+| `RFC9687-4.3-7` | changes its state to Idle (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687ExpiryFirstLeavesEstablishedForIdle`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_expiry_transition_test.go#L30). **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L182). **positive:** `unit/verify` [`TestRFC9687ValidSendHoldExpiresBehindBlockedKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_valid_blocked_test.go#L48). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L277) |
 | `RFC9687-4.3-8` | Each time the local system sends a BGP message, it restarts the \| SendHoldTimer (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687EmissionRestartsExactSendHoldDeadline`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_emission_test.go#L183). **positive:** `unit/verify` [`TestRFC9687EveryWriterRestartsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L92). **positive:** `unit/verify` [`TestRFC9687RemainingWritersRestartSendHold`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_remaining_writers_test.go#L17). **positive:** `unit/verify` [`TestRFC9687SendRestartsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L401). **negative:** `unit/verify` [`TestRFC9687SilenceDoesNotRestartTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L439). **negative:** `unit/verify` [`TestRFC9687SuppressedAttemptsDoNotRestartSendHold`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_emission_test.go#L69) |
 | `RFC9687-4.3-9` | unless the SendHoldTime value is zero or the \| negotiated HoldTime value is zero, in which case the \| SendHoldTimer is stopped. (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L475). **negative:** `unit/verify` [`TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L513) |
 | `RFC9687-4.3-10` | The SendHoldTimer is stopped following any transition out of \| the Established state as part of the "release all BGP \| resources" action. (§4.3) | MUST | 4.3 - Changes to the FSM | **positive:** `unit/verify` [`TestRFC9687PeerDrivenTeardownStopsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_reactor_b_test.go#L121). **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L184). **positive:** `unit/verify` [`TestRFC9687TeardownStopsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L545). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L279) |
 | `RFC9687-4.4-1` | If SendHoldTime is non-zero, then it MUST be \| greater than the value of HoldTime; see Section 6 of [RFC9687] for \| suggested default values. (§4.4) | MUST | 4.4 - Changes to BGP Timers | **positive:** `unit/verify` [`TestRFC9687SendHoldTimeMustExceedHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L574). **negative:** `unit/verify` [`TestRFC9687SendHoldTimeAboveHoldTimeAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L615) |
-| `RFC9687-5-1` | If the local system does not send any BGP messages within the period specified in SendHoldTime, then a NOTIFICATION message with the "Send Hold Timer Expired" Error Code MAY be sent and the BGP connection MUST be closed. (§5) | MUST | 5 - Send Hold Timer Expired Error Handling | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L186). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L281) |
+| `RFC9687-5-1` | If the local system does not send any BGP messages within the period specified in SendHoldTime, then a NOTIFICATION message with the "Send Hold Timer Expired" Error Code MAY be sent and the BGP connection MUST be closed. (§5) | MUST | 5 - Send Hold Timer Expired Error Handling | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L186). **positive:** `unit/verify` [`TestRFC9687ValidSendHoldExpiresBehindBlockedKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_valid_blocked_test.go#L49). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L281) |
 | `RFC9687-5-2` | Additionally, an error MUST be logged in the local system, indicating the "Send Hold Timer Expired" Error Code. (§5) | MUST | 5 - Send Hold Timer Expired Error Handling | **positive:** `unit/verify` [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L187). **negative:** `unit/verify` [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L283) |
 | `RFC9687-6-1` | Accordingly, it is RECOMMENDED that implementations of this specification enable SendHoldTimer by default, without requiring additional configuration of the BGP-speaking device. (§6) | RECOMMENDED | 6 - Implementation Considerations | **positive:** no positive test. **negative:** no negative test |
 | `RFC9687-6-2` | The default value of SendHoldTime for a BGP connection SHOULD be the greater of: * 8 minutes or * 2 times the negotiated HoldTime (§6) | SHOULD | 6 - Implementation Considerations | **positive:** no positive test. **negative:** no negative test |
@@ -190,8 +189,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Inde
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9687SendHoldTimerNotArmedBeforeEstablished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L357) | unit/verify | unproven |
-| positive | [`TestRFC9687SendHoldTimerArmedOnEstablished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L336) | unit/verify | unproven |
+| negative | [`TestRFC9687SendHoldTimerNotArmedBeforeEstablished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L357) | unit/verify | mutant, verified |
+| positive | [`TestRFC9687SendHoldTimerArmedOnEstablished`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L336) | unit/verify | mutant, verified |
 
 ### [`RFC9687-4.3-2`](#rfc9687-4.3-2)
 
@@ -201,8 +200,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L268) | unit/verify | unproven |
-| positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L171) | unit/verify | unproven |
+| negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L268) | unit/verify | mutant, verified |
+| positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L171) | unit/verify | mutant, verified |
 
 ### [`RFC9687-4.3-3`](#rfc9687-4.3-3)
 
@@ -226,8 +225,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L271) | unit/verify | unproven |
-| positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L176) | unit/verify | unproven |
+| negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L271) | unit/verify | mutant, verified |
+| positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L176) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC9687-4.3-5`](#rfc9687-4.3-5)
 
@@ -249,25 +248,27 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L275) | unit/verify | unproven |
-| positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L180) | unit/verify | unproven |
+| negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L275) | unit/verify | mutant, verified |
+| positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L180) | unit/verify | mutant, verified |
 
 ### [`RFC9687-4.3-7`](#rfc9687-4.3-7)
 
 changes its state to Idle (§4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 9687 Section 4.3 Event 29 changes state to Idle. Re-read SendHoldExpiryRunsTheEvent29ActionList and NoSendHoldExpiryLeavesTheSessionIntact: the positive advances exactly SendHoldTime, now joins exact ErrSendHoldTimerExpired and asserts StateIdle; the negative stops one nanosecond short, rejects terminal Run completion and requires StateEstablished. The fixture establishes through real OPEN/KEEPALIVE processing and chooses a deadline preceding every other session timer. sendHoldTimerExpired delivers the event to fsm's Established HoldTimerExpires handler, whose exact transition is Idle. A missing, wrong or premature transition violates a distinct state assertion; Run completion alone does not stand in for that transition. No native execution claimed.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently rejudged RFC 9687 Section 4.3 against the current tests, producers and main-thread observations in job-rfc9687-completion-proofs-25e72061.log. This replaces the old audit rationale that a wrong destination necessarily fails the action-list test's final StateIdle assertion: transport cleanup can repair Established-to-Active to Idle, and that older mutant failed only the neighboring retry-counter assertion. The legacy action-list test remains auxiliary evidence, not the decisive transition or valid-timer-integration proof. TestRFC9687ExpiryFirstLeavesEstablishedForIdle now uses valid SendHoldTime greater than negotiated HoldTime and explicitly invokes the production expiry handler; its tag correctly claims a conditional action proof. TestRFC9687ValidSendHoldExpiresBehindBlockedKeepalive independently parses 90/480-second settings, keeps the receive timer renewed with processed inbound KEEPALIVEs, observes the session live at 479 seconds with an unchanged send deadline, and lets the actual Send Hold callback expire while the outbound write path remains held. The production Peer callback captures its actual from/to arguments in leaveSession; sessionDown appends that captured transition and PeerFSMHistory returns it, so later cleanup cannot change the recorded first destination. In the observed main-thread runs both new units passed unmodified. Changing handleEstablished's f.change(StateIdle) to f.change(StateActive) failed the direct target assertions with expected IDLE and actual ACTIVE in both units. The valid 479-second control and the unchanged NoSendHoldExpiryLeavesTheSessionIntact pre-expiry assertions reject unconditional or premature teardown. Together these enforce the Event 29 Idle action and its valid elapsed-timer path; they do not certify the whole RFC or aggregate figure freshness.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L277) | unit/verify | unproven |
-| positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L182) | unit/verify | unproven |
+| negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L277) | unit/verify | mutant, verified |
+| positive | [`TestRFC9687ExpiryFirstLeavesEstablishedForIdle`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_expiry_transition_test.go#L30) | unit/verify | mutant, verified |
+| positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L182) | unit/verify | mutant, verified |
+| positive | [`TestRFC9687ValidSendHoldExpiresBehindBlockedKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_valid_blocked_test.go#L48) | unit/verify | mutant, verified |
 
 ### [`RFC9687-4.3-8`](#rfc9687-4.3-8)
 
 Each time the local system sends a BGP message, it restarts the | SendHoldTimer (§4.3)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Read RFC 9687 Section 4.3's whole restart sentence, including its zero-value exceptions, and every tagged function: SendRestartsTheSendHoldTimer, SilenceDoesNotRestartTheSendHoldTimer, EveryWriterRestartsTheSendHoldTimer, RemainingWritersRestartSendHold, EmissionRestartsExactSendHoldDeadline and SuppressedAttemptsDoNotRestartSendHold. Real RawMessage, generic KEEPALIVE, UPDATE/withdraw/raw-body, SendAnnounce, held writes, raw/parsed forward batches and dirty flush rails are exercised with nonzero negotiated hold; sending at 0.6 SendHoldTime retains Established and an armed timer past the old deadline. Exact-emission tests additionally compare wire frames and exact restarted deadline, including bufio direct writes, refresh/BoRR/EoRR, buffering without emission, and empty flush not reusing old emission. Policy suppression, duplicates, stale batches, empty operations and PATHS-LIMIT write no extra bytes, leave the exact deadline fixed and reach actual expiry. The silence unit now requires the exact ErrSendHoldTimerExpired sentinel, not just any completed Run. flushWrites consumes writePending and resets only after successful emission/flush; resetSendHoldTimer and sendHoldTimerCheck move/recheck the deadline. The zero negotiated HoldTime case is separately proven by the tagged -9 pair; effective zero SendHoldTime is unreachable because sendHoldDuration supplies a positive auto minimum. No proof loss from the sentinel addition. Source audit only; no native mutation result claimed.
+Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc9687_emission_test.go::TestRFC9687SuppressedAttemptsDoNotRestartSendHold moved. Read RFC 9687 Section 4.3's whole restart sentence, including its zero-value exceptions, and every tagged function: SendRestartsTheSendHoldTimer, SilenceDoesNotRestartTheSendHoldTimer, EveryWriterRestartsTheSendHoldTimer, RemainingWritersRestartSendHold, EmissionRestartsExactSendHoldDeadline and SuppressedAttemptsDoNotRestartSendHold. Real RawMessage, generic KEEPALIVE, UPDATE/withdraw/raw-body, SendAnnounce, held writes, raw/parsed forward batches and dirty flush rails are exercised with nonzero negotiated hold; sending at 0.6 SendHoldTime retains Established and an armed timer past the old deadline. Exact-emission tests additionally compare wire frames and exact restarted deadline, including bufio direct writes, refresh/BoRR/EoRR, buffering without emission, and empty flush not reusing old emission. Policy suppression, duplicates, stale batches, empty operations and PATHS-LIMIT write no extra bytes, leave the exact deadline fixed and reach actual expiry. The silence unit now requires the exact ErrSendHoldTimerExpired sentinel, not just any completed Run. flushWrites consumes writePending and resets only after successful emission/flush; resetSendHoldTimer and sendHoldTimerCheck move/recheck the deadline. The zero negotiated HoldTime case is separately proven by the tagged -9 pair; effective zero SendHoldTime is unreachable because sendHoldDuration supplies a positive auto minimum. No proof loss from the sentinel addition. Source audit only; no native mutation result claimed.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -286,8 +287,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L513) | unit/verify | unproven |
-| positive | [`TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L475) | unit/verify | unproven |
+| negative | [`TestRFC9687NonZeroNegotiatedHoldTimeArmsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L513) | unit/verify | mutant, verified |
+| positive | [`TestRFC9687ZeroNegotiatedHoldTimeStopsTheSendHoldTimer`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L475) | unit/verify | mutant, verified |
 
 ### [`RFC9687-4.3-10`](#rfc9687-4.3-10)
 
@@ -310,19 +311,20 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Forb
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9687SendHoldTimeAboveHoldTimeAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L615) | unit/verify | unproven |
-| positive | [`TestRFC9687SendHoldTimeMustExceedHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L574) | unit/verify | unproven |
+| negative | [`TestRFC9687SendHoldTimeAboveHoldTimeAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L615) | unit/verify | mutant, verified |
+| positive | [`TestRFC9687SendHoldTimeMustExceedHoldTime`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L574) | unit/verify | mutant, verified |
 
 ### [`RFC9687-5-1`](#rfc9687-5-1)
 
 If the local system does not send any BGP messages within the period specified in SendHoldTime, then a NOTIFICATION message with the "Send Hold Timer Expired" Error Code MAY be sent and the BGP connection MUST be closed. (§5)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 9687 Section 5 permits a Send Hold Timer Expired NOTIFICATION but requires the connection closed when no BGP message is sent within SendHoldTime. Both tagged functions were re-read. SendHoldExpiryRunsTheEvent29ActionList advances exactly the isolated SendHold deadline without sending, now requires exact ErrSendHoldTimerExpired and uses requireConnClosed to demand EOF/closed pipe, never a timeout; NoSendHoldExpiryLeavesTheSessionIntact advances one nanosecond short and requires no close and Established state. sendHoldTimerExpired closes through closeConn and Run has a common deferred close. The optional NOTIFICATION assertion in the positive unit is additional implementation behavior on a writable pipe, not a mandatory interpretation of MAY. Its sentinel addition removes no transport assertion. No native observation claimed.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently rejudged RFC 9687 Section 5: a NOTIFICATION is MAY, while closure after no sends within SendHoldTime is MUST. The decisive new TestRFC9687ValidSendHoldExpiresBehindBlockedKeepalive uses production-parsed HoldTime 90s and SendHoldTime 480s, establishes a live Peer, and holds its userspace write path so periodic outbound KEEPALIVEs cannot complete. Processed inbound KEEPALIVEs repeatedly renew receive hold, while the send deadline is unchanged. The same transport remains open and the session remains Established at 479s. At expiry the actual timer callback takes its bounded optional-notification path and closes the transport while the write path is still held; after releasing the holder, the peer observes EOF and the close cause is exactly ErrSendHoldTimerExpired, not ErrHoldTimerExpired. startSendHoldTimer/sendHoldTimerCheck drive sendHoldTimerExpired, and closeConnWithin reaches dropConn for the held path. The main-thread log job-rfc9687-completion-proofs-25e72061.log contains baseline PASS runs and a real mutant red: omitting closeConnQuietly(conn) in dropConn fails this unit's exact socket-open assertion at line 90 after its five-second observation bound. A write-deadline change or Run completion cannot satisfy that assertion. The old action-list writable-connection closure and pre-expiry live-session tests remain auxiliary observations; their shortened timer setup is not the valid-duration integration proof. The new valid 479s live-socket control supplies the conforming outside-condition case. This verifies the closure obligation for the exercised connection/write-path boundary, without treating optional NOTIFICATION delivery as mandatory or claiming an OS TCP zero-window experiment, whole-RFC release readiness, or fresh aggregate figures.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L281) | unit/verify | unproven |
-| positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L186) | unit/verify | unproven |
+| negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L281) | unit/verify | mutant, verified |
+| positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L186) | unit/verify | mutant, verified |
+| positive | [`TestRFC9687ValidSendHoldExpiresBehindBlockedKeepalive`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_valid_blocked_test.go#L49) | unit/verify | mutant, verified |
 
 ### [`RFC9687-5-2`](#rfc9687-5-2)
 
@@ -332,8 +334,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. RFC 
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L283) | unit/verify | unproven |
-| positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L187) | unit/verify | unproven |
+| negative | [`TestRFC9687NoSendHoldExpiryLeavesTheSessionIntact`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L283) | unit/verify | mutant, verified |
+| positive | [`TestRFC9687SendHoldExpiryRunsTheEvent29ActionList`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc9687_test.go#L187) | unit/verify | mutant, verified |
 
 ## Requirement list review
 

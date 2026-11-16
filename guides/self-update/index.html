@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Self-Update Guide - Ze</title>
         <meta name="description" content="Ze documentation: guide/self-update.md" />
         <meta property="og:title" content="Self-Update Guide - Ze" />
@@ -166,6 +166,11 @@ downloading. Manual commands (<code>update system firmware apply</code>) bypass 
 download. Manual commands warn but proceed.</p>
 <p>Optional fields: <code>minimum-version</code> (sequential upgrade enforcement),
 <code>download-url</code> (override download location, must be HTTPS).</p>
+<p>The server answers each request where it is asked. Ze follows a redirect of
+the manifest or of the binary only within the scheme and host of the request:
+a redirect to another host, or from <code>https</code> to <code>http</code>, is refused, and the
+target receives nothing. Configure the <code>url</code> the manifest really lives at, and
+name a binary on another host in <code>download-url</code>.</p>
 <h2 id="client-configuration">Client Configuration</h2>
 <h3 id="check-only-default">Check-only (default)</h3>
 <pre><code>system {
@@ -309,6 +314,10 @@ can reach the target release.</p>
 <td>"no previous version available"</td>
 <td class="cell-no">✕</td>
 </tr>
+<tr>
+<td>"redirects to ..., and Ze did not follow it"</td>
+<td>The server redirected the manifest or the binary to another host or to <code>http</code>. Follow the error's <code>fix:</code> line: it sets <code>url</code> to the final manifest location, or asks the server to publish the binary's location as <code>download-url</code>, or to answer over <code>https</code> with no redirect</td>
+</tr>
 </tbody>
 </table>
 <p>History (<code>show system update history</code>) shows the result of each update attempt,
@@ -362,7 +371,7 @@ including failures with their reason. History survives restarts.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2865 requirements and tests - Ze</title>
         <meta name="description" content="RFC 2865: Remote Authentication Dial In User Service (RADIUS). 31 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2865 requirements and tests - Ze" />
@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 31 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 31 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 31 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>77</strong><b>77 of 107 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>76</strong><b>76 of 107 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -255,7 +255,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>22</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>77</td>
+<td>80</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc2865.md</code></td>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RADIUS authentication</p>
-<p><strong>Proof:</strong> 27 of 31 MUST proven</p>
-<p><strong>Evidence:</strong> unit 27</p>
+<p><strong>Proof:</strong> 26 of 31 MUST proven</p>
+<p><strong>Evidence:</strong> unit 26</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -322,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc2865:must">Ze proven 27, Proof pending 4</div>
+<div data-ze-rfc-bar="rfc2865:must">Ze proven 26, Proof pending 5</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc2865:overview">Ze MUST proven 27, Proof pending 4, Not assessed 1</div>
+<div data-ze-rfc-bar="rfc2865:overview">Ze MUST proven 26, Proof pending 5, Not assessed 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -345,13 +345,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc2865:must.kept">31</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc2865:must.ze-proven">27</span></td>
+<td><span data-ze-rfc="rfc2865:must.ze-proven">26</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc2865:must.os-verified">0</span></td>
 </tr>
 <tr><td>Proof pending</td>
-<td><span data-ze-rfc="rfc2865:must.proof-pending">4</span></td>
+<td><span data-ze-rfc="rfc2865:must.proof-pending">5</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc2865:must.os-gap">0</span></td>
@@ -484,8 +484,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5 - Attributes</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L219" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestUserName</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_test.go#L31" title="internal/component/l2tp/plugins/authradius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestUserName</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L75" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestOmitsAnUnavailableUserName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_test.go#L33" title="internal/component/l2tp/plugins/authradius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestUserName</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L77" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestOmitsAnUnavailableUserName</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5.2-1">RFC2865-5.2-1</code></td><td colspan="3"><span class="rfc-subject">A one- way MD5 hash is calculated over a stream of octets consisting of the shared secret followed by the Request Authenticator. This value is XORed with the first 16 octet segment of the password and placed in the first 16 octets of the String field of the User- Password Attribute. If the password is longer than 16 characters, a second one-way MD5 hash is calculated over a stream of octets consisting of the shared secret followed by the result of the first xor. That hash is XORed with the second 16 octet segment of the password and placed in the second 16 octets of the String field of the User- Password Attribute. If necessary, this operation is repeated, with each xor result being used along with the shared secret to generate the next hash to xor the next segment of the password (§5.2)</span></td></tr>
@@ -537,12 +537,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>1.1 - Specification of Requirements</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-1.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L61" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAdminAccessAcceptWithOfferedServiceTypeIsAccepted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L35" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865AcceptForPPPFramingIsHonored</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L216" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberServiceTypeAuthorization</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L37" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865AcceptForPPPFramingIsHonored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L224" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberServiceTypeAuthorization</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L234" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865UnsupportedServiceTypeIsRejection</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L82" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAdminAccessAcceptWithUnofferedServiceTypeIsRejected</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L54" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865AcceptForAFramingTheLNSLacksIsRejected</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L223" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberServiceTypeAuthorization</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L56" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865AcceptForAFramingTheLNSLacksIsRejected</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L231" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberServiceTypeAuthorization</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L241" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865UnsupportedServiceTypeIsRejection</code></a></span></div>
 </div></td>
 </tr>
@@ -551,8 +551,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>5.6 - Service-Type</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-5.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L69" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865SupportedServiceTypeIsHonored</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L84" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L71" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865SupportedServiceTypeIsHonored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L86" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-3-6">RFC2865-3-6</code></td><td colspan="3"><span class="rfc-subject">Octets outside the range of the Length field MUST be treated as padding and ignored on reception (§3)</span></td></tr>
@@ -583,8 +583,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4.1 - Access-Request</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-4.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L198" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAdminAuthenticationTransmitsAccessRequest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L424" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L96" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccountingRequestDoesNotCarryTheAccessRequestCode</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L433" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L99" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccountingRequestDoesNotCarryTheAccessRequestCode</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-4.1-6">RFC2865-4.1-6</code></td><td colspan="3"><span class="rfc-subject">The Request Authenticator value MUST be changed each time a new Identifier is used (§4.1)</span></td></tr>
@@ -604,8 +604,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4.1 - Access-Request</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-4.1-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L216" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAdminAccessRequestIdentifiesTheNAS</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L426" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L49" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L435" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L50" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-4.1-3">RFC2865-4.1-3</code></td><td colspan="3"><span class="rfc-subject">An Access-Request MUST contain either a User-Password or a CHAP- Password or a State. An Access-Request MUST NOT contain both a User-Password and a CHAP-Password. If future extensions allow other kinds of authentication information to be conveyed, the attribute for that can be used in an Access-Request instead of User-Password or CHAP-Password. (§4.1, restated at §5.44 Note 1)</span></td></tr>
@@ -614,12 +614,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4.1 - Access-Request</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-4.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L237" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAdminAccessRequestCarriesExactlyOneCredential</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go#L125" title="internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go" target="_blank" rel="noopener"><code>TestCredentialBearingMethodStillReachesTheServer</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go#L127" title="internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go" target="_blank" rel="noopener"><code>TestCredentialBearingMethodStillReachesTheServer</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_eap_credential_test.go#L36" title="internal/component/radius/rfc2865_eap_credential_test.go" target="_blank" rel="noopener"><code>TestRFC2865EAPAccessRequestCarriesTheExtensionCredential</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_extension_credential_test.go#L19" title="internal/component/l2tp/plugins/authradius/rfc2865_extension_credential_test.go" target="_blank" rel="noopener"><code>TestRFC2865MSCHAPv2AccessRequestCarriesTheExtensionCredential</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L101" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestCarriesCredential</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go#L95" title="internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go" target="_blank" rel="noopener"><code>TestNoAuthIsAdmittedWithARADIUSClientConfigured</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L128" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestCarriesCredential</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_extension_credential_test.go#L20" title="internal/component/l2tp/plugins/authradius/rfc2865_extension_credential_test.go" target="_blank" rel="noopener"><code>TestRFC2865MSCHAPv2AccessRequestCarriesTheExtensionCredential</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L102" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestCarriesCredential</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go#L96" title="internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go" target="_blank" rel="noopener"><code>TestNoAuthIsAdmittedWithARADIUSClientConfigured</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L131" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestCarriesCredential</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-4.4-1">RFC2865-4.4-1</code></td><td colspan="3"><span class="rfc-subject">If the NAS does not support challenge/response, it MUST treat an Access-Challenge as though it had received an Access-Reject instead. (§4.4; ze supports challenge/response for the two EAP auth-methods and not for PAP or CHAP, so the rule binds the PAP and CHAP paths)</span></td></tr>
@@ -629,10 +629,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-4.4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L371" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAccessChallengeIsTreatedAsAccessReject</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L193" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessChallengeIsRejection</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L29" title="internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessChallengeIsTreatedAsReject</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L31" title="internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessChallengeIsTreatedAsReject</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L396" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestAccessChallengeDoesNotFallThroughToTheNextBackend</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L200" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessChallengeIsRejection</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L56" title="internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L58" title="internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc2865-5-4">RFC2865-5-4</code></td><td colspan="3"><span class="rfc-subject">A RADIUS server or client MUST NOT have any dependencies on the order of attributes of different types (§5)</span></td></tr>
@@ -650,11 +650,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>5 - Attributes</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2865-5-8">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L167" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberZeroLengthUserNameOmitted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L172" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberZeroLengthUserNameOmitted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L274" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865ZeroLengthTextIsOmitted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L511" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestZeroLengthAttributeIsOmitted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L528" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestOneOctetAttributeIsNotOmitted</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L179" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberZeroLengthUserNameOmitted</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L185" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberZeroLengthUserNameOmitted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L282" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865ZeroLengthTextIsOmitted</code></a></span></div>
 </div></td>
 </tr>
@@ -908,20 +908,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-5-1"><code>RFC2865-5-1</code></a></h3>
 <p>It MUST be sent in Access-Request packets if available. (§5, sentence at §5.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: an Access-Request without User-Name when the name is available. The admin (radius TestRFC2865AccessRequestUserName) and L2TP (authradius buildAuthAttrs test) units assert User-Name present with the right value; the negative TestRFC2865AccessRequestOmitsAnUnavailableUserName covers the if-available condition.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 5.1: &#39;It MUST be sent in Access-Request packets if available.&#39; The unchanged admin test reads the transmitted alice User-Name; the subscriber builder test requires subscriber@example.net exactly. The subscriber negative supplies an empty name with a usable PAP password, then reads a real Access-Request with User-Password and no User-Name. That retained credential proves omission did not merely suppress the whole packet. The new canonical ID changes only transport context for the same subscriber and leaves username values, credentials and all assertions unchanged. Both the available-name obligation and its absence condition remain covered. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L75" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestOmitsAnUnavailableUserName</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L77" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestOmitsAnUnavailableUserName</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_test.go#L31" title="internal/component/l2tp/plugins/authradius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestUserName</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_test.go#L33" title="internal/component/l2tp/plugins/authradius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestUserName</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_test.go#L219" title="internal/component/radius/rfc2865_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestUserName</code></a></td>
@@ -1043,18 +1043,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-1.1-2"><code>RFC2865-1.1-2</code></a></h3>
 <p>A NAS MUST treat a RADIUS access-accept authorizing an unavailable service as an access-reject instead. (§1.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-09-30 after D-8. The recorded weak verdict named the missing clause: an Accept authorizing an unavailable service through an attribute other than Service-Type, for example Framed-User over Framed-Protocol SLIP on the L2TP LNS. That clause is now asserted: TestRFC2865AcceptForAFramingTheLNSLacksIsRejected sends Framed-User with Framed-Protocol 2, 3, 4, 5, 6 (every RFC 2865 Section 5.7 framing but PPP) and 255, and fails if the session comes up; TestRFC2865AcceptForPPPFramingIsHonored sends Framed-User over PPP and fails if it is refused. Service-Type is Framed-User in both, so only the framing varies. Producer: doRADIUS refuses unless radius.AcceptedFramedProtocol(resp, FramedProtocolPPP); an absent Framed-Protocol is accepted (TestRFC2865SupportedServiceTypeIsHonored carries none and is honored, so no regression). The author observed the negative red at Framed-Protocol 2 before the fix; the gate records are panic breaks on AcceptedFramedProtocol (positive) and doRADIUS (negative). The Service-Type units on the admin and L2TP paths are unchanged and still cover the Service-Type route. Service and framing are the two attributes RFC 2865 uses to authorize a service (Section 1.1 names ARAP, a framing, as its example), so both routes are now enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 1.1: &#39;A NAS MUST treat a RADIUS access-accept authorizing an unavailable service as an access-reject instead.&#39; All tagged admin and subscriber units were read. Admin Login-User and subscriber Framed-User with PPP are admitted; unoffered Service-Types and all six non-PPP Framed-Protocol values are refused. The framing cases keep Service-Type fixed, so another authorization guard cannot decide them first. Absent Service-Type remains admitted on both paths. The subscriber helper now supplies its existing L2TP canonical ID; credentials, server reply attributes, acceptance assertions and all four branches of TestRFC2865SubscriberServiceTypeAuthorization remain intact. The tests cover the Service-Type and framing authorization routes of this implemented capability; this retains the existing enforced verdict and adds no capability claim. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L223" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberServiceTypeAuthorization</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L231" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberServiceTypeAuthorization</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L54" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865AcceptForAFramingTheLNSLacksIsRejected</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L56" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865AcceptForAFramingTheLNSLacksIsRejected</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1069,12 +1069,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L216" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberServiceTypeAuthorization</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L224" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberServiceTypeAuthorization</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L35" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865AcceptForPPPFramingIsHonored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L37" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865AcceptForPPPFramingIsHonored</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1099,12 +1099,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L84" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L86" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865UnknownOrUnsupportedServiceTypeIsARejection</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L69" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865SupportedServiceTypeIsHonored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go#L71" title="internal/component/l2tp/plugins/authradius/rfc2865_unavailable_service_test.go" target="_blank" rel="noopener"><code>TestRFC2865SupportedServiceTypeIsHonored</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1156,7 +1156,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L179" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestExchangeRefusesAnEmptySharedSecret</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L168" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865EmptySharedSecretBuildsNoClient</code></a></td>
@@ -1179,12 +1179,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L96" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccountingRequestDoesNotCarryTheAccessRequestCode</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L99" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccountingRequestDoesNotCarryTheAccessRequestCode</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L424" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L433" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1211,7 +1211,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L345" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestRetransmitToTheSameServerKeepsItsRequestAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L117" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865FailoverRegeneratesRequestAuthenticator</code></a></td>
@@ -1221,25 +1221,25 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L308" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestFailoverChangesTheRequestAuthenticatorWithTheIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc2865-4.1-2"><code>RFC2865-4.1-2</code></a></h3>
 <p>It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both). (§4.1, restated at §5.44 Note 2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-28 after BlastRADIUS. TestRADIUSAuthNASIPAddress changed only to sign its mock Access-Accept (signAccessAnswer) so the reply survives the default Message-Authenticator presence check; its NAS-IP-Address assertions on the captured request are unchanged. TestAdminAccessRequestIdentifiesTheNAS (hasIP || hasID on the wire) and TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured (non-empty NAS-Identifier with nothing configured) still go red if a request names no NAS.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: &#39;It MUST contain either a NAS-IP-Address attribute or a NAS-Identifier attribute (or both).&#39; TestRADIUSAuthNASIPAddress reads Code 1 and the exact configured IPv4 address from the captured subscriber request. TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured sets neither identity leaf and still requires a nonempty NAS-Identifier with no invented address. The unchanged admin unit reads the wire and requires at least one NAS identity attribute. All requests retain usable PAP credentials, so failure to build a credential cannot substitute for the identity checks. The only subscriber fixture change is the canonical ID required before provider dispatch; packet and assertion inputs are unchanged. These cases retain the whole existing either/or identity obligation. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L49" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go#L50" title="internal/component/l2tp/plugins/authradius/rfc2865_access_request_shape_test.go" target="_blank" rel="noopener"><code>TestRFC2865AccessRequestNamesTheNASWithNoIdentityConfigured</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L426" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go#L435" title="internal/component/l2tp/plugins/authradius/rfc2865_handler_test.go" target="_blank" rel="noopener"><code>TestRADIUSAuthNASIPAddress</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1253,33 +1253,33 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-4.1-3"><code>RFC2865-4.1-3</code></a></h3>
 <p>An Access-Request MUST contain either a User-Password or a CHAP- Password or a State. An Access-Request MUST NOT contain both a User-Password and a CHAP-Password. If future extensions allow other kinds of authentication information to be conveyed, the attribute for that can be used in an Access-Request instead of User-Password or CHAP-Password. (§4.1, restated at §5.44 Note 1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (cont 5/6). Both points of the 2026-09-29 weak verdict are closed. (1) The row now quotes the whole Section 4.1 span through &#39;If future extensions allow other kinds of authentication information to be conveyed, the attribute for that can be used in an Access-Request instead of User-Password or CHAP-Password.&#39;, verbatim, so the MS-CHAPv2 unit (MS-CHAP2-Response, no User-Password/CHAP-Password) proves a request the row permits. The middle &#39;MUST NOT contain both&#39; sentence rides in the span; TestAdminAccessRequestCarriesExactlyOneCredential (tagged here and 4.1-4) and the MS-CHAPv2 and EAP units each assert neither RFC 2865 credential beside the one sent. (2) TestRFC2865EAPAccessRequestCarriesTheExtensionCredential drives a full EAP-MSCHAPv2 admin login against the mock server and asserts, per captured Access-Request, EAP-Message present, no User-Password, no CHAP-Password, and exactly one State on every request after the first; recorded red on eapCredential. Positives: PAP User-Password, CHAP CHAP-Password, admin one-credential, MS-CHAPv2 and EAP extension credentials. Negatives: AuthMethodNone and a short MS-CHAPv2 response each put no Access-Request on the wire (no credential, no request), which is the refusal this MUST can have.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 4.1: &#39;An Access-Request MUST NOT contain both a User-Password and a CHAP-Password.&#39; The full row also requires User-Password, CHAP-Password or State and explicitly permits an extension credential instead. All attached tests were read: subscriber PAP and CHAP packets carry their credentials; no-auth and short MS-CHAPv2 inputs put no request on the wire; valid MS-CHAPv2 carries its VSA and neither base credential. The unchanged admin PAP unit excludes CHAP-Password, and the EAP conversation requires EAP-Message without either base credential on every captured request and State after the initial request. Valid credentials and signed mock replies keep transport rejection from masking these assertions. Canonical IDs identify the original subscriber cases without changing methods, credential bytes, no-request checks or captured packet assertions. This retains the existing whole-row judgment, including its extension and exclusivity clauses. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go#L95" title="internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go" target="_blank" rel="noopener"><code>TestNoAuthIsAdmittedWithARADIUSClientConfigured</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go#L96" title="internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go" target="_blank" rel="noopener"><code>TestNoAuthIsAdmittedWithARADIUSClientConfigured</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L128" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestCarriesCredential</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L131" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestCarriesCredential</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_extension_credential_test.go#L19" title="internal/component/l2tp/plugins/authradius/rfc2865_extension_credential_test.go" target="_blank" rel="noopener"><code>TestRFC2865MSCHAPv2AccessRequestCarriesTheExtensionCredential</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_extension_credential_test.go#L20" title="internal/component/l2tp/plugins/authradius/rfc2865_extension_credential_test.go" target="_blank" rel="noopener"><code>TestRFC2865MSCHAPv2AccessRequestCarriesTheExtensionCredential</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go#L125" title="internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go" target="_blank" rel="noopener"><code>TestCredentialBearingMethodStillReachesTheServer</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go#L127" title="internal/component/l2tp/plugins/authradius/rfc2865_mschap2_success_test.go" target="_blank" rel="noopener"><code>TestCredentialBearingMethodStillReachesTheServer</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L101" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestCarriesCredential</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L102" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessRequestCarriesCredential</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1304,7 +1304,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L56" title="internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L58" title="internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessAcceptIsNotTreatedAsReject</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1319,7 +1319,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L29" title="internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessChallengeIsTreatedAsReject</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go#L31" title="internal/component/l2tp/plugins/authradius/rfc2865_access_challenge_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberAccessChallengeIsTreatedAsReject</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1363,15 +1363,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2865-5-8"><code>RFC2865-5-8</code></a></h3>
 <p>Text of length zero (0) MUST NOT be sent; omit the entire attribute instead. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Forbidden: sending text of length zero. TestZeroLengthAttributeIsOmitted asserts an empty Filter-Id is dropped from the encoded packet (Len 1), and the admin and L2TP units assert an empty User-Name produces no attribute; TestOneOctetAttributeIsNotOmitted is the negative that bounds the guard.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2865 Section 5: &#39;Text of length zero (0) MUST NOT be sent; omit the entire attribute instead.&#39; All tagged units were read. The raw encoder pair omits an empty Filter-Id while retaining User-Name and retains a one-octet Filter-Id, isolating the zero-length condition. Admin and subscriber PAP paths also contrast nonempty User-Name with an empty one; their empty-name requests retain User-Password on the wire. Canonical IDs are added only to existing subscriber requests, so neither omission nor the permitted nonempty survivors changes. The exact absent attribute, retained packet and one-octet boundary assertions still discriminate the whole stated zero-length text rule. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L179" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberZeroLengthUserNameOmitted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L185" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberZeroLengthUserNameOmitted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L282" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865ZeroLengthTextIsOmitted</code></a></td>
@@ -1384,9 +1384,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L167" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberZeroLengthUserNameOmitted</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go#L172" title="internal/component/l2tp/plugins/authradius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865SubscriberZeroLengthUserNameOmitted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_nas_obligations_test.go#L274" title="internal/component/radius/rfc2865_nas_obligations_test.go" target="_blank" rel="noopener"><code>TestRFC2865ZeroLengthTextIsOmitted</code></a></td>
@@ -1471,7 +1471,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L281" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestRetransmitToTheSameServerKeepsItsIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2865_walk_test.go#L258" title="internal/component/radius/rfc2865_walk_test.go" target="_blank" rel="noopener"><code>TestSuccessiveRequestsUseDifferentIdentifiers</code></a></td>
@@ -2412,7 +2412,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

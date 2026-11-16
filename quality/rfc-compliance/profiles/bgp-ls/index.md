@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-ls.json](../../..
 
 ## Figures
 
-- **MUST bar**: Ze proven 83, Proof pending 11, Not built 30
-- **Overview bar**: Ze MUST proven 83, SHOULD proven 4, Not owed 1, Proof pending 11, Not assessed 67, Not built 32
+- **MUST bar**: Ze proven 82, Proof pending 10, Not built 32
+- **Overview bar**: Ze MUST proven 82, SHOULD proven 4, Not owed 1, Proof pending 10, Not assessed 67, Not built 34
 
 | Figure | Rows |
 |---|---|
@@ -18,13 +18,13 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-ls.json](../../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 125 |
 | MUST rows kept (the MUST bar) | 124 |
-| Ze proven | 83 |
+| Ze proven | 82 |
 | OS verified | 0 |
-| Proof pending | 11 |
+| Proof pending | 10 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 30 |
+| Not built | 32 |
 | MUST rows not owed | 1 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -52,13 +52,13 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 9552](../../rfc9552/) | Distribution of Link-State and Traffic Engineering Information Using BGP | Ze proven 44, Proof pending 8, Not built 6 | Ze MUST proven 44, SHOULD proven 1, Not owed 1, Proof pending 8, Not assessed 28, Not built 7 |
+| [RFC 9552](../../rfc9552/) | Distribution of Link-State and Traffic Engineering Information Using BGP | Ze proven 44, Proof pending 7, Not built 7 | Ze MUST proven 44, SHOULD proven 1, Not owed 1, Proof pending 7, Not assessed 28, Not built 8 |
 
 ### Level 13
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7752](../../rfc7752/) | North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP | Ze proven 8, Proof pending 3, Not built 15 | Ze MUST proven 8, Proof pending 3, Not assessed 25, Not built 16 |
+| [RFC 7752](../../rfc7752/) | North-Bound Distribution of Link-State and Traffic Engineering (TE) Information Using BGP | Ze proven 7, Proof pending 3, Not built 16 | Ze MUST proven 7, Proof pending 3, Not assessed 25, Not built 17 |
 | [RFC 8571](../../rfc8571/) | BGP - Link State (BGP-LS) Advertisement of IGP Traffic Engineering Performance Metric Extensions | no rows | no rows |
 
 ### Level 14

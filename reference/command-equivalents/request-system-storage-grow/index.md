@@ -1,13 +1,13 @@
-# `update firewall irr all`
+# `request system storage grow`
 
-Refresh all cached IRR prefix\-lists\.
+Grow the persistent storage to the size of its disk\.
 
 ## Ze command
 
-- Registry path: `update firewall irr all`
-- Usage: `update firewall irr all`
+- Registry path: `request system storage grow`
+- Usage: `request system storage grow`
 - Mode: Daemon
-- Wire method: `ze-firewall:update-irr-all`
+- Wire method: `ze-host:request-system-storage-grow`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,7 +21,7 @@ Refresh all cached IRR prefix\-lists\.
 - Command pipes: none
 - Pipe aliases: none
 
-Re\-queries the IRR server for every cached ASN\/AS\-SET entry and updates the zefs cache on success\. A failed refresh preserves the existing cache and reports an error\.
+Extends the persistent partition to the end of its disk and grows its filesystem to the partition\, with no reboot\. The answer carries the sizes before and after\. A system whose storage already uses the whole disk gets that answer and nothing is written\. Read the current sizes with \'show host storage\'\.
 
 ## Arguments
 

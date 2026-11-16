@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 
 ## Figures
 
-- **MUST bar**: Ze proven 39, Proof pending 21, Not built 17
-- **Overview bar**: Ze MUST proven 39, SHOULD proven 6, Proof pending 25, Not assessed 112, Not built 17
+- **MUST bar**: Ze proven 38, Proof pending 22, Not built 17
+- **Overview bar**: Ze MUST proven 38, SHOULD proven 6, Proof pending 26, Not assessed 112, Not built 17
 
 | Figure | Rows |
 |---|---|
@@ -20,9 +20,9 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-session-ops.json]
 | Mandatory requirements complete | not complete |
 | MUST rows | 77 |
 | MUST rows kept (the MUST bar) | 77 |
-| Ze proven | 39 |
+| Ze proven | 38 |
 | OS verified | 0 |
-| Proof pending | 21 |
+| Proof pending | 22 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -54,7 +54,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 4456](../../rfc4456/) | BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP) | Ze proven 1, Proof pending 3 | Ze MUST proven 1, Proof pending 6, Not assessed 2 |
+| [RFC 4456](../../rfc4456/) | BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP) | Proof pending 4 | Proof pending 7, Not assessed 2 |
 | [RFC 5065](../../rfc5065/) | Autonomous System Confederations for BGP | requirements not reviewed | requirements not reviewed |
 
 ### Level 5

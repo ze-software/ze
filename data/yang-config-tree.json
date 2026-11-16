@@ -1264,7 +1264,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "auto leaves the source address to the operating system. An address binds the outbound\nconnection to it, which fixes the source address that a next-hop self rewrite uses. Ze\nrefuses an IPv6 link-local address here.",
+                    "description": "auto leaves the source address to the operating system. An address binds the outbound\nconnection to it. A scoped IPv6 link-local address retains its interface zone for TCP.\nNext-hop self uses the connected local endpoint. The route's next-hop encoding and negotiated\ncapabilities decide whether that address can be advertised.",
                     "kind": "leaf",
                     "name": "ip",
                     "short-help": "Local address for connection (use IP address or 'auto')",
@@ -1912,7 +1912,7 @@
                         "type": "boolean"
                       },
                       {
-                        "description": "auto leaves the source address to the operating system. An address binds the outbound\nconnection to it, which fixes the source address that a next-hop self rewrite uses. Ze\nrefuses an IPv6 link-local address here.",
+                        "description": "auto leaves the source address to the operating system. An address binds the outbound\nconnection to it. A scoped IPv6 link-local address retains its interface zone for TCP.\nNext-hop self uses the connected local endpoint. The route's next-hop encoding and negotiated\ncapabilities decide whether that address can be advertised.",
                         "kind": "leaf",
                         "name": "ip",
                         "short-help": "Local address for connection (use IP address or 'auto')",
@@ -3312,7 +3312,7 @@
                   {
                     "children": [
                       {
-                        "description": "The IRR filter queries an IRR database for the prefixes of one AS-SET.\nThis leaf names that AS-SET. If this leaf is empty, Ze reads the remote ASN of the\npeer and discovers the AS-SET from PeeringDB.",
+                        "description": "The AS-SET whose prefixes the IRR filter enforces for this peer. The irr plugin\nfetches and stores that AS-SET's prefix list, and the filter reads the stored copy. If this leaf\nis empty, the irr plugin asks PeeringDB which AS-SET the peer's remote ASN names.",
                         "kind": "leaf",
                         "name": "as-set",
                         "short-help": "Explicit AS-SET name for the IRR prefix lookup.",
@@ -3320,7 +3320,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "disable takes the peer out of the resolution, so Ze runs no whois query and no PeeringDB\nquery for it. The other peers of the same remote ASN keep their list.",
+                        "description": "disable takes the peer out of the filter, so the filter does not ask the irr plugin to\nfetch a list for it. The other peers of the same remote ASN keep their list.",
                         "kind": "leaf",
                         "name": "enable",
                         "short-help": "Enable or disable IRR filtering for this peer.",
@@ -3353,7 +3353,7 @@
                     "type": "ipv6-address"
                   },
                   {
-                    "description": "auto rewrites the next hop for an eBGP peer, and preserves it for an iBGP peer. self always rewrites\nthe next hop to the local address. unchanged never rewrites it, so the original next hop is\npreserved. An IP address sets the next hop to that address.",
+                    "description": "auto rewrites the next hop for an ordinary eBGP peer, and preserves it for an iBGP peer or\nroute-server client. self rewrites to the session's connected local address. If no usable self\naddress exists, Ze withholds the announcement and withdraws a previously advertised route.\nunchanged preserves the received next hop when its wire form is usable. An IP address sets\nthe next hop to that address.",
                     "kind": "leaf",
                     "name": "next-hop",
                     "short-help": "Next-hop rewriting policy for a forwarded UPDATE (RFC 4271 Section 5.1.3).",
@@ -3704,10 +3704,10 @@
                         "type": "string"
                       },
                       {
-                        "description": "The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every\nroute of the block withdrawn exactly as withdraw true does. Delete the leaf to announce the routes as soon as\nthe session reaches Established. request bgp watchdog announce \u003cname\u003e announces a withdrawn route.",
+                        "description": "With true, bgp-watchdog holds every route of the block until request bgp watchdog announce \u003cname\u003e.\nWith false, or when this leaf is omitted, the plugin announces the routes when the session reaches Established.\nThe default matches ExaBGP. Changing this setting on reload preserves the runtime state of an existing route;\na new route uses the configured initial state.",
                         "kind": "leaf",
                         "name": "withdraw",
-                        "short-help": "Start in withdrawn state (default true)",
+                        "short-help": "Hold routes until explicitly announced (default false)",
                         "source": "config",
                         "type": "boolean"
                       }
@@ -3715,7 +3715,7 @@
                     "description": "The bgp-watchdog plugin owns every route of the block, so the BGP engine holds none of\nthem as a static route. The plugin sends a route that is not withdrawn when the session reaches\nEstablished.",
                     "kind": "container",
                     "name": "watchdog",
-                    "short-help": "Watchdog-controlled route - held until 'bgp watchdog announce \u003cname\u003e'",
+                    "short-help": "Watchdog-controlled route with an optional initial hold",
                     "source": "config"
                   }
                 ],
@@ -4758,7 +4758,7 @@
               {
                 "children": [
                   {
-                    "description": "The IRR filter queries an IRR database for the prefixes of one AS-SET.\nThis leaf names that AS-SET. If this leaf is empty, Ze reads the remote ASN of the\npeer and discovers the AS-SET from PeeringDB.",
+                    "description": "The AS-SET whose prefixes the IRR filter enforces for this peer. The irr plugin\nfetches and stores that AS-SET's prefix list, and the filter reads the stored copy. If this leaf\nis empty, the irr plugin asks PeeringDB which AS-SET the peer's remote ASN names.",
                     "kind": "leaf",
                     "name": "as-set",
                     "short-help": "Explicit AS-SET name for the IRR prefix lookup.",
@@ -4766,7 +4766,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "disable takes the peer out of the resolution, so Ze runs no whois query and no PeeringDB\nquery for it. The other peers of the same remote ASN keep their list.",
+                    "description": "disable takes the peer out of the filter, so the filter does not ask the irr plugin to\nfetch a list for it. The other peers of the same remote ASN keep their list.",
                     "kind": "leaf",
                     "name": "enable",
                     "short-help": "Enable or disable IRR filtering for this peer.",
@@ -4799,7 +4799,7 @@
                 "type": "ipv6-address"
               },
               {
-                "description": "auto rewrites the next hop for an eBGP peer, and preserves it for an iBGP peer. self always rewrites\nthe next hop to the local address. unchanged never rewrites it, so the original next hop is\npreserved. An IP address sets the next hop to that address.",
+                "description": "auto rewrites the next hop for an ordinary eBGP peer, and preserves it for an iBGP peer or\nroute-server client. self rewrites to the session's connected local address. If no usable self\naddress exists, Ze withholds the announcement and withdraws a previously advertised route.\nunchanged preserves the received next hop when its wire form is usable. An IP address sets\nthe next hop to that address.",
                 "kind": "leaf",
                 "name": "next-hop",
                 "short-help": "Next-hop rewriting policy for a forwarded UPDATE (RFC 4271 Section 5.1.3).",
@@ -5150,10 +5150,10 @@
                     "type": "string"
                   },
                   {
-                    "description": "The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every\nroute of the block withdrawn exactly as withdraw true does. Delete the leaf to announce the routes as soon as\nthe session reaches Established. request bgp watchdog announce \u003cname\u003e announces a withdrawn route.",
+                    "description": "With true, bgp-watchdog holds every route of the block until request bgp watchdog announce \u003cname\u003e.\nWith false, or when this leaf is omitted, the plugin announces the routes when the session reaches Established.\nThe default matches ExaBGP. Changing this setting on reload preserves the runtime state of an existing route;\na new route uses the configured initial state.",
                     "kind": "leaf",
                     "name": "withdraw",
-                    "short-help": "Start in withdrawn state (default true)",
+                    "short-help": "Hold routes until explicitly announced (default false)",
                     "source": "config",
                     "type": "boolean"
                   }
@@ -5161,7 +5161,7 @@
                 "description": "The bgp-watchdog plugin owns every route of the block, so the BGP engine holds none of\nthem as a static route. The plugin sends a route that is not withdrawn when the session reaches\nEstablished.",
                 "kind": "container",
                 "name": "watchdog",
-                "short-help": "Watchdog-controlled route - held until 'bgp watchdog announce \u003cname\u003e'",
+                "short-help": "Watchdog-controlled route with an optional initial hold",
                 "source": "config"
               }
             ],
@@ -5664,7 +5664,7 @@
                     "type": "boolean"
                   },
                   {
-                    "description": "auto leaves the source address to the operating system. An address binds the outbound\nconnection to it, which fixes the source address that a next-hop self rewrite uses. Ze\nrefuses an IPv6 link-local address here.",
+                    "description": "auto leaves the source address to the operating system. An address binds the outbound\nconnection to it. A scoped IPv6 link-local address retains its interface zone for TCP.\nNext-hop self uses the connected local endpoint. The route's next-hop encoding and negotiated\ncapabilities decide whether that address can be advertised.",
                     "kind": "leaf",
                     "name": "ip",
                     "short-help": "Local address for connection (use IP address or 'auto')",
@@ -7064,7 +7064,7 @@
               {
                 "children": [
                   {
-                    "description": "The IRR filter queries an IRR database for the prefixes of one AS-SET.\nThis leaf names that AS-SET. If this leaf is empty, Ze reads the remote ASN of the\npeer and discovers the AS-SET from PeeringDB.",
+                    "description": "The AS-SET whose prefixes the IRR filter enforces for this peer. The irr plugin\nfetches and stores that AS-SET's prefix list, and the filter reads the stored copy. If this leaf\nis empty, the irr plugin asks PeeringDB which AS-SET the peer's remote ASN names.",
                     "kind": "leaf",
                     "name": "as-set",
                     "short-help": "Explicit AS-SET name for the IRR prefix lookup.",
@@ -7072,7 +7072,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "disable takes the peer out of the resolution, so Ze runs no whois query and no PeeringDB\nquery for it. The other peers of the same remote ASN keep their list.",
+                    "description": "disable takes the peer out of the filter, so the filter does not ask the irr plugin to\nfetch a list for it. The other peers of the same remote ASN keep their list.",
                     "kind": "leaf",
                     "name": "enable",
                     "short-help": "Enable or disable IRR filtering for this peer.",
@@ -7105,7 +7105,7 @@
                 "type": "ipv6-address"
               },
               {
-                "description": "auto rewrites the next hop for an eBGP peer, and preserves it for an iBGP peer. self always rewrites\nthe next hop to the local address. unchanged never rewrites it, so the original next hop is\npreserved. An IP address sets the next hop to that address.",
+                "description": "auto rewrites the next hop for an ordinary eBGP peer, and preserves it for an iBGP peer or\nroute-server client. self rewrites to the session's connected local address. If no usable self\naddress exists, Ze withholds the announcement and withdraws a previously advertised route.\nunchanged preserves the received next hop when its wire form is usable. An IP address sets\nthe next hop to that address.",
                 "kind": "leaf",
                 "name": "next-hop",
                 "short-help": "Next-hop rewriting policy for a forwarded UPDATE (RFC 4271 Section 5.1.3).",
@@ -7456,10 +7456,10 @@
                     "type": "string"
                   },
                   {
-                    "description": "The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every\nroute of the block withdrawn exactly as withdraw true does. Delete the leaf to announce the routes as soon as\nthe session reaches Established. request bgp watchdog announce \u003cname\u003e announces a withdrawn route.",
+                    "description": "With true, bgp-watchdog holds every route of the block until request bgp watchdog announce \u003cname\u003e.\nWith false, or when this leaf is omitted, the plugin announces the routes when the session reaches Established.\nThe default matches ExaBGP. Changing this setting on reload preserves the runtime state of an existing route;\na new route uses the configured initial state.",
                     "kind": "leaf",
                     "name": "withdraw",
-                    "short-help": "Start in withdrawn state (default true)",
+                    "short-help": "Hold routes until explicitly announced (default false)",
                     "source": "config",
                     "type": "boolean"
                   }
@@ -7467,7 +7467,7 @@
                 "description": "The bgp-watchdog plugin owns every route of the block, so the BGP engine holds none of\nthem as a static route. The plugin sends a route that is not withdrawn when the session reaches\nEstablished.",
                 "kind": "container",
                 "name": "watchdog",
-                "short-help": "Watchdog-controlled route - held until 'bgp watchdog announce \u003cname\u003e'",
+                "short-help": "Watchdog-controlled route with an optional initial hold",
                 "source": "config"
               }
             ],
@@ -7575,7 +7575,7 @@
           {
             "children": [
               {
-                "description": "The default is reject. The received route remains in Adj-RIB-In but is\nineligible for the decision process until validation or configured policy admits it.",
+                "description": "The default is accept, so the Invalid state alone does not exclude a route\nfrom the decision process. Configure reject to retain the received route in Adj-RIB-In\nwhile making it ineligible for selection.",
                 "kind": "leaf",
                 "name": "invalid",
                 "short-help": "Action Ze applies to a route in the Invalid validation state.",
@@ -8060,10 +8060,10 @@
                 "type": "string"
               },
               {
-                "description": "The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every\nroute of the block withdrawn exactly as withdraw true does. Delete the leaf to announce the routes as soon as\nthe session reaches Established. request bgp watchdog announce \u003cname\u003e announces a withdrawn route.",
+                "description": "With true, bgp-watchdog holds every route of the block until request bgp watchdog announce \u003cname\u003e.\nWith false, or when this leaf is omitted, the plugin announces the routes when the session reaches Established.\nThe default matches ExaBGP. Changing this setting on reload preserves the runtime state of an existing route;\na new route uses the configured initial state.",
                 "kind": "leaf",
                 "name": "withdraw",
-                "short-help": "Start in withdrawn state (default true)",
+                "short-help": "Hold routes until explicitly announced (default false)",
                 "source": "config",
                 "type": "boolean"
               }
@@ -8071,7 +8071,7 @@
             "description": "The bgp-watchdog plugin owns every route of the block, so the BGP engine holds none of\nthem as a static route. The plugin sends a route that is not withdrawn when the session reaches\nEstablished.",
             "kind": "container",
             "name": "watchdog",
-            "short-help": "Watchdog-controlled route - held until 'bgp watchdog announce \u003cname\u003e'",
+            "short-help": "Watchdog-controlled route with an optional initial hold",
             "source": "config"
           }
         ],
@@ -8351,6 +8351,32 @@
     "kind": "container",
     "name": "connected",
     "short-help": "Connected route redistribution. Presence enables the plugin.",
+    "source": "config"
+  },
+  "container": {
+    "children": [
+      {
+        "children": [
+          {
+            "description": "The default is true. False keeps every other statement of the\ncontainer in the configuration and keeps the container stopped,\nin the disabled state, until the leaf is true again.",
+            "kind": "leaf",
+            "name": "enabled",
+            "short-help": "Run this container; false keeps its config and stops it.",
+            "source": "config",
+            "type": "boolean"
+          }
+        ],
+        "description": "One entry is one container. Whether it runs is stated here and nowhere\nelse: Ze has no start command and no stop command, and the enabled\nleaf says whether the container runs.",
+        "kind": "list[name]",
+        "name": "instance",
+        "short-help": "A container Ze runs from an image.",
+        "source": "config"
+      }
+    ],
+    "description": "A container is a workload Ze starts from an image and confines: its own\nnamespaces, a limited control group, a reduced capability set and a\nsystem-call filter. Ze starts each configured container, restarts it\nunder its policy and removes it when the configuration no longer\nholds it.",
+    "kind": "container",
+    "name": "container",
+    "short-help": "Containers Ze runs from OCI images.",
     "source": "config"
   },
   "control-plane-protection": {
@@ -8782,7 +8808,7 @@
       {
         "children": [
           {
-            "description": "Ze appends a path to this value, so a trailing slash gives a double slash in the\nrequest. /agent/incidents opens and closes an incident, and /agent/heartbeat reports\nthe baseline. Each request has a timeout of 10 seconds. After 5 failures Ze stops\nposting for 60 seconds, then tries again.",
+            "description": "Ze appends a path to this value, so a trailing slash gives a double slash in the\nrequest. /agent/incidents opens and closes an incident, and /agent/heartbeat reports\nthe baseline. The value must be an https URL that names a host, because each request\ncarries api-key as a bearer token. Ze refuses an http URL, a loopback one included,\nwhen enabled is true. Ze follows no redirect: a 3xx answer is a failure, and its error\nnames the Location the server answered with, so configure the final URL here. Only a\n2xx answer is success. Each request has a timeout of 10 seconds. After 5 failures,\nredirects included, Ze stops posting for 60 seconds, then tries again.",
             "kind": "leaf",
             "name": "api-base",
             "short-help": "Flowtriq API base URL.",
@@ -9106,7 +9132,7 @@
                 "type": "listener-port"
               }
             ],
-            "description": "The ze:listener extension marks this list, so config validation\nrefuses a second listener that binds the same protocol, port and\naddress. Ze opens one TCP listener for each entry. A bind that\nfails is logged, and the other entries keep their listener. An\nempty list binds nothing, because the receiver has no default\nendpoint.",
+            "description": "The ze:listener extension marks this list, so config validation\nrefuses a second listener that binds the same protocol, port and\naddress. Ze binds every added listener before removing any old\nlistener. If a bind fails, startup or reload fails, added sockets\nclose, and the listeners and session limit active before the\nattempt stay unchanged. An empty list binds nothing, because the\nreceiver has no default endpoint.",
             "kind": "list[name]",
             "name": "server",
             "short-help": "BMP receiver listen endpoints",
@@ -10010,7 +10036,7 @@
             "source": "config"
           },
           {
-            "description": "finder is the default file-browser UI. workbench is the\nexperimental one.",
+            "description": "finder is the default graphical YANG editor. workbench is an\nunfinished experimental alternative, selected explicitly.\nEnvironment variable: ze.web.ui-mode.",
             "kind": "leaf",
             "name": "ui-mode",
             "short-help": "Web UI mode.",
@@ -10019,7 +10045,7 @@
             "values": [
               {
                 "name": "finder",
-                "short-help": "Default file-browser style UI."
+                "short-help": "Graphical YANG editor (default)."
               },
               {
                 "name": "workbench",
@@ -10510,7 +10536,7 @@
           {
             "children": [
               {
-                "description": "The prefixes the IRR resolves for this AS-SET form the\nallowed source-address set of the interface. The match\nneeds cached prefix data. A config commit is refused\nwhen no cached data exists.",
+                "description": "The prefixes the IRR resolves for this AS-SET form the\nallowed source-address set of the interface. The match\nneeds a stored prefix list. A config commit is refused\nwhen nothing is stored.",
                 "kind": "leaf",
                 "name": "source-as-set",
                 "short-help": "AS-SET whose IRR-resolved prefixes are the allowed source addresses.",
@@ -10523,36 +10549,12 @@
             "name": "interface",
             "short-help": "Per-interface AS-SET binding for ingress source validation.",
             "source": "config"
-          },
-          {
-            "description": "The default is https://www.peeringdb.com. Ze adds /api/net?asn=\u003cN\u003e\nto this value for each query, and holds each answer for one hour.\nZe skips TLS verification for the host 127.0.0.1 alone, which is\nwhat makes a local test server work.",
-            "kind": "leaf",
-            "name": "peeringdb-url",
-            "short-help": "Base URL for PeeringDB API queries.\nOverride for testing with a mock server.",
-            "source": "config",
-            "type": "string"
-          },
-          {
-            "description": "The default 0 disables the automatic refresh, and the\noperator then runs 'update firewall irr' by hand. A value\nin 60..86400 starts the periodic refresh. That refresh\nfails closed: a failed query keeps the last-good cache.",
-            "kind": "leaf",
-            "name": "refresh-interval",
-            "short-help": "Seconds between automatic IRR re-queries.",
-            "source": "config",
-            "type": "uint32"
-          },
-          {
-            "description": "The default is whois.radb.net. Ze adds port 43 when the value names\nno port, so a host:port value reaches the port you name. One query\nwaits 10 seconds at most, and Ze holds each answer for one hour.",
-            "kind": "leaf",
-            "name": "server",
-            "short-help": "IRR whois server hostname or host:port.",
-            "source": "config",
-            "type": "string"
           }
         ],
-        "description": "The settings under it reach every IRR reference of the firewall, in a\nterm and on an interface alike. Ze keeps the resolved prefixes in a\nzefs prefix store that the BGP IRR filter shares, so one query serves\nboth. A commit that names a reference with no cached prefixes is\nrefused.",
+        "description": "The irr plugin fetches, schedules and stores every IRR list the firewall\nenforces, from the server and at the interval system irr names; the\nBGP IRR filter enforces the same stored copy, so one query serves\nboth. A commit that names a reference with nothing stored is refused\nwith the update irr command that fetches it.",
         "kind": "container",
         "name": "irr",
-        "short-help": "IRR policy settings for firewall prefix-list resolution.",
+        "short-help": "Per-interface IRR source validation.",
         "source": "config"
       },
       {
@@ -10644,7 +10646,7 @@
                         "type": "connection-state"
                       },
                       {
-                        "description": "The value takes the same two forms the source-address leaf takes. Ze reads the IPv4\ndestination at network-header offset 16 and the IPv6 destination at offset 24. An inet\ntable therefore carries an nfproto guard in front of the match, so an IPv4 rule never\nreads IPv6 bytes.",
+                        "description": "The value takes the same two forms the source-address leaf takes. A network prefix\nmust use its network address; a value with host bits set is refused with the corrected\ndestination-address statement. Host routes use /32 or /128. Ze reads the IPv4\ndestination at network-header offset 16 and the IPv6 destination at offset 24. An inet\ntable therefore carries an nfproto guard in front of the match, so an IPv4 rule never\nreads IPv6 bytes.",
                         "kind": "leaf",
                         "name": "destination-address",
                         "short-help": "Destination IP prefix or @set-name",
@@ -10652,7 +10654,7 @@
                         "type": "ip-prefix"
                       },
                       {
-                        "description": "The cache rule is the one source-as-set states. The match\nneeds cached prefix data, so run 'update firewall irr as-set\n\u003cname\u003e' first. A config commit is refused when no cached data\nexists.",
+                        "description": "The stored-list rule is the one source-as-set states. The\nmatch needs a prefix list the irr plugin stored, so run\n'update irr as-set \u003cname\u003e' first. A config commit is refused\nwhen nothing is stored.",
                         "kind": "leaf",
                         "name": "destination-as-set",
                         "short-help": "Match the destination address against the IRR-resolved prefixes of this AS-SET.",
@@ -10660,7 +10662,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "The cache rule is the one source-asn states. The match needs\ncached prefix data, so run 'update firewall irr asn \u003cN\u003e'\nfirst. A config commit is refused when no cached data\nexists.",
+                        "description": "The stored-list rule is the one source-asn states. The match\nneeds a prefix list the irr plugin stored, so run 'update irr\nasn \u003cN\u003e' first. A config commit is refused when nothing is\nstored.",
                         "kind": "leaf",
                         "name": "destination-asn",
                         "short-help": "Match the destination address against the IRR-resolved prefixes of this ASN.",
@@ -10782,7 +10784,7 @@
                         ]
                       },
                       {
-                        "description": "A prefix carries its length, so write 10.0.0.0/24 or 10.0.0.1/32. A bare address is\nrefused. The form @name matches against a named set of the same table, and that set MUST\nbe of type ipv4 or ipv6. Ze reads the IPv4 source at network-header offset 12 and the\nIPv6 source at offset 8.",
+                        "description": "A prefix carries its length, so write 10.0.0.0/24 or 10.0.0.1/32. A bare address is\nrefused. A network prefix must use its network address: 10.0.0.1/24 is refused with the\ncorrected statement source-address 10.0.0.0/24. Host routes use /32 or /128. The form @name\nmatches against a named set of the same table, and that set MUST\nbe of type ipv4 or ipv6. Ze reads the IPv4 source at network-header offset 12 and the\nIPv6 source at offset 8.",
                         "kind": "leaf",
                         "name": "source-address",
                         "short-help": "Source IP prefix or @set-name",
@@ -10790,7 +10792,7 @@
                         "type": "ip-prefix"
                       },
                       {
-                        "description": "The match needs cached prefix data, so run 'update firewall\nirr as-set \u003cname\u003e' first. A config commit is refused when no\ncached data exists.",
+                        "description": "The match needs a prefix list the irr plugin stored, so run\n'update irr as-set \u003cname\u003e' first. A config commit is refused\nwhen nothing is stored.",
                         "kind": "leaf",
                         "name": "source-as-set",
                         "short-help": "Match the source address against the IRR-resolved prefixes of this AS-SET.",
@@ -10798,7 +10800,7 @@
                         "type": "string"
                       },
                       {
-                        "description": "The match needs cached prefix data, so run 'update firewall\nirr asn \u003cN\u003e' first. A config commit is refused when no cached\ndata exists.",
+                        "description": "The match needs a prefix list the irr plugin stored, so run\n'update irr asn \u003cN\u003e' first. A config commit is refused when\nnothing is stored.",
                         "kind": "leaf",
                         "name": "source-asn",
                         "short-help": "Match the source address against the IRR-resolved prefixes of this ASN.",
@@ -11663,7 +11665,7 @@
             "source": "config"
           },
           {
-            "description": "Ze enslaves each named port with the netlink call LinkSetMaster. A port\nthat leaves the list is released with LinkSetNoMaster on the next apply.\nEach name must be an interface the config or the OS already carries.",
+            "description": "Ze enslaves each named port with the netlink call LinkSetMaster. A port\nthat leaves the list is released with LinkSetNoMaster on the next apply.\nEach name must be an interface this config declares, or a VLAN unit\nwritten \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit refuses any other name.\nZe resolves it through the selector map, so a port bound by mac/match or\naliased by os-name is the device enslaved, and a VLAN unit is enslaved\nonce its VLAN exists. A declared name whose selector finds no device\ndefers that member.",
             "kind": "leaf-list",
             "name": "member",
             "short-help": "Member port interface names",
@@ -12540,7 +12542,7 @@
               {
                 "children": [
                   {
-                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. Ze resolves the name through the same\nselector map as the source, so a capture port bound by mac/match or\naliased by os-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "egress",
                     "short-help": "Mirror egress traffic to this interface",
@@ -12548,7 +12550,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "ingress",
                     "short-help": "Mirror ingress traffic to this interface",
@@ -13546,7 +13548,7 @@
               {
                 "children": [
                   {
-                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. Ze resolves the name through the same\nselector map as the source, so a capture port bound by mac/match or\naliased by os-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "egress",
                     "short-help": "Mirror egress traffic to this interface",
@@ -13554,7 +13556,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "ingress",
                     "short-help": "Mirror ingress traffic to this interface",
@@ -14544,7 +14546,7 @@
               {
                 "children": [
                   {
-                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. Ze resolves the name through the same\nselector map as the source, so a capture port bound by mac/match or\naliased by os-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "egress",
                     "short-help": "Mirror egress traffic to this interface",
@@ -14552,7 +14554,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "ingress",
                     "short-help": "Mirror ingress traffic to this interface",
@@ -15126,7 +15128,7 @@
               {
                 "children": [
                   {
-                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. Ze resolves the name through the same\nselector map as the source, so a capture port bound by mac/match or\naliased by os-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "egress",
                     "short-help": "Mirror egress traffic to this interface",
@@ -15134,7 +15136,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "ingress",
                     "short-help": "Mirror ingress traffic to this interface",
@@ -15503,10 +15505,10 @@
             "type": "string"
           },
           {
-            "description": "Ze opens a raw discovery socket bound to this device and sends the PADI\nframe on it. The source MAC of the frame is the device's own hardware\naddress.",
+            "description": "The name must be an interface this config declares, usually an ethernet\nentry, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze opens a raw discovery socket bound to this\ndevice and sends the PADI frame on it. The source MAC of the frame is\nthe device's own hardware address.",
             "kind": "leaf",
             "name": "source-interface",
-            "short-help": "Physical Ethernet interface for PPPoE discovery\n(e.g. eth2). Must exist and be admin-up.",
+            "short-help": "Physical Ethernet interface for PPPoE discovery\n(e.g. eth2). Must be declared under interface ethernet.",
             "source": "config",
             "type": "string"
           }
@@ -15554,7 +15556,7 @@
                           {
                             "children": [
                               {
-                                "description": "Ze looks the device up and passes its kernel index as the netlink parent\nfield, so the kernel takes the source address from that device. The vxlan\ncase refuses this leaf and needs a local ip.",
+                                "description": "The name must be an interface this config declares, or a VLAN unit\nwritten \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit refuses any other name.\nZe resolves it through the selector map, so an uplink bound by mac/match\nor aliased by os-name gives its own device, and passes that device's\nkernel index as the netlink parent field, so the kernel takes the source\naddress from it. A declared name whose selector finds no device fails\nthe apply, naming the entry, because the tunnel has no underlay. The\nvxlan case refuses this leaf and needs a local ip.",
                                 "kind": "leaf",
                                 "name": "interface",
                                 "short-help": "Local interface to take the source address from",
@@ -15646,7 +15648,7 @@
                           {
                             "children": [
                               {
-                                "description": "Ze looks the device up and passes its kernel index as the netlink parent\nfield, so the kernel takes the source address from that device. The vxlan\ncase refuses this leaf and needs a local ip.",
+                                "description": "The name must be an interface this config declares, or a VLAN unit\nwritten \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit refuses any other name.\nZe resolves it through the selector map, so an uplink bound by mac/match\nor aliased by os-name gives its own device, and passes that device's\nkernel index as the netlink parent field, so the kernel takes the source\naddress from it. A declared name whose selector finds no device fails\nthe apply, naming the entry, because the tunnel has no underlay. The\nvxlan case refuses this leaf and needs a local ip.",
                                 "kind": "leaf",
                                 "name": "interface",
                                 "short-help": "Local interface to take the source address from",
@@ -15763,7 +15765,7 @@
                           {
                             "children": [
                               {
-                                "description": "Ze looks the device up and passes its kernel index as the netlink parent\nfield, so the kernel takes the source address from that device.",
+                                "description": "The name must be an interface this config declares, or a VLAN unit\nwritten \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit refuses any other name.\nZe resolves it through the selector map, so an uplink bound by mac/match\nor aliased by os-name gives its own device, and passes that device's\nkernel index as the netlink parent field, so the kernel takes the source\naddress from it. A declared name whose selector finds no device fails\nthe apply, naming the entry, because the tunnel has no underlay.",
                                 "kind": "leaf",
                                 "name": "interface",
                                 "short-help": "Local interface to take the source address from",
@@ -15847,7 +15849,7 @@
                           {
                             "children": [
                               {
-                                "description": "Ze looks the device up and passes its kernel index as the netlink parent\nfield, so the kernel takes the source address from that device.",
+                                "description": "The name must be an interface this config declares, or a VLAN unit\nwritten \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit refuses any other name.\nZe resolves it through the selector map, so an uplink bound by mac/match\nor aliased by os-name gives its own device, and passes that device's\nkernel index as the netlink parent field, so the kernel takes the source\naddress from it. A declared name whose selector finds no device fails\nthe apply, naming the entry, because the tunnel has no underlay.",
                                 "kind": "leaf",
                                 "name": "interface",
                                 "short-help": "Local interface to take the source address from",
@@ -15948,7 +15950,7 @@
                           {
                             "children": [
                               {
-                                "description": "Ze looks the device up and passes its kernel index as the netlink parent\nfield, so the kernel takes the source address from that device.",
+                                "description": "The name must be an interface this config declares, or a VLAN unit\nwritten \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit refuses any other name.\nZe resolves it through the selector map, so an uplink bound by mac/match\nor aliased by os-name gives its own device, and passes that device's\nkernel index as the netlink parent field, so the kernel takes the source\naddress from it. A declared name whose selector finds no device fails\nthe apply, naming the entry, because the tunnel has no underlay.",
                                 "kind": "leaf",
                                 "name": "interface",
                                 "short-help": "Local interface to take the source address from",
@@ -16016,7 +16018,7 @@
                           {
                             "children": [
                               {
-                                "description": "Ze looks the device up and passes its kernel index as the netlink parent\nfield, so the kernel takes the source address from that device. The vxlan\ncase refuses this leaf and needs a local ip.",
+                                "description": "The name must be an interface this config declares, or a VLAN unit\nwritten \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit refuses any other name.\nZe resolves it through the selector map, so an uplink bound by mac/match\nor aliased by os-name gives its own device, and passes that device's\nkernel index as the netlink parent field, so the kernel takes the source\naddress from it. A declared name whose selector finds no device fails\nthe apply, naming the entry, because the tunnel has no underlay. The\nvxlan case refuses this leaf and needs a local ip.",
                                 "kind": "leaf",
                                 "name": "interface",
                                 "short-help": "Local interface to take the source address from",
@@ -16116,7 +16118,7 @@
                           {
                             "children": [
                               {
-                                "description": "Ze looks the device up and passes its kernel index as the netlink parent\nfield, so the kernel takes the source address from that device.",
+                                "description": "The name must be an interface this config declares, or a VLAN unit\nwritten \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit refuses any other name.\nZe resolves it through the selector map, so an uplink bound by mac/match\nor aliased by os-name gives its own device, and passes that device's\nkernel index as the netlink parent field, so the kernel takes the source\naddress from it. A declared name whose selector finds no device fails\nthe apply, naming the entry, because the tunnel has no underlay.",
                                 "kind": "leaf",
                                 "name": "interface",
                                 "short-help": "Local interface to take the source address from",
@@ -16184,7 +16186,7 @@
                           {
                             "children": [
                               {
-                                "description": "Ze looks the device up and passes its kernel index as the netlink parent\nfield, so the kernel takes the source address from that device. The vxlan\ncase refuses this leaf and needs a local ip.",
+                                "description": "The name must be an interface this config declares, or a VLAN unit\nwritten \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit refuses any other name.\nZe resolves it through the selector map, so an uplink bound by mac/match\nor aliased by os-name gives its own device, and passes that device's\nkernel index as the netlink parent field, so the kernel takes the source\naddress from it. A declared name whose selector finds no device fails\nthe apply, naming the entry, because the tunnel has no underlay. The\nvxlan case refuses this leaf and needs a local ip.",
                                 "kind": "leaf",
                                 "name": "interface",
                                 "short-help": "Local interface to take the source address from",
@@ -16268,7 +16270,7 @@
                           {
                             "children": [
                               {
-                                "description": "Ze looks the device up and passes its kernel index as the netlink parent\nfield, so the kernel takes the source address from that device. The vxlan\ncase refuses this leaf and needs a local ip.",
+                                "description": "The name must be an interface this config declares, or a VLAN unit\nwritten \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit refuses any other name.\nZe resolves it through the selector map, so an uplink bound by mac/match\nor aliased by os-name gives its own device, and passes that device's\nkernel index as the netlink parent field, so the kernel takes the source\naddress from it. A declared name whose selector finds no device fails\nthe apply, naming the entry, because the tunnel has no underlay. The\nvxlan case refuses this leaf and needs a local ip.",
                                 "kind": "leaf",
                                 "name": "interface",
                                 "short-help": "Local interface to take the source address from",
@@ -16862,7 +16864,7 @@
               {
                 "children": [
                   {
-                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. Ze resolves the name through the same\nselector map as the source, so a capture port bound by mac/match or\naliased by os-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "egress",
                     "short-help": "Mirror egress traffic to this interface",
@@ -16870,7 +16872,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "ingress",
                     "short-help": "Mirror ingress traffic to this interface",
@@ -17868,7 +17870,7 @@
               {
                 "children": [
                   {
-                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. Ze resolves the name through the same\nselector map as the source, so a capture port bound by mac/match or\naliased by os-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "egress",
                     "short-help": "Mirror egress traffic to this interface",
@@ -17876,7 +17878,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "ingress",
                     "short-help": "Mirror ingress traffic to this interface",
@@ -18580,7 +18582,7 @@
               {
                 "children": [
                   {
-                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. Ze resolves the name through the same\nselector map as the source, so a capture port bound by mac/match or\naliased by os-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "egress",
                     "short-help": "Mirror egress traffic to this interface",
@@ -18588,7 +18590,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "ingress",
                     "short-help": "Mirror ingress traffic to this interface",
@@ -19210,7 +19212,7 @@
               {
                 "children": [
                   {
-                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. Ze resolves the name through the same\nselector map as the source, so a capture port bound by mac/match or\naliased by os-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each transmitted frame\ntoward the named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "egress",
                     "short-help": "Mirror egress traffic to this interface",
@@ -19218,7 +19220,7 @@
                     "type": "string"
                   },
                   {
-                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. An unbound name installs no mirror.",
+                    "description": "Ze installs a tc mirred filter that copies each received frame toward\nthe named interface. The name must be an interface this config\ndeclares, or a VLAN unit written \u003cinterface\u003e.\u003cvlan-id\u003e, and the commit\nrefuses any other name. Ze resolves the name through the same selector\nmap as the source, so a capture port bound by mac/match or aliased by\nos-name works. A declared name whose selector finds no device installs\nno mirror.",
                     "kind": "leaf",
                     "name": "ingress",
                     "short-help": "Mirror ingress traffic to this interface",
@@ -25428,47 +25430,6 @@
       {
         "children": [
           {
-            "description": "Ze reads the AS-SET of a peer from the PeeringDB API when the\nas-set leaf is empty. Set this leaf to the URL of a mock server to test the IRR filter\nwithout a query to the public PeeringDB service.",
-            "kind": "leaf",
-            "name": "peeringdb-url",
-            "short-help": "Base URL of the PeeringDB API that Ze queries.",
-            "source": "config",
-            "type": "string"
-          },
-          {
-            "description": "Ze re-queries every enrolled AS-SET on this period. The first query runs in the background\nat startup, so a slow IRR server never blocks the start of Ze. A failed query leaves the prefix\nlist of the last query in force.",
-            "kind": "leaf",
-            "name": "refresh-interval",
-            "short-help": "Seconds between automatic IRR re-queries.",
-            "source": "config",
-            "type": "uint32"
-          },
-          {
-            "description": "Ze speaks whois to the server and adds port 43 when the value carries no port. A query that\ngets no answer in 10 seconds fails, and the prefix list of the last query stays in force.",
-            "kind": "leaf",
-            "name": "server",
-            "short-help": "IRR whois server hostname or host:port.",
-            "source": "config",
-            "type": "string"
-          },
-          {
-            "description": "Ze binds the address on the whois connection only. The PeeringDB query does not read the\nleaf. When the leaf is absent, the kernel picks the source address of the route to the server.",
-            "kind": "leaf",
-            "name": "source-address",
-            "short-help": "Source IP address for outbound IRR whois connections.",
-            "source": "config",
-            "type": "ip-address"
-          }
-        ],
-        "description": "The container holds the IRR server, the PeeringDB endpoint and the refresh period. One\nresolution serves every peer of the same remote ASN, so two peers of one ASN cost one query.",
-        "kind": "container",
-        "name": "irr",
-        "short-help": "Global IRR filtering settings.",
-        "source": "config"
-      },
-      {
-        "children": [
-          {
             "description": "The default is 0, which rejects the route on the first\noccurrence (RFC 4271 Section 9).",
             "kind": "leaf",
             "name": "allow-own-as",
@@ -26448,7 +26409,7 @@
             "type": "string"
           }
         ],
-        "description": "Each interface has an independent session ID space.",
+        "description": "Each interface has an independent session ID space. Access interfaces\nuse the session provider registered for the selected interface backend.\nConfiguration is refused when this build has no such provider. VPP\naccess interfaces also require VPP and its Linux Control Plane enabled.",
         "kind": "list[name]",
         "name": "interface",
         "short-help": "Access interfaces on which PPPoE discovery listens.",
@@ -26586,76 +26547,6 @@
     "name": "redistribute",
     "short-help": "Route redistribution between protocols.",
     "source": "config"
-  },
-  "request": {
-    "children": [
-      {
-        "children": [
-          {
-            "children": [
-              {
-                "description": "One JSON object carries the operation and its session selection\nor opaque token. This internal transaction is carried through authenticated command dispatch.",
-                "kind": "leaf",
-                "name": "transaction",
-                "short-help": "JSON transaction operation, selection or token.",
-                "source": "config",
-                "type": "string"
-              }
-            ],
-            "description": "The RADIUS owner prepares a change, applies its maps, then commits\nit after every owner succeeds. Rollback restores the maps captured before prepare.",
-            "kind": "container",
-            "name": "session",
-            "short-help": "Change one subscriber's VLAN marking maps.",
-            "source": "config"
-          }
-        ],
-        "description": "These actions apply a named profile to a subscriber's access VLAN.",
-        "kind": "container",
-        "name": "class-of-service",
-        "short-help": "Apply subscriber class-of-service policy.",
-        "source": "config"
-      },
-      {
-        "children": [
-          {
-            "children": [
-              {
-                "children": [
-                  {
-                    "description": "A JSON object carries the operation and token, or the interface and rates for prepare.",
-                    "kind": "leaf",
-                    "name": "transaction",
-                    "short-help": "JSON transaction operation and values.",
-                    "source": "config",
-                    "type": "string"
-                  }
-                ],
-                "description": "Prepare captures the complete last successfully programmed shaping state.\nApply changes both directions. Rollback restores that state, and commit releases the transaction.\nTokens belong to the source peer and an owner retains only one pending transaction.",
-                "kind": "container",
-                "name": "rate",
-                "short-help": "Manage a subscriber rate transaction.",
-                "source": "config"
-              }
-            ],
-            "description": "The shaper confirms backend application before a rate change succeeds.",
-            "kind": "container",
-            "name": "shaper",
-            "short-help": "Subscriber shaping operations.",
-            "source": "config"
-          }
-        ],
-        "description": "Operations on live subscriber sessions use the running daemon.",
-        "kind": "container",
-        "name": "l2tp",
-        "short-help": "L2TP runtime operations.",
-        "source": "both"
-      }
-    ],
-    "description": "Operational actions that change the running subscriber policy.",
-    "kind": "container",
-    "name": "request",
-    "short-help": "Request an operation on running state.",
-    "source": "both"
   },
   "rib": {
     "children": [
@@ -28459,7 +28350,7 @@
                         "source": "config"
                       }
                     ],
-                    "description": "The case holds the next container, which carries gateway next hops and\ninterface next hops. Two or more next hops of either kind become one ECMP\nroute. A redistribute consumer sees this case alone.",
+                    "description": "The case holds the next container, which carries gateway next hops and\ninterface next hops. Two or more next hops of either kind become one ECMP\nroute. A redistribute consumer sees this route only while one of its next\nhops is active.",
                     "kind": "case",
                     "name": "forward",
                     "short-help": "Send the packet on toward a next hop.",
@@ -28482,7 +28373,7 @@
                     "source": "config"
                   }
                 ],
-                "description": "One case is required. Ze stops the load for a route that names none of next,\nblackhole and reject, and it names the prefix in the error. Only the forward case\nreaches the redistribute bus.",
+                "description": "One case is required. Ze stops the load for a route that names none of next,\nblackhole and reject, and it names the prefix in the error. Every case reaches the\nredistribute bus.",
                 "kind": "choice",
                 "name": "action",
                 "short-help": "What to do with matching packets.",
@@ -28535,7 +28426,7 @@
         "source": "config"
       }
     ],
-    "description": "Ze programs each route into the kernel through netlink, or into the VPP dataplane, and\nmarks it with the static protocol number. A route the backend cannot program is skipped and\nlogged, and the rest of the section still applies. Only a forward route in the default table\nreaches the redistribute bus, where BGP can announce it.",
+    "description": "Ze programs each route into the kernel through netlink, or into the VPP dataplane, and\nmarks it with the static protocol number. A route the backend cannot program is skipped and\nlogged, and the rest of the section still applies. Every route in the default table, forward,\nblackhole and reject alike, reaches the redistribute bus, where BGP can announce it.",
     "kind": "container",
     "name": "static",
     "short-help": "Static route configuration.",
@@ -30029,6 +29920,39 @@
         "short-help": "System hostname, supports $ENV_VAR expansion.",
         "source": "config",
         "type": "string"
+      },
+      {
+        "children": [
+          {
+            "description": "Each stored dataset is fetched again this long after the server\nlast answered for it. 0 means manual only: no automatic\nrefresh, while an AS-SET with nothing stored is still fetched\nonce at once, and update irr fetches on demand. A failed\nfetch keeps the stored list and is retried every minute.",
+            "kind": "leaf",
+            "name": "refresh-interval",
+            "short-help": "Seconds between automatic IRR refreshes (0 = manual only).",
+            "source": "config",
+            "type": "uint32"
+          },
+          {
+            "description": "Ze speaks whois to the server and adds port 43 when the value\ncarries no port. A dataset is stored per server, so changing\nthe server fetches every referenced AS-SET from the new one,\nand the old server's list stays enforced until the new one is\nstored.",
+            "kind": "leaf",
+            "name": "server",
+            "short-help": "IRR whois server hostname or host:port.",
+            "source": "config",
+            "type": "string"
+          },
+          {
+            "description": "Ze binds the address on the whois connection only. When the\nleaf is absent, the kernel picks the source address of the\nroute to the server.",
+            "kind": "leaf",
+            "name": "source-address",
+            "short-help": "Source IP address for outbound IRR whois connections.",
+            "source": "config",
+            "type": "ip-address"
+          }
+        ],
+        "description": "One server, one source address and one refresh period serve every\nconsumer, so an AS-SET that BGP and the firewall both name is\nfetched once and stored once. A stored list is loaded at start\nand is not fetched again until its refresh is due.",
+        "kind": "container",
+        "name": "irr",
+        "short-help": "IRR server and refresh settings for every IRR consumer.",
+        "source": "config"
       },
       {
         "description": "The configured source of the router's resolvers. Under the\ndefault dns-source list, Ze writes each address to the\nresolv.conf file named by dns/resolv-conf-path, and its own\nresolver asks these servers, whenever any is set.\nWhen environment mtu reference-address is not set, show mtu\nmeasures the first server as its reference address.",

@@ -17,7 +17,7 @@ IRR-based prefix-list filter for eBGP peers
 
 ## Dependencies
 
-- Required: [`bgp`](../bgp/index.md), [`policy`](../policy/index.md)
+- Required: [`bgp`](../bgp/index.md), [`irr`](../irr/index.md)
 - Optional: None
 
 ## Used by

@@ -35,7 +35,7 @@ service. The default feature tags below are derived from `feature-gates.txt`.
 ```bash
 GOROOT="$(go run ./internal/le/go/stdpatch/goroot)"
 export GOROOT GOTOOLCHAIN=local PATH="$GOROOT/bin:$PATH"
-CGO_ENABLED=0 go install -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' ./cmd/ze
+CGO_ENABLED=0 go install -tags 'ze_core ze_distro ze_anomaly ze_as112 ze_bfd ze_bgp ze_bmp ze_container ze_copp ze_cos ze_ddos ze_dhcpserver ze_exabgp ze_flowexport ze_geodns ze_gnmi ze_grpc ze_ike ze_isis ze_l2tp ze_ldp ze_lg ze_mcp ze_mpls ze_ntp ze_ospf ze_policyroute ze_pxe ze_radius ze_rest ze_rsvpte ze_ssh ze_tacacs ze_telemetry ze_trafficusage ze_vpp ze_vrrp ze_web' ./cmd/ze
 ```
 
 The remaining commands use `./ze` from the checkout. For a Linux service, follow
@@ -302,7 +302,7 @@ a prefix into BGP:
 The `filter { export { final accept } }` block is required: `test-peer` is an EBGP peer
 (AS 65001), and with no export policy Ze sends an EBGP peer no routes at all (RFC 8212
 Section 3), originated ones included. See [BGP policy](../bgp-policy/index.md).
-<!-- source: internal/component/bgp/reactor/peer_run.go -- egressFinalAccepts -->
+<!-- source: internal/component/bgp/reactor/peer_session_factory.go -- newSession -->
 
 > Advanced: a `process` binding attaches a plugin or your own external program to a peer (the
 > ExaBGP-style event API), including making a peer RIB-backed so it stores and re-advertises

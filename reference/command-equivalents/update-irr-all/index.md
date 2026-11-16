@@ -1,13 +1,13 @@
-# `update firewall irr as-set`
+# `update irr all`
 
-Fetch or refresh IRR prefix\-list for an AS\-SET\.
+Fetch every referenced IRR dataset now\.
 
 ## Ze command
 
-- Registry path: `update firewall irr as-set`
-- Usage: `update firewall irr as-set <as-set>`
+- Registry path: `update irr all`
+- Usage: `update irr all`
 - Mode: Daemon
-- Wire method: `ze-firewall:update-irr-as-set`
+- Wire method: `ze-irr:update-irr-all`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,13 +21,11 @@ Fetch or refresh IRR prefix\-list for an AS\-SET\.
 - Command pipes: none
 - Pipe aliases: none
 
-Queries the IRR server and saves resolved prefixes to the zefs cache\.
+Fetches every AS\-SET a consumer enforces\, and answers the counts of each one\.
 
 ## Arguments
 
-| Name | Type | Required | Values | Summary | Description |
-| --- | --- | --- | --- | --- | --- |
-| `as-set` | string | yes | any value of this type | AS\-SET name | The RPSL set name\, for example AS\-EXAMPLE or RIPE\:\:AS\-EXAMPLE\. Letters\, digits\, hyphen\, underscore\, colon and period are accepted\, and the name is the cache key\. |
+No command-specific arguments listed.
 
 ## Mapping intents
 

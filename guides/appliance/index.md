@@ -138,6 +138,79 @@ are not pinned in a manifest.
 <!-- source: gokrazy/kernel/kernel.require -- base requirements -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- enforceRequiredSymbols -->
 
+## Hardware drivers
+
+The appliance kernel holds some drivers in the kernel itself and loads the
+others from the image when the device is present.
+
+| Kind | Where the driver is | Examples |
+|------|---------------------|----------|
+| Virtual NICs and disks | In the kernel | virtio network and block devices, the Xen guest network and block devices |
+| Storage and boot devices | In the kernel | NVMe, SATA/AHCI, SCSI disks, USB storage, the console |
+| Every networking feature Ze configures | In the kernel | Routing, firewall, IPsec, WireGuard, MPLS, traffic control, PPP/L2TP, tunnels |
+| Physical hardware | Loaded when the device is present | Physical NICs and their PHYs, wireless, sound, Intel graphics, board sensors |
+
+A networking feature never waits for a driver to load. A virtual machine loads
+no driver for hardware it does not have.
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_VIRTIO_NET, CONFIG_BLK_DEV_NVME, CONFIG_E1000E, CONFIG_CFG80211, CONFIG_SND_HDA_INTEL, CONFIG_DRM_I915, CONFIG_SENSORS_K10TEMP -->
+
+**The load happens one time, when Ze starts.** Ze reads which devices are
+present, loads the driver of each one, and only then lists the interfaces. Ze
+does not watch for new devices after that:
+
+- A card added while the appliance runs has no driver and no interface. Its
+  driver loads the next time Ze starts.
+- A device that registers its interface late (a USB NIC, or a driver that waits
+  for firmware) can appear after Ze has listed the interfaces. Ze sees the new
+  interface, but applies the configuration you wrote for it only at the next
+  commit.
+<!-- source: internal/plugins/coldplug/coldplug.go -- coldplug -->
+<!-- source: internal/plugins/coldplug/register_linux.go -- coldplugOnAppliance -->
+<!-- source: cmd/ze/startprep/startprep.go -- Register, Run -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfigPass, the skip of an absent ethernet entry -->
+
+**When a driver does not load, the appliance still starts.** Only the device
+that needs the driver is missing. Ze writes one warning in its log for each
+problem. Every warning has `code=doctor-module-missing`, a `fix` field with the
+next step, and, when it is about one driver, a `module` field with the driver
+name and a `device` field with the device that asked for it.
+
+| Log message | The `fix` it names |
+|-------------|--------------------|
+| `a kernel driver module did not load, so the device that needs it has no driver` | `read the module's own reason in the kernel log: show system kernel-log level warning` |
+| `a kernel driver module was not loaded because a module it needs did not load` | The same. The `needs` field names the module that failed first |
+| `a present device needs a kernel module the module index does not hold, so the device has no driver` | `on the build machine, rebuild the appliance image so its /lib/modules tree is whole and push it: ./ze-host appliance build <name> then ./ze-host appliance push <name>` |
+| `the kernel module index cannot be read, so no driver module is loaded for the devices present` | The same rebuild |
+| `a kernel driver module is compressed, and Ze loads only uncompressed modules, so its device has no driver` | `on the build machine, build the kernel with CONFIG_MODULE_COMPRESS_NONE=y, then rebuild the appliance image and push it: ./ze-host appliance build <name> then ./ze-host appliance push <name>` |
+
+For the first two, run this on the appliance. The kernel prints why it refused
+the module:
+
+```
+show system kernel-log level warning
+```
+
+For the others, rebuild the image on the build machine and push it:
+
+```bash
+./ze-host appliance build <name>
+./ze-host appliance push <name>
+```
+<!-- source: internal/plugins/coldplug/coldplug.go -- coldplug, planner.add, runPlan, fixKernelLog, fixRebuild, fixUncompressed -->
+<!-- source: internal/plugins/host-cmd/yang/ze-host-cmd.yang -- show system kernel-log, leaf level -->
+<!-- source: internal/appliance/register.go -- the appliance root command -->
+
+**A `ze` installed on a distribution Linux loads no driver.** Only the appliance
+image carries this step, and it runs only where the image sets
+`ze.gokrazy.enabled`. On a distribution, the distribution loads the drivers with
+its own tools, normally udev.
+<!-- source: cmd/ze/setup_features_appliance.go -- the coldplug blank import, under ze_appliance -->
+<!-- source: internal/plugins/coldplug/register_linux.go -- applianceKey, coldplugOnAppliance -->
+
+The design is in
+[Hardware kernel profiles](https://github.com/ze-software/ze/blob/main/docs/architecture/appliance/kernel-profiles.md),
+"Built in or loadable" and "Loading driver modules on the device".
+
 ## VPN Kernel Proof
 
 `./le test qemu vpn-kernel` boots Ze's docker-host image with its own
@@ -276,11 +349,47 @@ building continues to produce the same blob format.
 ```
 
 The command boots the named image in QEMU. Quit QEMU with **Ctrl-A X**.
-The Gokrazy management UI is exposed through Ze's authenticated web UI at
-`/gokrazy/`; the proxy reads Gokrazy's password from its standard password-file
-locations.
 <!-- source: internal/appliance/cmd_run.go -- runRun -->
+
+### The gokrazy management UI
+
+Ze's authenticated web UI shows the gokrazy management UI at `/gokrazy/`. The
+proxy reads gokrazy's password from its standard password-file locations and
+adds it to each request it forwards. gokrazy knows only that one credential, and
+it opens every gokrazy handler, the image update included. Ze's own
+authorization therefore decides what each web account reaches: the proxy
+forwards a gokrazy page only when the account's authorization profile grants
+the Ze command that does the same thing on the device. A refused request never
+reaches gokrazy and never carries the password.
+
+| gokrazy page | Methods | Granted by the Ze command | Profile section |
+|--------------|---------|---------------------------|-----------------|
+| `/gokrazy/`, `/gokrazy/status`, `/gokrazy/log`, `/gokrazy/assets/...` | GET, HEAD | `show status` | `run` |
+| `/gokrazy/update/...` | any | `update system firmware apply` | `edit` |
+| `/gokrazy/reboot` | any | `request reboot` | `edit` |
+| `/gokrazy/stop`, `/gokrazy/restart` | any | `request shutdown` | `edit` |
+| `/gokrazy/divert`, `/gokrazy/uploadtemp/...` | none | never forwarded | |
+| `/gokrazy/poweroff` | none | never forwarded | |
+
+The built-in `read-only` profile therefore sees the status pages and nothing
+that changes the device, and `admin` reaches every forwarded page. A page not
+in the table, a path that is not clean (`..`, a doubled slash) and a write to a
+read-only page are refused too. `divert` and `uploadtemp` start a program
+uploaded through the browser, outside the image the appliance was built from,
+so no profile grants them: to change the software, push an image with
+`./ze-host appliance push <name>`. `poweroff` is refused for every account,
+`admin` included, because no Ze command powers off the device, so no profile
+entry can grant it. To take the device down, restart it with `request reboot`,
+or use the device's own power control. `stop` and `restart` act on a program
+gokrazy supervises, and on the appliance that program is Ze. Stopping it is
+what `request shutdown` does there, so that one command grants both pages.
+A refusal names the Ze command the page needs,
+so an administrator knows which entry to allow (see
+[authorization.md](../authorization/index.md)).
+<!-- source: internal/component/gokrazy/gate.go -- forwardedPages, refusedPages, pageFor -->
+<!-- source: internal/component/gokrazy/gokrazy.go -- handlerWithAuth -->
 <!-- source: internal/component/web/register_gokrazy.go -- /gokrazy route -->
+<!-- source: internal/component/web/rbac.go -- authorizeRequest -->
 <!-- source: internal/core/gokrazyutil/gokrazyutil.go -- ReadPassword -->
 
 ## Deploy to hardware
@@ -1029,7 +1138,7 @@ uncertain. Inspect the live configuration through a fresh authenticated connecti
 before retrying. The error prints the SSH command for that check.
 <!-- source: internal/appliance/cmd_config_push.go -- sshExecReal, uncertainConfigUpload, configUploadVerifyCommand -->
 
-Developers can run `./le test qemu appliance-config-push` to check this command
+Developers can run `./le test qemu appliance-config` to check this command
 against a newly built native appliance. It uses an owned SSH agent and a host
 key verified from the stopped disk, checks live publication and retained
 password/key login after reboot, and checks malformed-input, permission and

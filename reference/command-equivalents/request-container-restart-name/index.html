@@ -3,24 +3,24 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>update bgp irr as-set - Command Equivalents - Ze</title>
-        <meta name="description" content="Refresh IRR prefix-list for a specific AS-SET." />
-        <meta property="og:title" content="update bgp irr as-set - Command Equivalents - Ze" />
-        <meta property="og:description" content="Refresh IRR prefix-list for a specific AS-SET." />
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>request container restart name - Command Equivalents - Ze</title>
+        <meta name="description" content="Stop the named container, then start it again." />
+        <meta property="og:title" content="request container restart name - Command Equivalents - Ze" />
+        <meta property="og:description" content="Stop the named container, then start it again." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="update bgp irr as-set - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Refresh IRR prefix-list for a specific AS-SET." />
+        <meta name="twitter:title" content="request container restart name - Command Equivalents - Ze" />
+        <meta name="twitter:description" content="Stop the named container, then start it again." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
-        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/update-bgp-irr-as-set/" />
-        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/update-bgp-irr-as-set/" />
+        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/request-container-restart-name/" />
+        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/request-container-restart-name/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
@@ -47,16 +47,16 @@
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
-    <h1 id="command-equivalent-detail-title">update bgp irr as-set</h1>
-    <p>Refresh IRR prefix-list for a specific AS-SET.</p>
+    <h1 id="command-equivalent-detail-title">request container restart name</h1>
+    <p>Stop the named container, then start it again.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Registry path</dt><dd><code>update bgp irr as-set</code></dd></div>
-<div><dt>Usage</dt><dd><code>update bgp irr as-set &lt;as-set&gt;</code></dd></div>
+<div><dt>Registry path</dt><dd><code>request container restart name</code></dd></div>
+<div><dt>Usage</dt><dd><code>request container restart name &lt;value&gt;</code></dd></div>
 <div><dt>Mode</dt><dd>Daemon</dd></div>
-<div><dt>Wire method</dt><dd><code>ze-bgp:update-irr-as-set</code></dd></div>
+<div><dt>Wire method</dt><dd><code>ze-container:request-restart</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
@@ -65,12 +65,11 @@
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
-<h3>Description</h3><p>Re-queries the IRR server<br>for all peers using the given AS-SET name.</p>
+<h3>Description</h3><p>A running container is stopped, with its stop signal and then a kill<br>after its stop timeout, and started again as a new process. A container in the<br>stopped or failed state is started. A disabled container and one that waits for<br>its image are refused, with the statement or command that lets it run.</p>
 <h3>Arguments</h3>
 <table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>as-set</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>AS-SET name.</td><td>The AS-SET name as the peer configuration spells it, compared as an
-exact string. Every enrolled ASN that resolves through this AS-SET is refreshed, and a
-name no enrolled ASN uses is refused.</td></tr>
+<tr><td><code>value</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Name of the container.</td><td>The name of a configured container, as its instance entry spells it.
+The word after the name keyword is the value.</td></tr>
 </tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
@@ -136,7 +135,7 @@ name no enrolled ASN uses is refused.</td></tr>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

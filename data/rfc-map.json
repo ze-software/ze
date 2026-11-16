@@ -4,13 +4,13 @@
     {
       "label": "RFC requirement ledger",
       "path": "data/rfc-requirements.json",
-      "sha256": "e553d532c752301c538ae27d921c1f453730f57de934b356602794932a950d5c"
+      "sha256": "e35f956087c88b7fc51865aea6e7a09dc78fb216d8c2f562c6dcac614ab67802"
     },
     {
       "label": "Committed spec roadmap",
       "path": "data/release-roadmap.json",
-      "sha256": "cae9430ea41777b2dbe04af267a38f95b3a9a8574d2a702be32b4f794f9bcf84",
-      "revision": "f7a3d3e4ad72d7233ccfeff630ea8e911b613ea8"
+      "sha256": "51c63d83159d0e1206fe74c9d2c6c5be2be0c4705d84fd8ef83507e32fe6c3e0",
+      "revision": "9ea1d7aaeb85eaba270b6e6d30c8fd5e66e08582"
     },
     {
       "label": "Proposed release layers",
@@ -852,14 +852,6 @@
       "component": []
     },
     {
-      "stem": "rfc2845",
-      "title": "",
-      "aggregate": "",
-      "summary": false,
-      "walked": false,
-      "component": []
-    },
-    {
       "stem": "rfc3526",
       "title": "",
       "aggregate": "",
@@ -1041,7 +1033,19 @@
       "aggregate": "ppp-access",
       "summary": true,
       "walked": true,
-      "component": []
+      "component": [
+        "rfc1662"
+      ]
+    },
+    {
+      "stem": "rfc1662",
+      "title": "",
+      "aggregate": "",
+      "summary": false,
+      "walked": false,
+      "component": [
+        "rfc1570"
+      ]
     },
     {
       "stem": "rfc2961",
@@ -2206,6 +2210,14 @@
       "aggregate": "drafts",
       "summary": true,
       "walked": true,
+      "component": []
+    },
+    {
+      "stem": "rfc2845",
+      "title": "",
+      "aggregate": "",
+      "summary": false,
+      "walked": false,
       "component": []
     },
     {
@@ -3902,6 +3914,21 @@
       "to": "rfc1661"
     },
     {
+      "from": "rfc1570",
+      "kind": "builds-on",
+      "to": "rfc1662"
+    },
+    {
+      "from": "rfc1662",
+      "kind": "builds-on",
+      "to": "rfc1570"
+    },
+    {
+      "from": "rfc1662",
+      "kind": "builds-on",
+      "to": "rfc1661"
+    },
+    {
       "from": "rfc1812",
       "kind": "builds-on",
       "to": "rfc1071"
@@ -4399,6 +4426,11 @@
     {
       "from": "rfc2661",
       "kind": "builds-on",
+      "to": "rfc1662"
+    },
+    {
+      "from": "rfc2661",
+      "kind": "builds-on",
       "to": "rfc1994"
     },
     {
@@ -4455,6 +4487,31 @@
       "from": "rfc2784",
       "kind": "builds-on",
       "to": "rfc1191"
+    },
+    {
+      "from": "rfc2845",
+      "kind": "builds-on",
+      "to": "rfc1034"
+    },
+    {
+      "from": "rfc2845",
+      "kind": "builds-on",
+      "to": "rfc1035"
+    },
+    {
+      "from": "rfc2845",
+      "kind": "builds-on",
+      "to": "rfc4033"
+    },
+    {
+      "from": "rfc2845",
+      "kind": "builds-on",
+      "to": "rfc6891"
+    },
+    {
+      "from": "rfc2845",
+      "kind": "builds-on",
+      "to": "rfc8945"
     },
     {
       "from": "rfc2845",
@@ -27497,8 +27554,11 @@
         "text": "A BGP speaker that receives a route with the ATOMIC_AGGREGATE attribute MUST NOT make any NLRI of that route more specific (as defined in 9.1.4) when advertising this route to other BGP speakers. (§5.1.6)",
         "section": "5.1.6",
         "annotation": {
-          "kind": "gap",
-          "reason": "gap in proof: ze meets it, because readvertisement writes the route's stored NLRI bytes unchanged (internal/component/bgp/reactor/peer_rib_routes.go::buildRIBRouteUpdate) and no code makes a received prefix more specific or splits it; no test asserts it"
+          "kind": "partial",
+          "reason": "tested \"make any NLRI of that route more specific\"; gap \"advertising this route to other BGP speakers\"; legacy IPv4 relay controls preserve exact NLRI during attribute rebuilds and retain independently received more-specific routes. A recorded admission bypass proves the negative raw-export /24-to-/25 check on ordinary and native route-server sockets with the answer marker retained or stripped: all six cases pass clean, then all four marked cases emit forbidden /25 output while both unmarked controls pass. These records do not prove MP NLRI, all native families, stored-route replay or prior-advertisement withdrawal. The restricted boundary is internal/component/bgp/reactor/filter_atomic_aggregate.go::atomicAggregatePolicyAllowed; the stronger product restriction is documented in docs/architecture/bgp/egress-attribute-rules.md",
+          "tested": "make any NLRI of that route more specific",
+          "gap": "advertising this route to other BGP speakers",
+          "producer": "internal/component/bgp/reactor/filter_atomic_aggregate.go::atomicAggregatePolicyAllowed"
         }
       },
       {
@@ -27536,8 +27596,11 @@
         "text": "All errors detected while processing the OPEN message MUST be indicated by sending the NOTIFICATION message with the Error Code OPEN Message Error. (§6.2)",
         "section": "6.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "one class of OPEN error is detected and never reported. UnpackOpen returns the bare sentinel ErrShortRead when the body is under 10 octets or when the Optional Parameters Length (standard or RFC 9072 extended) overruns the body (internal/component/bgp/message/open.go:167-168, :193-194, :199-200, :209-210), and handleOpen turns that into an FSM event and a returned error, writing no NOTIFICATION and not even closing the connection (internal/component/bgp/reactor/session_handlers.go:43-47); session_read.go:264 only propagates it. Every other OPEN error path does send Error Code 2 -- unsupported version (session_handlers.go:54-60), unacceptable Hold Time (:70-77) and a malformed capability (rejectOpenCapabilityError, :185-199) -- so the obligation holds everywhere except the decode failure. Disclosed in docs/features/rfc-status.md RFC 4271 row"
+          "kind": "partial",
+          "reason": "tested \"NOTIFICATION message with the Error Code OPEN Message Error\"; gap \"All errors detected\"; standard and RFC 9072 outer OPEN framing failures now produce exact NOTIFICATION 2/0 through the ordinary decoder and pending-connection reader; exact-length OPEN controls advance the ordinary handshake, while a valid pending collision retains Cease 6/7. These matrices do not bound every detected OPEN validation class; internal/component/bgp/reactor/session_handlers.go::handleOpen remains the gap-context for the full all-errors obligation. A nine-octet OPEN body is a message-header length error, not the Section 6.2 framing witness",
+          "tested": "NOTIFICATION message with the Error Code OPEN Message Error",
+          "gap": "All errors detected",
+          "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen"
         }
       },
       {
@@ -27573,11 +27636,7 @@
         "level": "MUST",
         "gated": true,
         "text": "For each incoming connection, a state machine MUST be instantiated (§8.2.1)",
-        "section": "8.2.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "an incoming connection does not get its own state machine. acceptOrReject hands the accepted connection to the peer's existing session (internal/component/bgp/reactor/reactor_connection.go:117-163), and a connection queued for collision resolution is read raw by handlePendingCollision with no FSM behind it (internal/component/bgp/reactor/reactor_connection.go:196-249). An FSM is created per session, i.e. per connection attempt of a configured peer (internal/component/bgp/reactor/session.go:396), not per inbound connection"
-        }
+        "section": "8.2.1"
       },
       {
         "rid": "RFC4271-8.2.2-1",
@@ -27675,11 +27734,7 @@
         "level": "MUST",
         "gated": true,
         "text": "If the local system receives a TcpConnectionFails event (Event 18), the local system: - restarts the ConnectRetryTimer (with the initial value), - stops and clears the DelayOpenTimer (sets the value to zero), - releases all BGP resource, - increments the ConnectRetryCounter by 1 (§8.2.2)",
-        "section": "8.2.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "DelayOpen is implemented and a held connection can fail in Active. internal/component/bgp/fsm/fsm.go::FSM.handleActive starts the initial-value ConnectRetryTimer and increments the counter; FSM.change preserves that retry on Active Event 18's transition to Idle and clears DelayOpen. However, internal/component/bgp/reactor/session_read.go::Session.handleConnectionCloseLocked delivers Event 18 and immediately calls timers.StopAll, cancelling the restarted retry; internal/component/bgp/reactor/peer_run.go::Peer.run substitutes its independent exponential reconnect backoff rather than the required initial-value retry. The live retry clause remains unimplemented; owned by plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md AC-1e"
-        }
+        "section": "8.2.2"
       },
       {
         "rid": "RFC4271-8.2.2-14",
@@ -28009,8 +28064,11 @@
         "text": "If the NEXT_HOP attribute of a BGP route depicts an address that is not resolvable, or if it would become unresolvable if the route was installed in the routing table, the BGP route MUST be excluded from the Phase 2 decision function. (§9.1.2)",
         "section": "9.1.2",
         "annotation": {
-          "kind": "gap",
-          "reason": "an unresolvable NEXT_HOP does not exclude the route from Phase 2. gatherCandidatesLocked excludes only SRv6-ineligible entries and next hops naming one of ze's own session addresses (internal/component/bgp/plugins/rib/rib_commands.go), and extractCandidate uses the next hop solely to look up an interior cost, giving an unresolvable one the maximum (internal/component/bgp/plugins/rib/rib_commands.go `extractCandidate`). The route therefore still competes: it loses Section 9.1.2.2 step e) to any resolvable path, but wins outright when it is preferred at an earlier step (LOCAL_PREF, AIGP, AS_PATH, ORIGIN, MULTI_EXIT_DISC, EBGP over IBGP) or is the only path"
+          "kind": "partial",
+          "reason": "tested \"the BGP route MUST be excluded from the Phase 2 decision function\"; gap \"if the route was installed in the routing table\"; internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved excludes unresolved and prospectively self-dependent candidates before ranking. Seven in-process units exercise real ordinary/prospective Loc-RIB resolution and preserve zero-cost, independently recursive, longer-prefix and same-prefix connected controls. Promoted internal and forked daemon tests now prove real BGP ingress, exclusion of a currently unresolved higher-LOCAL_PREF path, reachable zero-cost and direct controls, and Linux kernel installation with native producer-break records. The remaining gap is prospective self-dependency at the live daemon/forked selecting-RIB and installed-routing-table boundary: those carriers never install a candidate whose own prospective election would capture an otherwise currently resolvable next-hop chain. The prospective algorithm is implemented and unit-tested; the whole row retains zero credit until that live condition is proven",
+          "tested": "the BGP route MUST be excluded from the Phase 2 decision function",
+          "gap": "if the route was installed in the routing table",
+          "producer": "internal/component/bgp/plugins/rib/rib_next_hop.go::candidateNextHopResolved"
         }
       },
       {
@@ -28032,11 +28090,7 @@
         "level": "MUST",
         "gated": true,
         "text": "If either the immediate next-hop or the IGP cost to the NEXT_HOP (where the NEXT_HOP is resolved through an IGP route) changes, Phase 2 Route Selection MUST be performed again. (§9.1.2)",
-        "section": "9.1.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "nothing re-runs Phase 2 when the immediate next-hop or the IGP cost to the NEXT_HOP changes. The only entry points to checkBestPathChange are the UPDATE ingest path and the peer-state paths (internal/component/bgp/plugins/rib/rib_structured.go:271-286), and the IGP cost function is a passive lookup registered once with no invalidation callback (internal/component/bgp/plugins/rib/bestpath.go:30-43)"
-        }
+        "section": "9.1.2"
       },
       {
         "rid": "RFC4271-9.1.2.1-1",
@@ -28050,11 +28104,7 @@
         "level": "SHALL",
         "gated": true,
         "text": "Unresolvable routes SHALL be removed from the Loc-RIB and the routing table. (§9.1.2)",
-        "section": "9.1.2",
-        "annotation": {
-          "kind": "gap",
-          "reason": "an unresolvable route is not removed from the Loc-RIB. The only Loc-RIB removal in the BGP plugin is the no-candidate-remains branch of checkBestPathChange (internal/component/bgp/plugins/rib/rib_bestchange.go:766-782), which is driven by the Adj-RIB-In losing its last path and never by next-hop resolvability; nothing in the plugin consults a resolver"
-        }
+        "section": "9.1.2"
       },
       {
         "rid": "RFC4271-9.1.2.2-1",
@@ -28106,8 +28156,11 @@
         "text": "If a route in Loc-RIB is excluded from a particular Adj-RIB-Out, the previously advertised route in that Adj-RIB-Out MUST be withdrawn from service by means of an UPDATE message (§9.1.3)",
         "section": "9.1.3",
         "annotation": {
-          "kind": "gap",
-          "reason": "a route excluded from a peer's Adj-RIB-Out by an egress filter is skipped silently, leaving the peer's previous advertisement in place instead of withdrawing it. Both forwarding rails `continue` on suppression with no withdrawal built (internal/component/bgp/reactor/forward_rs.go:320-333 and internal/component/bgp/reactor/reactor_api_forward.go:496-506); the one announce-to-withdraw conversion is LLGR-specific and filter-requested, not exclusion-driven (internal/component/bgp/reactor/reactor_api_forward.go:588-601)"
+          "kind": "partial",
+          "reason": "tested \"previously advertised route\"; gap \"a route in Loc-RIB is excluded from a particular Adj-RIB-Out\"; live general and route-server relays now withdraw the exact previously advertised IPv4 prefix after a newer received generation is rejected by export policy; accepted-generation controls carry the changed MED without withdrawal. Their shared-chain mutation can stop at the first general-rail failure, so it is not a separate observed route-server mutant red. Ordinary selected-route dissemination and its export-denial lifecycle remain unimplemented at internal/component/bgp/plugins/rib/rib_bestchange.go::publishBestChanges; the ordinary selected-route probes remain red under spec-bgp-best-route-advertised-to-peers, and refresh or stale replay has separate unresolved scope under spec-bgp-refresh-reapplies-export-policy",
+          "tested": "previously advertised route",
+          "gap": "a route in Loc-RIB is excluded from a particular Adj-RIB-Out",
+          "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::publishBestChanges"
         }
       },
       {
@@ -28670,10 +28723,10 @@
         "section": "5.2",
         "annotation": {
           "kind": "partial",
-          "reason": "tested \"match the packet against the inbound selectors identified by the SAD entry\"; gap \"verify that the received packet is appropriate for the SA via which it was received\"; the match is enforced and tested for ESP the inbound XFRM state receives in its own form on the receiving interface, and is now enforced for bare ESP on a Child SA whose state carries the ESP-in-UDP template (port 4500 with no NAT): internal/component/ike/dataplane/espform_program_linux.go::espFormFastPathInstructions rewrites a whole datagram to ESP-in-UDP on the link it arrived on, and internal/component/ike/dataplane/espform_linux.go::espFormReceiver.run re-presents the rest, fragments included, on the Ze TUN ze-espform, whose disable_policy is 0, so the decrypted packet meets the inbound policy check on both paths; TestRFC4301BareESPOnTemplatedSAIsPolicyChecked exercises both paths under the production SPD, but its discrimination records are not written yet, so the bare-ESP half is implemented and not yet proven (owned by plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md, AC-4)",
+          "reason": "tested \"match the packet against the inbound selectors identified by the SAD entry\"; gap \"verify that the received packet is appropriate for the SA via which it was received\"; internal/component/ike/engine/child.go::installChildDataplane now constructs both complete directional scopes before publishing either state, through internal/component/ike/engine/child_scope.go::childStateScope and dataplane.NewSAStateScope. Native positive and negative records prove single-pair whole and outer-fragmented bare ESP on an ESP-in-UDP state under the production SPD, including the state's selector rejection and a separate explicit SPD DISCARD. Those records do not establish general multi-pair or overlapping per-SA isolation. checkXFRMStateScopeCapabilities retains the full feature-bits 0-3 admission guard; the carried K3 fragment guard is enrolled, and the combined native kernel has compiled and booted with the complete 0xf receipt. Bounded scope, fragment and port-policy packet runs have passed, including a private whole-packet sibling-port cut that triggered the selected test's four own assertions. These observations do not complete the general isolation proof or renew its RFC records: the private K2 fault-kernel run and constrained fragment-context fixture remain unresolved. General isolation remains owned by plan/release/fixes/spec-rfc4301-architecture-gaps.md; plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md AC-4 requires proof of the full obligation before this annotation is removed",
           "tested": "match the packet against the inbound selectors identified by the SAD entry",
           "gap": "verify that the received packet is appropriate for the SA via which it was received",
-          "producer": "internal/component/ike/dataplane/espform_program_linux.go::espFormFastPathInstructions"
+          "producer": "internal/component/ike/engine/child.go::installChildDataplane"
         }
       },
       {
@@ -48062,33 +48115,21 @@
         "level": "MUST",
         "gated": true,
         "text": "If a BGP speaker receives an unexpected message (e.g., KEEPALIVE/ UPDATE/ROUTE-REFRESH message) on a session in OpenSent state, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode \"Receive Unexpected Message in OpenSent State\". The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)",
-        "section": "4",
-        "annotation": {
-          "kind": "gap",
-          "reason": "ze defines and decodes the RFC 6608 subcodes (internal/component/bgp/message/notification.go:110-113, internal/component/bgp/format/decode.go:316-320) but never sends them -- the reactor dispatches received messages by type with no FSM-state guard (internal/component/bgp/reactor/session_read.go:260-273), and no code path emits a code-5 FSM Error NOTIFICATION with subcode 1 on an unexpected message in OpenSent. Disclosed in the docs/features/rfc-status.md RFC 6608 row"
-        }
+        "section": "4"
       },
       {
         "rid": "RFC6608-4-2",
         "level": "MUST",
         "gated": true,
         "text": "If a BGP speaker receives an unexpected message (e.g., OPEN/UPDATE/ ROUTE-REFRESH message) on a session in OpenConfirm state, it MUST send a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode \"Receive Unexpected Message in OpenConfirm State\" to the neighbor. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)",
-        "section": "4",
-        "annotation": {
-          "kind": "gap",
-          "reason": "same root cause as 4-1 -- ze decodes the RFC 6608 subcodes but no reactor path sends a code-5 FSM Error NOTIFICATION with subcode 2 on an unexpected message in OpenConfirm (session_read.go:260-273). Disclosed in the docs/features/rfc-status.md RFC 6608 row"
-        }
+        "section": "4"
       },
       {
         "rid": "RFC6608-4-3",
         "level": "MUST",
         "gated": true,
         "text": "If a BGP speaker receives an unexpected message (e.g., OPEN message) on a session in Established State, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode \"Receive Unexpected Message in Established State\". The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)",
-        "section": "4",
-        "annotation": {
-          "kind": "gap",
-          "reason": "same root cause as 4-1 -- ze decodes the RFC 6608 subcodes but no reactor path sends a code-5 FSM Error NOTIFICATION with subcode 3 on an unexpected message in Established (session_read.go:260-273). Disclosed in the docs/features/rfc-status.md RFC 6608 row"
-        }
+        "section": "4"
       }
     ],
     "rfc6793": [
@@ -48111,11 +48152,7 @@
         "level": "MUST",
         "gated": true,
         "text": "When a NEW BGP speaker processes an OPEN message from another NEW BGP speaker, it MUST use the AS number encoded in the Capability Value field of the \"support for four-octet AS number capability\" in lieu of the \"My Autonomous System\" field of the OPEN message. (Section 4.1)",
-        "section": "4.1",
-        "annotation": {
-          "kind": "gap",
-          "reason": "testing -- the rule is implemented once, capability.OpenPeerAS (internal/core/bgp/capability/identity.go), which answers the capability value only when this side advertises the capability too, and every reader of a received OPEN's AS reaches it: validateOpenPeerAS (internal/component/bgp/reactor/session_open_as.go), judgedPeerAS for the collision tie-break, the RFC 6286 identifier scope, the negotiated identity and the reload comparison, openAdvertisedAS for resolveDynamicPeerSettings (internal/component/bgp/reactor/reactor_dynamic.go) and claimPeerAS, and remoteOpenAS for the OPEN-validator RPC (internal/component/bgp/server/validate.go). UnpackOpen still never sets Open.ASN4, and no reader uses it on a received OPEN. TestOpenPeerASIsMyASWhenZeDoesNotAdvertiseASN4 and TestResolveDynamicPeerSettingsReadsASN4Capability (internal/component/bgp/reactor/session_open_as_asn4_test.go) drive it, but neither carries an RFC requirement tag with a discrimination record yet, so the row stays unproven"
-        }
+        "section": "4.1"
       },
       {
         "rid": "RFC6793-4.1-4",
@@ -48374,7 +48411,7 @@
         "section": "5.1",
         "annotation": {
           "kind": "gap",
-          "reason": "ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code refuses a Max Length below the Prefix Length at versions 1 and 2 (parsePrefixPDU in internal/component/bgp/plugins/rpki/rtr_pdu.go), proven under RFC8210-5.1-2 by TestParseIPv4Prefix and TestParseIPv4PrefixMaxLenLessThanPrefixLen, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id"
+          "reason": "ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses an initial data PDU whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the attempt; after Cache Response establishes a response version, checkResponseIdentity in internal/component/bgp/plugins/rpki/rtr_response_identity.go rejects a different version with Error Report code 8 and termination, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code refuses a Max Length below the Prefix Length at versions 1 and 2 (parsePrefixPDU in internal/component/bgp/plugins/rpki/rtr_pdu.go), proven under RFC8210-5.1-2 by TestParseIPv4Prefix and TestParseIPv4PrefixMaxLenLessThanPrefixLen, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id"
         }
       },
       {
@@ -48385,7 +48422,7 @@
         "section": "5.1",
         "annotation": {
           "kind": "gap",
-          "reason": "ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code ignores reserved fields on receipt at versions 1 and 2 (parsePrefixPDU in internal/component/bgp/plugins/rpki/rtr_pdu.go, handlePDU), proven under RFC8210-5-1 and RFC8210-5.1-1 by TestReservedPrefixFieldsPreserveValidation, TestRTRReservedOctetsIgnoredOnReceipt and TestParsePrefixPDUFlagsHighBitsIgnored, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id"
+          "reason": "ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses an initial data PDU whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the attempt; after Cache Response establishes a response version, checkResponseIdentity in internal/component/bgp/plugins/rpki/rtr_response_identity.go rejects a different version with Error Report code 8 and termination, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code ignores reserved fields on receipt at versions 1 and 2 (parsePrefixPDU in internal/component/bgp/plugins/rpki/rtr_pdu.go, handlePDU), proven under RFC8210-5-1 and RFC8210-5.1-1 by TestReservedPrefixFieldsPreserveValidation, TestRTRReservedOctetsIgnoredOnReceipt and TestParsePrefixPDUFlagsHighBitsIgnored, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id"
         }
       },
       {
@@ -48506,7 +48543,7 @@
         "section": "6.1",
         "annotation": {
           "kind": "gap",
-          "reason": "ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code re-queries on the Refresh and Retry Intervals at versions 1 and 2 (cacheGroup.Run and pollDelay in internal/component/bgp/plugins/rpki/rtr_session.go), proven under RFC8210-8.1-1 by TestRunPollsOnRefreshAfterSuccessRetryAfterFailure, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id"
+          "reason": "ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses an initial data PDU whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the attempt; after Cache Response establishes a response version, checkResponseIdentity in internal/component/bgp/plugins/rpki/rtr_response_identity.go rejects a different version with Error Report code 8 and termination, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code re-queries on the Refresh and Retry Intervals at versions 1 and 2 (cacheGroup.Run and pollDelay in internal/component/bgp/plugins/rpki/rtr_session.go), proven under RFC8210-8.1-1 by TestRunPollsOnRefreshAfterSuccessRetryAfterFailure, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id"
         }
       },
       {
@@ -48528,7 +48565,7 @@
         "section": "6.3",
         "annotation": {
           "kind": "gap",
-          "reason": "ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code answers a Cache Reset with a Reset Query and a whole new load at versions 1 and 2 (handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go), proven under RFC8210-8.3-1 by TestCacheResetTriggersResetQuery and TestRTRCacheResetReloadsTheWholeSet, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id"
+          "reason": "ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses an initial data PDU whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the attempt; after Cache Response establishes a response version, checkResponseIdentity in internal/component/bgp/plugins/rpki/rtr_response_identity.go rejects a different version with Error Report code 8 and termination, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code answers a Cache Reset with a Reset Query and a whole new load at versions 1 and 2 (handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go), proven under RFC8210-8.3-1 by TestCacheResetTriggersResetQuery and TestRTRCacheResetReloadsTheWholeSet, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id"
         }
       },
       {
@@ -48539,7 +48576,7 @@
         "section": "6.4",
         "annotation": {
           "kind": "gap",
-          "reason": "ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code repeats Reset Queries after No Data Available at versions 1 and 2 (internal/component/bgp/plugins/rpki/rtr_session.go), proven under RFC8210-8.4-1 by TestNoDataAvailableKeepsResetQueryMode, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id"
+          "reason": "ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses an initial data PDU whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the attempt; after Cache Response establishes a response version, checkResponseIdentity in internal/component/bgp/plugins/rpki/rtr_response_identity.go rejects a different version with Error Report code 8 and termination, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code repeats Reset Queries after No Data Available at versions 1 and 2 (internal/component/bgp/plugins/rpki/rtr_session.go), proven under RFC8210-8.4-1 by TestNoDataAvailableKeepsResetQueryMode, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id"
         }
       },
       {
@@ -48572,7 +48609,7 @@
         "section": "7",
         "annotation": {
           "kind": "gap",
-          "reason": "ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses every PDU but a Serial Notify or an Error Report whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the session, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code dials unprotected TCP on rpki-rtr port 323 at versions 1 and 2 (internal/component/bgp/plugins/rpki/rtr_session.go, rpki_config.go), proven under RFC8210-9-1 by TestParseRPKIConfigDefaults and TestRTRUnprotectedTCPFromConfig, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id"
+          "reason": "ze speaks RTR version 1 or later only: handlePDU in internal/component/bgp/plugins/rpki/rtr_session.go refuses an initial data PDU whose version is below rtrVersionMin = 1 (rtr_pdu.go), and readLoop answers it with Error Report code 4 and ends the attempt; after Cache Response establishes a response version, checkResponseIdentity in internal/component/bgp/plugins/rpki/rtr_response_identity.go rejects a different version with Error Report code 8 and termination, so RTR version 0, which this document defines, is not implemented, and version 0 is owed work (owner ruling 2026-10-30); the shared router code dials unprotected TCP on rpki-rtr port 323 at versions 1 and 2 (internal/component/bgp/plugins/rpki/rtr_session.go, rpki_config.go), proven under RFC8210-9-1 by TestParseRPKIConfigDefaults and TestRTRUnprotectedTCPFromConfig, which run version 1 sessions and so prove RFC 8210 behaviour, not this row; no test carries this id"
         }
       },
       {
@@ -56452,9 +56489,11 @@
         "text": "The next-hop address MUST be encoded as described in [RFC4760]. (Section 3.4)",
         "section": "3.4",
         "annotation": {
-          "kind": "single-polarity",
-          "polarity": "positive",
-          "reason": "MPReachNLRI.WriteTo is family agnostic and lays out AFI, SAFI, next-hop length, next-hop, the zero reserved octet and then the NLRI for AFI 16388 exactly as RFC 4760 Section 3 specifies (internal/core/bgp/attribute/mpnlri.go:154); ValidNextHopLens returns nil for AFI 16388 (internal/core/bgp/attribute/mpnlri.go:305), so ze runs no BGP-LS next-hop length check and holds no rejection path to drive negatively"
+          "kind": "partial",
+          "reason": "tested \"MUST be encoded\"; gap \"as described in [RFC4760]\"; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed",
+          "tested": "MUST be encoded",
+          "gap": "as described in [RFC4760]",
+          "producer": "internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo"
         }
       },
       {
@@ -61696,7 +61735,7 @@
         "annotation": {
           "kind": "single-polarity",
           "polarity": "positive",
-          "reason": "an unchanged next hop produces no next-hop modification op (applyNextHopMod, internal/component/bgp/reactor/reactor_api_forward.go:815) and mpReachNextHopHandler copies the source attribute verbatim when no Set op reaches it (internal/component/bgp/reactor/filter_delta_handlers.go:252), so the labels are preserved by construction and there is no non-conformant propagation input to reject"
+          "reason": "an unchanged next hop produces no next-hop modification op (internal/component/bgp/reactor/peer_forward_facts.go::precomputeNextHop and internal/component/bgp/reactor/peer_forward_facts.go::applyFactsNextHop) and internal/component/bgp/reactor/filter_delta_handlers.go::mpReachNextHopHandler copies the source attribute verbatim when no Set op reaches it, so the labels are preserved by construction and there is no non-conformant propagation input to reject"
         }
       },
       {
@@ -63035,7 +63074,14 @@
         "level": "MUST",
         "gated": true,
         "text": "Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5)",
-        "section": "5"
+        "section": "5",
+        "annotation": {
+          "kind": "partial",
+          "reason": "tested \"treats an improper BGP Extended Message as a fatal error\"; gap \"follow the error-handling procedures of [RFC4271]\"; live TCP tests prove exact fatal-length notification, completed session/resource/RIB cleanup and downstream withdrawal or alternate replacement, with valid-length retention controls. They do not observe the last invalid-route or advertisement owner's lifetime through outbound admission; internal/component/bgp/reactor/relay_recovery.go::admitRecovery is the inspected admission boundary. Header helpers assert returned Notification values or no error, not socket cleanup or owner lifetime. The whole row remains unproven",
+          "tested": "treats an improper BGP Extended Message as a fatal error",
+          "gap": "follow the error-handling procedures of [RFC4271]",
+          "producer": "internal/component/bgp/reactor/relay_recovery.go::admitRecovery"
+        }
       },
       {
         "rid": "RFC8654-5-5",
@@ -65382,12 +65428,7 @@
         "level": "MUST",
         "gated": true,
         "text": "Implementations wishing to exchange Flow Specification MUST use BGP's Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) (§4)",
-        "section": "4",
-        "annotation": {
-          "kind": "single-polarity",
-          "polarity": "positive",
-          "reason": "the flowspec plugin unconditionally maps each declared FlowSpec family to a Multiprotocol (Code 1) capability during OPEN, so there is no wrong input the negotiation path rejects (internal/component/bgp/plugins/nlri/flowspec/register.go: the init registration, and the family vars at register.go:22)"
-        }
+        "section": "4"
       },
       {
         "rid": "RFC8955-4-2",
@@ -71282,9 +71323,11 @@
         "text": "The next-hop address MUST be encoded as described in [RFC4760]. (§5.5)",
         "section": "5.5",
         "annotation": {
-          "kind": "single-polarity",
-          "polarity": "positive",
-          "reason": "MPReachNLRI.WriteTo is family agnostic and lays out AFI, SAFI, next-hop length, next-hop, the zero reserved octet and then the NLRI for AFI 16388 exactly as RFC 4760 Section 3 specifies (internal/core/bgp/attribute/mpnlri.go:154); ValidNextHopLens returns nil for AFI 16388 (internal/core/bgp/attribute/mpnlri.go:305), so ze runs no BGP-LS next-hop length check and holds no rejection path to drive negatively"
+          "kind": "partial",
+          "reason": "tested \"MUST be encoded\"; gap \"as described in [RFC4760]\"; the split is by family and address form. Existing positive evidence covers AFI 16388 SAFI 71 single-address layout: the IPv4 address and parsed fields, and the IPv6 length, reserved octet and following NLRI. It does not cover the SAFI 71 global-plus-link-local IPv6 pair or any SAFI 72 form. internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo now uses the registered shared profile for field sizing and writing. The LS plugin registers SAFI 71 lengths 4/16/32 and SAFI 72 lengths 12/24/48. The shared NextHopProfile.WriteNextHops writer prefixes each SAFI 72 address with a zero RD, DecodeNextHops reads those framed forms, and buildMPReachPlugin uses the same writer for singles. This framing is implemented, but the new literal-wire and forwarding tests are untagged and supply no audited proof for this row. Negative coverage and current producer-break records remain absent. The existing tagged IPv6 case does not assert address bytes or decoding. The selected 12/24/48 per-address RD layout is supported by the pinned Wireshark v4.4.0 decoder. Live routing-peer acceptance of its paired form remains unverified. plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md AC-12 owns the remaining proof and profile/scope integration. No whole-row enforcement is claimed",
+          "tested": "MUST be encoded",
+          "gap": "as described in [RFC4760]",
+          "producer": "internal/core/bgp/attribute/mpnlri.go::MPReachNLRI.WriteTo"
         }
       },
       {
@@ -76063,6 +76106,27 @@
       "source": "plan/release/fixes/spec-network-services-one-off-defects.md"
     },
     {
+      "spec": "bgp-atomic-aggregate-export-rewrite",
+      "stem": "rfc4271",
+      "rid": "RFC4271-5.1.6-1",
+      "kind": "declared-requirement",
+      "source": "plan/release/fixes/spec-bgp-atomic-aggregate-export-rewrite.md"
+    },
+    {
+      "spec": "bgp-next-hop-reachability-admission",
+      "stem": "rfc4271",
+      "rid": "RFC4271-3.1-2",
+      "kind": "declared-requirement",
+      "source": "plan/release/fixes/spec-bgp-next-hop-reachability-admission.md"
+    },
+    {
+      "spec": "bgp-next-hop-reachability-admission",
+      "stem": "rfc4271",
+      "rid": "RFC4271-9.1.2.1-2",
+      "kind": "declared-requirement",
+      "source": "plan/release/fixes/spec-bgp-next-hop-reachability-admission.md"
+    },
+    {
       "spec": "bgp-otc-internet-facing-edge",
       "stem": "rfc9234",
       "rid": "RFC9234-5-9",
@@ -76810,6 +76874,20 @@
       "rid": "RFC4301-5.1.2.1-1",
       "kind": "declared-requirement",
       "source": "plan/post-release/kernel/spec-xfrm-outer-df-set-dscp.md"
+    },
+    {
+      "spec": "bgp-mrai-pacing",
+      "stem": "rfc4271",
+      "rid": "RFC4271-9.2.1.1-2",
+      "kind": "declared-requirement",
+      "source": "plan/proposals/spec-bgp-mrai-pacing.md"
+    },
+    {
+      "spec": "bgp-mrai-pacing",
+      "stem": "rfc4271",
+      "rid": "RFC4271-9.2.1.1-3",
+      "kind": "declared-requirement",
+      "source": "plan/proposals/spec-bgp-mrai-pacing.md"
     },
     {
       "spec": "tftp-server-uploads",
@@ -78036,14 +78114,6 @@
       "note": "Named as plan/spec-rsvpte-bypass-bandwidth-protection.md; this citation does not establish sole implementation ownership."
     },
     {
-      "spec": "bgp-fsm-delayopen-and-automatic-start",
-      "stem": "rfc4271",
-      "rid": "RFC4271-8.2.2-13",
-      "kind": "summary-gap-citation",
-      "source": "rfc/short/rfc4271.md",
-      "note": "Named as plan/post-release/features/spec-bgp-fsm-delayopen-and-automatic-start.md; this citation does not establish sole implementation ownership."
-    },
-    {
       "spec": "xfrm-ipv6-mh-selector",
       "stem": "rfc4301",
       "rid": "RFC4301-4.4.1.1-1",
@@ -78058,6 +78128,14 @@
       "kind": "summary-gap-citation",
       "source": "rfc/short/rfc4301.md",
       "note": "Named as plan/post-release/features/spec-ipsec-spd-final-discard-vpp-ospf.md; this citation does not establish sole implementation ownership."
+    },
+    {
+      "spec": "rfc4301-architecture-gaps",
+      "stem": "rfc4301",
+      "rid": "RFC4301-5.2-2",
+      "kind": "summary-partial-citation",
+      "source": "rfc/short/rfc4301.md",
+      "note": "Named as plan/release/fixes/spec-rfc4301-architecture-gaps.md; this citation does not establish sole implementation ownership."
     },
     {
       "spec": "ipsec-dual-form-receive-spd-bypass",
@@ -78900,6 +78978,14 @@
       "note": "Named as plan/post-release/features/spec-dhcpv6-server.md; this citation does not establish sole implementation ownership."
     },
     {
+      "spec": "bgp-next-hop-auto-rewrites-for-ebgp",
+      "stem": "rfc7752",
+      "rid": "RFC7752-3.4-1",
+      "kind": "summary-partial-citation",
+      "source": "rfc/short/rfc7752.md",
+      "note": "Named as plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md; this citation does not establish sole implementation ownership."
+    },
+    {
       "spec": "rfc7947-adj-rib-in-accepts-filtered-updates",
       "stem": "rfc7947",
       "rid": "RFC7947-2.1-1",
@@ -79364,6 +79450,14 @@
       "note": "Named as plan/post-release/features/spec-bgp-tunnel-encapsulation-consumption.md; this citation does not establish sole implementation ownership."
     },
     {
+      "spec": "bgp-next-hop-auto-rewrites-for-ebgp",
+      "stem": "rfc9552",
+      "rid": "RFC9552-5.5-1",
+      "kind": "summary-partial-citation",
+      "source": "rfc/short/rfc9552.md",
+      "note": "Named as plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md; this citation does not establish sole implementation ownership."
+    },
+    {
       "spec": "vrrp-owner-arp-rfc-defects",
       "stem": "rfc9568",
       "rid": "RFC9568-8.2.2-2",
@@ -79784,6 +79878,7 @@
         "rfc5635",
         "rfc4271",
         "sflow-v5",
+        "rfc6608",
         "rfc4360",
         "rfc4760",
         "rfc7011",
@@ -80526,5 +80621,5 @@
     }
   ],
   "default-layer": "base-ipv4-bgp",
-  "roadmap-revision": "f7a3d3e4ad72d7233ccfeff630ea8e911b613ea8"
+  "roadmap-revision": "9ea1d7aaeb85eaba270b6e6d30c8fd5e66e08582"
 }

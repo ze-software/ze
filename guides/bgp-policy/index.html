@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BGP Policy - Ze</title>
         <meta name="description" content="Ze documentation: guide/bgp-policy.md" />
         <meta property="og:title" content="BGP Policy - Ze" />
@@ -231,6 +231,42 @@ last active reference, Ze applies <code>final</code>. An empty policy, or one wh
 references are all inactive, still applies it. A raw full-UPDATE rewrite stops
 later filters, but still receives the policy final. An earlier reject,
 fail-closed error, or teardown cannot be turned into acceptance by <code>final accept</code>.</p>
+<p>If a chain's original input carries ATOMIC_AGGREGATE, these restrictions apply
+to modified results. A result that still announces routes must keep that marker
+and retain only original native route keys, including received ADD-PATH identifiers.
+Attribute changes, reordering and route removal remain supported. Ze refuses
+new marked destinations and marker removal on both import and export.</p>
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_aggregate.go -- atomicAggregatePolicyAllowed -->
+<p>This release restriction also disables
+less-specific and disjoint raw rewrites of marked routes, which the RFC alone
+does not forbid. Unmarked input keeps the existing raw rewrite facility.</p>
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_aggregate.go -- atomicAggregatePolicyAllowed -->
+<p>A refused result requests removal of the original source routes through the
+existing ownership and routing-table decision. Explicit withdrawals and EOR still work. The
+diagnostic <code>doctor-bgp-atomic-aggregate-policy</code> in <code>ze show doctor</code> or
+<code>ze show errors</code> identifies the refusal. Open <code>ze config edit</code>, correct the
+filter to keep the marker and only original routes, then run <code>commit now</code>.</p>
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChainMeta, runEgressPolicyChainASN4 -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_diagnostic.go -- reportAtomicAggregatePolicyRefusal -->
+<p>Keeping only part of a marked update preserves the chosen routes and requests
+removal of the source routes left out. These removals include any original
+withdrawal that a raw answer omitted. For example, a filter changes a marked
+update containing A and B to keep only B. Ze admits A's removal before B
+with the policy's chosen attributes.</p>
+<!-- source: internal/component/bgp/reactor/filter_atomic_subset.go -- atomicAggregatePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- writePolicyRemovals -->
+<p>Where the RIB owns the next route decision, that decision can finish later by
+withdrawing A or installing a permitted replacement. B or an EOR alone does
+not prove it complete. Immediate withdrawals keep their order. The final
+effective result decides which source routes are left out.</p>
+<!-- source: internal/component/bgp/reactor/filter_atomic_subset.go -- atomicAggregatePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- writePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryOwedFor, run, decide -->
 <p>A <code>match</code> instance naming a <code>prefix-list</code> judges each prefix of the UPDATE,
 announced and withdrawn, as the <code>prefix-list</code> filter does: an UPDATE with no
 prefix, or none the list denies, passes; one whose every prefix is denied is
@@ -789,7 +825,7 @@ ze cli -c "show bgp peer transit-b rib"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

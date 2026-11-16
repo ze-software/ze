@@ -1,6 +1,6 @@
 # Command Equivalents
 
-509 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
+512 live Ze commands. 46 have vendor CLI today. 98 have been reviewed for migration intent. Vendor commands are curated migration hints, not exhaustive vendor CLI catalogs.
 
 ## Commands with vendor CLI
 
@@ -76,10 +76,10 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `clear dns cache stats` | Daemon | - | - | - | - | [details](clear-dns-cache-stats/) |
 | `clear dns resolver cache all` | Daemon | - | - | - | - | [details](clear-dns-resolver-cache-all/) |
 | `clear firewall domain-group` | Daemon | - | - | - | - | [details](clear-firewall-domain-group/) |
-| `clear firewall irr as-set` | Daemon | - | - | - | - | [details](clear-firewall-irr-as-set/) |
-| `clear firewall irr asn` | Daemon | - | - | - | - | [details](clear-firewall-irr-asn/) |
 | `clear interface counters all` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-counters-all/) |
 | `clear interface name counters` | Daemon | - | - | - | `clear interfaces ethernet <name> counters` | [details](clear-interface-name-counters/) |
+| `clear irr as-set` | Daemon | - | - | - | - | [details](clear-irr-as-set/) |
+| `clear irr asn` | Daemon | - | - | - | - | [details](clear-irr-asn/) |
 | `clear irr cache all` | Daemon | - | - | - | - | [details](clear-irr-cache-all/) |
 | `clear irr cache as-set` | Daemon | - | - | - | - | [details](clear-irr-cache-as-set/) |
 | `clear isis adjacency all` | Daemon | - | - | - | - | [details](clear-isis-adjacency-all/) |
@@ -210,6 +210,8 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request cache retain` | Daemon | - | - | - | - | [details](request-cache-retain/) |
 | `request commit` | Daemon | - | - | - | `commit` | [details](request-commit/) |
 | `request config archive` | Daemon | - | - | - | - | [details](request-config-archive/) |
+| `request container restart` | Daemon | - | - | - | - | [details](request-container-restart/) |
+| `request container restart name` | Daemon | - | - | - | - | [details](request-container-restart-name/) |
 | `request data backup` | Daemon | - | - | - | - | [details](request-data-backup/) |
 | `request data repair` | Daemon | - | - | - | - | [details](request-data-repair/) |
 | `request data restore` | Daemon | - | - | - | - | [details](request-data-restore/) |
@@ -242,6 +244,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `request shutdown` | Daemon | - | - | - | `poweroff`<br>`reboot` | [details](request-shutdown/) |
 | `request subscribe` | Daemon | - | - | - | - | [details](request-subscribe/) |
 | `request support archive` | daemon, offline | - | - | - | - | [details](request-support-archive/) |
+| `request system storage grow` | Daemon | - | - | - | - | [details](request-system-storage-grow/) |
 | `request unsubscribe` | Daemon | - | - | - | - | [details](request-unsubscribe/) |
 | `request wireguard keypair` | daemon, offline | - | - | - | - | [details](request-wireguard-keypair/) |
 
@@ -424,6 +427,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show interface rate` | Read-only | - | - | - | - | [details](show-interface-rate/) |
 | `show interface scan` | Read-only | - | - | - | - | [details](show-interface-scan/) |
 | `show interface type` | Read-only | - | - | - | - | [details](show-interface-type/) |
+| `show irr` | Read-only | - | - | - | - | [details](show-irr/) |
 | `show isis database` | Read-only | - | - | - | - | [details](show-isis-database/) |
 | `show isis database detail` | Read-only | - | - | - | - | [details](show-isis-database-detail/) |
 | `show isis hostname` | Read-only | - | - | - | - | [details](show-isis-hostname/) |
@@ -498,6 +502,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show ospf ipv6 interface detail` | Read-only | - | - | - | - | [details](show-ospf-ipv6-interface-detail/) |
 | `show ospf ipv6 neighbor` | Read-only | - | - | - | - | [details](show-ospf-ipv6-neighbor/) |
 | `show ospf ipv6 neighbor detail` | Read-only | - | - | - | - | [details](show-ospf-ipv6-neighbor-detail/) |
+| `show ospf ipv6 route` | Read-only | - | - | - | - | [details](show-ospf-ipv6-route/) |
 | `show ospf ipv6 segment-routing` | Read-only | - | - | - | - | [details](show-ospf-ipv6-segment-routing/) |
 | `show ospf ipv6 spf` | Read-only | - | - | - | - | [details](show-ospf-ipv6-spf/) |
 | `show ospf ipv6 spf detail` | Read-only | - | - | - | - | [details](show-ospf-ipv6-spf-detail/) |
@@ -518,6 +523,7 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | `show pki certificate name pem` | Read-only | - | - | - | - | [details](show-pki-certificate-name-pem/) |
 | `show pki certificates` | Read-only | - | - | - | - | [details](show-pki-certificates/) |
 | `show pki local-ca pem` | Read-only | - | - | - | - | [details](show-pki-local-ca-pem/) |
+| `show plugin conformance run` | read-only, offline | - | - | - | - | [details](show-plugin-conformance-run/) |
 | `show plugin declarations` | read-only, offline | - | - | - | - | [details](show-plugin-declarations/) |
 | `show plugin declarations config` | read-only, offline | - | - | - | - | [details](show-plugin-declarations-config/) |
 | `show plugin list` | read-only, offline | - | - | - | - | [details](show-plugin-list/) |
@@ -623,16 +629,13 @@ Rows without vendor CLI remain visible so missing coverage is explicit.
 | Ze | Mode | Junos MX | IOS XR | SR OS | VyOS | Details |
 | --- | --- | --- | --- | --- | --- | --- |
 | `update bgp config` | Daemon | - | - | - | - | [details](update-bgp-config/) |
-| `update bgp irr all` | Daemon | - | - | - | - | [details](update-bgp-irr-all/) |
-| `update bgp irr as-set` | Daemon | - | - | - | - | [details](update-bgp-irr-as-set/) |
-| `update bgp irr asn` | Daemon | - | - | - | - | [details](update-bgp-irr-asn/) |
 | `update bgp peer prefix` | Daemon | - | - | - | - | [details](update-bgp-peer-prefix/) |
 | `update data config` | Daemon | - | - | - | - | [details](update-data-config/) |
 | `update data key` | Daemon | - | - | - | - | [details](update-data-key/) |
 | `update firewall domain-group` | Daemon | - | - | - | - | [details](update-firewall-domain-group/) |
-| `update firewall irr all` | Daemon | - | - | - | - | [details](update-firewall-irr-all/) |
-| `update firewall irr as-set` | Daemon | - | - | - | - | [details](update-firewall-irr-as-set/) |
-| `update firewall irr asn` | Daemon | - | - | - | - | [details](update-firewall-irr-asn/) |
+| `update irr all` | Daemon | - | - | - | - | [details](update-irr-all/) |
+| `update irr as-set` | Daemon | - | - | - | - | [details](update-irr-as-set/) |
+| `update irr asn` | Daemon | - | - | - | - | [details](update-irr-asn/) |
 | `update resolve rir` | Daemon | - | - | - | - | [details](update-resolve-rir/) |
 | `update serve` | daemon, offline | - | - | - | - | [details](update-serve/) |
 | `update serve pause` | Daemon | - | - | - | - | [details](update-serve-pause/) |

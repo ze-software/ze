@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Interoperability Testing - Ze</title>
         <meta name="description" content="Ze documentation: features/interoperability-testing.md" />
         <meta property="og:title" content="Interoperability Testing - Ze" />
@@ -71,7 +71,7 @@ daemon instances in containers and exchange real BGP messages.</p>
 </tr>
 <tr>
 <td>Scenario count</td>
-<td><span data-ze-stat="interop.suites.interop">245</span> shared-suite scenarios covering BGP, other routing protocols and network services; <span data-ze-stat="interop.protocols.bgp">142</span> have BGP as their primary area</td>
+<td><span data-ze-stat="interop.suites.interop">255</span> shared-suite scenarios covering BGP, other routing protocols and network services; <span data-ze-stat="interop.protocols.bgp">151</span> have BGP as their primary area</td>
 </tr>
 <tr>
 <td>Runner</td>
@@ -87,9 +87,9 @@ daemon instances in containers and exchange real BGP messages.</p>
 <!-- source: internal/le/interoplab/bgp/run.go -- native interop runner -->
 <h2 id="scenarios">Scenarios</h2>
 <p>The table below is a representative subset covering the core BGP protocol and
-extensions. The shared suite has <span data-ze-stat="interop.suites.interop">245</span> scenarios, including
+extensions. The shared suite has <span data-ze-stat="interop.suites.interop">255</span> scenarios, including
 RPKI, BMP, IS-IS, OSPF/OSPFv3 and network-service cases. Across all
-<span data-ze-stat="interop.suite_count">8</span> lab suites, the inventory has <span data-ze-stat="interop.scenarios_display">390+</span>
+<span data-ze-stat="interop.suite_count">8</span> lab suites, the inventory has <span data-ze-stat="interop.scenarios_display">410+</span>
 scenarios covering routing, VPNs, access and multi-node topologies. Each scenario
 is counted once by its primary protocol or test area.</p>
 <!-- source: internal/le/site/facts/sitefacts.go -- countInterop, interopProtocol -->
@@ -328,7 +328,7 @@ BGP daemons. Ze's suite has more scenarios and tests against more target impleme
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

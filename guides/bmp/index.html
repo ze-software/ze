@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BMP (BGP Monitoring Protocol) - Ze</title>
         <meta name="description" content="Ze documentation: guide/bmp.md" />
         <meta property="og:title" content="BMP (BGP Monitoring Protocol) - Ze" />
@@ -82,9 +82,13 @@ feeds from routers) and as a <strong>sender</strong> (streaming state to collect
 </ol></li>
 <li><a href="#limitations">Limitations</a></li>
 </ol></details></nav><div class="doc-body">
-<p>Both halves follow a reload. A commit that adds, moves or disables a receiver
-listener rebinds it, and one that changes the sender bounces the collector
-sessions, so neither reports success over a change it did not make. A Peer Down
+<p>Both halves follow a reload. A commit that changes receiver listeners binds
+every added address before closing any removed address. If one bind fails,
+the commit is refused and the previous listeners and session limits stay in
+force. A sender change bounces the affected collector sessions.</p>
+<!-- source: internal/component/bgp/plugins/bmp/receiver.go -- applyReceiverConfig -->
+<!-- source: internal/component/bgp/plugins/bmp/bmp.go -- registerCallbacks -->
+<p>A Peer Down
 carries the Data its reason code requires: RFC 7854 Section 4.9 draws the field
 as present for reasons 1, 2 and 3, so a session ze closed by NOTIFICATION
 carries that PDU and one ze closed without carries the two-octet code of the
@@ -174,8 +178,20 @@ via the YANG <code>ze:listener</code> extension. The BMP receiver binds <code>::
 so <code>::</code> alone already accepts IPv4 collectors on its port; <code>::</code> beside
 <code>0.0.0.0</code> (or any IPv4 address) on one port is refused, because the IPv4
 bind could never succeed (see <code>docs/guide/configuration.md</code>, "Named Listeners").</p>
-<!-- source: internal/component/bgp/plugins/bmp/receiver.go -- startListenerLocked -->
+<!-- source: internal/component/bgp/plugins/bmp/receiver.go -- bindReceiverListeners -->
 <!-- source: internal/component/config/listener.go -- dualStackPair -->
+<p>Receiver startup installs all requested listeners or returns a configuration
+error without leaving a partial set. An explicit external BMP process follows
+its <a href="../plugins/#when-a-plugin-fails">plugin failure policy</a>; its failure does
+not always stop the daemon. A reload keeps unchanged listener sockets and their sessions.
+Closing a removed listener stops new connections; sessions it already accepted
+continue. If the kernel cannot bind a replacement while the old listener is
+active, such as an incompatible specific-address and wildcard pair on one
+port, the replacement is refused and the old listener stays active. Resolve
+the bind conflict or remove the named server
+entry before committing again. The refusal names the endpoint and prints the
+exact repair command.</p>
+<!-- source: internal/component/bgp/plugins/bmp/receiver.go -- applyReceiverConfig, bindReceiverListeners -->
 <p>BMP uses unauthenticated, unencrypted TCP. Listener addresses and firewall rules
 should restrict access to the monitoring network. RFC 7854 Section 11 recommends
 IPsec tunnel protection where transport security is needed; BMP configuration
@@ -794,7 +810,7 @@ selected peer, next hop and metrics remain the same.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

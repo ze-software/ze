@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC Implementation Guide for Ze - Ze</title>
         <meta name="description" content="Ze documentation: contributing/rfc-implementation-guide.md" />
         <meta property="og:title" content="RFC Implementation Guide for Ze - Ze" />
@@ -908,6 +908,16 @@ data. Carrier names are display text, not record boundaries or authority.
 Normal Git object validation rejects an embedded NUL in a commit
 (<code>nulInCommit</code>); the raw reader's defensive framing is not a claim that native
 publication accepts such a body.</p>
+<p>One approval-table load shares its carrier inventory, source bytes and Go
+declaration summaries across rows. It captures one immutable HEAD for its base
+reads and checks every eligible carrier, including unselected and untracked
+files. Each history question retains its own newest matching commit from one
+fully validated stream. An empty table reads neither source nor history.
+A later load starts fresh, so edits, new duplicate carriers and changed history
+cannot reuse an earlier load's authority. Selected-content and publication-parent
+checks still run independently.</p>
+<!-- source: internal/le/rfc/approvalunits.go -- ApprovalResolver, Resolve -->
+<!-- source: internal/le/rfc/approvalhistory.go -- readApprovalHistoryAll -->
 <p>Ordinary RFC and weakening verdicts are captured with the prepared block and
 checked against each publication attempt's actual parent. Earlier blocks of
 the same appended script count as spent history too. Pruning the first block's
@@ -1155,7 +1165,7 @@ func (n *MyNLRI) SupportsAddPath() bool { return true }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

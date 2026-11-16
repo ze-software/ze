@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/vpn-endpoint.json](..
 
 ## Figures
 
-- **MUST bar**: Ze proven 238, Proof pending 176, OS testing gap 56, Not built 77
-- **Overview bar**: Ze MUST proven 238, SHOULD proven 7, Proof pending 179, OS testing gap 57, Not assessed 156, Not built 79
+- **MUST bar**: Ze proven 239, Proof pending 175, OS testing gap 56, Not built 77
+- **Overview bar**: Ze MUST proven 239, SHOULD proven 7, Proof pending 178, OS testing gap 57, Not assessed 156, Not built 79
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/vpn-endpoint.json](..
 | Mandatory requirements complete | not complete |
 | MUST rows | 547 |
 | MUST rows kept (the MUST bar) | 547 |
-| Ze proven | 238 |
+| Ze proven | 239 |
 | OS verified | 0 |
-| Proof pending | 176 |
+| Proof pending | 175 |
 | OS testing gap | 56 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -69,7 +69,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | [RFC 4301](../../rfc4301/) (cycle with rfc3602, rfc3948, rfc4106, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | Security Architecture for the Internet Protocol | Ze proven 44, Proof pending 23, OS testing gap 3, Not built 31 | Ze MUST proven 44, Proof pending 23, OS testing gap 4, Not assessed 1, Not built 32 | vpn-endpoint: required by rfc/short/rfc4301.md |
 | [RFC 4303](../../rfc4303/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4309, rfc5282, rfc7296, rfc8247) | IP Encapsulating Security Payload (ESP) | Ze proven 7, Proof pending 2, Not built 14 | Ze MUST proven 7, Proof pending 3, Not assessed 2, Not built 15 | vpn-endpoint: required by rfc/short/rfc4303.md |
 | [RFC 5282](../../rfc5282/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc7296, rfc8247) | Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol | Ze proven 19 | Ze MUST proven 19, Not assessed 11 | vpn-endpoint: required by rfc/short/rfc5282.md |
-| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 89, Proof pending 145 | Ze MUST proven 89, SHOULD proven 4, Proof pending 147, Not assessed 3 | vpn-endpoint: required by rfc/short/rfc7296.md |
+| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 90, Proof pending 144 | Ze MUST proven 90, SHOULD proven 4, Proof pending 146, Not assessed 3 | vpn-endpoint: required by rfc/short/rfc7296.md |
 | [RFC 8247](../../rfc8247/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296) | Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 17, Not built 3 | Ze MUST proven 17, SHOULD proven 1, Not assessed 5, Not built 3 | vpn-endpoint: required by rfc/short/rfc8247.md |
 
 ### Level 5

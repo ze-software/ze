@@ -15,8 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 6 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 6 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 6 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 21 | 21 of 33 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
-| Audit verdicts | 7 | of 6 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
+| Tests shown to detect a fault | 18 | 18 of 33 tests linked to requirements, 0 without a fault test and 3 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Neutral
 
@@ -55,7 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
-| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
@@ -87,9 +86,9 @@ Included in automatic checks: Multiprotocol Extensions for BGP-4: six MUST-level
 
 **Area:** Multiprotocol BGP
 
-**Proof:** 6 of 6 MUST proven
+**Proof:** 5 of 6 MUST proven
 
-**Evidence:** unit 6
+**Evidence:** unit 5
 
 **Unmet:** -
 
@@ -113,19 +112,19 @@ Included in automatic checks: Multiprotocol Extensions for BGP-4: six MUST-level
 
 ## Figures
 
-- **MUST bar**: Ze proven 6
-- **Overview bar**: Ze MUST proven 6, SHOULD proven 1, Not assessed 10
+- **MUST bar**: Ze proven 5, Proof pending 1
+- **Overview bar**: Ze MUST proven 5, SHOULD proven 1, Proof pending 1, Not assessed 10
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | complete |
+| Mandatory requirements complete | not complete |
 | MUST rows | 6 |
 | MUST rows kept (the MUST bar) | 6 |
-| Ze proven | 6 |
+| Ze proven | 5 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Proof pending | 1 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -190,8 +189,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Clau
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestMPReachNLRI_WriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L12) | unit/verify | unproven |
-| positive | [`TestRFC4760ReservedIsWrittenNotInherited`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L37) | unit/verify | mutant, verified |
-| positive | [`TestRFC4760ReservedSurvivesBufferReuse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L122) | unit/verify | mutant, verified |
+| positive | [`TestRFC4760ReservedIsWrittenNotInherited`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L37) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC4760ReservedSurvivesBufferReuse`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_reserved_test.go#L122) | unit/verify | mutant, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4760-3-2`](#rfc4760-3-2)
 
@@ -205,7 +204,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 | negative | [`TestCommitRefusesAnAnnounceWhoseNextHopHasNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4760_commit_nexthop_test.go#L69) | unit/verify | revert, verified |
 | negative | [`TestParseMPReachNLRI_InvalidNextHopLength`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L498) | unit/verify | unproven |
 | negative | [`TestMPReachValidateNextHopsRefusesAnAddressWithNoWireForm`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go#L124) | unit/verify | unproven |
-| positive | [`TestCommitVPNAnnounceCarriesTheRFC4364NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4760_commit_nexthop_test.go#L155) | unit/verify | revert, verified |
+| positive | [`TestCommitVPNAnnounceCarriesTheRFC4364NextHop`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/rib/rfc4760_commit_nexthop_test.go#L155) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestMPReachNLRI_WriteTo`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L16) | unit/verify | unproven |
 | positive | [`TestParseMPReachNLRI`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/mpnlri_test.go#L128) | unit/verify | unproven |
 | positive | [`TestMPReachNextHopLengthCountsTheOctetsWritten`](https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc4760_mpnlri_nexthop_wire_test.go#L39) | unit/verify | unproven |
@@ -240,7 +239,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-j
 
 If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute. (Section 7)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, after 8a340e018a). RFC 4760 Section 7: "If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute." The only changed unit is TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes, and only its claim: it now names rfc7606ResetNotification instead of rfc7606SessionReset. Read session_validation.go: applyRFC7606 sends a result carrying a Notification straight to rfc7606ResetNotification, and rfc7606SessionReset itself only builds a 3/1 Notification and delegates to rfc7606ResetNotification, so the reworded claim is true on every reset path and claims nothing the body does not assert. The body is unchanged: an IPv4 MP_REACH whose /24 overruns by one octet (prefix length legal, so only the overrun can fire) through a real Established session must give an error, Idle, zero plugin callbacks and a NOTIFICATION with code 3; it does not pin the subcode, and the claim does not claim one. A discrimination record (rfc7606ResetNotification panicked, observed red) backs question 2 for this tag. The other units (message-level exact SessionReset + 3/9 for next-hop and MP_UNREACH length; the correct-MP_REACH negative; the rib and reactor peer-down deletion units) are unchanged and still carry the deletion half: Idle raises the peer-down that clears the neighbor's routes, a superset of the offending AFI/SAFI. Ran the reactor TestRFC4760IncorrectMP*/CorrectMP* units green. Verdict stands.
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/bgp/plugins/rib/rib_test.go::TestHandleState_PeerDown moved. Re-judged 2026-10-24 (independent auditor, after 8a340e018a). RFC 4760 Section 7: "If a BGP speaker receives from a neighbor an UPDATE message that contains the MP_REACH_NLRI or MP_UNREACH_NLRI attribute, and if the speaker determines that the attribute is incorrect, the speaker MUST delete all the BGP routes received from that neighbor whose AFI/SAFI is the same as the one carried in the incorrect MP_REACH_NLRI or MP_UNREACH_NLRI attribute." The only changed unit is TestRFC4760IncorrectMPReachDeletesTheNeighborsRoutes, and only its claim: it now names rfc7606ResetNotification instead of rfc7606SessionReset. Read session_validation.go: applyRFC7606 sends a result carrying a Notification straight to rfc7606ResetNotification, and rfc7606SessionReset itself only builds a 3/1 Notification and delegates to rfc7606ResetNotification, so the reworded claim is true on every reset path and claims nothing the body does not assert. The body is unchanged: an IPv4 MP_REACH whose /24 overruns by one octet (prefix length legal, so only the overrun can fire) through a real Established session must give an error, Idle, zero plugin callbacks and a NOTIFICATION with code 3; it does not pin the subcode, and the claim does not claim one. A discrimination record (rfc7606ResetNotification panicked, observed red) backs question 2 for this tag. The other units (message-level exact SessionReset + 3/9 for next-hop and MP_UNREACH length; the correct-MP_REACH negative; the rib and reactor peer-down deletion units) are unchanged and still carry the deletion half: Idle raises the peer-down that clears the neighbor's routes, a superset of the offending AFI/SAFI. Ran the reactor TestRFC4760IncorrectMP*/CorrectMP* units green. Verdict stands.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

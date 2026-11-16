@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/ikev2-ipsec.json](../
 
 ## Figures
 
-- **MUST bar**: Ze proven 253, Proof pending 187, OS testing gap 76, Not assessed 25, Not built 163
-- **Overview bar**: Ze MUST proven 253, SHOULD proven 9, Proof pending 190, OS testing gap 77, Not assessed 276, Not built 165
+- **MUST bar**: Ze proven 254, Proof pending 186, OS testing gap 76, Not assessed 25, Not built 163
+- **Overview bar**: Ze MUST proven 254, SHOULD proven 9, Proof pending 189, OS testing gap 77, Not assessed 276, Not built 165
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/ikev2-ipsec.json](../
 | Mandatory requirements complete | not complete |
 | MUST rows | 704 |
 | MUST rows kept (the MUST bar) | 704 |
-| Ze proven | 253 |
+| Ze proven | 254 |
 | OS verified | 0 |
-| Proof pending | 187 |
+| Proof pending | 186 |
 | OS testing gap | 76 |
 | Exclusion unchecked | 0 |
 | Not assessed | 25 |
@@ -77,7 +77,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | [RFC 4302](../../rfc4302/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4303, rfc4309, rfc5282, rfc7296, rfc8247) | IP Authentication Header | Ze proven 9, OS testing gap 19, Not built 4 | Ze MUST proven 9, OS testing gap 19, Not assessed 10, Not built 4 |
 | [RFC 4303](../../rfc4303/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4309, rfc5282, rfc7296, rfc8247) | IP Encapsulating Security Payload (ESP) | Ze proven 7, Proof pending 2, Not built 14 | Ze MUST proven 7, Proof pending 3, Not assessed 2, Not built 15 |
 | [RFC 5282](../../rfc5282/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc7296, rfc8247) | Using Authenticated Encryption Algorithms with the Encrypted Payload of the Internet Key Exchange version 2 (IKEv2) Protocol | Ze proven 19 | Ze MUST proven 19, Not assessed 11 |
-| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 89, Proof pending 145 | Ze MUST proven 89, SHOULD proven 4, Proof pending 147, Not assessed 3 |
+| [RFC 7296](../../rfc7296/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc8247) | Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 90, Proof pending 144 | Ze MUST proven 90, SHOULD proven 4, Proof pending 146, Not assessed 3 |
 | [RFC 8247](../../rfc8247/) (cycle with rfc3602, rfc3948, rfc4106, rfc4301, rfc4302, rfc4303, rfc4309, rfc5282, rfc7296) | Algorithm Implementation Requirements and Usage Guidance for the Internet Key Exchange Protocol Version 2 (IKEv2) | Ze proven 17, Not built 3 | Ze MUST proven 17, SHOULD proven 1, Not assessed 5, Not built 3 |
 
 ### Level 5

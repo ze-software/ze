@@ -15,9 +15,12 @@ route redistribution from a live PPP session.
 
 ```
 test/interop-l2tp/
-  Dockerfile.ze        Ze LNS image (Alpine + iproute2 + kmod + ppp; copies the
+  Dockerfile.ze        Ze LNS image (Alpine + tini + iproute2 + ppp; copies the
                        ze-linux the suite preflight cross-compiles)
   ze-linux             the staged daemon, git-ignored and rewritten each run
+  Dockerfile.ze-scale  maintained Ze runtime with the scale-only staged daemon
+  ze-scale-linux       isolated allocator build, git-ignored
+  avp-relay-linux      host-staged relay package, git-ignored
   Dockerfile.lac       LAC image (Alpine + xl2tpd + ppp + iproute2)
   daemons              FRR daemons config (zebra + bgpd)
   vtysh.conf           FRR vtysh config
@@ -30,6 +33,7 @@ test/interop-l2tp/
     l2tp-unknown-mandatory-avp-xl2tpd/   unknown AVP, M=0 then M=1, through the relay
     ppp-code-reject-xl2tpd/   unknown LCP and IPCP Codes injected through the relay
     lcp-restart-timer-pppd/   configured retry interval and request budget after live LCP restart
+    l2tp-many-sessions-kl2tpd/   three LACs, sixteen PPP sessions per tunnel
     l2tp-lns-mru-xl2tpd/   configured MRU, CHAP, live daemon output, and traffic
     l2tp-lns-omitted-mru-xl2tpd/   default peer MRU and Ze-side transmit cap
     l2tp-lns-negotiated-mru-xl2tpd/   unequal configured/negotiated session output
@@ -43,13 +47,173 @@ internal/le/interoplab/l2tp/
   mandatory_avp.go     The l2tp-unknown-mandatory-avp-xl2tpd assertions
   ppp_code_reject.go   The ppp-code-reject-xl2tpd assertions
   lns_policy.go        MRU and CHAP-only typed assertions and daemon queries
+  scale_overlay.go    guarded allocator candidate substitution for scale only
+  scale.go            ordered launch, full-population proof and exact teardown
+  scale_evidence.go   typed daemon, FRR and accounting evidence
+  scale_kernel.go     point-to-point interfaces, routes and IPCP evidence
+  scale_window.go     independent control trace and reliable-window proof
   avprelay/            UDP relay between the LAC and Ze, on 172.29.0.4
   radiusmock/          Independent Go RADIUS peer
 ```
 
-Each scenario contains the protocol configuration mounted by its typed plan.
-The plans choose the Ze, xl2tpd, FRR, and RADIUS peers for that scenario, while
-the checker map fixes the complete scenario population. The
+Each scenario registers its checker, plan, kernel prerequisite and image
+selection in the owning L2TP lab. Discovery and the catalog read that same
+registry. Existing scenarios retain their established preparation; the scale
+scenario declares three kl2tpd LACs and three relays, plus Ze, FRR and
+FreeRADIUS. Its cleanup container list and failure diagnostics derive from
+those peer declarations.
+<!-- source: internal/le/interoplab/l2tp/scenarios.go -- registerScenario, scenarioCheckerMap, scenarioPlan, imageBuilds -->
+<!-- source: internal/le/interoplab/l2tp/register_scale.go -- init -->
+<!-- source: internal/le/interoplab/l2tp/scale_plan.go -- scaleScenarioPlan, scalePeerTemplates -->
+
+The selected image declarations determine which host binaries are staged.
+Ordinary scenarios use the normal Ze daemon. The scale image reuses the same
+runtime image and replaces only its daemon with `ze-scale-linux`. That binary
+uses a temporary Go overlay to choose the lowest unused nonzero session ID
+within each tunnel. It retains the allocator's random read and error handling,
+zero and collision guards, and retry bound. The complete parsed allocator
+method must match the expected source shape before the overlay is written;
+allocator drift stops staging for review. The original source is unchanged,
+and the replacement is removed after compilation. This instrumentation forces
+legal repeated Ze-local IDs across tunnels; it provides no evidence about
+production randomness or performance. AC-2 remains expected to fail until
+`spec-l2tp-session-identity-and-publish-stall` lands.
+
+The relay is compiled from its Go package by the same host staging action and
+copied into its Alpine image. An RFC recorder overlay therefore reaches the
+relay that runs, including the PPP framing producer. Staging composes the
+scale overlay with an inherited recorder overlay, refuses conflicting source
+replacements, and never changes process-global `GOFLAGS`.
+<!-- source: internal/le/interoplab/l2tp/scale_overlay.go -- prepareScaleAllocatorOverlay, scaleAllocatorReplacement -->
+<!-- source: internal/le/interoplab/l2tp/register_scale.go -- init -->
+
+The scale, relay, xl2tpd and kl2tpd builds send only their Dockerfiles,
+image-specific ignore files, and any declared staged binaries to the builder.
+<!-- source: test/interop-l2tp/Dockerfile.ze-scale.dockerignore -- build context allowlist -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/Dockerfile.dockerignore -- build context allowlist -->
+<!-- source: test/interop-l2tp/Dockerfile.lac.dockerignore -- build context allowlist -->
+<!-- source: test/interop-l2tp/Dockerfile.kl2tpd.dockerignore -- build context allowlist -->
+
+## Many sessions in each tunnel
+
+`l2tp-many-sessions-kl2tpd` runs three kl2tpd v0.1.8 containers using the
+maintained pppd 2.5.5 image. Each has one tunnel and sixteen configured PPP
+sessions. Each session has its own username, pppd interface, link name, log
+and read-only argument-file mount. The containers initially wait under Suite
+ownership. The checker launches a configured LAC through detached exec only
+when it is ready to measure that tunnel's control window, then starts the
+next LAC after the first sixteen sessions have established.
+<!-- source: internal/le/interoplab/l2tp/scale_plan.go -- scalePeerTemplates -->
+<!-- source: internal/le/interoplab/l2tp/scale_inputs.go -- scaleUsername, scaleInterface, scaleUsers -->
+
+The pinned kl2tpd release uses cgo for its Linux PPPoX socket bindings.
+Its builder installs GCC, musl development headers and Linux headers, then
+enables cgo for this third-party peer. The runtime remains the maintained
+Alpine LAC image. Ze and the relay retain their own build settings.
+<!-- source: test/interop-l2tp/Dockerfile.kl2tpd -->
+
+The v0.1.8 peer includes one build-time diff for autonomous HELLOs. Upstream
+`sendHelloMessage` bypasses the ACK queue, so a genuine ACK cannot complete
+the send. The stock peer retried an acknowledged HELLO and closed its
+sessions after three retry attempts in the real guest. The diff sends HELLO
+through the existing reliable queue.
+
+The five-second HELLO inputs, retry
+settings and all scale assertions remain required. The builder checks the
+original and patched source hashes, applies the diff with zero fuzz, and
+builds from that source. The runtime image retains the diff and pinned
+module-download identity under `/usr/local/share/ze/`.
+[Pinned peer source](https://github.com/katalix/go-l2tp/blob/v0.1.8/l2tp/transport.go#L628-L651).
+<!-- source: test/interop-l2tp/Dockerfile.kl2tpd -->
+<!-- source: test/interop-l2tp/kl2tpd-v0.1.8-hello-queue.patch -->
+<!-- source: test/interop-l2tp/Dockerfile.kl2tpd.dockerignore -->
+
+The independent control decoder requires the omitted Receive Window Size AVP
+in each SCCRQ. Three genuine cumulative ACK advances warm the window before
+the relay holds Nr alone. The assertion requires five distinct
+response-producing ICRQs behind that hold, four distinct outstanding Ze
+controls, and one live reliable
+snapshot with `cwnd=4`, `peer-rws=4`, the held peer Nr and a receive Nr
+past the fifth request. Retransmissions and zero-length ACKs are not new
+outstanding controls. The relay forwards legal out-of-order Ze controls
+unchanged and tracks only four sequence positions from the genuine cumulative
+ACK. An ACK across an uncaptured predecessor still fails.
+<!-- source: internal/le/interoplab/l2tp/avprelay/scale.go -- observeZe, forwardControl -->
+
+When a received ACK opens the window and delivers a request, Ze returns queued
+controls before its fresh response. A regression checks the sequence numbers
+and session identities of both responses.
+<!-- source: internal/component/l2tp/tunnel_fsm.go -- Process -->
+<!-- source: internal/component/l2tp/process_send_order_test.go -- TestTunnelProcessQueuedSendBeforeFreshReply -->
+
+A checker marker releases a genuine held cumulative
+ACK; a deadline release cannot satisfy the assertion. The queued fifth
+response and subsequent session progress must then appear.
+<!-- source: internal/le/interoplab/l2tp/scale.go -- exerciseScaleWindow -->
+<!-- source: internal/le/interoplab/l2tp/scale_window.go -- readScaleWindow, requireScaleReliable -->
+
+The checker prints the latest full control snapshot once at each completed
+window or CDN check, and at the baseline and final checks.
+<!-- source: internal/le/interoplab/l2tp/scale.go -- writeScaleWireLog, exerciseScaleWindow, waitScaleCDN -->
+
+Each detached kl2tpd writes its output to a file in its container. On a
+failed assertion, the checker collects bounded tails of that file and all
+48 PPP logs, plus PID-file and process state, before cleanup. All diagnostic
+reads share one separate 15-second deadline. Read failures and partial output
+are retained with the original assertion error.
+<!-- source: internal/le/interoplab/l2tp/scale_failure.go -- startScalePeer, scaleFailureDiagnostics, scaleFailureCommands, scaleFailureExcerpt -->
+
+The baseline is exactly 48 established sessions with distinct addresses in
+the configured pool. Each must complete IPCP, retain its own Ze and LAC PPP
+interface and kernel route, and pass a ping bound to that interface in both
+directions. Captured ICRPs correlate all sixteen wire IDs per relay with
+daemon tuples. The
+registered FreeRADIUS server's Accounting-Starts join by full Acct-Session-Id,
+username and Framed-IP-Address. FRR must report each exact subscriber /32
+with a positive path count and a nonempty valid path received from Ze;
+presence of a JSON key or a direct kernel route does not prove redistribution.
+
+Before each FRR route census, the checker requires the current BGP peer
+to be Established. A failed census retains the actual state line beside the
+missing-prefix evidence. A complete valid census must also pass the existing
+BGP check afterward.
+<!-- source: internal/le/interoplab/l2tp/scale.go -- checkScaleSessions -->
+<!-- source: internal/le/interoplab/l2tp/scale_observe.go -- requireScaleTopology, requireScaleFRR, requireScaleTraffic, waitScaleAccounting -->
+<!-- source: internal/le/interoplab/l2tp/checkers.go -- frrSessionEvidence, requireFRRSession -->
+<!-- source: internal/le/interoplab/l2tp/scale_evidence.go -- readScaleSessions, readScaleRoute, readScaleAccounting -->
+<!-- source: internal/le/interoplab/l2tp/scale_kernel.go -- requireScaleKernel, requireScaleIPCP -->
+
+Before traffic, the checker validates each client's final pppd PID file,
+interface name and process name. Each LAC has sixteen PPP interfaces with
+the same LNS peer address. The fixture gives each subscriber source /32 a
+dedicated route table and source rule. It prints the unbound kernel route
+lookup before and after setup, then requires the exact source, peer,
+interface and table. These rules exist only in the Suite-owned LAC
+containers and disappear with them. The two interface-bound traffic probes
+and all Ze route checks remain required.
+<!-- source: internal/le/interoplab/l2tp/scale_peer_routes.go -- prepareScalePeers, requireScalePeerRoute -->
+<!-- source: internal/le/interoplab/l2tp/scale_observe.go -- scaleCheckPeerPPP, scalePeerPPPCommand -->
+
+One exact accounting-ID Disconnect must receive an authenticated ACK and
+remove only its selected session, leaving 47 unchanged survivors. The checker
+then validates a different session's pppd PID file and interface before
+terminating that process. Its peer CDN must name the exact tunnel/session
+tuple, leaving 46 survivors. Each step requires matching Accounting-Stops,
+only the selected /32 withdrawals at FRR with BGP still established, and all
+remaining sessions' original tuples, addresses, interfaces, routes and traffic.
+Failures name the numbered assertion: 1 infrastructure and launch, 2 window,
+3 IPCP/kernel/traffic, 4 wire/accounting/FRR baseline, 5 Disconnect, 6 peer CDN.
+The known session-identity defect remains an expected dependency failure;
+an authentication, capture or prerequisite failure is reported as its actual
+failing assertion and supplies no identity proof.
+<!-- source: internal/le/interoplab/l2tp/scale.go -- scaleCollisionTargets, observeScaleRemoval, waitScaleCDN -->
+<!-- source: internal/le/interoplab/l2tp/scale_observe.go -- scaleDisconnect, scaleStopPeerPPP -->
+<!-- source: internal/le/interoplab/l2tp/register_images.go -- init -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- runAt, binariesForImages -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/Dockerfile -->
+
+The plans choose the Ze, xl2tpd, FRR, and RADIUS peers for each established
+scenario. The
 `dns-resolver-l2tp-subscriber` plan adds Knot DNS on `172.29.0.7`, and the
 `l2tp-unknown-mandatory-avp-xl2tpd` and `ppp-code-reject-xl2tpd` plans put the
 relay on `172.29.0.4`, the address their xl2tpd dials as its LNS.
@@ -57,6 +221,7 @@ The `l2tp-lns-*` plans also start the independent RADIUS backend on
 `172.29.0.5` before Ze and the LAC. The positive plan requires a credential
 request there; the refusal plan requires none. Both disable xl2tpd redial and
 pppd persistence, so the evidence belongs to one attempt.
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- prepareScenario -->
 
 ## Prerequisites
 
@@ -243,6 +408,46 @@ IPCP Terminate-Request and Ze must answer with a Terminate-Ack carrying its
 Identifier. The full
 account is in `docs/architecture/testing/interop.md`, "L2TP and PPPoE
 lifecycle fault scenarios".
+
+The same scenario checks RFC 1661 Section 6.6 on the real L2TP wire.
+The relay captures every normal PPP datagram from startup, including IP,
+with consecutive `data_ordinal` values starting at one. The checker rejects
+a missing prefix or gap and requires `ff 03` on every Ze-to-LAC frame it
+reads, with startup Configure, Code-Reject, Echo-Reply and IP witnesses.
+Assertion 7 owns this framing proof, including a framing failure encountered
+inside an earlier polling assertion. This is L2TP evidence. It does not
+exercise PPPoE or turn the lower-layer RFC rows into whole-row proof.
+
+Each normal capture row also carries `code_reject_armed`, sampled after
+the relay forwards the packet at the original Code-Reject marker gate. The original stability
+check excludes only explicitly unarmed startup traffic. It retains the
+armed triggering packet and every later control packet, including those
+before the first injection, and refuses missing or retreating phase
+metadata. An LCP or IPCP packet with Code 1 through 6 in that interval
+still fails assertion 5.
+
+With pppd's `noaccomp` and both acknowledged Configure exchanges showing no
+ACFC option, assertion 8 arms one separately labeled compressed LCP
+Echo-Request. It uses the peer's actual acknowledged Magic-Number,
+Identifier `0x6f` and Data `ff03-receive`. The checker requires a following
+uncompressed Echo-Reply with the same Identifier and Data and Ze's
+acknowledged Magic-Number. It then verifies the same PPP interfaces and
+useful traffic. The strict parser for ordinary captured frames remains unchanged.
+Only that exact, explicitly labeled injected request can omit `ff 03`.
+
+Linux 7.3 `pppol2tp_xmit` prepends `ff 03`. The receive path
+`pppol2tp_recv` removes those octets when present. Otherwise it passes the
+Protocol bytes to PPP.
+
+Section 6.6 permits silent discard of an unnegotiated compressed frame.
+This experiment requires the accepting Linux/Ze path and its useful
+response rather than a mandatory discard. No receive rejection is inferred
+from the transmit rule.
+[Pinned Linux source](https://github.com/torvalds/linux/blob/v7.3/net/l2tp/l2tp_ppp.c).
+<!-- source: internal/le/interoplab/l2tp/ppp_code_reject.go -- checkPPPCodeReject, sessionKept -->
+<!-- source: internal/le/interoplab/l2tp/ppp_framing.go -- readPPPFramingLog, negotiatedPPPFraming, requireCompressedPPPEcho, requirePPPFullSessionFraming -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/pppinject.go -- relayData -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/pppframing.go -- observe, injectCompressed -->
 
 ### l2tp-lns-mru-xl2tpd
 
@@ -448,7 +653,8 @@ Select it with `ZE_L2TP_INTEROP_SCENARIO=l2tp-proxy-mru-transmit-cap`
 when running `./le --name session test deployment docker-l2tp-ppp`.
 The suite retains its normal Docker-host Ze-kernel prerequisite, image
 staging, peer readiness and cleanup.
-<!-- source: internal/le/interoplab/l2tp/l2tp.go -- runAt, scenarioCheckerMap -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- runAt -->
+<!-- source: internal/le/interoplab/l2tp/scenarios.go -- scenarioCheckerMap -->
 
 ### l2tp-radius-acct-wire-fixture
 
@@ -479,7 +685,8 @@ Select it with `ZE_L2TP_INTEROP_SCENARIO=l2tp-radius-acct-wire-fixture`
 when running `./le --name session test deployment docker-l2tp-ppp`.
 It reuses the proxy-cap scenario's staged helper and the suite's Ze image,
 readiness, kernel prerequisite and cleanup.
-<!-- source: internal/le/interoplab/l2tp/l2tp.go -- LabBinaries, scenarioCheckerMap, prepareScenario -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- LabBinaries, prepareScenario -->
+<!-- source: internal/le/interoplab/l2tp/scenarios.go -- scenarioCheckerMap -->
 
 ## Relationship to Other Evidence
 

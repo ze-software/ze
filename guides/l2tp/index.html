@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>L2TPv2 LNS subsystem - Ze</title>
         <meta name="description" content="Ze documentation: guide/l2tp.md" />
         <meta property="og:title" content="L2TPv2 LNS subsystem - Ze" />
@@ -148,16 +148,28 @@ environment {
 enabled. Set <code>enabled false</code> to disable explicitly. Listener endpoints
 use the standard <code>zt:listener</code> grouping (<code>ip</code>, <code>port</code>) with port
 conflict detection via <code>ze:listener</code>.</p>
-<p>The <code>lcp</code> settings control RFC 1661 retransmission on locally terminated PPP
+<p>The <code>lcp</code> settings control RFC 1661 retransmission on local PPP
 sessions. Each limit accepts 1 through 255. The Restart timer is restarted by
 each Configure-Request or Terminate-Request transmission, and by the
-Zero-Restart-Count action after the peer terminates LCP. A silent peer receives
-exactly <code>max-configure</code> requests before negotiation ends; the defaults give a
-30-second budget. <code>max-failure</code> counts Configure-Naks sent without sending a
-Configure-Ack: after that many Naks, unacceptable options are rejected.
-An accepted proxy LCP starts already Opened and sends no initial requests.</p>
+Zero-Restart-Count action after the peer stops LCP. A silent peer receives
+exactly <code>max-configure</code> requests before negotiation ends. The defaults give a
+30-second budget.</p>
+<!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP settings -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- armRestartTimer, spendRestartCount, handleRestartTimeout -->
+<p><code>max-failure</code> counts Configure-Naks sent since the last Configure-Ack.
+After that many Naks, Ze rejects unacceptable options.
+An accepted proxy LCP starts already Opened and sends no initial requests.
+It retains the configured request budget for a later peer-triggered LCP
+renegotiation. Its Restart timer stays stopped while Opened.</p>
 <!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP settings -->
 <!-- source: internal/component/l2tp/pppconfig/lcp.go -- ParseLCP -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- run, applyTransition, spendRestartCount, handleRestartTimeout, sendConfigureNakOrReject -->
+<p>A responding peer can renew the request budget with valid negotiation replies.
+Each LCP negotiation therefore has a convergence deadline of twice the Restart
+timer times <code>max-configure</code>, or 60 seconds at the defaults. A new negotiation
+after Opened gets a new deadline. Replies within one negotiation do not extend
+that deadline.</p>
+<!-- source: internal/component/l2tp/ppp/session_run.go -- updateLCPConvergence, lcpNegotiating -->
 <!-- source: internal/component/l2tp/config.go -- ExtractParameters -->
 <h2 id="initiator-dial-targets-and-outgoing-calls">Initiator: dial targets and outgoing calls</h2>
 <p>Beyond answering tunnels, ze can INITIATE them (send SCCRQ) toward a
@@ -344,7 +356,7 @@ locally and refused.</p>
 <!-- source: internal/component/l2tp/pppoe/realm_relay.go -- realmHandoff.run, subscriberGone -->
 <!-- source: internal/component/l2tp/ppp/auth.go -- awaitAuthDecision, serveFrameAwaitingDecision -->
 <!-- source: internal/component/l2tp/ppp/mschapv2.go -- mschapv2RefusalMessage -->
-<!-- source: internal/component/l2tp/teardown.go -- teardownRealmSession -->
+<!-- source: internal/component/l2tp/teardown.go -- teardownRelaySession -->
 <!-- source: internal/component/l2tp/reactor_dial.go -- handleDial, connectingTunnelToLocked -->
 <!-- source: internal/component/l2tp/cmd/outgoing_call.go -- handleOutgoingCall -->
 <h2 id="rejecting-a-malformed-sccrq">Rejecting a malformed SCCRQ</h2>
@@ -540,7 +552,7 @@ the peer's receive MRU. <code>show l2tp config</code> reports the effective <cod
 Closing a session prevents new operations while an in-flight blocking syscall
 retains its descriptor reference. This keeps a late read or repeated close
 from using a descriptor number the process has since recycled.</p>
-<!-- source: internal/component/l2tp/ppp/frame_linux.go -- NewFDFile -->
+<!-- source: internal/component/l2tp/ppp/kernel/frame_linux.go -- NewFDFile -->
 <p>Each session reads both descriptors, one long-lived reader for each. LCP,
 authentication and the first NCP negotiation all run on the channel, because
 Ze connects the channel to the unit (<code>PPPIOCCONNECT</code>) only once NCP is up.
@@ -1319,6 +1331,13 @@ re-authentication when non-zero. Values 1-4 are rejected to prevent re-auth stor
 <p>The <code>l2tp-pool</code> plugin provides bitmap-backed IPv4 address pools.
 Pools are registered via the handler registry and dispatched when
 IPCP negotiation needs to assign an address.</p>
+<p>The pool runs inside the daemon. A configured <code>l2tp pool</code> loads it automatically.
+An explicit declaration uses <code>plugin { internal l2tp-pool { use l2tp-pool; } }</code>.
+An external process cannot configure the daemon's address or prefix handlers,
+so the plugin refuses that mode before configuration. <code>ze doctor</code> reports it
+as <code>doctor-plugin-external-unsupported</code> and names the internal replacement.</p>
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- init, runPlugin -->
+<!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalInProcess, externalInProcessRow -->
 <p>Configured under the <code>l2tp</code> config tree:</p>
 <pre><code>l2tp {
     pool {
@@ -1334,14 +1353,30 @@ IPCP negotiation needs to assign an address.</p>
 </code></pre>
 <p>Address allocation prefers RADIUS metadata when present. <code>Framed-Pool</code>
 selects a named pool for gateway and DNS values; an unknown named pool rejects
-the IPCP request. <code>Framed-IP-Address</code> then bypasses bitmap allocation and uses
-the selected pool's gateway and DNS with the RADIUS-assigned peer address.
-The two special values of RFC 2865 Section 5.8 name no address:
+the IPCP request. The default IPv4 pool can be absent when every subscriber
+selects a named pool. A request without a pool selection then has no default
+and is refused. <code>Framed-IP-Address</code> chooses the peer address directly and
+uses the selected pool's gateway and DNS. If the address lies inside any
+configured range, Ze reserves it in that pool until the session ends, even
+when another pool supplies the gateway and DNS. An address another live
+subscriber holds is refused, including one whose range was removed by reload.
+A unique address outside all ranges remains usable without consuming a pool
+slot.</p>
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- handle -->
+<!-- source: internal/component/l2tp/plugins/pool/radius.go -- reserveRADIUSAddressLocked -->
+<p>The two special values of RFC 2865 Section 5.8 name no address:
 <code>255.255.255.254</code> ("the NAS should select an address for the user") and
 <code>255.255.255.255</code> (the user selects) leave the choice to the pool, so the
 accounting records report the address the pool gave (RFC 2866 Section 4.1).
 <code>Framed-IP-Netmask</code> is parsed into session metadata, but the current IPv4 IPCP
 response has no netmask field to apply.</p>
+<p><code>Delegated-IPv6-Prefix</code> keeps the requested prefix. Ze refuses it if it
+overlaps a live subscriber's delegation, including one outside every current
+pool block. Otherwise it reserves every configured slot the prefix overlaps.
+Disjoint RADIUS prefixes can share a larger allocation slot; that slot remains
+reserved until the last overlapping subscriber ends.</p>
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- handlePrefix -->
+<!-- source: internal/component/l2tp/plugins/pool/radius.go -- reserveRADIUSPrefixLocked -->
 <p>The IPCP DNS offered follows the pool's <code>dns-source</code> list. With none written,
 an Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server (RFC 2548,
 vendor 311 types 28 and 29) come first, then the pool's <code>dns-primary</code> and
@@ -1353,6 +1388,41 @@ so a RADIUS reply naming only the primary keeps its configured secondary;
 under <code>first-usable</code> Ze offers the RADIUS primary alone, and under <code>merge</code> the
 RADIUS primary followed by the pool's primary.</p>
 <p>Session-down events release allocated addresses back to the pool.</p>
+<p>L2TP and PPPoE subscribers keep separate pool ownership even when their
+numeric session identifiers are equal. Their authorization profiles, cleanup
+and displayed usernames follow the same subscriber identity.</p>
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- handle, onSessionDown, lookupSessionUsername -->
+<!-- source: internal/component/l2tp/session_metadata.go -- StoreSessionMetadata, ClearSessionMetadata -->
+<p>A committed pool edit replaces the running pools without disconnecting
+subscribers. Each live address and delegated prefix stays reserved wherever
+the new ranges contain it. An assignment outside every new range remains with
+its subscriber until that session ends. Ze logs the number of these
+assignments. A later rollback restores the previous ranges and carries the
+assignments held at rollback time, including sessions admitted after apply.
+Existing subscribers keep the gateway and DNS that they negotiated. New
+sessions use the new values. An edit outside <code>l2tp pool</code> rebuilds no pool.</p>
+<!-- source: internal/component/l2tp/plugins/pool/reload.go -- configTransaction, installPoolConfiguration -->
+<p><code>show l2tp pool</code> keeps the default pool's fields at the top level. Its
+<code>named-pools</code> and <code>named-ipv6-pools</code> maps report each named pool's current range
+or block, capacity, allocated slots and available slots. They also appear when
+only named pools are configured. After reload, a carried assignment counts in
+each replacement pool whose slots it reserves.</p>
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- showPool, showPoolSnapshot, poolShowResult -->
+<p>When an IPv6 delegation length changes, Ze reserves every new slot that
+overlaps a live delegated prefix. A larger new slot can cover several live
+delegations. That slot returns only after the last overlapping session ends.</p>
+<!-- source: internal/component/l2tp/plugins/pool/pool_v6.go -- carry, releaseOverlap -->
+<p>Each IPv4 range can hold 1 through 1,048,576 addresses. The range must exclude
+<code>0.0.0.0</code> and <code>255.255.255.255</code>. Both <code>dns-primary</code> and <code>dns-secondary</code> must
+be IPv4 when set; either can be absent. Ze checks these limits before building
+an allocation bitmap, at startup and during reload verification.</p>
+<!-- source: internal/component/l2tp/plugins/pool/config_validation.go -- ipv4PoolSizeMax, validateIPv4Description -->
+<p>The default and named IPv4 ranges must be disjoint. The default and named
+IPv6 blocks must also be disjoint, even when their delegation lengths differ.
+A refusal names both pools and their overlap, so the operator can correct the
+conflicting range or remove the extra pool. A refused reload keeps the running
+pools and subscriber assignments.</p>
+<!-- source: internal/component/l2tp/plugins/pool/config_validation.go -- validatePoolConfiguration, validatePoolIPv4Ranges, validatePoolIPv6Blocks -->
 <!-- source: internal/component/l2tp/plugins/pool/ -->
 <!-- source: internal/component/l2tp/plugins/authradius/extract_dns.go -- extractMSDNSServers -->
 <h2 id="traffic-shaping">Traffic shaping</h2>
@@ -2094,7 +2164,7 @@ goroutine-per-tunnel.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

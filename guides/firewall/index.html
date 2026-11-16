@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Firewall - Ze</title>
         <meta name="description" content="Ze documentation: guide/firewall.md" />
         <meta property="og:title" content="Firewall - Ze" />
@@ -84,7 +84,7 @@ the nft backend lowers them to nftables kernel expressions.</p>
 <ol>
 <li><a href="#operator-workflow">Operator Workflow</a></li>
 <li><a href="#config-leaves">Config Leaves</a></li>
-<li><a href="#irr-policy">IRR Policy</a></li>
+<li><a href="#irr-settings">IRR Settings</a></li>
 <li><a href="#per-interface-source-validation">Per-Interface Source Validation</a></li>
 </ol></li>
 <li><a href="#dns-sourced-address-groups">DNS-Sourced Address Groups</a>
@@ -442,6 +442,17 @@ Rule 2.</p>
 </tr>
 </tbody>
 </table>
+<p>Literal source and destination prefixes must use the network address. For
+example, <code>source-address 10.10.10.1/30</code> is refused because it matches the network
+<code>10.10.10.0/30</code>. The error identifies the term and gives the corrected statement,
+<code>source-address 10.10.10.0/30</code>. The same rule applies to IPv6. To match one host,
+use <code>/32</code> for IPv4 or <code>/128</code> for IPv6. Named-set references such as
+<code>source-address @trusted-hosts</code> keep their existing behavior.</p>
+<!-- source: internal/component/firewall/config.go -- parseAddressMatch -->
+<p>Offline validation, startup and configuration verify apply this check before
+the firewall changes. A refused reload keeps the active configuration and rules.</p>
+<!-- source: internal/component/firewall/config.go -- parseAddressMatch -->
+<!-- source: internal/component/firewall/engine.go -- VerifyConfig, parseConfigSections, runEngine -->
 <h3 id="protocol-names">Protocol names</h3>
 <p><code>protocol</code> takes one of ten names. The set is the same everywhere a protocol is
 matched: the firewall config, policy routes, DDoS mitigation terms and FlowSpec
@@ -556,7 +567,7 @@ rule. Do not write <code>ppp*</code> for the client: the kernel names <code>pppN
 subscriber sessions of an L2TP LNS or a PPPoE access concentrator, which have
 no configured name. On such a box, <code>ppp*</code> matches the subscribers and never the
 client.</p>
-<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup -->
 <!-- source: internal/plugins/firewall/nft/lower_linux.go -- lowerIfaceMatch -->
 <h2 id="action-types-then-block">Action Types (then block)</h2>
 <table>
@@ -932,12 +943,17 @@ underlying sysctl controls "ignore" behavior.</p>
 <h2 id="irr-prefix-list-filtering">IRR Prefix-List Filtering</h2>
 <!-- source: internal/component/firewall/plugins/irr/irr.go -- firewall-irr plugin entry point -->
 <p>Firewall rules can match traffic by ASN or AS-SET using IRR-resolved prefix
-lists. The <code>firewall-irr</code> plugin resolves references via the IRR whois client,
-caches results in zefs, and populates nftables interval sets.</p>
+lists. The <code>firewall-irr</code> plugin fetches nothing. The <code>irr</code> plugin fetches,
+schedules and stores every list a consumer enforces, under the settings of
+<code>system irr</code> (<code>docs/guide/irr-filtering.md</code>); <code>firewall-irr</code> tells it which
+lists the firewall rules name, reads what it stored, and populates nftables
+interval sets. BGP and the firewall naming the same AS-SET share one stored
+copy, and the stored copy survives a restart: the firewall programs it at start
+without asking the IRR server again.</p>
 <h3 id="operator-workflow">Operator Workflow</h3>
 <ol>
-<li>Fetch prefix data: <code>update firewall irr asn 13335</code></li>
-<li>Inspect cached data: <code>show firewall irr</code></li>
+<li>Fetch prefix data: <code>update irr asn 13335</code></li>
+<li>Inspect what is stored: <code>show irr</code>, and what the firewall enforces: <code>show firewall irr</code></li>
 <li>Commit a term whose from-block names the ASN:</li>
 </ol>
 <pre><code>firewall {
@@ -962,20 +978,21 @@ caches results in zefs, and populates nftables interval sets.</p>
 }
 </code></pre>
 <ol start="4">
-<li>Refresh all cached entries: <code>update firewall irr all</code></li>
+<li>Fetch every referenced list again now: <code>update irr all</code></li>
 </ol>
-<p>Fetch the data first. The commit is refused while the ASN or AS-SET has no
-cached prefixes, and the refusal names the entry and the command that fetches
-it. A term reaches the kernel as two rules, one for the IPv4 prefixes and one
+<p>Fetch the data first. The commit is refused while the ASN or AS-SET has
+nothing stored, and the refusal names the reference and the command that
+fetches it. A commit sends no IRR query itself. A term reaches the kernel as two rules, one for the IPv4 prefixes and one
 for the IPv6 prefixes, so the table family must be <code>inet</code>.</p>
 <p>The prefix sets belong to the <code>firewall-irr</code> plugin, not to the table that names
 them. The two arrive at different times, and that one table waits: while a rule
 names a set no owner has registered, the table holding it is not programmed and
 the daemon logs <code>table held back</code>. Every other table is programmed as usual. The
 plugin registers the sets moments later and the table lands.</p>
-<p>That line staying in the log means the prefixes never arrived. <code>show firewall irr</code> says which entry is missing, and <code>update firewall irr asn &lt;N&gt;</code> or <code>update firewall irr as-set &lt;name&gt;</code> fetches it and programs the table. Use it after a
-fresh install or a restored appliance, where the prefix cache starts empty:
-<code>refresh-interval</code> defaults to 0, so no timer fetches the data for you.</p>
+<p>That line staying in the log means the prefixes never arrived. <code>show firewall irr</code> says which reference is <code>missing</code>, and <code>update irr asn &lt;N&gt;</code> or <code>update irr as-set &lt;name&gt;</code> fetches and stores it; the firewall programs the table on the
+<code>irr</code> plugin's notice. On a fresh install the <code>irr</code> plugin fetches every
+referenced list at its first start, and refreshes each one every
+<code>system irr refresh-interval</code> seconds (3600 by default, 0 for manual only).</p>
 <h3 id="config-leaves">Config Leaves</h3>
 <table>
 <thead>
@@ -1008,62 +1025,61 @@ fresh install or a restored appliance, where the prefix cache starts empty:
 </tr>
 </tbody>
 </table>
-<h3 id="irr-policy">IRR Policy</h3>
-<pre><code>firewall {
+<h3 id="irr-settings">IRR Settings</h3>
+<p>The IRR server, the source address and the refresh period are the <code>irr</code>
+plugin's, set once for BGP and the firewall:</p>
+<pre><code>system {
     irr {
         server whois.radb.net;
-        peeringdb-url https://www.peeringdb.com;
-        refresh-interval 0;  /* 0 = manual only; 60-86400 = auto-refresh seconds */
+        refresh-interval 3600;  /* 0 = manual only; 60-86400 = seconds */
     }
 }
 </code></pre>
-<p>Config commit rejects if a referenced ASN/AS-SET has no cached prefix data, or
-has an entry holding no prefixes, with an actionable error naming the entry and
-the command to run:</p>
-<pre><code>firewall irr: no cached prefix data for as-set AS-CUSTOMER-A; run 'update firewall irr as-set AS-CUSTOMER-A' first
+<p>The PeeringDB endpoint asked for a bare ASN is <code>system peeringdb url</code>.
+<code>firewall irr</code> holds only the interface bindings; it has no server, URL or
+interval of its own.</p>
+<p>A commit is refused when a referenced ASN or AS-SET has nothing stored, or a
+stored list holding no prefixes, with an error naming the reference and the
+command to run:</p>
+<pre><code>firewall irr: nothing is stored for as-set AS-CUSTOMER-A
+fix: update irr as-set AS-CUSTOMER-A
 </code></pre>
-<p>A daemon START reads its configuration without that check, because a commit is
-what runs it. The same sentence is logged as a warning instead, once per
-reference, and the rules naming the entry filter nothing until its prefixes are
-fetched.</p>
-<p>Auto-refresh (when <code>refresh-interval &gt; 0</code>) is fail-closed, and so is a refresh
-that succeeds without returning prefixes. A failed query and an empty answer both
-preserve the last-good cache, log the reason, and count under the
-<code>ze_firewall_irr_refresh_outcomes_total</code> labels <code>error</code> and <code>empty</code>. An empty
-answer never replaces a cached prefix list, because a filter built from an empty
-list drops everything the operator wrote it to accept.</p>
-<p>A scheduled refresh that panics is caught, so it costs that tick rather than the
-plugin process, and counts under the same metric's <code>panic</code> label. Alert on it:
-<code>error</code> and <code>empty</code> report an upstream condition, <code>panic</code> reports a defect in
-ze, and the cached prefixes stay in force until it is fixed.</p>
+<p>A daemon start reads its configuration without that check, because a commit is
+what runs it. The firewall then programs what is stored, and a reference with
+nothing stored is held back until the <code>irr</code> plugin stores its list.</p>
+<p>A refresh that fails, or that succeeds without returning prefixes, keeps the
+stored list in force: an empty answer never replaces a stored prefix list,
+because a filter built from an empty list drops everything the operator wrote it
+to accept. The <code>irr</code> plugin counts each fetch under
+<code>ze_irr_refresh_outcomes_total</code>, and a fetch that panics costs that fetch, not
+the plugin, and counts under its <code>panic</code> label.</p>
 <p>One firewall set holds 500000 prefixes, and each family has that bound of its
 own. A reference whose IPv4 or IPv6 list is longer is refused: the commit fails,
-the refresh fails, and the sets already programmed stay in force. Ze does not
+the apply fails, and the sets already programmed stay in force. Ze does not
 program a part of the list, because a set that holds part of it drops traffic an
 <code>accept</code> rule was written to pass, and passes traffic a <code>drop</code> rule was written
 to block. Narrow the reference, or clear it.</p>
-<p>An apply refused for that reason counts under the
-<code>ze_firewall_irr_refresh_outcomes_total</code> label <code>apply-failed</code>.</p>
-<p><code>show firewall irr</code> reports each entry as <code>ok</code>, <code>stale</code>, <code>oversized</code>, or
-<code>missing</code>, and gives <code>data-age-seconds</code> for cached entries and <code>stale-since</code> for
-stale ones. <code>ze doctor</code> reports the same conditions with three codes:</p>
+<p><code>show firewall irr</code> reports each reference as <code>ok</code>, <code>stale</code>, <code>oversized</code>,
+<code>unreadable</code> or <code>missing</code>, with the stored copy's <code>as-set</code>, <code>server</code>,
+<code>generation</code>, counts, <code>data-age-seconds</code>, and <code>stale-since</code> for a stale one.
+<code>ze doctor</code> reports the same conditions:</p>
 <ul>
-<li><code>doctor-firewall-irr-stale-data</code>: a referenced entry is enforcing prefixes the
-IRR has stopped confirming.</li>
-<li><code>doctor-firewall-irr-no-data</code>: a referenced entry has no prefixes, so it
-filters nothing.</li>
-<li><code>doctor-firewall-irr-oversized-data</code>: a referenced entry is longer than a
-firewall set holds, so the rules naming it are not programmed.</li>
+<li><code>doctor-firewall-irr-stale-data</code>: a reference is enforcing prefixes the IRR
+has stopped confirming.</li>
+<li><code>doctor-firewall-irr-no-data</code>: nothing is stored for a reference, or a list
+with no prefixes, so it filters nothing.</li>
+<li><code>doctor-firewall-irr-oversized-data</code>: a reference is longer than a firewall
+set holds, so the rules naming it are not programmed.</li>
+<li><code>doctor-firewall-irr-stored-copy-unreadable</code>, <code>-stored-copy-behind</code>,
+<code>-interest-unsaved</code> and <code>-not-programmed</code>: what the running plugin could not
+read, apply or save.</li>
 </ul>
-<p>Run <code>ze show diagnostic &lt;code&gt;</code> for the full description. <code>ze_firewall_irr_data_age_seconds</code> is the
-age of the oldest data being enforced, and
-<code>ze_firewall_irr_last_refresh_timestamp</code> moves only when a refresh learned
-prefixes.</p>
-<p>Prefixes are removed only on purpose: <code>clear firewall irr asn &lt;N&gt;</code> and
-<code>clear firewall irr as-set &lt;name&gt;</code> drop the entry from memory and from zefs and
-re-apply the tables. Use them when an AS-SET is deregistered upstream.</p>
-<!-- source: internal/component/resolve/irr/store/store.go -- Refresh keeps last-known-good, Purge removes -->
-<!-- source: internal/component/firewall/plugins/irr/doctor.go -- checkIRRDataFreshness -->
+<p>Run <code>ze show diagnostic &lt;code&gt;</code> for the full description. <code>ze_irr_data_age_seconds</code>
+is the age of the oldest stored data.</p>
+<p>Prefixes are removed only on purpose: <code>clear irr asn &lt;N&gt;</code> and <code>clear irr as-set &lt;name&gt;</code> remove the stored copy, and the firewall drops the list on the notice.
+Use them when an AS-SET is deregistered upstream.</p>
+<!-- source: internal/component/firewall/plugins/irr/stored.go -- storeReader -->
+<!-- source: internal/component/firewall/plugins/irr/doctor.go -- checkIRRDataFreshness, answerDoctorCheck -->
 <h3 id="per-interface-source-validation">Per-Interface Source Validation</h3>
 <!-- source: internal/component/firewall/plugins/irr/sets.go -- buildIfaceTables -->
 <p>Bind an AS-SET to a customer-facing interface. Packets arriving on that
@@ -1189,8 +1205,9 @@ other. <code>ttl-floor</code> is the shortest Ze will wait whatever the answer s
 of 0 means "do not cache" rather than "expired now", so it waits the floor too
 and does not spin.</p>
 <p>The set is reprogrammed only when the addresses actually CHANGED. A name that
-keeps answering the same addresses costs one query and nothing else, so a
-60-second TTL does not rewrite the kernel's sets 1440 times a day.</p>
+keeps answering the same addresses costs one query and one write of its stored
+expiry (Restart and Recovery, below), so a 60-second TTL does not rewrite the
+kernel's sets 1440 times a day.</p>
 <h3 id="what-a-failed-lookup-does">What a Failed Lookup Does</h3>
 <p>The response code decides, and the four outcomes are different:</p>
 <table>
@@ -1239,23 +1256,43 @@ name is neither, and sharing the file would evict commit history.</p>
 <h3 id="restart-and-recovery">Restart and Recovery</h3>
 <p>Resolved addresses are kept in zefs, so a box that reboots with its upstream DNS
 unreachable programs its domain-group sets from what it learned last time and
-resumes filtering without waiting for a query. The plugin runs as its own
+resumes filtering without waiting for a query.</p>
+<p>Each stored answer also keeps when it expires: the time it arrived plus its TTL,
+never less than <code>ttl-floor</code> and never more than a day. A restart asks again
+only for the names whose stored answer has expired, and asks for each of the
+others when its own expiry comes, so a reboot enforces the same addresses it
+enforced before. Every answer renews the stored expiry, including one that
+confirms the same addresses, so a name at the 60-second floor writes its entry
+up to 1,440 times a day per family. A name stored by a Ze that predates the
+expiry is asked for once at start.</p>
+<p>The plugin runs as its own
 process: a panic while handling an answer costs one refresh cycle rather than
 the process, and a crash starts the plugin again with the cache intact: the
 plugin declares <code>failure-policy: restart</code>, and the cache is in the shared zefs
 store rather than in the process.</p>
 <h3 id="observability">Observability</h3>
 <p><code>show firewall domain-group [&lt;name&gt;]</code> reports each group with its names, the
-addresses being enforced per family, when each last resolved, and what the last
-answer said. A family reads <code>missing</code> until it has been asked for once, which is
-a different fact from a family that answered and holds nothing.</p>
-<p><code>ze doctor</code> reports two codes:</p>
+addresses being enforced per family, when those addresses were recorded
+(<code>last-resolved</code>), and what the last answer said. A family reads <code>missing</code> until
+it has been asked for once, which is a different fact from a family that
+answered and holds nothing.</p>
+<p><code>ze doctor</code> reports four codes:</p>
 <ul>
 <li><code>doctor-firewall-domain-group-no-data</code>: a referenced group has no addresses,
 so the rules naming it filter nothing.</li>
 <li><code>doctor-firewall-domain-group-stale-data</code>: a name in a referenced group has
 not resolved for more than a day, and Ze is still enforcing the addresses it
 learned before.</li>
+<li><code>doctor-firewall-domain-group-unreadable-data</code>: a stored answer of a
+referenced group cannot be read, so its name's addresses are missing from the
+set until the next answer rewrites it. <code>update firewall domain-group &lt;name&gt;</code>
+resolves it now.</li>
+<li><code>doctor-firewall-domain-group-unsaved-answer</code>: an answer could not be
+written to the store. The name goes on enforcing the addresses it held
+before, and a restart does not have the newer answer. The finding names the
+store error. Fix that cause, then run <code>update firewall domain-group &lt;name&gt;</code>.
+The next write that succeeds clears the finding. Only the running daemon
+reports this one, because only the plugin's process knows the write failed.</li>
 </ul>
 <p>Run <code>ze show diagnostic &lt;code&gt;</code> for the full description. Four metrics carry the same
 state: <code>ze_firewall_domain_group_addresses_cached</code>,
@@ -1266,6 +1303,7 @@ refresh changed the addresses, and <code>ze_firewall_domain_group_data_age_secon
 <!-- source: internal/component/firewall/plugins/domain/schedule.go -- per-name, per-family TTL schedule -->
 <!-- source: internal/component/firewall/plugins/domain/changelog.go -- the bounded JSON-lines change log -->
 <!-- source: internal/component/firewall/plugins/domain/doctor.go -- checkDomainGroupData -->
+<!-- source: internal/component/firewall/plugins/domain/doctor.go -- unsavedAnswerFindings -->
 <h2 id="cli">CLI</h2>
 <table>
 <thead>
@@ -1285,31 +1323,31 @@ refresh changed the addresses, and <code>ze_firewall_domain_group_data_age_secon
 </tr>
 <tr>
 <td><code>show firewall irr</code></td>
-<td>Show IRR filter status for all cached entries</td>
+<td>Show the IRR list the firewall enforces for each reference</td>
 </tr>
 <tr>
 <td><code>show firewall irr prefix &lt;name&gt;</code></td>
-<td>List cached prefixes for an ASN or AS-SET</td>
+<td>List the prefixes enforced for an ASN or AS-SET</td>
 </tr>
 <tr>
-<td><code>update firewall irr asn &lt;N&gt;</code></td>
-<td>Fetch/refresh IRR prefix-list for an ASN</td>
+<td><code>update irr asn &lt;N&gt;</code></td>
+<td>Fetch and store the IRR prefix list of an ASN (the <code>irr</code> plugin)</td>
 </tr>
 <tr>
-<td><code>update firewall irr as-set &lt;name&gt;</code></td>
-<td>Fetch/refresh IRR prefix-list for an AS-SET</td>
+<td><code>update irr as-set &lt;name&gt;</code></td>
+<td>Fetch and store the IRR prefix list of an AS-SET</td>
 </tr>
 <tr>
-<td><code>update firewall irr all</code></td>
-<td>Refresh all cached IRR entries</td>
+<td><code>update irr all</code></td>
+<td>Fetch every referenced list again now</td>
 </tr>
 <tr>
-<td><code>clear firewall irr asn &lt;N&gt;</code></td>
-<td>Remove an ASN's cached prefixes</td>
+<td><code>clear irr asn &lt;N&gt;</code></td>
+<td>Remove an ASN's binding and stored list</td>
 </tr>
 <tr>
-<td><code>clear firewall irr as-set &lt;name&gt;</code></td>
-<td>Remove an AS-SET's cached prefixes</td>
+<td><code>clear irr as-set &lt;name&gt;</code></td>
+<td>Remove an AS-SET's stored list</td>
 </tr>
 <tr>
 <td><code>show firewall domain-group [&lt;name&gt;]</code></td>
@@ -1386,7 +1424,7 @@ A crash bypasses this path entirely, leaving tables in place.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

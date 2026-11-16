@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>FlowSpec protected router - Ze</title>
         <meta name="description" content="Ze documentation: guide/flowspec-protected-router.md" />
         <meta property="og:title" content="FlowSpec protected router - Ze" />
@@ -240,6 +240,10 @@ Execution mode comes from the effective plugin declaration: <code>use bgp-rib</c
 runs in-process even inside an <code>external</code> stanza, while
 <code>run "ze plugin bgp-rib"</code> forks a subprocess. Validation and derived receive
 bindings use that same resolved declaration.</p>
+<p>Replay admission identifies FlowSpec from each configured family's registered
+SAFI, including VPN FlowSpec, rather than from a fixed list of family names.
+A configured name absent from the registry is refused.</p>
+<!-- source: internal/component/bgp/config/flowspec_binding.go -- hasFlowSpecFamily -->
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
 <!-- source: internal/component/bgp/config/flowspec_binding.go -- requireRIBDelivery -->
 <h2 id="3-check-the-firewall-backend">3. Check the firewall backend</h2>
@@ -511,7 +515,7 @@ the configuration, import it, and reload.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

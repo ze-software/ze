@@ -369,7 +369,35 @@ factory by key through `SetViewFactory` rather than through typed setters. The
 `TestModelHasNoPerFeatureViewField` reflection guard fails when a per-feature
 field returns.
 
+The same owner registration may declare browser controls through its `browser`
+projection. `ViewInfo.Browser` reports that capability; adapters do not keep a
+second command inventory. `RunBrowserView` drives the existing `Model` and
+`activeView` with a headless Bubble Tea program. Control IDs map to the owner's
+existing key handlers, so numeric sorting, stable selection and detail targeting
+remain the dashboard's responsibility. The transport authorizes and accounts
+the monitor before opening it, and supplies the existing factories/executor
+bound to the original caller and request context.
+
+`BrowserViewAvailable` exposes that same argument/pipe-aware selector to the
+transport. Hub `view_factory.go` supplies the factory composition for both SSH
+and web builds; `view_web.go` installs the original caller's dispatcher for
+summary and detail requests. The web action route carries only opaque handles
+and declared control IDs, so it cannot select a new command or authorization
+policy.
+
+The runner accepts at most eight queued actions, keeps one detached plain-text
+frame of at most 64 KiB, and bounds a frame to sixteen controls. It uses no
+terminal input, renderer or signal handler. One bounded command worker handles
+the registered poll/timer chain, with generation-tagged results. Cancellation
+joins the program and worker, explicitly releases the active view, and closes
+the model. Probe drains yield after 256 items so incoming data cannot starve
+actions. An undeclared action, unsupported command result or exceeded bound
+ends the request with an explicit error.
+
 <!-- source: internal/component/cli/view_registry.go -- RegisterView, RegisteredViews, resolveView -->
+<!-- source: cmd/ze/hub/view_factory.go -- injectViewFactories -->
+<!-- source: cmd/ze/hub/view_web.go -- webViewBinding -->
+<!-- source: internal/component/cli/view_browser.go -- RunBrowserView, browserViewCommands -->
 <!-- source: internal/component/plugin/server/handler.go -- matchesPrefix -->
 <!-- source: internal/component/cli/model_test.go -- TestModelHasNoPerFeatureViewField -->
 

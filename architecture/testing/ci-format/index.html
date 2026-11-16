@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>.ci Test File Format - Ze</title>
         <meta name="description" content="Ze documentation: architecture/testing/ci-format.md" />
         <meta property="og:title" content=".ci Test File Format - Ze" />
@@ -740,6 +740,19 @@ exceptions and new source files. The runner's draft tree remains outside the
 regression corpus. Discovery warnings and source read errors fail the sweep,
 including when a narrowed exclusion test would not select that file.</p>
 <!-- source: internal/component/config/cli/validate_corpus_discovery_test.go -- sweepSourceFiles -->
+<p>Its carrier population also includes browser <code>.wb</code> workflows. A browser-selected
+file is judged in the parsed workflow's load composition, using the browser
+daemon's own baseline, including parsed authentication/profile declarations,
+and the shared editor's merge or replace operation. A default web case that
+needs multiple users or a reader shares the runner's daemon-selection rule.
+Login and authenticated editor-owner switching before a load remain explicit
+unsupported-composition findings, retaining standalone validation of that file.
+An accepted editor draft is counted separately; its submitted commit snapshot uses
+the full configuration validator. Standalone and applied config oracles remain
+unchanged. The fragment is
+not made standalone by adding settings that the running daemon already supplies.
+Unconsumed <code>.conf</code> files retain their standalone validation.</p>
+<!-- source: internal/component/config/cli/validate_corpus_browser_test.go -- sweepContext.browserSequences -->
 <h3 id="mode-defaults">Mode Defaults</h3>
 <p>A file with no <code>mode=</code> takes its mode from its extension: <code>0755</code> for <code>.py</code>,
 <code>.sh</code>, <code>.bash</code>, <code>.zsh</code>, <code>.pl</code>, <code>.rb</code> and <code>.run</code>, <code>0644</code> for anything else. Use
@@ -3232,6 +3245,18 @@ govern (they never report completion), so a test whose only peers are scaffoldin
 is still governed by its own exit/output/file assertions.</p>
 <!-- source: internal/test/runner/peer_contract.go -- isSelfValidated, hasCheckPeer -->
 <!-- test: internal/test/runner/peer_contract_test.go TestIsSelfValidated, TestHasCheckPeer -->
+<p>A non-zero <code>expect=exit:code=N</code> beside a check peer works the same way. When the
+foreground process exits with the code the file asserts, that exit is the outcome
+under test and not a failed run, so the peer's exchange alone decides the peer
+verdict: the test passes when every check peer printed <code>successful</code>, and fails on
+<code>peer-exchange</code> when one did not. A different exit code fails on <code>exit-code</code>
+before the peer is judged. This holds whichever arm supplies the exit: a
+foreground <code>ze</code> daemon, a quick-exit <code>ze</code> command, or a final foreground helper.
+Until 2026-11-15 the matched exit error reached the peer verdict as a failure, so
+every such test (<code>test/plugin/failure-policy-fatal-live-peer.ci</code> among them)
+reported <code>peer-exchange -&gt; unknown</code> while its peer printed <code>successful</code>.</p>
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, the exit-code block clears a matched exit -->
+<!-- test: internal/test/runner/expect_exit_check_peer_test.go TestAssertedExitBesideCheckPeer -->
 <p>A check peer prints <code>successful</code> only when EVERY expectation it holds was met:
 every <code>expect=bgp</code> line of every <code>conn=N</code> it declares. A peer stopped before that,
 by SIGTERM from the runner, by the test's timeout, or because a dialing peer's one
@@ -3705,7 +3730,7 @@ expect=completion:contains=router-id,local-as,peer
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

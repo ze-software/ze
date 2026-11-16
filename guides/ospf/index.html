@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>OSPF - Ze</title>
         <meta name="description" content="Ze documentation: guide/ospf.md" />
         <meta property="og:title" content="OSPF - Ze" />
@@ -302,9 +302,39 @@ Hello and DD Options. A non-default AF requires the AF-bit to form an adjacency 
 default IPv6-unicast AF ignores a missing AF-bit for backward interoperability (§2.6), so a
 lone IPv6-unicast instance keeps the same on-wire bytes as before and peers with a legacy
 FRR <code>ospf6d</code>. IPv4-over-OSPFv3 (Instance ID 64-95) carries a 0-32-bit IPv4 prefix in a single
-32-bit word (§2.7) and derives its next-hop from the IPv6 link-local adjacency. <code>show ospf ipv6</code> lists each running AF instance with its address family and Instance ID.</p>
+32-bit word (§2.7) and takes its next hop from the IPv4 address in the leading 32 bits of the
+neighbor's Link-LSA (§2.5). <code>show ospf ipv6</code> lists each running AF instance with its address
+family and Instance ID.</p>
 <!-- source: internal/plugins/ospf/v3/types/options.go -- OptAF -->
 <!-- source: internal/plugins/ospf/encoder_v6.go -- AF-bit emission -->
+<p>Every other <code>show ospf ipv6</code> view answers for each running address family: <code>neighbor</code>,
+<code>neighbor detail</code>, <code>interface</code>, <code>interface detail</code>, <code>spf</code>, <code>spf detail</code>, <code>route</code>,
+<code>graceful-restart</code>, <code>segment-routing</code> and the <code>database</code> views. Each row, or each database
+record, carries the <code>address-family</code> and <code>instance-id</code> of the instance it came from. Each of
+these views declares the two as its leading columns, so <code>| table</code> and <code>| text</code> show them
+first and the row's other keys after them in name order; <code>| json</code> and <code>| yaml</code> sort every
+key by name, as for any command. Add <code>address-family &lt;af&gt;</code> to read one instance only:</p>
+<pre><code>show ospf ipv6 neighbor
+show ospf ipv6 neighbor address-family ipv4-unicast
+show ospf ipv6 route address-family ipv4-unicast
+</code></pre>
+<p>The <code>| table</code> header of <code>show ospf ipv6 route</code> reads <code>address-family</code>, <code>instance-id</code>,
+<code>area</code>, <code>metric</code>, <code>next-hops</code>, <code>origin</code>, <code>prefix</code>, <code>type</code>, and each row of the IPv4-unicast
+instance at Instance ID 64 starts <code>ipv4-unicast</code>, <code>64</code>. The keyword
+takes exactly the four names <code>ipv6-unicast</code>, <code>ipv6-multicast</code>, <code>ipv4-unicast</code> and
+<code>ipv4-multicast</code>, on every view and on <code>debug ipv6 ospf inject lsa</code>: the bare <code>ipv6</code> the
+config accepts is refused there, with the four names. An address
+family that is not running is refused with the running ones and the command that lists
+them, <code>show ospf ipv6 instance</code>. With no OSPFv3 address family configured, the list views
+answer an empty list and the database views the empty <code>ipv6-unicast</code> record. The two
+segment-routing views (<code>show ospf ipv6 segment-routing</code> and <code>show ospf ipv6 database segment-routing</code>) are the exception: they answer one record, the IPv6 Segment Routing state
+of the OSPFv2 Router ID, which belongs to no OSPFv3 instance and so carries neither
+<code>address-family</code> nor <code>instance-id</code>.</p>
+<!-- source: internal/plugins/ospf/register_multiaf.go -- selectInstances, afTaggedRow -->
+<!-- source: internal/plugins/ospf/debug_wiring.go -- v3Views, v6DatabaseDetail, v3SegmentRoutingView -->
+<!-- source: internal/plugins/ospf/register.go -- commandDecls, v3ViewColumns -->
+<!-- source: internal/plugins/ospf/multiaf.go -- afFromCanonicalName -->
+<!-- source: internal/plugins/ospf/inject_v3.go -- splitInjectAddressFamily -->
 <h2 id="as-external-routes-and-redistribution">AS-External routes and redistribution</h2>
 <p>A router becomes an AS Boundary Router (ASBR) when it originates external LSAs, either by redistributing routes from another protocol or through <code>default-information originate</code>. OSPFv2 uses Type 5 AS-External-LSAs; OSPFv3 uses AS-External-LSAs (<code>0x4005</code>) in normal areas and NSSA-LSAs (<code>0x2007</code>) in attached NSSA areas. An OSPFv2 router that originates an AS-scope Type 11 opaque LSA (for example Router Information or Traffic Engineering flooded AS-wide) is also an ASBR (RFC 5250 Section 5), because routers in other areas track that LSA's originator through its ASBR routing table entry and ignore the LSA without one. The ASBR sets the E-bit in its Router-LSA; the ABR and ASBR roles are independent. AS-scoped Type 5 / <code>0x4005</code> LSAs live in the AS-wide store, separate from per-area LSDBs.</p>
 <!-- source: internal/plugins/ospf/lsdb/origination.go -- OriginateExternal, PurgeExternal -->
@@ -510,9 +540,13 @@ a transit cost change updates the existing interface without restarting it.</p>
 </code></pre>
 <p>The <code>scope</code> leaf-list selects the flooding scope(s) per RFC 7770 §2.7 (<code>link</code> / <code>area</code> / <code>as</code>); when enabled with no scope listed it defaults to area + AS, matching the common Segment-Routing deployment. When AS scope is chosen and an NSSA is attached, Ze also advertises an area-scoped RI LSA into that NSSA (RFC 7770 §2.7 SHOULD).</p>
 <p>The Router Informational Capabilities TLV is always the first TLV in Instance 0 (RFC 7770 §2.4 MUST) and reflects live engine state, so it cannot advertise a capability the router lacks: bit 0/1 (graceful restart capable / helper) track the GR configuration, bit 2 (stub router) is set when max-metric is configured (RFC 6987), and bit 3 (traffic engineering) is set when TE is configured (RFC 3630). The bits describe the router in the scope the LSA floods to (RFC 7770 §2.4): graceful restart and stub router are router-wide, while the TE bit follows the scope. An AS-scope RI LSA sets it when any interface runs TE; a TE router address with no TE interface does not set it, because the router then originates no TE LSA anywhere. An area-scope RI LSA sets it only when an interface of that area runs TE, and in the backbone also when TE runs only on inter-AS links, because the TE Router-Address is then advertised there. A link-scope RI LSA sets it when that interface runs TE. The <code>ze_ospf_ri_capability_bits</code> gauge reports the router-wide (AS-scope) word. An empty Functional Capabilities TLV (type 2) is carried as a placeholder (the RFC functional registry is initially empty). A downstream consumer registers additional TLVs; the originator emits them after the type-1 TLV in ascending TLV-type order, and if they overflow one LSA they spill into subsequent Instance IDs (a receiver uses the smallest Instance ID for an unspecified-multi-instance TLV, RFC 7770 §3). A registered builder that panics is isolated and counted, and the RI LSA is still emitted.</p>
-<p><code>show ospf database router-information</code> decodes the stored RI LSAs for both address families into the named capability bits and the TLV list. RI activity is counted by <code>ze_ospf_ri_lsas{af,scope}</code>, <code>ze_ospf_ri_originations_total{af,scope}</code>, <code>ze_ospf_ri_received_total{af}</code>, <code>ze_ospf_ri_tlv_builder_errors_total</code>, and <code>ze_ospf_ri_capability_bits{bit}</code>.</p>
+<p><code>show ospf database router-information</code> decodes the stored RI LSAs for both address families into the named capability bits and the TLV list. Its OSPFv3 entries come from every running OSPFv3 address family, each naming its <code>address-family</code> and <code>instance-id</code>; <code>address-family &lt;af&gt;</code> narrows that OSPFv3 part to one family and leaves the OSPFv2 entries whole, and <code>show ospf ipv6 database router-information</code> shows the OSPFv3 entries alone. Both views
+declare <code>af</code>, <code>address-family</code> and <code>instance-id</code> as their leading columns, so <code>| table</code> shows
+those three first, and an OSPFv2 entry leaves the two OSPFv3 cells empty. RI activity is counted by <code>ze_ospf_ri_lsas{af,scope}</code>, <code>ze_ospf_ri_originations_total{af,scope}</code>, <code>ze_ospf_ri_received_total{af}</code>, <code>ze_ospf_ri_tlv_builder_errors_total</code>, and <code>ze_ospf_ri_capability_bits{bit}</code>.</p>
 <!-- source: internal/plugins/ospf/ri.go -- registerRIConsumer, deriveRICapabilities, riScopeHasTE, buildRIInstances, riMetrics -->
 <!-- source: internal/plugins/ospf/ri_registry.go -- registerRITLV, riTLVBuildersForScope -->
+<!-- source: internal/plugins/ospf/ri_show.go -- routerInformationView, riDatabaseSnapshot, riOSPFv3Instance -->
+<!-- source: internal/plugins/ospf/register.go -- commandDecls, riViewColumns -->
 <!-- source: internal/plugins/ospf/origination_v6_ri.go -- v6OriginateRI, v6RILSType -->
 <!-- source: internal/plugins/ospf/packet/ri_tlv.go -- RITLV, EncodeRITLVs, DecodeRITLVStream, RICapabilitiesValue -->
 <h2 id="extended-prefixlink-attributes-rfc-7684">Extended Prefix/Link Attributes (RFC 7684)</h2>
@@ -873,7 +907,7 @@ $ ze-demo card topic-ospf recap</code></pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

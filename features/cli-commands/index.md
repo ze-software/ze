@@ -248,7 +248,7 @@ ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 <!-- source: internal/component/cli/model_ping_test.go -- parsePingMonitorArgs -->
 <!-- source: internal/component/cli/model_traceroute_test.go -- parseTracerouteMonitorArgs -->
 
-**Live peer dashboard:** `monitor bgp` in the interactive CLI opens a live dashboard showing router identity, a sortable colour-coded peer table with update rates, and a drill-down detail view. It refreshes every 2 seconds. Use j/k to move, s/S to sort, Enter for detail, and Esc to exit. The state column renders green for `established`, yellow for the transitional states, and red for `stopped`, `idle`, and `idle-hold`. `idle-hold` is the state a prefix limit leaves a peer in when the family that overflowed asked for no reconnect, so it needs an operator and is coloured like the other down states.
+**Live peer dashboard:** `monitor bgp` in the interactive CLI opens a live dashboard showing router identity, a sortable colour-coded peer table with update rates, and a drill-down detail view. It refreshes every second. Use j/k to move, s/S to sort, Enter for detail, and Esc to exit. The state column renders green for `established`, yellow for the transitional states, and red for `stopped`, `idle`, and `idle-hold`. `idle-hold` is the state a prefix limit leaves a peer in when the family that overflowed asked for no reconnect, so it needs an operator and is coloured like the other down states.
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 <!-- source: internal/component/cli/model_dashboard_render.go -- stateStyled -->
 
@@ -280,6 +280,18 @@ The daemon retains hook-built SSH through the plugin server's `OnStop` callbacks
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: cmd/ze/hub/infra_setup.go -- setupInfraHook -->
 <!-- source: internal/component/cli/history.go -- History type -->
+
+History publication failures reach the model's close error. The latest completed
+write outcome is retained separately for each mode; a successful later write
+clears that mode's failure. Configuration and operational recall follow the same
+eligibility policy on browser and SSH entry: automatic configuration entry
+records under configuration mode, while mode/exit and lifecycle controls do not
+add entries. Browser HTTP adapters use the same History producer and keys, with
+bounded owners that survive editor discard; independently opened SSH and browser
+owners keep the documented whole-snapshot overwrite behavior.
+<!-- source: internal/component/cli/history.go -- LastWriteError -->
+<!-- source: internal/component/cli/history_policy.go -- HistoryCommandMode -->
+<!-- source: internal/component/web/editor_history.go -- RecordHistory, Close -->
 
 **Login warnings:** When an operator connects via SSH, ze checks for conditions requiring attention and displays warnings in the welcome area. Each warning includes a message and an actionable command. Currently checks for stale prefix data (peers with `prefix-updated` older than 6 months); run `update bgp peer * prefix` to refresh from PeeringDB.
 <!-- source: internal/component/ssh/session.go -- createSessionModel login warning collection -->

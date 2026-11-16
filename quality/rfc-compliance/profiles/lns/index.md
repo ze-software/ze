@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 
 ## Figures
 
-- **MUST bar**: Ze proven 259, Proof pending 65, OS testing gap 94, Not built 41
-- **Overview bar**: Ze MUST proven 259, SHOULD proven 9, Proof pending 66, OS testing gap 94, Not assessed 151, Not built 41
+- **MUST bar**: Ze proven 268, Proof pending 56, OS testing gap 94, Not built 41
+- **Overview bar**: Ze MUST proven 268, SHOULD proven 9, Proof pending 57, OS testing gap 94, Not assessed 151, Not built 41
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/lns.json](../../../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 459 |
 | MUST rows kept (the MUST bar) | 459 |
-| Ze proven | 259 |
+| Ze proven | 268 |
 | OS verified | 0 |
-| Proof pending | 65 |
+| Proof pending | 56 |
 | OS testing gap | 94 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -52,22 +52,22 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 35, Proof pending 26, OS testing gap 2, Not built 13 | Ze MUST proven 35, SHOULD proven 2, Proof pending 27, OS testing gap 2, Not assessed 22, Not built 13 | lns: required by rfc/short/rfc1661.md |
+| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 47, Proof pending 14, OS testing gap 2, Not built 13 | Ze MUST proven 47, SHOULD proven 2, Proof pending 15, OS testing gap 2, Not assessed 22, Not built 13 | lns: required by rfc/short/rfc1661.md |
 
 ### Level 1
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze proven 6, Proof pending 8, Not built 2 | Ze MUST proven 6, SHOULD proven 2, Proof pending 8, Not assessed 9, Not built 2 | lns: required by rfc/short/rfc1994.md |
-| [RFC 2865](../../rfc2865/) (cycle with rfc2866) | Remote Authentication Dial In User Service (RADIUS) | Ze proven 27, Proof pending 4 | Ze MUST proven 27, Proof pending 4, Not assessed 1 | lns: required by rfc/short/rfc2865.md |
-| [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze proven 8, Proof pending 7 | Ze MUST proven 8, Proof pending 7, Not assessed 1 | lns: required by rfc/short/rfc2866.md |
+| [RFC 2865](../../rfc2865/) (cycle with rfc2866) | Remote Authentication Dial In User Service (RADIUS) | Ze proven 26, Proof pending 5 | Ze MUST proven 26, Proof pending 5, Not assessed 1 | lns: required by rfc/short/rfc2865.md |
+| [RFC 2866](../../rfc2866/) (cycle with rfc2865) | RADIUS Accounting | Ze proven 7, Proof pending 8 | Ze MUST proven 7, Proof pending 8, Not assessed 1 | lns: required by rfc/short/rfc2866.md |
 
 ### Level 2
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 6, Proof pending 2 | Ze MUST proven 6, Proof pending 2, Not assessed 6 | lns: required by rfc/short/rfc1332.md |
-| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | Ze proven 12, Proof pending 1 | Ze MUST proven 12, Proof pending 1, Not assessed 3 | lns: required by rfc/short/rfc1334.md |
+| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 5, Proof pending 3 | Ze MUST proven 5, Proof pending 3, Not assessed 6 | lns: required by rfc/short/rfc1332.md |
+| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | Ze proven 10, Proof pending 3 | Ze MUST proven 10, Proof pending 3, Not assessed 3 | lns: required by rfc/short/rfc1334.md |
 | [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | Ze proven 30, OS testing gap 91, Not built 17 | Ze MUST proven 30, OS testing gap 91, Not assessed 79, Not built 17 | lns: required by rfc/short/rfc4861.md |
 
 ### Level 3
@@ -93,7 +93,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 2869](../../rfc2869/) (cycle with rfc2867, rfc2868) | RADIUS Extensions | Ze proven 4, Proof pending 4 | Ze MUST proven 4, Proof pending 4, Not assessed 3 | lns: required by rfc/short/rfc2869.md |
+| [RFC 2869](../../rfc2869/) (cycle with rfc2867, rfc2868) | RADIUS Extensions | Ze proven 6, Proof pending 2 | Ze MUST proven 6, Proof pending 2, Not assessed 3 | lns: required by rfc/short/rfc2869.md |
 
 ### Level 7
 
@@ -149,7 +149,7 @@ The MUST bar shows mandatory requirements (MUST, MUST NOT, REQUIRED, SHALL and S
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1570](../../rfc1570/) | PPP LCP Extensions | Not assessed 22 | Not assessed 38 | lns: optional in rfc/short/rfc1570.md |
+| [RFC 1570](../../rfc1570/) (cycle with rfc1662) | PPP LCP Extensions | Not assessed 22 | Not assessed 38 | lns: optional in rfc/short/rfc1570.md |
 | [RFC 2548](../../rfc2548/) | Microsoft Vendor-specific RADIUS Attributes | Not assessed 31 | SHOULD proven 2, Not assessed 63 | lns: optional in rfc/short/rfc2548.md |
 | [RFC 6911](../../rfc6911/) | RADIUS Attributes for IPv6 Access Networks | Not assessed 3 | Not assessed 12 | lns: optional in rfc/short/rfc6911.md |
 | [RFC 4818](../../rfc4818/) | RADIUS Delegated-IPv6-Prefix Attribute | Not assessed 3 | Not assessed 6 | lns: optional in rfc/short/rfc4818.md |

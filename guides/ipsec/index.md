@@ -2164,9 +2164,11 @@ fix:
 The same causes refuse the install of a Child SA that must receive both ESP
 forms, with the same fix. Ze records its last failure to open its own receiver
 for bare ESP, and the doctor check reports it as a `doctor-ipsec-esp-form-tun`
-error with the cause, the time and the fix, until an open succeeds. When the
-TUN outcome the last configuration apply recorded has the same cause, the check
-reports this one error alone.
+error with the cause, the time and the fix, until an open succeeds, while an
+IPsec peer is configured. Removing the last peer silences that finding without
+clearing the receiver's record; adding a peer reports it again if no open has
+succeeded. When the TUN outcome the last configuration apply recorded has the
+same cause, the check reports this one error alone.
 
 The raw ESP socket can also fail after it opened. The Child SAs it served stay
 installed, so Ze opens the receiver again by itself while such an SA is
@@ -2191,6 +2193,7 @@ with the cause.
 <!-- source: internal/component/ike/dataplane/xfrm_migrate_linux.go -- MigrateTunnel, xfrmMigrationCollision, xfrmMigrationUnserved -->
 <!-- test: internal/component/ike/engine/doctor_esp_form_fast_path_test.go TestDoctorESPFormSharedSPI -->
 <!-- test: internal/component/ike/engine/doctor_esp_form_complete_path_test.go TestDoctorESPFormCompletePathFailure -->
+<!-- test: internal/component/ike/engine/doctor_esp_form_peer_removal_test.go TestDoctorESPFormPeerRemovalHidesRetainedFailure -->
 <!-- test: internal/component/ike/dataplane/espform_reopen_linux_test.go TestESPFormReceiverReopensAStoppedReaderByItself -->
 
 The fast path runs before netfilter, so Ze keeps it off while a firewall rule or

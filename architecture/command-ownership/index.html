@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Command Ownership and Plugin Structure - Ze</title>
         <meta name="description" content="Ze documentation: architecture/command-ownership.md" />
         <meta property="og:title" content="Command Ownership and Plugin Structure - Ze" />
@@ -456,7 +456,32 @@ per-feature field. Consumers iterate <code>cli.RegisteredViews()</code> and inje
 factory by key through <code>SetViewFactory</code> rather than through typed setters. The
 <code>TestModelHasNoPerFeatureViewField</code> reflection guard fails when a per-feature
 field returns.</p>
+<p>The same owner registration may declare browser controls through its <code>browser</code>
+projection. <code>ViewInfo.Browser</code> reports that capability; adapters do not keep a
+second command inventory. <code>RunBrowserView</code> drives the existing <code>Model</code> and
+<code>activeView</code> with a headless Bubble Tea program. Control IDs map to the owner's
+existing key handlers, so numeric sorting, stable selection and detail targeting
+remain the dashboard's responsibility. The transport authorizes and accounts
+the monitor before opening it, and supplies the existing factories/executor
+bound to the original caller and request context.</p>
+<p><code>BrowserViewAvailable</code> exposes that same argument/pipe-aware selector to the
+transport. Hub <code>view_factory.go</code> supplies the factory composition for both SSH
+and web builds; <code>view_web.go</code> installs the original caller's dispatcher for
+summary and detail requests. The web action route carries only opaque handles
+and declared control IDs, so it cannot select a new command or authorization
+policy.</p>
+<p>The runner accepts at most eight queued actions, keeps one detached plain-text
+frame of at most 64 KiB, and bounds a frame to sixteen controls. It uses no
+terminal input, renderer or signal handler. One bounded command worker handles
+the registered poll/timer chain, with generation-tagged results. Cancellation
+joins the program and worker, explicitly releases the active view, and closes
+the model. Probe drains yield after 256 items so incoming data cannot starve
+actions. An undeclared action, unsupported command result or exceeded bound
+ends the request with an explicit error.</p>
 <!-- source: internal/component/cli/view_registry.go -- RegisterView, RegisteredViews, resolveView -->
+<!-- source: cmd/ze/hub/view_factory.go -- injectViewFactories -->
+<!-- source: cmd/ze/hub/view_web.go -- webViewBinding -->
+<!-- source: internal/component/cli/view_browser.go -- RunBrowserView, browserViewCommands -->
 <!-- source: internal/component/plugin/server/handler.go -- matchesPrefix -->
 <!-- source: internal/component/cli/model_test.go -- TestModelHasNoPerFeatureViewField -->
 <h2 id="the-removal-compliance-guards-in-the-tree">The Removal-Compliance Guards In The Tree</h2>
@@ -548,7 +573,7 @@ package holds the matching presence test, such as
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

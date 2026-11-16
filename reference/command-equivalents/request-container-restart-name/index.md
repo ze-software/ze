@@ -1,13 +1,13 @@
-# `clear firewall irr as-set`
+# `request container restart name`
 
-Remove the cached IRR prefix\-list for an AS\-SET\.
+Stop the named container\, then start it again\.
 
 ## Ze command
 
-- Registry path: `clear firewall irr as-set`
-- Usage: `clear firewall irr as-set <as-set>`
+- Registry path: `request container restart name`
+- Usage: `request container restart name <value>`
 - Mode: Daemon
-- Wire method: `ze-firewall:clear-irr-as-set`
+- Wire method: `ze-container:request-restart`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,13 +21,13 @@ Remove the cached IRR prefix\-list for an AS\-SET\.
 - Command pipes: none
 - Pipe aliases: none
 
-Drops the entry from memory and from the persisted cache\, then re\-applies the firewall tables\.
+A running container is stopped\, with its stop signal and then a kill after its stop timeout\, and started again as a new process\. A container in the stopped or failed state is started\. A disabled container and one that waits for its image are refused\, with the statement or command that lets it run\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `as-set` | string | yes | any value of this type | AS\-SET name | The RPSL set name the update command stored\, for example AS\-EXAMPLE\. The entry under that exact name is purged\. |
+| `value` | string | yes | any value of this type | Name of the container\. | The name of a configured container\, as its instance entry spells it\. The word after the name keyword is the value\. |
 
 ## Mapping intents
 

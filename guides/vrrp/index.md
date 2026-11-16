@@ -268,9 +268,8 @@ for the virtual IP carry the Router flag RFC 9568 Section 6.4.3 requires. The
 macvlan derives no IPv6 link-local from the virtual MAC (`addr_gen_mode` none,
 RFC 9568 Section 7.4): its only link-local is the group's first virtual address,
 present while the group is Active, which is also the source of its ICMPv6
-redirects. IPv6 interoperability is verified against keepalived under
-QEMU (election, node-death failover, and virtual-MAC resolution of the virtual
-IP).
+redirects. No automated test checks IPv6 interoperability with keepalived:
+the committed keepalived QEMU lab runs IPv4 groups only.
 
 ### The address owner
 

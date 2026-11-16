@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BFD: Bidirectional Forwarding Detection - Ze</title>
         <meta name="description" content="Ze documentation: guide/bfd.md" />
         <meta property="og:title" content="BFD: Bidirectional Forwarding Detection - Ze" />
@@ -74,6 +74,7 @@ a plugin whose session service is used by BGP, OSPF, and static-route monitors.<
 <li><a href="#list-all-sessions">List all sessions</a></li>
 <li><a href="#session-detail">Session detail</a></li>
 <li><a href="#list-profiles">List profiles</a></li>
+<li><a href="#refused-sends">Refused sends</a></li>
 <li><a href="#prometheus-metrics">Prometheus metrics</a></li>
 </ol></li>
 <li><a href="#operational-guidance">Operational guidance</a>
@@ -325,7 +326,32 @@ A Meticulous session resumes above its saved sequence floor after a process
 restart. Without persistence, it must re-synchronise with the peer's replay
 window. Explicit-file startup selects the store beside that file without a
 <code>ze.config.dir</code> pin.</p>
-<p>Authentication failures increment <code>ze_bfd_auth_failures_total{mode}</code>.</p>
+<p>Authentication failures increment <code>ze_bfd_auth_failures_total{mode}</code> on
+every dropped packet. The first failure of a session, and the first after
+each minute, is also logged at Warn under the doctor code
+<code>doctor-bfd-auth-failed</code>, naming the peer, the check that failed and the
+profile to fix, and raised in <code>show warnings</code> (source <code>bfd</code>). The warning
+clears when a packet verifies again, when the session's authentication
+changes, when the session is removed, or when no packet has failed for two
+minutes: a peer that fails and then falls silent sends no packet that could
+verify, and its warning would otherwise stay for as long as the session is
+configured. A packet that verifies does not restart the minute, so bad
+packets mixed with the peer's good ones give one warning a minute. The secret
+is never logged.</p>
+<!-- source: internal/component/bfd/engine/problems.go -- warnAuthFailedLocked, clearAuthWarning, expireQuietWarnings -->
+<!-- test: internal/component/bfd/engine/failure_report_test.go TestAuthFailureIsCountedWarnedOnceAndClearedOnRecovery -->
+<!-- test: internal/component/bfd/engine/failure_report_test.go TestInterleavedAuthFailuresWarnAndRaiseOncePerWindow -->
+<!-- test: internal/component/bfd/engine/failure_report_test.go TestAuthWarningIsWithdrawnOnceTheFailuresStop -->
+<p>When the state store refuses to save the sequence number, the first refusal
+of each run is logged at Warn under <code>doctor-bfd-auth-seq-unsaved</code> and raised
+in <code>show errors</code>, and so is a session whose authentication closes with its
+last write refused: after a restart such a session starts from an older
+number, and a meticulous peer drops its packets until the number passes the
+one it last accepted. <code>ze doctor</code> reports why the store cannot be written.</p>
+<!-- source: internal/component/bfd/auth/persist.go -- flushIfChanged, Close -->
+<!-- source: internal/component/bfd/engine/problems.go -- closeAuth, reportSeqUnsaved -->
+<!-- test: internal/component/bfd/auth/persist_test.go TestSeqPersistWriteFailure -->
+<!-- test: internal/component/bfd/engine/failure_report_test.go TestSeqUnsavedIsReportedWhenASessionIsRemovedAndWhenTheLoopStops -->
 <h3 id="enabling-bfd-on-a-bgp-peer">Enabling BFD on a BGP peer</h3>
 <p>Adding a <code>bfd { ... }</code> container inside a BGP peer's
 <code>connection { ... }</code> block opts that peer into BFD. On session
@@ -975,6 +1001,48 @@ name returns an error:</p>
 <pre><code>operator@router&gt; show bfd profile fast-link
 {"name":"fast-link","detect-multiplier":3,"desired-min-tx-us":50000,"required-min-rx-us":50000,"passive":false}
 </code></pre>
+<h3 id="refused-sends">Refused sends</h3>
+<p>When the transport refuses a packet of a session (a Control packet, an Echo
+packet, or the return of an Echo packet the peer sent), every refusal is
+counted in <code>ze_bfd_send_failures_total{mode,packet}</code>. The first refusal of
+each packet kind, and the first after each minute, is also logged at Warn
+under the doctor code <code>doctor-bfd-send-failed</code> and raised in <code>show warnings</code>
+(source <code>bfd</code>), naming the peer, the packet kind, the transport's reason and
+what the refusal does to the session:</p>
+<table>
+<thead>
+<tr>
+<th>Packet</th>
+<th>What happens next</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>control</code></td>
+<td>The peer hears nothing and takes the session Down when its Detection Time passes</td>
+</tr>
+<tr>
+<td><code>echo</code></td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td><code>echo-reflect</code></td>
+<td>The peer's echo function fails, and the peer takes the session Down with Echo Function Failed</td>
+</tr>
+</tbody>
+</table>
+<p>The transport refuses a single-hop packet whose interface no longer resolves
+or whose peer is on none of that interface's subnets (RFC 5881 §6). The fix of
+a session bound to an interface is therefore
+<code>ze show interface name &lt;interface&gt; detail</code>, which shows the addresses the
+peer must share a subnet with; the fix of any other session is
+<code>ze show bfd session address &lt;peer&gt;</code>. Each packet kind is raised on its own,
+and its warning clears when a packet of that kind is sent again, when the
+session is removed, or when no packet of that kind has been refused for two
+minutes.</p>
+<!-- source: internal/component/bfd/engine/problems.go -- warnSendFailedLocked, clearSendWarning, expireQuietWarnings, sendFailedFix -->
+<!-- test: internal/component/bfd/engine/failure_report_test.go TestControlSendFailureIsRaisedWithItsFixAndClearedWhenASendLands -->
+<!-- test: internal/component/bfd/engine/failure_report_test.go TestEchoReflectWarningIsWithdrawnOnceTheFailuresStop -->
 <h3 id="prometheus-metrics">Prometheus metrics</h3>
 <p>The plugin registers five metric families via
 <code>internal/component/bfd/metrics.go</code>. The families appear on the
@@ -1020,6 +1088,36 @@ is set.</p>
 <td>counter</td>
 <td>mode</td>
 <td>Control packets received (after the TTL gate)</td>
+</tr>
+<tr>
+<td><code>ze_bfd_auth_failures_total</code></td>
+<td>counter</td>
+<td>mode</td>
+<td>Received Control packets dropped because they failed authentication</td>
+</tr>
+<tr>
+<td><code>ze_bfd_send_failures_total</code></td>
+<td>counter</td>
+<td>mode, packet</td>
+<td>Packets the transport refused to send; <code>packet</code> is <code>control</code>, <code>echo</code> or <code>echo-reflect</code> (an echo of the peer's that Ze could not send back)</td>
+</tr>
+<tr>
+<td><code>ze_bfd_echo_tx_packets_total</code></td>
+<td>counter</td>
+<td>mode</td>
+<td>Echo packets transmitted</td>
+</tr>
+<tr>
+<td><code>ze_bfd_echo_rx_packets_total</code></td>
+<td>counter</td>
+<td>mode</td>
+<td>Echo packets received</td>
+</tr>
+<tr>
+<td><code>ze_bfd_echo_rtt_us</code></td>
+<td>histogram</td>
+<td>mode</td>
+<td>Echo round-trip time in microseconds</td>
 </tr>
 </tbody>
 </table>
@@ -1252,7 +1350,7 @@ document for the full gap list and the intended follow-up order.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

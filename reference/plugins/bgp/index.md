@@ -29,7 +29,7 @@ BGP routing daemon
 
 Order only when both plugins are selected; never auto-loads a plugin.
 
-- Start after: None
+- Start after: [`interface`](../interface/index.md)
 - Starts before: [`redistribute-orchestrator`](../redistribute-orchestrator/index.md)
 
 ## Repository artifacts

@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>show bgp irr - Command Equivalents - Ze</title>
         <meta name="description" content="Show IRR filter status per ASN." />
         <meta property="og:title" content="show bgp irr - Command Equivalents - Ze" />
@@ -64,9 +64,9 @@
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 <div><dt>Answer shape</dt><dd>tab</dd></div>
-<div><dt>Column order</dt><dd>asn, as-set, status, error, ipv4-count, ipv6-count, last-refresh, peers; server, last-refresh, next-refresh, entries</dd></div>
+<div><dt>Column order</dt><dd>asn, as-set, status, error, ipv4-count, ipv6-count, server, generation, checked-at, refreshed-at, peers</dd></div>
 </dl>
-<h3>Description</h3><p>Lists each enrolled ASN with its resolved AS-SET, prefix counts,<br>last refresh time, and error status. Use this to confirm that IRR<br>prefix-lists are loaded and current.</p>
+<h3>Description</h3><p>Lists each enrolled ASN with the AS-SET it is filtered by, the prefix<br>counts of the stored copy the filter enforces, which copy that is (server,<br>generation, checked-at, refreshed-at), and whether it could be read. The irr<br>plugin fetches and stores the copies; show irr answers when each is due.</p>
 <h3>Arguments</h3>
 <p>No command-specific arguments listed.</p>
 </article>
@@ -138,7 +138,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

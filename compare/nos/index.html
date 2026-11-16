@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Open Source Network OS comparison - Ze</title>
         <meta name="description" content="How Ze compares to VyOS and freeRtr as full router operating systems." />
         <meta property="og:title" content="Open Source Network OS comparison - Ze" />
@@ -3301,7 +3301,7 @@ about non-BGP router OS breadth.</p>
 <tr>
 <td>Testing</td>
 <td>Topology and interop tests</td>
-<td>Native Docker interop against FRR, BIRD, GoBGP, ExaBGP, and strongSwan is implemented by <code>internal/le/interoplab/bgp</code>, <code>internal/le/interoplab/ipsec</code>, and the action table in; <span data-ze-stat="interop.scenarios_display">390+</span> scenarios across <span data-ze-stat="interop.suite_count">8</span> lab suites cover routing, VPNs, access and multi-node topologies. <span class="ev-src"><span class="ev-ref"><code>internal/le/integration/gates.go</code></span></span></td>
+<td>Native Docker interop against FRR, BIRD, GoBGP, ExaBGP, and strongSwan is implemented by <code>internal/le/interoplab/bgp</code>, <code>internal/le/interoplab/ipsec</code>, and the action table in; <span data-ze-stat="interop.scenarios_display">410+</span> scenarios across <span data-ze-stat="interop.suite_count">8</span> lab suites cover routing, VPNs, access and multi-node topologies. <span class="ev-src"><span class="ev-ref"><code>internal/le/integration/gates.go</code></span></span></td>
 <td>GitHub workflow builds a custom ISO and runs smoketests in containers with privileged options; VPP smoketest and config-load jobs, <code>:225-252</code>, <code>:325-352</code>. Topology/interop beyond QEMU/VPP smoketest not found in inspected <code>vyos-1x</code> source. <span class="ev-src"><span class="ev-ref"><code>.github/workflows/package-smoketest.yml:150-183</code>, <code>:192-218</code></span></span></td>
 <td>Readme says <code>img</code> VM images are used for interop and dataplane testing; tester can launch multiple routers with generated ports and captures, selftest/topology scripts and. <span class="ev-src"><span class="ev-ref"><code>readme.md:55-60</code></span><span class="ev-ref"><code>src/org/freertr/user/userTester.java:36-48</code>, <code>:1437-1440</code>, <code>:2422-2429</code></span><span class="ev-ref"><code>src/t*.sh</code></span><span class="ev-ref"><code>cfg/*.tst</code></span></span></td>
 <td>Ze has most explicit source docs for third-party interop.</td>
@@ -3625,7 +3625,7 @@ about non-BGP router OS breadth.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

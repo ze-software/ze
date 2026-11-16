@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7084 requirements and tests - Ze</title>
         <meta name="description" content="RFC 7084: Basic Requirements for IPv6 Customer Edge Routers. 41 mandatory requirements included in automatic checks, 14 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7084 requirements and tests - Ze" />
@@ -131,7 +131,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>5</strong><b>of 41 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>14</strong><b>of 41 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 41 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>30</strong><b>30 of 30 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>27</strong><b>27 of 30 tests linked to requirements, 0 without a fault test and 3 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -279,8 +279,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> IPv6 customer edge router</p>
-<p><strong>Proof:</strong> 19 of 41 MUST proven</p>
-<p><strong>Evidence:</strong> unit 19</p>
+<p><strong>Proof:</strong> 18 of 41 MUST proven</p>
+<p><strong>Evidence:</strong> unit 18</p>
 <p><strong>Unmet:</strong> RFC7084-4.1-3, RFC7084-4.2-14, RFC7084-4.2-15, RFC7084-4.2-16, RFC7084-4.2-20, RFC7084-4.2-22, RFC7084-4.2-9, RFC7084-4.3-10, RFC7084-4.3-11, RFC7084-4.3-12, RFC7084-4.3-14, RFC7084-4.3-19, RFC7084-4.3-2, RFC7084-4.3-3, RFC7084-4.3-5, RFC7084-4.3-6</p>
 
 </section>
@@ -328,9 +328,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7084:must">Ze proven 19, OS testing gap 7, Not built 15</div>
+<div data-ze-rfc-bar="rfc7084:must">Ze proven 18, Proof pending 1, OS testing gap 7, Not built 15</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7084:overview">Ze MUST proven 19, OS testing gap 7, Not assessed 24, Not built 16</div>
+<div data-ze-rfc-bar="rfc7084:overview">Ze MUST proven 18, Proof pending 1, OS testing gap 7, Not assessed 24, Not built 16</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -351,13 +351,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7084:must.kept">41</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc7084:must.ze-proven">19</span></td>
+<td><span data-ze-rfc="rfc7084:must.ze-proven">18</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7084:must.os-verified">0</span></td>
 </tr>
 <tr><td>Proof pending</td>
-<td><span data-ze-rfc="rfc7084:must.proof-pending">0</span></td>
+<td><span data-ze-rfc="rfc7084:must.proof-pending">1</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc7084:must.os-gap">7</span></td>
@@ -561,9 +561,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>4.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7084-4.2-10">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L214" title="internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go" target="_blank" rel="noopener"><code>TestRFC7084WLL3IPCPIndependence</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L60" title="internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go" target="_blank" rel="noopener"><code>TestRFC7084WLL3NCPIndependence</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L219" title="internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go" target="_blank" rel="noopener"><code>TestRFC7084WLL3IPCPIndependence</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L215" title="internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go" target="_blank" rel="noopener"><code>TestRFC7084WLL3IPCPIndependence</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L61" title="internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go" target="_blank" rel="noopener"><code>TestRFC7084WLL3NCPIndependence</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L220" title="internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go" target="_blank" rel="noopener"><code>TestRFC7084WLL3IPCPIndependence</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7084-4.2-11">RFC7084-4.2-11</code></td><td colspan="3"><span class="rfc-subject">WAA-1: The IPv6 CE router MUST support Stateless Address Autoconfiguration (SLAAC) [RFC4862]. (§4.2)</span></td></tr>
@@ -1310,19 +1310,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L219" title="internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go" target="_blank" rel="noopener"><code>TestRFC7084WLL3IPCPIndependence</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L220" title="internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go" target="_blank" rel="noopener"><code>TestRFC7084WLL3IPCPIndependence</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L214" title="internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go" target="_blank" rel="noopener"><code>TestRFC7084WLL3IPCPIndependence</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L215" title="internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go" target="_blank" rel="noopener"><code>TestRFC7084WLL3IPCPIndependence</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L60" title="internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go" target="_blank" rel="noopener"><code>TestRFC7084WLL3NCPIndependence</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L61" title="internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go" target="_blank" rel="noopener"><code>TestRFC7084WLL3NCPIndependence</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 </tbody>
 </table>
@@ -1890,7 +1890,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

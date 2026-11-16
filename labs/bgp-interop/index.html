@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BGP Protocol Interop - Ze</title>
         <meta name="description" content="Ze&#39;s BGP engine tested against real FRR, BIRD, and GoBGP in Docker, with scenarios covering protocol behavior." />
         <meta property="og:title" content="BGP Protocol Interop - Ze" />
@@ -70,13 +70,13 @@
                             </h3>
                             <p>
                                 The shared routing and network-service suite has
-                                <span data-ze-stat="interop.suites.interop">245</span> scenarios, including
-                                <span data-ze-stat="interop.protocols.bgp">142</span> primary BGP cases. BGP external-peer scenarios start only
+                                <span data-ze-stat="interop.suites.interop">255</span> scenarios, including
+                                <span data-ze-stat="interop.protocols.bgp">151</span> primary BGP cases. BGP external-peer scenarios start only
                                 the required FRR, BIRD, or GoBGP daemons and check
                                 behavior through each peer's own CLI.
                             </p>
                             <div class="chips">
-                                <span class="chip"><span data-ze-stat="interop.suites.interop">245</span> shared-suite scenarios</span>
+                                <span class="chip"><span data-ze-stat="interop.suites.interop">255</span> shared-suite scenarios</span>
                                 <span class="chip concept-software">FRR</span>
                                 <span class="chip concept-software">BIRD</span>
                                 <span class="chip concept-software">GoBGP</span>
@@ -126,7 +126,7 @@
                             only spins up what it needs.
                         </p>
                         <p>
-                            The shared suite’s <span data-ze-stat="interop.suites.interop">245</span> routing and
+                            The shared suite’s <span data-ze-stat="interop.suites.interop">255</span> routing and
                             network-service scenarios include eBGP/iBGP, 4-byte ASN, IPv6, Add-Path,
                             Route Refresh, Graceful Restart, Route Server,
                             standard and extended communities, MD5 auth, BGP
@@ -230,7 +230,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:25 UTC</span>
                 </div>
             </div>
         </footer>

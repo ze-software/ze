@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Ze System Architecture - Ze</title>
         <meta name="description" content="Ze documentation: architecture/system-architecture.md" />
         <meta property="og:title" content="Ze System Architecture - Ze" />
@@ -54,7 +54,11 @@
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#system-rib-process-boundary">System RIB process boundary</a></li>
-<li><a href="#build-personalities">Build personalities</a></li>
+<li><a href="#build-personalities">Build personalities</a>
+<ol>
+<li><a href="#a-role-taken-before-command-dispatch">A role taken before command dispatch</a></li>
+<li><a href="#composition-roots">Composition roots</a></li>
+</ol></li>
 <li><a href="#overview">Overview</a>
 <ol>
 <li><a href="#request-metadata-ownership">Request Metadata Ownership</a></li>
@@ -213,6 +217,51 @@ selected checkout. These boundaries do not change <code>refuseWrongBuildName</co
 explicit wrong identity still refuses the child.</p>
 <!-- source: internal/le/go/toolchain/gotoolchain.go -- Environment -->
 <!-- source: internal/le/test/functional/binaries.go -- BinarySet.Environment -->
+<h3 id="a-role-taken-before-command-dispatch">A role taken before command dispatch</h3>
+<p>A <code>ze</code> process is not always answering a command line. Two roles replace it,
+and <code>dispatchMain</code> selects each from the environment before crash logging,
+version stamping, flag parsing and command dispatch, in this order:</p>
+<table>
+<thead>
+<tr>
+<th>Order</th>
+<th>Selected by</th>
+<th>Role</th>
+<th>Owner</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>1</td>
+<td>An environment key a package registered with <code>earlyrole.Register</code></td>
+<td>Whatever that package registered. The process is another program's child, so none of ze's own startup applies to it</td>
+<td>The registering package</td>
+</tr>
+<tr>
+<td>2</td>
+<td>The session seed directory key</td>
+<td>The session seed init. <span class="ev-src"><span class="ev-ref"><code>docs/contributing/running-commands.md</code></span></span></td>
+<td><code>internal/core/seedinit</code></td>
+</tr>
+</tbody>
+</table>
+<p><code>internal/core/earlyrole</code> is an always-on leaf that names no feature. A role's
+owner registers its key and its function from its own <code>init()</code>, so a build
+without the owner holds no such role, and <code>earlyrole.Dispatch</code> answers "not
+handled" for every environment. A key selects its role by being present,
+whatever its value: the role judges the value, and a damaged one is never read
+as an ordinary command line. Two registered keys in one environment are
+refused before either role runs.</p>
+<p>The one role registered today is the container init: the runtime library
+starts <code>ze</code> again as a container's first process and marks it with its own
+environment key, and the container plugin registers that key
+(<code>docs/architecture/container/runtime.md</code>, "The init role"). The seed role
+stays a leaf of its own, because its contract checks arguments and inherited
+descriptors that an early role has none of.</p>
+<!-- source: cmd/ze/dispatch.go -- dispatchMain -->
+<!-- source: internal/core/earlyrole/earlyrole.go -- Register, Dispatch -->
+<!-- source: internal/plugins/container/register_initrole_linux.go -- libraryInitKey, runInitRole -->
+<h3 id="composition-roots">Composition roots</h3>
 <p>Both personalities use the command registry and pipe engine. Their composition
 roots remain separate: a normal <code>ze</code> build imports no <code>internal/le</code> package,
 while the non-default <code>ze_le</code> build companion imports <code>internal/le/register.go</code>
@@ -1056,7 +1105,7 @@ $ kill -TERM $(pgrep -f "ze start config.conf")
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

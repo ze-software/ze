@@ -192,6 +192,8 @@ In `ze cli` interactive mode:
 - **History** is immediately browsable and published across sessions without
   blocking input. Graceful session close drains queued history; abrupt process
   death can lose commands still waiting for publication.
+  Storage failures remain visible in the session's close result; reconnect after
+  checking the disk holding the configuration store to restore saved recall.
   <!-- source: internal/component/cli/history.go -- Save, Close -->
 - **Ctrl-C** cancels current command, **Ctrl-D** exits
 

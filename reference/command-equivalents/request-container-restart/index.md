@@ -1,16 +1,16 @@
-# `update bgp irr asn`
+# `request container restart`
 
-Refresh IRR prefix\-list for a specific ASN\.
+Restart one container\: name \<container\>\.
 
 ## Ze command
 
-- Registry path: `update bgp irr asn`
-- Usage: `update bgp irr asn <asn>`
+- Registry path: `request container restart`
+- Usage: `request container restart name <container>`
 - Mode: Daemon
-- Wire method: `ze-bgp:update-irr-asn`
+- Wire method: `not listed`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: none: this command takes no subcommand
+- Subcommands: `name`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none
@@ -21,13 +21,11 @@ Refresh IRR prefix\-list for a specific ASN\.
 - Command pipes: none
 - Pipe aliases: none
 
-Re\-queries the IRR server for the given ASN only\.
+A restart needs the name of one container\, after the name keyword\: request container restart name \<container\>\.
 
 ## Arguments
 
-| Name | Type | Required | Values | Summary | Description |
-| --- | --- | --- | --- | --- | --- |
-| `asn` | string | yes | any value of this type | ASN number\. | The AS number as a plain decimal from 0 to 4294967295\. An ASN with no IRR\-filtered peer is refused\, and a refresh the IRR server fails is reported with the server\'s error\. |
+No command-specific arguments listed.
 
 ## Mapping intents
 

@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Build and install Ze on Ubuntu - Ze</title>
         <meta name="description" content="Ze documentation: guide/ubuntu-build-install.md" />
         <meta property="og:title" content="Build and install Ze on Ubuntu - Ze" />
@@ -86,9 +86,9 @@ sudo apt-get install -y \
   protobuf-compiler
 </code></pre>
 <p>Install the exact Go version pinned in this checkout's <code>go.mod</code>. The commands
-below use <code>go1.27.3</code>; update that value when building a checkout with another pin.</p>
+below use <code>go1.27.4</code>; update that value when building a checkout with another pin.</p>
 <!-- source: go.mod -- Go version -->
-<pre><code class="language-bash">GO_VERSION=1.27.3
+<pre><code class="language-bash">GO_VERSION=1.27.4
 GO_ARCH="$(dpkg --print-architecture)"
 case "$GO_ARCH" in
   amd64|arm64) ;;
@@ -409,7 +409,7 @@ describes. To roll back configuration, see
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

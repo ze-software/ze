@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5036 requirements and tests - Ze</title>
         <meta name="description" content="RFC 5036: LDP Specification. 91 mandatory requirements included in automatic checks, 60 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5036 requirements and tests - Ze" />
@@ -471,7 +471,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>3.5.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.5.3-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_test.go#L533" title="internal/plugins/ldp/rfc5036_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivesSentPeriodically</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L408" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L406" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.6.1.2-1">RFC5036-2.6.1.2-1</code></td><td colspan="3"><span class="rfc-subject">Whenever an LSR breaks the binding between a label and a FEC, it MUST withdraw the FEC label mapping from all LDP peers to which it has previously sent the mapping. (§A)</span></td></tr>
@@ -706,8 +706,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.6.1.2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-2.6.1.2-2">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L469" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036EgressFECMappedWithoutWaiting</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L498" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L471" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036EgressFECMappedWithoutWaiting</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L500" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-2.8.1-1">RFC5036-2.8.1-1</code></td><td colspan="3"><span class="rfc-subject">- The Label Request message MUST include a Hop Count TLV. (§2.8.1)</span></td></tr>
@@ -896,7 +896,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>3.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.1-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L373" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036DistinctLSRIDFormsAdjacency</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L439" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036OwnLSRIDFormsNoAdjacency</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L441" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036OwnLSRIDFormsNoAdjacency</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.3-1">RFC5036-3.3-1</code></td><td colspan="3"><span class="rfc-subject">Upon receipt of an unknown TLV, if U is clear (=0), a notification MUST be returned to the message originator and the entire message MUST be ignored; if U is set (=1), the unknown TLV MUST be silently ignored and the rest of the message processed as if the unknown TLV did not exist. (§3.3)</span></td></tr>
@@ -1031,7 +1031,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.5</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L336" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036RequiredParametersInSpecifiedOrder</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L334" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036RequiredParametersInSpecifiedOrder</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation binds the sender and ze&#39;s encoders take no input that could reorder the mandatory parameters, so no violating input exists to refuse</p></td>
 </tr>
@@ -1049,8 +1049,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-3">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L85" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProposesDownstreamUnsolicited</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L105" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L83" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProposesDownstreamUnsolicited</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L103" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-4">RFC5036-3.5.3-4</code></td><td colspan="3"><span class="rfc-subject">If the label advertisement discipline determined in this way is unacceptable to an LSR, it MUST send a Session Rejected/Parameters Advertisement Mode Notification message in response to the Initialization message and not establish the session (§3.5.3)</span></td></tr>
@@ -1059,7 +1059,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L109" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L107" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> Downstream Unsolicited is the only discipline ze runs and it is always acceptable, so no unacceptable advertisement mode exists to reject</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-5">RFC5036-3.5.3-5</code></td><td colspan="3"><span class="rfc-subject">The configured maximum Path Vector length. MUST be 0 if Loop Detection is disabled (D = 0). (§3.5.3)</span></td></tr>
@@ -1067,8 +1067,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-5">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L151" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L167" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L149" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L165" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-6">RFC5036-3.5.3-6</code></td><td colspan="3"><span class="rfc-subject">This field is reserved. It MUST be set to zero on transmission and ignored on receipt. (§3.5.3)</span></td></tr>
@@ -1076,8 +1076,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-6">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L203" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsZeroOnTransmission</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L217" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsIgnoredOnReceipt</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L201" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsZeroOnTransmission</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L215" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsIgnoredOnReceipt</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-7">RFC5036-3.5.3-7</code></td><td colspan="3"><span class="rfc-subject">The receiving LSR MUST calculate the maximum PDU length for the session by using the smaller of its and its peer&#39;s proposals for Max PDU Length (§3.5.3)</span></td></tr>
@@ -1085,8 +1085,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-7">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L254" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L311" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L252" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L309" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-8">RFC5036-3.5.3-8</code></td><td colspan="3"><span class="rfc-subject">If the maximum PDU length determined this way is unacceptable to an LSR, it MUST send a Session Rejected/Parameters Max PDU Length Notification message in response to the Initialization message and not establish the session (§3.5.3)</span></td></tr>
@@ -1095,7 +1095,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>3.5.3</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.3-8">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L257" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L255" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze accepts every Max PDU Length by taking the smaller of the two proposals, so no unacceptable value exists to reject</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.3-9">RFC5036-3.5.3-9</code></td><td colspan="3"><span class="rfc-subject">If there is no matching Hello adjacency, the LSR MUST send a Session Rejected/No Hello Notification message in response to the Initialization message and not establish the session. (§3.5.3)</span></td></tr>
@@ -1157,8 +1157,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.5.4.1</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5036-3.5.4.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L381" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036PeerHearsFromZeWithinKeepaliveTime</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L405" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L379" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036PeerHearsFromZeWithinKeepaliveTime</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L403" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5036-3.5.7-1">RFC5036-3.5.7-1</code></td><td colspan="3"><span class="rfc-subject">Label Request Message ID If this Label Mapping message is a response to a Label Request message, it MUST include the Label Request Message ID optional parameter. (§3.5.7)</span></td></tr>
@@ -1624,13 +1624,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5036-2.5.3-1"><code>RFC5036-2.5.3-1</code></a></h3>
 <p>An LSR MUST arrange that its peer receive an LDP message from it at least every KeepAlive Time period. Any LDP protocol message will do but, in circumstances where no other LDP protocol messages have been sent within the period, a KeepAlive message MUST be sent. (§3.5.4.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-12 after runSession changed to take onDone func(operational bool): a local operational is set true in the on-operational callback just before SessionUp is published, and the first defer became func() { onDone(operational) }(). The defer order (kaCancel, panic guard, Stop, onDone) is unchanged, and the KeepAlive sender goroutine (waits on accepted, re-reads currentKeepalive()/3 each cycle, re-arms on KeepaliveChanged, SendKeepalive on each tick), the accepting KeepAlive in the on-init callback, and handleInit&#39;s negotiation are byte-identical, so ze&#39;s KeepAlive behaviour and the judgement below stand; both tagged units are unchanged (only the runSessionForTest helper&#39;s onDone literal took the new signature). RFC 5036 Section 3.5.4.1: &#34;An LSR MUST arrange that its peer receive an LDP message from it at least every KeepAlive Time period.&#34; Re-judged 2026-10-28 after d9fa580dce added the panic-guard defer, which acts only on a recovered panic. Re-judged 2026-10-14 after TestRFC5036KeepalivesSentPeriodically changed. Positive: runSession to operational with both sides at 1s and an empty LIB; each of the next three PDUs must be a KeepAlive and each gap at most 1s; the test peer writes a KeepAlive after each one so ze&#39;s 1s KeepAlive Timer is fed, which removes no assertion. Negative (dual-tagged with RFC5036-3.5.4.1-1): TestRFC5036KeepalivePacingFollowsNegotiatedTime has ze propose 60s and the peer 1s, then requires each of the next three PDUs within 1s of the previous; it does not check their type, which the row allows (any LDP message will do), and a sender pacing from the 60s proposal fails it because the session ends after the 1s timer and the next read fails. Row-quality: the first sentence duplicates RFC5036-3.5.4.1-1 verbatim.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-15 after 22be149a08 changed runSession: its last statement now hands a non-nil end error to reportSessionEnd (problems.go), which logs INFO for a session ze stopped and otherwise raises doctor-ldp-session-ended and logs WARN; a nil issue queue (tests) yields ErrNotStarted, never a panic. It runs after Start returns, so the KeepAlive sender goroutine (waits on accepted, re-reads currentKeepalive()/3 each cycle, re-arms on KeepaliveChanged, SendKeepalive on each tick), the accepting KeepAlive in the on-init callback, the defer order and handleInit are unchanged, and both tagged units are byte-identical (the sessionparams file changed only in the helloTransportAddr helper, which the negative does not call). RFC 5036 Section 3.5.4.1: &#34;An LSR MUST arrange that its peer receive an LDP message from it at least every KeepAlive Time period.&#34; Positive: runSession to operational with both sides at 1s and an empty LIB; each of the next three PDUs must be a KeepAlive and each gap at most 1s; the peer feeds ze&#39;s 1s KeepAlive Timer, which removes no assertion. Negative (dual-tagged with RFC5036-3.5.4.1-1): TestRFC5036KeepalivePacingFollowsNegotiatedTime has ze propose 60s and the peer 1s, then requires each of the next three PDUs within 1s of the previous; type is unchecked, which the row allows (any LDP message will do), and a sender pacing from the 60s proposal fails it. Row-quality: the first sentence duplicates RFC5036-3.5.4.1-1 verbatim.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L408" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L406" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1672,7 +1672,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5036-3.5.3-1"><code>RFC5036-3.5.3-1</code></a></h3>
 <p>Two octet unsigned non zero integer that indicates the number of seconds that the sending LSR proposes for the value of the KeepAlive Time. (§3.5.3)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-13 (independent auditor) after 95f99add59 changed processMessages: the only change raises the &#39;ldp: session operational&#39; log line in the KeepAlive case from Debug to Info. The KeepAlive Time zero check and its rejectInit(statusSessionRejectedBadKeepaliveTime) call, handleInit and both tagged units are byte-identical, so the judgement stands. Negative: KeepAlive Time 0 yields Session Rejected/Bad KeepAlive Time referring to message id 7 of type Initialization, errBadKeepaliveTime (isolates this check), non-operational state, non-zero hold and keepalive. Positive: a 30s proposal plus the peer&#39;s KeepAlive reaches operational with negotiated and armed KeepAlive 30s and no Notification within 200ms.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-15 after 22be149a08 changed processMessages: the only change is in the received-Notification branch with the fatal bit set, which now logs at INFO instead of WARN and returns errPeerFatalNotification wrapped with the status and the referred message type. The Initialization case&#39;s KeepAlive Time zero check (initMsg.KeepaliveTime == 0 -&gt; rejectInit(statusSessionRejectedBadKeepaliveTime, msgHdr.MessageID, errBadKeepaliveTime)), handleInit and both tagged units are byte-identical, so the judgement stands. RFC 5036 Section 3.5.3, KeepAlive Time: &#34;Two octet unsigned non zero integer that indicates the number of seconds that the sending LSR proposes for the value of the KeepAlive Time.&#34; Negative: KeepAlive Time 0 yields Session Rejected/Bad KeepAlive Time referring to message id 7 of type Initialization, errBadKeepaliveTime (isolates this check), non-operational state, non-zero hold and keepalive. Positive: a 30s proposal plus the peer&#39;s KeepAlive reaches operational with negotiated and armed KeepAlive 30s and no Notification within 200ms.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1952,12 +1952,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L498" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L500" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036NonEgressFECNotMappedBeforeDownstreamLabel</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L469" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036EgressFECMappedWithoutWaiting</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L471" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036EgressFECMappedWithoutWaiting</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2046,13 +2046,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC5036-2.8.2-13, so there is no linked test.</p>
 <h3><a href="#rfc5036-3.1-1"><code>RFC5036-3.1-1</code></a></h3>
 <p>The first four octets identify the LSR and MUST be a globally unique value. (§3.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Global uniqueness is an operator property; what ze owns is that every LDP Identifier it sends carries the configured lsr-id and that it refuses its own identifier from the wire. The positive now reads the header of a Hello sendHello puts on a real UDP socket and of the Initialization runSession sends on a session built by sessionConfigForAdj, both of which must carry the engine&#39;s 192.0.2.77, and a distinct-LSR Hello must form the adjacency. The negative shows a Hello carrying ze&#39;s own LSR ID forms no adjacency.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-15 after 22be149a08 changed the positive TestRFC5036DistinctLSRIDFormsAdjacency: sendHello lost its logger and now returns the write error, and the test fails at once on it (approved by a ze-test-judge); before, a failed write was only logged at Debug and surfaced later as the read timeout, so no assertion was removed and the failure is now attributed to its cause. RFC 5036 Section 3.1: &#34;The first four octets identify the LSR and MUST be a globally unique value.&#34; Global uniqueness is an operator property; what ze owns is that every LDP Identifier it sends carries the configured lsr-id and that it refuses its own identifier from the wire. Positive: a distinct-LSR Hello forms the adjacency, and the headers of the Hello sendHello puts on a real UDP socket and of the Initialization runSession sends on a session built by sessionConfigForAdj both carry the engine&#39;s 192.0.2.77. Negative (unit unchanged): a Hello carrying ze&#39;s own LSR ID forms no adjacency and fires no callback; processDiscoveryPacket&#39;s own-LSR-ID return precedes the new discard counting and is unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L439" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036OwnLSRIDFormsNoAdjacency</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_procedures_test.go#L441" title="internal/plugins/ldp/rfc5036_procedures_test.go" target="_blank" rel="noopener"><code>TestRFC5036OwnLSRIDFormsNoAdjacency</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2181,7 +2181,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L336" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036RequiredParametersInSpecifiedOrder</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L334" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036RequiredParametersInSpecifiedOrder</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2200,12 +2200,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L105" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L103" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L85" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProposesDownstreamUnsolicited</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L83" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitProposesDownstreamUnsolicited</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2220,7 +2220,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L109" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L107" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitOnDemandProposalKeepsDownstreamUnsolicited</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2235,12 +2235,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L167" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L165" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036EncodeInitDropsPathVectorLimitWithoutLoopDetection</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L151" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L149" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitPathVectorLimitZeroWithoutLoopDetection</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2255,12 +2255,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L217" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsIgnoredOnReceipt</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L215" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsIgnoredOnReceipt</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L203" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsZeroOnTransmission</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L201" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitReservedBitsZeroOnTransmission</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2275,12 +2275,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L311" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L309" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthNeverRaisedAboveOwnProposal</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L254" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L252" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2295,7 +2295,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L257" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L255" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036InitMaxPDULengthTakesTheSmallerProposal</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -2350,12 +2350,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L405" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L403" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036KeepalivePacingFollowsNegotiatedTime</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L381" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036PeerHearsFromZeWithinKeepaliveTime</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ldp/rfc5036_sessionparams_test.go#L379" title="internal/plugins/ldp/rfc5036_sessionparams_test.go" target="_blank" rel="noopener"><code>TestRFC5036PeerHearsFromZeWithinKeepaliveTime</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -3484,7 +3484,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

@@ -95,6 +95,219 @@ passed again after restoration.
 
 ## Running
 
+### VPP mechanism image
+
+`./le --name session build vpp run` builds the pinned, patched VPP image for
+the PPPoE data-plane mechanism lab. Its recipe and patch provenance live in
+[`third_party/vpp-patches`](../../third_party/vpp-patches/README.md). The
+image includes the `af_packet`, Linux CP and PPPoE plugins, with one compile
+worker for the small Docker VM. The answer names its immutable image ID.
+The optional `variant missing-frame-metadata` keyword builds a separate proof
+image that omits parsed metadata; the answer records its variant and immutable
+ID. This counterfactual must fail the same runtime oracle the baseline passes.
+This builds a lab dependency; the existing scenarios below still exercise
+the kernel backend. The complete native mechanism proof passed on 2026-11-16,
+including its separate missing-metadata image.
+<!-- source: internal/le/build/vpp/build.go -- buildImage, imageRecipe -->
+<!-- source: internal/le/build/vpp/register.go -- native build action and image registration -->
+
+### VPP mechanism proof
+
+The native Phase 0 proof is `./le --name session test deployment vpp-pppoe run`.
+It starts three separate peers: patched VPP with a scratch control helper,
+pppd 2.5.5 from the existing client image, and an independent IP traffic host.
+The helper opens a PPPoX datagram socket without opening `/dev/ppp` or
+creating a PPP unit. Its deliberately fixed, unauthenticated LCP/IPCP exchange
+tests the transport mechanism; it is not Ze's subscriber control plane.
+
+The proof runs plain, named-namespace and VLAN access topologies. It requires
+a VPP session before PADS, reciprocal LCP over the raw socket, IPCP service,
+positive traffic through VPP, a measured 1492-byte session MTU boundary,
+increases in both VPP session packet counters across the controlled ping, and
+RS/DHCPv6 delivery to the control socket. The VPP access MAC is set explicitly
+and checked against the injection destination. The checker waits for pppd's
+actual PPP interface and assigned address, then installs and reads back a
+specific return route through that interface, so the shared Docker Ethernet
+segment cannot carry subscriber replies around VPP.
+VPP omits zero counters from this CLI output, so one small warm-up round trip
+makes both counter rows observable before the separate measured ping burst.
+An IP data frame appearing on the control TAP fails the run. Namespace sockets
+are opened in the LCP namespace and then used after returning to the caller's
+namespace. The VPP container receives the network and namespace grants and
+TUN/vhost devices it needs. Its memlock soft and hard limits are 256 MiB:
+the pinned AF_PACKET driver's one interface locks a 10 MiB RX ring and a
+66 MiB TX ring. This limit retains headroom without an `IPC_LOCK` grant or
+privileged mode.
+<!-- source: internal/le/test/deployment/vpppppoe/plan.go -- mechanismPlan -->
+
+The MTU check keeps the 1492-byte positive packet and 1493-byte refusal.
+It then reads the client's actual PPP MTU and requires more than 1400 bytes.
+Only VPP's session IPv4 MTU is lowered to 1400 and read back. A 1400-byte
+DF packet must pass; a 1401-byte DF packet must fail with ping exit 1 and
+an explicit measured MTU of 1400. The client's larger limit cannot produce
+that boundary. VPP's MTU is restored to 1492 and read back, including after
+failure or cancellation, with the existing bounded command budget.
+<!-- source: internal/le/test/deployment/vpppppoe/mtu.go -- checkIndependentMTU -->
+
+Before starting pppd, the checker requires an empty VPP session table and
+records the `pppoe-input` malformed-length counter. The wire peer sends physically padded IPv6 packets whose
+PPPoE declared length contains only the PPP protocol. A valid discovery frame
+follows as a receive-path barrier. The malformed packets must not reach the
+control TAP. After the barrier the session table must remain empty, and the
+same receiving-node counter must increase by at least two. A stale count,
+another node's matching description or an unreadable CLI answer fails.
+This check runs before the
+optional `test pppoe frame-bounds` buffer test, so an original image fails on
+its packet behavior rather than simply lacking the new test command.
+
+The unchanged 31 parser cases are followed by `test pppoe receive-bounds`.
+That separate command submits real graph frames to exercise scalar input,
+both paired input lanes and control dispatch. It checks native drops, counter
+increments, initialized trace metadata and unchanged session allocation. Only
+the complete answer `PPPoE receive bounds: 4 paths passed` permits dialing.
+These checks passed in all three native topologies on 2026-11-16.
+
+Discovery diagnostics capture at most 32 packets for at most 60 seconds on
+the VPP peer, after confirming tcpdump has started. Failure evidence includes
+its text output and the helper's first sixteen received/sent discovery
+envelopes. The suite removes the container and capture on every cleanup path.
+The scratch helper retries interrupted socket calls within its existing
+context; blocking reads and writes each have one-second socket timeouts.
+The VLAN topology creates an LCP pair for the data subinterface as well as
+its parent, then maps the actual CP child returned by `show lcp`. Creating
+only a Linux VLAN device leaves VPP without the matching control-side VLAN
+interface and drops returning discovery before PPPoE dispatch.
+<!-- source: internal/le/test/deployment/vpppppoe/capture.go -- startDiscoveryCapture -->
+<!-- source: internal/le/test/deployment/vpppppoe/control_io.go -- controlIO -->
+
+`run image sha256:<complete-image-id>` selects a prebuilt immutable VPP image
+for that counterfactual while preparing the helper and independent client
+from the current source. The normal run builds the canonical patched recipe.
+Every action probes Docker, freshly stages its Ze/helper binaries and checks
+the Docker host's runtime kernel before building its first source image. This
+also applies to the combined proof's retained baseline, standalone binding and
+metadata images, and the client image built beside a supplied VPP image.
+An unsuitable host therefore refuses before the VPP source compilation starts.
+
+The proof's Docker host must run Ze's kernel. The existing QEMU carrier boots
+Ze's Docker-host appliance and forwards its Docker socket to this native lab:
+
+```text
+./le --name session test qemu docker-lab \
+  lab "test deployment vpp-pppoe run" timeout 3600s
+```
+
+The `lab` branch selects and validates the appliance's own runtime kernel.
+The separate `command`/`harness` branch starts no Docker daemon and is not this
+carrier. Source image compilation on Colima establishes artifact buildability;
+it does not establish these kernel-dependent packet results. This proof is
+manually invoked while the post-release feature is developed. On 2026-11-16,
+plain, named-namespace and VLAN access all passed on baseline image
+`sha256:a0aac6ad351b37311384caa5fab112630d3a733875777faffc5689a61a6085bc`.
+This uses the scratch control helper, not Ze's subscriber authentication and
+session provider.
+
+On failure, the shared suite captures bounded tails of VPP's startup/runtime
+logs, the control helper's launch log and error/state markers, and pppd's log
+before removing the containers and
+temporary files. A failed Docker or permission probe of the error marker stays
+an error; only a completed missing-file answer permits reading the state.
+Each control helper VPP CLI command has the same 30-second budget as a
+mechanism readiness query, including cleanup after the parent is canceled.
+Image release failures are reported alongside the original setup or staging
+refusal and any earlier cleanup errors.
+<!-- source: internal/le/test/deployment/vpppppoe/plan.go -- Run, mechanismPlan -->
+<!-- source: internal/le/test/deployment/vpppppoe/check.go -- checkMechanism -->
+<!-- source: internal/le/test/deployment/vpppppoe/control_linux.go -- runControl, openInNamespace -->
+
+The manually invoked `proof` action runs that entire positive mechanism,
+then starts one separate VPP peer using its exact immutable image to run the
+control-binding API regression described below. Only after both pass does it
+build the `missing-frame-metadata` variant on the same Docker daemon. Its late
+Docker layer reuses the completed positive compilation. Run all three stages
+under one Ze-kernel guest with:
+
+```text
+./le --name session test qemu docker-lab \
+  lab "test deployment vpp-pppoe proof" timeout 3600s
+```
+
+The final stage starts a separate VPP peer without a PPP client or control
+helper. It reads back `/usr/share/doc/vpp/proof-variant`, then requires the
+buffer test to answer `empty PADT: wrong session ID 0, expected 17`. Pinned
+`vppctl` returns zero for CLI assertion errors, so the exact diagnostic proves
+the intended failure; a process error, missing command, different assertion or
+31-case success marker fails the proof. The result records each stage's image
+identity, variant and outcome. A failed baseline or binding regression stops
+before the counterfactual runs. The binding stage follows all three mechanism
+topologies, preserving the malformed-wire-first check against an old receiver
+that does not provide the optional binding command.
+
+The isolated parser step has a 90-second bound and each CLI query has a
+30-second bound. The shared suite removes its peer before the image lease is
+released and task scratch is removed; image cleanup remains bounded after
+cancellation. The combined proof passed on 2026-11-16: three baseline
+topologies, same-image binding/ownership checks, and the exact metadata
+assertion from image
+`sha256:92da1e02c179f5731d3a6fbe9010333f50fe17bafc419252b589ab298f1d04d0`.
+Its Ze-kernel guest reported check, command and lab exits of zero, stopped the
+VM and left nothing behind. Product-provider and ownership-discrimination
+tests remain separate.
+<!-- source: internal/le/test/deployment/vpppppoe/proof.go -- runProof, runMetadataProof, checkMetadataOracle -->
+<!-- source: internal/le/test/deployment/vpppppoe/register.go -- proof action and signal context -->
+
+The manually invoked `bindings` action runs the normal baseline VPP image
+alone and executes `test pppoe cp-binding`, followed by `test pppoe ownership`.
+The first command exercises the C map API with
+software and hardware interface indices that differ, invalid, absent and
+mismatched deletions, preservation of unrelated bindings, and exact-pair
+removal. Run it through the same Ze-kernel carrier:
+
+```text
+./le --name session test qemu docker-lab lab "test deployment vpp-pppoe bindings" timeout 3600s
+```
+
+The checker reads back the `baseline` variant and accepts only a completed
+CLI call whose complete answer is `PPPoE cp binding: 10 cases passed`, with
+no error output. In particular, `unmapped deletion was accepted` is a failed
+API regression even though pinned `vppctl` exits zero for that assertion.
+The report preserves the C assertion text; an unknown command, process error
+or transport failure cannot count as a pass. This uses no deliberately broken
+image and adds no proof variant. On 2026-11-15 the unchanged regression failed
+with `unmapped deletion was accepted` before the separate producer repair,
+then passed all ten cases with that repair in the same Ze-kernel Docker guest.
+This establishes the binding API behavior; the packet mechanism proof is
+separate. The checker then requires the complete answer
+`PPPoE ownership: 55 cases passed`, with no error output, from the same isolated
+VPP instance. This second command exercises process, session and policer object
+tokens, guarded interface, route, gate and policer mutations, and index reuse.
+It includes a stock IPv6 session whose FIB index has no corresponding IPv4
+table. Foreign sessions remain present with their actual owner token; their
+undecidable table ID is `~0` rather than an IPv4 lookup. A missing command,
+the earlier 30- or 31-case answer, an assertion or cleanup error refuses the
+stage. On 2026-11-16, both complete answers passed in the current Ze-kernel
+guest on image
+`sha256:a017bfa233b228b5e486a2ec74fc7a2c5d52c7cf078af66dead01e36139d4d06`.
+The preceding ownership run exposed an IPv4 route left after withdrawal.
+Preserving the requested path before native normalization repaired that failure
+while retaining the assertion. Ownership discrimination and the full packet
+mechanism proof remain separate checks.
+
+This action shares the isolated parser step's fresh staged Ze, runtime-kernel
+validation, 90-second scenario bound and bounded cleanup. The standalone
+action builds one image lease and removes its peer before releasing that
+lease and scratch; the shared image cache tag is preserved. Inside `proof`,
+the binding stage reuses the completed baseline's immutable image directly,
+without rebuilding it or acquiring a second build lease. The combined proof
+owns the baseline's single build lease across the full mechanism, binding and
+metadata stages. It releases that lease only after the last reached stage has
+removed its peers, including on failure or cancellation. Moving the shared
+cache tag during another build cannot remove this retained baseline image.
+<!-- source: internal/le/test/deployment/vpppppoe/proof.go -- runBindingProof, runSingleVPPProof, checkBindingOracle, checkOwnershipOracle -->
+<!-- source: internal/le/test/deployment/vpppppoe/register.go -- bindings action and answerBindings -->
+
+### Kernel scenarios
+
 ```
 ./le test deployment docker-pppoe-accel
 ZE_PPPOE_INTEROP_SCENARIO=01-pppoe-chap-ipv4 ./le test deployment docker-pppoe-accel

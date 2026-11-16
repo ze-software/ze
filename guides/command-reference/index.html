@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Command Reference - Ze</title>
         <meta name="description" content="Ze documentation: guide/command-reference.md" />
         <meta property="og:title" content="Command Reference - Ze" />
@@ -69,6 +69,8 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#ze-show-system">ze show system</a></li>
 <li><a href="#show-plugin-list">show plugin list</a></li>
 <li><a href="#show-plugin-declarations">show plugin declarations</a></li>
+<li><a href="#show-plugin-conformance-run">show plugin conformance run</a></li>
+<li><a href="#request-container-restart">request container restart</a></li>
 <li><a href="#request-plugin-restart">request plugin restart</a></li>
 <li><a href="#show-host">show host</a></li>
 <li><a href="#show-storage-smart">show storage smart</a></li>
@@ -91,7 +93,8 @@ and <strong>runtime commands</strong> sent to the running daemon via SSH.</p>
 <li><a href="#is-is-offline-tools">IS-IS (Offline Tools)</a></li>
 <li><a href="#show-pki">show pki</a></li>
 <li><a href="#show-firewall">show firewall</a></li>
-<li><a href="#show-update-and-clear-firewall-irr">show, update and clear firewall irr</a></li>
+<li><a href="#show-update-and-clear-irr">show, update and clear irr</a></li>
+<li><a href="#show-firewall-irr">show firewall irr</a></li>
 <li><a href="#show-update-and-clear-firewall-domain-group">show, update and clear firewall domain-group</a></li>
 <li><a href="#show-system-uptime">show system uptime</a></li>
 <li><a href="#show-system-sockets">show system sockets</a></li>
@@ -1253,7 +1256,7 @@ log line cannot corrupt the answer.</p>
 </tr>
 <tr>
 <td><code>state</code></td>
-<td>One of the five below</td>
+<td>One of the six below</td>
 </tr>
 <tr>
 <td><code>commands</code></td>
@@ -1291,23 +1294,150 @@ log line cannot corrupt the answer.</p>
 </tr>
 <tr>
 <td><code>unstartable</code></td>
-<td>the process could not be started</td>
+<td>the process could not be started, or it wrote a declaration the daemon refuses at Stage 1</td>
 </tr>
 <tr>
 <td><code>timeout</code></td>
 <td>the process started, wrote no declaration inside the budget, and was stopped</td>
+</tr>
+<tr>
+<td><code>not-judged</code></td>
+<td>an answer arrived in a binary that holds no Stage 1 checks, so nobody judged the declaration</td>
 </tr>
 </tbody>
 </table>
 <p>No plugin is ever omitted: a plugin that could not answer keeps its row and says
 why. <code>declared-none</code> and <code>no-answer</code> stay apart, because a plugin with nothing
 to declare and a plugin that answered nothing are different facts.</p>
+<p>A declaration that was read is judged by the checks the daemon applies at
+Stage 1, so a row reads <code>declared</code> only when the daemon would start the plugin.
+A refused declaration reads <code>unstartable</code>, and its reason is the daemon's own.
+The <code>ze</code> binary holds the checks, so <code>not-judged</code> appears only in another
+binary, and its reason says to run the command from <code>ze</code>.</p>
 <p>The budget is 5 seconds per plugin, the same wait a startup stage gets, and
 <code>ze.plugin.query.timeout</code> sets it. Zero or less is refused rather than read as
 "wait no time". A plugin that runs out of it is stopped with everything it
 started.</p>
 <!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
 <!-- source: internal/component/plugin/register.go -- the two show plugin declarations registrations -->
+<!-- source: internal/component/plugin/declaration_judge.go -- JudgeDeclaration, ErrNoDeclarationJudge -->
+<h3 id="show-plugin-conformance-run">show plugin conformance run</h3>
+<p>Checks that a program behaves as a Ze plugin. The command starts the program in
+declare mode and judges what it wrote, with the checks the daemon applies at
+Stage 1. It needs no daemon and no config file.</p>
+<pre><code>ze show plugin conformance run "./my-plugin --flag"                     # judge the program
+ze show plugin conformance run "./my-plugin --flag" name acme-monitor   # name the plugin in the report
+</code></pre>
+<p>The value after <code>run</code> is the run string of <code>plugin { external &lt;name&gt; { run ...; } }</code>, as one quoted token. A shell starts it. Without <code>name</code>, the plugin
+name is the file name of the program. The budget is <code>ze.plugin.query.timeout</code>,
+5 seconds by default.</p>
+<p>The answer holds one row for each check, with these keys:</p>
+<table>
+<thead>
+<tr>
+<th>Key</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>check</code></td>
+<td>The name of the check</td>
+</tr>
+<tr>
+<td><code>stage</code></td>
+<td><code>declare</code>, a stage number, <code>transport</code>, <code>runtime</code>, <code>shutdown</code> or <code>schema</code></td>
+</tr>
+<tr>
+<td><code>verdict</code></td>
+<td><code>pass</code>, <code>fail</code> or <code>not-judged</code></td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td>What the check found. Absent on a passed row</td>
+</tr>
+<tr>
+<td><code>fix</code></td>
+<td>The change that clears the row. Absent on a passed row</td>
+</tr>
+</tbody>
+</table>
+<p>A <code>not-judged</code> row is a behavior this version does not check, such as the TLS
+connect-back and Stages 2 to 5. An answer with no failed row is therefore not
+full conformance. Each check is described in
+<a href="../../developers/plugins/testing/">plugin-development/testing.md</a>.</p>
+<table>
+<thead>
+<tr>
+<th>Exit code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>1</td>
+<td>One row or more failed</td>
+</tr>
+<tr>
+<td>2</td>
+<td>The run did not happen, so there is no answer</td>
+</tr>
+</tbody>
+</table>
+<p>The command runs in your own <code>ze</code> process only. Through the daemon (SSH, the
+web UI, REST, gRPC, MCP) it starts nothing: the daemon starts no program that a
+remote caller names, and it answers a refusal that gives the command to run in
+your own shell.</p>
+<!-- source: internal/component/plugin/conformance/register.go -- dataConformance, refuseRemoteCaller, init -->
+<!-- source: internal/component/plugin/conformance/conformance.go -- Run, Row, ExitConforms, ExitViolation, ExitNoRun -->
+<h3 id="request-container-restart">request container restart</h3>
+<p>Stops the named container, then starts it again. The command exists in a build
+with the <code>ze_container</code> tag and runs in the daemon, in the <code>container</code> plugin.</p>
+<pre><code>ze request container restart name &lt;name&gt;     # &lt;name&gt; is the container's configured name
+</code></pre>
+<p>There is no start command and no stop command: the <code>enabled</code> statement of a
+container says whether it runs.</p>
+<p>The container runtime is not complete, so no build starts a container today
+and the command answers one of these refusals:</p>
+<table>
+<thead>
+<tr>
+<th>Refusal</th>
+<th>When</th>
+<th>Fix the refusal names</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>request container restart needs the name of a container</code></td>
+<td>the command reached the plugin with no name. The command's schema makes the name mandatory, so the daemon can refuse the line before the plugin runs</td>
+<td><code>ze request container restart name NAME</code></td>
+</tr>
+<tr>
+<td class="cell-no">✕</td>
+<td>the configuration holds no container of that name</td>
+<td><code>ze show config running</code></td>
+</tr>
+<tr>
+<td><code>container &lt;name&gt; is disabled in the configuration</code></td>
+<td>its <code>enabled</code> statement is false: a restart would start what the configuration keeps stopped</td>
+<td><code>set container instance &lt;name&gt; enabled true</code></td>
+</tr>
+<tr>
+<td><code>container &lt;name&gt; cannot run: this build of ze does not start containers yet</code></td>
+<td>the container is enabled</td>
+<td><code>set container instance &lt;name&gt; enabled false</code></td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/plugins/container/container.go -- handleCommand, commandDecls -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.restart, unknownInstance -->
+<!-- source: internal/plugins/container/config.go -- runtimeNotBuilt -->
+<!-- source: internal/plugins/container/yang/ze-container-cmd.yang -- YANG schema -->
 <h3 id="request-plugin-restart">request plugin restart</h3>
 <p>Restarts a configured plugin without restarting ze, whether it runs or not.
 A plugin can stop for good on several paths: its failure policy left it
@@ -1477,6 +1607,14 @@ The commands work without a running Ze daemon. Every field returned by `ze show 
 <!-- source: internal/component/host/inventory.go -- Inventory struct and types -->
 <p>Online (daemon) and offline (fallback) paths share the same detection library, so
 the JSON shapes are identical either way.</p>
+<p><code>ze request system storage grow</code> is the command that grows the persistent
+storage of an appliance to the size of its disk. The daemon serves it on every
+command surface. Its work is not written yet: today it answers a refusal and
+changes no disk. On a system that does not run Linux the refusal says the
+system is not a Ze appliance.</p>
+<!-- source: internal/plugins/host-cmd/yang/ze-host-request-cmd.yang -- request system storage grow -->
+<!-- source: internal/plugins/host-cmd/cmd/storage_grow_linux.go -- handleStorageGrow -->
+<!-- source: internal/plugins/host-cmd/cmd/storage_grow_other.go -- handleStorageGrow -->
 <p><strong>Sections:</strong></p>
 <table>
 <thead>
@@ -1806,14 +1944,41 @@ plus TE links with their Link ID, local/remote address, link type, TE metric,
 bandwidths, admin group, and (for inter-AS links) remote AS and remote ASBR.
 <strong><code>show ospf database router-information</code></strong> decodes the RFC 7770 Router Information
 LSAs for both address families (OSPFv2 Opaque type 4 and OSPFv3 function code 12) into
-the advertised informational capability bits and the TLV list.</p>
+the advertised informational capability bits and the TLV list. Its OSPFv3 entries come
+from every running OSPFv3 instance, and each one names its <code>address-family</code> and
+<code>instance-id</code> after <code>af</code>; <strong><code>show ospf ipv6 database router-information</code></strong> shows those
+OSPFv3 entries alone.</p>
 <p><strong><code>show ospf segment-routing</code></strong> and <strong><code>show ospf ipv6 segment-routing</code></strong> render the
 RFC 8665 / RFC 8666 Segment Routing state for each address family: the configured
 SRGB/SRLB label ranges, the advertised SR-Algorithm, this node's node Prefix-SIDs, and
 the Adjacency-SIDs allocated per adjacency.</p>
+<p>OSPFv3 runs one instance per configured address family (RFC 5838), and every
+<code>show ospf ipv6</code> view answers for all of them: <strong><code>neighbor</code></strong>, <strong><code>neighbor detail</code></strong>,
+<strong><code>interface</code></strong>, <strong><code>interface detail</code></strong>, <strong><code>spf</code></strong>, <strong><code>spf detail</code></strong>,
+<strong><code>graceful-restart</code></strong>, <strong><code>segment-routing</code></strong>, <strong><code>route</code></strong> and every <strong><code>database</code></strong>
+view. Each row names its <code>address-family</code> and <code>instance-id</code>, so the rows of the
+IPv6-unicast and IPv4-unicast instances can be told apart in <code>| json</code> and <code>| table</code>.
+With no OSPFv3 address family configured, the two segment-routing views,
+<code>segment-routing</code> and <code>database segment-routing</code>, answer one record: the IPv6
+Segment Routing state of the OSPFv2 Router ID, which belongs to no OSPFv3 instance and
+carries neither key.
+<strong><code>show ospf ipv6 route</code></strong> lists the routes each OSPFv3 instance computed;
+<code>show ospf route</code> lists the OSPFv2 ones. Each of these views, and <strong><code>show ospf database router-information</code></strong> for its OSPFv3 part, takes an optional <code>address-family</code> keyword
+followed by <code>ipv6-unicast</code>, <code>ipv6-multicast</code>, <code>ipv4-unicast</code> or <code>ipv4-multicast</code>, which
+narrows the answer to that instance:</p>
+<pre><code>show ospf ipv6 neighbor address-family ipv4-unicast
+</code></pre>
+<p>Any other word is refused with the four accepted names. A family the config does not run
+is refused with the running ones named; <strong><code>show ospf ipv6 instance</code></strong> lists them.
+<strong><code>debug ipv6 ospf inject lsa</code></strong> takes the same keyword to choose which instance's LSDB
+receives the LSA, and without it injects into the IPv6-unicast instance. Until <code>debug ospf inject enable</code> arms injection, the command is refused whatever family it names.</p>
+<!-- source: internal/plugins/ospf/yang/ze-ospf-cmd.yang -- grouping ospfv3-address-family, container route -->
+<!-- source: internal/plugins/ospf/cmd_show.go -- afViewForwarder, addressFamilyArgs -->
+<!-- source: internal/plugins/ospf/debug_wiring.go -- v3Views, v3SegmentRoutingView -->
 <!-- source: internal/plugins/ospf/register.go -- OnExecuteCommand show ospf route/spf/border-routers -->
 <!-- source: internal/plugins/ospf/te_show.go -- teDatabaseSnapshot, teDecodeOpaqueLSA -->
-<!-- source: internal/plugins/ospf/ri_show.go -- riDatabaseSnapshot, decodeRIBody -->
+<!-- source: internal/plugins/ospf/ri_show.go -- routerInformationView, v3RouterInformationView, riDatabaseSnapshot, decodeRIBody -->
+<!-- source: internal/plugins/ospf/inject_v3.go -- debugInjectIntoAF, splitInjectAddressFamily -->
 <!-- source: internal/plugins/ospf/show_database.go -- dbSubviewType opaque-link/opaque-area/opaque-as -->
 <!-- source: internal/plugins/ospf/spf/route.go -- RouteSnapshotEntry -->
 <!-- source: internal/plugins/ospf/spf/interarea.go -- BorderRouterSnapshotEntry -->
@@ -1982,30 +2147,51 @@ raw elements.</p>
 <!-- source: internal/plugins/firewall/nft/cmd_show.go -- handleShowFirewallRuleset, handleShowFirewallGroup -->
 <!-- source: internal/component/firewall/engine.go -- runEngine; OnConfigApply stores LastApplied -->
 <!-- source: internal/plugins/firewall/nft/backend_linux.go -- addChainRules (UserData + auto Counter), readRuleCounter -->
-<h3 id="show-update-and-clear-firewall-irr">show, update and clear firewall irr</h3>
-<p>IRR prefix-list data behind firewall rules and interface bindings. Provided by
-the <code>firewall-irr</code> plugin.</p>
-<pre><code>ze show firewall irr                    # Cached entries: counts, freshness, data age
-ze show firewall irr prefix &lt;name&gt;      # Prefixes cached for an ASN or AS-SET
-ze update firewall irr all              # Refresh every cached entry
-ze update firewall irr asn &lt;asn&gt;        # Fetch or refresh one ASN
-ze update firewall irr as-set &lt;as-set&gt;  # Fetch or refresh one AS-SET
-ze clear firewall irr asn &lt;asn&gt;         # Remove one ASN's cached prefixes
-ze clear firewall irr as-set &lt;as-set&gt;   # Remove one AS-SET's cached prefixes
+<h3 id="show-update-and-clear-irr">show, update and clear irr</h3>
+<p>The IRR datasets the <code>irr</code> plugin fetches, schedules and stores for every IRR
+consumer. One stored dataset serves every consumer that names its AS-SET, and a
+restart enforces the stored copy without asking the server.</p>
+<pre><code>ze show irr                       # Stored datasets, their schedule and consumers
+ze update irr all                 # Fetch every referenced AS-SET now
+ze update irr asn &lt;asn&gt;           # Ask PeeringDB for the AS-SET, then fetch it now
+ze update irr as-set &lt;as-set&gt;     # Fetch one AS-SET now, referenced or not
+ze clear irr asn &lt;asn&gt;            # Remove the AS number's binding and its dataset
+ze clear irr as-set &lt;as-set&gt;      # Remove one stored dataset
 </code></pre>
-<p><strong><code>show firewall irr</code></strong> reports one entry per configured reference. <code>status</code>
-takes one of three values. It is <code>ok</code> when the prefixes are what the IRR last
-answered. It is <code>stale</code> when a later refresh returned nothing and the previous
-prefixes stay in force. It is <code>missing</code> when nothing is cached. A stale entry also carries <code>stale-since</code>, and every
-cached entry carries <code>data-age-seconds</code>.</p>
-<p><strong><code>update firewall irr ...</code></strong> reports an error when the server returns no
-prefixes. The cached prefixes are kept rather than replaced with an empty list,
-which would drop every packet the filter was written to accept.</p>
-<p><strong><code>clear firewall irr ...</code></strong> is how prefixes are removed. It drops the entry from
-memory and from ZeFS and re-applies the tables. Use it when an AS-SET is
-deregistered upstream: no IRR answer removes prefixes on its own.</p>
-<!-- source: internal/component/firewall/plugins/irr/command.go -- handleCommand, showIRR, showIRRPrefix, updateASN, updateASSet, clearASN, clearASSet -->
-<!-- source: internal/component/resolve/irr/store/store.go -- Refresh keeps last-known-good, Purge removes -->
+<p><strong><code>show irr</code></strong> answers <code>server</code>, <code>refresh-interval</code>, <code>schedule</code> (<code>automatic</code>, or
+<code>manual</code> with <code>system irr refresh-interval 0</code>) and one <code>datasets</code> row per
+stored or referenced AS-SET: <code>as-set</code>, <code>server</code>, <code>status</code> (<code>stored</code>, <code>stale</code>,
+<code>pending</code>, <code>failing</code> or <code>cleared</code>), <code>ipv4-count</code>, <code>ipv6-count</code>,
+<code>refreshed-at</code>, <code>checked-at</code> (the last time the server answered), <code>stale-since</code>,
+<code>next-refresh</code> (a time, <code>manual</code>, or <code>none</code>), <code>generation</code> and <code>consumers</code>.
+AS-SET names are stored in upper case, whatever case a consumer or the operator
+wrote.</p>
+<p><strong><code>update irr ...</code></strong> answers the dataset's row, or an error when the server gave
+nothing Ze can store; the stored list stays enforced then. An answer that names
+no prefix keeps the stored list and marks it <code>stale</code>.</p>
+<p><strong><code>clear irr ...</code></strong> removes the stored copy and answers <code>removed</code> and the
+<code>consumers</code> whose configuration still references it. Those consumers stop
+enforcing it, and it is not fetched again until <code>update irr</code> runs or a commit
+newly names it.</p>
+<!-- source: internal/plugins/irr/command.go -- handleCommand, showIRR, updateASSet, updateASN, updateAll, clearASSet, clearASN, rowOf -->
+<h3 id="show-firewall-irr">show firewall irr</h3>
+<p>The IRR lists firewall rules and interface bindings enforce. Provided by the
+<code>firewall-irr</code> plugin, which fetches nothing: <code>update irr</code> and <code>clear irr</code>
+above fetch, store and remove the lists it reads.</p>
+<pre><code>ze show firewall irr                    # One entry per reference: what is enforced, and from which stored copy
+ze show firewall irr prefix &lt;name&gt;      # Prefixes enforced for an ASN or AS-SET
+</code></pre>
+<p><strong><code>show firewall irr</code></strong> answers <code>{"entries":[...]}</code>, one entry per configured
+reference, in name order (an empty array with no reference). <code>status</code> is <code>ok</code>
+when the stored copy is what the IRR last answered, <code>stale</code> when a later refresh
+returned nothing and the stored prefixes stay in force, <code>oversized</code> when one
+family holds more prefixes than a firewall set takes, <code>unreadable</code> when a
+stored value exists and cannot be used (its <code>error</code> says why; the copy read
+before stays enforced), and <code>missing</code> when nothing is stored. An enforced
+entry carries <code>as-set</code>, <code>server</code>, <code>generation</code>, <code>ipv4-count</code>, <code>ipv6-count</code>,
+<code>checked-at</code>, <code>refreshed-at</code> and <code>data-age-seconds</code>, and a stale one
+<code>stale-since</code>.</p>
+<!-- source: internal/component/firewall/plugins/irr/command.go -- handleCommand, showIRR, writeShowEntry, showIRRPrefix -->
 <h3 id="show-update-and-clear-firewall-domain-group">show, update and clear firewall domain-group</h3>
 <p>DNS-resolved addresses behind firewall rules that name a domain group. Provided
 by the <code>firewall-domain</code> plugin.</p>
@@ -2233,9 +2419,8 @@ names the config to commit.</p>
 <h3 id="clear-peeringdb-cache-clear-irr-cache-clear-cymru-cache">clear peeringdb cache / clear irr cache / clear cymru cache</h3>
 <p>Each owner of a resolver client clears the client it uses now. The hub clears
 the one <code>resolve peeringdb</code>, <code>resolve irr</code> or <code>resolve cymru</code> uses, and every
-plugin that declared that cache clears its own: <code>bgp-filter-irr</code> and
-<code>firewall-irr</code> hold an IRR and a PeeringDB client, inside the daemon or as their
-own process. A client a plugin replaced on a reload is not cleared or counted.
+plugin that declared that cache clears its own: the <code>irr</code> plugin holds an IRR
+and a PeeringDB client, inside the daemon or as its own process. A client a plugin replaced on a reload is not cleared or counted.
 The client <code>bgp peer prefix update</code> builds lives for one command, so no clear
 reaches it. The bare form is refused and lists the two forms: clearing
 everything needs the word <code>all</code>.</p>
@@ -2250,10 +2435,10 @@ clear cymru cache address 2001:db8::1               # Remove the origin of one a
 row per owner with its <code>owner</code> name and its <code>removed</code> count. A keyed form also
 answers <code>found</code>, true when any owner held the key. An owner that does not answer
 makes the command an error that names it, says how many entries the others
-removed, and points at <code>show plugin list</code>. The IRR filters' stored prefix lists
-are not a cache and stay.</p>
+removed, and points at <code>show plugin list</code>. The prefix lists the <code>irr</code> plugin
+stores are not a cache and stay: <code>clear irr as-set</code> removes one.</p>
 <pre><code>clear irr cache all | json
-{"action":"clear-all","removed":3,"owners":[{"owner":"hub","removed":0},{"owner":"bgp-filter-irr","removed":3}]}
+{"action":"clear-all","removed":3,"owners":[{"owner":"hub","removed":0},{"owner":"irr","removed":3}]}
 </code></pre>
 <!-- source: internal/component/resolve/cmd/clear_caches.go -- handleClearPeeringDBCacheAll, handleClearPeeringDBCacheASN, handleClearIRRCacheAll, handleClearIRRCacheASSet, handleClearCymruCacheAll, handleClearCymruCacheAddress, clearAnswer -->
 <!-- source: internal/component/resolve/irr/store/clear.go -- ClearResolverCache -->
@@ -3381,11 +3566,16 @@ its refusals are the ones <code>update data key</code> gives below. A file over 
 bytes is refused before anything connects, with the daemon's own refusal: one
 SSH packet carries the whole command, and 195,840 bytes is what it holds. Write
 a larger value with ze stopped. With ze stopped, <code>write</code> writes any key, of any
-size.</p>
+size. An empty file is the one input the two routes answer differently. While a
+daemon owns the store it is refused before anything connects: the daemon
+command takes no empty content, because a key is taken out with
+<code>delete data key</code>, never emptied. With ze stopped it writes an empty key.</p>
 <!-- source: internal/component/config/storage/cli/main.go -- cmdWrite, writeKey, writeKeyThroughDaemon -->
 <p><code>import</code> lands each file in the config named by its file name, under the key
 <code>file/active/&lt;basename&gt;</code>, and prints <code>imported &lt;key&gt; (&lt;n&gt; bytes)</code> per file and
-<code>&lt;n&gt; files imported into &lt;store&gt;</code>. A config the store already holds is
+<code>&lt;n&gt; files imported into &lt;store&gt;</code>. Stdin (<code>-</code>) is refused on both routes,
+because it has no file name to name the config: import it with
+<code>ze config import --name &lt;name&gt; -</code>. A config the store already holds is
 committed as a new active version and the previous one is kept as rollback, as
 <code>ze config import</code> replaces one, so a daemon started after the import runs the
 imported config. A config the store does not hold yet is written as its key.
@@ -4608,7 +4798,7 @@ authority returns an error, rather than an empty candidate table.</p>
 <tr>
 <td><code>show bgp irr</code></td>
 <td>read-only</td>
-<td>Per-ASN IRR filter status: AS-SET, prefix count, server, last/next refresh</td>
+<td>Per-ASN IRR filter status: AS-SET, prefix count, and the stored copy enforced (server, generation, checked-at, refreshed-at); <code>show irr</code> gives the refresh schedule</td>
 </tr>
 <tr>
 <td><code>show bgp irr prefix &lt;peer&gt;</code></td>
@@ -4618,22 +4808,7 @@ authority returns an error, rather than an empty candidate table.</p>
 <tr>
 <td><code>show bgp irr check &lt;peer&gt; &lt;prefix&gt;</code></td>
 <td>read-only</td>
-<td>Test whether a prefix would be accepted by the IRR filter</td>
-</tr>
-<tr>
-<td><code>update bgp irr all</code></td>
-<td>write</td>
-<td>Refresh all IRR prefix-lists immediately</td>
-</tr>
-<tr>
-<td><code>update bgp irr asn &lt;asn&gt;</code></td>
-<td>write</td>
-<td>Refresh IRR prefix-list for a specific ASN</td>
-</tr>
-<tr>
-<td><code>update bgp irr as-set &lt;as-set&gt;</code></td>
-<td>write</td>
-<td>Refresh IRR prefix-list for a specific AS-SET <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck, updateASN, updateASSet --></td>
+<td>Test whether a prefix would be accepted by the IRR filter. The IRR fetch commands are the <code>irr</code> plugin's (<code>update irr ...</code>, "show, update and clear irr") <!-- source: internal/component/bgp/plugins/filter_irr/command.go -- handleCommand, showIRR, showIRRPrefix, showIRRCheck --></td>
 </tr>
 <tr>
 <td><code>update bgp peer &lt;sel&gt; prefix</code></td>
@@ -5570,7 +5745,7 @@ reaches, where the daemon expands the chain.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 22:40 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

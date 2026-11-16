@@ -190,6 +190,7 @@ Plugin sends `ze-plugin-engine:declare-registration` with a `DeclareRegistration
 | `claims` | `[]string` | Exclusive runtime roles the plugin takes over |
 | `failure-policy` | `string` | What ze does when this plugin fails: `restart`, `ignore` or `fatal`. Omitting it means `ignore` |
 | `signals-session-ready` | `bool` | Your routes belong to a peer's initial routing update, and you report `plugin session ready` once they are out ("The session-ready report") |
+| `started-handler` | `bool` | You initialize local resources after ready; answer runtime-ready only after that initialization succeeds. The Go SDK derives it from OnStarted |
 
 **The failure policy is what your plugin asks ze to do when your plugin fails.**
 It is voluntary, and a plugin that omits it is carried on without. A value that
@@ -199,7 +200,7 @@ is none of the three fails the whole registration, so ze never guesses.
 |-------------|---------|---------------------------------|
 | `restart` | starts the plugin again, bounded at 5 in 60 seconds and 20 in the life of the daemon | Yes |
 | `ignore` | logs it and carries on without the plugin | No |
-| `fatal` | stops ze | No |
+| `fatal` | stops ze, which exits 1 | No |
 
 `fatal` is open to any plugin, whether ze ships it or you wrote it (owner
 directive, 2026-09-06). An operator who configures your plugin accepts its
@@ -452,9 +453,11 @@ startup completion. This avoids a race where `SignalAPIReady` triggers route sen
 a separate `subscribe-events` RPC could be processed.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- SetStartupSubscriptions -->
 
-When `transport` is `"bridge"`, the engine activates bridge callbacks on the `PluginConn`
-and the SDK closes the pipe after receiving the OK response. All subsequent engine-to-plugin
-callbacks flow through `bridge.CallbackCh()` instead of the MuxConn.
+When `transport` is `"bridge"`, the engine publishes bridge callbacks on the
+`PluginConn` before acknowledging ready. The SDK activates that bridge, runs
+`OnStarted`, then closes the startup pipe and begins its bridge event loop.
+Subsequent generic callbacks flow through `bridge.CallbackCh()` instead of the
+MuxConn, so bridge activation alone is not initialization completion.
 <!-- source: pkg/plugin/rpc/types.go -- ReadyInput.Transport -->
 
 **Wire example:**
@@ -464,8 +467,15 @@ callbacks flow through `bridge.CallbackCh()` instead of the MuxConn.
 #3 ok
 ```
 
-After Stage 5, the SDK activates the DirectBridge (for internal plugins) and enters
-the event loop.
+After the ready acknowledgement, the SDK activates the DirectBridge for internal
+plugins, initializes local resources through `OnStarted`, then enters its event
+loop. If Stage 1 declared `started-handler`, the engine sends the empty
+`ze-plugin-callback:runtime-ready` callback and waits for its answer before
+starting a dependent tier. The ordinary callback queue can answer only after
+initialization succeeds, including when the bridge already reports activated.
+An initializer may make ordinary engine calls during that wait; socket startup
+serves them through the same operation registry as the runtime connection.
+Cross-plugin commands still belong in `OnAllPluginsReady`.
 
 ## Query Mode: Answering Without Starting
 
@@ -537,6 +547,28 @@ so query mode reads nothing new and adds no second list to keep in step.
   anything above it has already run.
 <!-- source: pkg/plugin/sdk/sdk.go -- QueryModeRequested, EnvPluginMode, ModeDeclare -->
 
+### Write the declaration line alone
+
+In declare mode, write nothing to stdout except the declaration line. Send
+every diagnostic, banner and log line to stderr.
+
+The line is `#1 ze-plugin-engine:declare-registration`, one space, and the
+declaration as compact JSON, ended by one line feed (LF). A carriage return, a
+second line, a blank line and white space between the JSON tokens each break
+the rule. `sdk.RunOrDeclare` writes the line in this form.
+
+Two readers apply the rule differently. The reader behind `show plugin
+declarations` finds the declaration line and skips each other line on stdout,
+so the daemon side still reads a plugin that writes a banner. The conformance
+checker is strict: its `declaration-line` row fails when stdout holds more than
+the one line, and the row names the rule the output broke. A plugin that passes
+the strict check is read correctly by every reader.
+`ze show plugin conformance run "<run string>"` runs the check
+([testing.md](../testing/index.md), "Checking That a Program Is a Valid Plugin").
+<!-- source: internal/component/plugin/conformance/checks.go -- strictLine, declarationLine -->
+<!-- source: internal/component/plugin/declarations.go -- declarationFromStdout -->
+<!-- source: pkg/plugin/rpc/declaration.go -- WriteDeclaration -->
+
 ## Runtime Callbacks (Engine to Plugin)
 
 After startup, the engine sends runtime RPCs to the plugin. The SDK dispatches
@@ -564,7 +596,7 @@ each wire method to its registered handler.
 | `ze-plugin-callback:config-operation-commit` | `OnConfigOperationCommit` | `ConfigOperationCommitInput` | `ConfigOperationCommitOutput` | Commit reversible operation state; retain undo through whole-reload acceptance |
 | `ze-plugin-callback:config-complete` | `OnConfigComplete` | `ConfigCompleteInput` | `ConfigCompleteOutput` | Acknowledge cleanup for the named original transaction after acceptance or completed abort |
 | `ze-plugin-callback:source-policy` | `OnSourcePolicy` | `rpc.SourcePolicyInput` | `rpc.SourcePolicyOutput` | Settle prepare/apply/abort/finalize for a captured retained source |
-| `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN message |
+| `ze-plugin-callback:validate-open` | `OnValidateOpen` | `ValidateOpenInput` | `ValidateOpenOutput` | Validate an OPEN pair. With `provisional: true`, check policy without changing peer-scoped learned state. Selection repeats the retained pair once with false before peer-up; ordinary selected validation uses false initially |
 | `ze-plugin-callback:filter-update` | `OnFilter` | `FilterUpdateBatchInput` (`routes`, each a `FilterUpdateInput`) | `FilterUpdateBatchOutput` (`verdicts`, each a `FilterUpdateOutput`) | Filter a batch of routes, one verdict per route in request order ("The filter-update batch"). The engine waits `rpc.FilterUpdateTimeout` (5 s) for the whole batch, then applies the filter's `on-error` policy to each of its routes, so a handler MUST NOT wait on its own data: it answers from what it holds, and a route it could not judge yet is re-judged later (for an import filter, by asking the peer with `request peer <peer> refresh <family>`, as `bgp-filter-irr` does) |
 | `ze-plugin-callback:doctor-check` | `OnDoctorCheck` | `DoctorCheckInput` | `DoctorCheckOutput` | Run a doctor check. Each answered diagnostic carries `code`, `severity`, `message`, and `fix`: the command or config statement that clears the problem, alone and with no label (`show rpki cache`, not `fix: show rpki cache`). Set `fix` on every finding a command can clear; ze draws it on a line of its own under the message on every surface, and omits the key when you leave it empty |
 | `ze-plugin-callback:resolver-cache-clear` | `OnResolverCacheClear` | `ResolverCacheClearInput` | `ResolverCacheClearOutput` | Clear a declared resolver cache of the plugin's current clients, answering the entries removed |

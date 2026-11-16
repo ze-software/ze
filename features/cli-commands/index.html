@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>CLI Commands - Ze</title>
         <meta name="description" content="Ze documentation: features/cli-commands.md" />
         <meta property="og:title" content="CLI Commands - Ze" />
@@ -389,7 +389,7 @@ ze cli -c "monitor traceroute 8.8.8.8 | log | resolve"
 <!-- source: internal/component/traceroute/cmd/register.go -- showTracerouteLocal -->
 <!-- source: internal/component/cli/model_ping_test.go -- parsePingMonitorArgs -->
 <!-- source: internal/component/cli/model_traceroute_test.go -- parseTracerouteMonitorArgs -->
-<p><strong>Live peer dashboard:</strong> <code>monitor bgp</code> in the interactive CLI opens a live dashboard showing router identity, a sortable colour-coded peer table with update rates, and a drill-down detail view. It refreshes every 2 seconds. Use j/k to move, s/S to sort, Enter for detail, and Esc to exit. The state column renders green for <code>established</code>, yellow for the transitional states, and red for <code>stopped</code>, <code>idle</code>, and <code>idle-hold</code>. <code>idle-hold</code> is the state a prefix limit leaves a peer in when the family that overflowed asked for no reconnect, so it needs an operator and is coloured like the other down states.</p>
+<p><strong>Live peer dashboard:</strong> <code>monitor bgp</code> in the interactive CLI opens a live dashboard showing router identity, a sortable colour-coded peer table with update rates, and a drill-down detail view. It refreshes every second. Use j/k to move, s/S to sort, Enter for detail, and Esc to exit. The state column renders green for <code>established</code>, yellow for the transitional states, and red for <code>stopped</code>, <code>idle</code>, and <code>idle-hold</code>. <code>idle-hold</code> is the state a prefix limit leaves a peer in when the family that overflowed asked for no reconnect, so it needs an operator and is coloured like the other down states.</p>
 <!-- source: internal/component/cli/model_dashboard.go -- isDashboardCommand -->
 <!-- source: internal/component/cli/model_dashboard_render.go -- stateStyled -->
 <figure class="terminal-demo" data-terminal-demo="cli-dashboard">
@@ -445,6 +445,17 @@ The daemon retains hook-built SSH through the plugin server's <code>OnStop</code
 <!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <!-- source: cmd/ze/hub/infra_setup.go -- setupInfraHook -->
 <!-- source: internal/component/cli/history.go -- History type -->
+<p>History publication failures reach the model's close error. The latest completed
+write outcome is retained separately for each mode; a successful later write
+clears that mode's failure. Configuration and operational recall follow the same
+eligibility policy on browser and SSH entry: automatic configuration entry
+records under configuration mode, while mode/exit and lifecycle controls do not
+add entries. Browser HTTP adapters use the same History producer and keys, with
+bounded owners that survive editor discard; independently opened SSH and browser
+owners keep the documented whole-snapshot overwrite behavior.</p>
+<!-- source: internal/component/cli/history.go -- LastWriteError -->
+<!-- source: internal/component/cli/history_policy.go -- HistoryCommandMode -->
+<!-- source: internal/component/web/editor_history.go -- RecordHistory, Close -->
 <p><strong>Login warnings:</strong> When an operator connects via SSH, ze checks for conditions requiring attention and displays warnings in the welcome area. Each warning includes a message and an actionable command. Currently checks for stale prefix data (peers with <code>prefix-updated</code> older than 6 months); run <code>update bgp peer * prefix</code> to refresh from PeeringDB.</p>
 <!-- source: internal/component/ssh/session.go -- createSessionModel login warning collection -->
 <p><strong>Plugin debug shell:</strong> <code>ze bgp plugin cli</code> connects to the daemon via SSH, runs the 5-stage plugin handshake, and enters interactive command mode. Developers can test plugin protocol interactions by hand -- sending dispatch-command, subscribe-events, decode-nlri, etc. Accepts defaults (Enter through Q&amp;A) or custom registration parameters (families, plugin name).</p>
@@ -520,7 +531,7 @@ The daemon retains hook-built SSH through the plugin server's <code>OnStop</code
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

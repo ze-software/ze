@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Configuration (Guide) - Ze</title>
         <meta name="description" content="Ze documentation: guide/configuration.md" />
         <meta property="og:title" content="Configuration (Guide) - Ze" />
@@ -177,6 +177,7 @@
 <ol>
 <li><a href="#upgrading-from-a-release-that-validated-only-on-demand">Upgrading from a release that validated only on demand</a></li>
 </ol></li>
+<li><a href="#containers">Containers</a></li>
 <li><a href="#healthcheck">Healthcheck</a></li>
 <li><a href="#static-routes_1">Static Routes</a></li>
 <li><a href="#policy-routing">Policy Routing</a></li>
@@ -387,8 +388,12 @@ not count that sentence as met. The override must still be non-zero.</p>
 present a router-id holds it, and a second peer of the same AS presenting the same
 router-id is rejected with a Bad BGP Identifier NOTIFICATION (RFC 6286 Section 2.1
 makes this only a SHOULD). The identifier is claimed while the peer's OPEN is
-validated and released when its session ends, so which peer wins does not depend on
-which one establishes first. Set <code>bgp { session { allow-shared-router-id true; } }</code>
+validated and released when that connection ends, so which peer wins does not
+depend on which one establishes first. An incumbent and its one admitted incoming
+candidate hold separate claims; closing either cannot release the other's
+identifier. Removing the peer releases all its connection claims. A candidate's
+validated identifier becomes the peer's published identifier only when that
+same Session is selected. Set <code>bgp { session { allow-shared-router-id true; } }</code>
 to accept the duplication when it is intentional, for example one anycast speaker
 (AS112) peering over both IPv4 and IPv6 with the same router-id. When enabled, Ze
 performs no AS-wide router-id uniqueness check at all.</p>
@@ -1168,9 +1173,10 @@ group states no <code>remote</code>, so its members are exempt until they config
 <p>A peer can ask Ze to discard the traffic for a prefix. It does this by tagging
 the announcement with the BLACKHOLE community, 65535:666. Ze installs a discard
 route for that prefix, and the traffic is dropped in the kernel FIB or in VPP.</p>
-<p>Ze installs the discard route itself. There is no next-hop to allocate and no
-static route to pre-create: the community is read on the session and the prefix
-is programmed as a discard directly.</p>
+<p>Ze installs the discard route itself; the discard action needs no separate
+blackhole next hop or static discard route. The received BGP path must still
+pass ordinary admission and best-path selection, including resolution of its
+advertised NEXT_HOP.</p>
 <p>Honoring is off by default and is configured per session. Each leaf-list is a
 separate condition from RFC 7999 Section 3.3.</p>
 <table>
@@ -1572,7 +1578,7 @@ so it must name IPv4 unicast too when the peer carries it:</p>
 </code></pre>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- peer-fields, filter-policy -->
 <!-- source: internal/core/bgp/capability/negotiated.go -- Negotiate treats a side with no Multiprotocol capability as advertising ipv4/unicast -->
-<!-- source: internal/component/bgp/reactor/session_negotiate.go -- buildOpen, plugin decode families when the config declares none -->
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- buildOpenFromSnapshot, plugin decode families when the config declares none -->
 <!-- source: internal/component/bgp/reactor/peer_initial_sync.go -- sendInitialRoutes, one End-of-RIB marker per negotiated family -->
 <h3 id="prefix-limits">Prefix Limits</h3>
 <p>Every family must have a prefix maximum. Ze refuses to start without one.</p>
@@ -2229,13 +2235,16 @@ prefix-list itself (<a href="https://github.com/ze-software/ze/blob/main/docs/gu
 <!-- source: internal/component/bgp/policychain/chain.go -- compileMember -->
 <h3 id="irr-prefix-list-filter">IRR Prefix-List Filter</h3>
 <p>The <code>bgp-filter-irr</code> plugin generates prefix-list filters from IRR (Internet
-Routing Registry) data. It queries a whois server for an AS-SET's prefixes
-and applies them as import filters, replacing the external bgpq4 workflow.</p>
-<pre><code>policy {
+Routing Registry) data and applies them as import filters, replacing the
+external bgpq4 workflow. The <code>irr</code> plugin queries the whois server for each
+AS-SET's prefixes and stores them; the filter enforces what it stored.</p>
+<pre><code>system {
     irr {
         server whois.radb.net    // IRR whois server (default)
-        peeringdb-url https://www.peeringdb.com  // PeeringDB API base URL (default)
-        refresh-interval 3600   // seconds between re-queries (60-86400)
+        refresh-interval 3600    // seconds between re-queries: 0 (manual only) or 60-86400
+    }
+    peeringdb {
+        url https://www.peeringdb.com  // PeeringDB API base URL (default)
     }
 }
 
@@ -2254,20 +2263,23 @@ bgp {
 }
 </code></pre>
 <p>The suffix in <code>bgp-filter-irr:65001</code> is the peer's remote ASN. Use the
-corresponding ASN in each peer's filter reference. The plugin queries IRR for
-the AS-SET's prefixes and builds a prefix-list keyed by ASN. Routes with
+corresponding ASN in each peer's filter reference. The filter builds a
+prefix-list keyed by ASN from the AS-SET the <code>irr</code> plugin stored. Routes with
 prefixes in the list are accepted; all others are rejected (implicit deny).</p>
-<p>When <code>irr { as-set }</code> is omitted, the plugin auto-discovers the AS-SET from
-PeeringDB using the peer's remote ASN. If PeeringDB has no AS-SET registered
-for the ASN, the plugin falls back to querying IRR directly using
-<code>AS&lt;number&gt;</code> (e.g. <code>AS65001</code>). If the IRR query also fails, the existing
-prefix-list is preserved and the error is reported via <code>show bgp irr</code>.
+<p>When <code>irr { as-set }</code> is omitted, the <code>irr</code> plugin auto-discovers the AS-SET
+from PeeringDB using the peer's remote ASN. If PeeringDB has no AS-SET
+registered for the ASN, it falls back to querying IRR directly using
+<code>AS&lt;number&gt;</code> (e.g. <code>AS65001</code>). If the IRR query also fails, the stored
+prefix-list is preserved and <code>show irr</code> reports the set as <code>failing</code>; with
+nothing stored yet, <code>show bgp irr</code> reports the ASN <code>pending</code> and its
+announcements are rejected.
 Set <code>irr { enable disable; }</code> to opt a peer out of IRR filtering entirely.</p>
 <p>For a complete configuration, verification workflow, troubleshooting table,
 and local recording, see <a href="../irr-filtering/">Filter BGP Imports with IRR</a>.</p>
-<p>The plugin refreshes prefix-lists automatically at the configured interval and
-on demand via <code>update bgp irr all</code>. Resolved prefixes are stored as operational
-data in zefs (not in the config tree) and survive restarts.</p>
+<p>The <code>irr</code> plugin fetches the prefix-lists, refreshes each when
+<code>system irr refresh-interval</code> says it is due, and on demand via <code>update irr all</code>.
+It stores them as operational data in zefs (not in the config tree), so they
+survive restarts and the filter enforces the stored lists with no query at start.</p>
 <table>
 <thead>
 <tr>
@@ -2278,7 +2290,7 @@ data in zefs (not in the config tree) and survive restarts.</p>
 <tbody>
 <tr>
 <td><code>show bgp irr</code></td>
-<td>Per-ASN status: AS-SET, prefix count, last/next refresh</td>
+<td>Per-ASN status: AS-SET, prefix count, the stored copy enforced (server, generation, checked-at, refreshed-at)</td>
 </tr>
 <tr>
 <td><code>show bgp irr prefix &lt;peer&gt;</code></td>
@@ -2289,16 +2301,16 @@ data in zefs (not in the config tree) and survive restarts.</p>
 <td>Test if a prefix would be accepted</td>
 </tr>
 <tr>
-<td><code>update bgp irr all</code></td>
-<td>Refresh all peers immediately</td>
+<td><code>update irr all</code></td>
+<td>Fetch and store every AS-SET a consumer names, now</td>
 </tr>
 <tr>
-<td><code>update bgp irr asn &lt;asn&gt;</code></td>
-<td>Refresh a specific ASN</td>
+<td><code>update irr asn &lt;asn&gt;</code></td>
+<td>Fetch and store the AS-SET of one AS number</td>
 </tr>
 <tr>
-<td><code>update bgp irr as-set &lt;as-set&gt;</code></td>
-<td>Refresh peers using a specific AS-SET</td>
+<td><code>update irr as-set &lt;as-set&gt;</code></td>
+<td>Fetch and store one AS-SET</td>
 </tr>
 </tbody>
 </table>
@@ -3066,7 +3078,7 @@ port's own selector ambiguous. <code>mac/match</code> <strong>takes precedence o
 <code>doctor-iface-selector-unmatched</code> is a warning, <code>doctor-iface-selector-ambiguous</code> is an
 error.</p>
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, validateSelectors, devicesWithMAC -->
-<!-- source: internal/component/iface/resolve.go -- matchByMAC, deviceMatchMAC -->
+<!-- source: internal/component/iface/resolve.go -- matchByMACFrom, deviceMatchMAC -->
 <!-- source: internal/component/iface/doctor_linux.go -- checkEthernetInterfaces -->
 <!-- source: internal/component/iface/doctor_selector.go -- SelectedNetDevice, selectedNetDevice -->
 <!-- source: internal/component/iface/yang/ze-iface-conf.yang -- leaf match (container mac) -->
@@ -3271,6 +3283,16 @@ wholesale LAC whose retail LNS (accel-ppp, for one) ignores the proxied LCP
 and negotiates again.</p>
 <!-- source: internal/component/l2tp/pppoeclient/connected_session.go -- restart, awaitApplied -->
 <!-- source: internal/component/iface/pppoe_client.go -- runSession -->
+<p><code>source-interface</code> must name an interface the config declares: an entry of
+any interface kind (an <code>ethernet</code> entry for a physical port), the peer end of a
+veth, or a VLAN unit written <code>&lt;interface&gt;.&lt;vlan-id&gt;</code>. <code>ze config validate</code>, boot,
+reload and commit refuse any other name, and name the command that declares it:
+<code>set interface ethernet &lt;name&gt;</code>, or for a VLAN unit
+<code>set interface ethernet &lt;parent&gt; unit &lt;vlan-id&gt; vlan-id &lt;vlan-id&gt;</code>. A bare <code>ethernet eth2 { }</code> entry is enough: with no unit and no
+<code>mtu</code>, Ze sets the port administratively up and leaves its addresses and MTU
+alone.</p>
+<!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference, checkConfiguredInterface -->
+<!-- source: internal/component/iface/config_apply.go -- desiredState, applyConfigPass -->
 <p><code>source-interface</code> names an interface as you configured it, so an <code>ethernet</code>
 entry with an <code>os-name</code> or <code>mac match</code> selector works: discovery and the PPPoE
 session both run on the kernel device that selector picks.</p>
@@ -3292,8 +3314,10 @@ so repeated access-network renegotiation remains visible when IPCP cannot finish
 <code>max-configure</code> accepts 1 to 255 requests (default 10). The first request
 counts toward the budget. A valid negotiation reply renews the budget where
 the LCP state machine requires it. A convergence deadline of twice the timer
-times the request budget bounds a peer that repeatedly refuses negotiation.
-<code>max-failure</code> accepts 1 to 255 consecutive Configure-Naks (default 5). After
+times the request budget bounds a peer that repeatedly refuses negotiation.</p>
+<!-- source: internal/component/iface/yang/ze-iface-conf.yang -- pppoe-client lcp -->
+<!-- source: internal/component/l2tp/pppoeclient/session.go -- negotiateLCP -->
+<p><code>max-failure</code> accepts 1 to 255 consecutive Configure-Naks (default 5). After
 that limit, further unacceptable peer options are rejected with their original
 bytes. A sent Configure-Ack renews the Nak budget. A change applies to the next
 session and its later LCP renegotiations.</p>
@@ -3317,6 +3341,8 @@ below <code>delay-min</code>. A change to these leaves alone keeps the running s
 the next session and the next wait use the new values. Any other change to the
 client restarts it.</p>
 <pre><code>interface {
+    ethernet eth2 {
+    }
     pppoe-client pppoe0 {
         source-interface eth2;
         authentication { username user; password secret; }
@@ -3325,7 +3351,9 @@ client restarts it.</p>
             max-configure 3;
             max-failure 2;
         }
-        ipv6cp { restart-timer 500; }
+        ipv6cp {
+            restart-timer 500;
+        }
         keepalive { interval 5; failures 4; }
         reconnect { delay-min 5; delay-max 120; }
     }
@@ -5733,7 +5761,22 @@ environment {
 <p>PPPoE (RFC 2516) access concentrator configuration. PPPoE uses raw Ethernet
 sockets on configured access interfaces, with no UDP listener needed.
 Sessions use the same PPP Driver, auth, pool, and shaper plugins as L2TP.</p>
-<pre><code>pppoe {
+<p>Each access <code>interface</code> must name an interface the config declares: an entry
+of any interface kind (an <code>ethernet</code> entry for a physical port), the peer end
+of a veth, or a VLAN unit written <code>&lt;interface&gt;.&lt;vlan-id&gt;</code>. <code>ze config validate</code>,
+boot, reload and commit refuse any other name, and name the command that
+declares it: <code>set interface ethernet &lt;name&gt;</code>, or for a VLAN unit
+<code>set interface ethernet &lt;parent&gt; unit &lt;vlan-id&gt; vlan-id &lt;vlan-id&gt;</code>. Below,
+<code>eth0</code> is an <code>ethernet</code> entry and <code>eth0.100</code> is its VLAN 100 unit.</p>
+<!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference, checkConfiguredInterface -->
+<pre><code>interface {
+    ethernet eth0 {
+        unit 100 {
+            vlan-id 100;
+        }
+    }
+}
+pppoe {
     enabled true;
     ac-name "ze";
     service-name "internet";
@@ -5826,7 +5869,7 @@ Sessions use the same PPP Driver, auth, pool, and shaper plugins as L2TP.</p>
 <td><code>interface &lt;name&gt;</code></td>
 <td>list</td>
 <td>(none)</td>
-<td>Access interfaces for PPPoE discovery. Each gets independent SID space.</td>
+<td>Access interfaces for PPPoE discovery. Each gets independent SID space. The name must be an interface the config declares (<code>set interface ethernet &lt;name&gt;</code> for a physical port).</td>
 </tr>
 <tr>
 <td><code>interface / service-name</code></td>
@@ -5868,13 +5911,13 @@ Sessions use the same PPP Driver, auth, pool, and shaper plugins as L2TP.</p>
 <td><code>lcp / max-failure</code></td>
 <td>uint8</td>
 <td>5</td>
-<td>Configure-Naks without a Configure-Ack before rejecting unacceptable options, 1..255.</td>
+<td>Configure-Naks without a sent Configure-Ack, 1..255. Further unacceptable options receive Reject.</td>
 </tr>
 </tbody>
 </table>
 <p>The same four <code>lcp</code> leaves are available under <code>l2tp</code>. Their defaults are
 declared once in the shared PPP schema. Both transports copy the values into a
-new session; reload changes the next admission and preserves existing sessions.
+new session. Reload changes the next admission and preserves existing sessions.
 The Restart timer applies to Configure-Request, Terminate-Request and the
 Zero-Restart-Count action. The default silent-peer negotiation budget is 30 seconds.</p>
 <!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared server LCP defaults -->
@@ -5894,9 +5937,22 @@ fallback must explicitly name every permitted method. PPPoE retains its fixed
 <h3 id="l2tp-address-pool">L2TP Address Pool</h3>
 <p>The <code>l2tp-pool</code> plugin provides IPv4 address allocation for PPP sessions.
 A default pool and optional named pools are configured under <code>l2tp { pool { } }</code>.
-Named pools are selected per-session via the RADIUS <code>Framed-Pool</code> attribute;
-when <code>Framed-IP-Address</code> is present in Access-Accept, the pool is bypassed
-and the RADIUS-assigned address is used directly.</p>
+Named pools are selected per-session via the RADIUS <code>Framed-Pool</code> attribute.
+The default pool can be absent when every subscriber selects a named pool.
+Without either selection or a default pool, the address request is refused.</p>
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- handle -->
+<p>The pool loads automatically inside the daemon. An explicit declaration uses
+an internal plugin block. External pool processes are refused before
+configuration, and <code>ze doctor</code> names the internal replacement under
+<code>doctor-plugin-external-unsupported</code>.</p>
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- init, runPlugin -->
+<!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalInProcess, externalInProcessRow -->
+<p>When <code>Framed-IP-Address</code> is present in Access-Accept, the RADIUS-assigned address
+is used directly with the selected pool's gateway and DNS. An address inside
+any configured range is reserved in that pool until the session ends. An
+address another subscriber holds is refused, even outside the current ranges.</p>
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- handle -->
+<!-- source: internal/component/l2tp/plugins/pool/radius.go -- reserveRADIUSAddressLocked -->
 <pre><code>l2tp {
     pool {
         ipv4 {
@@ -5971,7 +6027,19 @@ primary slot, then the secondary, so a pool naming only <code>dns-secondary</cod
 offers it as the primary. A loopback address is never offered, and each one
 dropped is logged.
 The gateway must not overlap the pool range.</p>
-<!-- source: internal/component/l2tp/plugins/pool/register.go -- parseIPv4Pool, parseNamedPools -->
+<p>Pool changes apply on a committed reload. Existing subscribers retain their
+assignments, and the new pools reserve them until those sessions end. Removing
+a range does not disconnect its subscribers. Their assignments remain outside
+the replacement pools until release. Gateway and DNS changes apply to new
+sessions.</p>
+<!-- source: internal/component/l2tp/plugins/pool/reload.go -- installPoolConfiguration -->
+<p>Each IPv4 range is limited to 1,048,576 addresses and excludes <code>0.0.0.0</code> and
+<code>255.255.255.255</code>. IPv4 ranges cannot overlap another pool's range, and IPv6
+pool blocks cannot overlap another pool's block. Startup and reload verification
+refuse these configurations before building allocation bitmaps. A DNS leaf set
+on an IPv4 pool must contain an IPv4 address.</p>
+<!-- source: internal/component/l2tp/plugins/pool/config_validation.go -- validateIPv4Description, validatePoolConfiguration -->
+<!-- source: internal/component/l2tp/plugins/pool/config.go -- parsePoolDescription, parseIPv4Description -->
 <!-- source: internal/component/l2tp/plugins/pool/dns_source.go -- poolDNSDefault, selectSubscriberDNS -->
 <!-- source: internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang -- YANG schema -->
 <h2 id="hub-configuration">Hub Configuration</h2>
@@ -6057,8 +6125,8 @@ local interface or the connection fails with <code>cannot assign requested addre
 <td>UDP</td>
 </tr>
 <tr>
-<td>IRR (filter)</td>
-<td><code>policy irr</code></td>
+<td>IRR (whois)</td>
+<td><code>system irr</code></td>
 <td><code>source-address</code></td>
 <td>TCP</td>
 </tr>
@@ -6168,6 +6236,45 @@ not start. It does not tell you what else is wrong with the machine, so run
 <!-- source: internal/component/config/loader.go -- LoadConfig refusal -->
 <!-- source: cmd/ze/hub/main_reload.go -- runReload keeps the running config on a load error -->
 <!-- source: internal/component/doctor/doctor.go -- runChecks reports a load failure as doctor-config-parse and returns -->
+<h2 id="containers">Containers</h2>
+<p>A build with the <code>ze_container</code> tag has a <code>container</code> root. One <code>instance</code>
+entry is one container that Ze itself runs from an OCI image:</p>
+<pre><code>container {
+    instance web {
+        enabled false
+    }
+}
+</code></pre>
+<table>
+<thead>
+<tr>
+<th>Statement</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>instance &lt;name&gt;</code></td>
+<td>One container. The name is 1 to 63 lowercase letters, digits and hyphens, and it neither starts nor ends with a hyphen</td>
+</tr>
+<tr>
+<td><code>enabled</code></td>
+<td>Whether the container runs. The default is <code>true</code>. <code>false</code> keeps the container's statements and keeps it stopped</td>
+</tr>
+</tbody>
+</table>
+<p>The container runtime is not complete: no build starts a container today. A
+configuration that holds an enabled container is refused by <code>ze config validate</code>, at start and at reload, and the refusal names the statement that
+disables it, <code>set container instance &lt;name&gt; enabled false</code>. A disabled
+container is accepted. The image, the limits, the networks and every other
+statement of a container are not in the schema yet.</p>
+<p>When the configuration holds a container to run, the kernel must be built with
+<code>CONFIG_CFS_BANDWIDTH</code>, which a container's hard CPU limit needs. On a kernel
+without it the configuration is refused the same way, and <code>ze doctor</code> reports
+<code>doctor-container-kernel-cpu-limit-unavailable</code>.</p>
+<!-- source: internal/plugins/container/yang/ze-container-conf.yang -- YANG schema -->
+<!-- source: internal/plugins/container/config.go -- parseContainerSections, refuseUnbuiltRuntime, checkInstanceName -->
+<!-- source: internal/plugins/container/kernelcap_linux.go -- containerKernelCapabilities, containerInUse -->
 <h2 id="healthcheck">Healthcheck</h2>
 <p>Service healthcheck probes monitor availability and control BGP route announcement via watchdog groups:</p>
 <pre><code>bgp {
@@ -6282,7 +6389,7 @@ match criteria, actions, reserved ranges, and CLI usage.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 01:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

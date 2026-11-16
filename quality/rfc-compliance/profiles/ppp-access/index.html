@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>PPP access RFC coverage - Ze</title>
         <meta name="description" content="Technology profile ppp-access: the MUST and overview coverage of its RFCs." />
         <meta property="og:title" content="PPP access RFC coverage - Ze" />
@@ -127,9 +127,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p><a href="../">All profiles</a> · <a href="../../">All RFCs</a></p>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="profile/ppp-access/required:must">Ze proven 181, Proof pending 51, OS testing gap 4, Not assessed 30, Not built 31</div>
+<div data-ze-rfc-bar="profile/ppp-access/required:must">Ze proven 190, Proof pending 42, OS testing gap 4, Not assessed 30, Not built 31</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="profile/ppp-access/required:overview">Ze MUST proven 181, SHOULD proven 6, Proof pending 52, OS testing gap 4, Not assessed 120, Not built 31</div>
+<div data-ze-rfc-bar="profile/ppp-access/required:overview">Ze MUST proven 190, SHOULD proven 6, Proof pending 43, OS testing gap 4, Not assessed 120, Not built 31</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -150,13 +150,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/ppp-access/required:must.kept">297</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="profile/ppp-access/required:must.ze-proven">181</span></td>
+<td><span data-ze-rfc="profile/ppp-access/required:must.ze-proven">190</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="profile/ppp-access/required:must.os-verified">0</span></td>
 </tr>
 <tr><td>Proof pending</td>
-<td><span data-ze-rfc="profile/ppp-access/required:must.proof-pending">51</span></td>
+<td><span data-ze-rfc="profile/ppp-access/required:must.proof-pending">42</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="profile/ppp-access/required:must.os-gap">4</span></td>
@@ -232,8 +232,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc1661/">RFC 1661</a></td>
 <td>The Point-to-Point Protocol (PPP)</td>
-<td><div data-ze-rfc-bar="rfc1661:must">Ze proven 35, Proof pending 26, OS testing gap 2, Not built 13</div></td>
-<td><div data-ze-rfc-bar="rfc1661:overview">Ze MUST proven 35, SHOULD proven 2, Proof pending 27, OS testing gap 2, Not assessed 22, Not built 13</div></td>
+<td><div data-ze-rfc-bar="rfc1661:must">Ze proven 47, Proof pending 14, OS testing gap 2, Not built 13</div></td>
+<td><div data-ze-rfc-bar="rfc1661:overview">Ze MUST proven 47, SHOULD proven 2, Proof pending 15, OS testing gap 2, Not assessed 22, Not built 13</div></td>
 </tr>
 </tbody>
 </table>
@@ -243,7 +243,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <table class="rfc-table">
 <thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th></tr></thead>
 <tbody>
-<tr><td><a href="../../rfc1570/">RFC 1570</a></td>
+<tr><td><a href="../../rfc1570/">RFC 1570</a> (cycle with rfc1662)</td>
 <td>PPP LCP Extensions</td>
 <td><div data-ze-rfc-bar="rfc1570:must">Not assessed 22</div></td>
 <td><div data-ze-rfc-bar="rfc1570:overview">Not assessed 38</div></td>
@@ -268,13 +268,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc1332/">RFC 1332</a> (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293)</td>
 <td>The PPP Internet Protocol Control Protocol (IPCP)</td>
-<td><div data-ze-rfc-bar="rfc1332:must">Ze proven 6, Proof pending 2</div></td>
-<td><div data-ze-rfc-bar="rfc1332:overview">Ze MUST proven 6, Proof pending 2, Not assessed 6</div></td>
+<td><div data-ze-rfc-bar="rfc1332:must">Ze proven 5, Proof pending 3</div></td>
+<td><div data-ze-rfc-bar="rfc1332:overview">Ze MUST proven 5, Proof pending 3, Not assessed 6</div></td>
 </tr>
 <tr><td><a href="../../rfc1334/">RFC 1334</a></td>
 <td>PPP Authentication Protocols</td>
-<td><div data-ze-rfc-bar="rfc1334:must">Ze proven 12, Proof pending 1</div></td>
-<td><div data-ze-rfc-bar="rfc1334:overview">Ze MUST proven 12, Proof pending 1, Not assessed 3</div></td>
+<td><div data-ze-rfc-bar="rfc1334:must">Ze proven 10, Proof pending 3</div></td>
+<td><div data-ze-rfc-bar="rfc1334:overview">Ze MUST proven 10, Proof pending 3, Not assessed 3</div></td>
 </tr>
 <tr><td><a href="../../rfc4638/">RFC 4638</a></td>
 <td>Accommodating a Maximum Transit Unit/Maximum Receive Unit (MTU/MRU) Greater Than 1492 in the Point-to-Point Protocol over Ethernet (PPPoE)</td>
@@ -373,7 +373,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

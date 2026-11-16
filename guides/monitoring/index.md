@@ -152,6 +152,17 @@ prefixes held for snapshot or forwarding reconciliation.
 
 The `netdata` block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as `ze_bgp_*`, `ze_bfd_*`, or `ze_l2tp_*`.
 
+PPP cleanup failures remain visible in `show doctor` as `doctor-ppp-cleanup`
+and in the `ppp-cleanup` health row. The finding names the created interface,
+its native index and the backend error. `show warnings` shows the retained
+details. Network-resource cleanup and session-owner release retain separate
+causes when both fail for the same interface. Repair the reported backend and confirm resource removal before
+restarting service. A later successful session does not clear this finding;
+report-bus eviction is reported as uncertainty rather than recovery.
+<!-- source: internal/component/l2tp/ppp/cleanup_health.go -- ReportCleanupFailure -->
+<!-- source: internal/component/l2tp/doctor_cleanup.go -- checkPPPCleanup -->
+<!-- source: internal/component/l2tp/pppoe/server.go -- closeAdmitted, closeSession, closeTransport -->
+
 ```
 telemetry {
     prometheus {

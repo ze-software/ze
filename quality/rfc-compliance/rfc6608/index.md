@@ -10,19 +10,13 @@ what Ze has
 
 | Measure | Value | Count | What it means |
 |---|---:|---|---|
-| Tested both ways | 0 | of 3 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
+| Tested both ways | 3 | of 3 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 0 | of 3 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0 | of 3 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 3 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 0 | 0 of 0 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Declared gap or no test | 3 | of 3 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Declared gap or no test | 0 | of 3 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
+| Tests shown to detect a fault | 6 | 6 of 6 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Audit verdicts | 3 | of 3 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -55,13 +49,13 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | One polarity plus reason | ok | green at every value: where no counter-case exists, one polarity IS the complete answer, and a recorded reason is what the gate demands beside it |
 | One polarity, unexcused | ok | green at zero, RED above it: half a proof with no reason for the other half |
 | Partial proof; remaining gap | ok | green at zero, RED above it: a tested clause cannot prove the whole requirement |
-| Declared gap or no test | bad | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
+| Declared gap or no test | ok | green at zero, RED above it: a binding obligation that nothing shows Ze meets is owed, whether or not a reason is stated |
 | Not applicable | neutral | no color: an obligation that never bound Ze is neither an achievement nor a failure, and counting it either way would be a claim |
 | Met below Ze | neutral | no color: an obligation met below Ze is neither a test Ze wrote nor work Ze owes, and the two green counts above are what says how much Ze proves itself |
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
@@ -73,39 +67,39 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Requirements | 3 |
 | Mandatory requirements (MUST level) | 3 |
 | Not applicable, so out of scope | 0 |
-| Declared gaps | 3 |
+| Declared gaps | 0 |
 | Declared gaps a test demonstrates | 0 |
 | Mandatory requirements with no test and no annotation | 0 |
 | Nightly-only evidence | 0 |
-| Test tags | 0 |
-| Tests linked to requirements | 0 |
-| Recorded audit verdicts | 0 |
-| Fault test records | 0 |
+| Test tags | 6 |
+| Tests linked to requirements | 6 |
+| Recorded audit verdicts | 3 |
+| Fault test records | 6 |
 | Summary | `rfc/short/rfc6608.md` |
 | Requirement table | `rfc/requirements/rfc6608.md` |
 | RFC text | `rfc/full/rfc6608.txt` |
 
 ## Automatic checks
 
-Included in automatic checks: Subcodes for BGP Finite State Machine Error: three MUSTs requiring a code-5 FSM Error NOTIFICATION with subcode 1/2/3 (plus the 1-octet message type) on an unexpected message in OpenSent/OpenConfirm/Established. All three are {gap}: ze defines and decodes the subcodes (message/notification.go:110-113, format/decode.go:316-320) but never originates them -- the reactor dispatches received messages by type with no FSM-state guard (reactor/session_read.go:260-273) and no path emits these subcodes. Disclosed in the docs/features/rfc-status.md RFC 6608 row (Partial).
+Included in automatic checks: Three MUSTs requiring a code-5 FSM Error NOTIFICATION with state-specific subcode 1/2/3 and exactly one received-message type octet. The reactor retains the receiving state before FSM transition, diagnoses unexpected messages through notifyFSMMessageError (internal/component/bgp/reactor/session_fsm_notification.go), refuses early ROUTE-REFRESH before capability filtering, and closes the connection. The real TCP peer matrices and valid-message controls in rfc6608_fsm_notifications_test.go bind each row; verified discrimination records determine the proven share.
 
 ## Published support status
 
 **Area:** BGP FSM Error subcodes
 
-**Proof:** 0 of 3 MUST proven
+**Proof:** 3 of 3 MUST proven
 
-**Evidence:** -
+**Evidence:** unit 3
 
-**Unmet:** RFC6608-4-1, RFC6608-4-2, RFC6608-4-3
+**Unmet:** -
 
 
 ## Coverage
 
 | Bucket | Count | What it counts |
 |---|---|---|
-| Positive and negative tests | 0 | one part of the mandatory requirements |
-| Annotated (including scoped evidence) | 3 | one part of the mandatory requirements |
+| Positive and negative tests | 3 | one part of the mandatory requirements |
+| Annotated (including scoped evidence) | 0 | one part of the mandatory requirements |
 | Only a positive or negative test | 0 | one part of the mandatory requirements |
 | No test and no annotation | 0 | one part of the mandatory requirements |
 | Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) | 0 | also counted in one of the groups above |
@@ -113,27 +107,27 @@ Included in automatic checks: Subcodes for BGP Finite State Machine Error: three
 | Derived from other rows | 0 | excluded from the total: each summarizes the status of other requirements, which are already counted above |
 | **Mandatory requirements (MUST level)** | **3** | every mandatory requirement appears in exactly one group above |
 
-**Annotated (including scoped evidence) (3):** [`RFC6608-4-1`](#rfc6608-4-1), [`RFC6608-4-2`](#rfc6608-4-2), [`RFC6608-4-3`](#rfc6608-4-3)
+**Positive and negative tests (3):** [`RFC6608-4-1`](#rfc6608-4-1), [`RFC6608-4-2`](#rfc6608-4-2), [`RFC6608-4-3`](#rfc6608-4-3)
 
 ## Figures
 
-- **MUST bar**: Not built 3
-- **Overview bar**: Not built 3
+- **MUST bar**: Ze proven 3
+- **Overview bar**: Ze MUST proven 3
 
 | Figure | Rows |
 |---|---|
 | RFCs | 1 |
 | Requirements not reviewed | 0 |
-| Mandatory requirements complete | not complete |
+| Mandatory requirements complete | complete |
 | MUST rows | 3 |
 | MUST rows kept (the MUST bar) | 3 |
-| Ze proven | 0 |
+| Ze proven | 3 |
 | OS verified | 0 |
 | Proof pending | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 3 |
+| Not built | 0 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -159,17 +153,13 @@ Source: [data/rfc/rfc6608.json](../../../data/rfc/rfc6608.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC6608-4-1` | If a BGP speaker receives an unexpected message (e.g., KEEPALIVE/ UPDATE/ROUTE-REFRESH message) on a session in OpenSent state, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode "Receive Unexpected Message in OpenSent State". The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** ze defines and decodes the RFC 6608 subcodes (internal/component/bgp/message/notification.go:110-113, internal/component/bgp/format/decode.go:316-320) but never sends them -- the reactor dispatches received messages by type with no FSM-state guard (internal/component/bgp/reactor/session_read.go:260-273), and no code path emits a code-5 FSM Error NOTIFICATION with subcode 1 on an unexpected message in OpenSent. Disclosed in the docs/features/rfc-status.md RFC 6608 row |
-| `RFC6608-4-2` | If a BGP speaker receives an unexpected message (e.g., OPEN/UPDATE/ ROUTE-REFRESH message) on a session in OpenConfirm state, it MUST send a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode "Receive Unexpected Message in OpenConfirm State" to the neighbor. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** same root cause as 4-1 -- ze decodes the RFC 6608 subcodes but no reactor path sends a code-5 FSM Error NOTIFICATION with subcode 2 on an unexpected message in OpenConfirm (session_read.go:260-273). Disclosed in the docs/features/rfc-status.md RFC 6608 row |
-| `RFC6608-4-3` | If a BGP speaker receives an unexpected message (e.g., OPEN message) on a session in Established State, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode "Receive Unexpected Message in Established State". The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4) | MUST | 4 | **positive:** no positive test. **negative:** no negative test. **{gap}:** same root cause as 4-1 -- ze decodes the RFC 6608 subcodes but no reactor path sends a code-5 FSM Error NOTIFICATION with subcode 3 on an unexpected message in Established (session_read.go:260-273). Disclosed in the docs/features/rfc-status.md RFC 6608 row |
+| `RFC6608-4-1` | If a BGP speaker receives an unexpected message (e.g., KEEPALIVE/ UPDATE/ROUTE-REFRESH message) on a session in OpenSent state, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode "Receive Unexpected Message in OpenSent State". The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC6608OpenSentUnexpectedMessages`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L23). **negative:** `unit/verify` [`TestRFC6608OpenSentExpectedOpenKeepsTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L79) |
+| `RFC6608-4-2` | If a BGP speaker receives an unexpected message (e.g., OPEN/UPDATE/ ROUTE-REFRESH message) on a session in OpenConfirm state, it MUST send a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode "Receive Unexpected Message in OpenConfirm State" to the neighbor. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC6608OpenConfirmUnexpectedMessages`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L49). **negative:** `unit/verify` [`TestRFC6608OpenConfirmExpectedKeepaliveKeepsTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L90) |
+| `RFC6608-4-3` | If a BGP speaker receives an unexpected message (e.g., OPEN message) on a session in Established State, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode "Receive Unexpected Message in Established State". The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4) | MUST | 4 | **positive:** `unit/verify` [`TestRFC6608EstablishedUnexpectedOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L70). **negative:** `unit/verify` [`TestRFC6608EstablishedExpectedMessagesKeepTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L98) |
 
 ## Gaps and untested MUSTs
 
-| Requirement | State | Reason |
-|---|---|---|
-| [`RFC6608-4-1`](#rfc6608-4-1) If a BGP speaker receives an unexpected message (e.g., KEEPALIVE/ UPDATE/ROUTE-REFRESH message) on a session in OpenSent state, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode "Receive Unexpected Message in OpenSent State". The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4) | {gap}, no test | ze defines and decodes the RFC 6608 subcodes (internal/component/bgp/message/notification.go:110-113, internal/component/bgp/format/decode.go:316-320) but never sends them -- the reactor dispatches received messages by type with no FSM-state guard (internal/component/bgp/reactor/session_read.go:260-273), and no code path emits a code-5 FSM Error NOTIFICATION with subcode 1 on an unexpected message in OpenSent. Disclosed in the docs/features/rfc-status.md RFC 6608 row |
-| [`RFC6608-4-2`](#rfc6608-4-2) If a BGP speaker receives an unexpected message (e.g., OPEN/UPDATE/ ROUTE-REFRESH message) on a session in OpenConfirm state, it MUST send a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode "Receive Unexpected Message in OpenConfirm State" to the neighbor. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4) | {gap}, no test | same root cause as 4-1 -- ze decodes the RFC 6608 subcodes but no reactor path sends a code-5 FSM Error NOTIFICATION with subcode 2 on an unexpected message in OpenConfirm (session_read.go:260-273). Disclosed in the docs/features/rfc-status.md RFC 6608 row |
-| [`RFC6608-4-3`](#rfc6608-4-3) If a BGP speaker receives an unexpected message (e.g., OPEN message) on a session in Established State, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode "Receive Unexpected Message in Established State". The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4) | {gap}, no test | same root cause as 4-1 -- ze decodes the RFC 6608 subcodes but no reactor path sends a code-5 FSM Error NOTIFICATION with subcode 3 on an unexpected message in Established (session_read.go:260-273). Disclosed in the docs/features/rfc-status.md RFC 6608 row |
+RFC 6608 lists no missing behavior, and every mandatory requirement included in automatic checks has a linked test.
 
 ## Proof state
 
@@ -179,25 +169,34 @@ A test reads unproven when no record shows it failing after a deliberate fault. 
 
 If a BGP speaker receives an unexpected message (e.g., KEEPALIVE/ UPDATE/ROUTE-REFRESH message) on a session in OpenSent state, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode "Receive Unexpected Message in OpenSent State". The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Read RFC 6608 Section 4 in full. The TCP matrix receives KEEPALIVE, well-formed and malformed UPDATE, ROUTE-REFRESH, and non-version NOTIFICATION in ordinary OpenSent. It compares the entire notification payload to code 5/subcode 1/the single received-type octet, requires exactly one packet and real EOF, then waits for session release. The valid OPEN control reaches OpenConfirm and checks no notification, close, session replacement or retry increment. This excludes both silent discard and unconditional refusal. The proposed producer substitution exchanges state subcode 1 for 2; its observed red remains the native record's responsibility. BFD strict-mode pending is outside this ordinary-state matrix and retains its separate tests.
 
-No test carries RFC6608-4-1, so there is no linked test.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC6608OpenSentExpectedOpenKeepsTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L79) | unit/verify | mutant, verified |
+| positive | [`TestRFC6608OpenSentUnexpectedMessages`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L23) | unit/verify | mutant, verified |
 
 ### [`RFC6608-4-2`](#rfc6608-4-2)
 
 If a BGP speaker receives an unexpected message (e.g., OPEN/UPDATE/ ROUTE-REFRESH message) on a session in OpenConfirm state, it MUST send a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode "Receive Unexpected Message in OpenConfirm State" to the neighbor. The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Read RFC 6608 Section 4 in full. After the actual OPEN exchange and before peer KEEPALIVE, the TCP matrix receives another same-connection OPEN, well-formed and malformed UPDATE, and ROUTE-REFRESH. It compares the entire notification payload to code 5/subcode 2/the single received-type octet, requires exactly one packet and real EOF, then waits for session release. The expected KEEPALIVE control reaches Established and checks no notification, close, session replacement or retry increment. The proposed producer substitution exchanges state subcode 2 for 1; its observed red remains the native record's responsibility. A separate pending TCP connection is collision resolution, not this test's second OPEN on the same connection.
 
-No test carries RFC6608-4-2, so there is no linked test.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC6608OpenConfirmExpectedKeepaliveKeepsTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L90) | unit/verify | mutant, verified |
+| positive | [`TestRFC6608OpenConfirmUnexpectedMessages`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L49) | unit/verify | mutant, verified |
 
 ### [`RFC6608-4-3`](#rfc6608-4-3)
 
 If a BGP speaker receives an unexpected message (e.g., OPEN message) on a session in Established State, it MUST send to the neighbor a NOTIFICATION message with the Error Code Finite State Machine Error and the Error Subcode "Receive Unexpected Message in Established State". The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. (Section 4)
 
-Audit verdict: not reviewed: no reviewer has checked whether these tests enforce the requirement
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independently reread RFC 6608 Section 4, the complete requirement, both tagged units and their producers after the approved control strengthening. The RFC requires a NOTIFICATION with Finite State Machine Error and Receive Unexpected Message in Established State; its Data sentence says: The Data field is a 1-octet, unsigned integer that indicates the type of the unexpected message. TestRFC6608EstablishedUnexpectedOpen completes the actual OPEN/KEEPALIVE handshake before sending another same-connection OPEN. It requires exactly one packet, compares the entire NOTIFICATION payload to code 5/subcode 3/one OPEN-type octet, observes real TCP EOF rather than a timeout and waits for release of that Session. A separate pending TCP connection is collision resolution and is not this input. TestRFC6608EstablishedExpectedMessagesKeepTheConnection retains all three original valid KEEPALIVE, UPDATE and ROUTE-REFRESH frames and every per-frame no-notification, open-socket, Established-state, same-session and zero-retry assertion. It now follows them with a terminal same-connection OPEN and requires the sole exact 5/3/Data-1 notification, EOF, session release and retry count one. TCP FIFO makes that terminal reply a causal processing barrier for the preceding valid traffic: an earlier refusal has another message-type Data octet, an extra response, a prematurely closed socket or an excess retry count. The negative claim explicitly reserves error and closure for the terminal marker. Its ROUTE-REFRESH arm proves preservation of the established session, not negotiation or a refresh response. The named positive and strengthened negative both pass in the main thread's race run job-fsm-reviewed-controls-0091f069.log. Retain the refreshed native negative discrimination before stamping this rejudgment; the positive record's state-subcode substitution remains the separate exact-diagnostic proof. This verdict judges this requirement's session-bound behavior and does not claim an external-daemon scenario has run.
 
-No test carries RFC6608-4-3, so there is no linked test.
+| Polarity | Test | Kind and tier | Proof state |
+|---|---|---|---|
+| negative | [`TestRFC6608EstablishedExpectedMessagesKeepTheConnection`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L98) | unit/verify | mutant, verified |
+| positive | [`TestRFC6608EstablishedUnexpectedOpen`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc6608_fsm_notifications_test.go#L70) | unit/verify | mutant, verified |
 
 ## Requirement list review
 

@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2661 requirements and tests - Ze</title>
         <meta name="description" content="RFC 2661: Layer Two Tunneling Protocol &#34;L2TP&#34;. 95 mandatory requirements included in automatic checks, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2661 requirements and tests - Ze" />
@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>28</strong><b>of 95 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 95 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 95 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>207</strong><b>207 of 212 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>203</strong><b>203 of 212 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -2461,7 +2461,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L363" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661HeaderSessionIDBeforeAndAfterAssignment</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -2676,7 +2676,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L491" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661CallNeedsEstablishedTunnel</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L489" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661CallNeedsEstablishedTunnel</code></a></td>
@@ -3290,7 +3290,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L539" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661LocalTerminationSendsStopCCN</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L536" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661LocalTerminationSendsStopCCN</code></a></td>
@@ -3355,7 +3355,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L706" title="internal/component/l2tp/rfc2661_tunnel_test.go" target="_blank" rel="noopener"><code>TestRFC2661CDNCleansUpSilently</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -3446,7 +3446,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC2661-9.5-2, so there is no linked test.</p>
 <h3><a href="#rfc2661-5.8-8"><code>RFC2661-5.8-8</code></a></h3>
 <p>If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable) (§5.8)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/config.go::ExtractParameters moved. Re-judged 2026-11-13 (independent auditor) after bae3903dbb changed reactor.go::locateTunnelLocked: only its doc comment changed (session-downs are now &#39;delivered (deliverSessionDowns)&#39; with an order ticket instead of &#39;emitted&#39;); the body, including newTunnel(..., r.reliableConfig(), ...), is byte-identical, and the other cited producers are unchanged apart from a placePendingCallLocked preallocation in reactor_dial.go outside handleDial. RFC 2661 Section 5.8: &#34;If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared.&#34; This RID owns the configurable budget; RFC2661-5.8-3 owns the clearing MUST. TestRFC2661ConfiguredMaxRetransmitClearsTunnel sets max-retransmit 2 before the tunnel exists, disables HELLO dead-peer detection, asserts Established after each of the two allowed retransmissions (negative) and Closed plus the StopCCN log at the next deadline (positive), so ignoring 2 for 5 or exhausting early both fail. TestConfig_MaxRetransmit and TestReloadAppliesMaxRetransmit cover the default 5 and parsed values reaching the reactor.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read RFC 2661 Section 5.8 and the current producer chain after ExtractParameters gained independent PPP LCP parsing. This requirement owns the configurable reliable-delivery retransmission budget, not the separate 5.8-3 clearing obligation. ExtractParameters still parses max-retransmit into Parameters.MaxRetransmit, tunnelDefaults and reliableConfig still carry it to both tunnel constructors, and ReliableEngine.Tick still exhausts that budget. TestRFC2661ConfiguredMaxRetransmitClearsTunnel sets two before creating the tunnel, disables HELLO dead-peer detection, asserts Established through each allowed retransmission, and Closed after the next deadline. A fixed five fails the positive assertion; premature clearing fails the distinct negative assertions. TestConfig_MaxRetransmit separately asserts default five and an explicit nine; TestReloadAppliesMaxRetransmit asserts an explicit eight reaches reactor and new-tunnel defaults. The new PPP LCP parse does not alter this reliable-delivery setting or the existing tagged assertions.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -4291,7 +4291,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

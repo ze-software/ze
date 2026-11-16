@@ -58,7 +58,7 @@ A frame from the published terminal recording. Explore the recordings in the dem
 **Planned release** Initial version
 Q4 2026
 
- [**1.66 million** lines of Go source code](https://ze-software.net/project/activity/) [**1.98 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.00 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/ai-first/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
+ [**1.69 million** lines of Go source code](https://ze-software.net/project/activity/) [**2.01 million** lines of Go test code](https://ze-software.net/project/activity/) [**2.00 million** lines of third-party Go code](https://ze-software.net/project/activity/) [Core shared by all protocols](https://ze-software.net/architecture/) [Configuration models in YANG](https://ze-software.net/reference/configuration/) [BGP, interfaces, FIB](https://ze-software.net/features/#routing) [CLI, SSH, web, API, MCP](https://ze-software.net/features/ai-first/) [Compiled or external plugins](https://ze-software.net/reference/plugins/) [AGPLv3 source](https://ze-software.net/license/)
 
 ## Getting started with Ze.
 
@@ -172,9 +172,9 @@ Inspect the requirements and remaining gaps for your network role, alongside the
 
 ### Mandatory RFC requirements proven
 
-44.9%
+45.7%
 
-2,136 of 4,752 requirements for Ze or the OS.
+2,171 of 4,752 requirements for Ze or the OS.
 
 **196**RFCs implemented **0**unreviewed requirement lists excluded
 
@@ -188,7 +188,7 @@ Until 2026-10-31: all mandatory rows counted, including annotated rows; summary 
 
 ### Interoperability scenarios
 
-399
+411
 
 BGP sessions, routes, policy and recovery, alongside routing, VPN, access and multi-node cases.
 
@@ -200,13 +200,13 @@ A scenario can contain many checks, and many scenarios reuse the same peer imple
 
  [Docker scenarios and peer checks →](https://ze-software.net/quality/qemu-interop-release/#docker-interop) The scenarios behind the figure
 
-### Where the 399 scenarios are defined.
+### Where the 411 scenarios are defined.
 
  [Explore the BGP lab →](https://ze-software.net/labs/bgp-interop/)
 
 | Protocol or test area | Scenarios | What the cases cover |
 | --- | --- | --- |
-| BGP | 142 | Route exchange, path attributes, graceful restart, route reflection, route-server and session cases. |
+| BGP | 151 | Route exchange, path attributes, graceful restart, route reflection, route-server and session cases. |
 | OSPFv2 | 36 | Adjacencies, authentication, areas, LSAs, route policy and recovery. |
 | OSPFv3 | 20 | IPv6 adjacencies, address families, IPv4 over OSPFv3, IPsec protection and recovery. |
 | IS-IS | 16 | Adjacencies, authentication, levels, metrics, route policy and convergence. |
@@ -221,18 +221,19 @@ A scenario can contain many checks, and many scenarios reuse the same peer imple
 | AS112 | 6 | Anycast route announcements, communities, origin attributes and redistribution. |
 | GTSM | 1 | TTL protection for ICMP errors related to a protected BGP session. |
 | IPsec | 85 | Tunnel negotiation, authentication and recovery scenarios. |
-| L2TP | 13 | Access tunnels, sessions and PPP cases. |
+| L2TP | 15 | Access tunnels, sessions and PPP cases. |
 | PPPoE | 16 | Client and access-session scenarios. |
 | RADIUS | 12 | Operator login, authorization, subscriber accounting, CoA and disconnect cases. |
 | RSVP-TE | 10 | Transit, label and signaling scenarios. |
 | Multi-node topologies | 18 | Links, routes and service interactions between nodes. |
-| All scenarios | 399 | Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests. |
+| Other protocols | 1 | Scenarios whose primary protocol is outside the named rows. |
+| All scenarios | 411 | Each scenario counts toward one category only. If it tests several protocols, we group it only under the main one it tests. |
 
  Package behavior
 
 ### Go tests
 
-45,600+
+47,400+
 
 Check encoded bytes and parsed values. Verify configuration, state transitions and plugins. Mutation checks with gomu examine whether tests catch code changes.
 
@@ -240,7 +241,7 @@ Check encoded bytes and parsed values. Verify configuration, state transitions a
 
 ### End-to-end tests
 
-2,900+
+3,000+
 
 Start sessions and exchange route updates. Run editor commands, commits and reloads. Check output, errors and saved state.
 
@@ -248,7 +249,7 @@ Start sessions and exchange route updates. Run editor commands, commits and relo
 
 ### Fuzz targets
 
-100+
+110
 
 Generate inputs for parsers and decoders. Probe packets and configuration text for crashes. Replay saved failures as regression cases.
 
@@ -269,12 +270,12 @@ Feature pages explain behavior and limits. The [maturity record](https://ze-soft
 [Open page](https://ze-software.net/reference/configuration/)
 **Commands**
 
-**509 CLI commands** Syntax, arguments and pipe operators →
+**512 CLI commands** Syntax, arguments and pipe operators →
 
 [Open page](https://ze-software.net/reference/cli/)
 **Plugins**
 
-**96 registered plugins** Purpose, dependencies, configuration roots and source →
+**98 registered plugins** Purpose, dependencies, configuration roots and source →
 
 [Open page](https://ze-software.net/reference/plugins/)
 

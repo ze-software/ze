@@ -34,7 +34,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 | | MACsec | missing | lower |
 | | MACVLAN | missing | lower |
 | | Geneve | missing | lower |
-| | PPPoE client (`pppoe-client`; the session device carries the configured name, so routes, firewall and NAT name it directly) | have | <!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup --> |
+| | PPPoE client (`pppoe-client`; the session device carries the configured name, so routes, firewall and NAT name it directly) | have | <!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup --> |
 | | L2TPv3 | missing | lower |
 | | WiFi | missing | lower |
 | | XFRM (route-based IPsec, if_id) | have | |
@@ -162,6 +162,21 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.
 
 <!-- source: internal/component/iface/backend.go — Backend interface, RegisterBackend, LoadBackend -->
 <!-- source: internal/component/iface/dispatch.go — package-level functions delegating to backend -->
+
+Session providers that require a particular interface backend use
+`RequireActiveBackend(name)`. It checks the selected name and returns the
+matching backend under one lock; a missing or different selection is an error.
+This prevents a reload between separate name and backend reads from mixing
+different data planes. The returned backend remains subject to the existing
+reload and close lifecycle.
+<!-- source: internal/component/iface/backend.go -- RequireActiveBackend -->
+
+A consumer whose resources belong to another data plane uses `OpenBackend(name)`
+to obtain a separate owner from the registered factory. This does not replace or
+close the active backend, change its generation, or start its monitor. The
+consumer MUST close its owner after its dependent resources stop. L2TP uses this
+for Linux PPP interfaces even when the interface configuration selects VPP.
+<!-- source: internal/component/iface/backend.go -- OpenBackend -->
 <!-- source: internal/component/iface/iface.go — bus topics, payload types, InterfaceStats -->
 <!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 5-phase protocol -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go — CreateDummy, CreateVeth, CreateBridge, etc. -->
@@ -363,7 +378,12 @@ selector that fails to resolve returns an error rather than the name.
 
 The two settings that name a SECOND interface resolve through the same map: a bridge
 member is enslaved by the kernel device its entry selects, and a mirror sends its copy
-to the capture port's kernel device.
+to the capture port's kernel device. A mirror's `ingress` or `egress` must name an
+interface the config declares (an entry, a veth peer, or a VLAN unit written
+`<interface>.<vlan-id>`): the commit refuses any other name, and names the set command
+that declares it. A VLAN unit target is the VLAN on the device its parent entry
+selects, so a mirror toward `capture.100` of a `mac match` entry copies to
+`<selected device>.100`, and waits, with a warning, while the parent selects no device.
 
 Created kinds need no resolution, because Ze makes the device under its configured
 name: dummy, veth, bridge, tunnel, WireGuard, XFRM, and the `pppoe-client` session
@@ -374,7 +394,7 @@ every reconnect, so `pppoe-client pppoe0` is the kernel device `pppoe0` and neve
 only while a session is up. A static route through it waits for the device and follows
 it across a reconnect (`docs/guide/static-routes.md`, "Interface-only next-hops").
 
-<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup, createPPPLink -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, createPPPLink -->
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
@@ -1230,6 +1250,14 @@ an IPv6 address again when its lifetimes change), so a consumer that counts
 addresses keys them by identity: `connected` keeps the set of addresses that
 cover each prefix, not a count of events.
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go -- start, ListExisting -->
+
+The dump request goes to the kernel by unicast, while the subscribed socket
+keeps receiving multicast address changes. Sending the request to those groups
+would require `CAP_NET_ADMIN`, preventing a read-only daemon from starting.
+The vendored netlink patch keeps the two addresses separate, and a Linux test
+reads the existing loopback address with that capability removed.
+<!-- source: vendor/github.com/vishvananda/netlink/nl/nl_linux.go -- Send -->
+<!-- source: internal/le/vendorpatch/netlink_subscribe_linux_test.go -- TestAddressSubscriptionDumpsWithoutNetAdmin -->
 
 Links and addresses reach the monitor on two netlink subscriptions, and nothing
 orders one against the other: an interface created and addressed straight away

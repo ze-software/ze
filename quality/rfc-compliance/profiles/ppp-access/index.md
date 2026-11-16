@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/ppp-access.json](../.
 
 ## Figures
 
-- **MUST bar**: Ze proven 181, Proof pending 51, OS testing gap 4, Not assessed 30, Not built 31
-- **Overview bar**: Ze MUST proven 181, SHOULD proven 6, Proof pending 52, OS testing gap 4, Not assessed 120, Not built 31
+- **MUST bar**: Ze proven 190, Proof pending 42, OS testing gap 4, Not assessed 30, Not built 31
+- **Overview bar**: Ze MUST proven 190, SHOULD proven 6, Proof pending 43, OS testing gap 4, Not assessed 120, Not built 31
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/ppp-access.json](../.
 | Mandatory requirements complete | not complete |
 | MUST rows | 297 |
 | MUST rows kept (the MUST bar) | 297 |
-| Ze proven | 181 |
+| Ze proven | 190 |
 | OS verified | 0 |
-| Proof pending | 51 |
+| Proof pending | 42 |
 | OS testing gap | 4 |
 | Exclusion unchecked | 0 |
 | Not assessed | 30 |
@@ -52,13 +52,13 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 35, Proof pending 26, OS testing gap 2, Not built 13 | Ze MUST proven 35, SHOULD proven 2, Proof pending 27, OS testing gap 2, Not assessed 22, Not built 13 |
+| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 47, Proof pending 14, OS testing gap 2, Not built 13 | Ze MUST proven 47, SHOULD proven 2, Proof pending 15, OS testing gap 2, Not assessed 22, Not built 13 |
 
 ### Level 1
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1570](../../rfc1570/) | PPP LCP Extensions | Not assessed 22 | Not assessed 38 |
+| [RFC 1570](../../rfc1570/) (cycle with rfc1662) | PPP LCP Extensions | Not assessed 22 | Not assessed 38 |
 | [RFC 1994](../../rfc1994/) | PPP Challenge Handshake Authentication Protocol (CHAP) | Ze proven 6, Proof pending 8, Not built 2 | Ze MUST proven 6, SHOULD proven 2, Proof pending 8, Not assessed 9, Not built 2 |
 | [RFC 2516](../../rfc2516/) | A Method for Transmitting PPP Over Ethernet (PPPoE) | Ze proven 24, Proof pending 8, OS testing gap 1, Not built 4 | Ze MUST proven 24, Proof pending 8, OS testing gap 1, Not assessed 3, Not built 4 |
 
@@ -66,8 +66,8 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 6, Proof pending 2 | Ze MUST proven 6, Proof pending 2, Not assessed 6 |
-| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | Ze proven 12, Proof pending 1 | Ze MUST proven 12, Proof pending 1, Not assessed 3 |
+| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 5, Proof pending 3 | Ze MUST proven 5, Proof pending 3, Not assessed 6 |
+| [RFC 1334](../../rfc1334/) | PPP Authentication Protocols | Ze proven 10, Proof pending 3 | Ze MUST proven 10, Proof pending 3, Not assessed 3 |
 | [RFC 4638](../../rfc4638/) | Accommodating a Maximum Transit Unit/Maximum Receive Unit (MTU/MRU) Greater Than 1492 in the Point-to-Point Protocol over Ethernet (PPPoE) | Not built 6 | Not assessed 3, Not built 6 |
 
 ### Level 3

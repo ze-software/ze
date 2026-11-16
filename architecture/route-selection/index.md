@@ -102,6 +102,63 @@ without another UPDATE.
 
 ## Phase 2: Best-Path Selection (RFC 4271 Section 9.1.2)
 
+Before ranking, the RIB excludes an address next hop that cannot resolve. For
+CIDR routes it also resolves against the routing table that would result from
+installing that candidate. The preview uses the Loc-RIB's import policy,
+administrative distance and selection rules without storing a path or publishing
+an event. A more-specific interior route and a preferred same-prefix connected
+or static route remain available; a candidate that would capture its own
+resolution chain is excluded.
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- candidateNextHopResolved -->
+<!-- source: internal/core/rib/locrib/prospective.go -- PreviewSelected -->
+<!-- source: internal/core/rib/igpcost/prospective.go -- ResolveProspective, prospectiveReader.LPM -->
+
+This admission belongs to the forwarding election. The existing source-owned
+Adj-RIB-Out recovery query instead ranks retained received paths for another
+peer's wire; it does not propose a local forwarding-table installation. Its
+private gather purpose omits the local resolution check while retaining import
+policy, self-next-hop, validation and recovery-source exclusions. Ordinary
+candidate gathering always selects forwarding admission. Neither `RSClient`
+nor the native relay execution choice selects an exemption.
+<!-- source: internal/component/bgp/plugins/rib/rib_commands.go -- candidateAdmission, gatherPrefixCandidatesForLocked, gatherKeyCandidatesForLocked -->
+<!-- source: internal/component/bgp/plugins/rib/rib_recovery.go -- recoverySurvivorsLocked -->
+
+Unresolved paths remain in Adj-RIB-In. The existing routing-change worker
+re-runs selection after next-hop reachability changes, replacing the winner
+with a reachable alternative or removing it from the Loc-RIB. Restored
+reachability can select the retained path without another BGP UPDATE. A forked
+RIB asks the engine through `route-metrics`; its bounded cache includes the
+candidate destination and path fields and is cleared when the routing revision
+changes.
+<!-- source: internal/component/bgp/plugins/rib/rib_aigp.go -- runAIGPSelection, reselectAIGPRoutes -->
+<!-- source: internal/component/bgp/plugins/rib/rib_remote.go -- runRemoteMetrics -->
+<!-- source: internal/component/bgp/plugins/rib/rib_next_hop.go -- prospectiveDistance, prospectiveMetricKey -->
+
+Each engine metric request has a five-second response bound. A failed lookup
+leaves its candidate ineligible and is not cached. The existing remote-metric
+worker coalesces lookup failures into one `doctor-bgp-next-hop-metrics` warning,
+through the SDK report bus, and clears it after a successful retry. Report calls
+run outside peer admission and the remote cache lock. A revision-feed failure
+raises a bounded error report before closing the plugin, retaining the feed's
+mandatory-dependency behavior.
+<!-- source: internal/component/bgp/plugins/rib/rib_remote.go -- runRemoteMetrics, reportRemoteMetricIssue, reportRemoteMetricFailure -->
+
+Validation of this admission change is still in progress. The native RIB package
+run exposes existing fixture topologies with no route to their next hops, plus
+concurrency fixtures that need their controlled resolver seam revalidated.
+Those failures have not been cleared by changing expected selections.
+
+The promoted internal and forked Linux tests verify kernel installation,
+reselection and removal after reachability loss, recovery without another
+UPDATE, and preservation of a directly reachable control. Native producer
+faults exercise the kernel-removal assertions after BGP and Loc-RIB clear.
+<!-- source: internal/test/fixture/rfc4271_next_hop_daemon_fixture.go -- rfc4271NextHopWinner, rfc4271NextHopAbsent, rfc4271NextHopSurvivor -->
+<!-- source: rfc/discrimination/rfc4271/RFC4271-9.1.2.1-2.json -- native kernel removal records -->
+
+Live proof of prospective self-dependency remains incomplete. The daemon tests
+do not exercise that condition; broader RIB fixture review also remains open.
+<!-- source: plan/release/fixes/spec-bgp-next-hop-reachability-admission.md -- Current Evidence, Remaining Work for Review -->
+
 Eligible routes are removed from consideration in criterion order. Before later
 tie-breaks, MED removes each route whose MED exceeds another surviving route's
 MED from the same neighboring AS. A route removed by an earlier criterion cannot

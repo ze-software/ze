@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC coverage by profile - Ze</title>
         <meta name="description" content="Mandatory and optional RFC requirement coverage of each use case Ze serves and each technology it implements, release profiles first." />
         <meta property="og:title" content="RFC coverage by profile - Ze" />
@@ -131,43 +131,43 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Profile</th><th>MUST bar</th><th>Overview bar</th><th>RFCs</th><th>Requirements not reviewed</th><th>Mandatory requirements complete</th></tr></thead>
 <tbody>
 <tr><td><a href="fttx-edge/">FTTx edge: customers to the internet over L2TP, local DNS for the LAN</a></td>
-<td><div data-ze-rfc-bar="profile/fttx-edge/required:must">Ze proven 361, Proof pending 89, OS testing gap 120, Not assessed 2, Not built 188</div></td>
-<td><div data-ze-rfc-bar="profile/fttx-edge/required:overview">Ze MUST proven 361, SHOULD proven 12, Proof pending 90, OS testing gap 120, Not assessed 338, Not built 189</div></td>
+<td><div data-ze-rfc-bar="profile/fttx-edge/required:must">Ze proven 371, Proof pending 79, OS testing gap 120, Not assessed 2, Not built 188</div></td>
+<td><div data-ze-rfc-bar="profile/fttx-edge/required:overview">Ze MUST proven 371, SHOULD proven 12, Proof pending 80, OS testing gap 120, Not assessed 338, Not built 189</div></td>
 <td><a href="../?profile=fttx-edge&amp;rfc=rfc1661%2Crfc1994%2Crfc2516%2Crfc4787%2Crfc1035%2Crfc1332%2Crfc2131%2Crfc2132%2Crfc4861%2Crfc1877%2Crfc2181%2Crfc3022%2Crfc4862%2Crfc5382%2Crfc5072%2Crfc9915%2Crfc2661%2Crfc5625%2Crfc7084#rfc-list"><span data-ze-rfc="profile/fttx-edge/required:rfcs">19</span></a></td>
 <td><span data-ze-rfc="profile/fttx-edge/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/fttx-edge/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="lns/">L2TP network server</a></td>
-<td><div data-ze-rfc-bar="profile/lns/required:must">Ze proven 259, Proof pending 65, OS testing gap 94, Not built 41</div></td>
-<td><div data-ze-rfc-bar="profile/lns/required:overview">Ze MUST proven 259, SHOULD proven 9, Proof pending 66, OS testing gap 94, Not assessed 151, Not built 41</div></td>
+<td><div data-ze-rfc-bar="profile/lns/required:must">Ze proven 268, Proof pending 56, OS testing gap 94, Not built 41</div></td>
+<td><div data-ze-rfc-bar="profile/lns/required:overview">Ze MUST proven 268, SHOULD proven 9, Proof pending 57, OS testing gap 94, Not assessed 151, Not built 41</div></td>
 <td><a href="../?profile=lns&amp;rfc=rfc1661%2Crfc1994%2Crfc2865%2Crfc2866%2Crfc1332%2Crfc1334%2Crfc4861%2Crfc1877%2Crfc2759%2Crfc5072%2Crfc2661%2Crfc2869%2Crfc3162%2Crfc5176#rfc-list"><span data-ze-rfc="profile/lns/required:rfcs">14</span></a></td>
 <td><span data-ze-rfc="profile/lns/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/lns/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="looking-glass/">Looking glass</a></td>
-<td><div data-ze-rfc-bar="profile/looking-glass/required:must">Ze proven 179, Proof pending 82, Not built 47</div></td>
-<td><div data-ze-rfc-bar="profile/looking-glass/required:overview">Ze MUST proven 179, SHOULD proven 5, Proof pending 83, Not assessed 87, Not built 47</div></td>
+<td><div data-ze-rfc-bar="profile/looking-glass/required:must">Ze proven 219, Proof pending 50, Not built 39</div></td>
+<td><div data-ze-rfc-bar="profile/looking-glass/required:overview">Ze MUST proven 219, SHOULD proven 5, Proof pending 51, Not assessed 87, Not built 39</div></td>
 <td><a href="../?profile=looking-glass&amp;rfc=rfc4271%2Crfc1997%2Crfc2545%2Crfc5492%2Crfc6608%2Crfc9687%2Crfc4760%2Crfc6793%2Crfc7911%2Crfc8522%2Crfc6286%2Crfc6811%2Crfc7606%2Crfc7607%2Crfc8092%2Crfc9774#rfc-list"><span data-ze-rfc="profile/looking-glass/required:rfcs">16</span></a></td>
 <td><span data-ze-rfc="profile/looking-glass/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/looking-glass/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="route-collector/">Route collector</a></td>
-<td><div data-ze-rfc-bar="profile/route-collector/required:must">Ze proven 214, Proof pending 106, Not built 42</div></td>
-<td><div data-ze-rfc-bar="profile/route-collector/required:overview">Ze MUST proven 214, SHOULD proven 8, Proof pending 108, Not assessed 89, Not built 42</div></td>
+<td><div data-ze-rfc-bar="profile/route-collector/required:must">Ze proven 250, Proof pending 78, Not built 34</div></td>
+<td><div data-ze-rfc-bar="profile/route-collector/required:overview">Ze MUST proven 250, SHOULD proven 8, Proof pending 80, Not assessed 89, Not built 34</div></td>
 <td><a href="../?profile=route-collector&amp;rfc=rfc4271%2Crfc2545%2Crfc5492%2Crfc6608%2Crfc9687%2Crfc4760%2Crfc6793%2Crfc7911%2Crfc6286%2Crfc7606%2Crfc7607%2Crfc7854%2Crfc9774%2Crfc8671%2Crfc9069%2Crfc6396%2Crfc6397%2Crfc8050#rfc-list"><span data-ze-rfc="profile/route-collector/required:rfcs">18</span></a></td>
 <td><span data-ze-rfc="profile/route-collector/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/route-collector/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="route-server/">IXP route server</a></td>
-<td><div data-ze-rfc-bar="profile/route-server/required:must">Ze proven 211, Proof pending 103, Not assessed 16, Not built 64</div></td>
-<td><div data-ze-rfc-bar="profile/route-server/required:overview">Ze MUST proven 211, SHOULD proven 19, Not owed 3, Proof pending 105, Not assessed 214, Not built 66</div></td>
+<td><div data-ze-rfc-bar="profile/route-server/required:must">Ze proven 247, Proof pending 75, Not assessed 16, Not built 56</div></td>
+<td><div data-ze-rfc-bar="profile/route-server/required:overview">Ze MUST proven 247, SHOULD proven 19, Not owed 3, Proof pending 77, Not assessed 214, Not built 58</div></td>
 <td><a href="../?profile=route-server&amp;rfc=rfc4271%2Crfc9582%2Crfc1997%2Crfc2545%2Crfc5492%2Crfc6608%2Crfc8212%2Crfc9687%2Crfc4760%2Crfc6793%2Crfc7911%2Crfc7947%2Crfc6286%2Crfc6811%2Crfc7606%2Crfc7948%2Crfc7454%2Crfc7607%2Crfc7999%2Crfc8092%2Crfc8893%2Crfc9234%2Crfc9774%2Crfc8210#rfc-list"><span data-ze-rfc="profile/route-server/required:rfcs">24</span></a></td>
 <td><span data-ze-rfc="profile/route-server/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/route-server/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="vpn-endpoint/">IPsec VPN endpoint</a></td>
-<td><div data-ze-rfc-bar="profile/vpn-endpoint/required:must">Ze proven 238, Proof pending 176, OS testing gap 56, Not built 77</div></td>
-<td><div data-ze-rfc-bar="profile/vpn-endpoint/required:overview">Ze MUST proven 238, SHOULD proven 7, Proof pending 179, OS testing gap 57, Not assessed 156, Not built 79</div></td>
+<td><div data-ze-rfc-bar="profile/vpn-endpoint/required:must">Ze proven 239, Proof pending 175, OS testing gap 56, Not built 77</div></td>
+<td><div data-ze-rfc-bar="profile/vpn-endpoint/required:overview">Ze MUST proven 239, SHOULD proven 7, Proof pending 178, OS testing gap 57, Not assessed 156, Not built 79</div></td>
 <td><a href="../?profile=vpn-endpoint&amp;rfc=rfc4754%2Crfc5280%2Crfc3948%2Crfc4106%2Crfc4301%2Crfc4303%2Crfc5282%2Crfc7296%2Crfc8247%2Crfc7427%2Crfc8221%2Crfc6071#rfc-list"><span data-ze-rfc="profile/vpn-endpoint/required:rfcs">12</span></a></td>
 <td><span data-ze-rfc="profile/vpn-endpoint/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/vpn-endpoint/required:register">not complete</span></td>
@@ -182,15 +182,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Profile</th><th>MUST bar</th><th>Overview bar</th><th>RFCs</th><th>Requirements not reviewed</th><th>Mandatory requirements complete</th></tr></thead>
 <tbody>
 <tr><td><a href="ddos-flowspec/">DDoS detection and mitigation by sending FlowSpec upstream</a></td>
-<td><div data-ze-rfc-bar="profile/ddos-flowspec/required:must">Ze proven 185, Proof pending 74, OS testing gap 1, Not built 77</div></td>
-<td><div data-ze-rfc-bar="profile/ddos-flowspec/required:overview">Ze MUST proven 185, SHOULD proven 16, Not owed 5, Proof pending 75, OS testing gap 1, Not assessed 107, Not built 77</div></td>
-<td><a href="../?profile=ddos-flowspec&amp;rfc=rfc3954%2Crfc5635%2Crfc4271%2Csflow-v5%2Crfc4360%2Crfc4760%2Crfc7011%2Crfc7012%2Crfc7606%2Crfc7999%2Crfc8955%2Crfc8956%2Crfc9117#rfc-list"><span data-ze-rfc="profile/ddos-flowspec/required:rfcs">13</span></a></td>
+<td><div data-ze-rfc-bar="profile/ddos-flowspec/required:must">Ze proven 199, Proof pending 67, OS testing gap 1, Not built 73</div></td>
+<td><div data-ze-rfc-bar="profile/ddos-flowspec/required:overview">Ze MUST proven 199, SHOULD proven 16, Not owed 5, Proof pending 68, OS testing gap 1, Not assessed 107, Not built 73</div></td>
+<td><a href="../?profile=ddos-flowspec&amp;rfc=rfc3954%2Crfc5635%2Crfc4271%2Csflow-v5%2Crfc6608%2Crfc4360%2Crfc4760%2Crfc7011%2Crfc7012%2Crfc7606%2Crfc7999%2Crfc8955%2Crfc8956%2Crfc9117#rfc-list"><span data-ze-rfc="profile/ddos-flowspec/required:rfcs">14</span></a></td>
 <td><span data-ze-rfc="profile/ddos-flowspec/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/ddos-flowspec/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="vpn-concentrator/">IPsec VPN concentrator for remote-access clients</a></td>
-<td><div data-ze-rfc-bar="profile/vpn-concentrator/required:must">Ze proven 358, Proof pending 206, OS testing gap 58, Not assessed 3, Not built 95</div></td>
-<td><div data-ze-rfc-bar="profile/vpn-concentrator/required:overview">Ze MUST proven 358, SHOULD proven 13, Proof pending 209, OS testing gap 59, Not assessed 207, Not built 98</div></td>
+<td><div data-ze-rfc-bar="profile/vpn-concentrator/required:must">Ze proven 359, Proof pending 205, OS testing gap 58, Not assessed 3, Not built 95</div></td>
+<td><div data-ze-rfc-bar="profile/vpn-concentrator/required:overview">Ze MUST proven 359, SHOULD proven 13, Proof pending 208, OS testing gap 59, Not assessed 207, Not built 98</div></td>
 <td><a href="../?profile=vpn-concentrator&amp;rfc=rfc4739%2Crfc4754%2Crfc3748%2Crfc5280%2Crfc3948%2Crfc4106%2Crfc4301%2Crfc4303%2Crfc5282%2Crfc7296%2Crfc8247%2Crfc4555%2Crfc5216%2Crfc5998%2Crfc7427%2Crfc8221%2Crfc9190#rfc-list"><span data-ze-rfc="profile/vpn-concentrator/required:rfcs">17</span></a></td>
 <td><span data-ze-rfc="profile/vpn-concentrator/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/vpn-concentrator/required:register">not complete</span></td>
@@ -212,29 +212,29 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/bfd/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="bgp-communities-policy/">BGP communities and policy</a></td>
-<td><div data-ze-rfc-bar="profile/bgp-communities-policy/required:must">Ze proven 32, Proof pending 8, Not built 9</div></td>
-<td><div data-ze-rfc-bar="profile/bgp-communities-policy/required:overview">Ze MUST proven 32, SHOULD proven 4, Proof pending 8, Not assessed 33, Not built 9</div></td>
+<td><div data-ze-rfc-bar="profile/bgp-communities-policy/required:must">Ze proven 28, Proof pending 12, Not built 9</div></td>
+<td><div data-ze-rfc-bar="profile/bgp-communities-policy/required:overview">Ze MUST proven 28, SHOULD proven 4, Proof pending 12, Not assessed 33, Not built 9</div></td>
 <td><a href="../?profile=bgp-communities-policy&amp;rfc=rfc3882%2Crfc5635%2Crfc1997%2Crfc3765%2Crfc4360%2Crfc5701%2Crfc7611%2Crfc7999%2Crfc8092%2Crfc9234%2Crfc8195#rfc-list"><span data-ze-rfc="profile/bgp-communities-policy/required:rfcs">11</span></a></td>
 <td><span data-ze-rfc="profile/bgp-communities-policy/required:not-walked">1</span></td>
 <td><span data-ze-rfc="profile/bgp-communities-policy/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="bgp-core/">BGP core</a></td>
-<td><div data-ze-rfc-bar="profile/bgp-core/required:must">Ze proven 209, Proof pending 99, Not built 39</div></td>
-<td><div data-ze-rfc-bar="profile/bgp-core/required:overview">Ze MUST proven 209, SHOULD proven 8, Not owed 1, Proof pending 101, Not assessed 104, Not built 39</div></td>
+<td><div data-ze-rfc-bar="profile/bgp-core/required:must">Ze proven 239, Proof pending 76, Not built 32</div></td>
+<td><div data-ze-rfc-bar="profile/bgp-core/required:overview">Ze MUST proven 239, SHOULD proven 8, Not owed 1, Proof pending 78, Not assessed 104, Not built 32</div></td>
 <td><a href="../?profile=bgp-core&amp;rfc=rfc4271%2Crfc2545%2Crfc5492%2Crfc6608%2Crfc8212%2Crfc9072%2Crfc9687%2Crfc4760%2Crfc2918%2Crfc4486%2Crfc6793%2Crfc7311%2Crfc7911%2Crfc6286%2Crfc7606%2Crfc8950%2Crfc5549%2Crfc7313%2Crfc7607%2Crfc8654%2Crfc9774#rfc-list"><span data-ze-rfc="profile/bgp-core/required:rfcs">21</span></a></td>
 <td><span data-ze-rfc="profile/bgp-core/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/bgp-core/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="bgp-flowspec/">BGP FlowSpec</a></td>
-<td><div data-ze-rfc-bar="profile/bgp-flowspec/required:must">Ze proven 24, Proof pending 21, Not built 3</div></td>
-<td><div data-ze-rfc-bar="profile/bgp-flowspec/required:overview">Ze MUST proven 24, SHOULD proven 6, Not owed 1, Proof pending 21, Not assessed 26, Not built 3</div></td>
+<td><div data-ze-rfc-bar="profile/bgp-flowspec/required:must">Ze proven 26, Proof pending 19, Not built 3</div></td>
+<td><div data-ze-rfc-bar="profile/bgp-flowspec/required:overview">Ze MUST proven 26, SHOULD proven 6, Not owed 1, Proof pending 19, Not assessed 26, Not built 3</div></td>
 <td><a href="../?profile=bgp-flowspec&amp;rfc=rfc8955%2Crfc5575%2Crfc8956%2Crfc9117#rfc-list"><span data-ze-rfc="profile/bgp-flowspec/required:rfcs">4</span></a></td>
 <td><span data-ze-rfc="profile/bgp-flowspec/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/bgp-flowspec/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="bgp-ls/">BGP-LS</a></td>
-<td><div data-ze-rfc-bar="profile/bgp-ls/required:must">Ze proven 83, Proof pending 11, Not built 30</div></td>
-<td><div data-ze-rfc-bar="profile/bgp-ls/required:overview">Ze MUST proven 83, SHOULD proven 4, Not owed 1, Proof pending 11, Not assessed 67, Not built 32</div></td>
+<td><div data-ze-rfc-bar="profile/bgp-ls/required:must">Ze proven 82, Proof pending 10, Not built 32</div></td>
+<td><div data-ze-rfc-bar="profile/bgp-ls/required:overview">Ze MUST proven 82, SHOULD proven 4, Not owed 1, Proof pending 10, Not assessed 67, Not built 34</div></td>
 <td><a href="../?profile=bgp-ls&amp;rfc=rfc9552%2Crfc7752%2Crfc8571%2Crfc9085%2Crfc9086%2Crfc9514#rfc-list"><span data-ze-rfc="profile/bgp-ls/required:rfcs">6</span></a></td>
 <td><span data-ze-rfc="profile/bgp-ls/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/bgp-ls/required:register">not complete</span></td>
@@ -247,8 +247,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/bgp-monitoring/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="bgp-session-ops/">BGP session operations</a></td>
-<td><div data-ze-rfc-bar="profile/bgp-session-ops/required:must">Ze proven 39, Proof pending 21, Not built 17</div></td>
-<td><div data-ze-rfc-bar="profile/bgp-session-ops/required:overview">Ze MUST proven 39, SHOULD proven 6, Proof pending 25, Not assessed 112, Not built 17</div></td>
+<td><div data-ze-rfc-bar="profile/bgp-session-ops/required:must">Ze proven 38, Proof pending 22, Not built 17</div></td>
+<td><div data-ze-rfc-bar="profile/bgp-session-ops/required:overview">Ze MUST proven 38, SHOULD proven 6, Proof pending 26, Not assessed 112, Not built 17</div></td>
 <td><a href="../?profile=bgp-session-ops&amp;rfc=rfc4456%2Crfc5065%2Crfc7705%2Crfc8326%2Crfc4724%2Crfc7947%2Crfc6996%2Crfc7948%2Crfc8203%2Crfc9003%2Crfc7454%2Crfc8538%2Crfc9494#rfc-list"><span data-ze-rfc="profile/bgp-session-ops/required:rfcs">13</span></a></td>
 <td><span data-ze-rfc="profile/bgp-session-ops/required:not-walked">3</span></td>
 <td><span data-ze-rfc="profile/bgp-session-ops/required:register">not complete</span></td>
@@ -268,15 +268,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/bgp-transport-security/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="bgp-vpn-evpn/">BGP VPN and EVPN</a></td>
-<td><div data-ze-rfc-bar="profile/bgp-vpn-evpn/required:must">Ze proven 31, Proof pending 6, Not built 165</div></td>
-<td><div data-ze-rfc-bar="profile/bgp-vpn-evpn/required:overview">Ze MUST proven 31, SHOULD proven 1, Proof pending 6, Not assessed 53, Not built 165</div></td>
+<td><div data-ze-rfc-bar="profile/bgp-vpn-evpn/required:must">Ze proven 29, Proof pending 8, Not built 165</div></td>
+<td><div data-ze-rfc-bar="profile/bgp-vpn-evpn/required:overview">Ze MUST proven 29, SHOULD proven 1, Proof pending 8, Not assessed 53, Not built 165</div></td>
 <td><a href="../?profile=bgp-vpn-evpn&amp;rfc=rfc4364%2Crfc4659%2Crfc8277%2Crfc4684%2Crfc4761%2Crfc6514%2Crfc7432%2Crfc9136%2Crfc4762#rfc-list"><span data-ze-rfc="profile/bgp-vpn-evpn/required:rfcs">9</span></a></td>
 <td><span data-ze-rfc="profile/bgp-vpn-evpn/required:not-walked">2</span></td>
 <td><span data-ze-rfc="profile/bgp-vpn-evpn/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="dhcp-provisioning/">DHCP and provisioning</a></td>
-<td><div data-ze-rfc-bar="profile/dhcp-provisioning/required:must">Ze proven 190, Proof pending 20, OS testing gap 116, Not built 147</div></td>
-<td><div data-ze-rfc-bar="profile/dhcp-provisioning/required:overview">Ze MUST proven 190, SHOULD proven 10, Not owed 1, Proof pending 20, OS testing gap 116, Not assessed 209, Not built 148</div></td>
+<td><div data-ze-rfc-bar="profile/dhcp-provisioning/required:must">Ze proven 189, Proof pending 21, OS testing gap 116, Not built 147</div></td>
+<td><div data-ze-rfc-bar="profile/dhcp-provisioning/required:overview">Ze MUST proven 189, SHOULD proven 10, Not owed 1, Proof pending 21, OS testing gap 116, Not assessed 209, Not built 148</div></td>
 <td><a href="../?profile=dhcp-provisioning&amp;rfc=rfc1350%2Crfc2131%2Crfc2132%2Crfc4861%2Crfc2347%2Crfc2348%2Crfc2349%2Crfc4578%2Crfc4862%2Crfc7440%2Crfc8106%2Crfc9915%2Crfc7084#rfc-list"><span data-ze-rfc="profile/dhcp-provisioning/required:rfcs">13</span></a></td>
 <td><span data-ze-rfc="profile/dhcp-provisioning/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/dhcp-provisioning/required:register">not complete</span></td>
@@ -289,8 +289,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/dns/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="drafts/">Drafts and non-RFC standards</a></td>
-<td><div data-ze-rfc-bar="profile/drafts/required:must">Ze proven 75, Proof pending 4, OS testing gap 1, Not built 42</div></td>
-<td><div data-ze-rfc-bar="profile/drafts/required:overview">Ze MUST proven 75, SHOULD proven 6, Proof pending 4, OS testing gap 1, Not assessed 55, Not built 42</div></td>
+<td><div data-ze-rfc-bar="profile/drafts/required:must">Ze proven 73, Proof pending 6, OS testing gap 1, Not built 42</div></td>
+<td><div data-ze-rfc-bar="profile/drafts/required:overview">Ze MUST proven 73, SHOULD proven 6, Proof pending 6, OS testing gap 1, Not assessed 55, Not built 42</div></td>
 <td><a href="../?profile=drafts&amp;rfc=sflow-v5%2Cdraft-walton-bgp-hostname-capability%2Cdraft-abraitis-bgp-version-capability%2Cdraft-abraitis-idr-addpath-paths-limit%2Cdraft-ietf-bess-mup-safi%2Cdraft-ietf-idr-linklocal-capability%2Cdraft-ietf-sidrops-aspa-verification%2Cdraft-ietf-idr-bgp-bfd-strict-mode#rfc-list"><span data-ze-rfc="profile/drafts/required:rfcs">8</span></a></td>
 <td><span data-ze-rfc="profile/drafts/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/drafts/required:register">not complete</span></td>
@@ -317,8 +317,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/flow-telemetry/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="ikev2-ipsec/">IKEv2 and IPsec</a></td>
-<td><div data-ze-rfc-bar="profile/ikev2-ipsec/required:must">Ze proven 253, Proof pending 187, OS testing gap 76, Not assessed 25, Not built 163</div></td>
-<td><div data-ze-rfc-bar="profile/ikev2-ipsec/required:overview">Ze MUST proven 253, SHOULD proven 9, Proof pending 190, OS testing gap 77, Not assessed 276, Not built 165</div></td>
+<td><div data-ze-rfc-bar="profile/ikev2-ipsec/required:must">Ze proven 254, Proof pending 186, OS testing gap 76, Not assessed 25, Not built 163</div></td>
+<td><div data-ze-rfc-bar="profile/ikev2-ipsec/required:overview">Ze MUST proven 254, SHOULD proven 9, Proof pending 189, OS testing gap 77, Not assessed 276, Not built 165</div></td>
 <td><a href="../?profile=ikev2-ipsec&amp;rfc=rfc4739%2Crfc5685%2Crfc4754%2Crfc5280%2Crfc3948%2Crfc4106%2Crfc4301%2Crfc4302%2Crfc4303%2Crfc5282%2Crfc7296%2Crfc8247%2Crfc4555%2Crfc7383%2Crfc7427%2Crfc7634%2Crfc8031%2Crfc8221%2Crfc9329%2Crfc9370%2Crfc6071#rfc-list"><span data-ze-rfc="profile/ikev2-ipsec/required:rfcs">21</span></a></td>
 <td><span data-ze-rfc="profile/ikev2-ipsec/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/ikev2-ipsec/required:register">not complete</span></td>
@@ -359,8 +359,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/ospf/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="ppp-access/">PPP access</a></td>
-<td><div data-ze-rfc-bar="profile/ppp-access/required:must">Ze proven 181, Proof pending 51, OS testing gap 4, Not assessed 30, Not built 31</div></td>
-<td><div data-ze-rfc-bar="profile/ppp-access/required:overview">Ze MUST proven 181, SHOULD proven 6, Proof pending 52, OS testing gap 4, Not assessed 120, Not built 31</div></td>
+<td><div data-ze-rfc-bar="profile/ppp-access/required:must">Ze proven 190, Proof pending 42, OS testing gap 4, Not assessed 30, Not built 31</div></td>
+<td><div data-ze-rfc-bar="profile/ppp-access/required:overview">Ze MUST proven 190, SHOULD proven 6, Proof pending 43, OS testing gap 4, Not assessed 120, Not built 31</div></td>
 <td><a href="../?profile=ppp-access&amp;rfc=rfc1661%2Crfc1570%2Crfc1994%2Crfc2516%2Crfc1332%2Crfc1334%2Crfc4638%2Crfc1877%2Crfc5072%2Crfc2661%2Crfc3145#rfc-list"><span data-ze-rfc="profile/ppp-access/required:rfcs">11</span></a></td>
 <td><span data-ze-rfc="profile/ppp-access/required:not-walked">0</span></td>
 <td><span data-ze-rfc="profile/ppp-access/required:register">not complete</span></td>
@@ -387,8 +387,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/route-archival/required:register">not complete</span></td>
 </tr>
 <tr><td><a href="rpki/">RPKI</a></td>
-<td><div data-ze-rfc-bar="profile/rpki/required:must">Ze proven 13, Proof pending 21, Not assessed 16, Not built 87</div></td>
-<td><div data-ze-rfc-bar="profile/rpki/required:overview">Ze MUST proven 13, SHOULD proven 6, Not owed 5, Proof pending 21, Not assessed 88, Not built 89</div></td>
+<td><div data-ze-rfc-bar="profile/rpki/required:must">Ze proven 17, Proof pending 17, Not assessed 16, Not built 87</div></td>
+<td><div data-ze-rfc-bar="profile/rpki/required:overview">Ze MUST proven 17, SHOULD proven 6, Not owed 5, Proof pending 17, Not assessed 88, Not built 89</div></td>
 <td><a href="../?profile=rpki&amp;rfc=rfc9582%2Crfc6482%2Crfc6811%2Crfc6810%2Crfc8097%2Crfc8893%2Crfc9319%2Crfc8210%2Cdraft-ietf-sidrops-8210bis#rfc-list"><span data-ze-rfc="profile/rpki/required:rfcs">9</span></a></td>
 <td><span data-ze-rfc="profile/rpki/required:not-walked">1</span></td>
 <td><span data-ze-rfc="profile/rpki/required:register">not complete</span></td>
@@ -440,7 +440,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:41 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/drafts.json](../../..
 
 ## Figures
 
-- **MUST bar**: Ze proven 75, Proof pending 4, OS testing gap 1, Not built 42
-- **Overview bar**: Ze MUST proven 75, SHOULD proven 6, Proof pending 4, OS testing gap 1, Not assessed 55, Not built 42
+- **MUST bar**: Ze proven 73, Proof pending 6, OS testing gap 1, Not built 42
+- **Overview bar**: Ze MUST proven 73, SHOULD proven 6, Proof pending 6, OS testing gap 1, Not assessed 55, Not built 42
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/drafts.json](../../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 122 |
 | MUST rows kept (the MUST bar) | 122 |
-| Ze proven | 75 |
+| Ze proven | 73 |
 | OS verified | 0 |
-| Proof pending | 4 |
+| Proof pending | 6 |
 | OS testing gap | 1 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -82,8 +82,8 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY](../../draft-ietf-idr-linklocal-capability/) | Link-Local Next Hop Capability for BGP | Ze proven 13, Not built 2 | Ze MUST proven 13, Not assessed 12, Not built 2 |
-| [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION](../../draft-ietf-sidrops-aspa-verification/) | BGP AS_PATH Verification Based on Autonomous System Provider Authorization (ASPA) Objects | Ze proven 8, Proof pending 1, Not built 1 | Ze MUST proven 8, Proof pending 1, Not assessed 10, Not built 1 |
+| [DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY](../../draft-ietf-idr-linklocal-capability/) | Link-Local Next Hop Capability for BGP | Ze proven 10, Proof pending 3, Not built 2 | Ze MUST proven 10, Proof pending 3, Not assessed 12, Not built 2 |
+| [DRAFT-IETF-SIDROPS-ASPA-VERIFICATION](../../draft-ietf-sidrops-aspa-verification/) | BGP AS_PATH Verification Based on Autonomous System Provider Authorization (ASPA) Objects | Ze proven 9, Not built 1 | Ze MUST proven 9, Not assessed 10, Not built 1 |
 
 ### Level 10
 

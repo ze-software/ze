@@ -159,11 +159,11 @@ Source: [data/rfc/rfc3162.json](../../../data/rfc/rfc3162.json).
 
 | Requirement | Text | Level | Section | Tests |
 |---|---|---|---|---|
-| `RFC3162-2.1-1` | NAS-IPv6- Address and/or NAS-IP-Address MAY be present in an Access-Request packet; however, if neither attribute is present then NAS- Identifier MUST be present. (§2.1) | MUST | 2.1 - NAS-IPv6-Address | **positive:** `unit/verify` [`TestRFC3162AccessRequestFromAnIPv6SourceNamesTheNAS`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L29). **negative:** no negative test. **{single-polarity}:** the fallback is an addition to the packet, so its other direction, a configured NAS-IP-Address making the NAS-Identifier optional, is RFC 2865 Section 4.1 behaviour proven by TestRFC2866AcctNASIdentityFallbackIsNarrow under RFC2866-4.1-3, not a separate obligation of this sentence |
+| `RFC3162-2.1-1` | NAS-IPv6- Address and/or NAS-IP-Address MAY be present in an Access-Request packet; however, if neither attribute is present then NAS- Identifier MUST be present. (§2.1) | MUST | 2.1 - NAS-IPv6-Address | **positive:** `unit/verify` [`TestRFC3162AccessRequestFromAnIPv6SourceNamesTheNAS`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L30). **negative:** no negative test. **{single-polarity}:** the fallback is an addition to the packet, so its other direction, a configured NAS-IP-Address making the NAS-Identifier optional, is RFC 2865 Section 4.1 behaviour proven by TestRFC2866AcctNASIdentityFallbackIsNarrow under RFC2866-4.1-3, not a separate obligation of this sentence |
 | `RFC3162-3.2-1` | If the Interface-Identifier IPv6CP option [11] has been successfully negotiated, this Attribute MUST be included in an Access-Request packet as a hint by the NAS to the server that it would prefer that value. (§3.2) | MUST | 3.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze never sends Framed-Interface-Id: internal/component/l2tp/plugins/authradius/handler.go::buildAccessRequestAttrs writes no such attribute, and with authentication reauth-interval set, internal/component/l2tp/ppp/session_run.go runs runAuthPhase again on an established CHAP session, so a re-authentication Access-Request leaves after IPv6CP negotiated an Interface-Identifier and omits it; no owner ruling names this feature unwanted (ai/META-DECISIONS.md, Goal and scope) |
 | `RFC3162-2.3-1` | This field, which is reserved and MUST be present, is always set to zero. (§2.3) | MUST | 2.3 - Framed-IPv6-Prefix | **positive:** no positive test. **negative:** no negative test. **{gap}:** Ze implements no Framed-IPv6-Prefix encoding: internal/component/l2tp/plugins/authradius/handler.go::buildAccessRequestAttrs and internal/component/l2tp/plugins/authradius/acct.go::buildAcctPacket write none, so no Reserved field is ever written; no owner ruling names this feature unwanted (ai/META-DECISIONS.md, Goal and scope) |
-| `RFC3162-2.5-1` | It is intended to be human readable and MUST NOT affect operation of the protocol. (§2.5) | MUST NOT | 2.5 - Framed-IPv6-Route | **positive:** no positive test. **negative:** `unit/verify` [`TestRFC3162FramedIPv6RouteTextDoesNotStopTheAccept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L57). **{single-polarity}:** the obligation is that the text affects nothing outside its own route, and no well-formed or malformed text exists for which stopping the Access-Accept would be correct |
-| `RFC3162-2.6-1` | If a NAS does not support multiple prefix pools, the NAS MUST ignore this Attribute. (§2.6) | MUST | 2.6 - Framed-IPv6-Pool | **positive:** `unit/verify` [`TestRFC3162FramedIPv6PoolIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L82). **negative:** no negative test. **{single-polarity}:** ze supports no prefix pools in any configuration, so the attribute is ignored unconditionally and there is no case in which acting on it would be correct |
+| `RFC3162-2.5-1` | It is intended to be human readable and MUST NOT affect operation of the protocol. (§2.5) | MUST NOT | 2.5 - Framed-IPv6-Route | **positive:** no positive test. **negative:** `unit/verify` [`TestRFC3162FramedIPv6RouteTextDoesNotStopTheAccept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L59). **{single-polarity}:** the obligation is that the text affects nothing outside its own route, and no well-formed or malformed text exists for which stopping the Access-Accept would be correct |
+| `RFC3162-2.6-1` | If a NAS does not support multiple prefix pools, the NAS MUST ignore this Attribute. (§2.6) | MUST | 2.6 - Framed-IPv6-Pool | **positive:** `unit/verify` [`TestRFC3162FramedIPv6PoolIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L84). **negative:** no negative test. **{single-polarity}:** ze supports no prefix pools in any configuration, so the attribute is ignored unconditionally and there is no case in which acting on it would be correct |
 | `RFC3162-5-1` | In this case, a shared secret of zero length MUST be assumed. (§5) | MUST | 5 - Security Considerations | **positive:** no positive test. **negative:** no negative test. **{gap}:** internal/component/radius/client.go::Exchange refuses an empty shared secret (RFC 2865 Section 3), so RADIUS run over IPsec ESP with no configured secret is refused rather than run with a zero-length secret; no owner ruling names this feature unwanted (ai/META-DECISIONS.md, Goal and scope) |
 | `RFC3162-2.1-2` | This Attribute indicates the identifying IPv6 Address of the NAS which is requesting authentication of the user, and SHOULD be unique to the NAS within the scope of the RADIUS server. (§2.1) | SHOULD | 2.1 - NAS-IPv6-Address | **positive:** no positive test. **negative:** no negative test |
 | `RFC3162-2.5-2` | Whenever the gateway address is the IPv6 unspecified address the IP address of the user SHOULD be used as the gateway address. (§2.5) | SHOULD | 2.5 - Framed-IPv6-Route | **positive:** no positive test. **negative:** no negative test |
@@ -193,7 +193,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC3162AccessRequestFromAnIPv6SourceNamesTheNAS`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L29) | unit/verify | revert, verified |
+| positive | [`TestRFC3162AccessRequestFromAnIPv6SourceNamesTheNAS`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L30) | unit/verify | revert, verified |
 
 ### [`RFC3162-3.2-1`](#rfc3162-3.2-1)
 
@@ -219,7 +219,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC3162FramedIPv6RouteTextDoesNotStopTheAccept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L57) | unit/verify | revert, verified |
+| negative | [`TestRFC3162FramedIPv6RouteTextDoesNotStopTheAccept`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L59) | unit/verify | revert, verified |
 
 ### [`RFC3162-2.6-1`](#rfc3162-2.6-1)
 
@@ -229,7 +229,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| positive | [`TestRFC3162FramedIPv6PoolIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L82) | unit/verify | revert, verified |
+| positive | [`TestRFC3162FramedIPv6PoolIsIgnored`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L84) | unit/verify | revert, verified |
 
 ### [`RFC3162-5-1`](#rfc3162-5-1)
 

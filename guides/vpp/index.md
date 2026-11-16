@@ -248,6 +248,14 @@ labeled container that the next lab start or that cleanup removes.
 
 ## Configuring VPP
 
+PPPoE access follows `interface backend`. When a VPP PPPoE provider is installed
+and access interfaces are configured, its registration selects
+`pppoe_plugin.so` and the `enable-pass-nd-and-dhcpv6` startup flag automatically.
+The candidate must enable both VPP and LCP; a missing provider or disabled
+prerequisite is refused before apply. No separate plugin toggle is required.
+<!-- source: internal/component/l2tp/pppoe/backend_gate.go -- validateBackendGate -->
+<!-- source: internal/component/l2tp/plugins/pppoe-vpp/startup.go -- registerStartup, startupRequired -->
+
 The `vpp { ... }` container lives in the main ze config. Minimal example:
 
 ```

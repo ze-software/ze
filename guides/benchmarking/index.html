@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Benchmarking - Ze</title>
         <meta name="description" content="Ze documentation: guide/benchmarking.md" />
         <meta property="og:title" content="Benchmarking - Ze" />
@@ -421,6 +421,17 @@ however many passes it has.</p>
 <!-- source: internal/perf/report/markdown.go -- comparisonKey, latestComparisonResults -->
 <!-- source: internal/perf/report/html.go -- barLabel -->
 <!-- source: internal/test/perfrunner/run.go -- Runner.runPerf, Runner.measureDUT -->
+<p>Each Ze pass records <code>dut-version</code> as <code>sha256:&lt;digest&gt;</code> of
+<code>/usr/local/bin/ze</code> in the running DUT container. The runner reads that binary
+before starting the pass and refuses a missing or malformed identity. This
+identifies the measured image artifact even when an existing image is reused;
+it is not a claim that the binary equals the checkout's current HEAD. Other
+DUTs keep their existing version behavior. The first genuine entry recorded by
+<code>le perf record evidence</code> establishes a baseline: without an earlier entry,
+<code>le perf track --check</code> has no before-and-after comparison to make.</p>
+<!-- source: internal/test/perfrunner/run.go -- Runner.zeBinaryVersion, Runner.runPerf -->
+<!-- source: internal/le/perf/bench.go -- Bench.EvidenceRecord -->
+<!-- source: internal/perf/regression.go -- CheckHistory -->
 <h3 id="manual-reports">Manual Reports</h3>
 <p>After running benchmarks, generate reports from the result files:</p>
 <pre><code class="language-bash"># Markdown report (default)
@@ -769,7 +780,7 @@ result inconclusive and say which answer is missing.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

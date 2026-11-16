@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 
 ## Figures
 
-- **MUST bar**: Ze proven 13, Proof pending 21, Not assessed 16, Not built 87
-- **Overview bar**: Ze MUST proven 13, SHOULD proven 6, Not owed 5, Proof pending 21, Not assessed 88, Not built 89
+- **MUST bar**: Ze proven 17, Proof pending 17, Not assessed 16, Not built 87
+- **Overview bar**: Ze MUST proven 17, SHOULD proven 6, Not owed 5, Proof pending 17, Not assessed 88, Not built 89
 
 | Figure | Rows |
 |---|---|
@@ -20,9 +20,9 @@ Figures as of the last build, read from [data/rfc/profiles/rpki.json](../../../.
 | Mandatory requirements complete | not complete |
 | MUST rows | 142 |
 | MUST rows kept (the MUST bar) | 137 |
-| Ze proven | 13 |
+| Ze proven | 17 |
 | OS verified | 0 |
-| Proof pending | 21 |
+| Proof pending | 17 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 16 |
@@ -66,7 +66,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze proven 1, Proof pending 4 | Ze MUST proven 1, Proof pending 4, Not assessed 4 |
+| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze proven 5 | Ze MUST proven 5, Not assessed 4 |
 
 ### Level 8
 

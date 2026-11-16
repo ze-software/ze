@@ -59,7 +59,31 @@ This does not depend on stop-callback ordering or a live editor Update loop.
 Abrupt process death can lose queued command history; draft, configuration and
 commit durability are unchanged. Slow draft I/O can still delay a command's own
 result. Separate sessions keep independent whole snapshots, not merged history.
+Missing history is an empty successful read. A history storage failure instead
+shows recovery instructions and disables publication for that mode until the
+session is reopened; diagnostic commands remain usable. Recall and newly
+published snapshots mask credentials using the shared schema-aware command
+display producer, including records written by older sessions.
+Completed publication failures remain visible when the model closes. A final
+write status is meaningful only after that close has joined the history worker;
+the absence of an earlier error does not prove an outstanding write succeeded.
+An editor resolves these assignments against its own schema before either mode
+is loaded, so ordinary values remain usable when the editor's schema differs
+from the process-wide schema. Recalled credentials contain a display marker;
+commit refuses that marker in a secret leaf and asks for the real value.
+
+A `set` entered at a relative configuration address is recalled as the equivalent
+absolute `top set <address> ...` command. This retains its original target after
+reconnecting or moving to another configuration context. Safe nonsecret values
+remain usable after reopening; an older relative record whose address was not
+stored is masked conservatively. Mode snapshots are detached, bounded by the
+configured entry count, and deduplicate consecutive displayed commands.
 <!-- source: internal/component/cli/history.go -- Save, publish, Close -->
+<!-- source: internal/component/cli/history.go -- Load, Snapshot, Record -->
+<!-- source: internal/component/config/mask.go -- DisplayCommandAtPath, DisplayCommandWithSchema, RejectMaskedSecretLeaves -->
+<!-- source: internal/component/cli/editor_mask.go -- DisplayCommandAtPath -->
+<!-- source: internal/component/cli/model.go -- SetHistory, recordHistory -->
+<!-- source: internal/component/cli/model_render.go -- feedbackLine -->
 <!-- source: internal/component/cli/model.go -- Close, SetHistory -->
 <!-- source: internal/component/cli/client/main.go -- runInteractiveWithDispatch, runInteractiveWithProgram -->
 <!-- source: internal/component/config/cli/cmd_edit.go -- runEditorProgram, runEditorProgramWith, runBackupModel, runEditor -->
@@ -100,6 +124,21 @@ result. Separate sessions keep independent whole snapshots, not merged history.
 | `exit` | Exit editor |
 <!-- source: internal/component/cli/editor_commands.go -- editor commands (set, delete, show, diff, commit, rollback) -->
 <!-- source: internal/component/cli/editor_help.go -- editorCommands, EditorHelpEntries -->
+
+A schema flag takes no value: `set firewall table filter chain input term
+allow-bgp then accept` enables the presence action, and `set system conntrack
+accounting` enables an empty leaf. The same spelling works relative to an
+`edit` context. An ordinary leaf still requires its value, and a value after an
+empty flag is refused. Flags stay in the candidate until committed, including
+when the candidate is saved and reopened. Bare presence flags and empty leaves
+also retain activate/deactivate state through save, reload and commit. If a
+presence flag also has configured children, activating or deactivating its path
+covers both forms together. Saving retains the flag, its children and their
+assignment records; a deactivated block cannot leave an active flag alias.
+<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet -->
+<!-- source: internal/component/cli/editor_activation.go -- applyNodeActivation -->
+<!-- source: internal/component/cli/editor_commands.go -- DeactivatePath, ActivatePath, presenceFlagParent -->
+<!-- source: internal/component/cli/editor_draft.go -- applyToggleOp -->
 
 `top <command>` takes any command the editor accepts and runs it once with
 the position at the root, then leaves you where you were. Inside
@@ -191,7 +230,7 @@ changes to repair it.
 <!-- source: internal/component/cli/model_commands_commit.go -- CommitRefusal, commitValidationRefusal, WithSkippedWarnings, cmdCommitVerify -->
 <!-- source: internal/component/cli/contract/commit.go -- ForcedCommand -->
 <!-- source: internal/component/web/editor_commit_window.go -- runCommit, validateTransition -->
-<!-- source: internal/component/web/cli.go -- handleCLICommit -->
+<!-- source: internal/component/web/cli_terminal.go -- runWebCommit, terminalCommitOutput -->
 
 `show | errors` validates the current candidate with the same checks as commit,
 including errors that `force` cannot override. It lists those errors and any
@@ -200,6 +239,45 @@ configuration view. After a repair, run it again: the list reflects the candidat
 now, not the validation hints cached before your edit. It applies nothing and
 keeps pending changes.
 <!-- source: internal/component/cli/model_commands_commit.go -- cmdErrors, formatIssueList -->
+
+`show | changes` keeps each setting's `inactive:` spelling in the candidate
+view, including a deactivated leaf whose value is unchanged. A change between
+active and inactive is still marked as a change in the gutter. Container and
+list-entry openings retain their activation markers too. `show confirmed`
+continues to display the last committed state until the candidate is committed.
+<!-- source: internal/component/cli/diff_tree.go -- diffLeaf, diffMultiLeaf, diffBracketLeaf, diffValueOrArray, diffContainer, diffListEntry -->
+
+The web interface's CLI page uses these same editor command producers without
+an SSH connection. `show | blame`, `show | changes`, `show | history`,
+`show | active`, `show | inactive` and `show | errors` retain their editor
+meanings. `option` preferences remain with your editing session. The shared
+display-option catalog supplies CLI completion and the graphical editor's
+preference controls: author, date, source and changes columns, all or no
+columns, and diagnostic hints or hiding. `insert`
+inserts an ordered leaf-list member with `first`, `last`, `before` or `after`;
+create a named list entry with `set`.
+<!-- source: internal/component/cli/contract/editor_options.go -- EditorOptions -->
+
+In operational mode (`ze>`), `set cli format` shows your current output format
+and `set cli format json` changes it for your browser editing session. Tab
+offers the formats declared by the same schema as the SSH CLI. The preference
+stays with your authenticated user when you switch modes; `run` uses it from
+config mode too. An explicit format pipe such as `| yaml` takes precedence for
+that command. Other users keep their own preference or the configured default.
+In config mode, `set` continues to address the configuration schema.
+
+<!-- source: internal/component/cli/session_format.go -- ExecuteSessionFormat, SessionFormatCompletions -->
+<!-- source: internal/component/web/cli_format.go -- sessionFormatCommand, executeTerminalOperationalForUser -->
+
+To paste into the browser candidate, type `load terminal absolute merge`, or
+use `relative` and `replace` as in the terminal editor, then paste in the box
+and select **Load candidate**. For a file, type a `load file` command and choose
+the file from your computer. Its path does not read the router's filesystem.
+Both forms accept up to 4 MiB, use the same atomic loader, and leave committing
+as a separate action. Commands run in their entered order, including navigation.
+
+<!-- source: internal/component/cli/editor_transport.go -- ExecuteConfigCommand -->
+<!-- source: internal/component/web/editor.go -- ConfigCommand -->
 
 Inline validation hints follow the highlighted configuration line; they never
 replace it. An invalid intermediate edit, such as copying a peer before changing
@@ -324,6 +402,11 @@ includes the operations that commit will apply.
 <!-- source: internal/component/config/change_file.go -- StructuralOp and its seven types -->
 
 `show` follows the working configuration's recorded list-entry order.
+`show | compare saved` reports `(no saved draft)` when that baseline does not exist.
+An unchanged scoped comparison produces empty output. Modified leaves show the
+replacement value with a `*` marker.
+<!-- source: internal/component/cli/model_commands_show.go -- Model.compareView -->
+
 `show | compare` omits unchanged entries, except for the context retained within
 a reordered `ordered-by user` list. Reordering a plain list alone creates no
 change marker. For a list declared `ordered-by user` in YANG, order is part of
@@ -335,6 +418,13 @@ entry. Bracket leaf-list rows keep their leaf name and indentation in every
 change state, so a surviving bracket statement maps to its working line.
 <!-- source: internal/component/cli/diff_tree.go -- diffList, diffBracketLeaf, renderDiffLines -->
 <!-- source: internal/component/config/prune.go -- PruneUnchanged -->
+
+An ordered leaf-list insertion may create its schema-validated parent. The
+parent creation and insertion are recorded together, so saving, reopening and
+committing preserve the dependency. A refused position or failed write leaves
+the candidate unchanged.
+<!-- source: internal/component/cli/editor_leaflist.go -- Editor.writeThroughMemberOp -->
+<!-- source: internal/component/cli/editor_commands.go -- Editor.InsertLeafListValue -->
 
 ### Secrets are masked on every display path
 
@@ -604,6 +694,13 @@ tracked change, the same entry a typed `set` or `delete` records, so a leaf
 equal to its current value records nothing and `show | changes` lists exactly
 what the load changed.
 
+A replacement of a plain leaf-list also takes the input's member order, and a
+schema-declared ordered sequence retains repeated values. A multi-word leaf
+loads as one statement with each quoted word's boundary intact. Freeform blocks
+load their parsed entry names and values through the same per-user transaction.
+The browser's graphical collection forms use this replacement path, so a saved
+row order and the committed order agree.
+
 For a list of named entries, both forms keep existing entries in their current
 positions and append new entries in the order the input names them. A `replace`
 removes omitted entries but does not move the entries it retains; it is not a
@@ -622,7 +719,7 @@ configuration once, applies every difference in memory, and writes the change
 file once, at the end, so its cost grows with the size of the input rather than
 with its square.
 <!-- source: internal/component/cli/model_load.go -- cmdLoadNew, applyLoad -->
-<!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace, load, loadStage, loadBracketLeafList -->
+<!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace, load, loadStage, loadWholeLeafList -->
 <!-- source: internal/component/cli/editor_draft.go -- openChangeFile, writeChangeFile, readCommittedTree -->
 <!-- source: internal/component/config/parser.go -- ParseAt -->
 
@@ -707,7 +804,7 @@ from configuration mode behind `run `, and the keys are in the
 
 | Step | What happens |
 |------|-------------|
-| `commit confirmed 60` | Config saved, daemon notified, 60-second timer starts |
+| `commit confirmed 60` | Config saved, daemon notified, then, once the commit has applied, a 60-second timer starts |
 | Verify the change works | BGP sessions come up, routes propagate, etc. |
 | `commit accept` | Timer stops, config is permanent |
 | *or* `commit abort` | Config reverts immediately |
@@ -772,8 +869,9 @@ session". A web user with a page open sees the same lines in the
 notification bar, refreshed every second over the page's live-update stream:
 the countdown or whose window is pending, and how a window ended unless the
 web user closed it themselves. Inside your own window, `commit confirmed <seconds> force` applies
-your new changes and restarts the countdown at `<seconds>`; the revert still
-restores the configuration from before the first commit.
+your new changes and restarts the countdown at `<seconds>`, counted from when
+they have applied; the revert still restores the configuration from before the
+first commit.
 
 File mode (`ze config edit -f`) keeps the countdown in the editor itself
 rather than in a daemon. Inside that window, `commit now` and a plain
@@ -789,6 +887,23 @@ refuses the commit and applies nothing. If the daemon stops while the window
 is open, even just after the commit applied, the next start reverts it before
 the configuration is read, so the daemon boots the configuration from before
 the unconfirmed commit.
+
+The daemon's countdown starts when the commit has applied, not when you typed
+it: validating and reloading a large change can take a while, and that time is
+not taken from your `<seconds>`. Once the commit has applied, the record is
+saved again with the deadline the countdown started at. If that save fails,
+the commit stays applied and its window stays open and counting down, the
+record saved before the apply still makes a restart revert the commit, and
+the commit answers with the store's error and says to run `commit accept` or
+`commit abort`. The SSH session editor and the web editor report such a commit
+as committed, with its countdown, and show that answer after it as one warning
+on the same line: the advice first, then the store's error.
+A commit whose apply met a Ze defect keeps the deadline it was
+given before the apply began, so a part-applied commit reverts no later than
+the countdown you asked for.
+<!-- source: internal/component/config/confirm/confirm.go -- Window.applyArmed, ErrDeadlineNotRecorded -->
+<!-- source: internal/component/cli/model_commit_window.go -- cmdCommitConfirmedWindow -->
+<!-- source: internal/component/web/editor_commit_window.go -- runCommit -->
 
 If the revert at the deadline fails, the window stays open and its record
 stays in the store. The daemon logs each failure and retries with a doubling
@@ -900,6 +1015,20 @@ must succeed before this source is published as a recording.
 ## Rollback
 
 The editor automatically saves a rollback revision before each commit. Inside the editor, use `show | history` to list revisions and `rollback <N>` to restore. From the shell: `ze config history <file>` and `ze config rollback <N> <file>`.
+
+Stored daemon history includes the active version, so its newest entry can
+be the configuration already in use. To undo a commit, select and review an
+earlier version rather than assuming the first entry is the previous state.
+<!-- source: internal/component/config/storage/store.go -- ListVersions -->
+<!-- source: internal/component/config/storage/pointer.go -- WriteCandidateVersionWithGuard, promoteCandidateLocked -->
+
+In a session editor, rollback restores the saved configuration to that
+session's candidate. Review the changes and commit them to publish and apply
+the restoration. A malformed saved configuration is refused without replacing
+the candidate or the committed configuration. Offline editors without a session
+retain their direct file restoration behavior.
+
+<!-- source: internal/component/cli/editor.go -- rollback -->
 
 ## Exit Codes
 

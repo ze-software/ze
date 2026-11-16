@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>show ospf ipv6 database segment-routing - Command Equivalents - Ze</title>
         <meta name="description" content="Summarise the OSPFv3 Segment Routing content (RFC 8666) carried in the RI and extended LSAs." />
         <meta property="og:title" content="show ospf ipv6 database segment-routing - Command Equivalents - Ze" />
@@ -54,20 +54,26 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>show ospf ipv6 database segment-routing</code></dd></div>
-<div><dt>Usage</dt><dd><code>show ospf ipv6 database segment-routing</code></dd></div>
+<div><dt>Usage</dt><dd><code>show ospf ipv6 database segment-routing [address-family &lt;ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast&gt;]</code></dd></div>
 <div><dt>Mode</dt><dd>Read-only</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-ospf:show-ospfv3-database-segment-routing</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
-<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
-<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
+<div><dt>Answer shape</dt><dd>tab</dd></div>
+<div><dt>Column order</dt><dd>address-family, instance-id</dd></div>
 </dl>
 <h3>Description</h3><p>This is a summary rather than a decode. The Segment Routing content lives in<br>the Router Information LSA and in the extended LSAs, and the two commands<br>above decode those LSAs in full.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>address-family</code></td><td>enum</td><td>no</td><td><code>ipv6-unicast</code> <code>ipv6-multicast</code> <code>ipv4-unicast</code> <code>ipv4-multicast</code></td><td>Limit the answer to one OSPFv3 address family.</td><td>Without it the view answers for every running OSPFv3 address family, and
+each row names its address-family and instance-id. With it the view answers for that one
+family. A family that is not running is refused, and the refusal names the running ones;
+show ospf ipv6 instance lists them too.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -132,7 +138,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

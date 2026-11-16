@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8669 requirements and tests - Ze</title>
         <meta name="description" content="RFC 8669: Segment Routing Prefix Segment Identifier Extensions for BGP. 24 mandatory requirements included in automatic checks, 7 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8669 requirements and tests - Ze" />
@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>5</strong><b>of 24 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 24 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 24 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>62</strong><b>62 of 83 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>61</strong><b>61 of 83 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -470,9 +470,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8669-3.1-3">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_family_test.go#L22" title="internal/component/bgp/reactor/rfc8669_label_index_family_test.go" target="_blank" rel="noopener"><code>TestClearTransmittedLabelIndexOnlyOnLabeledUnicast</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L30" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L19" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L20" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L89" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L20" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L21" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-4">RFC8669-3.1-4</code></td><td colspan="3"><span class="rfc-subject">RESERVED: 8-bit field. It MUST be clear on transmission and MUST be ignored on reception. (§3.1)</span></td></tr>
@@ -493,9 +493,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8669-3.1-5">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_family_test.go#L23" title="internal/component/bgp/reactor/rfc8669_label_index_family_test.go" target="_blank" rel="noopener"><code>TestClearTransmittedLabelIndexOnlyOnLabeledUnicast</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L31" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L21" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L22" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L90" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669SRGBFormLabelIndexReservedAndFlagsClearOnTransmission</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L22" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L23" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8669-3.1-6">RFC8669-3.1-6</code></td><td colspan="3"><span class="rfc-subject">Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission and MUST be ignored on reception. (§3.1)</span></td></tr>
@@ -963,7 +963,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go#L140" title="internal/component/bgp/reactor/rfc8669_nexthop_change_defect_test.go" target="_blank" rel="noopener"><code>TestRFC8669UnknownTLVPropagatedAcrossANextHopChange</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/prefixsid-malformed-receive.ci#L7" title="test/plugin/prefixsid-malformed-receive.ci" target="_blank" rel="noopener"><code>prefixsid-malformed-receive.ci</code></a></td>
@@ -1014,15 +1014,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8669-3.1-3"><code>RFC8669-3.1-3</code></a></h3>
 <p>RESERVED: 8-bit field. It MUST be clear on transmission (§3.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 8669 Section 3.1: &#34;RESERVED: 8-bit field. It MUST be clear on transmission and MUST be ignored on reception.&#34; (transmission clause; reception is RFC8669-3.1-4). ff89fc8110 (a withdraw verdict withdraws both families) changed only the egressRouteFilter closure in the tagged unit to the new three-value signature (suppress, override, follow); session_write.go writeUpdateGated and the raw-forward path read the first two exactly as before and the follow body is nil in this unit, so every input and every assertion is unchanged. The override case still installs a filter answering override with the dirty body, so the clean/dirty subcases still drive raw, packet, parsed, override, general and route-server writers and demand the exact Prefix-SID bytes with Reserved 00 and unknown TLV, SRGB and NLRI preserved (clearTransmittedLabelIndex after policy). Config encoder and labeled-unicast-family units byte-identical. Verdict unchanged: enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags, internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2 moved. Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 8669 Section 3.1: &#34;RESERVED: 8-bit field. It MUST be clear on transmission and MUST be ignored on reception.&#34; (transmission clause; reception is RFC8669-3.1-4). ff89fc8110 (a withdraw verdict withdraws both families) changed only the egressRouteFilter closure in the tagged unit to the new three-value signature (suppress, override, follow); session_write.go writeUpdateGated and the raw-forward path read the first two exactly as before and the follow body is nil in this unit, so every input and every assertion is unchanged. The override case still installs a filter answering override with the dirty body, so the clean/dirty subcases still drive raw, packet, parsed, override, general and route-server writers and demand the exact Prefix-SID bytes with Reserved 00 and unknown TLV, SRGB and NLRI preserved (clearTransmittedLabelIndex after policy). Config encoder and labeled-unicast-family units byte-identical. Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L20" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L21" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L30" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission</code></a></td>
@@ -1040,9 +1040,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L19" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L20" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1079,15 +1079,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8669-3.1-5"><code>RFC8669-3.1-5</code></a></h3>
 <p>Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission (§3.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 8669 Section 3.1: &#34;Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission and MUST be ignored on reception.&#34; (transmission; reception is RFC8669-3.1-6). ff89fc8110 (a withdraw verdict withdraws both families) changed only the egressRouteFilter closure in the tagged unit to the new three-value signature (suppress, override, follow); session_write.go writeUpdateGated and the raw-forward path read the first two exactly as before and the follow body is nil in this unit, so every input and every assertion is unchanged. The six writer paths, the override case included, still demand the full expected Prefix-SID with Flags 0000 from dirty input and unchanged adjacent content. Other carriers byte-identical. Verdict unchanged: enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags, internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go::TestRFC8669LabelIndexTransmissionClearsReservedAndFlags#2 moved. Re-judged 2026-11-02 by an independent auditor who authored none of the changes named. RFC 8669 Section 3.1: &#34;Flags: 16 bits of flags. None are defined by this document. The Flags field MUST be clear on transmission and MUST be ignored on reception.&#34; (transmission; reception is RFC8669-3.1-6). ff89fc8110 (a withdraw verdict withdraws both families) changed only the egressRouteFilter closure in the tagged unit to the new three-value signature (suppress, override, follow); session_write.go writeUpdateGated and the raw-forward path read the first two exactly as before and the follow body is nil in this unit, so every input and every assertion is unchanged. The six writer paths, the override case included, still demand the full expected Prefix-SID with Flags 0000 from dirty input and unchanged adjacent content. Other carriers byte-identical. Verdict unchanged: enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L22" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L23" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/config/rfc8669_test.go#L31" title="internal/component/bgp/config/rfc8669_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTLVReservedAndFlagsClearOnTransmission</code></a></td>
@@ -1105,9 +1105,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L21" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go#L22" title="internal/component/bgp/reactor/rfc8669_label_index_transmit_test.go" target="_blank" rel="noopener"><code>TestRFC8669LabelIndexTransmissionClearsReservedAndFlags</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -1822,7 +1822,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

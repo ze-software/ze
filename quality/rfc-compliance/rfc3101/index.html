@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3101 requirements and tests - Ze</title>
         <meta name="description" content="RFC 3101: The OSPF Not-So-Stubby Area (NSSA) Option. 28 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3101 requirements and tests - Ze" />
@@ -138,7 +138,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>1</strong><b>of 28 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>31</strong><b>of 28 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>31</strong><b>of 28 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -538,7 +538,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L62" title="internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSABorderRouterOriginatesDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go#L53" title="internal/plugins/ospf/rfc3101_nssa_ac14_16_test.go" target="_blank" rel="noopener"><code>TestOSPFNSSAInternalRouterOriginatesNoBorderDefault</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go#L173" title="internal/plugins/ospf/rfc3101_origination_v6_nssa_default_test.go" target="_blank" rel="noopener"><code>TestOSPFv3NSSAInternalRouterDefaultNeedsForwardingAddress</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1365" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNSSADefault</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>interop/nightly</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1369" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNSSADefault</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3101-2.4-7">RFC3101-2.4-7</code></td><td colspan="3"><span class="rfc-subject">A Type-7 default LSA may be installed by NSSA border routers if and only if its P-bit is set. (Section 2.4)</span></td></tr>
@@ -1051,7 +1051,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc3101-2.4-5"><code>RFC3101-2.4-5</code></a></h3>
 <p>NSSA border routers must originate an LSA for the default destination into all their directly attached NSSAs in order to support intra-AS routing and inter-AS routing. (Section 2.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged against current committed source. RFC 3101 Section 2.4 requires NSSA border routers to originate a default into every directly attached NSSA; Sections 2.4 and 2.7 distinguish regular Type-7 defaults from no-summary Type-3 defaults. TestOSPFNSSABorderRouterDefaultsEveryArea configures backbone plus regular and no-summary NSSAs, calls applyNSSADefaults, and requires the regular area&#39;s default LSID. TestOSPFNSSANoSummaryDefaultInjection exercises OriginateSummaries and requires the actual no-summary default LSA and decoded metric. TestOSPFNSSAType3SummaryImport independently distinguishes the regular and no-summary policy results. TestOSPFv3NSSABorderRouterOriginatesDefault requires the 0x2007 NSSA-LSA with a zero-length prefix through the shared reconciler. applyNSSADefaults iterates configured attached NSSAs; wantsType7Default grants the ABR default without an operator gate, while OriginateSummaries supplies the no-summary default. Removing either producer branch fails its positive assertion. TestOSPFNSSAInternalRouterOriginatesNoBorderDefault is the clean non-ABR applicability control. The additional v3 internal-router negative lacks a usable forwarding address, so it is not credited as an independent discriminator for this requirement. checkNSSADefault still waits for Full and requires the exact selected, destination-selected, installed OSPF default and its active FIB next hop in one FRR route entry through requireRouteInstalledVia. Its new removal of Docker&#39;s competing default restores that topology without relaxing the assertion. Its new first-epoch capture is additive: finish joins nativeErr with capture errors and cannot turn a failed default assertion into success. The Type-5 exclusion observation concerns a separate requirement and is not substituted for the default assertion. The unchanged unit controls plus preserved installed-route assertion enforce this requirement. This audit is a source rejudgment, not a new runtime or mutation result.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_rfc.go::checkNSSADefault moved. Re-judged against current committed source. RFC 3101 Section 2.4 requires NSSA border routers to originate a default into every directly attached NSSA; Sections 2.4 and 2.7 distinguish regular Type-7 defaults from no-summary Type-3 defaults. TestOSPFNSSABorderRouterDefaultsEveryArea configures backbone plus regular and no-summary NSSAs, calls applyNSSADefaults, and requires the regular area&#39;s default LSID. TestOSPFNSSANoSummaryDefaultInjection exercises OriginateSummaries and requires the actual no-summary default LSA and decoded metric. TestOSPFNSSAType3SummaryImport independently distinguishes the regular and no-summary policy results. TestOSPFv3NSSABorderRouterOriginatesDefault requires the 0x2007 NSSA-LSA with a zero-length prefix through the shared reconciler. applyNSSADefaults iterates configured attached NSSAs; wantsType7Default grants the ABR default without an operator gate, while OriginateSummaries supplies the no-summary default. Removing either producer branch fails its positive assertion. TestOSPFNSSAInternalRouterOriginatesNoBorderDefault is the clean non-ABR applicability control. The additional v3 internal-router negative lacks a usable forwarding address, so it is not credited as an independent discriminator for this requirement. checkNSSADefault still waits for Full and requires the exact selected, destination-selected, installed OSPF default and its active FIB next hop in one FRR route entry through requireRouteInstalledVia. Its new removal of Docker&#39;s competing default restores that topology without relaxing the assertion. Its new first-epoch capture is additive: finish joins nativeErr with capture errors and cannot turn a failed default assertion into success. The Type-5 exclusion observation concerns a separate requirement and is not substituted for the default assertion. The unchanged unit controls plus preserved installed-route assertion enforce this requirement. This audit is a source rejudgment, not a new runtime or mutation result.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -1067,7 +1067,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1365" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNSSADefault</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L1369" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkNSSADefault</code></a></td>
 <td>interop/nightly</td>
 <td>unproven</td>
 </tr>
@@ -2011,7 +2011,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

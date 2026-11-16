@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-flowspec.json](..
 
 ## Figures
 
-- **MUST bar**: Ze proven 24, Proof pending 21, Not built 3
-- **Overview bar**: Ze MUST proven 24, SHOULD proven 6, Not owed 1, Proof pending 21, Not assessed 26, Not built 3
+- **MUST bar**: Ze proven 26, Proof pending 19, Not built 3
+- **Overview bar**: Ze MUST proven 26, SHOULD proven 6, Not owed 1, Proof pending 19, Not assessed 26, Not built 3
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-flowspec.json](..
 | Mandatory requirements complete | not complete |
 | MUST rows | 49 |
 | MUST rows kept (the MUST bar) | 48 |
-| Ze proven | 24 |
+| Ze proven | 26 |
 | OS verified | 0 |
-| Proof pending | 21 |
+| Proof pending | 19 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -52,12 +52,12 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 8955](../../rfc8955/) | Dissemination of Flow Specification Rules | Ze proven 13, Proof pending 13, Not built 2 | Ze MUST proven 13, SHOULD proven 6, Not owed 1, Proof pending 13, Not assessed 14, Not built 2 |
+| [RFC 8955](../../rfc8955/) | Dissemination of Flow Specification Rules | Ze proven 14, Proof pending 12, Not built 2 | Ze MUST proven 14, SHOULD proven 6, Not owed 1, Proof pending 12, Not assessed 14, Not built 2 |
 
 ### Level 9
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 5575](../../rfc5575/) | Dissemination of Flow Specification Rules | Ze proven 2, Proof pending 6, Not built 1 | Ze MUST proven 2, Proof pending 6, Not assessed 4, Not built 1 |
+| [RFC 5575](../../rfc5575/) | Dissemination of Flow Specification Rules | Ze proven 3, Proof pending 5, Not built 1 | Ze MUST proven 3, Proof pending 5, Not assessed 4, Not built 1 |
 | [RFC 8956](../../rfc8956/) | Dissemination of Flow Specification Rules for IPv6 | Ze proven 7, Proof pending 2 | Ze MUST proven 7, Proof pending 2, Not assessed 5 |
 | [RFC 9117](../../rfc9117/) | Revised Validation Procedure for BGP Flow Specifications | Ze proven 2 | Ze MUST proven 2, Not assessed 3 |

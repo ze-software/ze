@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Interface Management - Ze</title>
         <meta name="description" content="Ze documentation: features/interfaces.md" />
         <meta property="og:title" content="Interface Management - Ze" />
@@ -221,7 +221,7 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.</p>
 <td></td>
 <td>PPPoE client (<code>pppoe-client</code>; the session device carries the configured name, so routes, firewall and NAT name it directly)</td>
 <td>have</td>
-<td><!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup --></td>
+<td><!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup --></td>
 </tr>
 <tr>
 <td></td>
@@ -971,6 +971,19 @@ and reconciles its DHCP, PPPoE and Router Advertisement workers.</p>
 </table>
 <!-- source: internal/component/iface/backend.go — Backend interface, RegisterBackend, LoadBackend -->
 <!-- source: internal/component/iface/dispatch.go — package-level functions delegating to backend -->
+<p>Session providers that require a particular interface backend use
+<code>RequireActiveBackend(name)</code>. It checks the selected name and returns the
+matching backend under one lock; a missing or different selection is an error.
+This prevents a reload between separate name and backend reads from mixing
+different data planes. The returned backend remains subject to the existing
+reload and close lifecycle.</p>
+<!-- source: internal/component/iface/backend.go -- RequireActiveBackend -->
+<p>A consumer whose resources belong to another data plane uses <code>OpenBackend(name)</code>
+to obtain a separate owner from the registered factory. This does not replace or
+close the active backend, change its generation, or start its monitor. The
+consumer MUST close its owner after its dependent resources stop. L2TP uses this
+for Linux PPP interfaces even when the interface configuration selects VPP.</p>
+<!-- source: internal/component/iface/backend.go -- OpenBackend -->
 <!-- source: internal/component/iface/iface.go — bus topics, payload types, InterfaceStats -->
 <!-- source: internal/component/iface/migrate_linux.go — MigrateInterface 5-phase protocol -->
 <!-- source: internal/plugins/iface/netlink/manage_linux.go — CreateDummy, CreateVeth, CreateBridge, etc. -->
@@ -1155,7 +1168,12 @@ dispatch ops: a name with no selector passes through unchanged, and a name WITH 
 selector that fails to resolve returns an error rather than the name.</p>
 <p>The two settings that name a SECOND interface resolve through the same map: a bridge
 member is enslaved by the kernel device its entry selects, and a mirror sends its copy
-to the capture port's kernel device.</p>
+to the capture port's kernel device. A mirror's <code>ingress</code> or <code>egress</code> must name an
+interface the config declares (an entry, a veth peer, or a VLAN unit written
+<code>&lt;interface&gt;.&lt;vlan-id&gt;</code>): the commit refuses any other name, and names the set command
+that declares it. A VLAN unit target is the VLAN on the device its parent entry
+selects, so a mirror toward <code>capture.100</code> of a <code>mac match</code> entry copies to
+<code>&lt;selected device&gt;.100</code>, and waits, with a warning, while the parent selects no device.</p>
 <p>Created kinds need no resolution, because Ze makes the device under its configured
 name: dummy, veth, bridge, tunnel, WireGuard, XFRM, and the <code>pppoe-client</code> session
 device. The PPPoE client creates its PPP unit under the list key on every session and
@@ -1163,7 +1181,7 @@ every reconnect, so <code>pppoe-client pppoe0</code> is the kernel device <code>
 <code>pppN</code>. A static route <code>next { interface pppoe0 }</code>, a firewall <code>output-interface "pppoe0"</code> match and a masquerade rule therefore reach the session. The device exists
 only while a session is up. A static route through it waits for the device and follows
 it across a reconnect (<code>docs/guide/static-routes.md</code>, "Interface-only next-hops").</p>
-<!-- source: internal/component/l2tp/ppp/devppp_linux.go -- DevPPPSetup, createPPPLink -->
+<!-- source: internal/component/l2tp/ppp/kernel/devppp_linux.go -- DevPPPSetup, createPPPLink -->
 <!-- source: internal/component/iface/config_apply.go -- bindDevices, deviceFor, validateSelectors -->
 <!-- source: internal/component/iface/dispatch.go -- ResolveDevice translation in the by-name dispatch ops -->
 <!-- source: internal/component/iface/resolve.go -- Resolve / Addresses / Subscribe logical-name resolver -->
@@ -2244,6 +2262,13 @@ an IPv6 address again when its lifetimes change), so a consumer that counts
 addresses keys them by identity: <code>connected</code> keeps the set of addresses that
 cover each prefix, not a count of events.</p>
 <!-- source: internal/plugins/iface/netlink/monitor_linux.go -- start, ListExisting -->
+<p>The dump request goes to the kernel by unicast, while the subscribed socket
+keeps receiving multicast address changes. Sending the request to those groups
+would require <code>CAP_NET_ADMIN</code>, preventing a read-only daemon from starting.
+The vendored netlink patch keeps the two addresses separate, and a Linux test
+reads the existing loopback address with that capability removed.</p>
+<!-- source: vendor/github.com/vishvananda/netlink/nl/nl_linux.go -- Send -->
+<!-- source: internal/le/vendorpatch/netlink_subscribe_linux_test.go -- TestAddressSubscriptionDumpsWithoutNetAdmin -->
 <p>Links and addresses reach the monitor on two netlink subscriptions, and nothing
 orders one against the other: an interface created and addressed straight away
 (<code>ip link add</code>, then <code>ip addr add</code>) can deliver its address before the monitor
@@ -2877,7 +2902,7 @@ under exact-or-reject.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

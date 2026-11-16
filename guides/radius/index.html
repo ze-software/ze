@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RADIUS admin AAA - Ze</title>
         <meta name="description" content="Ze documentation: guide/radius.md" />
         <meta property="og:title" content="RADIUS admin AAA - Ze" />
@@ -57,6 +57,7 @@ you out of the device.</p>
 <li><a href="#what-it-does">What it does</a></li>
 <li><a href="#minimal-config">Minimal config</a></li>
 <li><a href="#authentication-flow">Authentication flow</a></li>
+<li><a href="#shared-udp-transport">Shared UDP transport</a></li>
 <li><a href="#choosing-the-credential">Choosing the credential</a></li>
 <li><a href="#eap">EAP</a>
 <ol>
@@ -243,8 +244,42 @@ answer was not used. An unreachable RADIUS server never locks the operator out.<
 </ol>
 <p>The total time one login spends talking to RADIUS is bounded, so a slow or
 unreachable server falls through to local rather than hanging the login.</p>
-<!-- source: internal/component/aaa/aaa.go -- ChainAuthenticator, ErrAuthRejected -->
-<!-- source: internal/component/radius/authenticator.go -- Accept/Reject/error mapping, authBudget -->
+<!-- source: internal/component/aaa/types.go -- ChainAuthenticator.Authenticate -->
+<!-- source: internal/component/aaa/aaa.go -- ErrAuthRejected -->
+<!-- source: internal/component/radius/authenticator.go -- radiusAuthenticator.result, authBudget -->
+<h2 id="shared-udp-transport">Shared UDP transport</h2>
+<p>Admin and subscriber RADIUS use the same IPv4 UDP client.
+<code>Client.Exchange</code> retries one server, and <code>Client.SendToServers</code> tries the
+configured servers in order until one gives a usable response.
+The request context controls hostname resolution and response waits.
+If the context ends, the client stops retries and server failover.</p>
+<!-- source: internal/component/radius/client.go -- Client.exchange, Client.sendToServers -->
+<!-- source: internal/component/radius/client_write.go -- resolveRequestAddress -->
+<!-- source: internal/component/radius/aaa.go -- radiusBackend.Build -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig -->
+<p>The client checks cancellation again after it gets the socket lock, before it
+writes. Each write has a finite deadline, bounded by the configured timeout
+or an earlier context deadline. The client clears that deadline before it
+releases the lock, so another request cannot inherit it.</p>
+<!-- source: internal/component/radius/client_write.go -- Client.writeRequest -->
+<p>For callers that need the first write outcome,
+<code>Client.SendToServersObserved</code> calls its observer once across retries and
+server failover, after the first actual UDP write attempt. A request that
+never attempts a write calls no observer. The observer runs synchronously
+outside the socket lock and must return promptly because the request waits
+for it.</p>
+<!-- source: internal/component/radius/client_observed.go -- Client.SendToServersObserved -->
+<!-- source: internal/component/radius/client_write.go -- Client.writeRequest -->
+<p><code>RequestWrite.Server()</code> identifies the resolved destination.
+<code>Bytes()</code> reports the bytes the local socket accepted, and <code>Err()</code> reports
+the write failure. Those values do not confirm server receipt or successful
+accounting. A zero <code>RequestWrite</code> has no observed write attempt, and <code>Err()</code>
+returns an error.</p>
+<!-- source: internal/component/radius/client_observed.go -- RequestWrite.Server, RequestWrite.Bytes, RequestWrite.Err -->
+<p><code>Client.Close</code> prevents new requests, closes the UDP socket, and waits for
+the answer reader to stop. Concurrent and repeated calls each wait for that
+same reader before they return.</p>
+<!-- source: internal/component/radius/client.go -- Client.Close, Client.readLoop -->
 <h2 id="choosing-the-credential">Choosing the credential</h2>
 <p><code>auth-method</code> selects what the Access-Request carries. RFC 2865 §4.1 permits one
 credential and never two, and RFC 3579 §3.3 Note 1 extends the same exclusion to
@@ -454,7 +489,7 @@ answer -- this is not the unreachable-server case that falls through to local.</
 name) for operators, and define a matching <code>system.authorization.profile</code>. If
 your server does not send a profile attribute, set <code>default-profile</code> instead;
 otherwise no RADIUS user can log in.</p>
-<!-- source: internal/component/radius/authenticator.go -- mapProfiles, Authenticate Access-Accept branch -->
+<!-- source: internal/component/radius/authenticator.go -- mapProfiles, radiusAuthenticator.result -->
 <h2 id="chain-order-with-tacacs-and-local">Chain order with TACACS+ and local</h2>
 <p>When RADIUS, TACACS+, and local users are all configured, the chain is tried in
 priority order: RADIUS (50), then TACACS+ (100), then local bcrypt (200). A
@@ -490,7 +525,7 @@ ze show diagnostic doctor-radius-admin-unreachable
 </code></pre>
 <!-- source: internal/component/radius/doctor.go -- checkRadiusAdminServers -->
 <h2 id="verification">Verification</h2>
-<p>The <code>.ci</code> tests in <code>test/plugin/</code> cover the main behaviours:</p>
+<p>The <code>.ci</code> tests in <code>test/plugin/</code> cover the main behaviors:</p>
 <table>
 <thead>
 <tr>
@@ -588,7 +623,7 @@ bcrypt user accepted the credentials.</p>
 <!-- source: internal/test/mock/radius/radius.go -- le mock radius for .ci tests -->
 <!-- source: internal/test/mock/radius/eap.go -- the mock's EAP branch: buildEAPResponse, verifyRequestSignature -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- what each FreeRADIUS scenario asserts -->
-<!-- source: test/interop-radius/scenarios/ -- the four interop scenario directories -->
+<!-- source: test/interop-radius/scenarios/ -- FreeRADIUS interop scenarios -->
 <h2 id="metrics">Metrics</h2>
 <ul>
 <li><code>ze_radius_unsigned_response_discards_total{server}</code> -- Access-Accept,
@@ -628,9 +663,6 @@ replaces them with <code>/* SECRET-DATA */</code>.</li>
 <code>pap</code>. EAP-TLS is not offered: it needs an operator certificate and key. The
 L2TP subscriber path handles CHAP and MS-CHAPv2 for PPP sessions through its
 own code, and this leaf does not affect it.</li>
-<li><strong>Same client</strong> as the L2TP subscriber path (<code>internal/component/radius</code>),
-so retransmit, failover, and Response-Authenticator verification behave
-identically. That client is <code>udp4</code>, so RADIUS admin servers must be IPv4.</li>
 <li><strong>Fail-open on misconfig.</strong> If the RADIUS client cannot start (for example an
 unbindable <code>source-address</code>), the backend contributes nothing and logs an
 error rather than failing the whole AAA bundle, so local (and TACACS+) still
@@ -690,7 +722,7 @@ Local summary: <code>rfc/short/rfc2865.md</code>.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

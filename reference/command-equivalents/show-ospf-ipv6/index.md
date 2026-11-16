@@ -10,7 +10,7 @@ Show the OSPFv3 \(IPv6\) address\-family instances \(RFC 5838\)\.
 - Wire method: `ze-ospf:show-ipv6`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
-- Subcommands: `database`, `graceful-restart`, `instance`, `interface`, `neighbor`, `segment-routing`, `spf`
+- Subcommands: `database`, `graceful-restart`, `instance`, `interface`, `neighbor`, `route`, `segment-routing`, `spf`
 - Answer shape: not declared
 - Address fields: none
 - Column order: none

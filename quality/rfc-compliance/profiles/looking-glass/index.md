@@ -10,8 +10,8 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 
 ## Figures
 
-- **MUST bar**: Ze proven 179, Proof pending 82, Not built 47
-- **Overview bar**: Ze MUST proven 179, SHOULD proven 5, Proof pending 83, Not assessed 87, Not built 47
+- **MUST bar**: Ze proven 219, Proof pending 50, Not built 39
+- **Overview bar**: Ze MUST proven 219, SHOULD proven 5, Proof pending 51, Not assessed 87, Not built 39
 
 | Figure | Rows |
 |---|---|
@@ -20,13 +20,13 @@ Figures as of the last build, read from [data/rfc/profiles/looking-glass.json](.
 | Mandatory requirements complete | not complete |
 | MUST rows | 308 |
 | MUST rows kept (the MUST bar) | 308 |
-| Ze proven | 179 |
+| Ze proven | 219 |
 | OS verified | 0 |
-| Proof pending | 82 |
+| Proof pending | 50 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
-| Not built | 47 |
+| Not built | 39 |
 | MUST rows not owed | 0 |
 | MUST not owed: feature-declined | 0 |
 | MUST not owed: linux-limit | 0 |
@@ -54,7 +54,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 85, Proof pending 29, Not built 19 | Ze MUST proven 85, SHOULD proven 3, Proof pending 30, Not assessed 30, Not built 19 | looking-glass: required by rfc/short/rfc4271.md |
+| [RFC 4271](../../rfc4271/) | A Border Gateway Protocol 4 (BGP-4) | Ze proven 91, Proof pending 27, Not built 15 | Ze MUST proven 91, SHOULD proven 3, Proof pending 28, Not assessed 30, Not built 15 | looking-glass: required by rfc/short/rfc4271.md |
 
 ### Level 4
 
@@ -63,20 +63,20 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | [RFC 1997](../../rfc1997/) | BGP Communities Attribute | Ze proven 5 | Ze MUST proven 5, Not assessed 4 | looking-glass: required by rfc/short/rfc1997.md |
 | [RFC 2545](../../rfc2545/) | Use of BGP-4 Multiprotocol Extensions for IPv6 Inter-Domain Routing | Ze proven 3, Not built 2 | Ze MUST proven 3, Not assessed 2, Not built 2 | looking-glass: required by rfc/short/rfc2545.md |
 | [RFC 5492](../../rfc5492/) | Capabilities Advertisement with BGP-4 | Ze proven 8, Not built 1 | Ze MUST proven 8, Not assessed 7, Not built 1 | looking-glass: required by rfc/short/rfc5492.md |
-| [RFC 6608](../../rfc6608/) | Subcodes for BGP Finite State Machine Error | Not built 3 | Not built 3 | looking-glass: required by rfc/short/rfc6608.md |
-| [RFC 9687](../../rfc9687/) | Border Gateway Protocol 4 (BGP-4) Send Hold Timer | Ze proven 4, Proof pending 9 | Ze MUST proven 4, Proof pending 9, Not assessed 7 | looking-glass: required by rfc/short/rfc9687.md |
+| [RFC 6608](../../rfc6608/) | Subcodes for BGP Finite State Machine Error | Ze proven 3 | Ze MUST proven 3 | looking-glass: required by rfc/short/rfc6608.md |
+| [RFC 9687](../../rfc9687/) | Border Gateway Protocol 4 (BGP-4) Send Hold Timer | Ze proven 13 | Ze MUST proven 13, Not assessed 7 | looking-glass: required by rfc/short/rfc9687.md |
 
 ### Level 5
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | Ze proven 6 | Ze MUST proven 6, SHOULD proven 1, Not assessed 10 | looking-glass: required by rfc/short/rfc4760.md |
+| [RFC 4760](../../rfc4760/) | Multiprotocol Extensions for BGP-4 | Ze proven 5, Proof pending 1 | Ze MUST proven 5, SHOULD proven 1, Proof pending 1, Not assessed 10 | looking-glass: required by rfc/short/rfc4760.md |
 
 ### Level 6
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze proven 21, Proof pending 8, Not built 1 | Ze MUST proven 21, Proof pending 8, Not assessed 6, Not built 1 | looking-glass: required by rfc/short/rfc6793.md |
+| [RFC 6793](../../rfc6793/) (cycle with rfc5668) | BGP Support for Four-Octet Autonomous System (AS) Number Space | Ze proven 30 | Ze MUST proven 30, Not assessed 6 | looking-glass: required by rfc/short/rfc6793.md |
 | [RFC 7911](../../rfc7911/) | Advertisement of Multiple Paths in BGP | Ze proven 9 | Ze MUST proven 9, Not assessed 4 | looking-glass: required by rfc/short/rfc7911.md |
 | [RFC 8522](../../rfc8522/) | Looking Glass Command Set | Not built 18 | Not assessed 5, Not built 18 | looking-glass: required by rfc/short/rfc8522.md |
 
@@ -85,14 +85,14 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 6286](../../rfc6286/) | Autonomous-System-Wide Unique BGP Identifier for BGP-4 | Proof pending 3, Not built 1 | SHOULD proven 1, Proof pending 3, Not built 1 | looking-glass: required by rfc/short/rfc6286.md |
-| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze proven 1, Proof pending 4 | Ze MUST proven 1, Proof pending 4, Not assessed 4 | looking-glass: required by rfc/short/rfc6811.md |
-| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze proven 28, Proof pending 24, Not built 1 | Ze MUST proven 28, Proof pending 24, Not assessed 4, Not built 1 | looking-glass: required by rfc/short/rfc7606.md |
+| [RFC 6811](../../rfc6811/) | BGP Prefix Origin Validation | Ze proven 5 | Ze MUST proven 5, Not assessed 4 | looking-glass: required by rfc/short/rfc6811.md |
+| [RFC 7606](../../rfc7606/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950) | Revised Error Handling for BGP UPDATE Messages | Ze proven 33, Proof pending 19, Not built 1 | Ze MUST proven 33, Proof pending 19, Not assessed 4, Not built 1 | looking-glass: required by rfc/short/rfc7606.md |
 
 ### Level 8
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 7607](../../rfc7607/) | Codification of AS 0 Processing | Proof pending 5 | Proof pending 5 | looking-glass: required by rfc/short/rfc7607.md |
+| [RFC 7607](../../rfc7607/) | Codification of AS 0 Processing | Ze proven 5 | Ze MUST proven 5 | looking-glass: required by rfc/short/rfc7607.md |
 | [RFC 8092](../../rfc8092/) | BGP Large Communities Attribute | Ze proven 7 | Ze MUST proven 7, Not assessed 4 | looking-glass: required by rfc/short/rfc8092.md |
 | [RFC 9774](../../rfc9774/) | Deprecation of AS_SET and AS_CONFED_SET in BGP | Ze proven 2, Not built 1 | Ze MUST proven 2, Not built 1 | looking-glass: required by rfc/short/rfc9774.md |
 

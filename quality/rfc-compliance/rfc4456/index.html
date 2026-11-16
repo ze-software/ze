@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4456 requirements and tests - Ze</title>
         <meta name="description" content="RFC 4456: BGP Route Reflection: An Alternative to Full Mesh Internal BGP (IBGP). 4 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4456 requirements and tests - Ze" />
@@ -133,7 +133,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 4 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 4 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 4 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>2</strong><b>2 of 22 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>0</strong><b>0 of 22 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Audit verdicts</span><strong>7</strong><b>of 4 mandatory requirements reviewed</b><p>0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -201,7 +202,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-ok"></span> ok</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
 </tr>
 <tr><td>Mandatory requirements (MUST level)</td>
@@ -275,8 +276,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Route Reflection</p>
-<p><strong>Proof:</strong> 1 of 4 MUST proven</p>
-<p><strong>Evidence:</strong> unit 1</p>
+<p><strong>Proof:</strong> 0 of 4 MUST proven</p>
+<p><strong>Evidence:</strong> -</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -321,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc4456:must">Ze proven 1, Proof pending 3</div>
+<div data-ze-rfc-bar="rfc4456:must">Proof pending 4</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc4456:overview">Ze MUST proven 1, Proof pending 6, Not assessed 2</div>
+<div data-ze-rfc-bar="rfc4456:overview">Proof pending 7, Not assessed 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -344,13 +345,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4456:must.kept">4</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc4456:must.ze-proven">1</span></td>
+<td><span data-ze-rfc="rfc4456:must.ze-proven">0</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc4456:must.os-verified">0</span></td>
 </tr>
 <tr><td>Proof pending</td>
-<td><span data-ze-rfc="rfc4456:must.proof-pending">3</span></td>
+<td><span data-ze-rfc="rfc4456:must.proof-pending">4</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc4456:must.os-gap">0</span></td>
@@ -539,7 +540,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc4456-8-1"><code>RFC4456-8-1</code></a></h3>
 <p>This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2 moved. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: &#34;This attribute is 4 bytes long and it will be created by an RR in reflecting a route.&#34; The commit changed checkReflectorWithdrawal (both tags) only in its last failure: the Established re-check now returns interoplab.WithSearchedOutput(errors.New(...), output), which always returns a non-nil error wrapping the same cause (output.go). Every condition is byte-identical: the positive still requires the exact injector-log token 800904&lt;3 octets&gt;03 (flags 0x80, type 9, length 4, the client&#39;s identifier) beside the CLUSTER_LIST token, requireNoEarlyReflectorWithdrawal still refuses a withdrawal before FRR is asked, and the negative still requires the byte-exact withdrawal body :02:0004180A14000000 (withdrawn length 4, 10.20.0.0/24, Total Path Attribute Length 0), so no ORIGINATOR_ID rides the withdrawal. The unit covers TestReactorForwardRRInjects, TestReactorForwardRRPreservesOriginator and TestForwardReflectionLeavesAWithdrawalUntouched are unchanged and keep the 2026-10-06 judgement: absent originator becomes exactly four bytes 10.0.0.1, a present one stays byte-exact, withdrawal and EOR stay untouched with an advertisement control. The interop units carry no discrimination record and the scenario was not rerun for this failure-text change, so question 2 for them rests on reading; the unit tests carry the precise assertions. Verdict unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: &#34;This attribute is 4 bytes long and it will be created by an RR in reflecting a route.&#34; The commit changed checkReflectorWithdrawal (both tags) only in its last failure: the Established re-check now returns interoplab.WithSearchedOutput(errors.New(...), output), which always returns a non-nil error wrapping the same cause (output.go). Every condition is byte-identical: the positive still requires the exact injector-log token 800904&lt;3 octets&gt;03 (flags 0x80, type 9, length 4, the client&#39;s identifier) beside the CLUSTER_LIST token, requireNoEarlyReflectorWithdrawal still refuses a withdrawal before FRR is asked, and the negative still requires the byte-exact withdrawal body :02:0004180A14000000 (withdrawn length 4, 10.20.0.0/24, Total Path Attribute Length 0), so no ORIGINATOR_ID rides the withdrawal. The unit covers TestReactorForwardRRInjects, TestReactorForwardRRPreservesOriginator and TestForwardReflectionLeavesAWithdrawalUntouched are unchanged and keep the 2026-10-06 judgement: absent originator becomes exactly four bytes 10.0.0.1, a present one stays byte-exact, withdrawal and EOR stay untouched with an advertisement control. The interop units carry no discrimination record and the scenario was not rerun for this failure-text change, so question 2 for them rests on reading; the unit tests carry the precise assertions. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -574,7 +575,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc4456-8-2"><code>RFC4456-8-2</code></a></h3>
 <p>When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one. (§8)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2 moved. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: &#34;When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one.&#34; The commit changed checkReflectorWithdrawal (both tags) only in the text of its final Established failure, now wrapped by interoplab.WithSearchedOutput, which returns a non-nil error for the same cause; no condition moved. The interop positive still requires the exact token 800A04&lt;3 octets&gt;02, a newly created four-byte CLUSTER_LIST holding Ze&#39;s configured cluster-id (the empty-list clause), and the negative still requires the attribute-free byte-exact withdrawal. The prepend-onto-existing clause stays proven by the unchanged unit covers: TestReactorForwardRRInjects requires exact [1.2.3.2] and TestReactorForwardRRPreservesOriginator exact [1.2.3.2,5.5.5.5], so replacement, append, omission and a wrong local id all fail. The interop units carry no discrimination record and were not rerun for this failure-text change. Verdict unchanged.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: &#34;When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one.&#34; The commit changed checkReflectorWithdrawal (both tags) only in the text of its final Established failure, now wrapped by interoplab.WithSearchedOutput, which returns a non-nil error for the same cause; no condition moved. The interop positive still requires the exact token 800A04&lt;3 octets&gt;02, a newly created four-byte CLUSTER_LIST holding Ze&#39;s configured cluster-id (the empty-list clause), and the negative still requires the attribute-free byte-exact withdrawal. The prepend-onto-existing clause stays proven by the unchanged unit covers: TestReactorForwardRRInjects requires exact [1.2.3.2] and TestReactorForwardRRPreservesOriginator exact [1.2.3.2,5.5.5.5], so replacement, append, omission and a wrong local id all fail. The interop units carry no discrimination record and were not rerun for this failure-text change. Verdict unchanged.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -637,7 +638,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L31" title="internal/component/bgp/reactor/rfc4456_originator_id_test.go" target="_blank" rel="noopener"><code>TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L200" title="internal/component/bgp/reactor/forward_rr_test.go" target="_blank" rel="noopener"><code>TestReactorForwardRRPreservesOriginator</code></a></td>
@@ -647,7 +648,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L30" title="internal/component/bgp/reactor/rfc4456_originator_id_test.go" target="_blank" rel="noopener"><code>TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -961,7 +962,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

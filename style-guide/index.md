@@ -12,7 +12,9 @@ Thomas approved these principles on 23 October 2026 and gave this instruction:
 
 > Yes, put these rules into the website design guide, then use them to produce a new mockup. Keep the useful information from the current site and show me how the new design presents it better.
 
-Apply these principles to website proposals and implementation. The palette and component sections below describe the blue design Thomas approved on 23 October 2026 after reviewing the homepage and representative inner pages. Later proposals need review against these principles before implementation. The guide changes with the implementation it describes.
+Apply these principles to website proposals and implementation. The palette and component sections below describe the Lust-inspired design Thomas approved on 16 November 2026: blue primary actions, green secondary accents, navy foundations, neutral rounded panels and floating pill navigation. Later proposals need review against these principles before implementation. The guide changes with the implementation it describes.
+
+The approved design retains the site's content, navigation, demonstrations and controls. It opens in dark mode unless the reader saved a light preference; the theme toggle continues to offer both themes.
 
 Thomas approved implementation on 23 October 2026:
 
@@ -140,7 +142,7 @@ For each section, identify the reader's purpose, the evidence or example it pres
 
 Logo blue identifies Ze. Soft category colors sit behind the small badges, such as Decision; headings, text and card bodies stay neutral.
 
-`assets/css/00-tokens.css` owns the palette for both themes. `--brand` is the logo blue (#0069b4), `--brand-bright` is cyan (#009ee2), and `--brand-indigo` is indigo (#312782). Navy heroes use `--hero-bg`; body surfaces use `--bg`, `--panel` and `--bg-soft`. Text and controls use semantic tokens so the same content remains readable in either theme. Cyan is an accent on dark surfaces; small links on light surfaces use the darker blue.
+`assets/css/00-tokens.css` owns the palette for both themes. `--brand` is the primary action blue, `--blue` is the accessible link blue and `--green` is the secondary accent. Body surfaces use `--bg`, `--panel` and `--bg-soft`. Text and controls use semantic tokens so the same content remains readable in either theme. Ambient blue and green light sits behind the page; card bodies stay neutral. Small links on light surfaces use the darker blue.
 
 The `cat-*` classes select a shared color family. Use its soft tint only behind the card's category badge, with neutral `--text` lettering. Keep the colored area compact. The `.cat` label "Decision" gets the tint; the heading "Reasons to consider Ze" stays plain. Do not fill the heading or card body, or color its border. Selection controls use the matching soft background with neutral text and a visible selected state. Normal text needs at least 4.5:1 in both themes.
 
@@ -239,13 +241,13 @@ BGP, OSPF and other protocols, deployment modes and command syntax remain neutra
 
 `FRR` `Docker` `BGP benchmark` `Release evidence` `BGP` `Daemon only`
 
-## Blue, teal and lavender have distinct roles
+## Blue primary, green secondary, neutral surfaces
 
-Use a small set of section colors to separate operating, testing and reading. Keep each card's text and body neutral.
+Use color for clear actions and restrained accents. Let spacing, thin rules and headings organize the content.
 
-Blue remains the brand color for the hero, management explanation and run choices. The latter two use `--brand-section-gradient`. Testing sections use the teal `--evidence-section-gradient`: the homepage proof section and the quality overview. References and reading use the lavender `--reference-section-gradient`: the homepage documentation section, documentation route grid and article takeaways. Supporting notes and selected navigation use `--brand-surface`. Key action and reading links use the accessible `--blue` token.
+Blue identifies primary actions, links and selected controls. Green provides a restrained secondary accent; it does not replace independent status colors. Ambient blue and green radial light belongs behind the page, not across card bodies. Supporting notes and selected navigation use `--brand-surface`. Key action and reading links use the accessible `--blue` token.
 
-Light pages use a neutral foundation, colored section surfaces and white cards. Dark pages keep the approved navy foundations and cards, with deeper teal and lavender section surfaces. Keep category and concept badge meanings unchanged. Pick a surface for a named reader purpose, never a section's position. Preserve the existing hero gradient, terminal imagery, plain headings and restrained neutral card borders. Test text, muted labels, links, statuses and concept badges against their actual surfaces in both themes; ordinary text must retain at least 4.5:1 contrast. Keep section padding when the layout stacks on mobile.
+Dark pages use a near-black navy foundation and navy panels. Light pages use a pale foundation and white panels. Both keep rounded neutral cards, thin borders, generous section spacing and the same content hierarchy. Keep category and concept badge meanings unchanged. Preserve terminal imagery and plain card headings. Test text, muted labels, links, statuses and concept badges against their actual surfaces in both themes; ordinary text must retain at least 4.5:1 contrast. Keep section padding when the layout stacks on mobile.
 
 ## Color the badge, keep the heading plain
 
@@ -297,7 +299,7 @@ A muted surface groups supporting information without adding another raised card
 
 Navy heroes, restrained blue light and distinct content layouts.
 
-Page heroes and dispatch cards share one ornament language: subtle blue gradients behind the content, thin concentric circle lines in an open corner, and optional masked grid lines for large hero surfaces. Keep ornaments low contrast and behind the text. Avoid filled balls, opaque blobs, heavy badges, or one-off shapes that fight the content.
+Pages share restrained ambient blue and green light behind the content, with faint masked grid lines. Content panels use neutral surfaces and thin borders. Keep ornaments low contrast and behind the text. Avoid filled balls, opaque blobs, heavy badges, or one-off shapes that fight the content.
 
 Wide product comparison tables must keep the existing page filter and add product column controls so readers can hide projects they are not comparing. Keep those controls visible, keyboard-accessible, and honest: hiding a column changes the view only, never the source evidence or generated text.
 
@@ -305,19 +307,19 @@ Use `.journey-hero` for the shared navy page opening. Two-choice dispatch pages,
 
 ### Hero pages
 
-A navy hero introduces the page with a clear title and useful context. Interior-page hero backgrounds reach the viewport edges while their content follows the shared page width. The homepage hero and proof panels stay within that width, with inner padding and rounded edges. Leave a gap before Latest news and distribute the product links equally across their row, using fewer columns on smaller screens.
+A clear heading and useful context introduce each page. The homepage hero sits on the ambient page background, with larger typography and blue emphasis. Keep the genuine product preview in its neutral rounded frame beside the introduction on wide screens; stack the content on narrow screens. Preserve all capability links, project metrics, the release callout and product map.
 
-The homepage hero uses the shared `--hero-panel-surface` navy gradient in both themes. Only the outer hero paints that gradient; the inner panel and showcase chrome stay transparent, without an inner shadow or seams at either edge. Vertically center the concise product overview, quickstart and demo actions, and pre-release notice beside the real terminal recording. Keep the actions and player controls visible in the initial laptop viewport. On phones, compact the opening and show the recording before its interface selector so readers can see the preview and Play action immediately. Preserve the detailed capability links below the project metrics, release callout and product map.
+Use pill-shaped primary and secondary actions and outlined interface selectors. The primary action remains the BGP quickstart; demonstrations remain secondary. Keep the pre-release notice, player controls, full-screen action, transcripts and capture provenance. No decorative treatment replaces real product imagery.
 
-The homepage's four project metrics share equal columns beside the release callout. Use prominent tabular values with compact labels and links to the underlying activity, plugin and command pages. Align the metrics and release callout at the top. At widths of 850px or less, put the metrics across the full row in two equal columns; let the release callout wrap below when space is limited.
+The homepage's three Go line figures remain beside the release callout, with prominent tabular values, compact labels and their existing activity links. Let these items wrap without clipping or losing their destinations.
 
-Separate standard homepage sections with spacing and no horizontal rules, and omit the final footer separator on the homepage. Use 2rem of top and bottom padding, reduced to 1.5rem at widths of 560px or less, with no added top margin. Section titles, including the proof and Try safely titles, share a 2rem font size, 700 weight, 1.25 line height and 0.5rem bottom margin. Reduce their font size to 1.65rem at widths of 560px or less. Stacked section titles and introductions have a 0.5rem gap. Keep the compact Latest news title and the hero and proof panels' separate spacing.
+Separate standard homepage sections with generous spacing and thin neutral horizontal rules. Section headings scale with the viewport; their introductions move below the heading on narrow screens. Keep the proof panel rounded and neutral, and preserve the boxed Find the right page card and its category separator.
 
-Keep homepage section containers, including Latest news, shadowless. Cards within them retain their component shadows.
+Section containers remain shadowless. Neutral cards use restrained borders, with a subtle shadow or border change on interaction.
 
-Proof cards share heading, detail and evidence rows. Align every evidence divider and the first line of its text to the same row boundary, even when another card's evidence wraps. Emphasise the generated figures with 2.2rem, tabular blue numerals; keep their labels neutral. Each description says what the tests do and check. Use plain terms such as state transitions and expected results. Label counts by their population: Go tests, end-to-end scenarios, fuzz targets and interop test images. These describe the test inventory; links explain the methods and scope. Preserve every metric and its destination.
+Proof cards share heading, detail and evidence rows. Align every evidence divider and the first line of its text to the same row boundary, even when another card's evidence wraps. Emphasize the generated figures with tabular blue numerals; keep their labels neutral. Each description says what the tests do and check. Use plain terms such as state transitions and expected results. Label counts by their population: Go tests, end-to-end scenarios, fuzz targets and interop test images. These describe the test inventory; links explain the methods and scope. Preserve every metric and its destination.
 
-Place Tests that catch bugs directly after Latest news. Explain how the test layers help catch changes that break existing behavior. Counts show the scale of the test suite; the linked evidence explains its coverage. The RFC card leads with the percentage of tracked MUST requirements tested, shows the tested and total counts together, and links to the requirements and test results. It does not present the RFC count as proof of full support. In the management panel's left column, put Why Ze first, followed by Manage Ze directly and the explanation of Ze's own SSH service. Do not add a Self-contained management badge or another standalone Why Ze section. Keep the architectural argument cards below the panel.
+Getting started follows the hero, before Why Ze and its management walkthrough. Testing evidence follows that walkthrough; recent engineering notes remain near the end of the homepage. Explain how the test layers help catch changes that break existing behavior. Counts show the scale of the test suite; the linked evidence explains its coverage. The RFC card leads with the percentage of tracked MUST requirements tested, shows the tested and total counts together, and links to the requirements and test results. It does not present the RFC count as proof of full support. In the management panel's left column, put Why Ze first, followed by Manage Ze directly and the explanation of Ze's own SSH service. Do not add a Self-contained management badge or another standalone Why Ze section. Keep the four approved reason cards below the panel: ExaBGP on steroids, Made for operators, Run it the way you want and Made for AI assistants.
 
 The management section uses two equal columns: compact explanation, interface map and documentation links on the left; a real SSH recording on the right. Keep readable step labels beside the player, show its SSH introduction as the preview, start there on demand, and retain full-screen controls, the full session and the transcript. Stack the columns at widths of 960px or less. Leave 1.5rem below the filled lab/daemon/appliance section so it does not touch the following section.
 

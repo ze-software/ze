@@ -17,7 +17,7 @@ IRR-based prefix-list filtering for firewall rules
 
 ## Dependencies
 
-- Required: [`firewall`](../firewall/index.md)
+- Required: [`firewall`](../firewall/index.md), [`irr`](../irr/index.md)
 - Optional: None
 
 ## Used by

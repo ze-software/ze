@@ -25,9 +25,6 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     var THEME_STORAGE_KEY = "ze-theme";
-    var themeMedia = window.matchMedia
-        ? window.matchMedia("(prefers-color-scheme: dark)")
-        : null;
 
     function storedTheme() {
         try {
@@ -39,7 +36,7 @@ document.addEventListener("DOMContentLoaded", function () {
     }
 
     function preferredTheme() {
-        return storedTheme() || (themeMedia && themeMedia.matches ? "dark" : "light");
+        return storedTheme() || "dark";
     }
 
     function syncThemeControls(theme) {
@@ -61,7 +58,7 @@ document.addEventListener("DOMContentLoaded", function () {
             themeColor.setAttribute("name", "theme-color");
             document.head.appendChild(themeColor);
         }
-        themeColor.setAttribute("content", theme === "dark" ? "#091b2e" : "#f7f9fc");
+        themeColor.setAttribute("content", theme === "dark" ? "#070d17" : "#f5f8fd");
         if (persist) {
             try {
                 window.localStorage.setItem(THEME_STORAGE_KEY, theme);
@@ -85,11 +82,6 @@ document.addEventListener("DOMContentLoaded", function () {
             });
             button.setAttribute("data-theme-toggle-ready", "true");
         });
-        if (themeMedia && themeMedia.addEventListener) {
-            themeMedia.addEventListener("change", function () {
-                if (!storedTheme()) applyTheme(preferredTheme(), false);
-            });
-        }
     }
 
     function initTaglineCarousel() {

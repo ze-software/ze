@@ -1,13 +1,13 @@
-# `clear firewall irr asn`
+# `clear irr as-set`
 
-Remove the cached IRR prefix\-list for an ASN\.
+Remove the stored IRR dataset of an AS\-SET\.
 
 ## Ze command
 
-- Registry path: `clear firewall irr asn`
-- Usage: `clear firewall irr asn <asn>`
+- Registry path: `clear irr as-set`
+- Usage: `clear irr as-set <as-set>`
 - Mode: Daemon
-- Wire method: `ze-firewall:clear-irr-asn`
+- Wire method: `ze-irr:clear-irr-as-set`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,13 +21,13 @@ Remove the cached IRR prefix\-list for an ASN\.
 - Command pipes: none
 - Pipe aliases: none
 
-Drops the entry from memory and from the persisted cache\, then re\-applies the firewall tables\. Config that still references the ASN fails to verify until it is fetched again with \'update firewall irr asn \<asn\>\'\.
+Removes the stored dataset and pointer of one AS\-SET\. The answer names every consumer still referencing it\; those consumers stop enforcing it\, and it is not fetched again until update irr or a commit that newly names it\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `asn` | string | yes | any value of this type | ASN number | The AS number\, 1 to 4294967294\, in plain or dotted form\. The entry purged is the one the update command stored under the decimal spelling\. |
+| `as-set` | string | yes | any value of this type | AS\-SET name\. | The RPSL set name the update stored\, for example AS\-EXAMPLE\. |
 
 ## Mapping intents
 

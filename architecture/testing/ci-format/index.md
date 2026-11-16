@@ -414,6 +414,20 @@ regression corpus. Discovery warnings and source read errors fail the sweep,
 including when a narrowed exclusion test would not select that file.
 <!-- source: internal/component/config/cli/validate_corpus_discovery_test.go -- sweepSourceFiles -->
 
+Its carrier population also includes browser `.wb` workflows. A browser-selected
+file is judged in the parsed workflow's load composition, using the browser
+daemon's own baseline, including parsed authentication/profile declarations,
+and the shared editor's merge or replace operation. A default web case that
+needs multiple users or a reader shares the runner's daemon-selection rule.
+Login and authenticated editor-owner switching before a load remain explicit
+unsupported-composition findings, retaining standalone validation of that file.
+An accepted editor draft is counted separately; its submitted commit snapshot uses
+the full configuration validator. Standalone and applied config oracles remain
+unchanged. The fragment is
+not made standalone by adding settings that the running daemon already supplies.
+Unconsumed `.conf` files retain their standalone validation.
+<!-- source: internal/component/config/cli/validate_corpus_browser_test.go -- sweepContext.browserSequences -->
+
 ### Mode Defaults
 
 A file with no `mode=` takes its mode from its extension: `0755` for `.py`,
@@ -2565,6 +2579,19 @@ govern (they never report completion), so a test whose only peers are scaffoldin
 is still governed by its own exit/output/file assertions.
 <!-- source: internal/test/runner/peer_contract.go -- isSelfValidated, hasCheckPeer -->
 <!-- test: internal/test/runner/peer_contract_test.go TestIsSelfValidated, TestHasCheckPeer -->
+
+A non-zero `expect=exit:code=N` beside a check peer works the same way. When the
+foreground process exits with the code the file asserts, that exit is the outcome
+under test and not a failed run, so the peer's exchange alone decides the peer
+verdict: the test passes when every check peer printed `successful`, and fails on
+`peer-exchange` when one did not. A different exit code fails on `exit-code`
+before the peer is judged. This holds whichever arm supplies the exit: a
+foreground `ze` daemon, a quick-exit `ze` command, or a final foreground helper.
+Until 2026-11-15 the matched exit error reached the peer verdict as a failure, so
+every such test (`test/plugin/failure-policy-fatal-live-peer.ci` among them)
+reported `peer-exchange -> unknown` while its peer printed `successful`.
+<!-- source: internal/test/runner/runner_exec.go -- runOrchestrated, the exit-code block clears a matched exit -->
+<!-- test: internal/test/runner/expect_exit_check_peer_test.go TestAssertedExitBesideCheckPeer -->
 
 A check peer prints `successful` only when EVERY expectation it holds was met:
 every `expect=bgp` line of every `conn=N` it declares. A peer stopped before that,

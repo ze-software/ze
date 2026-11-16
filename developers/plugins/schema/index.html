@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>YANG Schema Authoring - Ze</title>
         <meta name="description" content="Ze documentation: plugin-development/schema.md" />
         <meta property="og:title" content="YANG Schema Authoring - Ze" />
@@ -108,7 +108,7 @@ is loaded, before any plugin starts: <code>ze config validate</code> reports
 startup, so its own root becomes valid config, is planned
 (<code>plan/post-release/features/spec-plugin-external-yang-at-startup.md</code>). The <code>acme-monitor</code> example
 at the end of this page shows that planned behavior for an external plugin.</p>
-<!-- source: internal/component/plugin/server/startup.go -- handleRegistration stores reg.PluginSchema; deliverConfigRPC -->
+<!-- source: internal/component/plugin/server/startup.go -- registrationFromRPC, deliverConfigRPC -->
 <!-- source: internal/component/config/loader.go -- LoadConfig, parseTreeWithYANG (compiled-in schema plus CollectPluginYANG of internal plugins) -->
 <!-- source: internal/component/config/plugin_verify.go -- BuildPluginConfigSections -->
 <h2 id="registering-a-schema">Registering a Schema</h2>
@@ -498,7 +498,7 @@ func main() {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

@@ -69,7 +69,7 @@ declaration it writes to stdout. A block reading `external mrt { run
 and it answers for itself. Anything else the child writes is ignored, so a
 banner or a log line cannot corrupt the answer.
 
-The state field carries one of five values, so absence never stands in for an
+The state field carries one of six values, so absence never stands in for an
 answer:
 
 | State | What it means |
@@ -77,8 +77,17 @@ answer:
 | `declared` | an answer arrived carrying declarations |
 | `declared-none` | an answer arrived carrying an empty declaration |
 | `no-answer` | the process ran and wrote no declaration, which is what a plugin with no query mode in it does |
-| `unstartable` | the process could not be started |
+| `unstartable` | the process could not be started, or it wrote a declaration the daemon refuses at Stage 1 |
 | `timeout` | the process started, wrote no declaration inside the budget, and was stopped |
+| `not-judged` | an answer arrived in a binary that holds no Stage 1 checks, so nobody judged the declaration |
+
+A declaration that was read is judged by the checks the daemon applies at
+Stage 1, so a row reads `declared` only when the daemon would start the plugin.
+`ze show plugin conformance run "<run string>"` judges one program against the
+same checks and writes one row for each check
+(`docs/plugin-development/testing.md`).
+<!-- source: internal/component/plugin/declarations.go -- queriedDeclarationRow, stateUnjudged -->
+<!-- source: internal/component/plugin/conformance/register.go -- dataConformance -->
 
 The budget is 5 seconds, the same wait a startup stage gets, and
 `ze.plugin.query.timeout` sets it. A value of zero or less is refused rather

@@ -128,7 +128,7 @@ what its own failure means, and ze does that.
 |---------------------|----------------------------|
 | `restart` | starts the plugin again, up to 5 times in 60 seconds and 20 in the life of the daemon |
 | `ignore` | logs it and carries on without the plugin |
-| `fatal` | stops ze |
+| `fatal` | stops ze, which exits 1 so a service manager sees a failure |
 | nothing | logs it and carries on, the same as `ignore` |
 
 `fatal` is open to any plugin, including one you wrote or one you downloaded.
@@ -652,6 +652,8 @@ address. A session whose events named it nothing is selected by no name.
 | `as112` | AS112 anycast DNS node (RFC 7534, RFC 7535): authoritative-only sink for misdirected RFC 1918 / link-local reverse-DNS queries plus the EMPTY.AS112.ARPA DNAME-redirection zone. Four fixed anycast host addresses (never operator-typed) registered via the iface address-ownership registry, `IP_FREEBIND` listeners, optional `allow-from` client-source access list (loopback always permitted). `show as112`, `as112 health` (one-shot query for the healthcheck probe), `ze_as112_*` metrics, UDP+TCP listeners on port 53. Now also a BGP redistribute source: `redistribute { destination bgp { import as112 } }` originates the four covering prefixes into BGP, with `asn` (origin AS, default 112), `community`, and a `watchdog` health-gate under `service { as112 }`. <!-- source: internal/plugins/as112/redistribute.go -- registerAS112Sources --> | -- (Config-driven, UDP+TCP listeners) |
 | `dnsresolver` | LAN DNS resolver (RFC 1035, RFC 2181), configured under `service { dns-resolver }`: UDP and TCP listeners on the addresses the operator names, an `allow-from` client prefix list, an ordered `forward server` list, and a `forward dns-source` list that chooses the upstreams from those servers and the resolvers Ze learned (default `source [ configured received ]`, `mode first-usable`; `docs/features/dns-resolver.md`). A commit is refused for a wildcard listener address, for an enabled resolver with no `allow-from` prefix, and for one with no forward server whose `forward dns-source` names no `received` source. A query from an allowed client with RD set is answered from the cache or forwarded to the upstream servers in order, and SERVFAIL is returned when no upstream gives a usable answer within the timeout and the per-query work budget <!-- source: internal/plugins/dnsresolver/config.go -- parseConfig, checkEnabled --> <!-- source: internal/plugins/dnsresolver/resolve.go -- resolve, forward --> | -- (Config-driven, UDP+TCP listeners) |
 | `traffic-usage` | eBPF TCX per-(port, protocol) and opt-in per-IP byte accounting (IPv4, monitoring only). Pure-Go assembled eBPF (cilium/ebpf asm.Instructions, no C/clang). Prometheus `ze_traffic_usage_*` metrics, `show traffic usage [name <interface>]`. Linux >= 6.6. [Guide](../traffic-usage/index.md) | -- (Config-driven, Bus events) |
+| `container` | OCI containers run by Ze itself, configured under `container { instance <name> }`. Today the plugin holds the config root with the `enabled` leaf, the command `request container restart name <name>`, its doctor codes and the kernel requirement for a hard CPU limit. No build starts a container yet: a config that enables one is refused, with the statement that disables it. Compile-out-able with the `ze_container` build tag <!-- source: feature-gates.txt -- ze_container --> | -- (Config-driven) |
+<!-- source: internal/plugins/container/register.go -- registerContainer -->
 <!-- source: internal/plugins/trafficusage/register.go -- traffic-usage registration -->
 <!-- source: internal/plugins/policyroute/register.go -- policy-routes registration -->
 <!-- source: internal/component/sysctl/register.go -- sysctl registration -->
@@ -675,8 +677,13 @@ address. A session whose events named it nothing is selected by no name.
 |--------|-------------|
 | `l2tp-auth-local` | Static user/password authentication for L2TP PPP sessions (PAP/CHAP-MD5/MS-CHAPv2) |
 | `l2tp-auth-radius` | RADIUS authentication (Access-Request), accounting (Start/Stop/Interim-Update), CoA/DM listener, and Access-Accept attribute extraction (Framed-IP-Address, Framed-Pool, Session-Timeout, Idle-Timeout, Filter-Id, Acct-Interim-Interval) |
-| `l2tp-pool` | Bitmap-backed IPv4 address pool with default and named pools; Framed-IP-Address bypasses pool (direct RADIUS IP assignment), Framed-Pool selects a named pool; IPCP DNS from the pool's `dns-source` list (default `source [ radius configured received ]`: the Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server, else `dns-primary`/`dns-secondary`, else the learned resolvers) |
+| `l2tp-pool` | Bitmap-backed IPv4 address pool with default and named pools; Framed-IP-Address chooses an address and reserves any containing pool, Framed-Pool selects the gateway and DNS profile; IPCP DNS from the pool's `dns-source` list (default `source [ radius configured received ]`: the Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server, else `dns-primary`/`dns-secondary`, else the learned resolvers) |
 | `l2tp-shaper` | TC traffic shaping (TBF/HTB) on pppN interfaces with configured default rates, RADIUS CoA rate updates, and initial rate from Filter-Id at session establishment |
+
+The pool applies committed range edits while subscribers remain connected.
+It reserves live assignments in the replacement pools and retains an
+assignment whose range was removed until that subscriber ends its session.
+<!-- source: internal/component/l2tp/plugins/pool/reload.go -- installPoolConfiguration -->
 
 These plugins register via the L2TP handler registry (`RegisterAuthHandler`,
 `RegisterPoolHandler`) at init time. Only one auth handler is active at a
@@ -688,6 +695,7 @@ See [L2TP guide](../l2tp/index.md) for configuration details.
 <!-- source: internal/component/l2tp/plugins/authlocal/register.go -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -->
 <!-- source: internal/component/l2tp/plugins/pool/register.go -->
+<!-- source: internal/component/l2tp/plugins/pool/radius.go -- reserveRADIUSAddressLocked -->
 <!-- source: internal/component/l2tp/plugins/shaper/register.go -->
 
 The `iface` plugin defines a `Backend` interface and loads a backend by name (YANG
@@ -1389,14 +1397,19 @@ For external plugins that connect over TLS (non-internal mode), configure the hu
 plugin {
     hub {
         server local {
-            host 127.0.0.1;
+            ip 127.0.0.1;
             port 0;                               # auto-assign port
             secret change-this-token-to-at-least-32-chars;  # TLS auth token
         }
     }
 }
 ```
-<!-- source: internal/component/hub/yang/ -- hub config YANG schema; pkg/plugin/sdk/ -- TLS auth -->
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -->
+
+Ze validates an explicit hub configuration before starting its components.
+An invalid block stops startup with its name, the reason and a repair command.
+Removing the hub settings selects automatic local transport when a plugin needs it.
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 
 ## Writing External Plugins
 
@@ -1594,8 +1607,8 @@ edge fails by name.
 
 The BGP filter-type plugins (`bgp-filter-prefix`, `bgp-filter-family`,
 `bgp-filter-modify`, `bgp-filter-aspath`, `bgp-filter-aspath-length`,
-`bgp-filter-community-match`, `bgp-filter-remove-private-as`,
-`bgp-filter-path-asn` and `bgp-filter-irr`) own the `bgp` root
+`bgp-filter-community-match`, `bgp-filter-remove-private-as` and
+`bgp-filter-path-asn`) own the `bgp` root
 (`ConfigRoots ["bgp"]`) and read the `policy` root (`ConfigReads ["policy"]`),
 where their named instances live. They serve BGP chains only, so a `bgp { }`
 block loads them, and a config holding `policy` with no `bgp` block loads
@@ -1607,10 +1620,15 @@ their BGP settings. A Loc-RIB chain naming a `prefix-list`, `modify` or
 in and run inside the `policy` plugin (see [Route policy](https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md)).
 `TestPolicyOnlyConfigLoadsNoBGP` derives the plugins a policy-only config
 selects from the registry and refuses one that depends on `bgp`.
+`bgp-filter-irr` owns the `bgp` root and depends on the `irr` plugin, which
+fetches, schedules and stores the IRR prefix lists it enforces, so a config
+using the filter starts `irr` before it; the filter fetches nothing itself and
+reads the stored lists
+(see [IRR filtering](../irr-filtering/index.md), "After a restart").
 <!-- source: internal/component/bgp/plugins/filter_family/register.go -- ConfigRoots, ConfigReads -->
 <!-- source: internal/component/plugin/all/policy_dependency_test.go -- TestPolicyOnlyConfigLoadsNoBGP -->
 <!-- source: internal/component/policy/rib_compile.go -- compileRIBEvaluator -->
-<!-- source: internal/component/bgp/plugins/filter_irr/register.go -- ConfigRoots, ConfigReads -->
+<!-- source: internal/component/bgp/plugins/filter_irr/register.go -- ConfigRoots, Dependencies -->
 <!-- source: internal/component/policy/section.go -- SectionsParser -->
 
 `StartAfter` is separate from either kind of dependency. It orders two plugins

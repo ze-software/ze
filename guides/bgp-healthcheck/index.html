@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Healthcheck - Ze</title>
         <meta name="description" content="Ze documentation: guide/healthcheck.md" />
         <meta property="og:title" content="Healthcheck - Ze" />
@@ -88,6 +88,14 @@
 }
 </code></pre>
 <p>The <code>bgp-healthcheck</code> plugin depends on <code>bgp-watchdog</code> -- both are loaded automatically when healthcheck config is present.</p>
+<p>The example sets <code>withdraw true</code> so the route stays held until the probe
+announces it. If <code>withdraw</code> is omitted or set to <code>false</code>, the watchdog route
+is announced when the BGP session reaches Established, matching ExaBGP.
+Reload preserves the runtime state of an existing route; a newly added route
+uses its configured initial state.</p>
+<!-- source: internal/component/bgp/plugins/watchdog/config.go -- collectWatchdogRoutes reads the boolean value -->
+<!-- source: internal/component/bgp/plugins/watchdog/config_tx.go -- carryEntryState preserves existing state on reload -->
+<!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- update-block watchdog withdraw default -->
 <p>The probe runs <code>dig</code> every 5 seconds (default). After 3 consecutive successes, the route <code>10.0.0.1/32</code> is announced. After 3 consecutive failures, the route is withdrawn.</p>
 <h2 id="configuration-reference">Configuration Reference</h2>
 <p>All leaves go under <code>bgp { healthcheck { probe &lt;name&gt; { ... } } }</code>.</p>
@@ -364,7 +372,7 @@ shape and <code>| fill</code> is refused by name.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

@@ -110,8 +110,48 @@ system {
 The total time one login spends talking to RADIUS is bounded, so a slow or
 unreachable server falls through to local rather than hanging the login.
 
-<!-- source: internal/component/aaa/aaa.go -- ChainAuthenticator, ErrAuthRejected -->
-<!-- source: internal/component/radius/authenticator.go -- Accept/Reject/error mapping, authBudget -->
+<!-- source: internal/component/aaa/types.go -- ChainAuthenticator.Authenticate -->
+<!-- source: internal/component/aaa/aaa.go -- ErrAuthRejected -->
+<!-- source: internal/component/radius/authenticator.go -- radiusAuthenticator.result, authBudget -->
+
+## Shared UDP transport
+
+Admin and subscriber RADIUS use the same IPv4 UDP client.
+`Client.Exchange` retries one server, and `Client.SendToServers` tries the
+configured servers in order until one gives a usable response.
+The request context controls hostname resolution and response waits.
+If the context ends, the client stops retries and server failover.
+<!-- source: internal/component/radius/client.go -- Client.exchange, Client.sendToServers -->
+<!-- source: internal/component/radius/client_write.go -- resolveRequestAddress -->
+<!-- source: internal/component/radius/aaa.go -- radiusBackend.Build -->
+<!-- source: internal/component/l2tp/plugins/authradius/register.go -- activateRadiusConfig -->
+
+The client checks cancellation again after it gets the socket lock, before it
+writes. Each write has a finite deadline, bounded by the configured timeout
+or an earlier context deadline. The client clears that deadline before it
+releases the lock, so another request cannot inherit it.
+<!-- source: internal/component/radius/client_write.go -- Client.writeRequest -->
+
+For callers that need the first write outcome,
+`Client.SendToServersObserved` calls its observer once across retries and
+server failover, after the first actual UDP write attempt. A request that
+never attempts a write calls no observer. The observer runs synchronously
+outside the socket lock and must return promptly because the request waits
+for it.
+<!-- source: internal/component/radius/client_observed.go -- Client.SendToServersObserved -->
+<!-- source: internal/component/radius/client_write.go -- Client.writeRequest -->
+
+`RequestWrite.Server()` identifies the resolved destination.
+`Bytes()` reports the bytes the local socket accepted, and `Err()` reports
+the write failure. Those values do not confirm server receipt or successful
+accounting. A zero `RequestWrite` has no observed write attempt, and `Err()`
+returns an error.
+<!-- source: internal/component/radius/client_observed.go -- RequestWrite.Server, RequestWrite.Bytes, RequestWrite.Err -->
+
+`Client.Close` prevents new requests, closes the UDP socket, and waits for
+the answer reader to stop. Concurrent and repeated calls each wait for that
+same reader before they return.
+<!-- source: internal/component/radius/client.go -- Client.Close, Client.readLoop -->
 
 ## Choosing the credential
 
@@ -305,7 +345,7 @@ name) for operators, and define a matching `system.authorization.profile`. If
 your server does not send a profile attribute, set `default-profile` instead;
 otherwise no RADIUS user can log in.
 
-<!-- source: internal/component/radius/authenticator.go -- mapProfiles, Authenticate Access-Accept branch -->
+<!-- source: internal/component/radius/authenticator.go -- mapProfiles, radiusAuthenticator.result -->
 
 ## Chain order with TACACS+ and local
 
@@ -358,7 +398,7 @@ ze show diagnostic doctor-radius-admin-unreachable
 
 ## Verification
 
-The `.ci` tests in `test/plugin/` cover the main behaviours:
+The `.ci` tests in `test/plugin/` cover the main behaviors:
 
 | Test | Asserts |
 |------|---------|
@@ -412,7 +452,7 @@ bcrypt user accepted the credentials.
 <!-- source: internal/test/mock/radius/radius.go -- le mock radius for .ci tests -->
 <!-- source: internal/test/mock/radius/eap.go -- the mock's EAP branch: buildEAPResponse, verifyRequestSignature -->
 <!-- source: internal/le/interoplab/radius/checkers.go -- what each FreeRADIUS scenario asserts -->
-<!-- source: test/interop-radius/scenarios/ -- the four interop scenario directories -->
+<!-- source: test/interop-radius/scenarios/ -- FreeRADIUS interop scenarios -->
 
 ## Metrics
 
@@ -451,9 +491,6 @@ bcrypt user accepted the credentials.
   `pap`. EAP-TLS is not offered: it needs an operator certificate and key. The
   L2TP subscriber path handles CHAP and MS-CHAPv2 for PPP sessions through its
   own code, and this leaf does not affect it.
-- **Same client** as the L2TP subscriber path (`internal/component/radius`),
-  so retransmit, failover, and Response-Authenticator verification behave
-  identically. That client is `udp4`, so RADIUS admin servers must be IPv4.
 - **Fail-open on misconfig.** If the RADIUS client cannot start (for example an
   unbindable `source-address`), the backend contributes nothing and logs an
   error rather than failing the whole AAA bundle, so local (and TACACS+) still

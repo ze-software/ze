@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8050 requirements and tests - Ze</title>
         <meta name="description" content="RFC 8050: Multi-Threaded Routing Toolkit (MRT) Routing Information Export Format with BGP Additional Path Extensions. 6 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8050 requirements and tests - Ze" />
@@ -132,13 +132,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 6 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 6 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 6 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>32</strong><b>32 of 36 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>31</strong><b>31 of 36 tests linked to requirements, 0 without a fault test and 1 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>1</strong><b>of 6 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 6 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 6 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -435,9 +435,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8050-x-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L31" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L34" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L23" title="internal/component/bgp/reactor/rfc8050_mrt_observer_test.go" target="_blank" rel="noopener"><code>TestRFC8050MessageCallbackPreservesEncodingAndFraming</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L32" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L35" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_mrt_observer_test.go#L24" title="internal/component/bgp/reactor/rfc8050_mrt_observer_test.go" target="_blank" rel="noopener"><code>TestRFC8050MessageCallbackPreservesEncodingAndFraming</code></a></span></div>
 </div></td>
 </tr>
@@ -487,11 +487,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8050-x-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/mrt_test.go#L665" title="internal/mrt/mrt_test.go" target="_blank" rel="noopener"><code>TestIsAddPathHelpers</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L42" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTCollisionWinnerReservation</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L54" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTCollisionWinnerReservation</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_session_context_boundaries_test.go#L19" title="internal/mrt/rfc8050_session_context_boundaries_test.go" target="_blank" rel="noopener"><code>TestMRTContextCapabilityASNBoundaries</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/analyze/rfc8050_boundary_test.go#L27" title="internal/analyze/rfc8050_boundary_test.go" target="_blank" rel="noopener"><code>TestMRTEmptyMPFamilyRequiresContext</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_migration_epoch_test.go#L27" title="internal/component/bgp/reactor/rfc8050_migration_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTMigrationEpochUsesActualLocalOPEN</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L33" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L36" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/mrt/rfc8050_addpath_nlri_test.go#L22" title="internal/mrt/rfc8050_addpath_nlri_test.go" target="_blank" rel="noopener"><code>TestRFC8050AddPathBGP4MPUpdateNLRIReadBySubtype</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/analyze/rfc8050_commands_test.go#L17" title="internal/analyze/rfc8050_commands_test.go" target="_blank" rel="noopener"><code>TestRFC8050CommandsReadSubtypeContext</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/analyze/rfc8050_session_commands_test.go#L87" title="internal/analyze/rfc8050_session_commands_test.go" target="_blank" rel="noopener"><code>TestRFC8050CommandsRequireMixedContext</code></a></span></div>
@@ -530,13 +530,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc8050-x-1"><code>RFC8050-x-1</code></a></h3>
 <p>The Advertisement of Multiple Paths [RFC7911] extension for BGP alters the encoding of the BGP Network Layer Reachability Information (NLRI) format for withdraws and announcements. Therefore, new BGP4MP/BGP4MP_ET subtypes as defined in [RFC6396] are required to signal to an MRT parser how to parse the NLRI. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against RFC 8050 Sections 2 and 3: changed ADD-PATH NLRI framing requires distinguishing BGP4MP/BGP4MP_ET subtypes, and these forms retain the complete BGP message. Read both complete tagged carriers and the collision helper. The observer matrix asserts exact standard/extended type, received/sent AP subtypes 9/11 versus ordinary 4/7, complete original frame bytes and exact record count for isolated classic and MP announcements/withdrawals. The live TCP collision-winner test preserves the winning connection and directional OPENs, then asserts exact isolated UPDATE bytes/subtypes and native prefixes/path IDs for mixed withdrawals. Opposite-family and opposite-direction controls cannot hide an ordinary frame under ADD-PATH. observeReceivedWire/observedBGPWriter.observe deliver the directional context; OnBGPMessage calls updateAddPath, which examines only actually present classic/MP family fields, and chooses the subtype. Its exhaustive-ignore directive does not alter detection or unknown-attribute handling. Verdict enforced for this BGP4MP obligation; no TABLE_DUMP_V2 or foreign-parser execution is claimed. No checks ran.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment against the complete RFC 8050, Sections 2 and 3. Section 3 says, &#34;These enhancements continue to encapsulate the entire BGP message in the BGP message field.&#34; The live collision test retains the winning TCP connection and exact directional OPEN occurrences, then compares complete isolated classic and MP announcements and withdrawals against received subtypes 9/4 and sent subtypes 11/7. Its ordinary-family controls distinguish per-family and per-direction ADD-PATH from a global flag. The observer matrix separately covers both BGP4MP and BGP4MP_ET, every NLRI location, exact record count, subtype and unchanged complete message bytes. The changed collision helper now reports full-stream context ambiguity explicitly; its separately retained known-connection context uses only the actual winning OPEN occurrences, never synthesized settings. This change does not remove the subtype or byte-preservation assertions. observeReceivedWire reads the receive context; the retained writer carries its own send context and transport. OnBGPMessage selects updateAddPath from the actual UPDATE&#39;s family fields and preserves the original message. No TABLE_DUMP_V2 or new foreign-parser execution is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L32" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L35" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -546,7 +546,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L31" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L34" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -656,7 +656,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8050-x-4"><code>RFC8050-x-4</code></a></h3>
 <p>MRT parsers are usually stateless. In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized. (§2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 8050 Section 2: &#34;MRT parsers are usually stateless. In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized.&#34; 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestMRTEmptyMPFamilyRequiresContext, TestMRTMigrationEpochUsesActualLocalOPEN, TestRFC8050MessageCallbackPreservesEncodingAndFraming). Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-14 (independent auditor). Only TestMRTMigrationEpochUsesActualLocalOPEN changed, by one line: the remote OPEN&#39;s Optional Parameters are packed with packPeerOptionalParams (capability.PackOptionalParams) instead of the removed buildOptionalParams. The capabilities it packs, the fallback-OPEN local ASN assertions and the MRT read-back of both directions&#39; withdrawals with their Path Identifiers are unchanged. Every other cover is byte-identical to the previous enforced judgement.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/incoming_candidate.go::adoptIncoming moved. Independent rejudgment against RFC 8050 Section 2: &#34;In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized.&#34; Read all current tagged units and their assertion-producing helpers. Subtype-only controls decode all four ADD-PATH and four ordinary BGP4MP forms under both timestamp types without OPENs, preserving exact prefixes, identifiers including zero, and complete bytes. Mixed-family/direction controls require actual matching directional OPENs and refuse missing, stale, repeated, unrelated, identity-mismatched or independently opened context rather than guessing a mode. Real command handlers preserve that refusal and decode the exact mixed route counts with valid context. The changed live collision carrier preserves its original winner socket and OPEN occurrences at both handoff barriers. BGP4MP has no TCP ports: the full overlapping stream must report context unavailable; a separate known-winner decoder is explicitly seeded only from that TCP connection&#39;s two captured OPEN occurrences and excludes the observed old-socket Cease. It still asserts exact directional mixed prefixes and Path Identifiers, isolated subtype controls and record counts. Adoption retains the original Session rather than taking the old acceptWithOpen path. The migration carrier also pins the actual fallback OPEN identity and retained writer epoch. These are data/connection evidence assertions, not a claim that ambiguous overlapping TCP epochs can be inferred from one MRT endpoint tuple.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -717,14 +717,14 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L42" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTCollisionWinnerReservation</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L54" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTCollisionWinnerReservation</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L33" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_collision_epoch_test.go#L36" title="internal/component/bgp/reactor/rfc8050_collision_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTWinningCollisionPreservesOPEN</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8050_migration_epoch_test.go#L27" title="internal/component/bgp/reactor/rfc8050_migration_epoch_test.go" target="_blank" rel="noopener"><code>TestMRTMigrationEpochUsesActualLocalOPEN</code></a></td>
@@ -946,7 +946,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

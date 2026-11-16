@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Web Interface (Guide) - Ze</title>
         <meta name="description" content="Ze documentation: guide/web-interface.md" />
         <meta property="og:title" content="Web Interface (Guide) - Ze" />
@@ -54,7 +54,7 @@
 <li><a href="#starting-the-web-server">Starting the Web Server</a>
 <ol>
 <li><a href="#command-line">Command Line</a></li>
-<li><a href="#workbench-ui">Workbench UI</a></li>
+<li><a href="#choosing-an-interface">Choosing an Interface</a></li>
 <li><a href="#configuration">Configuration</a></li>
 </ol></li>
 <li><a href="#authentication">Authentication</a>
@@ -77,17 +77,18 @@
 <li><a href="#config-editing">Config Editing</a>
 <ol>
 <li><a href="#workflow">Workflow</a></li>
+<li><a href="#collections-and-configuration-actions">Collections and Configuration Actions</a></li>
 <li><a href="#validation">Validation</a></li>
 <li><a href="#notifications">Notifications</a></li>
 <li><a href="#input-auto-save">Input Auto-Save</a></li>
 <li><a href="#conflict-detection">Conflict Detection</a></li>
 <li><a href="#session-limits">Session Limits</a></li>
 </ol></li>
-<li><a href="#cli-bar">CLI Bar</a>
+<li><a href="#browser-cli">Browser CLI</a>
 <ol>
-<li><a href="#integrated-mode">Integrated Mode</a></li>
-<li><a href="#terminal-mode">Terminal Mode</a></li>
-<li><a href="#tab-completion">Tab Completion</a></li>
+<li><a href="#loading-configuration">Loading Configuration</a></li>
+<li><a href="#completion-and-output-format">Completion and Output Format</a></li>
+<li><a href="#live-commands">Live Commands</a></li>
 </ol></li>
 <li><a href="#live-updates">Live Updates</a>
 <ol>
@@ -133,11 +134,22 @@ ze start --web 8443 --insecure-web               # No authentication (forces 127
 </tr>
 </tbody>
 </table>
-<h3 id="workbench-ui">Workbench UI</h3>
-<p>Ze defaults to a RouterOS-style operator workbench UI. The workbench keeps the same authentication and commit flow; the CLI is available as a separate <code>/cli</code> tab instead of a bottom bar. BGP peer rows ship with related operator tools (peer detail, capabilities, statistics, flush, teardown) that run the same dispatched commands as the SSH CLI. Confirmation prompts gate destructive tools.</p>
-<p>To roll back to the legacy Finder UI:</p>
-<pre><code class="language-bash">ZE_WEB_UI=finder ze start --web 8443
+<h3 id="choosing-an-interface">Choosing an Interface</h3>
+<p>The default <strong>YANG editor</strong> uses Finder columns to browse the configuration and
+edit its schema-backed fields. The <strong>CLI</strong> link opens <code>/cli</code>, where commands use
+the shared configuration editor and the daemon's command dispatcher through the
+browser, without an SSH connection.</p>
+<p><strong>Workbench (experimental)</strong> remains available as an unfinished alternative.
+Its purpose-built pages use the same authentication and candidate configuration,
+but some Workbench workflows are still incomplete. The controls at the top of
+the page switch between the graphical editor, CLI and Workbench; an explicit
+selection of Workbench remains selected for that browser.</p>
+<p>The startup setting is <code>environment web ui-mode</code>, with values <code>finder</code> (the
+default) and <code>workbench</code>. The equivalent environment key is <code>ze.web.ui-mode</code>:</p>
+<pre><code class="language-bash">env ze.web.ui-mode=workbench ze start --web 8443
 </code></pre>
+<!-- source: internal/component/web/ui_mode.go -- parseUIMode, GetUIMode, ReadUIModeFromRequest -->
+<!-- source: internal/component/web/component_breadcrumb.templ -- topbarActions -->
 <h3 id="configuration">Configuration</h3>
 <p>The web server listen address can also be set in the ze configuration file:</p>
 <pre><code>environment {
@@ -196,8 +208,8 @@ apart.</p>
 <td>A rotated secret is named as a changed path. Neither the old value nor the new one is printed</td>
 </tr>
 <tr>
-<td>The web CLI bar and the terminal</td>
-<td><code>show</code> masks the same leaves. The verb needs no config authorization, so any authenticated session used to reach them</td>
+<td>The browser CLI</td>
+<td><code>show</code> masks the same leaves for authenticated users</td>
 </tr>
 <tr>
 <td>The terminal's answer to <code>set</code></td>
@@ -210,7 +222,8 @@ apart.</p>
 </tbody>
 </table>
 <!-- source: internal/component/config/mask.go -- LeafHoldsSecret, MaskSecrets, ChangedSecretPaths, DisplayValueAtPath, RejectMaskedSecretLeaves -->
-<!-- source: internal/component/web/cli_terminal.go -- executeTerminalSet -->
+<!-- source: internal/component/web/cli_editor.go -- executeTerminalEditorCommand -->
+<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet -->
 <h2 id="rendering">Rendering</h2>
 <p>Every page, panel, fragment and out-of-band swap is written in a <code>.templ</code> source
 and compiled to Go by <a href="https://templ.guide" target="_blank" rel="noopener">templ</a>. No Go file in the package
@@ -384,7 +397,7 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 <tbody>
 <tr>
 <td>Rename button</td>
-<td>Opens a modal, normalizes the new key, and renames the entry without losing its subtree</td>
+<td>Opens a modal, validates the new key against the schema, and renames the entry without losing its subtree</td>
 </tr>
 <tr>
 <td>Key column (e.g., name)</td>
@@ -420,17 +433,43 @@ and <code>compare</code> are this router's own and the verb registry holds none 
 <ol>
 <li><strong>Browse:</strong> Navigate to a list (e.g., <code>/show/bgp/peer/</code>) to see entries in a table.</li>
 <li><strong>Add:</strong> Click <code>+ new</code> to create an entry. Fill in the name and unique fields. Values are validated against YANG types (e.g., IP addresses must be valid).</li>
-<li><strong>Rename:</strong> In table views, click the rename button to change an entry key. The new key is trimmed and lowercased, and the existing subtree stays attached to the renamed entry.</li>
+<li><strong>Rename:</strong> In table views, click the rename button to change an entry key. The new key keeps its case and literal bytes when the schema accepts them, and the existing subtree stays attached to the renamed entry.</li>
 <li><strong>Edit:</strong> Click an entry name to see its full config. Edit leaf values through inline fields.</li>
 <li><strong>Review:</strong> The commit bar at the bottom shows pending change count. Click "Review &amp; Commit" to see a diff.</li>
 <li><strong>Commit:</strong> Apply changes. Conflicts with other users are detected and reported.</li>
 <li><strong>Discard:</strong> Click "Discard" to abandon all pending changes.</li>
 </ol>
+<h3 id="collections-and-configuration-actions">Collections and Configuration Actions</h3>
+<p>Multi-word settings and leaf-lists show editable rows with Add, Remove, Move up,
+Move down, Save and Clear controls. The schema decides which values and repeated
+members are accepted. Leaf-lists also expose member activation; a multi-word
+setting is activated or deactivated as a whole. Freeform blocks show entry-name
+and value rows, and inline lists provide keyed entry links and an add form.</p>
+<p>The <strong>Configuration actions</strong> panel offers copy and rename for a selected keyed
+entry, whole-item activation, candidate validation, draft saving and saved
+revision history. Restoring a revision changes the candidate, which can be
+reviewed before committing. <strong>Commit options</strong> can apply a change with automatic
+rollback; the owner of that pending commit can keep it or revert it from the
+same panel. Read-only accounts can browse but have no mutation controls.</p>
+<p>Open <strong>Inspect</strong> to view the candidate, running configuration or saved draft as
+a tree or set commands. The separate candidate metadata controls show
+authorship, active or inactive settings, your pending changes, all pending
+changes, and validation issues. Compare the candidate with the running
+configuration, saved draft, a saved revision or a user's changes. A revision
+selection keeps its identity when a newer revision is saved.</p>
+<p><strong>Editing sessions</strong> lists session identifiers and pending-change counts.
+Accounts with edit permission can disconnect another session; use Discard for
+your own changes. <strong>Display preferences</strong> changes the shared editor's columns
+and diagnostic presentation for your account. These inspection and preference
+controls are available to read-only accounts.</p>
+<!-- source: internal/component/web/component_graphical_values.templ -- graphicalValues, graphicalInlineList -->
+<!-- source: internal/component/web/component_graphical_actions.templ -- graphicalActionPanel -->
+<!-- source: internal/component/web/graphical_actions.go -- HandleGraphicalAction, rollbackGraphicalRevision -->
 <h3 id="validation">Validation</h3>
 <p>Field values are validated server-side against YANG types before being accepted:</p>
 <!-- source: internal/component/config/schema.go -- ValidateValue -->
-<p>Every value set from the web (a form field, the add form, the CLI bar and the
-terminal <code>set</code>) is then judged with the checks a config file gets: the
+<p>Every value set from the web (a form field, the add form or browser CLI
+<code>set</code>) is then judged with the checks a config file gets: the
 enumeration, range, length and pattern the YANG declares, a union's members,
 and each member of a leaf-list. A value outside them is refused when it is set,
 not at commit. The refusal names the setting path and the value, lists the
@@ -448,7 +487,7 @@ fix: set bgp peer peer1 session capability route-refresh require
 and union forms are in
 <a href="https://github.com/ze-software/ze/blob/main/docs/architecture/config/yang-config-design.md#value-refusals" target="_blank" rel="noopener">Value refusals</a>.</p>
 <p>A form or the commit modal holds no editor position, so its fix is the <code>set</code>
-from the root. The terminal and the CLI bar frame the fix for the position the
+from the root. The browser CLI frames the fix for the position the
 line was typed at: the <code>set</code> as typed, corrected, for a refused <code>set</code>, and
 <code>top set &lt;full path&gt; ...</code> for a commit refusal inside a context. A new list key
 is judged where its entry is created, and the add form judges every field
@@ -458,14 +497,14 @@ A key refused by the terminal's <code>rename</code>, <code>copy</code>, <code>in
 framed for the position, and the Rename button's refusal ends with
 <code>fix: rename &lt;full path&gt; to &lt;corrected key&gt;</code>.</p>
 <!-- source: internal/component/web/editor.go -- EditorManager.SetValue, judgeValue -->
-<!-- source: internal/component/web/cli_terminal.go -- execListEntryOp -->
+<!-- source: internal/component/web/cli_editor.go -- executeTerminalEditorCommand -->
 <!-- source: internal/component/web/handler_config_entry.go -- HandleConfigRenameWithAuthorizer -->
-<!-- source: internal/component/web/cli.go -- applyWebSet, framedWebSetRefusal -->
+<!-- source: internal/component/cli/model_commands_edit.go -- cmdSet -->
 <!-- source: internal/component/web/handler_config_entry.go -- addFieldSetPath -->
 <p>Fix commands quote list keys and values that contain spaces or quotes. Type
 the whole printed command, including its quotes. A refused key can precede a
 secret assignment: its correction keeps the assignment and masks the secret.</p>
-<!-- source: internal/component/web/cli.go -- framedWebSetRefusal -->
+<!-- source: internal/component/cli/fix_frame.go -- FrameFix -->
 <!-- source: internal/component/cli/fix_frame.go -- FrameFix -->
 <table>
 <thead>
@@ -503,7 +542,11 @@ secret assignment: its correction keeps the assignment and masks the secret.</p>
 </table>
 <p>YANG <code>unique</code> constraints are enforced: duplicate values are rejected with an error naming the conflicting entry.</p>
 <!-- source: internal/component/web/handler_config_walk.go -- checkUniqueConstraint, validateUniqueOnSet -->
-<p>Entry key names are automatically lowercased and trimmed for both add and rename operations.</p>
+<p>Add and rename preserve entry key case and literal bytes accepted by the
+schema. Generated links encode each key separately, so a space or slash inside
+a key remains part of that key when the operator follows it or saves a field.</p>
+<!-- source: internal/component/web/path_transport.go -- encodeConfigPath, decodeConfigPath -->
+<!-- source: internal/component/web/handler_config_entry.go -- HandleConfigAddWithAuthorizer, HandleConfigRenameWithAuthorizer -->
 <p>Duplicate entry keys are rejected. Validation runs before the entry is created, so invalid input never produces a partial entry.</p>
 <p>Navigating to a non-existent list entry (e.g., <code>/show/bgp/peer/london/</code> when <code>london</code> has not been created) redirects to the root view with an error notification.</p>
 <!-- source: internal/component/web/fragment.go -- HandleFragment, isListEntryPath check -->
@@ -516,11 +559,14 @@ secret assignment: its correction keeps the assignment and masks the secret.</p>
 <p>A refused action raises a toast carrying the status and the message the daemon wrote, and the same message lands in the field or panel the action came from. A request that gets no answer at all raises a toast that says so instead: the daemon is unreachable, and nothing was changed.</p>
 <!-- source: internal/component/web/assets/notification.js -- handleResponseError and handleRequestError -->
 <h3 id="input-auto-save">Input Auto-Save</h3>
-<p>Text and number fields auto-save 1 second after the user stops typing, in addition to saving on blur and Enter. This prevents data loss when navigating away before a field loses focus. Enter commits inside the debounce, so three keystrokes and an Enter send one POST, not four.</p>
+<p>Text and number fields save on blur, Enter and a one-second debounce after
+typing. A save issued while that same field's request is in flight is dropped;
+the response replaces the field with the accepted candidate value. Enter saves
+the field, and the separate commit step applies the candidate configuration.</p>
 <p>Enter arrives as <code>ze-enter</code>, a named event a delegated listener in <code>assets/cli.js</code> dispatches. The listener reads the element's own <code>hx-trigger</code>, lives in a file rather than in an attribute, and survives every swap. An inline editor replaces itself, so each input also carries a stable id derived from its leaf path: without one, htmx restored focus by looking up the empty string and the caret was lost on every save.</p>
 <!-- source: internal/component/web/input_text.templ -- hx-trigger="blur changed, ze-enter, input changed delay:1s" -->
 <!-- source: internal/component/web/assets/cli.js -- initEnterSubmit -->
-<!-- source: internal/component/web/view.go -- fieldInputID, fieldInputIDEscaper -->
+<!-- source: internal/component/web/view.go -- fieldInputID, escapeFieldID, fieldSaveSync -->
 <h3 id="conflict-detection">Conflict Detection</h3>
 <p>When two users edit the same leaf concurrently, the commit reports which paths conflict, showing both the local and other user's values. The user must resolve conflicts before committing.</p>
 <!-- source: internal/component/web/handler_config_commit.go -- handleCommitPost -->
@@ -528,12 +574,29 @@ secret assignment: its correction keeps the assignment and masks the secret.</p>
 <h3 id="session-limits">Session Limits</h3>
 <p>The editor manager allows up to 50 concurrent user sessions. Idle sessions (no activity for 1 hour) are evicted when capacity is reached.</p>
 <!-- source: internal/component/web/editor.go -- NewEditorManager, maxSessions, idleTimeout -->
-<h2 id="cli-bar">CLI Bar</h2>
-<p>The web interface includes a CLI bar at the bottom of the page that accepts the same command grammar as the SSH CLI. The CLI bar sends the current URL path as context, so <code>set</code> and <code>delete</code> commands operate relative to the current view.</p>
-<!-- source: internal/component/web/cli.go -- HandleCLICommand, knownCLIVerbs -->
-<!-- source: internal/component/web/assets/cli.js -- path extraction, fetch to /cli -->
-<h3 id="integrated-mode">Integrated Mode</h3>
-<p>In integrated mode, CLI commands update the page content directly:</p>
+<h2 id="browser-cli">Browser CLI</h2>
+<p>The <strong>CLI</strong> link opens the dedicated <code>/cli</code> page. Its prompt shows the current
+configuration position, for example <code>ze[bgp peer london]#</code>. Commands execute in
+order, so a command following <code>edit</code> uses the position returned by that edit.
+The page displays command output and feedback separately; the up and down keys
+recall command history when the completion menu is closed.</p>
+<p>The authenticated history API is <code>GET /cli?history=1&amp;mode=config</code> (or
+<code>mode=operational</code>). It returns a bounded, masked <code>entries</code> array for the signed-in
+user, and reports an unavailable store as an error. Commands submitted through
+the command bar, terminal and stream endpoint share this saved history producer.
+Editor discard preserves recall. A terminal response carries <code>history-warning</code>
+when recall could not be updated; the command can still execute. Uploaded file
+and pasted configuration content never become recall entries.</p>
+<!-- source: internal/component/web/cli_history.go -- recordCLIHistory, writeCLIHistory -->
+<p>Recall survives reloading the page and stays separate for each account and CLI
+mode. Press Up with the completion menu closed to read the latest saved recall.
+Press Down past the newest entry to restore your unfinished input. If recall is
+unavailable, the page displays the failure and still accepts commands.</p>
+<!-- source: internal/component/web/assets/cli.js -- commandRecall, initTerminal -->
+<p>Configuration commands use the same editor producers as the SSH CLI. Commit and
+discard use the web session's shared publication and confirmed-commit controls.
+Operational commands and live monitors require the running daemon; <code>--web-only</code>
+provides configuration editing without an operational command service.</p>
 <table>
 <thead>
 <tr>
@@ -543,61 +606,106 @@ secret assignment: its correction keeps the assignment and masks the secret.</p>
 </thead>
 <tbody>
 <tr>
-<td><code>edit &lt;path&gt;</code></td>
-<td>Navigate to a config path</td>
+<td><code>edit &lt;path&gt;</code>, <code>up</code>, <code>top</code></td>
+<td>Change the configuration position</td>
 </tr>
 <tr>
-<td><code>set [path] &lt;leaf&gt; &lt;value&gt;</code></td>
-<td>Set a value under the current context path. The last token is the value and the one before it the leaf, as in the SSH CLI; quote a value that holds spaces</td>
+<td><code>set &lt;path&gt; &lt;value&gt;</code>, <code>delete &lt;path&gt; [member]</code></td>
+<td>Change a schema-backed setting relative to the current position; quoted keys and values retain their token boundaries</td>
 </tr>
 <tr>
-<td><code>delete &lt;path&gt; [member]</code></td>
-<td>Delete the schema node at the path relative to the current view, or only the named leaf-list member. The rest of the leaf-list and its containing section stay in place</td>
+<td><code>copy &lt;entry&gt; to &lt;key&gt;</code>, <code>rename &lt;entry&gt; to &lt;key&gt;</code></td>
+<td>Copy or rename a keyed list entry</td>
+</tr>
+<tr>
+<td><code>activate &lt;path&gt;</code>, <code>deactivate &lt;path&gt;</code></td>
+<td>Change activation of a setting, a supported leaf-list member, a container or a list entry</td>
 </tr>
 <tr>
 <td><code>show [path]</code></td>
-<td>Display config text at the current or specified path</td>
+<td>Display candidate configuration at the current or supplied path</td>
 </tr>
 <tr>
-<td><code>top</code></td>
-<td>Navigate to root</td>
+<td><code>show confirmed</code></td>
+<td>Display the committed configuration</td>
+</tr>
+<tr>
+<td><code>show | compare</code></td>
+<td>Review candidate changes</td>
+</tr>
+<tr>
+<td><code>errors</code></td>
+<td>Display validation and reload issues, or <code>No issues</code></td>
+</tr>
+<tr>
+<td><code>save</code>, <code>history</code>, <code>rollback &lt;revision&gt;</code></td>
+<td>Save the draft, list saved revisions or restore one into the candidate</td>
 </tr>
 <tr>
 <td><code>top &lt;command&gt;</code></td>
-<td>Run one command as if at the root context, whatever the command is (<code>top set ospf router-id 192.0.2.9</code>, <code>top show</code>). The position stays where it was unless the command moves it (<code>top edit ospf</code>). The terminal reads <code>top</code> before it splits a pipe, so <code>top show | format config</code> shows the root</td>
+<td>Run one command at the root; the position stays where it was unless that command moves it</td>
 </tr>
 <tr>
-<td><code>up</code></td>
-<td>Navigate one level up</td>
+<td><code>commit now</code>, <code>commit confirmed &lt;seconds&gt;</code>, <code>commit accept</code>, <code>commit abort</code>, <code>commit verify</code></td>
+<td>Apply, confirm, revert or validate through the shared commit machinery; <code>commit</code> alone lists the accepted subcommands</td>
 </tr>
 <tr>
-<td><code>commit now</code></td>
-<td>Commit pending changes. <code>commit now force</code> commits over another user's conflicting change and discards it from theirs (see the config editor guide). <code>commit</code> without a subcommand is refused with the list of subcommands. <code>commit confirmed &lt;seconds&gt;</code>, <code>commit accept</code>, <code>commit abort</code> and <code>commit verify</code> follow the config editor guide. A commit that validation refuses answers with the SSH editor's text, listing each error and warning; when only warnings block it, the answer names the forced form, and the CLI bar shows it as an error</td>
+<td><code>discard [all|&lt;path&gt;]</code></td>
+<td>Drop all candidate changes or only changes under the supplied path</td>
 </tr>
 <tr>
-<td><code>discard</code></td>
-<td>Discard pending changes. <code>discard</code> alone or <code>discard all</code> drops every change; <code>discard &lt;path&gt;</code> drops only the changes at or under that path, the command a commit conflict's <code>fix:</code> line prints, and a path holding none of your pending changes is refused, as is a pipe (`discard</td>
+<td><code>run &lt;command&gt;</code></td>
+<td>Run an operational command while keeping the configuration position</td>
+</tr>
+<tr>
+<td><code>exit</code>, <code>configure</code></td>
+<td>Switch between operational mode and configuration mode</td>
 </tr>
 <tr>
 <td><code>help</code></td>
-<td>List available commands</td>
+<td>Display the available commands</td>
 </tr>
 </tbody>
 </table>
-<p>The prompt shows the current context path: <code>ze[bgp peer]# </code>.</p>
-<!-- source: internal/component/web/cli.go -- formatCLIPrompt, dispatchCLICommand -->
-<!-- source: internal/component/web/editor_commit_window.go -- runCommit -->
-<!-- source: internal/component/web/cli.go -- handleCLICommit -->
-<h3 id="terminal-mode">Terminal Mode</h3>
-<p>Terminal mode provides a scrollback terminal in the browser. Commands produce plain text output identical to the SSH CLI, displayed in a scrollback area with prompt echo. <code>set</code> reads its line the way the integrated mode does. <code>deactivate &lt;path&gt;</code> and <code>activate &lt;path&gt;</code> take a leaf, a leaf-list value, a container or a list entry, and answer as the SSH editor does ("Deactivated bgp router-id"). <code>errors</code> lists this session's pending changes, one line each: <code>+ copy</code>, <code>~ deactivate</code>, <code>~ activate</code>, <code>+</code>/<code>-</code> for a set or a delete.</p>
-<!-- source: internal/component/web/cli_terminal.go -- HandleCLITerminalWithDispatchAuthorizerAndAudit, executeTerminalCommand, executeTerminalSet -->
-<!-- source: internal/component/web/cli.go -- splitSetArgs -->
-<!-- source: internal/component/cli/editor_activation.go -- ApplyActivation -->
-<!-- source: internal/component/web/editor.go -- EditorManager.Diff -->
-<h3 id="tab-completion">Tab Completion</h3>
-<p>The CLI bar provides tab completion via a JSON endpoint at <code>/cli/complete</code>. Completions are context-aware: when at <code>/show/bgp/peer/london/</code>, typing <code>set </code> + Tab suggests <code>remote</code>, <code>local</code>, <code>timer</code> (children of the peer entry), not root-level items. For YANG union types that include an enum (e.g., <code>local/ip</code> accepting an IP address or <code>auto</code>), the enum values are offered as completions.</p>
+<p>The <a href="../config-editor/">config editor guide</a> describes the command grammar and
+commit conflict handling. An explicit <code>force</code> option can override warnings and
+conflicting drafts where the shared commit command permits it.</p>
+<!-- source: internal/component/web/cli_terminal.go -- executeTerminalCommand, executeTerminalConfigMode -->
+<!-- source: internal/component/web/cli_editor.go -- executeTerminalEditorCommand -->
+<!-- source: internal/component/cli/editor_transport.go -- ExecuteConfigCommand -->
+<!-- source: internal/component/cli/model_commands_commit.go -- cmdErrors -->
+<h3 id="loading-configuration">Loading Configuration</h3>
+<p><code>load terminal absolute|relative merge|replace</code> opens a paste form. A <code>load file</code>
+command opens a browser file chooser; its filename labels the input rather than
+reading a file from the daemon's filesystem. Both load paths accept at most
+4 MiB and stage the parsed changes in the candidate, ready for review and commit.
+A relative load takes a hierarchical body for the current position; absolute
+loads can also use set-format statements.</p>
+<!-- source: internal/component/web/assets/cli.js -- initTerminal -->
+<!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace -->
+<h3 id="completion-and-output-format">Completion and Output Format</h3>
+<p>Tab or an unquoted <code>?</code> offers schema and command completions for the terminal's
+current position. Arrow keys select an item, Enter accepts it, and a quoted <code>?</code>
+remains data. Enum values declared in YANG, including enum members of a union,
+are offered by the shared completer.</p>
+<p>In operational mode, <code>set cli format</code> queries the output preference and
+<code>set cli format json</code> selects a format for this authenticated user's session.
+The preference also applies to config-mode <code>run</code> commands; an explicit format
+pipe overrides it for one command. The configured process default remains
+unchanged, and raw live streams retain their existing text format.</p>
 <!-- source: internal/component/web/cli.go -- HandleCLIComplete -->
-<!-- source: internal/component/cli/completer.go -- valueCompletions, Yunion handling -->
+<!-- source: internal/component/cli/session_format.go -- ExecuteSessionFormat, SessionFormatCompletions -->
+<!-- source: internal/component/web/cli_format.go -- sessionFormatCommand, executeTerminalOperationalForUser -->
+<h3 id="live-commands">Live Commands</h3>
+<p>Registered monitoring commands stream successive daemon answers into the page.
+<strong>Stop</strong> or Ctrl+C ends the stream, and submitting a new command stops the active
+stream before running the next command. Leaving the page also cancels it. The
+server bounds each stream at 4 MiB; the browser keeps at most 1 MiB of visible
+output and marks older output that it has removed. A producer failure is shown
+in the output, and unsupported live pipe filters are refused with a reason.</p>
+<!-- source: internal/component/web/cli_stream.go -- HandleCLITerminalStream, cliStreamWriter.Write -->
+<!-- source: cmd/ze/hub/server_stream.go -- serverStreamDispatcher -->
+<!-- source: internal/component/web/assets/cli.js -- initTerminal -->
 <h2 id="live-updates">Live Updates</h2>
 <p>The web interface uses Server-Sent Events (SSE) to notify connected browsers when configuration changes are committed by any user. A notification banner appears with the username and a "Refresh" button.</p>
 <!-- source: internal/component/web/sse.go -- EventBroker, BroadcastConfigChange, SendTo -->
@@ -677,7 +785,7 @@ data: &lt;html-fragment&gt;
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

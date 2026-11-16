@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BGP implementation comparison - Ze</title>
         <meta name="description" content="How Ze compares to mature BGP daemons, including current gaps." />
         <meta property="og:title" content="BGP implementation comparison - Ze" />
@@ -2400,8 +2400,8 @@ has been actively developed since 2012 with 4000+ functional test cases. It
 has no programmatic API, YANG model, or structured logging.</p>
 <h2 id="faq">FAQ</h2>
 <p><strong>Ze is pre-release. Why trust it yet?</strong></p>
-<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">45,600+</span> Go test functions,
-<span data-ze-stat="tests.e2e_display">2,900+</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">100+</span> fuzz targets, and
+<p>Do not take that on faith: it is backed by <span data-ze-stat="tests.unit_display">47,400+</span> Go test functions,
+<span data-ze-stat="tests.e2e_display">3,000+</span> end-to-end tests, <span data-ze-stat="tests.fuzz_display">110</span> fuzz targets, and
 <span data-ze-stat="interop.target_display">13</span> test images in the main shared suite’s recorded set.
 That set covers routing and network services; other labs and tools use additional
 images, including pmacct. That evidence can be checked. It is not a promise. Ze
@@ -2515,7 +2515,7 @@ embeddable library mode. The full-router comparison belongs on the
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

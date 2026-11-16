@@ -1,13 +1,13 @@
-# `update bgp irr as-set`
+# `update irr asn`
 
-Refresh IRR prefix\-list for a specific AS\-SET\.
+Fetch the IRR dataset of an AS number now\.
 
 ## Ze command
 
-- Registry path: `update bgp irr as-set`
-- Usage: `update bgp irr as-set <as-set>`
+- Registry path: `update irr asn`
+- Usage: `update irr asn <asn>`
 - Mode: Daemon
-- Wire method: `ze-bgp:update-irr-as-set`
+- Wire method: `ze-irr:update-irr-asn`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,13 +21,13 @@ Refresh IRR prefix\-list for a specific AS\-SET\.
 - Command pipes: none
 - Pipe aliases: none
 
-Re\-queries the IRR server for all peers using the given AS\-SET name\.
+Asks PeeringDB for the AS\-SET of the AS number\, stores that binding\, then fetches and stores the AS\-SET\'s prefixes\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `as-set` | string | yes | any value of this type | AS\-SET name\. | The AS\-SET name as the peer configuration spells it\, compared as an exact string\. Every enrolled ASN that resolves through this AS\-SET is refreshed\, and a name no enrolled ASN uses is refused\. |
+| `asn` | union | yes | any value of this type | AS number\. | The AS number in plain decimal or in asdot notation\, which Ze parses to one 32\-bit value\: 0 to 4294967295 in plain decimal\, 0\.0 to 65535\.65535 in asdot\. A spelling that parses to no AS number is refused\. |
 
 ## Mapping intents
 

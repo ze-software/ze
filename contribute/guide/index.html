@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Contributor guide - Ze</title>
         <meta name="description" content="The practical side of contributing to Ze: how work gets in, how to build, and what a good change looks like." />
         <meta property="og:title" content="Contributor guide - Ze" />
@@ -53,6 +53,7 @@ funded and what its Contributor License Agreement grants.</p>
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#ai-assisted-contributions">AI-assisted contributions</a></li>
 <li><a href="#how-work-gets-in">How work gets in</a></li>
 <li><a href="#setting-up-a-build">Setting up a build</a></li>
 <li><a href="#what-a-good-change-looks-like">What a good change looks like</a></li>
@@ -60,33 +61,40 @@ funded and what its Contributor License Agreement grants.</p>
 </ol></details></nav><div class="doc-body">
 <p>Everyone taking part is expected to follow the
 <a href="../../code-of-conduct/">Code of Conduct</a>.</p>
+<h2 id="ai-assisted-contributions">AI-assisted contributions</h2>
+<p>AI-assisted contributions are welcome. We recommend recent, capable models.
+The <a href="https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md#ai-assisted-contributions" target="_blank" rel="noopener">contribution policy</a>
+gives the current model examples and the same requirements for specifications,
+tests, documentation, and independent review that apply to every contribution.</p>
 <h2 id="how-work-gets-in">How work gets in</h2>
-<p>For a contribution beyond a small fix, we agree on a spec before implementation
-so that the expected behavior and tests are clear to both author and reviewer.</p>
+<p>An agreed spec records the expected behavior and tests before implementation,
+so the author and reviewer can check the change against the same requirements.</p>
 <ol>
 <li><strong>Open an issue</strong> describing what you want to change or fix, on the
 <a href="https://github.com/ze-software/ze/issues" target="_blank" rel="noopener">tracker</a>. Start here even for
 a fix, so the work is visible and nobody doubles up.</li>
-<li><strong>Agree on a spec.</strong> For anything beyond a small fix, the maintainer turns
-the issue into a spec that says what the change should do and how it will
-be tested. Specs keep the project coherent and stop work drifting.</li>
+<li><strong>Agree on a spec.</strong> The maintainer turns the issue into a spec that says
+what the change should do and how it will be tested.</li>
 <li><strong>Implement the spec</strong>, starting with tests for the behavior it requires.</li>
-<li><strong>Sign your commits</strong> with <code>git commit -s</code>. That sign-off certifies you
-accept the <a href="../">CLA</a>. Every merged contribution requires that sign-off.</li>
-<li><strong>Open a pull request.</strong> The maintainer reviews it, often with AI
-assistance, the same way the rest of the project is built (the
-<a href="../../faq/#ai-development">FAQ</a> explains how).</li>
+<li><strong>Arrange independent deep review.</strong> The reviewer uses a context that did
+not produce the change. The <a href="https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md#review-and-submission" target="_blank" rel="noopener">repository guide</a>
+links the review workflow.</li>
+<li><strong>Prepare signed-off commits</strong> through the
+<a href="https://github.com/ze-software/ze/blob/main/CONTRIBUTING.md#commits-and-license" target="_blank" rel="noopener">commit-script process</a>.
+Each contribution commit requires a <code>Signed-off-by</code> line accepting the
+<a href="https://github.com/ze-software/ze/blob/main/CLA.md" target="_blank" rel="noopener">CLA</a>.</li>
+<li><strong>Open a pull request</strong> linking the agreed spec and giving the resulting
+behavior, scoped test results, documentation changes, and independent review.</li>
 </ol>
 <h2 id="setting-up-a-build">Setting up a build</h2>
 <pre><code class="language-bash">git clone https://github.com/ze-software/ze.git
 cd ze
-go build -o bin/ze ./cmd/ze
-bin/ze init         # set up local credentials
-bin/ze cli          # connect to the CLI
+./ze --help
 </code></pre>
-<p>The <a href="../../guides/quickstart/">quickstart</a> takes this further and gets two
-BGP peers talking. For the full developer setup, including the test
-dependencies, see
+<p>On a fresh checkout, the launcher builds Ze with the checkout's feature selection
+before running the command. Later invocations reuse the existing binary.
+The <a href="../../guides/quickstart/">quickstart</a> covers credentials and gets
+two BGP peers talking. For the full developer setup, including test dependencies, see
 <a href="https://github.com/ze-software/ze/blob/main/docs/guide/developer-setup.md" target="_blank" rel="noopener">developer-setup.md</a>
 in the repository.</p>
 <h2 id="what-a-good-change-looks-like">What a good change looks like</h2>
@@ -104,7 +112,7 @@ rules the project follows live in
 and apply to every contribution, whether written by hand or with AI help.</li>
 </ul>
 <h2 id="good-first-paths">Good first paths</h2>
-<p>There is no formal "good first issue" label yet. The most useful things an
+<p>There is no formal good-first-issue program yet. The most useful things an
 outside contributor can do right now are the ones that need real routing
 experience: run a lab peer, migrate an <a href="../../use-cases/exabgp-migration/">ExaBGP config</a>,
 stand up a looking glass, or run the <a href="../../labs/">interop labs</a> and report
@@ -123,7 +131,7 @@ where help is most valuable at the moment.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

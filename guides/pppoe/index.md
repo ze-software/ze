@@ -18,9 +18,8 @@ These restrictions do not change L2TP negotiation. A PADT matching the
 session ID and both MAC addresses ends the PPPoE transport immediately;
 PPP termination packets are not sent afterwards. Local teardown also
 stops PPP before sending PADT. A subscriber's LCP Terminate-Request is
-answered with a Terminate-Ack, and one configured Restart time later (3 seconds
-by default) the
-AC sends the PADT, with User Request as the accounting cause; a new LCP
+answered with a Terminate-Ack. One configured Restart time later (3 seconds
+by default), the AC sends PADT with User Request as the accounting cause. A new LCP
 Configure-Request arriving before the PADT completes is still answered.
 
 ```
@@ -41,6 +40,13 @@ Auth/Pool/Shaper plugins (shared with L2TP)
 ## Configuration
 
 ```
+interface {
+    ethernet eth0 {
+        unit 100 {
+            vlan-id 100
+        }
+    }
+}
 pppoe {
     enabled true
     ac-name "my-bng"
@@ -68,22 +74,61 @@ pppoe {
 
 See [configuration guide](../configuration-model/index.md#pppoe-access) for all settings.
 
+Each access `interface` must name an interface the config declares: an entry
+of any interface kind (an `ethernet` entry for a physical port), the peer end
+of a veth, or a VLAN unit written `<interface>.<vlan-id>`. Above, `eth0` is an
+`ethernet` entry and `eth0.100` is its VLAN 100 unit. `ze config validate`,
+boot, reload and commit refuse any other name, and name the command that
+declares it: `set interface ethernet <name>`, or for a VLAN unit
+`set interface ethernet <parent> unit <vlan-id> vlan-id <vlan-id>`. An
+`ethernet` entry with no unit and no `mtu` only sets the port administratively
+up: Ze leaves its addresses and MTU alone. A PPPoE client's `source-interface` follows the same rule.
+<!-- source: internal/component/iface/interface_reference.go -- configuredInterfaceReference, checkConfiguredInterface -->
+<!-- source: internal/component/iface/config_apply.go -- desiredState, applyConfigPass -->
+
 The access concentrator shares its LCP settings and defaults with the L2TP
 server. Each counter accepts 1 through 255. A silent subscriber receives
-exactly `max-configure` Configure-Requests before the session ends; the defaults
+exactly `max-configure` Configure-Requests before the session ends. The defaults
 give ten requests over 30 seconds. `max-terminate` bounds unanswered
 Terminate-Requests, and `max-failure` bounds Naks sent without a Configure-Ack
 before unacceptable options are rejected. The Restart timer controls each wait.
 
 <!-- source: internal/component/l2tp/ppp/yang/ze-ppp-lcp.yang -- shared LCP settings -->
+<!-- source: internal/component/l2tp/ppp/session_run.go -- applyTransition, spendRestartCount, handleRestartTimeout, sendConfigureNakOrReject -->
+
+Valid negotiation replies can renew the request budget. A convergence deadline
+of twice the Restart timer times `max-configure` bounds each LCP negotiation,
+or 60 seconds at the defaults. A later negotiation after Opened gets a fresh
+deadline, while replies within one negotiation cannot extend it.
+<!-- source: internal/component/l2tp/ppp/session_run.go -- updateLCPConvergence, lcpNegotiating -->
 
 Discovery runs only when `enabled` is true and the block lists at least one
 `interface`. A `pppoe` block with no `interface` entry answers no PADI.
 
+Named access interfaces use the session provider registered for `interface
+backend`. The default `netlink` provider uses kernel PPP sessions. A build
+without the selected provider refuses the access-interface paths before apply;
+the VPP provider requires the `ze_vpp` build tag. With that provider installed,
+VPP access also requires `vpp enabled true` and `vpp lcp enabled true` so the
+control frames have a Linux device paired with the VPP interface.
+A `pppoe` block with no access interface remains valid under VPP. This check
+applies to the access concentrator; `interface pppoe-client` is separate.
+<!-- source: internal/component/l2tp/pppoe/backend_gate.go -- validateBackendGate -->
+<!-- source: internal/component/l2tp/pppoe/register.go -- original-tree validator registration -->
+<!-- source: internal/component/l2tp/plugins/pppoe-vpp/startup.go -- validateControlPlane, startupRequired -->
+
+The VPP provider declares its startup requirements automatically: configured
+VPP access loads `pppoe_plugin.so` and selects
+`pppoe { enable-pass-nd-and-dhcpv6 }`. There is no second PPPoE plugin toggle.
+These settings carry discovery and PPP control frames to Ze; the startup flag
+also punts subscriber IPv6 control traffic.
+<!-- source: internal/component/l2tp/plugins/pppoe-vpp/startup.go -- registerStartup -->
+
 ### Changing the configuration
 
 A committed change to the `pppoe` block applies to the running access
-concentrator at once, with no restart:
+concentrator as below. The backend's startup requirements must already be
+present: VPP selects its plugin set and startup sections when it starts.
 
 | Change | Effect |
 |--------|--------|
@@ -251,10 +296,13 @@ ignores IPv6CP leaves the IPv4 session up. The same container takes
 `accept-ra`, `autoconf` and `forwarding`, written to the session device each
 time a session creates it, and a `dhcpv6` block that runs the DHCPv6 client on
 the session device. Ze refuses the other `ipv6` leaves while `enabled` is not
-true. For a router that learns its default route from the access
-concentrator's Router Advertisements and asks for a delegated /56:
+true. For a router on the uplink `eth2`, declared as an `ethernet` entry, that
+learns its default route from the access concentrator's Router Advertisements
+and asks for a delegated /56, the `interface` block holds:
 
 ```
+ethernet eth2 {
+}
 pppoe-client pppoe0 {
     source-interface eth2
     authentication { username user@isp.example; password secret; }

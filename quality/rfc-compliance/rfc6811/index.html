@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 6811 requirements and tests - Ze</title>
         <meta name="description" content="RFC 6811: BGP Prefix Origin Validation. 5 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 6811 requirements and tests - Ze" />
@@ -133,7 +133,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 5 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 5 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 5 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>2</strong><b>2 of 17 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>19</strong><b>19 of 19 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+</div>
+<h3>Negative</h3>
+<p>what Ze owes</p>
+<div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>4</strong><b>of 5 mandatory requirements reviewed</b><p>3 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -201,7 +206,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
 </tr>
 <tr><td>Mandatory requirements (MUST level)</td>
@@ -246,16 +251,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>17</td>
+<td>19</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>17</td>
+<td>19</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>1</td>
+<td>4</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>2</td>
+<td>19</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc6811.md</code></td>
@@ -271,12 +276,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Automatic checks</h2>
-<p>Included in automatic checks: RPKI-based Prefix Origin Validation: all five MUST-level requirements tested with both polarities. RFC6811-2-1 (state reflects the lookup) and RFC6811-3-2 (four-octet AS) over ROACache.Validate (internal/component/bgp/plugins/rpki/validate.go). RFC6811-2-2 (no exclusion unless configured) and RFC6811-3-1 (match/set state in policy) over the operator-configurable per-state action buildDecisions honors (internal/component/bgp/plugins/rpki/rpki.go, default reject) -- invalid-action=reject excludes, accept/log-only retain the route marked Invalid, and the action is state-specific. RFC6811-4-1 (re-validate on VRP change) over the OriginTracker + handleROAChange path (internal/component/bgp/plugins/rpki/origin_tracker.go, rpki.go): a VRP mapping change re-validates tracked routes and re-dispatches decisions for those whose state flipped, and does nothing when no state changes. docs/features/rfc-status.md RFC 6811 row is Supported. The 2-3/2-4/2-5 SHOULDs and 2-6 MAY are not gated.</p>
+<p>Included in automatic checks: Ze implements RPKI origin validation and keeps these requirements enrolled for conformance auditing. Mandatory conformance is incomplete: implicit rejection of Invalid routes remains an open Section 2 defect, and Section 4 lacks complete mapping-deletion and decision-process proof. Existing explicit-action and revalidation tests establish bounded behavior, not full RFC support. SHOULD and MAY evidence is separate from mandatory evidence.</p>
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RPKI origin validation</p>
-<p><strong>Proof:</strong> 1 of 5 MUST proven</p>
-<p><strong>Evidence:</strong> unit 1</p>
+<p><strong>Proof:</strong> 5 of 5 MUST proven</p>
+<p><strong>Evidence:</strong> functional 1, unit 4</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -321,9 +326,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc6811:must">Ze proven 1, Proof pending 4</div>
+<div data-ze-rfc-bar="rfc6811:must">Ze proven 5</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc6811:overview">Ze MUST proven 1, Proof pending 4, Not assessed 4</div>
+<div data-ze-rfc-bar="rfc6811:overview">Ze MUST proven 5, Not assessed 4</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -335,7 +340,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc6811:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc6811:register">not complete</span></td>
+<td><span data-ze-rfc="rfc6811:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc6811:must.total">5</span></td>
@@ -344,13 +349,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc6811:must.kept">5</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc6811:must.ze-proven">1</span></td>
+<td><span data-ze-rfc="rfc6811:must.ze-proven">5</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc6811:must.os-verified">0</span></td>
 </tr>
 <tr><td>Proof pending</td>
-<td><span data-ze-rfc="rfc6811:must.proof-pending">4</span></td>
+<td><span data-ze-rfc="rfc6811:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc6811:must.os-gap">0</span></td>
@@ -443,7 +448,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2 - Prefix-to-AS Mapping Database</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6811-2-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L105" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L107" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L106" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6811-3-1">RFC6811-3-1</code></td><td colspan="3"><span class="rfc-subject">An implementation MUST provide the ability to match and set the validation state of routes as part of its route policy filtering function (Section 3)</span></td></tr>
@@ -451,8 +456,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3 - Policy Control</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC6811-3-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L110" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L113" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L107" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L108" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6811-3-2">RFC6811-3-2</code></td><td colspan="3"><span class="rfc-subject">An implementation MUST also support four-octet AS numbers (Section 3)</span></td></tr>
@@ -473,6 +478,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L375" title="internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go#L48" title="internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go" target="_blank" rel="noopener"><code>TestHandleROAChangeReValidates</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L378" title="internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rpki-revalidate-late-sync.ci#L3" title="test/plugin/rpki-revalidate-late-sync.ci" target="_blank" rel="noopener"><code>rpki-revalidate-late-sync.ci</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>functional/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rpki-revalidate-selected-route.ci#L3" title="test/plugin/rpki-revalidate-selected-route.ci" target="_blank" rel="noopener"><code>rpki-revalidate-selected-route.ci</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc6811-2-3">RFC6811-2-3</code></td><td colspan="3"><span class="rfc-subject">When a BGP speaker receives an UPDATE from a neighbor, it SHOULD perform a lookup as described above for each of the Routes in the UPDATE message. (Section 2)</span></td></tr>
@@ -522,7 +529,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc6811-2-1"><code>RFC6811-2-1</code></a></h3>
 <p>The validation state of the Route MUST be set to reflect the result of the lookup. (Section 2)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. TestRouteStateIsSetFromTheLookup drives validateNLRIs, the UPDATE path: for Valid, Invalid and NotFound lookups both the returned per-route state and the state carried by the validateCh request equal the lookup (and each is checked against the expected constant, so a shared wrong default goes red). Negative: after the VRP set changes Valid to Invalid, the route&#39;s state is Invalid, not the stale Valid.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 6811 Section 2 requires the Route&#39;s validation state to reflect the lookup result. The lookup uses the final AS_PATH segment: a final AS_SEQUENCE supplies its rightmost AS, an empty or confederation-ending path uses the local speaker AS, and AS_SET supplies NONE. TestValidateValid and TestValidateInvalid use the same covered prefix with respectively authorized and unauthorized origins and assert the exact Valid and Invalid constants. TestRouteStateIsSetFromTheLookup drives validateNLRIs for independently expected Valid, Invalid and NotFound results and checks both the returned per-prefix state and the queued decision state; its second arm performs a changed lookup and requires Invalid instead of the earlier Valid. TestBatchValidateTypedMatchesString retains every original typed-versus-text parity assertion and now also requires each transport to settle all four pending inputs, retain exactly the two accepted keys with their absolute Valid and Invalid states, and omit the two explicitly discarded keys. An accepted Invalid lookup therefore cannot become Valid merely because policy accepted it, and a shared wrong state or empty result on both transports cannot pass. TestRPKIOriginASFromASPathRFC6811 retains empty, sequence, set and confederation controls and adds distinct first/final sequence values plus a sequence followed by a final AS_SET. These require final-segment selection and NONE rather than an AS_SET member. Source review traces validateNLRIs, handleBatchValidateTyped, batchValidateCommand, applyDecision and promoteToInstalled, together with ROACache.Validate and rpkiOriginASFromASPath. The five new native clean runs in job-rpki-origin-existing-native-proofs-e302411f.log passed their named tests. Normal-return producer faults then failed the intended exact assertions: forcing promotion to Valid changed both transports&#39; accepted Invalid state from 3 to 1; reversing the Valid and Invalid lookup returns failed their respective lookup tests; selecting the first segment failed only the two new multisegment cases; using an AS_SET member as origin failed both final-set cases while empty, sequence and confederation controls passed. The seven canonical records comprise those five semantic observations and the two earlier validateNLRIs boundary-disable observations; the latter prove boundary reachability, while the test&#39;s exact expected-state assertions supply the semantic checks. The current production delivery contract is not a flattened JSON path: runRPKIPlugin subscribes to full events, handleStructuredUpdate uses segment-bearing attributes, handleEvent prefers raw attribute bytes or hex and uses the same segment-aware helper, and configuration revalidation decodes retained raw attributes before its lookup. Supplied malformed raw attributes do not fall back to the flattened path. Source also implements AS_CONFED_SET through the same local-AS branch as AS_CONFED_SEQUENCE; the existing untagged TestJSONOriginUsesLocalASAndRawSegmentTypes checks both confederation forms, empty path and AS_SET for byte and hex event forms. Those supporting tests are not counted as additional tagged discrimination records. Only the no-raw compatibility projection lacks segment types and uses the flattened path; this audit does not claim that projection can reconstruct information it never carries. The enforced verdict is for the stated MUST that a performed lookup&#39;s result becomes the route&#39;s state, with origin selection and acceptance-preservation assertions protecting that result. It does not certify every compatibility input, policy defaults or policy assignment, mapping-deletion revalidation, every address-family delivery path, or whole-RFC support; those are separate obligations and evidence. The earlier blanket claim that the normal JSON route necessarily misclassifies AS_SET or confederation origins is contradicted by the current full-event subscription and raw-attribute producers and is not retained.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -535,17 +542,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L218" title="internal/component/bgp/plugins/rpki/rfc6811_validate_test.go" target="_blank" rel="noopener"><code>TestRPKIOriginASFromASPathRFC6811</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L33" title="internal/component/bgp/plugins/rpki/rfc6811_validate_test.go" target="_blank" rel="noopener"><code>TestValidateInvalid</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_batch_test.go#L398" title="internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_batch_test.go" target="_blank" rel="noopener"><code>TestBatchValidateTypedMatchesString</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go#L31" title="internal/component/bgp/plugins/rpki/rfc6811_validate_state_test.go" target="_blank" rel="noopener"><code>TestRouteStateIsSetFromTheLookup</code></a></td>
@@ -555,52 +562,52 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L216" title="internal/component/bgp/plugins/rpki/rfc6811_validate_test.go" target="_blank" rel="noopener"><code>TestRPKIOriginASFromASPathRFC6811</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L18" title="internal/component/bgp/plugins/rpki/rfc6811_validate_test.go" target="_blank" rel="noopener"><code>TestValidateValid</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc6811-2-2"><code>RFC6811-2-2</code></a></h3>
 <p>An implementation MUST NOT exclude a route from the Adj-RIB-In or from consideration in the decision process as a side effect of its validation state, unless explicitly configured to do so (Section 2)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 6811 Section 2 states: &#39;An implementation MUST NOT exclude a route from the Adj-RIB-In or from consideration in the decision process as a side effect of its validation state, unless explicitly configured to do so.&#39; TestBuildDecisionsOriginInvalidAction always assigns an explicit accept or reject action before calling buildDecisions. Its negative tests explicit acceptance, not the absence of explicit configuration. It asserts typed Accept results and preserves the accepted Invalid state, not installed Adj-RIB-In or BGP route-selection state. parseRPKIConfig initializes OriginInvalidAction to ASPAPolicyReject even for a cache-only configuration, and buildDecisions converts that implicit action to Accept=false and Ineligible=true for Invalid routes. The separate untagged TestRPKIInvalidExclusionRequiresExplicitConfiguration exposes that defect with cache-only input and preserves explicit-reject and Valid controls; a failing probe is not conformance proof. This bounded decision-builder evidence cannot justify the whole requirement as enforced.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L107" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L106" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L105" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc6811-3-1"><code>RFC6811-3-1</code></a></h3>
 <p>An implementation MUST provide the ability to match and set the validation state of routes as part of its route policy filtering function (Section 3)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 6811 Section 3 states: &#39;An implementation MUST provide the ability to match and set the validation state of routes as part of its route policy filtering function.&#39; TestBuildDecisionsOriginInvalidAction directly initializes the Invalid disposition, supplies preexisting Invalid and Valid validation states, and calls buildDecisions. It proves explicit accept/reject actions alter typed Accept results, a Valid control remains accepted, and accepting Invalid preserves its existing ValState. The native positive break rejects Invalid regardless of the stated accept action; the negative applies the Invalid action to Valid too. Both produce the intended named assertion failures. Neither test input contains a policy that assigns a new validation state, and buildDecisions copies req.state into ValState rather than this test exercising a policy set operation. No configured policy entry point or installed-route policy result is asserted here. The bounded disposition proofs do not prove the whole match-and-set requirement. This is an evidence finding, not a claim that no implementation of the missing behavior exists elsewhere; no whole-row or whole-RFC credit is justified.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L113" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L108" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L110" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go#L107" title="internal/component/bgp/plugins/rpki/rfc6811_rpki_batch_test.go" target="_blank" rel="noopener"><code>TestBuildDecisionsOriginInvalidAction</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -615,19 +622,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L96" title="internal/component/bgp/plugins/rpki/rfc6811_validate_test.go" target="_blank" rel="noopener"><code>TestValidateFourOctetAS</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_validate_test.go#L94" title="internal/component/bgp/plugins/rpki/rfc6811_validate_test.go" target="_blank" rel="noopener"><code>TestValidateFourOctetAS</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc6811-4-1"><code>RFC6811-4-1</code></a></h3>
 <p>When a mapping is added or deleted, the implementation MUST re-validate any affected prefixes and run the BGP decision process if needed (Section 4)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. RFC 6811 Section 4 states: &#39;When a mapping is added or deleted, the implementation MUST re-validate any affected prefixes and run the BGP decision process if needed.&#39; TestHandleROAChangeReValidates asserts a covering mapping addition changes a tracked NotFound route to Valid and enqueues a fresh validation request. Its negative calls the handler again with unchanged cache and tracked state and asserts no queued request; it does not observe unchanged or unaffected routes through the complete daemon or selection stack. TestReValidationAppliesToInstalledRoutes directly exercises stored NotFound routes through typed batch, text batch and accept-routes decisions: each accept rewrites the state to Valid, and the typed rewrite preserves replay sequence seven. Its discard control explicitly sends Accept=false and Ineligible=false and removes that stored route. This is not the current bgp-rpki Invalid-policy rejection, which sends Accept=false and Ineligible=true and retains received bytes. The unit&#39;s negative accepts a decision for an unknown prefix, requires an early buffer and leaves the existing route count unchanged without creating the absent route; this is a receive-store boundary, not a full cache-to-selection exchange. Both installed-unit native clean runs passed all five subcases. Forcing applyToInstalled to keep ValidationNotFound caused exactly the typed batch, text batch and accept-routes state assertions to fail with expected Valid and actual NotFound; explicit discard and unknown-prefix controls passed. Replacing only applyDecision&#39;s absent-route early-buffer fallback with promoteToInstalled caused only the unknown-prefix subcase to fail: it observed a second stored route, the phantom named prefix and no early buffer, while the other four subcases passed. Both were normal-return semantic failures, not build errors, panic, skip or timeout. The promoted test/plugin/rpki-revalidate-late-sync.ci asserts the real daemon&#39;s retained Adj-RIB-In route changes from NotFound/eligible to Invalid/ineligible after its first covering VRP arrives, with nonempty received attribute, next-hop and NLRI fields unchanged. That carrier loads bgp-rpki and bgp-adj-rib-in, not bgp-rib. Its native clean run passed; inverting handleROAChange&#39;s decisionRequired guard produced the named observer failure after cache synchronization, with the retained subject still NotFound and eligible. The promoted test/plugin/rpki-revalidate-selected-route.ci and rpki_selected_revalidation.go additionally require real namespace connected reachability and both received prefixes selected before releasing the first covering VRP. After release the explicitly rejected subject remains retained as Invalid/ineligible with identical received bytes and ceases to be selected in BGP best, authoritative Loc-RIB candidates and the selected system view, while the control becomes Valid and remains selected in all three views. The candidate assertion permits the subject to remain as an unselected candidate; it does not claim the candidate is absent. Source review traced handleROAChange, Adj-RIB-In applyToInstalled and validation-change publication, RIBManager.validationChanged, checkRouteBestChange and removeLocRIB. The selected carrier passed a counted own-system per-test-namespace load run with iterations=80, completed=80, executed=80 and no skipped phase. Its fresh native clean run then passed the sole selected test in 5.0 seconds with one executed test and zero skipped phases. Omitting only removeLocRIB in checkRouteBestChange&#39;s no-candidates branch produced the named selected-carrier failure in 12.2 seconds: after synchronization the authoritative Loc-RIB still selected subject 10.0.1.0/24 while control 10.0.2.0/24 remained selected. The source reaches that assertion only after both exact retained verdicts, immutable received bytes and the subject-absent/control-present BGP-best check succeed; the broken run does not reach the subsequent selected-system-view check. Both native guest runs stopped normally on Ze&#39;s 7.3.0-ze runtime kernel with matching SHA-256, and the red was the observer&#39;s semantic selection assertion, not setup, compilation, panic, skip or an outer timeout. All six native records, covering both installed-unit polarities, both tracker polarities and the two promoted functional positives, are retained in rfc/discrimination/rfc6811/RFC6811-4-1.json. These establish bounded mapping-addition, retained-validation and required selection behavior. No mapping-deletion carrier is exercised by any of these checks, so mapping deletion remains unproven and the whole requirement stays weak with no whole-row or whole-RFC credit.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -635,22 +642,32 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L378" title="internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go#L48" title="internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go" target="_blank" rel="noopener"><code>TestHandleROAChangeReValidates</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go#L375" title="internal/component/bgp/plugins/adj_rib_in/rfc6811_rib_validation_test.go" target="_blank" rel="noopener"><code>TestReValidationAppliesToInstalledRoutes</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go#L45" title="internal/component/bgp/plugins/rpki/rfc6811_origin_tracker_test.go" target="_blank" rel="noopener"><code>TestHandleROAChangeReValidates</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rpki-revalidate-late-sync.ci#L3" title="test/plugin/rpki-revalidate-late-sync.ci" target="_blank" rel="noopener"><code>rpki-revalidate-late-sync.ci</code></a></td>
+<td>functional/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/test/plugin/rpki-revalidate-selected-route.ci#L3" title="test/plugin/rpki-revalidate-selected-route.ci" target="_blank" rel="noopener"><code>rpki-revalidate-selected-route.ci</code></a></td>
+<td>functional/verify</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -822,7 +839,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

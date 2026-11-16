@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Config Archive - Ze</title>
         <meta name="description" content="Ze documentation: guide/config-archive.md" />
         <meta property="og:title" content="Config Archive - Ze" />
@@ -167,6 +167,21 @@
 </table>
 <p>Use absolute paths for <code>file://</code> locations. <code>file://./relative</code> does not work correctly in Go's URL parser.</p>
 <!-- source: internal/component/config/archive/archive.go -- ToFile, ToHTTP -->
+<p>An HTTP or HTTPS upload follows no redirect, to the same host included. The
+upload carries the whole config with its reversible <code>$9$</code> secrets, so it goes
+only to the location the config names, never to one a server answers with.
+When the server answers a 3xx with a <code>Location</code>, the upload fails with an error
+that names the status and that <code>Location</code> (any password redacted), and ends
+with the command that configures it:</p>
+<pre><code>archive offsite: the archive server at https://archive.example.com/configs answered HTTP 308, a redirect to https://backup.example.com/configs, and Ze did not follow it
+the upload carries the whole config with its reversible $9$ secrets, so Ze sends it only to the location you configured, never to one a server names
+fix: set system archive offsite location https://backup.example.com/configs
+</code></pre>
+<p>Run that command only when you trust the server the redirect names. <code>ze doctor</code>
+probes each HTTP or HTTPS location the same way and reports one that redirects
+as <code>doctor-archive-redirected</code>, with the same fix.</p>
+<!-- source: internal/component/config/archive/archive.go -- archiveClient, redirectOf, uploadRedirect.refusal -->
+<!-- source: internal/component/config/archive/doctor.go -- probeArchiveDestination, checkArchiveDestinations -->
 <h3 id="validation">Validation</h3>
 <p><code>ze config validate</code> and every commit check each archive entry, so an entry
 the uploader cannot use never reaches the running config:</p>
@@ -236,6 +251,16 @@ replaced by <code>30s</code>.</p>
 </table>
 <p>Time-based triggers (<code>daily</code>, <code>hourly</code>) always fire once on daemon boot regardless of <code>on-change</code>, establishing a baseline. Subsequent ticks respect the <code>on-change</code> flag.</p>
 <!-- source: internal/component/config/archive/archive.go -- TriggerCommit, TriggerManual, TriggerDaily, TriggerHourly -->
+<p>A scheduled archive has no command to answer, so its failure is reported in two
+places: a warning in the log, and an error event in <code>ze show errors</code> that the
+recent-events row of <code>ze show doctor</code> also lists. Both carry the code
+<code>doctor-archive-scheduled-failed</code>, the archive block (or <code>config</code> when the
+config file could not be read), the error, and the command that fixes it:
+<code>ze config validate &lt;file&gt;</code> for a config that could not be read or parsed, and
+<code>ze config archive &lt;name&gt;</code> for a copy that could not be written or old copies
+that could not be removed. The next scheduled run tries again.</p>
+<!-- source: internal/component/config/archive/scheduler.go -- reportScheduled, readFailure, archiveFix -->
+<!-- source: internal/component/config/archive/register.go -- init -->
 <h3 id="filename-tokens">Filename Tokens</h3>
 <table>
 <thead>
@@ -376,7 +401,7 @@ It is a <code>system</code> leaf, so one value applies to every archive block.</
 </tr>
 <tr>
 <td>Failure</td>
-<td>A filename format, host, domain, block name or config file name that is not valid UTF-8, a directory that cannot be read, and a file that cannot be removed are each reported: as an error of the archive block for an editor commit and <code>ze config archive &lt;name&gt;</code>, and as a warning in the log for a scheduled archive. The copy just written stays</td>
+<td>A filename format, host, domain, block name or config file name that is not valid UTF-8, a directory that cannot be read, and a file that cannot be removed are each reported: as an error of the archive block for an editor commit and <code>ze config archive &lt;name&gt;</code>, and, for a scheduled archive, as a warning in the log and an event in <code>ze show errors</code>, both under <code>doctor-archive-scheduled-failed</code>. The copy just written stays</td>
 </tr>
 <tr>
 <td>HTTP</td>
@@ -458,7 +483,7 @@ file you name in the same shape, such as <code>20260101.conf</code> beside the f
 </tr>
 </tbody>
 </table>
-<p>The body is the raw config file content. Any HTTP 2xx response is treated as success.</p>
+<p>The body is the raw config file content. Any HTTP 2xx response is treated as success. A 3xx redirect is a failure, never followed (see "Location Schemes"), so the receiver answers at the URL the archive block names.</p>
 </div>
 </div>
             </section>
@@ -508,7 +533,7 @@ file you name in the same shape, such as <code>20260101.conf</code> beside the f
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

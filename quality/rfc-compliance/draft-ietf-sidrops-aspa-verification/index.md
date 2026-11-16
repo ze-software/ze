@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 0 | of 10 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0 | of 10 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 10 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 19 | 19 of 23 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 21 | 21 of 23 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -80,7 +80,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 23 |
 | Tests linked to requirements | 23 |
 | Recorded audit verdicts | 5 |
-| Fault test records | 19 |
+| Fault test records | 21 |
 | Summary | `rfc/short/draft-ietf-sidrops-aspa-verification.md` |
 | Requirement table | `rfc/requirements/draft-ietf-sidrops-aspa-verification.md` |
 | RFC text | `rfc/drafts/draft-ietf-sidrops-aspa-verification.txt` |
@@ -93,9 +93,9 @@ Included in automatic checks: Router-verification requirements follow the cached
 
 **Area:** ASPA path verification
 
-**Proof:** 8 of 10 MUST proven
+**Proof:** 9 of 10 MUST proven
 
-**Evidence:** unit 8
+**Evidence:** unit 9
 
 **Unmet:** DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2
 
@@ -119,8 +119,8 @@ Included in automatic checks: Router-verification requirements follow the cached
 
 ## Figures
 
-- **MUST bar**: Ze proven 8, Proof pending 1, Not built 1
-- **Overview bar**: Ze MUST proven 8, Proof pending 1, Not assessed 10, Not built 1
+- **MUST bar**: Ze proven 9, Not built 1
+- **Overview bar**: Ze MUST proven 9, Not assessed 10, Not built 1
 
 | Figure | Rows |
 |---|---|
@@ -129,9 +129,9 @@ Included in automatic checks: Router-verification requirements follow the cached
 | Mandatory requirements complete | not complete |
 | MUST rows | 10 |
 | MUST rows kept (the MUST bar) | 10 |
-| Ze proven | 8 |
+| Ze proven | 9 |
 | OS verified | 0 |
-| Proof pending | 1 |
+| Proof pending | 0 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -168,7 +168,7 @@ Source: [data/rfc/draft-ietf-sidrops-aspa-verification.json](../../../data/rfc/d
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.4-2` | If the AS_PATH has an AS_SET, then the procedure halts with the outcome "Invalid" (Section 5.5; Section 5.6) | MUST | 5.5 | **positive:** `unit/verify` [`TestASPAVerifyASSet`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L56). **negative:** `unit/verify` [`TestASPAStateForPath`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_verify_test.go#L180) |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.5-1` | If the receiving AS is not an RS-client and the most recently added AS in the AS_PATH does not match the neighbor AS, then the procedure halts with the outcome "Invalid". (§5.5) | MUST | 5.5 | **positive:** `unit/verify` [`TestASPAASTransNeighborUnconfirmed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L116). **negative:** `unit/verify` [`TestASPAASTransNeighborFirstASIsASTrans`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L200). **negative:** `unit/verify` [`TestASPAASTransNeighborRSClientExempt`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L242) |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-5` | If the most recently added AS in the AS_PATH does not match the neighbor AS, then the procedure halts with the outcome "Invalid". (§5.6) | MUST | 5.6 | **positive:** `unit/verify` [`TestASPAASTransNeighborDownstreamUnconfirmed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L261). **negative:** `unit/verify` [`TestASPAASTransNeighborDownstreamConfirmed`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_as_trans_neighbor_test.go#L286) |
-| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1` | If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]). (§5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L65). **positive:** `unit/verify` [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L210). **negative:** `unit/verify` [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L68). **negative:** `unit/verify` [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L259) |
+| `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-1` | If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]). (§5.7) | MUST | 5.7 | **positive:** `unit/verify` [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L65). **positive:** `unit/verify` [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L210). **negative:** `unit/verify` [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L68). **negative:** `unit/verify` [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L257) |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1` | The verification procedures described in this document MUST be applied to BGP routes with {AFI, SAFI} combinations {AFI 1 (IPv4), SAFI 1} and {AFI 2 (IPv6), SAFI 1} [IANA-AF] [IANA-SAF]. (Section 6.2) | MUST | 6.2 - The two uppercase MUST sites retain their AFI/SAFI IDs | **positive:** `unit/verify` [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L110). **negative:** `unit/verify` [`TestASPAAppliesToIPv4Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L132) |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-2` | The procedures MUST NOT be applied to other address families by default (Section 6.2) | MUST NOT | 6.2 - The two uppercase MUST sites retain their AFI/SAFI IDs | **positive:** `unit/verify` [`TestASPAAppliesToIPv6Unicast`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L111). **negative:** `unit/verify` [`TestASPANotAppliedToOtherFamilies`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rpki/draft_ietf_sidrops_aspa_verification_aspa_family_scope_test.go#L165) |
 | `DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.6-2` | If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (Section 5.7) | SHOULD | 5.7 | **positive:** no positive test. **negative:** no negative test |
@@ -273,14 +273,14 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]). (§5.7)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Forbidden: an Invalid route selected, or an Invalid route dropped from the Adj-RIB-In. TestASPARetentionReceiveRecovery asserts after an i decision that the stored route is Ineligible with its full attribute, NLRI and next-hop bytes (red if dropped) and validationSelection(false): not in Loc-RIB and not in best-path replay (red if selectable), then selectable after an a decision without another UPDATE. TestASPARetentionReplacementWithdrawal asserts a rejected replacement removes the old selection and retains the new bytes. adj_rib_in TestASPARetainedPathReplayRecovery covers retention on the Adj-RIB-In plugin.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment 2026-11-15 after only the two selecting-RIB retention fixture topology repairs. The canonical ASPA verification draft Section 5.7 says: 'If the AS_PATH is determined to be Invalid, then the route SHOULD be considered ineligible for route selection (see Section 3) and MUST be kept in the Adj-RIB-In for potential future re-evaluation (see [RFC9324]).' The row's stable identifier remains 5.6-1 although the current draft section is 5.7. RFC 4271 Section 9.1.2 independently excludes an unresolvable NEXT_HOP before selection. TestASPARetentionReceiveRecovery now supplies only connected 192.0.2.9/32; all six typed/text by early/pending/installed cases still use the real registered Adj-RIB-In bridge and selecting RIB, retain exact attributes, NLRI and next-hop bytes after rejection, require absence from both Loc-RIB and best-path replay while Invalid, and recover the same received route on a later accepting decision without another UPDATE. TestASPARetentionReplacementWithdrawal supplies only connected 192.0.2.9/32 and 192.0.2.10/32, making both unchanged old and replacement next hops feasible independently of validation. It still rejects the newer message generation, removes the old selection, retains the replacement's new bytes, refuses a stale acceptance, and forbids resurrection after actual withdrawal, session removal and origin rejection. The topology cannot itself accept a validation-refused path; every generation and exclusion assertion remains. The unchanged Adj-RIB-In TestASPARetainedPathReplayRecovery supplies both tagged polarities: a retained Invalid ADD-PATH sibling survives expiry with complete bytes, stays out of ordinary replay, recovers after a cursor without another UPDATE, and its withdrawal preserves the eligible sibling while targeted replay reports an explicit withdrawal. No wire bytes, actions, message IDs, validation phases, assertions, negative controls, shared constructors or producers changed in this repair. Main's selected repaired RIB roots passed with race in 4d7e8db1 and no skips. I inspected both new normal-return semantic proof logs and native records against the current selecting-RIB bodies. In e8c69275 the clean TestASPARetentionReceiveRecovery baseline passed all six cases. The applyToInstalled mutant removed an installed route on an Ineligible decision: false/installed and true/installed then failed the exact retained-byte assertion with an empty stored list, while all four early/pending cases still passed. This observation proves discrimination for the installed-to-Invalid retention branch, not an observed mutant failure of every receive order. In 517807c4 the clean TestASPARetentionReplacementWithdrawal baseline passed all three branches. Changing the old-decision guard from d.MsgID < route.MsgID to d.MsgID != route.MsgID wrongly ignored the newer Invalid decision; withdraw, session and origin-reject cases then each failed at Loc-RIB installed=true, want false, before their later removal assertions. These two native mutant records bind the current positive and negative claim bodies. Neither observation used a panic, skip or build failure, and no broader mutant coverage is inferred. Other tagged units, requirement quotes, levels and discrimination entries are unchanged. This pending file does not itself stamp or publish an audit.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L68) | unit/verify | unproven |
-| negative | [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L259) | unit/verify | unproven |
+| negative | [`TestASPARetentionReplacementWithdrawal`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L257) | unit/verify | mutant, verified |
 | positive | [`TestASPARetainedPathReplayRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/adj_rib_in/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L65) | unit/verify | unproven |
-| positive | [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L210) | unit/verify | unproven |
+| positive | [`TestASPARetentionReceiveRecovery`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/rib/draft_ietf_sidrops_aspa_verification_rib_aspa_retention_test.go#L210) | unit/verify | mutant, verified |
 
 ### [`DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-6.2-1`](#draft-ietf-sidrops-aspa-verification-6.2-1)
 

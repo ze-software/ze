@@ -388,7 +388,7 @@ duration is not a factor.
 | `enabled` | `false` | bool | Enable Flowtriq reporting |
 | `api-key` | (required) | 1-512 chars | Flowtriq API bearer token |
 | `node-uuid` | (required) | 1-128 chars | Node UUID from Flowtriq setup |
-| `api-base` | `https://flowtriq.com/api/v1` | URL | API base URL |
+| `api-base` | `https://flowtriq.com/api/v1` | https URL | API base URL. Ze refuses an `http` URL, a loopback one included, because each request carries the bearer token. Ze follows no redirect: a 3xx answer is a failure that names the Location, so configure the final URL |
 
 ## Operational Notes
 

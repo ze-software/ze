@@ -15,15 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 234 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 234 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 234 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 292 | 292 of 761 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
-
-### Negative
-
-what Ze owes
-
-| Measure | Value | Count | What it means |
-|---|---:|---|---|
-| Audit verdicts | 95 | of 234 mandatory requirements reviewed | 2 weak, wrong or unimplemented, 5 no longer current. Each is named below under its own requirement id |
+| Tests shown to detect a fault | 293 | 293 of 761 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Neutral
 
@@ -62,7 +54,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
-| Audit verdicts | bad | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
@@ -81,7 +73,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Test tags | 764 |
 | Tests linked to requirements | 761 |
 | Recorded audit verdicts | 95 |
-| Fault test records | 297 |
+| Fault test records | 298 |
 | Summary | `rfc/short/rfc7296.md` |
 | Requirement table | `rfc/requirements/rfc7296.md` |
 | RFC text | `rfc/full/rfc7296.txt` |
@@ -94,9 +86,9 @@ Included in automatic checks: Internet Key Exchange Protocol Version 2 / IKEv2 (
 
 **Area:** IKEv2
 
-**Proof:** 89 of 234 MUST proven
+**Proof:** 90 of 234 MUST proven
 
-**Evidence:** interop 1, functional 1, unit 87
+**Evidence:** interop 1, functional 1, unit 88
 
 **Unmet:** -
 
@@ -118,8 +110,8 @@ Included in automatic checks: Internet Key Exchange Protocol Version 2 / IKEv2 (
 
 ## Figures
 
-- **MUST bar**: Ze proven 89, Proof pending 145
-- **Overview bar**: Ze MUST proven 89, SHOULD proven 4, Proof pending 147, Not assessed 3
+- **MUST bar**: Ze proven 90, Proof pending 144
+- **Overview bar**: Ze MUST proven 90, SHOULD proven 4, Proof pending 146, Not assessed 3
 
 | Figure | Rows |
 |---|---|
@@ -128,9 +120,9 @@ Included in automatic checks: Internet Key Exchange Protocol Version 2 / IKEv2 (
 | Mandatory requirements complete | not complete |
 | MUST rows | 234 |
 | MUST rows kept (the MUST bar) | 234 |
-| Ze proven | 89 |
+| Ze proven | 90 |
 | OS verified | 0 |
-| Proof pending | 145 |
+| Proof pending | 144 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -225,7 +217,7 @@ Source: [data/rfc/rfc7296.json](../../../data/rfc/rfc7296.json).
 | `RFC7296-1.5-1` | This message is not part of an INFORMATIONAL exchange, and the receiving node MUST NOT respond to it because doing so could cause a message loop (§1.5) | MUST NOT | 1.5 - Informational messages outside an IKE SA | **positive:** `unit/verify` [`TestWp2OutOfSAEmitterIsAFixedPoint`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L21). **negative:** `unit/verify` [`TestWp2OutOfSAAnswersARequest`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L44) |
 | `RFC7296-2.12-1` | Achieving perfect forward secrecy requires that when a connection is closed, each endpoint MUST forget not only the keys used by the connection but also any information that could be used to recompute those keys (§2.12) | MUST | 2.12 | **positive:** `unit/verify` [`TestRunEstablishedClearsPendingIKESwapOnExit`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_established_test.go#L487). **positive:** `unit/verify` [`TestWp2ForgetKeysErasesEverySecret`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L85). **negative:** `unit/verify` [`TestWp2OpenSAKeepsItsKeys`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_wp2_test.go#L116) |
 | `RFC7296-2.24-1` | tunnel encapsulators and decapsulators for all tunnel mode SAs created by IKEv2 MUST support the ECN full-functionality option for tunnels specified in [ECN] (§2.24) | MUST | 2.24 | **positive:** `unit/verify` [`TestEcnInstalledChildSAAsksForNoECNChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L70). **positive:** `unit/verify` [`TestEcnInstalledStateDisablesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L86). **positive:** `unit/verify` [`TestVPPInstallSACopiesECN`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_vpp_message_test.go#L1008). **negative:** `unit/verify` [`TestEcnTheInstalledSAsAreRealAndDirectional`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L91). **negative:** `unit/verify` [`TestEcnTheScannedStateIsTheOneZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L109). **negative:** `unit/verify` [`TestVPPInstallSAECNIsOnTheSAZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_vpp_message_test.go#L1032) |
-| `RFC7296-2.24-2` | MUST implement the tunnel encapsulation and decapsulation processing specified in [IPSECARCH] to prevent discarding of ECN congestion indications. (§2.24) | MUST | 2.24 | **positive:** `unit/verify` [`TestEcnInstalledChildSAAsksForNoECNChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L74). **positive:** `unit/verify` [`TestEcnInstalledStateDisablesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L90). **positive:** `unit/verify` [`TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go#L1023). **positive:** `unit/verify` [`TestVPPInstallSACopiesECN`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_vpp_message_test.go#L1012). **negative:** `unit/verify` [`TestEcnTheInstalledSAsAreRealAndDirectional`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L95). **negative:** `unit/verify` [`TestEcnTheScannedStateIsTheOneZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L113). **negative:** `unit/verify` [`TestVPPInstallSAECNIsOnTheSAZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_vpp_message_test.go#L1036) |
+| `RFC7296-2.24-2` | MUST implement the tunnel encapsulation and decapsulation processing specified in [IPSECARCH] to prevent discarding of ECN congestion indications. (§2.24) | MUST | 2.24 | **positive:** `unit/verify` [`TestEcnInstalledChildSAAsksForNoECNChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L74). **positive:** `unit/verify` [`TestEcnInstalledStateDisablesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L90). **positive:** `unit/verify` [`TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go#L1015). **positive:** `unit/verify` [`TestVPPInstallSACopiesECN`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_vpp_message_test.go#L1012). **negative:** `unit/verify` [`TestEcnTheInstalledSAsAreRealAndDirectional`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L95). **negative:** `unit/verify` [`TestEcnTheScannedStateIsTheOneZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L113). **negative:** `unit/verify` [`TestVPPInstallSAECNIsOnTheSAZeInstalls`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_vpp_message_test.go#L1036) |
 | `RFC7296-2.16-12` | For EAP methods that create a shared key as a side effect of authentication, that shared key MUST be used by both the initiator and responder to generate AUTH payloads in messages 7 and 8 using the syntax for shared secrets specified in Section 2.15 (§2.16) | MUST | 2.16 | **positive:** `unit/verify` [`TestEapAuthProducerIsKeyedByTheNegotiatedMSK`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_producer_test.go#L43). **negative:** `unit/verify` [`TestEapAuthProducerOutputIsRefusedUnderAnotherKey`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_producer_test.go#L82) |
 | `RFC7296-2.16-13` | Following such an extended exchange, the EAP AUTH payloads MUST be included in the two messages following the one containing the EAP Success message (§2.16) | MUST | 2.16 | **positive:** `unit/verify` [`TestEapAuthFollowsTheSuccessMessage`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_producer_test.go#L232). **negative:** `unit/verify` [`TestEapAuthFollowsTheSuccessMessage`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_eap_auth_producer_test.go#L235) |
 | `RFC7296-2.16-14` | Once the protocol exchange defined by the chosen EAP authentication method has successfully terminated, the responder MUST send an EAP payload containing the Success message (§2.16) | MUST | 2.16 | **positive:** `unit/verify` [`TestEapResultSuccessIsSent`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L55). **negative:** `unit/verify` [`TestEapResultFailureIsSent`](https://github.com/ze-software/ze/blob/main/internal/core/eap/rfc7296_eap_result_test.go#L81) |
@@ -675,7 +667,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be zero. (§3.13.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol, internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireRefusesUndefinedPortValues moved. Re-judged 2026-11-10 by an independent judge after a comment-only change to TestPortEncodingFollowsSection3131 (assertions, fixtures and the selectorsToWire/PortSelector.Wire producers byte-identical). The earlier enforced verdict was too wide. The test drives one fixture, protocol 0 with an ANY port, so it proves the all-ports-allowed encoding (ANY -> Start Port 0) and that the encoder can emit a non-zero port (TCP 443). It cannot fail on the 'protocols for which port is undefined' clause for any protocol other than 0, and Ze does not comply there: ipsec.checkPortProgrammable refuses a single port only when proto == 0, and engine.programmableSelector/intersectPort narrow away a specific port only under protocol 0, so a selector such as protocol 47 (GRE) with port 443, configured or proposed by a peer, reaches selectorsToWire and is emitted as 443/443 where RFC 7296 Section 3.13.1 says the field MUST be zero. Half the requirement is proven; the other half is a code defect.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged against RFC 7296 Section 3.13.1: For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be zero. TestTSWireAnyPortsForEveryProtocol calls selectorsToWire for every protocol number with an ANY port and asserts one selector with StartPort 0 and EndPort 65535. TestTSWireRefusesUndefinedPortValues calls the encoder with specific and OPAQUE ports under protocol 0, GRE, ESP, AH, OSPF, VRRP and an unknown protocol and requires a nil payload. These replace the earlier single-protocol tagged fixture that justified the weak verdict. The encoder now checks Port.ValidForProtocol before writing the wire selector; it cannot emit a specific port for the invalid inputs tested. The conforming ANY controls prevent a blanket refusal from satisfying the pair. The judgment concerns these field encodings, not support for every exact ICMP or Mobility Header selector.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -688,7 +680,7 @@ Audit verdict: weak (the tests pass over code that does not enforce the requirem
 
 For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be 65535. (§3.13.1)
 
-Audit verdict: weak (the tests pass over code that does not enforce the requirement), stale-unit: internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireAnyPortsForEveryProtocol, internal/component/ike/engine/rfc7296_protocol_selector_test.go::TestTSWireRefusesUndefinedPortValues moved. Re-judged 2026-11-10 by an independent judge after a comment-only change to TestPortEncodingFollowsSection3131 (assertions, fixtures and producers byte-identical). Same finding as RFC7296-3.13.1-1 for End Port: the test proves ANY -> 65535 under protocol 0, with TCP 443/443 as the discriminator, but cannot fail on a port-undefined protocol other than 0. Ze emits a specific End Port there, because checkPortProgrammable and programmableSelector only treat protocol 0 as portless, while RFC 7296 Section 3.13.1 says the field MUST be 65535.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged against RFC 7296 Section 3.13.1: For protocols for which port is undefined (including protocol 0), or if all ports are allowed, this field MUST be 65535. TestTSWireAnyPortsForEveryProtocol exercises selectorsToWire under all 256 protocol values and asserts one ANY selector whose EndPort is exactly 65535 and StartPort exactly 0. TestTSWireRefusesUndefinedPortValues requires the encoder to reject specific and OPAQUE ports for protocol 0, GRE, ESP, AH, OSPF, VRRP and an unknown protocol. The assertions now cover both the all-ports clause and portless protocols, replacing the earlier protocol-0-only tagged fixture. The conforming ANY controls rule out unconditional rejection; Port.ValidForProtocol is checked at the final encoding boundary. This judgment makes no claim that an exact Mobility Header selector is programmable on Linux.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1227,7 +1219,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 tunnel encapsulators and decapsulators for all tunnel mode SAs created by IKEv2 MUST support the ECN full-functionality option for tunnels specified in [ECN] (§2.24)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSACopiesECN, internal/component/ike/dataplane/rfc7296_vpp_message_test.go::TestVPPInstallSAECNIsOnTheSAZeInstalls moved. installed Child SAs are tunnel mode with no ECN-disabling field (engine and XFRM scans); VPP InstallSA sets ENCAP/DECAP_COPY_ECN. Negatives are non-vacuity checks rather than violating inputs
+Audit verdict: enforced (the tests do what the requirement demands), fresh. installed Child SAs are tunnel mode with no ECN-disabling field (engine and XFRM scans); VPP InstallSA sets ENCAP/DECAP_COPY_ECN. Negatives are non-vacuity checks rather than violating inputs
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1242,7 +1234,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 MUST implement the tunnel encapsulation and decapsulation processing specified in [IPSECARCH] to prevent discarding of ECN congestion indications. (§2.24)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE moved. same units: XFRM state carries no NOECN path, VPP sets DECAP_COPY_ECN; transport mode refused by VPP backend
+Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go::TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE moved. Rejudged RFC 7296 Section 2.24's requirement to implement tunnel encapsulation and decapsulation processing to prevent discarding ECN congestion indications. The existing installer tests read actual directional Child SA descriptions and refuse vacuous/uninitialized subjects; the XFRM tests read production xfrmStateFromParams output and distinguish tunnel and transport, with no ECN-disabling field set. The VPP capture tests assert both ENCAP_COPY_ECN and DECAP_COPY_ECN in the actual SAD message and verify refused transport mode sends no message. The changed TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE adds a real lower-layer observation under the production SPD for both alternate bare-ESP receive paths: a whole datagram must increment the tc rewrite count exactly once, a deliberately oversized fragmented datagram must increment reassembly and leave tc rewrite count unchanged, and both must deliver inner TOS exactly 0x03 from ECN-capable 0x02 under outer CE. The current receiver preserves the received TOS through writeESPForm, and the fast rewrite keeps the received TOS octet. The test therefore distinguishes paths and directly detects losing CE on either; the new counter/selector machinery does not invalidate the ECN assertions. No claim about mixed protection-context separation is inferred from this ECN test.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -1251,7 +1243,7 @@ Audit verdict: enforced (the tests do what the requirement demands), stale-unit:
 | negative | [`TestEcnTheInstalledSAsAreRealAndDirectional`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L95) | unit/verify | unproven |
 | positive | [`TestEcnInstalledStateDisablesNothing`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_ecn_linux_test.go#L90) | unit/verify | unproven |
 | positive | [`TestVPPInstallSACopiesECN`](https://github.com/ze-software/ze/blob/main/internal/component/ike/dataplane/rfc7296_vpp_message_test.go#L1012) | unit/verify | unproven |
-| positive | [`TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go#L1023) | unit/verify | unproven |
+| positive | [`TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go#L1015) | unit/verify | mutant, verified |
 | positive | [`TestEcnInstalledChildSAAsksForNoECNChange`](https://github.com/ze-software/ze/blob/main/internal/component/ike/engine/rfc7296_ecn_test.go#L74) | unit/verify | unproven |
 
 ### [`RFC7296-2.16-12`](#rfc7296-2.16-12)

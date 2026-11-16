@@ -13,7 +13,7 @@ Show IRR filter status per ASN\.
 - Subcommands: `check`, `prefix`
 - Answer shape: tab
 - Address fields: none
-- Column order: asn, as-set, status, error, ipv4-count, ipv6-count, last-refresh, peers; server, last-refresh, next-refresh, entries
+- Column order: asn, as-set, status, error, ipv4-count, ipv6-count, server, generation, checked-at, refreshed-at, peers
 - Pipes, always: json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill
 - Pipes, on its rows: none
 - Pipes, while streaming: log
@@ -21,7 +21,7 @@ Show IRR filter status per ASN\.
 - Command pipes: none
 - Pipe aliases: none
 
-Lists each enrolled ASN with its resolved AS\-SET\, prefix counts\, last refresh time\, and error status\. Use this to confirm that IRR prefix\-lists are loaded and current\.
+Lists each enrolled ASN with the AS\-SET it is filtered by\, the prefix counts of the stored copy the filter enforces\, which copy that is \(server\, generation\, checked\-at\, refreshed\-at\)\, and whether it could be read\. The irr plugin fetches and stores the copies\; show irr answers when each is due\.
 
 ## Arguments
 

@@ -206,7 +206,7 @@ provider set is derived.
 | Leaf | Type | Default | Description |
 |------|------|---------|-------------|
 | `connection / remote / ip` | `dynamic` | -- | Marks the group as a dynamic peer group. |
-| `connection / remote / range` | leaf-list of prefixes | -- | The addresses that can open a session. Overlapping ranges take the longest match. |
+| `connection / remote / range` | leaf-list of prefixes | -- | The addresses that can open a session. Overlapping ranges take the longest match among groups accepting on the connection's local address and port. |
 | `connection / remote / max-peers` | uint32 | 1000 | Maximum number of members of this group. |
 
 A member is built from the group's own resolved settings, so it inherits every leaf the group states. That covers:
@@ -241,7 +241,11 @@ A filter chain on a dynamic group can name a filter per member through a variabl
 
 A dynamic group is held to the same rules as a static peer. A family with no prefix maximum is refused (RFC 4486). A hold time RFC 4271 Section 4.2 refuses is refused here too.
 
-The group opens its own listening socket on `connection/local/ip` and the group's listen port. A configuration that names no static peer is enough to accept members. When a static peer and a dynamic group share one socket, Ze attributes each connection by remote address, so a static peer inside the group's range keeps its own session and its own settings.
+The group opens its own listening socket on `connection/local/ip` and the group's listen port. A configuration that names no static peer is enough to accept members. Ze selects a dynamic group using the connection's actual local address and port before choosing the longest remote prefix. An `auto` local address accepts any local address on that listen port. Explicit wildcard addresses `0.0.0.0` and `::` keep TCP wildcard binding semantics while still checking the receiving port. A group whose local address or port does not admit the socket cannot create or reuse a member through it. The member keeps the remote address's interface zone in its identity.
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- findDynamicGroupEligible, tryCreateDynamicPeerAt -->
+
+When a static peer and a dynamic group share one socket, Ze attributes each connection by remote address, so a static peer inside the group's range keeps its own session and its own settings. The incoming source port is ephemeral; it does not replace the configured remote port in the peer's key.
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- peerForConnection, handleListenerConnection -->
 
 A per-peer plugin config that a group states reaches its members. RFC 9234 role checks, the RPKI action, the blackhole block, and the community policy all resolve through the group when the member has no entry of its own. See the [BGP Role guide](../bgp-role/index.md).
 
@@ -348,7 +352,8 @@ While the wait runs, peer detail reports Connect or Active, not OpenSent. A
 second connection waits for its OPEN before collision arbitration; it cannot
 displace the held connection merely by connecting.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf delay-open -->
-<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision -->
 
 With `connection { bfd { enabled true; strict true; } }` and strict mode
 negotiated by both peers, an early OPEN sends Ze's OPEN but withholds KEEPALIVE

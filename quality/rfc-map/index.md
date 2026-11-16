@@ -6,10 +6,10 @@ The interactive graph is available on the [RFC map page](./).
 
 ## Recorded inputs
 
-RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: `f7a3d3e4ad72d7233ccfeff630ea8e911b613ea8`. These inputs do not certify one release candidate.
+RFC evidence revision and age are unknown where the recorded input supplies neither. Specification snapshot: `9ea1d7aaeb85eaba270b6e6d30c8fd5e66e08582`. These inputs do not certify one release candidate.
 
-- RFC requirement ledger: `data/rfc-requirements.json`, SHA-256 `e553d532c752301c538ae27d921c1f453730f57de934b356602794932a950d5c`
-- Committed spec roadmap: `data/release-roadmap.json`, SHA-256 `cae9430ea41777b2dbe04af267a38f95b3a9a8574d2a702be32b4f794f9bcf84`, revision `f7a3d3e4ad72d7233ccfeff630ea8e911b613ea8`
+- RFC requirement ledger: `data/rfc-requirements.json`, SHA-256 `e35f956087c88b7fc51865aea6e7a09dc78fb216d8c2f562c6dcac614ab67802`
+- Committed spec roadmap: `data/release-roadmap.json`, SHA-256 `51c63d83159d0e1206fe74c9d2c6c5be2be0c4705d84fd8ef83507e32fe6c3e0`, revision `9ea1d7aaeb85eaba270b6e6d30c8fd5e66e08582`
 - Proposed release layers: `website/data/rfc-release-layers.json`, SHA-256 `4718bc1578afc15183efee2fcbadd9f52ed5434b4fb57eeb61b980dbd928ac68`
 
 ## Proposed release layers
@@ -106,7 +106,6 @@ RFC evidence revision and age are unknown where the recorded input supplies neit
 - rfc2211 (no recorded summary)
 - rfc2215 (no recorded summary)
 - [rfc2385](../rfc-compliance/rfc2385/) — Protection of BGP Sessions via the TCP MD5 Signature Option
-- rfc2845 (no recorded summary)
 - rfc3526 (no recorded summary)
 - rfc3610 (no recorded summary)
 - rfc3704 (no recorded summary)
@@ -130,6 +129,7 @@ RFC evidence revision and age are unknown where the recorded input supplies neit
 - draft-mangin-netcapstring-00 (no recorded summary)
 - rfc952 (no recorded summary)
 - [rfc1570](../rfc-compliance/rfc1570/) — PPP LCP Extensions
+- rfc1662 (no recorded summary)
 - rfc2961 (no recorded summary)
 - rfc2997 (no recorded summary)
 - [rfc5036](../rfc-compliance/rfc5036/) — LDP Specification
@@ -238,6 +238,7 @@ RFC evidence revision and age are unknown where the recorded input supplies neit
 - [rfc9370](../rfc-compliance/rfc9370/) — Multiple Key Exchanges in the Internet Key Exchange Protocol Version 2 (IKEv2)
 - rfc9463 (no recorded summary)
 - [draft-walton-bgp-hostname-capability](../rfc-compliance/draft-walton-bgp-hostname-capability/) — Hostname Capability for BGP
+- rfc2845 (no recorded summary)
 - [rfc2867](../rfc-compliance/rfc2867/) — RADIUS Accounting Modifications for Tunnel Protocol Support
 - [rfc2868](../rfc-compliance/rfc2868/) — RADIUS Attributes for Tunnel Protocol Support
 - [rfc2918](../rfc-compliance/rfc2918/) — Route Refresh Capability for BGP-4

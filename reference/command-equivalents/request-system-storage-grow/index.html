@@ -3,24 +3,24 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>clear firewall irr asn - Command Equivalents - Ze</title>
-        <meta name="description" content="Remove the cached IRR prefix-list for an ASN." />
-        <meta property="og:title" content="clear firewall irr asn - Command Equivalents - Ze" />
-        <meta property="og:description" content="Remove the cached IRR prefix-list for an ASN." />
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>request system storage grow - Command Equivalents - Ze</title>
+        <meta name="description" content="Grow the persistent storage to the size of its disk." />
+        <meta property="og:title" content="request system storage grow - Command Equivalents - Ze" />
+        <meta property="og:description" content="Grow the persistent storage to the size of its disk." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="clear firewall irr asn - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Remove the cached IRR prefix-list for an ASN." />
+        <meta name="twitter:title" content="request system storage grow - Command Equivalents - Ze" />
+        <meta name="twitter:description" content="Grow the persistent storage to the size of its disk." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
-        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/clear-firewall-irr-asn/" />
-        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/clear-firewall-irr-asn/" />
+        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/request-system-storage-grow/" />
+        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/request-system-storage-grow/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
@@ -47,16 +47,16 @@
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
-    <h1 id="command-equivalent-detail-title">clear firewall irr asn</h1>
-    <p>Remove the cached IRR prefix-list for an ASN.</p>
+    <h1 id="command-equivalent-detail-title">request system storage grow</h1>
+    <p>Grow the persistent storage to the size of its disk.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Registry path</dt><dd><code>clear firewall irr asn</code></dd></div>
-<div><dt>Usage</dt><dd><code>clear firewall irr asn &lt;asn&gt;</code></dd></div>
+<div><dt>Registry path</dt><dd><code>request system storage grow</code></dd></div>
+<div><dt>Usage</dt><dd><code>request system storage grow</code></dd></div>
 <div><dt>Mode</dt><dd>Daemon</dd></div>
-<div><dt>Wire method</dt><dd><code>ze-firewall:clear-irr-asn</code></dd></div>
+<div><dt>Wire method</dt><dd><code>ze-host:request-system-storage-grow</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
@@ -65,12 +65,9 @@
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
 </dl>
-<h3>Description</h3><p>Drops the entry from memory and from the persisted<br>cache, then re-applies the firewall tables. Config that still references the<br>ASN fails to verify until it is fetched again with<br>&#39;update firewall irr asn &lt;asn&gt;&#39;.</p>
+<h3>Description</h3><p>Extends the persistent partition to the end of its disk and grows its<br>filesystem to the partition, with no reboot. The answer carries the sizes before<br>and after. A system whose storage already uses the whole disk gets that answer<br>and nothing is written. Read the current sizes with &#39;show host storage&#39;.</p>
 <h3>Arguments</h3>
-<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
-<tr><td><code>asn</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>ASN number</td><td>The AS number, 1 to 4294967294, in plain or dotted form.
-The entry purged is the one the update command stored under the decimal spelling.</td></tr>
-</tbody></table>
+<p>No command-specific arguments listed.</p>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -135,7 +132,7 @@ The entry purged is the one the update command stored under the decimal spelling
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

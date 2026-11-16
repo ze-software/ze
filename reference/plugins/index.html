@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Plugin Catalog - Ze</title>
         <meta name="description" content="Search every Ze runtime plugin by purpose, config root, dependency, and source." />
         <meta property="og:title" content="Plugin Catalog - Ze" />
@@ -49,7 +49,7 @@
     <h1 id="plugin-catalog-title">Plugin catalog</h1>
     <p>Ze features are composed from plugins. This catalog is generated from the live registry and explains what each plugin is for, what it configures, and which other plugins it relies on. Click any plugin to open a local detail page.</p>
 </div>
-                <p class="plugin-summary">Generated from 96 registry entries: 96 runtime plugins. Among runtime plugins, 75 declare configuration roots, 56 declare dependencies, and 79 ship YANG modules.</p>
+                <p class="plugin-summary">Generated from 98 registry entries: 98 runtime plugins. Among runtime plugins, 77 declare configuration roots, 56 declare dependencies, and 81 ship YANG modules.</p>
                 <div class="plugin-console" role="search" aria-label="Search plugins">
                     <label for="plugin-search">Search by feature, protocol, config root, dependency, or source path</label>
                     <input id="plugin-search" type="search" autocomplete="off" placeholder="Try RPKI, FlowSpec, FIB, DHCP, DDoS, l2tp, bgp-filter..." />
@@ -64,7 +64,7 @@
                                     <option value="services" data-label="Network services">Network services (8)</option>
                                     <option value="dataplane" data-label="Interfaces &amp; dataplane">Interfaces &amp; dataplane (11)</option>
                                     <option value="telemetry" data-label="Telemetry &amp; operations">Telemetry &amp; operations (4)</option>
-                                    <option value="system" data-label="System">System (2)</option>
+                                    <option value="system" data-label="System">System (4)</option>
                                 </select>
                             </label>
                             <label for="plugin-family">Area
@@ -116,8 +116,10 @@
                                     <option value="traffic" data-category="telemetry" data-label="Traffic">Traffic (2)</option>
                                     </optgroup>
                                     <optgroup label="System">
+                                    <option value="container" data-category="system" data-label="Container">Container (1)</option>
                                     <option value="crashes" data-category="system" data-label="Crashes">Crashes (1)</option>
                                     <option value="memlock" data-category="system" data-label="Memlock">Memlock (1)</option>
+                                    <option value="system" data-category="system" data-label="System">System (1)</option>
                                     </optgroup>
                                 </select>
                             </label>
@@ -200,16 +202,17 @@
                     <p>Generated group for registry entries mapped to the BGP area. Config roots: <code>bgp</code>, <code>bgp-epe</code>, <code>bgp-ls-export</code>, <code>environment</code>. Source area: <code>internal/component/bgp</code>.</p>
                     <div class="cards plugin-grid">
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp BGP routing daemon BGP routing daemon internal/component/bgp/plugin BGP   bgp policy   internal/component/bgp/yang/ze-bgp-api.yang internal/component/bgp/yang/ze-bgp-conf.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp BGP routing daemon BGP routing daemon internal/component/bgp/plugin BGP   bgp policy  interface internal/component/bgp/yang/ze-bgp-api.yang internal/component/bgp/yang/ze-bgp-conf.yang">
                         <span class="cat">BGP</span>
                         <h3><a href="bgp/"><code>bgp</code></a></h3>
                         <p class="plugin-desc">BGP routing daemon</p>
                         <div class="chips">
                             <span class="chip mode">config:bgp</span>
                             <span class="chip">needs:policy</span>
+                            <span class="chip">Start after:interface</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>policy</code></dd></div><div><dt>Start after</dt><dd><code>interface</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-routing" id="plugin-bgp-adj-rib-in" data-plugin-card data-family="bgp" data-category="routing" data-search="bgp-adj-rib-in Adj-RIB-In storage (raw hex replay) Adj-RIB-In storage (raw hex replay) internal/component/bgp/plugins/adj_rib_in BGP       internal/component/bgp/plugins/adj_rib_in/yang/ze-adj-rib-in-api.yang">
@@ -514,17 +517,17 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-irr" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-irr IRR-based prefix-list filter for eBGP peers IRR-based prefix-list filter for eBGP peers internal/component/bgp/plugins/filter_irr BGP Filter   bgp bgp policy   internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang">
+                    <article class="card plugin-card cat-routing" id="plugin-bgp-filter-irr" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-irr IRR-based prefix-list filter for eBGP peers IRR-based prefix-list filter for eBGP peers internal/component/bgp/plugins/filter_irr BGP Filter   bgp bgp irr   internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr-cmd.yang internal/component/bgp/plugins/filter_irr/yang/ze-filter-irr.yang">
                         <span class="cat">BGP Filter</span>
                         <h3><a href="bgp-filter-irr/"><code>bgp-filter-irr</code></a></h3>
                         <p class="plugin-desc">IRR-based prefix-list filter for eBGP peers</p>
                         <div class="chips">
                             <span class="chip mode">config:bgp</span>
                             <span class="chip">needs:bgp</span>
-                            <span class="chip">needs:policy</span>
+                            <span class="chip">needs:irr</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>policy</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>bgp</code></dd></div><div><dt>Needs</dt><dd><code>bgp</code>, <code>irr</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
                     <article class="card plugin-card cat-routing" id="plugin-bgp-filter-modify" data-plugin-card data-family="bgp-filter" data-category="security" data-search="bgp-filter-modify Named route attribute modifier (set local-preference, med, origin, next-hop) Named route attribute modifier (set local-preference, med, origin, next-hop) internal/component/bgp/plugins/filter_modify BGP Filter   bgp bgp policy   internal/component/bgp/plugins/filter_modify/yang/ze-filter-modify.yang">
@@ -740,6 +743,26 @@
                             <span class="chip">YANG:1</span>
                         </div>
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>connected</code></dd></div><div><dt>Needs</dt><dd><code>policy</code></dd></div><div><dt>Start after</dt><dd><code>redistribute-orchestrator</code></dd></div><div><dt>YANG</dt><dd>1 module</dd></div></dl>
+                    </article>
+                    </div>
+                </section>
+                <section class="plugin-group" data-plugin-group data-family="container" data-category="system" aria-labelledby="plugin-group-container">
+                    <div class="plugin-group-head cat-meta">
+                        <h2 id="plugin-group-container">Container</h2>
+                        <span>1 plugin</span>
+                    </div>
+                    <p>Generated group for registry entries mapped to the Container area. Config roots: <code>container</code>. Source area: <code>internal/plugins/container</code>.</p>
+                    <div class="cards plugin-grid">
+
+                    <article class="card plugin-card cat-meta" id="plugin-container" data-plugin-card data-family="container" data-category="system" data-search="container OCI containers run by ze: confined, limited, supervised and removed without a trace OCI containers run by ze: confined, limited, supervised and removed without a trace internal/plugins/container Container   container    internal/plugins/container/yang/ze-container-cmd.yang internal/plugins/container/yang/ze-container-conf.yang">
+                        <span class="cat">Container</span>
+                        <h3><a href="container/"><code>container</code></a></h3>
+                        <p class="plugin-desc">OCI containers run by ze: confined, limited, supervised and removed without a trace</p>
+                        <div class="chips">
+                            <span class="chip mode">config:container</span>
+                            <span class="chip">YANG:2</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>container</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -972,16 +995,17 @@
                         <dl class="plugin-meta"><div><dt>Config</dt><dd><code>firewall</code></dd></div><div><dt>Needs</dt><dd><code>firewall</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
 
-                    <article class="card plugin-card cat-services" id="plugin-firewall-irr" data-plugin-card data-family="firewall" data-category="security" data-search="firewall-irr IRR-based prefix-list filtering for firewall rules IRR-based prefix-list filtering for firewall rules internal/component/firewall/plugins/irr Firewall   firewall firewall   internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang">
+                    <article class="card plugin-card cat-services" id="plugin-firewall-irr" data-plugin-card data-family="firewall" data-category="security" data-search="firewall-irr IRR-based prefix-list filtering for firewall rules IRR-based prefix-list filtering for firewall rules internal/component/firewall/plugins/irr Firewall   firewall firewall irr   internal/component/firewall/plugins/irr/yang/ze-firewall-irr-cmd.yang internal/component/firewall/plugins/irr/yang/ze-firewall-irr.yang">
                         <span class="cat">Firewall</span>
                         <h3><a href="firewall-irr/"><code>firewall-irr</code></a></h3>
                         <p class="plugin-desc">IRR-based prefix-list filtering for firewall rules</p>
                         <div class="chips">
                             <span class="chip mode">config:firewall</span>
                             <span class="chip">needs:firewall</span>
+                            <span class="chip">needs:irr</span>
                             <span class="chip">YANG:2</span>
                         </div>
-                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>firewall</code></dd></div><div><dt>Needs</dt><dd><code>firewall</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>firewall</code></dd></div><div><dt>Needs</dt><dd><code>firewall</code>, <code>irr</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
                     </article>
                     </div>
                 </section>
@@ -1502,6 +1526,26 @@
                     </article>
                     </div>
                 </section>
+                <section class="plugin-group" data-plugin-group data-family="system" data-category="system" aria-labelledby="plugin-group-system">
+                    <div class="plugin-group-head cat-meta">
+                        <h2 id="plugin-group-system">System</h2>
+                        <span>1 plugin</span>
+                    </div>
+                    <p>Generated group for registry entries mapped to the System area. Config roots: <code>system</code>. Source area: <code>internal/plugins/irr</code>.</p>
+                    <div class="cards plugin-grid">
+
+                    <article class="card plugin-card cat-meta" id="plugin-irr" data-plugin-card data-family="system" data-category="system" data-search="irr IRR data owner: fetches, schedules and stores the IRR prefix lists every consumer enforces IRR data owner: fetches, schedules and stores the IRR prefix lists every consumer enforces internal/plugins/irr System   system/irr    internal/plugins/irr/yang/ze-irr-cmd.yang internal/plugins/irr/yang/ze-irr-conf.yang">
+                        <span class="cat">System</span>
+                        <h3><a href="irr/"><code>irr</code></a></h3>
+                        <p class="plugin-desc">IRR data owner: fetches, schedules and stores the IRR prefix lists every consumer enforces</p>
+                        <div class="chips">
+                            <span class="chip mode">config:system/irr</span>
+                            <span class="chip">YANG:2</span>
+                        </div>
+                        <dl class="plugin-meta"><div><dt>Config</dt><dd><code>system/irr</code></dd></div><div><dt>YANG</dt><dd>2 modules</dd></div></dl>
+                    </article>
+                    </div>
+                </section>
                 <section class="plugin-group" data-plugin-group data-family="traffic" data-category="telemetry" aria-labelledby="plugin-group-traffic">
                     <div class="plugin-group-head cat-observe">
                         <h2 id="plugin-group-traffic">Traffic</h2>
@@ -1719,7 +1763,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

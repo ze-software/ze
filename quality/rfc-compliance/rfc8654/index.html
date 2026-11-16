@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8654 requirements and tests - Ze</title>
         <meta name="description" content="RFC 8654: Extended Message Support for BGP. 12 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8654 requirements and tests - Ze" />
@@ -128,16 +128,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <h3>Positive</h3>
 <p>what Ze has</p>
 <div class="rfc-card-grid reveal">
-<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>9</strong><b>of 12 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
+<article class="rfc-card rfc-ok"><span>Tested both ways</span><strong>8</strong><b>of 12 mandatory requirements</b><p>a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 12 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 12 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
-<article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 12 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>40</strong><b>40 of 62 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>42</strong><b>42 of 62 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
+<article class="rfc-card rfc-bad"><span>Partial proof; remaining gap</span><strong>1</strong><b>of 12 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>1</strong><b>of 12 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>8</strong><b>of 12 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -177,7 +178,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at zero, RED above it: half a proof with no reason for the other half</td>
 </tr>
 <tr><td>Partial proof; remaining gap</td>
-<td><span class="rfc-swatch rfc-ok"></span> ok</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>green at zero, RED above it: a tested clause cannot prove the whole requirement</td>
 </tr>
 <tr><td>Declared gap or no test</td>
@@ -205,7 +206,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above</td>
 </tr>
 <tr><td>Audit verdicts</td>
-<td><span class="rfc-swatch rfc-warn"></span> warn</td>
+<td><span class="rfc-swatch rfc-bad"></span> bad</td>
 <td>RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current</td>
 </tr>
 <tr><td>Mandatory requirements (MUST level)</td>
@@ -259,7 +260,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>8</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>40</td>
+<td>42</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc8654.md</code></td>
@@ -279,9 +280,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> BGP Extended Message</p>
-<p><strong>Proof:</strong> 9 of 12 MUST proven</p>
-<p><strong>Evidence:</strong> interop 2, unit 7</p>
-<p><strong>Unmet:</strong> RFC8654-5-3</p>
+<p><strong>Proof:</strong> 8 of 12 MUST proven</p>
+<p><strong>Evidence:</strong> interop 2, unit 6</p>
+<p><strong>Unmet:</strong> RFC8654-5-3, RFC8654-5-4</p>
 
 </section>
 <section><h2>Coverage</h2>
@@ -290,11 +291,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Bucket</th><th>Count</th><th>What it counts</th></tr></thead>
 <tbody>
 <tr><td>Positive and negative tests</td>
-<td><strong>9</strong></td>
+<td><strong>8</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Annotated (including scoped evidence)</td>
-<td><strong>3</strong></td>
+<td><strong>4</strong></td>
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Only a positive or negative test</td>
@@ -306,7 +307,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>one part of the mandatory requirements</td>
 </tr>
 <tr><td>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit)</td>
-<td><strong>0</strong></td>
+<td><strong>1</strong></td>
 <td>also counted in one of the groups above</td>
 </tr>
 <tr><td>Evidence that runs nightly only</td>
@@ -321,14 +322,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tbody>
 </table>
 </div>
-<p class="rfc-id-list"><strong>Positive and negative tests (9):</strong> <a href="#rfc8654-3-1"><code>RFC8654-3-1</code></a>, <a href="#rfc8654-3-3"><code>RFC8654-3-3</code></a>, <a href="#rfc8654-4-1"><code>RFC8654-4-1</code></a>, <a href="#rfc8654-4-2"><code>RFC8654-4-2</code></a>, <a href="#rfc8654-4-3"><code>RFC8654-4-3</code></a>, <a href="#rfc8654-6-1"><code>RFC8654-6-1</code></a>, <a href="#rfc8654-5-1"><code>RFC8654-5-1</code></a>, <a href="#rfc8654-5-2"><code>RFC8654-5-2</code></a>, <a href="#rfc8654-5-4"><code>RFC8654-5-4</code></a></p>
-<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (3):</strong> <a href="#rfc8654-3-2"><code>RFC8654-3-2</code></a>, <a href="#rfc8654-5-3"><code>RFC8654-5-3</code></a>, <a href="#rfc8654-5-5"><code>RFC8654-5-5</code></a></p>
+<p class="rfc-id-list"><strong>Positive and negative tests (8):</strong> <a href="#rfc8654-3-1"><code>RFC8654-3-1</code></a>, <a href="#rfc8654-3-3"><code>RFC8654-3-3</code></a>, <a href="#rfc8654-4-1"><code>RFC8654-4-1</code></a>, <a href="#rfc8654-4-2"><code>RFC8654-4-2</code></a>, <a href="#rfc8654-4-3"><code>RFC8654-4-3</code></a>, <a href="#rfc8654-6-1"><code>RFC8654-6-1</code></a>, <a href="#rfc8654-5-1"><code>RFC8654-5-1</code></a>, <a href="#rfc8654-5-2"><code>RFC8654-5-2</code></a></p>
+<p class="rfc-id-list"><strong>Annotated (including scoped evidence) (4):</strong> <a href="#rfc8654-3-2"><code>RFC8654-3-2</code></a>, <a href="#rfc8654-5-3"><code>RFC8654-5-3</code></a>, <a href="#rfc8654-5-4"><code>RFC8654-5-4</code></a>, <a href="#rfc8654-5-5"><code>RFC8654-5-5</code></a></p>
+<p class="rfc-id-list"><strong>Partial proof; remaining gap (subset of annotated; zero whole-requirement credit) (1):</strong> <a href="#rfc8654-5-4"><code>RFC8654-5-4</code></a></p>
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8654:must">Ze proven 9, Proof pending 1, Not built 1</div>
+<div data-ze-rfc-bar="rfc8654:must">Ze proven 8, Proof pending 1, Not built 2</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8654:overview">Ze MUST proven 9, SHOULD proven 1, Not owed 1, Proof pending 1, Not assessed 3, Not built 1</div>
+<div data-ze-rfc-bar="rfc8654:overview">Ze MUST proven 8, SHOULD proven 1, Not owed 1, Proof pending 1, Not assessed 3, Not built 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -349,7 +351,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8654:must.kept">11</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc8654:must.ze-proven">9</span></td>
+<td><span data-ze-rfc="rfc8654:must.ze-proven">8</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8654:must.os-verified">0</span></td>
@@ -367,7 +369,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8654:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="rfc8654:must.not-built">1</span></td>
+<td><span data-ze-rfc="rfc8654:must.not-built">2</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="rfc8654:must.not-owed">1</span></td>
@@ -558,13 +560,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5 - Error Handling</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC8654-5-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_rib_recovery_test.go#L173" title="internal/component/bgp/reactor/rfc8654_rib_recovery_test.go" target="_blank" rel="noopener"><code>TestRFC8654FatalLengthReelectsAlternateBest</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go#L51" title="internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go" target="_blank" rel="noopener"><code>TestRFC8654FatalLengthReleasesInstalledRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go#L53" title="internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go" target="_blank" rel="noopener"><code>TestRFC8654FatalLengthReleasesInstalledRoutes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L298" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L41" title="internal/component/bgp/message/rfc8654_length_bounds_test.go" target="_blank" rel="noopener"><code>TestRFC8654LengthBoundsPerTypeAndCapability</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_bad_length_session_test.go#L27" title="internal/component/bgp/reactor/rfc8654_bad_length_session_test.go" target="_blank" rel="noopener"><code>TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go#L128" title="internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go" target="_blank" rel="noopener"><code>TestRFC8654ValidLengthRetainsInstalledRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go#L130" title="internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go" target="_blank" rel="noopener"><code>TestRFC8654ValidLengthRetainsInstalledRoutes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L290" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></span></div>
-</div></td>
+</div><p class="rfc-mark"><strong>{partial}:</strong> tested &#34;treats an improper BGP Extended Message as a fatal error&#34;; gap &#34;follow the error-handling procedures of [RFC4271]&#34;; live TCP tests prove exact fatal-length notification, completed session/resource/RIB cleanup and downstream withdrawal or alternate replacement, with valid-length retention controls. They do not observe the last invalid-route or advertisement owner&#39;s lifetime through outbound admission; internal/component/bgp/reactor/relay_recovery.go::admitRecovery is the inspected admission boundary. Header helpers assert returned Notification values or no error, not socket cleanup or owner lifetime. The whole row remains unproven</p><p class="rfc-mark"><strong>Partial test coverage:</strong> Tests and fault test records cover only the part marked Tested; they do not prove the whole requirement. partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Tested &#34;treats an improper BGP Extended Message as a fatal error&#34;; Gap &#34;follow the error-handling procedures of [RFC4271]&#34;; Producer internal/component/bgp/reactor/relay_recovery.go::admitRecovery. Independent rejudgment from complete RFC 8654 and RFC 4271 Sections 6 and 6.1, every tagged unit, and the current reader/publication and recovery boundaries. RFC 8654 Section 5 says, &#34;Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271].&#34; Extracting readFrame preserves exact Bad Message Length notification, Event21, transport closure and the pre-body limit check. Header helpers assert returned notification values or no error; they do not observe socket or route cleanup. Actual TCP tests first establish real received routes, Loc-RIB state and downstream advertisements, then assert exact 1/2 Data 1001, EOF, Idle, timer/context/session cleanup, source storage removal and both downstream withdrawals. The alternate-best carrier checks both replacement attributes together on recipient TCP through a causal post-recovery marker, a single Loc-RIB replacement and withdrawal without a survivor. The adjacent 4096-octet control retains the original session/resources/routes and forwards its changed MED without notification or withdrawal. These assertions remain useful after the shared-reader extraction. RFC 4271 Section 6 also requires withdrawal or replacement before final invalid-route deletion. None of these end-state observations measures the last invalid-route or advertisement owner&#39;s lifetime through outbound admission; the tests explicitly disclaim that proof. admitRecovery stages owned references and dispatches completion-bound work, but reading that implementation cannot substitute for a lifecycle observation or a discriminating fault at its final-owner boundary. The existing partial annotation remains accurate and earns zero whole-requirement credit. No new execution or imported ordering conformance is claimed. Further independent rejudgment after receivedFrame value transfer: reread the full RFC, exact partial annotation, every tagged unit and assertion-producing helper, prior judgment and complete changed reader/candidate paths. The frame wrapper now transfers by value with unchanged error, notification, closure and buffer-handle ownership. Main renewed this row&#39;s existing misclassified-fatal-length break under native receipt 70610: the exact tagged unit passes clean and fails broken when expected notification code 1 becomes 6. Tagged bodies/claims and the Tested/Gap/Producer scope are unchanged. Verdict remains partial, with the same unproven final-owner lifetime ordering and every existing producer key retained.</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc8654-5-5">RFC8654-5-5</code></td><td colspan="3"><span class="rfc-subject">Future protocol specifications MUST describe how to handle peers that can only accommodate 4,096 octet messages. (§5)</span></td></tr>
 <tr><td></td>
@@ -625,6 +627,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td><a href="#rfc8654-5-3"><code>RFC8654-5-3</code></a> However, if a NOTIFICATION is to be sent to a BGP speaker that has not advertised the BGP Extended Message Capability, the size of the message MUST NOT exceed 4,096 octets. (§5)</td>
 <td>{gap}, no test</td>
 <td>gap in proof: internal/component/bgp/message/notification.go::Len meets it, since a NOTIFICATION is 19 + 2 + len(Data) octets, its Data copies at most a field of a message the peer sent within its own 4096-octet limit, and BuildCeaseData cuts the Administrative Shutdown Communication to 128 octets; no test asserts it</td>
+</tr>
+<tr><td><a href="#rfc8654-5-4"><code>RFC8654-5-4</code></a> Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5)</td>
+<td>{partial}, Partial proof; remaining gap</td>
+<td>tested &#34;treats an improper BGP Extended Message as a fatal error&#34;; gap &#34;follow the error-handling procedures of [RFC4271]&#34;; live TCP tests prove exact fatal-length notification, completed session/resource/RIB cleanup and downstream withdrawal or alternate replacement, with valid-length retention controls. They do not observe the last invalid-route or advertisement owner&#39;s lifetime through outbound admission; internal/component/bgp/reactor/relay_recovery.go::admitRecovery is the inspected admission boundary. Header helpers assert returned Notification values or no error, not socket cleanup or owner lifetime. The whole row remains unproven</td>
 </tr>
 <tr><td><a href="#rfc8654-5-5"><code>RFC8654-5-5</code></a> Future protocol specifications MUST describe how to handle peers that can only accommodate 4,096 octet messages. (§5)</td>
 <td>no test</td>
@@ -923,7 +929,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc8654-5-1"><code>RFC8654-5-1</code></a></h3>
 <p>A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 at 5d862bbab9 by an independent auditor who authored none of the changes named. RFC 8654 Section 5: &#34;A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message.&#34; One cited producer moved: Session.negotiateWith gained one statement, s.negotiatedPeerAS.Store(negotiated.PeerASN), placed under writeMu beside the store of s.negotiated, so a sent-event callback (Reactor.notifyOneMessage through negotiatedPeerASNoWait) can name a dynamic peer&#39;s AS without the session lock. It reads a field capability.Negotiate already returned and writes an atomic no receive path reads. The lines this row cites negotiateWith for are untouched: the call to capability.Negotiate, where ExtendedMessageRecv is set from the local advertisement alone, and s.extendedMessage = s.negotiated.ExtendedMessageRecv, the receive permission both readers hand to Header.ValidateLengthWithMax; writeBuf.Resize still follows ExtendedMessageSend, the peer&#39;s advertisement, which is the send side and Section 4. The check names no other moved unit. Of the tagged units I re-read TestRFC8654ReceiveLimitFollowsLocalOPEN, byte-identical to the recorded one: it runs the real OPEN exchange for the four advertisement combinations, both readers, at 4096, 4097 and 65535 octets, and requires for local=false above 4096 an error, zero dispatch and a NOTIFICATION 1/2 whose data is the offending Length, and for accepted input one intact dispatch, Established and no bytes answered. It goes through negotiateWith, so it fails if the receive permission followed the peer&#39;s capability. The judgement of TestValidateLengthWithMax and of the two FRR interop checkers stands as recorded and was not re-read. Source audit only; no test, record or interop run was made for this rejudgment. Verdict unchanged: enforced.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment against the complete RFC 8654 Section 5: &#34;A BGP speaker that has the ability to use BGP Extended Messages but has not advertised the BGP Extended Message Capability, presumably due to configuration, MUST NOT accept a BGP Extended Message.&#34; The immutable prepared OPEN pair now feeds prepareNegotiation and publishNegotiation; the receive permission still comes only from capability.Negotiate&#39;s local advertisement, while writer resizing follows the independent peer advertisement. readFrame and the coalesced reader both call ValidateLengthWithMax before reading the declared body. The tagged live OPEN-exchange matrix covers all four local/peer advertisement combinations through both readers at 4096, 4097 and 65535 octets. Local absence above 4096 requires an error, zero dispatch and exact NOTIFICATION 1/2 with the offending Length; local presence requires one intact dispatch, Established and no answer bytes. The header table independently distinguishes accepted and rejected limits. Read both tagged FRR checker bodies and their shared receive-rejection predicate: they inspect original Ze OPEN advertisement separately from the relay-delivered copy, require FRR&#39;s actual large UPDATE, exact rejection and teardown of the original session. No new test or FRR execution is claimed by this source audit. Further independent rejudgment after receivedFrame value transfer: reread the full RFC, this row, all tagged units and their assertion-producing helpers, both prior judgments, and the complete changed readFrame/dispatchFrame/admitFrame paths. Only the frame wrapper and error returns changed representation; advertised receive permission, per-type length validation before body read, exact notification and borrowed buffer ownership are preserved. Tagged bodies and claims are unchanged. Main renewed the existing readFrame permission break under native receipt 52883: clean PASS for all three RFC7606 handling variants and own named broken failures when extended receive permission is forced false. That receipt belongs to RFC8654-3-1 and supports reader preservation; it does not replace this row&#39;s own unchanged tagged evidence. Verdict remains enforced and all existing producer keys are retained.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -987,7 +993,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC8654-5-3, so there is no linked test.</p>
 <h3><a href="#rfc8654-5-4"><code>RFC8654-5-4</code></a></h3>
 <p>Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271]. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc8654): &#34;Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271].&#34; Producers moved: relay_recovery.go departedOwner now tests adjOutOwnerSessionCurrent rather than adjOutOwnerCurrent (30ff1fce91/fa6552968f), so a departure stays a session fact and a live session&#39;s policy-stale path is not counted departed; the routes of the closed session are still the ones owed withdrawal or replacement, which is what RFC 4271 Section 6 requires. session_read.go readAndProcessMessage and session_coalesce.go readAndProcessCoalesced (ff2aac12b0) gained a beginAdmission gate that holds a fully read packet while a policy change pauses admission; in readAndProcessMessage it sits after hdr.ValidateLengthWithMax, so an over-length message still returns its error and takes the NOTIFICATION path before the gate. All seven tagged units are byte-identical. Verdict unchanged: enforced. Earlier judgements are in this file&#39;s git history.</p>
+<p>Records cover only part of this requirement: tested &#34;treats an improper BGP Extended Message as a fatal error&#34;; gap &#34;follow the error-handling procedures of [RFC4271]&#34;; live TCP tests prove exact fatal-length notification, completed session/resource/RIB cleanup and downstream withdrawal or alternate replacement, with valid-length retention controls. They do not observe the last invalid-route or advertisement owner&#39;s lifetime through outbound admission; internal/component/bgp/reactor/relay_recovery.go::admitRecovery is the inspected admission boundary. Header helpers assert returned Notification values or no error, not socket cleanup or owner lifetime. The whole row remains unproven; they do not prove the whole requirement.</p>
+<p><strong>Audit verdict:</strong> partial (the tests enforce only the declared tested scope; the whole requirement remains unmet), fresh. Tested &#34;treats an improper BGP Extended Message as a fatal error&#34;; Gap &#34;follow the error-handling procedures of [RFC4271]&#34;; Producer internal/component/bgp/reactor/relay_recovery.go::admitRecovery. Independent rejudgment from complete RFC 8654 and RFC 4271 Sections 6 and 6.1, every tagged unit, and the current reader/publication and recovery boundaries. RFC 8654 Section 5 says, &#34;Similarly, any speaker that treats an improper BGP Extended Message as a fatal error MUST follow the error-handling procedures of [RFC4271].&#34; Extracting readFrame preserves exact Bad Message Length notification, Event21, transport closure and the pre-body limit check. Header helpers assert returned notification values or no error; they do not observe socket or route cleanup. Actual TCP tests first establish real received routes, Loc-RIB state and downstream advertisements, then assert exact 1/2 Data 1001, EOF, Idle, timer/context/session cleanup, source storage removal and both downstream withdrawals. The alternate-best carrier checks both replacement attributes together on recipient TCP through a causal post-recovery marker, a single Loc-RIB replacement and withdrawal without a survivor. The adjacent 4096-octet control retains the original session/resources/routes and forwards its changed MED without notification or withdrawal. These assertions remain useful after the shared-reader extraction. RFC 4271 Section 6 also requires withdrawal or replacement before final invalid-route deletion. None of these end-state observations measures the last invalid-route or advertisement owner&#39;s lifetime through outbound admission; the tests explicitly disclaim that proof. admitRecovery stages owned references and dispatches completion-bound work, but reading that implementation cannot substitute for a lifecycle observation or a discriminating fault at its final-owner boundary. The existing partial annotation remains accurate and earns zero whole-requirement credit. No new execution or imported ordering conformance is claimed. Further independent rejudgment after receivedFrame value transfer: reread the full RFC, exact partial annotation, every tagged unit and assertion-producing helper, prior judgment and complete changed reader/candidate paths. The frame wrapper now transfers by value with unchanged error, notification, closure and buffer-handle ownership. Main renewed this row&#39;s existing misclassified-fatal-length break under native receipt 70610: the exact tagged unit passes clean and fails broken when expected notification code 1 becomes 6. Tagged bodies/claims and the Tested/Gap/Producer scope are unchanged. Verdict remains partial, with the same unproven final-owner lifetime ordering and every existing producer key retained.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -995,7 +1002,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L290" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc8654_length_bounds_test.go#L41" title="internal/component/bgp/message/rfc8654_length_bounds_test.go" target="_blank" rel="noopener"><code>TestRFC8654LengthBoundsPerTypeAndCapability</code></a></td>
@@ -1005,20 +1012,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_bad_length_session_test.go#L27" title="internal/component/bgp/reactor/rfc8654_bad_length_session_test.go" target="_blank" rel="noopener"><code>TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go#L128" title="internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go" target="_blank" rel="noopener"><code>TestRFC8654ValidLengthRetainsInstalledRoutes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go#L130" title="internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go" target="_blank" rel="noopener"><code>TestRFC8654ValidLengthRetainsInstalledRoutes</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/header_test.go#L298" title="internal/component/bgp/message/header_test.go" target="_blank" rel="noopener"><code>TestValidateLengthWithMax</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go#L51" title="internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go" target="_blank" rel="noopener"><code>TestRFC8654FatalLengthReleasesInstalledRoutes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go#L53" title="internal/component/bgp/reactor/rfc8654_fatal_length_cleanup_test.go" target="_blank" rel="noopener"><code>TestRFC8654FatalLengthReleasesInstalledRoutes</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1262,7 +1269,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

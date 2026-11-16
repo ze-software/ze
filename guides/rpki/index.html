@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RPKI Origin Validation - Ze</title>
         <meta name="description" content="Ze documentation: guide/rpki.md" />
         <meta property="og:title" content="RPKI Origin Validation - Ze" />
@@ -49,7 +49,13 @@
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Guide</span>
     <h1 id="rpki-origin-validation">RPKI Origin Validation</h1>
-    <p>Ze validates received BGP routes against RPKI ROA data. By default, Invalid routes remain in Adj-RIB-In with their received attributes but are ineligible for selection and export. The feature connects to RTR cache servers (RFC 8210), downloads Validated ROA Payloads (VRPs), and applies the RFC 6811 origin validation algorithm to each received prefix.</p>
+    <p>Ze validates received BGP routes against RPKI ROA data. By default, an Invalid
+origin-validation state does not exclude a route from selection or export.
+Configure <code>rpki { action { invalid reject; } }</code> to retain Invalid routes in
+Adj-RIB-In with their received attributes while making them ineligible. The
+feature connects to RTR cache servers (RFC 8210), downloads Validated ROA
+Payloads (VRPs), and applies the RFC 6811 origin validation algorithm to each
+received prefix.</p>
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
@@ -91,7 +97,7 @@
 <li><a href="#without-rpki">Without RPKI</a></li>
 <li><a href="#troubleshooting">Troubleshooting</a></li>
 </ol></details></nav><div class="doc-body">
-<!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration, RFCs 6811/8210 -->
+<!-- source: internal/component/bgp/plugins/rpki/rpki_config.go -- parseRPKIConfig; internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions; internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration -->
 <p>An UPDATE must name the negotiated peer AS before RPKI validates its routes.
 The JSON handler refuses an unknown or malformed peer AS before it records
 routes or emits validation results. It counts each refused UPDATE in
@@ -272,8 +278,8 @@ root keeps its committed value; an explicitly removed root does not.</p>
 <tr>
 <td><code>rpki / action / invalid</code></td>
 <td>enum</td>
-<td>reject</td>
-<td>Action for Invalid routes: reject, log-only, accept</td>
+<td>accept</td>
+<td>Action for Invalid routes: accept, reject, log-only; exclusion requires explicit reject</td>
 </tr>
 <tr>
 <td><code>rpki / action / not-found</code></td>
@@ -301,6 +307,7 @@ root keeps its committed value; an explicitly removed root does not.</p>
 </tr>
 </tbody>
 </table>
+<!-- source: internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- global rpki leaves -->
 <p>Multiple cache servers are supported for redundancy. Ze tries them in preference order (a lower value is preferred; equal values keep their configuration order) and uses the most preferred server that answers. Ze holds one server's data at a time, never the union of several. A completed full synchronization atomically replaces the previous server's data; partial transfers do not replace the working set. While the new server's load is still arriving, validation answers from the previous server's set, unchanged: nothing in that load, withdrawals included, reaches the working set before its End of Data, and an update the previous server sends afterwards no longer touches the data in use. "RTR Poll Timing" below covers Cache Reset and the return to a more-preferred server.</p>
 <!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- RTRSession.handlePDU, RTRSession.startFullSync -->
 <!-- source: internal/component/bgp/plugins/rpki/rpki_config.go -- parseRPKIConfig, sortCachesByPreference -->
@@ -439,7 +446,7 @@ subcode 6) instead. The full rule is in <a href="https://github.com/ze-software/
 <tr>
 <td>Invalid</td>
 <td>A VRP covers the prefix but origin AS or length doesn't match</td>
-<td>Reject</td>
+<td>Accept</td>
 </tr>
 <tr>
 <td>NotFound</td>
@@ -448,6 +455,7 @@ subcode 6) instead. The full rule is in <a href="https://github.com/ze-software/
 </tr>
 </tbody>
 </table>
+<!-- source: internal/component/bgp/plugins/rpki/validate.go -- Validate; internal/component/bgp/plugins/rpki/rpki_config.go -- parseRPKIConfig -->
 <p>A prefix ze cannot parse gets Invalid and a warning, never NotFound. NotFound
 states that the VRP set was consulted and covers nothing, and the default
 <code>not-found accept</code> action accepts a route on that reading. A prefix that was
@@ -486,9 +494,10 @@ retained prefixes and families from the same peer and received UPDATE, so the
 RPKI decorator can correlate the complete verdict set with that UPDATE.</p>
 <p>This matters most when UPDATEs arrive before the first sync completes. Those
 routes validate NotFound against an empty VRP set, and the default
-<code>not-found accept</code> installs them. The re-validation after the sync is what turns
-an RPKI-Invalid one into a reject.</p>
-<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation.go -- applyToInstalled -->
+<code>not-found accept</code> installs them. Re-validation after the sync applies the
+configured action to the new state. Origin validation makes an Invalid route
+ineligible only when its effective action is <code>reject</code>.</p>
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation.go -- applyToInstalled; internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions -->
 <h3 id="rtr-poll-timing">RTR Poll Timing</h3>
 <p>The Refresh Interval from End of Data controls the next successful-cache poll;
 the Retry Interval controls attempts after a failed query, including a cache
@@ -1137,7 +1146,7 @@ must succeed before this source is published as a recording.</code></pre>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

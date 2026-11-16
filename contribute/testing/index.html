@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Testing Guide - Ze</title>
         <meta name="description" content="Ze documentation: contributing/testing.md" />
         <meta property="og:title" content="Testing Guide - Ze" />
@@ -1028,7 +1028,11 @@ exception: it extracts the commit with <code>git archive</code> and compiles the
 tree, so it sees only what git holds.</p>
 <p>That is the population that breaks when a commit takes a consumer and leaves its
 producer uncommitted. The build is green on your disk and red for everybody who
-clones. Run it after the commit script when the commit carried Go:</p>
+clones. It is a repo-wide compile, so it runs in the release check GitHub CI
+runs on a pushed commit, and a session never starts it on its own initiative:
+a commit that carried Go owes the scoped tests of the packages it reaches, and
+the committed-tree compile is CI's. Thomas, or a session he orders to, runs it
+by hand:</p>
 <pre><code class="language-sh">./le repo compiles check
 REV=7abe8a07e ./le repo compiles check
 </code></pre>
@@ -1264,7 +1268,7 @@ negotiated link-local address pair.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 11:10 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Health Checks and System Readiness - Ze</title>
         <meta name="description" content="Ze documentation: guide/health-checks.md" />
         <meta property="og:title" content="Health Checks and System Readiness - Ze" />
@@ -255,6 +255,10 @@ the message (JSON carries it under <code>fix</code>):</p>
 <td>Partition free space (&lt;5%)</td>
 </tr>
 <tr>
+<td><code>doctor-storage-not-grown</code></td>
+<td>On an appliance, the persistent storage is smaller than its disk: the system was not installed by the installer, or the growth failed at install. A warning naming the device and both sizes, fixed by <code>ze request system storage grow</code>. Also a warning when the sizes cannot be read, which is the answer on every appliance today, because the size read is not written yet <!-- source: internal/component/doctor/checks_storage.go -- checkStorageGrown --></td>
+</tr>
+<tr>
 <td><code>doctor-dns-resolver</code></td>
 <td>Name server reachability</td>
 </tr>
@@ -484,6 +488,24 @@ show warnings source bgp
 <td>The netlink monitor received an address for an interface it had not seen yet, and the kernel lookup of that interface failed, so Ze did not announce the address: its connected route is missing until the address changes. The subject is the address and the interface index, the detail carries the kernel's error; the fix is <code>ip -o addr show to &lt;address&gt;; ip addr del &lt;address&gt; dev &lt;device&gt;; ip addr add &lt;address&gt; dev &lt;device&gt;</code>. Raised once per lost address and never cleared, so not in the <code>iface</code> health row <!-- source: internal/plugins/iface/netlink/monitor_report_linux.go -- reportAddressUnattributed --></td>
 </tr>
 <tr>
+<td><code>doctor-bfd-auth-failed</code></td>
+<td>bfd</td>
+<td>warning</td>
+<td>A BFD session drops its peer's Control packets because they fail authentication; the subject names the peer, VRF, hop mode and local discriminator, and the fix names the profile whose auth type, key-id and secret must match the peer's. Cleared when a packet verifies again, the session's authentication changes, the session is removed, or no packet has failed for two minutes; raised at most once a minute per session <!-- source: internal/component/bfd/engine/problems.go -- warnAuthFailedLocked, clearAuthWarning, expireQuietWarnings --></td>
+</tr>
+<tr>
+<td><code>doctor-bfd-send-failed</code></td>
+<td>bfd</td>
+<td>warning</td>
+<td>The transport refused a BFD packet of a session: a Control packet (the peer takes the session Down when its Detection Time passes), an Echo packet (the session goes Down with Echo Function Failed) or the return of the peer's Echo packet (the peer's echo function fails). The subject names the peer, VRF, hop mode, local discriminator and packet kind; the fix is <code>ze show interface name &lt;interface&gt; detail</code> for a session bound to an interface, which shows the subnets the peer must be on, else <code>ze show bfd session address &lt;peer&gt;</code>. Each kind is raised at most once a minute per session and cleared when a packet of that kind is sent, the session is removed, or none has been refused for two minutes <!-- source: internal/component/bfd/engine/problems.go -- warnSendFailedLocked, clearSendWarning, expireQuietWarnings --></td>
+</tr>
+<tr>
+<td><code>doctor-bfd-auth-seq-unsaved</code></td>
+<td>bfd</td>
+<td>error</td>
+<td>The state store refused to save the TX sequence number of a BFD session using meticulous keyed authentication, raised once per run of refused writes and again when the session's authentication closes with its last write refused. After a restart the session starts from an older number and the peer drops its packets until it passes the one it last accepted; the subject names the peer, VRF and hop mode, and the fix is <code>ze doctor</code>, which reports why the store cannot be written <!-- source: internal/component/bfd/engine/problems.go -- reportSeqUnsaved, closeAuth --></td>
+</tr>
+<tr>
 <td><code>firewall-stale-table</code></td>
 <td>firewall</td>
 <td>warning</td>
@@ -687,7 +709,7 @@ is present and emits the registered code.</li>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 11:10 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

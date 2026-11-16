@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5882 requirements and tests - Ze</title>
         <meta name="description" content="RFC 5882: Generic Application of Bidirectional Forwarding Detection (BFD). 3 mandatory requirements included in automatic checks, 2 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5882 requirements and tests - Ze" />
@@ -534,8 +534,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5882-4.2-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5882_peer_bfd_test.go#L313" title="internal/component/bgp/reactor/rfc5882_peer_bfd_test.go" target="_blank" rel="noopener"><code>TestBFDClientAdminDownDoesNotTeardown</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5882_peer_bfd_test.go#L477" title="internal/component/bgp/reactor/rfc5882_peer_bfd_test.go" target="_blank" rel="noopener"><code>TestBFDRemoteAdminDownDoesNotTeardown</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_bfd_client_test.go#L424" title="internal/plugins/ospf/rfc5882_bfd_client_test.go" target="_blank" rel="noopener"><code>TestOSPFBFDAdminDownTakesNoAction</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_bfd_client_test.go#L441" title="internal/plugins/ospf/rfc5882_bfd_client_test.go" target="_blank" rel="noopener"><code>TestOSPFBFDRemoteAdminDownTakesNoAction</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_bfd_client_test.go#L430" title="internal/plugins/ospf/rfc5882_bfd_client_test.go" target="_blank" rel="noopener"><code>TestOSPFBFDAdminDownTakesNoAction</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_bfd_client_test.go#L447" title="internal/plugins/ospf/rfc5882_bfd_client_test.go" target="_blank" rel="noopener"><code>TestOSPFBFDRemoteAdminDownTakesNoAction</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_admindown_test.go#L70" title="internal/component/bfd/engine/rfc5882_admindown_test.go" target="_blank" rel="noopener"><code>TestRFC5882RemoteAdminDownIsDistinguished</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bfd/engine/rfc5882_admindown_test.go#L97" title="internal/component/bfd/engine/rfc5882_admindown_test.go" target="_blank" rel="noopener"><code>TestRFC5882NeighborDownIsNotRemoteAdminDown</code></a></span></div>
 </div></td>
@@ -862,12 +862,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_bfd_client_test.go#L424" title="internal/plugins/ospf/rfc5882_bfd_client_test.go" target="_blank" rel="noopener"><code>TestOSPFBFDAdminDownTakesNoAction</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_bfd_client_test.go#L430" title="internal/plugins/ospf/rfc5882_bfd_client_test.go" target="_blank" rel="noopener"><code>TestOSPFBFDAdminDownTakesNoAction</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_bfd_client_test.go#L441" title="internal/plugins/ospf/rfc5882_bfd_client_test.go" target="_blank" rel="noopener"><code>TestOSPFBFDRemoteAdminDownTakesNoAction</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/plugins/ospf/rfc5882_bfd_client_test.go#L447" title="internal/plugins/ospf/rfc5882_bfd_client_test.go" target="_blank" rel="noopener"><code>TestOSPFBFDRemoteAdminDownTakesNoAction</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1319,7 +1319,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

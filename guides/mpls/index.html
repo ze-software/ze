@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>MPLS - Ze</title>
         <meta name="description" content="Ze documentation: guide/mpls.md" />
         <meta property="og:title" content="MPLS - Ze" />
@@ -178,9 +178,21 @@ Rejected/No Hello.</p>
 <!-- source: internal/plugins/ldp/register.go -- sessionConfigForAdj -->
 <p>With the LDP log at info (<code>environment { log { ldp info } }</code>), ze logs
 <code>ldp: session operational</code> with the peer address when a session reaches
-OPERATIONAL, and <code>ldp: session ended</code> with the peer and the cause when a session
-ends on an error, so the log shows when each session came up and went down.</p>
+OPERATIONAL, so the log shows when each session came up.</p>
+<p>A session that ends without Ze stopping it (the neighbor closed the connection
+or sent a fatal Notification, its KeepAlives stopped arriving, or it sent a
+message Ze could not accept) is logged at WARN, which the default log level shows, as
+<code>LDP session with &lt;peer&gt; ended</code>, with the cause, why it matters and the fix
+(<code>ze show ldp neighbor</code>), under the code <code>doctor-ldp-session-ended</code>. The same
+end is raised as an error event, so <code>ze show errors</code> and <code>ze doctor</code> list it.
+A fatal Notification from the neighbor is also logged at info, as
+<code>ldp: fatal notification received, closing the session</code> with its status and
+the message type it refers to; the WARN's cause carries both. A session Ze
+stopped itself (an expired adjacency, a reload, a KeepAlive it could not send,
+the engine stopping) is logged at info as <code>ldp: session closed</code>, with the peer
+and the reason.</p>
 <!-- source: internal/plugins/ldp/session.go -- processMessages -->
+<!-- source: internal/plugins/ldp/problems.go -- reportSessionEnd -->
 <!-- source: internal/plugins/ldp/register.go -- runSession -->
 <p>Inspect LDP state with <code>show ldp neighbor</code> (session state, transport address)
 and <code>show ldp binding</code> (FEC-to-label bindings). A label binding learned from a
@@ -244,7 +256,7 @@ the command fails and names <code>ze doctor</code>. It does not answer an empty 
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

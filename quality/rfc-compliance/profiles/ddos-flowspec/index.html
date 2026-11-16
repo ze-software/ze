@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>DDoS detection and mitigation by sending FlowSpec upstream RFC coverage - Ze</title>
         <meta name="description" content="Use-case profile ddos-flowspec: the MUST and overview coverage of its RFCs." />
         <meta property="og:title" content="DDoS detection and mitigation by sending FlowSpec upstream RFC coverage - Ze" />
@@ -128,15 +128,15 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>Use case: <a href="../../../../use-cases/flowspec-injection/">FlowSpec Injection</a></p>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="profile/ddos-flowspec/required:must">Ze proven 185, Proof pending 74, OS testing gap 1, Not built 77</div>
+<div data-ze-rfc-bar="profile/ddos-flowspec/required:must">Ze proven 199, Proof pending 67, OS testing gap 1, Not built 73</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="profile/ddos-flowspec/required:overview">Ze MUST proven 185, SHOULD proven 16, Not owed 5, Proof pending 75, OS testing gap 1, Not assessed 107, Not built 77</div>
+<div data-ze-rfc-bar="profile/ddos-flowspec/required:overview">Ze MUST proven 199, SHOULD proven 16, Not owed 5, Proof pending 68, OS testing gap 1, Not assessed 107, Not built 73</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
 <tbody>
 <tr><td>RFCs</td>
-<td><span data-ze-rfc="profile/ddos-flowspec/required:rfcs">13</span></td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:rfcs">14</span></td>
 </tr>
 <tr><td>Requirements not reviewed</td>
 <td><span data-ze-rfc="profile/ddos-flowspec/required:not-walked">0</span></td>
@@ -145,19 +145,19 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/ddos-flowspec/required:register">not complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
-<td><span data-ze-rfc="profile/ddos-flowspec/required:must.total">342</span></td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.total">345</span></td>
 </tr>
 <tr><td>MUST rows kept (the MUST bar)</td>
-<td><span data-ze-rfc="profile/ddos-flowspec/required:must.kept">337</span></td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.kept">340</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="profile/ddos-flowspec/required:must.ze-proven">185</span></td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.ze-proven">199</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="profile/ddos-flowspec/required:must.os-verified">0</span></td>
 </tr>
 <tr><td>Proof pending</td>
-<td><span data-ze-rfc="profile/ddos-flowspec/required:must.proof-pending">74</span></td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.proof-pending">67</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="profile/ddos-flowspec/required:must.os-gap">1</span></td>
@@ -169,7 +169,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="profile/ddos-flowspec/required:must.not-assessed">0</span></td>
 </tr>
 <tr><td>Not built</td>
-<td><span data-ze-rfc="profile/ddos-flowspec/required:must.not-built">77</span></td>
+<td><span data-ze-rfc="profile/ddos-flowspec/required:must.not-built">73</span></td>
 </tr>
 <tr><td>MUST rows not owed</td>
 <td><span data-ze-rfc="profile/ddos-flowspec/required:must.not-owed">5</span></td>
@@ -261,8 +261,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc4271/">RFC 4271</a></td>
 <td>A Border Gateway Protocol 4 (BGP-4)</td>
-<td><div data-ze-rfc-bar="rfc4271:must">Ze proven 85, Proof pending 29, Not built 19</div></td>
-<td><div data-ze-rfc-bar="rfc4271:overview">Ze MUST proven 85, SHOULD proven 3, Proof pending 30, Not assessed 30, Not built 19</div></td>
+<td><div data-ze-rfc-bar="rfc4271:must">Ze proven 91, Proof pending 27, Not built 15</div></td>
+<td><div data-ze-rfc-bar="rfc4271:overview">Ze MUST proven 91, SHOULD proven 3, Proof pending 28, Not assessed 30, Not built 15</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc4271.md</td>
 </tr>
 <tr><td><a href="../../sflow-v5/">SFLOW-V5</a></td>
@@ -270,6 +270,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div data-ze-rfc-bar="sflow-v5:must">Ze proven 21, OS testing gap 1, Not built 9</div></td>
 <td><div data-ze-rfc-bar="sflow-v5:overview">Ze MUST proven 21, SHOULD proven 3, OS testing gap 1, Not assessed 8, Not built 9</div></td>
 <td>ddos-flowspec: required by rfc/short/sflow-v5.md</td>
+</tr>
+</tbody>
+</table>
+</div>
+<h3>Level 4</h3>
+<div class="rfc-table-wrap">
+<table class="rfc-table">
+<thead><tr><th>RFC</th><th>Title</th><th>MUST bar</th><th>Overview bar</th><th>Why it is here</th></tr></thead>
+<tbody>
+<tr><td><a href="../../rfc6608/">RFC 6608</a></td>
+<td>Subcodes for BGP Finite State Machine Error</td>
+<td><div data-ze-rfc-bar="rfc6608:must">Ze proven 3</div></td>
+<td><div data-ze-rfc-bar="rfc6608:overview">Ze MUST proven 3</div></td>
+<td>ddos-flowspec: required by rfc/short/rfc6608.md</td>
 </tr>
 </tbody>
 </table>
@@ -287,8 +301,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="../../rfc4760/">RFC 4760</a></td>
 <td>Multiprotocol Extensions for BGP-4</td>
-<td><div data-ze-rfc-bar="rfc4760:must">Ze proven 6</div></td>
-<td><div data-ze-rfc-bar="rfc4760:overview">Ze MUST proven 6, SHOULD proven 1, Not assessed 10</div></td>
+<td><div data-ze-rfc-bar="rfc4760:must">Ze proven 5, Proof pending 1</div></td>
+<td><div data-ze-rfc-bar="rfc4760:overview">Ze MUST proven 5, SHOULD proven 1, Proof pending 1, Not assessed 10</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc4760.md</td>
 </tr>
 <tr><td><a href="../../rfc7011/">RFC 7011</a> (cycle with rfc7012)</td>
@@ -313,8 +327,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tbody>
 <tr><td><a href="../../rfc7606/">RFC 7606</a> (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc8277, rfc8950)</td>
 <td>Revised Error Handling for BGP UPDATE Messages</td>
-<td><div data-ze-rfc-bar="rfc7606:must">Ze proven 28, Proof pending 24, Not built 1</div></td>
-<td><div data-ze-rfc-bar="rfc7606:overview">Ze MUST proven 28, Proof pending 24, Not assessed 4, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc7606:must">Ze proven 33, Proof pending 19, Not built 1</div></td>
+<td><div data-ze-rfc-bar="rfc7606:overview">Ze MUST proven 33, Proof pending 19, Not assessed 4, Not built 1</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc7606.md</td>
 </tr>
 </tbody>
@@ -333,8 +347,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </tr>
 <tr><td><a href="../../rfc8955/">RFC 8955</a></td>
 <td>Dissemination of Flow Specification Rules</td>
-<td><div data-ze-rfc-bar="rfc8955:must">Ze proven 13, Proof pending 13, Not built 2</div></td>
-<td><div data-ze-rfc-bar="rfc8955:overview">Ze MUST proven 13, SHOULD proven 6, Not owed 1, Proof pending 13, Not assessed 14, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc8955:must">Ze proven 14, Proof pending 12, Not built 2</div></td>
+<td><div data-ze-rfc-bar="rfc8955:overview">Ze MUST proven 14, SHOULD proven 6, Not owed 1, Proof pending 12, Not assessed 14, Not built 2</div></td>
 <td>ddos-flowspec: required by rfc/short/rfc8955.md</td>
 </tr>
 </tbody>
@@ -509,7 +523,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

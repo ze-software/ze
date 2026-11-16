@@ -12,7 +12,7 @@
     },
     "interop.protocols.bgp": {
       "category": "committed-data",
-      "value": 142,
+      "value": 151,
       "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
     },
     "interop.protocols.bmp": {
@@ -52,7 +52,7 @@
     },
     "interop.protocols.l2tp": {
       "category": "committed-data",
-      "value": 13,
+      "value": 15,
       "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
     },
     "interop.protocols.ldp": {
@@ -72,7 +72,7 @@
     },
     "interop.protocols.other": {
       "category": "committed-data",
-      "value": 0,
+      "value": 1,
       "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions; primary-area grouping in sitefacts interopSharedPrefixes, interopSharedOverrides and interopSuiteProtocols"
     },
     "interop.protocols.pppoe": {
@@ -107,12 +107,12 @@
     },
     "interop.scenario_dirs_raw": {
       "category": "committed-data",
-      "value": 399,
+      "value": 411,
       "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
     },
     "interop.scenarios": {
       "category": "committed-data",
-      "value": 399,
+      "value": 411,
       "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
     },
     "interop.suite_count": {
@@ -122,7 +122,7 @@
     },
     "interop.suites.interop": {
       "category": "committed-data",
-      "value": 245,
+      "value": 255,
       "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
     },
     "interop.suites.interop-ipsec": {
@@ -132,7 +132,7 @@
     },
     "interop.suites.interop-l2tp": {
       "category": "committed-data",
-      "value": 13,
+      "value": 15,
       "source": "git ls-files test/interop*, counting distinct non-hidden test/interop[-\u003csuite\u003e]/scenarios/\u003cname\u003e/ directories; authored cases, not passing runs or assertions"
     },
     "interop.suites.interop-pppoe": {
@@ -167,32 +167,32 @@
     },
     "repo.design_comments": {
       "category": "committed-data",
-      "value": 10030,
+      "value": 10307,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.detail_comments": {
       "category": "committed-data",
-      "value": 10516,
+      "value": 10823,
       "source": "git ls-files '*.go', counting the file-header annotations"
     },
     "repo.go_packages": {
       "category": "committed-data",
-      "value": 1009,
+      "value": 1015,
       "source": "go list ./..., keeping the packages git holds a file for"
     },
     "repo.go_source_lines": {
       "category": "committed-data",
-      "value": 1660165,
+      "value": 1689056,
       "source": "activity Go inventory: tracked first-party non-test Go files, including tooling, comments and blank lines; excluding dependencies"
     },
     "repo.go_test_lines": {
       "category": "committed-data",
-      "value": 1976301,
+      "value": 2012024,
       "source": "activity Go inventory: tracked first-party _test.go files, including comments and blank lines; excluding dependencies"
     },
     "repo.go_vendor_lines": {
       "category": "committed-data",
-      "value": 2000562,
+      "value": 2000564,
       "source": "activity Go inventory: tracked vendor Go files, including comments and blank lines"
     }
   },

@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Interoperability Testing (Testing Architecture) - Ze</title>
         <meta name="description" content="Ze documentation: architecture/testing/interop.md" />
         <meta property="og:title" content="Interoperability Testing (Testing Architecture) - Ze" />
@@ -55,11 +55,14 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
 <li><a href="#the-suites-one-per-protocol-area">The suites, one per protocol area</a>
 <ol>
+<li><a href="#marked-raw-policy-output-at-a-native-receiver">Marked raw policy output at a native receiver</a></li>
 <li><a href="#role-export-policy-on-a-roleless-destination">Role export policy on a roleless destination</a></li>
 </ol></li>
 <li><a href="#tested-daemons">Tested Daemons</a>
 <ol>
 <li><a href="#gobgp-export-reload-successor-proof">GoBGP export-reload successor proof</a></li>
+<li><a href="#fsm-error-subcodes-read-by-frr">FSM error subcodes read by FRR</a></li>
+<li><a href="#as-zero-raw-writes-observed-before-frr">AS-zero raw writes observed before FRR</a></li>
 </ol></li>
 <li><a href="#prerequisites">Prerequisites</a></li>
 <li><a href="#real-vpp-srv6-service-route-proof">Real VPP SRv6 service-route proof</a></li>
@@ -80,6 +83,7 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#rtr-cache-preference-failover-and-fail-back">RTR cache preference, failover and fail-back</a></li>
 <li><a href="#live-bfd-profile-edit">Live BFD profile edit</a></li>
 <li><a href="#bfd-over-link-local">BFD over link-local</a></li>
+<li><a href="#plugin-capability-replacement-by-reload">Plugin capability replacement by reload</a></li>
 <li><a href="#live-attach-and-bfd-opt-in-without-a-session-reset">Live attach and BFD opt-in without a session reset</a></li>
 <li><a href="#rpki-route-retention">RPKI route retention</a></li>
 <li><a href="#prove-a-scenario-discriminates">Prove a scenario discriminates</a></li>
@@ -88,6 +92,7 @@ validation against ExaBGP (Ze's predecessor, a BGP implementation in Python).</p
 <li><a href="#ipsec-diagnostic-environment">IPsec diagnostic environment</a></li>
 <li><a href="#ipsec-injected-datagrams">IPsec injected datagrams</a></li>
 <li><a href="#the-outer-df-bit-and-icmp-errors-on-a-child-sa-rfc-4301">The outer DF bit and ICMP errors on a Child SA (RFC 4301)</a></li>
+<li><a href="#live-esp-form-changes">Live ESP form changes</a></li>
 <li><a href="#the-esp-form-fast-path-under-a-firewall-rule">The ESP form fast path under a firewall rule</a></li>
 <li><a href="#ipsec-address-movement">IPsec address movement</a></li>
 <li><a href="#the-ipsec-nat-box">The IPsec NAT box</a>
@@ -183,6 +188,12 @@ This page is the infrastructure it is owed against.</p>
 <td><code>./le test deployment docker-pppoe-accel</code></td>
 </tr>
 <tr>
+<td>PPPoE VPP mechanism (manual Phase 0 proof)</td>
+<td>Source-built patched VPP, pppd 2.5.5 and an independent traffic host</td>
+<td>Native plain, namespace and VLAN plans in. <span class="ev-src"><span class="ev-ref"><code>internal/le/test/deployment/vpppppoe/</code></span></span></td>
+<td><code>./le test deployment vpp-pppoe run</code>, through <code>./le test qemu docker-lab lab "test deployment vpp-pppoe run"</code> on Ze's kernel</td>
+</tr>
+<tr>
 <td>RADIUS (admin login: PAP, CHAP, EAP, Filter-Id)</td>
 <td>Docker: FreeRADIUS</td>
 <td><span class="ev-src"><span class="ev-ref"><code>test/interop-radius/scenarios/</code></span></span></td>
@@ -256,6 +267,50 @@ and returns an error on failure.</p>
 <p>A scenario directory is NAMED and carries no numeric prefix. The name is the
 scenario's identity: <code>Discover</code> matches it exactly, <code>./le test integration</code> takes it
 as a scenario selector, and specs, journal rows and code comments cite it.</p>
+<p>The L2TP suite registers each scenario's checker, plan, kernel prerequisite
+and image selection together. Discovery, catalog lookup and image selection
+read those registrations. The scale scenario derives its cleanup containers
+and failure-log peer names from its peer declaration, so adding another LAC
+does not require a second cleanup inventory.</p>
+<!-- source: internal/le/interoplab/l2tp/scenarios.go -- registerScenario, scenarioCheckerMap, imageBuilds -->
+<!-- source: internal/le/interoplab/l2tp/register_scale.go -- init -->
+<!-- source: internal/le/interoplab/l2tp/scale_plan.go -- scalePeerTemplates, scaleScenarioPlan -->
+<h3 id="marked-raw-policy-output-at-a-native-receiver">Marked raw policy output at a native receiver</h3>
+<p>This section describes the scenario's assertions. It reports no completed run.</p>
+<p><code>bgp-atomic-policy-admission-frr</code> sends received IPv4 routes through a public
+SDK export filter to FRR. The checker releases the real TCP source only after
+the sessions and initial EORs are ready. It verifies the marked originals at
+FRR before it releases unsafe rewrites and an accepted subset.</p>
+<!-- source: internal/le/interoplab/bgp/check_atomic_policy.go -- checkAtomicPolicyFRR -->
+<p>The final table
+must retain the useful marked sibling and an independent control. It must also
+retain an unmarked rewrite and a later permitted route. It must omit the
+forbidden replacement and the withdrawn originals. Ze's actual Adj-RIB-In must still hold every
+original source key, and the sessions must remain unchanged.</p>
+<!-- source: internal/le/interoplab/bgp/check_atomic_policy.go -- checkAtomicPolicyFRR -->
+<p>The checker waits for the complete final table. A later permitted prefix alone
+does not prove an earlier source removal complete. An active RIB recovery
+owner can select its withdrawal or a permitted replacement asynchronously.
+The scenario still requires the exact final absences and useful routes.</p>
+<!-- source: internal/le/interoplab/bgp/check_atomic_policy.go -- checkAtomicPolicyFRR, requireAtomicPolicyFinal -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryOwedFor, run, decide -->
+<p>The source's MED values select the filter answers independently of peer
+behavior. Those answers include a more-specific marked destination, a removed
+marker, and a useful exact subset. The test uses iBGP toward FRR so a changed MED
+proves the attribute edit without an eBGP MED removal. The kept subset's new MED also distinguishes
+it from its old advertisement. The restriction on marked output is described in
+<a href="https://github.com/ze-software/ze/blob/main/docs/architecture/bgp/egress-attribute-rules.md" target="_blank" rel="noopener">egress attribute rules</a>.</p>
+<!-- source: internal/le/interoplab/bgp/helper_atomic_policy.go -- atomicPolicyAnswer -->
+<!-- source: test/interop/scenarios/bgp-atomic-policy-admission-frr/ze.conf -- frr peer -->
+<p>FRR10.7.1's <a href="https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_attr.c" target="_blank" rel="noopener"><code>bgp_attr_atomic</code></a>
+accepts the zero-length marker, and
+<a href="https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_route.c" target="_blank" rel="noopener"><code>route_vty_out_detail</code></a>
+exposes it as <code>atomicAggregate</code>. Its
+<code>bgp_nlri_parse_ip</code> and <code>bgp_withdraw</code> apply received withdrawals to the
+peer's path. The checker reads that native state and requires populated
+positive controls before it judges any absence.</p>
+<!-- source: internal/le/interoplab/bgp/check_atomic_policy.go -- requireAtomicPolicyRoute, requireAtomicPolicyFinal -->
 <h3 id="role-export-policy-on-a-roleless-destination">Role export policy on a roleless destination</h3>
 <p><code>bgp-role-export-roleless-destination-frr</code> runs FRR as a Customer whose
 Ze-side session deliberately declares no role. A raw Customer source permits
@@ -549,8 +604,14 @@ peer keeps the probe that only runs <code>true</code>, because it redials the da
 started after it on its own backoff. A relay barrier keeps the listener check:
 one <code>sh</code> runs <code>ss -ltn</code> and then the peer list, and the probe requires both
 sets of strings.</p>
-<!-- source: internal/le/interoplab/bgp/ze_ready.go -- zePassiveListenPorts, zeReadyProbe -->
+<!-- source: internal/le/interoplab/bgp/ze_ready.go -- zeReadyProbe -->
+<!-- source: internal/le/interoplab/bgp/ze_ready_bgp.go -- zePassiveListenPorts -->
 <!-- source: internal/le/interoplab/bgp/extended_relay.go -- prepareExtendedRelayPeers -->
+<p>The listener resolver is compiled under <code>ze_bgp</code>, like the BGP engine it
+reads. A build without that feature refuses a BGP listener query rather than
+reporting readiness without resolving the peer and group inheritance. A config
+without a BGP block still owes no BGP listener.</p>
+<!-- source: internal/le/interoplab/bgp/ze_ready_nobgp.go -- zePassiveListenPorts -->
 <p>A GoBGP-facing relay, as in <code>bgp-local-pref-strip-gobgp</code>, is gated the same way.
 GoBGP's <code>InitialConfig</code> calls <code>StartBgp</code>, which opens the listener, before it
 adds its neighbors, and <code>passConnToPeer</code> closes a connection from an address it
@@ -716,6 +777,74 @@ fifteen-second bound.</p>
 <!-- source: internal/le/interoplab/bgp/check_parsed_empty_mp.go -- checkParsedEmptyMPFRR, parsedEmptyMPDiagnostics -->
 <!-- source: internal/le/interoplab/bgp/proof_directory.go -- retainedProofDirectory -->
 <!-- source: internal/le/interoplab/bgp/check_parsed_empty_mp_wire.go -- parsedEmptyMPCapture, parsedEmptyMPHistory -->
+<h3 id="fsm-error-subcodes-read-by-frr">FSM error subcodes read by FRR</h3>
+<p>Four registered RFC 6608 scenarios use a bounded single-session relay with an
+actual FRR peer: <code>bgp-fsm-error-opensent-frr</code>,
+<code>bgp-fsm-error-openconfirm-frr</code>, <code>bgp-fsm-error-established-frr</code>, and the
+<code>bgp-fsm-valid-handshake-frr</code> control. They are test inputs; their presence is
+not a claim that a native run has passed.</p>
+<p>The relay holds FRR's original OPEN in the OpenSent case and delivers FRR's
+actual KEEPALIVE. In OpenConfirm it holds FRR's KEEPALIVE and replays FRR's
+captured OPEN after observing Ze's KEEPALIVE. In Established it replays that
+OPEN only after Ze forwards the configured <code>10.66.8.0/24</code> route. No error
+packet is manufactured by the fixture. The control forwards the original
+handshake and requires FRR to report Established and hold that route.</p>
+<p>The fatal oracles require the complete Ze NOTIFICATION, exact Error Code 5,
+subcode 1/2/3 and one Data octet naming the triggering message, followed by
+natural EOF from both original connections. FRR's parsed notification log must
+independently name the received code/subcode and exactly one Data byte with the
+expected value. The OpenConfirm and Established scenarios also require FRR's
+neighbor JSON to record the received reset. In the OpenSent scenario FRR itself
+remains OpenConfirm: Ze sends no KEEPALIVE, so <code>bgp_establish</code> has not transferred
+the accepted connection to FRR's configured peer. That configured peer's reset
+fields describe another object; the parsed receive log is the native evidence
+for this original connection.
+The checker retains the capture, native observations, image identity and
+version together under the session scratch. Missing source OPENs, replacement
+connections, invented replay bytes, incomplete state witnesses, absent Data,
+transport truncation and missing peer evidence are refusals.</p>
+<p>FRR 10.7.1's <code>bgp_notify_receive</code> saves the received fields, <code>bgp_notify_print</code>
+prints the parsed Data count and hex when <code>bgp log-neighbor-changes</code> is set,
+and <code>bgp_show_peer_reset</code> publishes the received reset in neighbor JSON.
+The local reference checkout at <code>cd39d029</code> is FRR 10.5.3; the deciding paths
+were also read at the lab's pinned 10.7.1 tag before writing these assertions.</p>
+<!-- source: internal/le/interoplab/bgp/register_fsm_error.go -- fsmRelayCases -->
+<!-- source: internal/le/interoplab/bgp/speaker_fsm_error.go -- runFSMErrorRelay, fsmRelay.handshake -->
+<!-- source: internal/le/interoplab/bgp/check_fsm_error_wire.go -- judgeFSMRelay, judgeFRRFSMNotification -->
+<!-- source: internal/le/interoplab/bgp/check_fsm_error.go -- checkFSMErrorFRR -->
+<h3 id="as-zero-raw-writes-observed-before-frr">AS-zero raw writes observed before FRR</h3>
+<p><code>bgp-as-zero-raw-frr</code> sends real operator <code>send bgp ... raw hex ... type update</code>
+commands through an established session, with FRR 10.7.1 behind the existing
+transparent relay. Ze's configured two-octet mode omits capability 65; FRR still
+advertises it, so the raw diagnostics use OLD AS_PATH/AGGREGATOR widths and
+retained four-octet compatibility fields. Four twins exercise AS_PATH,
+AS4_PATH, AGGREGATOR and AS4_AGGREGATOR. The AS4_PATH twin pairs AS_TRANS with
+non-mappable 70000; the AS4_AGGREGATOR twin pairs an AS_TRANS aggregator with
+70000. FRR must decode each prefix, reconstruct the expected AS_PATH and report
+the ordinary or reconstructed aggregator ASN with identifier <code>192.0.2.9</code>. Four raw
+replacements then contain zero in the respective ASN field. Every replacement
+must reach the relay as the subject's withdrawal, followed by a later valid
+control route on the same FIFO stream. Exact complete-frame comparison through
+that fence rejects a leaked zero even if FRR refuses it. Native table and session
+queries require all subjects gone, the control present and the original session
+still Established. This scenario covers explicit raw IPv4 origination; it does
+not claim ADD-PATH ownership, ordinary origination or either forwarding rail.</p>
+<p>FRR's <code>bgp_attr_aspath_check</code> withdraws eBGP AS_PATH zero;
+<code>bgp_attr_aggregator</code> and <code>bgp_attr_as4_aggregator</code> discard zero aggregators;
+<code>bgp_attr_munge_as4_attrs</code> reconstructs compatibility attributes from an OLD
+speaker and ignores them when the sender advertised ASN4. Captured OPENs must
+match the deliberate OLD-to-NEW boundary, preventing a different width from
+passing this fixture. Its raw-diagnostic mode does not claim conformance for
+the separate NEW-speaker capability-advertisement obligation.
+Thus remote absence or native AS4-attribute storage alone would prove too little.
+These contracts were read in <a href="https://github.com/FRRouting/frr/blob/frr-10.7.1/bgpd/bgp_attr.c" target="_blank" rel="noopener">FRR 10.7.1's attribute
+parser</a>.
+The checker retains commands, original wire snapshots, native RIB/session
+answers and FRR image/version under the current session scratch. The native
+scenario passed. Removing the final outbound AS-zero guard made its checker
+reject the fifth UPDATE because an announcement escaped instead of a withdrawal.</p>
+<!-- source: internal/le/interoplab/bgp/check_as_zero_wire.go -- checkASZeroRawFRR -->
+<!-- source: internal/le/interoplab/bgp/check_as_zero_wire_oracle.go -- judgeASZeroWire -->
 <h2 id="prerequisites">Prerequisites</h2>
 <table>
 <thead>
@@ -1757,6 +1886,11 @@ no IPv4-unicast address family). It starts the way the Ze under test does
 config, and takes FRR's host 3, so a scenario carrying both <code>frr.conf</code> and
 <code>ze-peer.conf</code> is refused.</p>
 <!-- source: internal/le/interoplab/bgp/prepare.go -- ipv6Sysctls, zeDaemonPeer, scenarioPeers, scenarioRendering, renderScenario -->
+<p>The <code>ospf-multiaf-v4-frr</code> checker reads the peer Ze's own views: its address-family
+listing names <code>ipv4-unicast</code> at Instance ID 64, its <code>show ospf ipv6 neighbor address-family ipv4-unicast</code> holds the Ze under test (router-id 172.30.0.2) Full,
+tagged with that address family, and its kernel then holds Ze's redistributed
+10.99.0.0/24 through Ze's lab address.</p>
+<!-- source: internal/le/interoplab/bgp/checkers.go -- scenarioOperations ospf-multiaf-v4-frr -->
 <p><strong>A scenario directory is NAMED, never numbered</strong> (owner directive, 2026-08-24).
 Run order is lexical by scenario directory name and no scenario depends on it.
 The rule and its reasoning live in <code>ai/rules/interop-and-goal-validation.md</code>,
@@ -2648,6 +2782,22 @@ unchanged, and <code>sendZone</code> returning <code>""</code> with <code>pinsTo
 <!-- source: test/interop/scenarios/bfd-link-local-frr/ -- ze.conf, frr.conf -->
 <!-- source: test/interop/scenarios/bfd-link-local-two-links-frr/ -- ze.conf, frr.conf -->
 <!-- source: internal/le/interoplab/bgp/prepare_bfd_link_local.go -- bfdLinkLocalTwoLinksZePrestart, bfdLinkLocalTwoLinksFRRPrestart -->
+<h3 id="plugin-capability-replacement-by-reload">Plugin capability replacement by reload</h3>
+<p><code>bgp-role-reload-frr</code> and <code>bgp-role-reload-frr-forked</code> keep FRR configured as
+Customer in non-strict mode. Ze starts without a Role, adds Provider through
+SIGHUP, then removes it through a second SIGHUP. Each reload must advance
+<code>show reload-status</code> by one applied generation. FRR must report a new
+established-session generation and the received <code>remoteRole</code> at each step:
+<code>undefined</code>, <code>provider</code>, then <code>undefined</code>. The two scenarios use the same
+checker over the internal plugin and real TLS connect-back transports.</p>
+<!-- source: internal/le/interoplab/bgp/check_role_reload.go -- checkRoleReload -->
+<!-- source: internal/le/interoplab/bgp/register_role_reload.go -- init -->
+<p>FRR 10.7.1's <code>bgp_role_violation</code> accepts an absent Role in non-strict mode
+and a Customer/Provider pair. Its <code>bgp_show_peer</code> writes <code>remoteRole</code> from the
+Role received in OPEN; <code>bgp_get_name_by_role</code> supplies the names above. The
+checker reads those foreign observations after the applied-generation barrier,
+so a reload that leaves the startup declaration in place cannot pass.</p>
+<!-- source: internal/le/interoplab/bgp/check_role_reload.go -- checkRoleReload -->
 <h3 id="live-attach-and-bfd-opt-in-without-a-session-reset">Live attach and BFD opt-in without a session reset</h3>
 <p>Three scenarios change a running FRR peer's Ze config by SIGHUP and require
 FRR's BGP <code>connectionsEstablished</code> to stay where it was before the first reload,
@@ -3031,8 +3181,7 @@ counter must advance. Without that, a dropped error could be one that never
 reached Ze over the SA. A forwarded error is out of scope
 (<code>LL-XFRM-ICMP-TRANSIT</code>, <code>docs/architecture/linux-limitations.md</code>).</p>
 <p>Each scenario owes a red run before it counts as evidence ("Prove a scenario
-discriminates"). Each break below is one line of Ze, and the harness rebuilds
-the Ze image so the break takes effect:</p>
+discriminates"). The harness rebuilds the Ze image with each private fault:</p>
 <table>
 <thead>
 <tr>
@@ -3053,20 +3202,51 @@ the Ze image so the break takes effect:</p>
 <td>the copy phase's DF-set burst arrives with DF clear</td>
 </tr>
 <tr>
-<td><code>icmp-error-payload-check</code></td>
+<td><code>icmp-error-payload-check</code> (c)</td>
 <td><code>xfrmStateFromParams</code> no longer sets <code>state.ICMP</code></td>
-<td>the consistent error arrives over the SA and is not delivered</td>
+<td>the consistent error is not delivered, with strongSwan generation and Ze's inbound ESP carriage observed</td>
 </tr>
 <tr>
-<td><code>icmp-error-payload-check</code></td>
-<td><code>xfrmPolicyFromParams</code> widens the inbound protect policy's source selector to. <span class="ev-src"><span class="ev-ref"><code>0.0.0.0/0</code></span></span></td>
-<td>the inconsistent error is delivered</td>
+<td><code>icmp-error-payload-check</code> (d)</td>
+<td>P widens the inbound IPv4 tunnel protect policy's source in <code>xfrmPolicyFromParams</code>. S widens the inbound IPv4 tunnel state selector's source in <code>xfrmStateFromParams</code>, each to. <span class="ev-src"><span class="ev-ref"><code>0.0.0.0/0</code></span></span></td>
+<td>P alone and S alone pass. Together they deliver the inconsistent error and fail its packet assertion</td>
 </tr>
 </tbody>
 </table>
 <!-- source: internal/le/interoplab/ipsec/dftreatment.go -- checkTunnelDFTreatment, installOuterDFCounters, judgeOuterDF, requireDataplaneDF -->
 <!-- source: internal/le/interoplab/ipsec/icmperror.go -- checkICMPErrorPayloadCheck, icmpErrorRoutes, carryErrorSourceOverSA, icmpErrorObservation -->
 <!-- source: test/interop-ipsec/Dockerfile.strongswan -- nftables -->
+<p>For (d), run clean, P alone, S alone, P and S together, then clean. The
+single-fault passes show that either selector still rejects the inconsistent
+error. Preserve the negotiated traffic selectors and every other state and
+policy field. Template-free BYPASS and DISCARD entries keep their selectors.</p>
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
+<h3 id="live-esp-form-changes">Live ESP form changes</h3>
+<p><code>esp-form-change</code> keeps one Child SA while strongSwan sends bare ESP, then
+ESP-in-UDP, then bare ESP again. Each phase requires all four directed ESP
+byte counters to advance. The helper observes the outgoing form, SPI and
+sequence through AF_PACKET and requires the matching marked ICMP echo reply.
+The checker requires increasing wire sequences and unchanged directed SPIs,
+reqids and selectors on both peers. A missing state, unreadable mismatch
+counter, raw-socket drop, rekey or deletion fails the check. A whole bare
+packet can be rewritten before XFRM, so its mismatch counter can stay unchanged.</p>
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkESPFormChange -->
+<!-- source: internal/le/interoplab/ipsec/espformchange.go -- runESPFormPhases, readESPFormStates, readESPFormReceipt -->
+<p>The development helper <code>/usr/bin/ipsec-peerform</code> runs inside strongSwan's
+container. It uses atomic <code>XFRM_MSG_MIGRATE_STATE</code> and has no delete/recreate
+fallback. It accepts only an exact IPv4, unmarked software tunnel SA without
+an interface ID or ESN. Extended replay-window metadata for a non-ESN SA is
+supported. Each process has a ten-second bound. This helper is staged into
+the lab image and is not a shipped Ze command.</p>
+<!-- source: internal/le/interoplab/ipsec/peerform/socket_linux.go -- projectState, migrate -->
+<!-- source: internal/le/interoplab/ipsec/peerform/main.go -- run -->
+<!-- source: internal/le/interoplab/ipsec/register_images.go -- init -->
+<p>These marked probes use whole packets. The separate kernel test
+<code>TestRFC4301BareESPOnTemplatedSAIsPolicyChecked</code> exercises whole and fragmented
+bare ESP through the fast and complete receive paths. It checks delivery,
+state-selector refusals and an explicit inbound SPD DISCARD under the production
+policy set. The form-switch scenario does not replace that fragment proof.</p>
+<!-- source: internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go -- TestRFC4301BareESPOnTemplatedSAIsPolicyChecked -->
 <h3 id="the-esp-form-fast-path-under-a-firewall-rule">The ESP form fast path under a firewall rule</h3>
 <p><code>esp-form-firewall-drop</code> proves that Ze's ESP form fast path never carries a
 peer's bare ESP past a firewall rule that drops ESP on the input path. The
@@ -5040,7 +5220,9 @@ Ze advertises <code>192.0.2.1/32</code> and <code>2001:db8:10::1/128</code> from
 passive interface <code>backbone0</code>, so the IPv4 host prefix is the interface's primary
 address rather than an unadvertised secondary beside <code>127.0.0.1</code> on <code>lo</code>.</p>
 <p>The checker requires the far endpoint's address in Ze's Full backbone neighbor
-record and an OSPF route at the independent endpoint for Ze's backbone host prefix. Changing the transit egress
+record and an OSPF route at the independent endpoint for Ze's backbone host prefix. The OSPFv3 record
+comes from <code>show ospf ipv6 neighbor detail address-family ipv6-unicast</code>, the instance the virtual
+link runs in, since an OSPFv3 view without the keyword answers every running address family. Changing the transit egress
 cost from 10 to 30 must change the virtual cost from 20 to 40 without changing
 the database-exchange identity or persistent adjacency-reset counters. Taking
 that data interface down must withdraw the route and virtual reachability;
@@ -5519,7 +5701,7 @@ is not packet-forwarding evidence.</p>
 <td>66</td>
 <td>ldp-backoff-clear-frr</td>
 <td>Ze, FRR ldpd</td>
-<td>A session that reached OPERATIONAL leaves no setup backoff when it ends (RFC 5036 Section 2.5.3, "After such a configuration action, there is no further need to throttle subsequent session establishment attempts"). Once FRR has reported the session OPERATIONAL for 3 s, FRR runs <code>clear mpls ldp neighbor &lt;ze's transport address&gt;</code>: ldpd's <code>nbr_clear_ctl</code> calls <code>session_shutdown</code> with S_SHUTDOWN, so FRR sends a Shutdown Notification and closes the TCP connection while the adjacency stays. FRR holds the passive role and ze dials on each Hello FRR sends (<code>processDiscoveryPacket</code>, <code>startSessionForAdj</code>), every 1 s by <code>discovery hello interval 1</code>. FRR's <code>show mpls ldp neighbor json</code> must report ze OPERATIONAL again with an <code>upTime</code> no older than the clear (<code>nbr_to_ctl</code> restarts it on each entry to OPERATIONAL) within 8 s of the clear: the released backoff lands near 2 s, a recorded one forbids the dial for 15 s. ze's own log, read at info (<code>environment { log { ldp info } }</code>), must carry a new fatal Notification and a new session end, the proof that the clear reached ze and that info lines are read, and no new <code>ldp: session setup failed, next attempt delayed</code>. Red with the operational arm of <code>startSessionForAdj</code>'s session-end callback recording a setup failure (one line changed in the working tree for the run, because the ze image builds from the tree; image <code>sha256:a218f6cd97d5</code> and <code>sha256:c58b3f2734ff</code>, 2026-11-13): <code>ze logged "ldp: session setup failed, next attempt delayed" 1 time(s) after FRR cleared a session that had reached OPERATIONAL: its end recorded a setup backoff, which delays the redial by 15 s or more (the probes ended 15.454s after the clear)</code>. Shares the <code>daemons</code> of <code>ldp-keepalive-expiry-frr</code>. The lab adds ze's 172.30.0.250 transport address in ze's prestart (<code>scenarioHostAddresses</code>), because ze dials from it on FRR's first Hello: added by the checker, the address could arrive after that dial, and each dial that fails to bind costs a backoff step of 15 s or more. <span class="ev-src"><span class="ev-ref"><code>sha256:3c4dee38ac2e</code></span></span></td>
+<td>A session that reached OPERATIONAL leaves no setup backoff when it ends (RFC 5036 Section 2.5.3, "After such a configuration action, there is no further need to throttle subsequent session establishment attempts"). Once FRR has reported the session OPERATIONAL for 3 s, FRR runs <code>clear mpls ldp neighbor &lt;ze's transport address&gt;</code>: ldpd's <code>nbr_clear_ctl</code> calls <code>session_shutdown</code> with S_SHUTDOWN, so FRR sends a Shutdown Notification and closes the TCP connection while the adjacency stays. FRR holds the passive role and ze dials on each Hello FRR sends (<code>processDiscoveryPacket</code>, <code>startSessionForAdj</code>), every 1 s by <code>discovery hello interval 1</code>. FRR's <code>show mpls ldp neighbor json</code> must report ze OPERATIONAL again with an <code>upTime</code> no older than the clear (<code>nbr_to_ctl</code> restarts it on each entry to OPERATIONAL) within 8 s of the clear: the released backoff lands near 2 s, a recorded one forbids the dial for 15 s. ze's own log, read at info (<code>environment { log { ldp info } }</code>), must carry a new fatal Notification and a new session end (the WARN under <code>code=doctor-ldp-session-ended</code>), the proof that the clear reached ze, at least one <code>ldp: session operational</code>, the proof that info lines are read, and no new <code>ldp: session setup failed, next attempt delayed</code>. Red with the operational arm of <code>startSessionForAdj</code>'s session-end callback recording a setup failure (one line changed in the working tree for the run, because the ze image builds from the tree; image <code>sha256:a218f6cd97d5</code> and <code>sha256:c58b3f2734ff</code>, 2026-11-13): <code>ze logged "ldp: session setup failed, next attempt delayed" 1 time(s) after FRR cleared a session that had reached OPERATIONAL: its end recorded a setup backoff, which delays the redial by 15 s or more (the probes ended 15.454s after the clear)</code>. Shares the <code>daemons</code> of <code>ldp-keepalive-expiry-frr</code>. The lab adds ze's 172.30.0.250 transport address in ze's prestart (<code>scenarioHostAddresses</code>), because ze dials from it on FRR's first Hello: added by the checker, the address could arrive after that dial, and each dial that fails to bind costs a backoff step of 15 s or more. <span class="ev-src"><span class="ev-ref"><code>sha256:3c4dee38ac2e</code></span></span></td>
 </tr>
 <tr>
 <td>40</td>
@@ -5740,6 +5922,36 @@ from inside the container: a linux <code>le</code> built by <code>internal/le/li
 begins <code>test</code> (<code>le test interop-bgp speaker ...</code>). The image holds no program
 under a retired harness name, so a scenario <code>ze.conf</code> that still runs one fails
 to start it.</p>
+<p>Each <code>LabBinary</code> defaults to compiling <code>./cmd/ze</code>. Its optional <code>Package</code>
+names a standalone Go package instead. The L2TP relay uses that declaration,
+so the RFC recorder's inherited Go overlay reaches the binary Docker copies.
+Docker does not compile a separate relay source tree. The L2TP runner resolves
+staged binaries from the selected images' registrations. Its full
+<code>LabBinaries</code> inventory also drives the ignore-file checks.</p>
+<p>The IPsec suite also gets its staged binaries from the image registrations.
+Its strongSwan image declares <code>ipsec-peerform</code>, built from
+<code>./internal/le/interoplab/ipsec/peerform</code> at
+<code>test/interop-ipsec/ipsec-peerform-linux</code>. The image copies that staged binary
+to <code>/usr/bin/ipsec-peerform</code>.</p>
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- LabBinaries -->
+<!-- source: internal/le/interoplab/ipsec/register_images.go -- init -->
+<!-- source: test/interop-ipsec/Dockerfile.strongswan -- ipsec-peerform -->
+<p>A declaring lab can supply <code>PrepareOverlay</code> for one binary. It returns a Go
+overlay path and cleanup function. Staging runs cleanup after the compile,
+including a failed compile. Preparation and cleanup failures stop the run.
+Staging composes the replacement map with any inherited <code>GOFLAGS</code> overlay and
+normalizes paths against the compiler's checkout directory. Different
+replacements for the same source are refused, including relative and absolute
+aliases.</p>
+<p>The combined overlay is a command-local build flag. Inherited flags and
+process-global <code>GOFLAGS</code> stay unchanged. A binary without this callback retains
+its inherited build inputs. The L2TP scale daemon alone declares the allocator
+callback. Staging removes its replacement files and combined map after the
+compile.</p>
+<!-- source: internal/le/interoplab/zebuild.go -- LabBinary, stageBinary -->
+<!-- source: internal/le/interoplab/zebuild_overlay.go -- prepareLabBinaryOverlay, readLabOverlay, writeMergedLabOverlay -->
+<!-- source: internal/le/interoplab/l2tp/l2tp.go -- runAt, LabBinaries, binariesForImages -->
+<!-- source: internal/le/interoplab/l2tp/register_images.go -- init -->
 <p>Measured on 2026-09-06 on a 32-core workstation: 6.1s and 4.8s for the two
 cross-compiles against a warm <code>cache/go-cache</code>, at a peak resident set of 1.03
 GiB and 0.98 GiB, then 54.7s for the <code>docker build</code>, which is now context
@@ -6248,7 +6460,7 @@ ExaBGP compat covers wire encoding for all supported address families.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 00:14 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

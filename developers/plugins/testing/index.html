@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Testing Your Plugin - Ze</title>
         <meta name="description" content="Ze documentation: plugin-development/testing.md" />
         <meta property="og:title" content="Testing Your Plugin - Ze" />
@@ -51,6 +51,14 @@
 </div>
 <div class="doc-layout">
 <nav class="doc-toc" aria-labelledby="doc-toc-title"><details class="reading-outline" open><summary><h2 id="doc-toc-title">On this page</h2></summary><ol>
+<li><a href="#checking-that-a-program-is-a-valid-plugin">Checking That a Program Is a Valid Plugin</a>
+<ol>
+<li><a href="#the-report">The report</a></li>
+<li><a href="#what-this-version-does-not-judge">What this version does not judge</a></li>
+<li><a href="#exit-codes">Exit codes</a></li>
+<li><a href="#a-sample-report">A sample report</a></li>
+<li><a href="#the-ze-command-runs-locally-only">The ze command runs locally only</a></li>
+</ol></li>
 <li><a href="#unit-testing-with-netpipe">Unit Testing with net.Pipe</a></li>
 <li><a href="#testing-event-handlers">Testing Event Handlers</a></li>
 <li><a href="#simulating-the-5-stage-startup">Simulating the 5-Stage Startup</a></li>
@@ -61,6 +69,268 @@
 <li><a href="#coverage">Coverage</a></li>
 <li><a href="#debugging">Debugging</a></li>
 </ol></details></nav><div class="doc-body">
+<h2 id="checking-that-a-program-is-a-valid-plugin">Checking That a Program Is a Valid Plugin</h2>
+<p>The conformance checker judges a plugin program in any language. It starts the
+program in declare mode (<code>ZE_PLUGIN_MODE=declare</code>, described in
+<a href="../protocol/">protocol.md</a>, "Query Mode: Answering Without Starting") and judges
+what the program wrote. It needs no daemon and no config file.</p>
+<p>Two commands run the same checker and write the same rows:</p>
+<pre><code class="language-bash"># The shipped binary, for a plugin author or an operator.
+ze show plugin conformance run "./my-plugin --flag"
+ze show plugin conformance run "./my-plugin --flag" name acme-monitor
+
+# The development launcher, inside the Ze repository.
+./le plugin conformance check run "./my-plugin --flag"
+./le plugin conformance check run "./my-plugin --flag" name acme-monitor
+</code></pre>
+<p>The value after <code>run</code> is the run string you would configure under
+<code>plugin { external &lt;name&gt; { run ...; } }</code>, as one quoted token. A shell starts
+it, and a relative path is read from the directory you typed the command in.
+<code>name</code> is the plugin name the checks use in their refusals. Without it, the
+name is the file name of the program the run string starts. The program has the
+budget <code>ze.plugin.query.timeout</code> sets, 5 seconds by default.</p>
+<!-- source: internal/component/plugin/conformance/register.go -- dataConformance -->
+<!-- source: internal/le/plugin/conformance/actions.go -- runCheck -->
+<!-- source: internal/component/plugin/conformance/conformance.go -- Run, DefaultName -->
+<h3 id="the-report">The report</h3>
+<p>The report holds one row for each check, in the order the protocol reaches
+them. Each row carries these fields:</p>
+<table>
+<thead>
+<tr>
+<th>Field</th>
+<th>Value</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>check</code></td>
+<td>The name of the check</td>
+</tr>
+<tr>
+<td><code>stage</code></td>
+<td>The part of the protocol the check belongs to: <code>declare</code> for query mode, a stage number, or <code>transport</code>, <code>runtime</code>, <code>shutdown</code>, <code>schema</code></td>
+</tr>
+<tr>
+<td><code>verdict</code></td>
+<td><code>pass</code>, <code>fail</code> or <code>not-judged</code></td>
+</tr>
+<tr>
+<td><code>reason</code></td>
+<td>What the check found. A passed row carries none</td>
+</tr>
+<tr>
+<td><code>fix</code></td>
+<td>The change that clears the row. A passed row carries none</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/plugin/conformance/conformance.go -- Row, Verdict -->
+<p>A <code>not-judged</code> row is a check that nobody ran, and its reason says why. A report
+with no failed row is therefore not full conformance: read the <code>not-judged</code>
+rows to learn what is still unproven.</p>
+<p>The first four rows judge the declare-mode run itself:</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>It passes when</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>program-starts</code></td>
+<td>The run string starts a program. A shell exit of 126 or 127 means that no program started</td>
+</tr>
+<tr>
+<td><code>exits-clean</code></td>
+<td>The program exits 0 inside the budget and leaves no process holding its standard output</td>
+</tr>
+<tr>
+<td><code>declaration-line</code></td>
+<td>Standard output holds exactly one line: <code>#1 ze-plugin-engine:declare-registration</code> and the declaration as compact JSON, ended by one line feed</td>
+</tr>
+<tr>
+<td><code>declaration-decodes</code></td>
+<td>The JSON of that line decodes as a Stage 1 declaration</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/plugin/conformance/checks.go -- programStarts, exitsClean, declarationLine, strictLine, declarationDecodes -->
+<!-- source: internal/component/plugin/declarations.go -- queryExitOf -->
+<p>The next rows are the daemon's own Stage 1 checks, run over the declaration the
+program wrote. The checker and the daemon read one table, so a row that fails
+here is a declaration the daemon refuses, with the daemon's own reason. These
+rows carry stage <code>1</code>: <code>protocol-version</code>, <code>filter-declarations</code>,
+<code>filter-insertions</code>, <code>filter-insertion-paths</code>, <code>drain</code>, <code>resolver-caches</code>,
+<code>doctor-checks</code>, <code>enrichers</code>, <code>pipe-aliases</code>, <code>answer-shapes</code> and <code>help-texts</code>.
+The row <code>command-names</code> carries stage <code>5</code>. The daemon applies that rule at
+Stage 5, where a bad name refuses the command and keeps the plugin.</p>
+<p>When the program did not start, every later row is <code>not-judged</code>. When no
+declaration was read, every Stage 1 row is <code>not-judged</code>. A row is never passed
+for a declaration that nobody read.</p>
+<!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks, JudgeDeclaration -->
+<!-- source: internal/component/plugin/conformance/checks.go -- stage1Rows, judgedRow, notStartedRow -->
+<h3 id="what-this-version-does-not-judge">What this version does not judge</h3>
+<p>These rows are <code>not-judged</code> in every report. Test each behavior under a
+daemon: configure the plugin with <code>plugin { external &lt;name&gt; { run ...; } }</code> and
+start ze.</p>
+<table>
+<thead>
+<tr>
+<th>Check</th>
+<th>Stage</th>
+<th>Why the checker does not judge it</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>ambiguous-registration</code></td>
+<td><code>1</code></td>
+<td>The check compares the declaration with the other plugins the daemon runs</td>
+</tr>
+<tr>
+<td><code>doctor-check-declared-twice</code></td>
+<td><code>1</code></td>
+<td>The check compares the declared doctor checks with the registry row of the operator's block</td>
+</tr>
+<tr>
+<td><code>respawn-agreement</code></td>
+<td><code>1</code></td>
+<td>The check compares the declared failure policy with the <code>respawn</code> leaf of the operator's config</td>
+</tr>
+<tr>
+<td><code>dependencies</code></td>
+<td><code>1</code></td>
+<td>The check looks for each declared dependency among the plugins the daemon configured or loaded</td>
+</tr>
+<tr>
+<td><code>registration-conflicts</code></td>
+<td><code>1</code></td>
+<td>The check writes the plugin's names into the daemon's registries, where another plugin can hold the same name</td>
+</tr>
+<tr>
+<td><code>tls-connect-back</code></td>
+<td><code>transport</code></td>
+<td>The checker starts no hub, so the TLS connect-back and the <code>#0 auth</code> exchange do not run</td>
+</tr>
+<tr>
+<td><code>stage-2-config</code></td>
+<td><code>2</code></td>
+<td>The checker sends no configure message</td>
+</tr>
+<tr>
+<td><code>stage-3-capabilities</code></td>
+<td><code>3</code></td>
+<td>The checker reads no declare-capabilities message</td>
+</tr>
+<tr>
+<td><code>stage-4-registry</code></td>
+<td><code>4</code></td>
+<td>The checker sends no share-registry message</td>
+</tr>
+<tr>
+<td><code>stage-5-ready</code></td>
+<td><code>5</code></td>
+<td>The checker reads no ready message, so the subscriptions are not judged</td>
+</tr>
+<tr>
+<td><code>config-callbacks</code></td>
+<td><code>runtime</code></td>
+<td>The checker opens no config transaction, so it calls no verify, apply, rollback or committed callback</td>
+</tr>
+<tr>
+<td><code>execute-command-framing</code></td>
+<td><code>runtime</code></td>
+<td>The checker sends no execute-command, so it reads no answer line</td>
+</tr>
+<tr>
+<td><code>bye-and-exit</code></td>
+<td><code>shutdown</code></td>
+<td>The checker sends no bye</td>
+</tr>
+<tr>
+<td><code>schema</code></td>
+<td><code>schema</code></td>
+<td>The checker does not compile the YANG module in the <code>schema</code> field of the declaration</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/plugin/conformance/register.go -- init, the notJudged registrations -->
+<!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks, the entries with daemonState -->
+<!-- source: internal/component/plugin/conformance/checks.go -- daemonStateRows, notJudged -->
+<h3 id="exit-codes">Exit codes</h3>
+<table>
+<thead>
+<tr>
+<th>Code</th>
+<th>Meaning</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>0</td>
+<td class="cell-no">✕</td>
+</tr>
+<tr>
+<td>1</td>
+<td>One row or more failed</td>
+</tr>
+<tr>
+<td>2</td>
+<td>The run did not happen, so there is no report: no run string, no shell on this host, an invalid budget, or a caller that is not local</td>
+</tr>
+</tbody>
+</table>
+<!-- source: internal/component/plugin/conformance/conformance.go -- ExitConforms, ExitViolation, ExitNoRun, Run -->
+<h3 id="a-sample-report">A sample report</h3>
+<p>This is the report of a conforming program. The <code>reason</code> and <code>fix</code> columns are
+left out here to keep the lines short.</p>
+<pre><code>check                        stage      verdict
+program-starts               declare    pass
+exits-clean                  declare    pass
+declaration-line             declare    pass
+declaration-decodes          declare    pass
+protocol-version             1          pass
+filter-declarations          1          pass
+filter-insertions            1          pass
+filter-insertion-paths       1          pass
+drain                        1          pass
+resolver-caches              1          pass
+doctor-checks                1          pass
+enrichers                    1          pass
+pipe-aliases                 1          pass
+answer-shapes                1          pass
+help-texts                   1          pass
+command-names                5          pass
+ambiguous-registration       1          not-judged
+doctor-check-declared-twice  1          not-judged
+respawn-agreement            1          not-judged
+dependencies                 1          not-judged
+registration-conflicts       1          not-judged
+tls-connect-back             transport  not-judged
+stage-2-config               2          not-judged
+stage-3-capabilities         3          not-judged
+stage-4-registry             4          not-judged
+stage-5-ready                5          not-judged
+config-callbacks             runtime    not-judged
+execute-command-framing      runtime    not-judged
+bye-and-exit                 shutdown   not-judged
+schema                       schema     not-judged
+</code></pre>
+<!-- source: internal/component/plugin/conformance/register.go -- init, the check order and the column order -->
+<p><code>| json</code> gives the same rows under the key <code>checks</code>. The <code>le</code> command answers
+one document that holds <code>plugin</code>, <code>run</code>, <code>verdict</code> and <code>checks</code>.</p>
+<!-- source: internal/component/plugin/conformance/register.go -- keyChecks -->
+<!-- source: internal/component/plugin/conformance/conformance.go -- Report -->
+<h3 id="the-ze-command-runs-locally-only">The <code>ze</code> command runs locally only</h3>
+<p><code>ze show plugin conformance run</code> starts the program that the command line
+names, so it runs in your own <code>ze</code> process, under your own identity. The daemon
+starts no program that a remote caller names. Through the daemon (SSH, the web
+UI, REST, gRPC, MCP), the command starts nothing and answers a refusal with
+code 2. The refusal gives the reason and the command to run in your own shell
+on the host that holds the program.</p>
+<!-- source: internal/component/plugin/conformance/register.go -- refuseRemoteCaller -->
 <h2 id="unit-testing-with-netpipe">Unit Testing with <code>net.Pipe</code></h2>
 <p>The SDK is designed for testability. Use <code>net.Pipe()</code> to create a connected pair of
 connections, then use <code>sdk.NewWithConn()</code> on one end and simulate the engine on the other.</p>
@@ -437,7 +707,7 @@ p.OnEvent(func(event string) error {
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

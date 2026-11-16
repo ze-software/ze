@@ -90,6 +90,49 @@ namespace access and API connection on the deployment host.
 
 ### startup.conf Syntax
 
+Forwarding features register their additional startup requirements with
+`RegisterStartupFeature`. Each declaration supplies its plugin, section flags
+and the config roots its predicate reads. The registration extends the VPP
+plugin's `ConfigReads`; the SDK delivery list derives from the same declarations.
+`ParseConfigSections` selects immutable requirements from the delivered candidate,
+and `GenerateStartupConf` renders only the selected requirements. The VPP
+component does not enumerate the forwarding features that consume it.
+<!-- source: internal/component/vpp/startup_feature.go -- RegisterStartupFeature, ParseConfigSections, startupConfigRoots -->
+<!-- source: internal/component/vpp/startupconf.go -- GenerateStartupConf -->
+
+A feature can also declare `StartupRuntime` with its generated binary API
+messages and its own diagnostic code. Registration copies each message's name,
+CRC and type. The compatibility check reads the message table supplied by the
+VPP instance on the configured API socket. It therefore tests the loaded
+plugin's API, including patched layouts, rather than a library on disk.
+<!-- source: internal/component/vpp/startup_runtime.go -- newStartupRuntime, VPPSettings.checkStartupRuntime, VPPSettings.checkStartupAPI -->
+
+Each runtime declaration registers a doctor check with the same requirements.
+An answered API mismatch is an error. A connection that cannot be queried is
+a warning, because it does not prove a plugin is absent. The check opens and
+closes its own API client and never starts or stops the VPP process.
+<!-- source: internal/component/vpp/startup_doctor.go -- registerStartupDoctor, checkStartupDoctor, probeStartupRuntime -->
+
+The manager checks selected runtime requirements after publishing statistics
+and before announcing readiness. A refusal closes the statistics owner and
+the candidate API connection. The plugin's startup callback waits for this
+answer, so a dependent plugin cannot start against an unchecked connection.
+Each ready lifetime emits one disconnected event when it ends, including a
+configuration replacement. A candidate that fails before readiness emits no
+disconnected event.
+<!-- source: internal/component/vpp/runtime_stats.go -- VPPManager.activateRuntimeStats -->
+<!-- source: internal/component/vpp/startup_readiness.go -- VPPManager.notifyStartup, VPPManager.retireReadiness -->
+
+Configuration applies use the SDK's existing transaction. The lifecycle
+cancels and joins the previous manager before starting a replacement, then
+waits for the replacement's readiness. If the candidate fails, it reinstalls
+the previous settings before answering the failed apply. If restoration also
+fails, the transaction retains the original settings for a later retry.
+Selected startup settings contain immutable requirements; registry predicates
+are used during selection and do not make equal settings compare unequal.
+<!-- source: internal/component/vpp/register.go -- runVPPEngine, runConfiguredVPP -->
+<!-- source: internal/component/vpp/startup_lifecycle.go -- newVPPConfigTx, vppLifecycle.Install, vppLifecycle.replace -->
+
 VPP's startup.conf uses a custom format (not INI, not YAML):
 
 ```
@@ -107,6 +150,32 @@ String values are unquoted. Multi-word keys such as `default data-size` and
 `default netns` use spaces. The emitted boolean directives are bare flags
 (present = true); this is not a rule for every VPP option.
 Dev entries use PCI address as the key with a nested block for per-device options.
+
+## Runtime statistics
+
+The VPP manager connects the statistics segment after the binary API handshake,
+even when no metrics exporter is configured. It reads interface statistics
+before publishing the connection and emitting `connected` or `reconnected`.
+Subscriber accounting therefore has the same counter source with or without
+telemetry. A failed connection or read remains explicitly unavailable; it is
+never interpreted as zero traffic or idle time. The runtime doctor and health
+row retain `doctor-vpp-stats`, with the underlying failure in `show warnings`.
+An unavailable statistics segment does not restart an otherwise usable VPP API.
+<!-- source: internal/component/vpp/runtime_stats.go -- VPPManager.activateRuntimeStats, VPPManager.connectRuntimeStats -->
+<!-- source: internal/component/vpp/runtime_stats_doctor.go -- checkRuntimeStats, reportRuntimeStatsFailure -->
+
+A session retains its binary API connector and connection generation.
+`GetInterfaceStatsForGeneration` accepts only the statistics connection published
+for that pair and checks the generation again after reading. A replaced VPP
+process cannot answer an older session's counter request. Statistics reads are
+serialized because GoVPP updates cached statistics directories. When telemetry
+is configured, its one poller uses that same owner. Shutdown cancels and joins
+the poller, withdraws the statistics publication and disconnects it before
+closing the binary API connection. A success clears only the same live owner's
+statistics category, and a confirmed new statistics connection clears its own
+connection failure.
+<!-- source: internal/component/vpp/runtime_stats.go -- GetInterfaceStatsForGeneration, runtimeStats.read, runtimeStats.Close -->
+<!-- source: internal/component/vpp/vpp.go -- VPPManager.runOnce -->
 
 ## System Prerequisites
 
@@ -219,16 +288,72 @@ naming module (vpp-4 spec) handles bidirectional mapping.
 All LCP TAPs are created in the `dataplane` netns. This isolates the forwarding plane
 from the management plane. Ze's BGP reactor, SSH, web UI all run in this netns.
 
+Ze's interface backend exposes actual pair readback through
+`iface.LCPPairReader.GetLCPPair`. The caller MUST first resolve the device through
+that backend's link read. Exact VPP link readback records the native name and
+index without replacing the configured logical name used by interface events.
+Pair lookup reads this existing native identity directly, then uses an owned
+context-bound stream; it never starts the shared channel's lazy interface dump.
+An unresolved name is a failed lookup, not proof that a pair is absent. The
+targeted `lcp_itf_pair_get_v2` exchange must contain one details message and its
+explicit final reply, with matching identity and the configured global namespace.
+
+<!-- source: internal/component/iface/lcp_pair.go -- LCPPairReader -->
+<!-- source: internal/plugins/iface/vpp/query.go -- detailsByName -->
+<!-- source: internal/plugins/iface/vpp/naming.go -- learnNativeName, lookupNativeIndex -->
+<!-- source: internal/plugins/iface/vpp/lcp_query.go -- GetLCPPair, readLCPPair -->
+
 ## GoVPP Connection
+
+Resource owners capture `Connector.ConnectionGeneration` when they acquire
+VPP state and use `NewStreamForGeneration` for later operations. The epoch
+changes on successful connection publication and every close. Checking it and
+selecting the connection share the connector mutex, so a retained session or
+LCP-map lease cannot send its cleanup to a replacement connection through the
+same connector object. Each returned stream remains the caller's resource
+and must be closed.
+<!-- source: internal/component/vpp/conn.go -- Connector.ConnectionGeneration, Connector.NewStreamForGeneration, Connector.Close -->
 
 ### Socket Transport
 
 GoVPP connects via Unix socket at `/run/vpp/api.sock`. Pure Go, no CGo.
 
-AsyncConnect pattern:
-- 10 connection attempts, 1 second interval (initial connect only)
-- Returns event channel for connection state changes (Connected, Disconnected)
-- Ze consumes the first state event and returns an error on any non-Connected state; there is no automatic reconnect-with-backoff loop after an established session drops (reconnection is the caller's responsibility)
+Ze uses synchronous `core.Connect`, with at most ten attempts separated by one
+second when the manager starts a connection. Each successful connection owns
+one health worker. A failed bounded control-ping probe invalidates the published
+generation before notifying the manager. Closing the connector cancels and joins
+that worker. GoVPP's `AsyncConnect` is deliberately avoided: its internal redial
+could otherwise replace the underlying socket while Ze still held an older
+generation. Existing streams must remain tied to their original Unix connection.
+<!-- source: internal/component/vpp/conn.go -- Connector.Connect, Connector.closeConnection -->
+<!-- source: internal/component/vpp/conn_health.go -- connectVPPOnce, Connector.connectionLost, stopConnectorHealth -->
+
+A stream context does not interrupt GoVPP's native Unix socket write. Bounded
+shutdown also requires the retained
+[`govpp-socket-bounded-close.patch`](../../internal/le/vendorpatch/patches/govpp-socket-bounded-close.patch).
+Its separate deadline mutex prevents an ordinary writer from extending or
+clearing the shutdown deadline, while the client-delete handshake remains
+allowed. A failed partial write closes that connection before another request
+can use it. Apply the diff to the vendored module through `./le setup install`
+before claiming this native shutdown bound. The public-adapter tests in
+`govpp_socket_transport_test.go` exercise a real Unix peer that withholds reads,
+concurrent sends during disconnect, and the healthy client-delete request.
+
+On API loss, the manager kills and waits for the exact VPP child it supervised
+before restarting. It disconnects statistics before closing the API connection.
+Only a completed process wait records that the old process exited. The resulting
+sealed `ProcessExit` value covers one connector identity and connection
+generation, so resource owners can retire native obligations without sending
+cleanup to another VPP process. The server must first answer through that exact
+connection with the PID of the child Ze started. An ordinary connection close, an OS PID or the
+integer-second stats boot timestamp cannot supply that proof.
+<!-- source: internal/component/vpp/vpp.go -- waitVPPConnection, VPPManager.runOnce -->
+<!-- source: internal/component/vpp/process_exit.go -- ProcessExit, Connector.bindManagedProcess, Connector.retireManagedConnection -->
+
+External mode also observes API loss and retries its connection through the
+manager's backoff loop. Its supervisor is external: Ze neither kills that
+process nor treats an API failure as proof of process death. Owners must retain
+unresolved native state until its own ownership or absence is confirmed.
 
 ### API Clients
 

@@ -220,8 +220,8 @@ Source: [data/rfc/rfc2548.json](../../../data/rfc/rfc2548.json).
 | `RFC2548-2.7.3-3` | The MS-Filter Attribute is used to transmit traffic filters. It MAY be included in both Access-Accept and Accounting-Request packets. (§2.7.3) | MAY | 2.7.3 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2548-2.7.4-1` | The MS-Acct-Auth-Type Attribute is used to represent the method used to authenticate the dial-up user. It MAY be included in Accounting-Request packets. (§2.7.4) | MAY | 2.7.4 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2548-2.7.5-1` | The MS-Acct-EAP-Type Attribute is used to represent the Extensible Authentication Protocol (EAP) [15] type used to authenticate the dial-up user. It MAY be included in Accounting-Request packets. (§2.7.5) | MAY | 2.7.5 | **positive:** no positive test. **negative:** no negative test |
-| `RFC2548-2.7.6-1` | The MS-Primary-DNS-Server Attribute is used to indicate the address of the primary Domain Name Server (DNS) [16, 17] server to be used by the PPP peer. It MAY be included in both Access-Accept and Accounting-Request packets. (§2.7.6) | MAY | 2.7.6 | **positive:** `unit/verify` [`TestExtractMSDNSServers`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2548_extract_dns_test.go#L15). **positive:** `unit/verify` [`TestPoolIPCPDNSFromRadius`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/pool/rfc2548_dns_source_test.go#L51). **negative:** no negative test |
-| `RFC2548-2.7.7-1` | The MS-Secondary-DNS-Server Attribute is used to indicate the address of the secondary DNS server to be used by the PPP peer. It MAY be included in both Access-Accept and Accounting-Request packets. (§2.7.7) | MAY | 2.7.7 | **positive:** `unit/verify` [`TestExtractMSDNSServers`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2548_extract_dns_test.go#L19). **positive:** `unit/verify` [`TestPoolIPCPDNSFromRadius`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/pool/rfc2548_dns_source_test.go#L55). **negative:** no negative test |
+| `RFC2548-2.7.6-1` | The MS-Primary-DNS-Server Attribute is used to indicate the address of the primary Domain Name Server (DNS) [16, 17] server to be used by the PPP peer. It MAY be included in both Access-Accept and Accounting-Request packets. (§2.7.6) | MAY | 2.7.6 | **positive:** `unit/verify` [`TestExtractMSDNSServers`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2548_extract_dns_test.go#L15). **positive:** `unit/verify` [`TestPoolIPCPDNSFromRadius`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/pool/rfc2548_dns_source_test.go#L54). **negative:** no negative test |
+| `RFC2548-2.7.7-1` | The MS-Secondary-DNS-Server Attribute is used to indicate the address of the secondary DNS server to be used by the PPP peer. It MAY be included in both Access-Accept and Accounting-Request packets. (§2.7.7) | MAY | 2.7.7 | **positive:** `unit/verify` [`TestExtractMSDNSServers`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2548_extract_dns_test.go#L19). **positive:** `unit/verify` [`TestPoolIPCPDNSFromRadius`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/pool/rfc2548_dns_source_test.go#L58). **negative:** no negative test |
 | `RFC2548-2.7.8-1` | The MS-Primary-NBNS-Server Attribute is used to indicate the address of the primary NetBIOS Name Server (NBNS) [18] server to be used by the PPP peer. It MAY be included in both Access-Accept and Accounting-Request packets. (§2.7.8) | MAY | 2.7.8 | **positive:** no positive test. **negative:** no negative test |
 | `RFC2548-2.7.9-1` | The MS-Secondary-NBNS-Server Attribute is used to indicate the address of the secondary DNS server to be used by the PPP peer. It MAY be included in both Access-Accept and Accounting-Request packets. (§2.7.9) | MAY | 2.7.9 | **positive:** no positive test. **negative:** no negative test |
 
@@ -522,7 +522,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestExtractMSDNSServers`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2548_extract_dns_test.go#L15) | unit/verify | mutant, verified |
-| positive | [`TestPoolIPCPDNSFromRadius`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/pool/rfc2548_dns_source_test.go#L51) | unit/verify | mutant, verified |
+| positive | [`TestPoolIPCPDNSFromRadius`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/pool/rfc2548_dns_source_test.go#L54) | unit/verify | mutant, verified |
 
 ### [`RFC2548-2.7.7-1`](#rfc2548-2.7.7-1)
 
@@ -533,7 +533,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | positive | [`TestExtractMSDNSServers`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2548_extract_dns_test.go#L19) | unit/verify | mutant, verified |
-| positive | [`TestPoolIPCPDNSFromRadius`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/pool/rfc2548_dns_source_test.go#L55) | unit/verify | mutant, verified |
+| positive | [`TestPoolIPCPDNSFromRadius`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/pool/rfc2548_dns_source_test.go#L58) | unit/verify | mutant, verified |
 
 ## Requirement list review
 

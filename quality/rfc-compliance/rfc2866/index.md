@@ -15,7 +15,7 @@ what Ze has
 | One polarity, unexcused | 0 | of 15 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 15 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 15 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 30 | 30 of 48 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 22 | 22 of 48 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Neutral
 
@@ -86,9 +86,9 @@ Included in automatic checks: ze is a RADIUS accounting client (NAS); the four g
 
 **Area:** RADIUS accounting
 
-**Proof:** 8 of 15 MUST proven
+**Proof:** 7 of 15 MUST proven
 
-**Evidence:** functional 1, unit 7
+**Evidence:** functional 1, unit 6
 
 **Unmet:** -
 
@@ -110,8 +110,8 @@ Included in automatic checks: ze is a RADIUS accounting client (NAS); the four g
 
 ## Figures
 
-- **MUST bar**: Ze proven 8, Proof pending 7
-- **Overview bar**: Ze MUST proven 8, Proof pending 7, Not assessed 1
+- **MUST bar**: Ze proven 7, Proof pending 8
+- **Overview bar**: Ze MUST proven 7, Proof pending 8, Not assessed 1
 
 | Figure | Rows |
 |---|---|
@@ -120,9 +120,9 @@ Included in automatic checks: ze is a RADIUS accounting client (NAS); the four g
 | Mandatory requirements complete | not complete |
 | MUST rows | 15 |
 | MUST rows kept (the MUST bar) | 15 |
-| Ze proven | 8 |
+| Ze proven | 7 |
 | OS verified | 0 |
-| Proof pending | 7 |
+| Proof pending | 8 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -156,7 +156,7 @@ Source: [data/rfc/rfc2866.json](../../../data/rfc/rfc2866.json).
 | `RFC2866-5.5-1` | This attribute is a unique Accounting ID to make it easy to match start and stop records in a log file. (§5.5) | MUST | 5.5 - Acct-Session-Id | **positive:** `unit/verify` [`TestRFC2866AcctSessionIDUnique`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L114). **positive:** `unit/verify` [`TestRFC2866AcctSessionIDUniqueAcrossRestart`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L321). **positive:** `unit/verify` [`TestRFC2866AcctSessionIDUniqueWhenClockRepeats`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L344). **negative:** `unit/verify` [`TestRFC2866AcctSessionIDNoCollisionOnReusedKey`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L146) |
 | `RFC2866-4.1-1` | If the Accounting-Request packet includes a Framed-IP-Address, that attribute MUST contain the IP address of the user. If the Access-Accept used the special values for Framed-IP-Address telling the NAS to assign or negotiate an IP address for the user, the Framed-IP-Address (if any) in the Accounting-Request MUST contain the actual IP address assigned or negotiated. (§4.1) | MUST | 4.1 - Accounting-Request | **positive:** `unit/verify` [`TestAccountingAddressFamiliesShareLifetime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go#L13). **positive:** `unit/verify` [`TestAcctFramedIPAddressPresent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L32). **positive:** `unit/verify` [`TestRFC2866AccountingReportsTheAddressTheNASAssigned`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go#L39). **positive:** `unit/verify` [`TestSessionEventDrivesAddressAndPortID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L121). **negative:** `unit/verify` [`TestAcctFramedIPAddressIsSubscriberNotNAS`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L56). **negative:** `unit/verify` [`TestAcctFramedIPAddressOmittedWhenNotIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L79). **negative:** `unit/verify` [`TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go#L82). **positive:** `functional/verify` [`radius-acct-wire.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/radius-acct-wire.ci#L40) |
 | `RFC2866-5-1` | 1 Exactly one instance of this attribute MUST be present. (§5.13, the Accounting-Request table legend; the table marks 1 for Acct-Status-Type and Acct-Session-Id) | MUST | 5.13 - Table of Attributes | **positive:** `unit/verify` [`TestRFC2866AcctStatusTypePresent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L59). **positive:** `unit/verify` [`TestRFC2866EveryRecordCarriesOneOfEachOneMarkedAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L92). **negative:** `unit/verify` [`TestRFC2866AcctStatusTypeNeverOmitted`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_accounting_test.go#L90). **negative:** `unit/verify` [`TestRFC2866ExclusionsCannotRemoveAOneMarkedAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L119) |
-| `RFC2866-5.13-1` | 0 This attribute MUST NOT be present (§5.13, the Accounting-Request table legend; the table marks 0 for User-Password, CHAP-Password, Reply-Message, State and CHAP-Challenge) | MUST NOT | 5.13 - Table of Attributes | **positive:** `unit/verify` [`TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L160). **positive:** `unit/verify` [`TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L233). **negative:** `unit/verify` [`TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L261). **negative:** `unit/verify` [`TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L196) |
+| `RFC2866-5.13-1` | 0 This attribute MUST NOT be present (§5.13, the Accounting-Request table legend; the table marks 0 for User-Password, CHAP-Password, Reply-Message, State and CHAP-Challenge) | MUST NOT | 5.13 - Table of Attributes | **positive:** `unit/verify` [`TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L160). **positive:** `unit/verify` [`TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L234). **negative:** `unit/verify` [`TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L263). **negative:** `unit/verify` [`TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L196) |
 | `RFC2866-3-3` | For retransmissions where the contents are identical, the Identifier MUST remain unchanged. Note that if Acct-Delay-Time is included in the attributes of an Accounting-Request then the Acct-Delay-Time value will be updated when the packet is retransmitted, changing the content of the Attributes field and requiring a new Identifier and Request Authenticator. (§4.1) | MUST | 4.1 - Accounting-Request | **positive:** `unit/verify` [`TestRFC2866AccountingRetransmitTakesANewIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L167). **positive:** `unit/verify` [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L109). **positive:** `unit/verify` [`TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_acct_delay_time_omit_test.go#L120). **negative:** `unit/verify` [`TestRFC2866AccountingDistinctRequestsDifferIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L225) |
 | `RFC2866-3-4` | Octets outside the range of the Length field MUST be treated as padding and ignored on reception (§3) | MUST | 3 - Packet Format | **positive:** `unit/verify` [`TestRFC2866LengthPaddingIgnoredOnReception`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L112). **negative:** `unit/verify` [`TestRFC2866LengthPaddingBoundaryIsTheLengthField`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L133) |
 | `RFC2866-3-5` | If the packet is shorter than the Length field indicates, it MUST be silently discarded. (§3) | MUST | 3 - Packet Format | **positive:** `unit/verify` [`TestRFC2866ShortPacketSilentlyDiscarded`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L164). **negative:** `unit/verify` [`TestRFC2866HonestLengthIsAccepted`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L181) |
@@ -214,10 +214,10 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 | negative | [`TestAcctFramedIPAddressOmittedWhenNotIPv4`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L79) | unit/verify | revert, verified |
 | negative | [`TestRFC2866SpecialFramedIPValueIsNeverTheSubscriberAddress`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go#L82) | unit/verify | revert, verified |
 | positive | [`TestAcctFramedIPAddressPresent`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L32) | unit/verify | revert, verified |
-| positive | [`TestSessionEventDrivesAddressAndPortID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L121) | unit/verify | revert, verified |
+| positive | [`TestSessionEventDrivesAddressAndPortID`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L121) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestAccountingAddressFamiliesShareLifetime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go#L13) | unit/verify | revert, verified |
 | positive | [`TestRFC2866AccountingReportsTheAddressTheNASAssigned`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_special_framed_ip_test.go#L39) | unit/verify | revert, verified |
-| positive | [`radius-acct-wire.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/radius-acct-wire.ci#L40) | functional/verify | revert, verified |
+| positive | [`radius-acct-wire.ci`](https://github.com/ze-software/ze/blob/main/test/l2tp/radius-acct-wire.ci#L40) | functional/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2866-5-1`](#rfc2866-5-1)
 
@@ -236,14 +236,14 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Judg
 
 0 This attribute MUST NOT be present (§5.13, the Accounting-Request table legend; the table marks 0 for User-Password, CHAP-Password, Reply-Message, State and CHAP-Challenge)
 
-Audit verdict: enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (cont 7 re-judge). Row '0 This attribute MUST NOT be present' (Section 5.13 legend; User-Password, CHAP-Password, Reply-Message, State, CHAP-Challenge). Positive TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes runs the real path: provider configured over plugin RPC, CHAP login through l2tp.GetAuthHandler against a live UDP server, session up/down over the event bus; the server decodes Start and Stop, which name the user and an Acct-Session-Id and carry none of the five. Negative TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting is the missing piece of the prior weak verdict (R1(b), inputs forced toward the violation over the real path): a CHAP and a PAP login against an Access-Accept carrying State and Reply-Message; the test first proves CHAP-Challenge, a 17-octet CHAP-Password and User-Password were on the Access-Request wire, then that no Start/Stop of either session carries a 0-marked type or any of those octets (State, Reply-Message, challenge, CHAP response, CHAP-Password, PAP plaintext, hidden User-Password). Producer acct.go buildAcctPacket / acctSession holds only username, calling-station, NAS-Port-Id, peer address, so a copy would be a new input path, which the negative catches on the wire. Both new units observed red under a revert of buildAcctPacket. The builder-level pair in rfc2866_attribute_table_test.go keeps its HEAD tags; its negative (TLV framing) is supplementary.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2866 Section 5.13 defines table entry 0 as 'This attribute MUST NOT be present'; the table assigns 0 to User-Password, CHAP-Password, Reply-Message, State and CHAP-Challenge. All four tagged units were read. The builder pair checks Start, Interim-Update and Stop after encode/decode, including every forbidden type embedded as text in each relayed text field while retaining that text whole. The provider-login pair sends real CHAP and PAP credentials to a live RADIUS server, confirms the credential attributes actually reached its Access-Request wire, and then checks both sessions' Start/Stop packets for all five forbidden types and every supplied credential or accept-state byte sequence. Required status, username and accounting-session-ID checks prevent empty output from satisfying the absence assertions. Canonical request IDs and matching metadata cleanup preserve the same login and lifecycle inputs. This retains the existing whole-table-entry verdict; the builder's TLV test remains supplementary to the real credential/accept-state path. Native discrimination refresh remains separate main-thread evidence.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L196) | unit/verify | revert, verified |
-| negative | [`TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L261) | unit/verify | revert, verified |
+| negative | [`TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L263) | unit/verify | revert, verified |
 | positive | [`TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L160) | unit/verify | revert, verified |
-| positive | [`TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L233) | unit/verify | revert, verified |
+| positive | [`TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L234) | unit/verify | revert, verified |
 
 ### [`RFC2866-3-3`](#rfc2866-3-3)
 
@@ -255,8 +255,8 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Reju
 |---|---|---|---|
 | negative | [`TestRFC2866AccountingDistinctRequestsDifferIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L225) | unit/verify | revert, verified |
 | positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_accounting_test.go#L167) | unit/verify | revert, verified |
-| positive | [`TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_acct_delay_time_omit_test.go#L120) | unit/verify | revert, verified |
-| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L109) | unit/verify | revert, verified |
+| positive | [`TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_acct_delay_time_omit_test.go#L120) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L109) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2866-3-4`](#rfc2866-3-4)
 
@@ -311,9 +311,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Trig
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2866IdentifierCounterCoversTheWholeSpace`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L234) | unit/verify | revert, verified |
-| positive | [`TestRFC2866IdentifierChangesForANewRequest`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L193) | unit/verify | revert, verified |
-| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L114) | unit/verify | revert, verified |
-| positive | [`TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L148) | unit/verify | revert, verified |
+| positive | [`TestRFC2866IdentifierChangesForANewRequest`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L193) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L114) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
+| positive | [`TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes`](https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L148) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2866-5-2`](#rfc2866-5-2)
 
@@ -346,7 +346,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2866AcctSessionIDDiffersBetweenSessions`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L200) | unit/verify | unproven |
-| positive | [`TestAccountingAddressFamiliesShareLifetime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go#L11) | unit/verify | revert, verified |
+| positive | [`TestAccountingAddressFamiliesShareLifetime`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go#L11) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2866AcctSessionIDSameAcrossRecords`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L181) | unit/verify | unproven |
 
 ### [`RFC2866-5.5-3`](#rfc2866-5.5-3)

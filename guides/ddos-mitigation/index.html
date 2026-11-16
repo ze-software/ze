@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>DDoS Detection and Auto-Mitigation - Ze</title>
         <meta name="description" content="Ze documentation: guide/ddos-mitigation.md" />
         <meta property="og:title" content="DDoS Detection and Auto-Mitigation - Ze" />
@@ -671,8 +671,8 @@ duration is not a factor.</p>
 <tr>
 <td><code>api-base</code></td>
 <td><span class="ev-src"><span class="ev-ref"><code>https://flowtriq.com/api/v1</code></span></span></td>
-<td>URL</td>
-<td>API base URL</td>
+<td>https URL</td>
+<td>API base URL. Ze refuses an <code>http</code> URL, a loopback one included, because each request carries the bearer token. Ze follows no redirect: a 3xx answer is a failure that names the Location, so configure the final URL</td>
 </tr>
 </tbody>
 </table>
@@ -1247,7 +1247,7 @@ silences it, because a disabled detector subscribes to no feed.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

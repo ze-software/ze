@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Monitoring - Ze</title>
         <meta name="description" content="Ze documentation: guide/monitoring.md" />
         <meta property="og:title" content="Monitoring - Ze" />
@@ -271,6 +271,16 @@ counts reconstruction attempts, and <code>ze_rib_view_pending_prefixes</code> sh
 prefixes held for snapshot or forwarding reconciliation.</p>
 <!-- source: internal/component/sysrib/doctor_route_view.go -- findings, newRouteViewHealth -->
 <p>The <code>netdata</code> block only controls Netdata-compatible OS collector metrics. It does not rename Ze-native metrics such as <code>ze_bgp_*</code>, <code>ze_bfd_*</code>, or <code>ze_l2tp_*</code>.</p>
+<p>PPP cleanup failures remain visible in <code>show doctor</code> as <code>doctor-ppp-cleanup</code>
+and in the <code>ppp-cleanup</code> health row. The finding names the created interface,
+its native index and the backend error. <code>show warnings</code> shows the retained
+details. Network-resource cleanup and session-owner release retain separate
+causes when both fail for the same interface. Repair the reported backend and confirm resource removal before
+restarting service. A later successful session does not clear this finding;
+report-bus eviction is reported as uncertainty rather than recovery.</p>
+<!-- source: internal/component/l2tp/ppp/cleanup_health.go -- ReportCleanupFailure -->
+<!-- source: internal/component/l2tp/doctor_cleanup.go -- checkPPPCleanup -->
+<!-- source: internal/component/l2tp/pppoe/server.go -- closeAdmitted, closeSession, closeTransport -->
 <pre><code>telemetry {
     prometheus {
         enabled true;
@@ -1387,7 +1397,7 @@ ze cli -c "show bgp rpki status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

@@ -15,7 +15,8 @@ what Ze has
 | One polarity, unexcused | 0 | of 4 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 4 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
 | Declared gap or no test | 0 | of 4 mandatory requirements | the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation |
-| Tests shown to detect a fault | 2 | 2 of 22 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 0 | 0 of 22 tests linked to requirements, 0 without a fault test and 2 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Audit verdicts | 7 | of 4 mandatory requirements reviewed | 0 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id |
 
 ### Neutral
 
@@ -54,7 +55,7 @@ A color names what the measure MEANS, not how well Ze scores on it. Green is a g
 | Optional feature declined | neutral | no color: an obligation whose condition Ze never meets is neither an achievement nor a failure. The absent FEATURE is disclosed on the RFC's own status row, as an implementation gap a later scope decision can revisit |
 | Linux cannot do this | neutral | neutral at every value: an evidenced platform limit is neither a proof nor a scope exemption |
 | Tests shown to detect a fault | ok | green at every value: these tests have been shown to detect a deliberate fault. This card counts individual tests separately, so its total cannot be added to the requirement counts above |
-| Audit verdicts | warn | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
+| Audit verdicts | ok | RED on the first weak, wrong or unimplemented verdict, amber while a verdict is no longer current or a mandatory requirement is unreviewed, green when every one is judged sound and current |
 | Mandatory requirements (MUST level) | outlined | outlined, with no colored edge: it is the total the other cards are counted against, not a measure, and a larger one is neither good news nor bad |
 
 ## At a glance
@@ -86,9 +87,9 @@ Included in automatic checks: BGP Route Reflection: four MUST-level requirements
 
 **Area:** Route Reflection
 
-**Proof:** 1 of 4 MUST proven
+**Proof:** 0 of 4 MUST proven
 
-**Evidence:** unit 1
+**Evidence:** -
 
 **Unmet:** -
 
@@ -110,8 +111,8 @@ Included in automatic checks: BGP Route Reflection: four MUST-level requirements
 
 ## Figures
 
-- **MUST bar**: Ze proven 1, Proof pending 3
-- **Overview bar**: Ze MUST proven 1, Proof pending 6, Not assessed 2
+- **MUST bar**: Proof pending 4
+- **Overview bar**: Proof pending 7, Not assessed 2
 
 | Figure | Rows |
 |---|---|
@@ -120,9 +121,9 @@ Included in automatic checks: BGP Route Reflection: four MUST-level requirements
 | Mandatory requirements complete | not complete |
 | MUST rows | 4 |
 | MUST rows kept (the MUST bar) | 4 |
-| Ze proven | 1 |
+| Ze proven | 0 |
 | OS verified | 0 |
-| Proof pending | 3 |
+| Proof pending | 4 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -184,7 +185,7 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Test
 
 This attribute is 4 bytes long and it will be created by an RR in reflecting a route. (§8)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2 moved. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: "This attribute is 4 bytes long and it will be created by an RR in reflecting a route." The commit changed checkReflectorWithdrawal (both tags) only in its last failure: the Established re-check now returns interoplab.WithSearchedOutput(errors.New(...), output), which always returns a non-nil error wrapping the same cause (output.go). Every condition is byte-identical: the positive still requires the exact injector-log token 800904<3 octets>03 (flags 0x80, type 9, length 4, the client's identifier) beside the CLUSTER_LIST token, requireNoEarlyReflectorWithdrawal still refuses a withdrawal before FRR is asked, and the negative still requires the byte-exact withdrawal body :02:0004180A14000000 (withdrawn length 4, 10.20.0.0/24, Total Path Attribute Length 0), so no ORIGINATOR_ID rides the withdrawal. The unit covers TestReactorForwardRRInjects, TestReactorForwardRRPreservesOriginator and TestForwardReflectionLeavesAWithdrawalUntouched are unchanged and keep the 2026-10-06 judgement: absent originator becomes exactly four bytes 10.0.0.1, a present one stays byte-exact, withdrawal and EOR stay untouched with an advertisement control. The interop units carry no discrimination record and the scenario was not rerun for this failure-text change, so question 2 for them rests on reading; the unit tests carry the precise assertions. Verdict unchanged.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: "This attribute is 4 bytes long and it will be created by an RR in reflecting a route." The commit changed checkReflectorWithdrawal (both tags) only in its last failure: the Established re-check now returns interoplab.WithSearchedOutput(errors.New(...), output), which always returns a non-nil error wrapping the same cause (output.go). Every condition is byte-identical: the positive still requires the exact injector-log token 800904<3 octets>03 (flags 0x80, type 9, length 4, the client's identifier) beside the CLUSTER_LIST token, requireNoEarlyReflectorWithdrawal still refuses a withdrawal before FRR is asked, and the negative still requires the byte-exact withdrawal body :02:0004180A14000000 (withdrawn length 4, 10.20.0.0/24, Total Path Attribute Length 0), so no ORIGINATOR_ID rides the withdrawal. The unit covers TestReactorForwardRRInjects, TestReactorForwardRRPreservesOriginator and TestForwardReflectionLeavesAWithdrawalUntouched are unchanged and keep the 2026-10-06 judgement: absent originator becomes exactly four bytes 10.0.0.1, a present one stays byte-exact, withdrawal and EOR stay untouched with an advertisement control. The interop units carry no discrimination record and the scenario was not rerun for this failure-text change, so question 2 for them rests on reading; the unit tests carry the precise assertions. Verdict unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -198,7 +199,7 @@ Audit verdict: enforced (the tests do what the requirement demands), shifted: in
 
 When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one. (§8)
 
-Audit verdict: enforced (the tests do what the requirement demands), shifted: internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal, internal/le/interoplab/bgp/check_special.go::checkReflectorWithdrawal#2 moved. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: "When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one." The commit changed checkReflectorWithdrawal (both tags) only in the text of its final Established failure, now wrapped by interoplab.WithSearchedOutput, which returns a non-nil error for the same cause; no condition moved. The interop positive still requires the exact token 800A04<3 octets>02, a newly created four-byte CLUSTER_LIST holding Ze's configured cluster-id (the empty-list clause), and the negative still requires the attribute-free byte-exact withdrawal. The prepend-onto-existing clause stays proven by the unchanged unit covers: TestReactorForwardRRInjects requires exact [1.2.3.2] and TestReactorForwardRRPreservesOriginator exact [1.2.3.2,5.5.5.5], so replacement, append, omission and a wrong local id all fail. The interop units carry no discrimination record and were not rerun for this failure-text change. Verdict unchanged.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Rejudged 2026-10-17 after 7af5edbb7f. RFC 4456 Section 8 read in rfc/full/rfc4456.txt: "When an RR reflects a route, it MUST prepend the local CLUSTER_ID to the CLUSTER_LIST.  If the CLUSTER_LIST is empty, it MUST create a new one." The commit changed checkReflectorWithdrawal (both tags) only in the text of its final Established failure, now wrapped by interoplab.WithSearchedOutput, which returns a non-nil error for the same cause; no condition moved. The interop positive still requires the exact token 800A04<3 octets>02, a newly created four-byte CLUSTER_LIST holding Ze's configured cluster-id (the empty-list clause), and the negative still requires the attribute-free byte-exact withdrawal. The prepend-onto-existing clause stays proven by the unchanged unit covers: TestReactorForwardRRInjects requires exact [1.2.3.2] and TestReactorForwardRRPreservesOriginator exact [1.2.3.2,5.5.5.5], so replacement, append, omission and a wrong local id all fail. The interop units carry no discrimination record and were not rerun for this failure-text change. Verdict unchanged.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
@@ -227,9 +228,9 @@ Audit verdict: enforced (the tests do what the requirement demands), fresh. Sent
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestReactorForwardRRInjects`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L177) | unit/verify | unproven |
-| negative | [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L31) | unit/verify | revert, verified |
+| negative | [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L31) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestReactorForwardRRPreservesOriginator`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/forward_rr_test.go#L200) | unit/verify | unproven |
-| positive | [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L30) | unit/verify | revert, verified |
+| positive | [`TestRFC4456OriginatorIDIsTheOriginatorsBGPIdentifier`](https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4456_originator_id_test.go#L30) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC4456-x-2`](#rfc4456-x-2)
 

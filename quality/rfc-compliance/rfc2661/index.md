@@ -14,7 +14,7 @@ what Ze has
 | One polarity plus reason | 28 | of 95 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0 | of 95 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
 | Partial proof; remaining gap | 0 | of 95 mandatory requirements | scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit |
-| Tests shown to detect a fault | 207 | 207 of 212 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 203 | 203 of 212 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -791,7 +791,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2661HeaderSessionIDNeverWrong`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L395) | unit/verify | revert, verified |
-| positive | [`TestRFC2661HeaderSessionIDBeforeAndAfterAssignment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L363) | unit/verify | revert, verified |
+| positive | [`TestRFC2661HeaderSessionIDBeforeAndAfterAssignment`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L363) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2661-4.4.4-2`](#rfc2661-4.4.4-2)
 
@@ -925,7 +925,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2661CallNeedsEstablishedTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L491) | unit/verify | revert, verified |
+| negative | [`TestRFC2661CallNeedsEstablishedTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L491) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2661CallNeedsEstablishedTunnel`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L489) | unit/verify | revert, verified |
 
 ### [`RFC2661-5.0-2`](#rfc2661-5.0-2)
@@ -1265,7 +1265,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC2661LocalTerminationSendsStopCCN`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L539) | unit/verify | revert, verified |
+| negative | [`TestRFC2661LocalTerminationSendsStopCCN`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L539) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 | positive | [`TestRFC2661LocalTerminationSendsStopCCN`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L536) | unit/verify | revert, verified |
 
 ### [`RFC2661-7.2.1-3`](#rfc2661-7.2.1-3)
@@ -1299,7 +1299,7 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
 | negative | [`TestRFC2661CDNCleansUpSilently`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L709) | unit/verify | revert, verified |
-| positive | [`TestRFC2661CDNCleansUpSilently`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L706) | unit/verify | revert, verified |
+| positive | [`TestRFC2661CDNCleansUpSilently`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/rfc2661_tunnel_test.go#L706) | unit/verify | revert, producer-changed (the producer's behavior changed since the break was applied to it) |
 
 ### [`RFC2661-7.5.1-2`](#rfc2661-7.5.1-2)
 
@@ -1364,7 +1364,7 @@ No test carries RFC2661-9.5-2, so there is no linked test.
 
 If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable) (§5.8)
 
-Audit verdict: enforced (the tests do what the requirement demands), stale-unit: internal/component/l2tp/config.go::ExtractParameters moved. Re-judged 2026-11-13 (independent auditor) after bae3903dbb changed reactor.go::locateTunnelLocked: only its doc comment changed (session-downs are now 'delivered (deliverSessionDowns)' with an order ticket instead of 'emitted'); the body, including newTunnel(..., r.reliableConfig(), ...), is byte-identical, and the other cited producers are unchanged apart from a placePendingCallLocked preallocation in reactor_dial.go outside handleDial. RFC 2661 Section 5.8: "If no peer response is detected after several retransmissions, (a recommended default is 5, but SHOULD be configurable), the tunnel and all sessions within MUST be cleared." This RID owns the configurable budget; RFC2661-5.8-3 owns the clearing MUST. TestRFC2661ConfiguredMaxRetransmitClearsTunnel sets max-retransmit 2 before the tunnel exists, disables HELLO dead-peer detection, asserts Established after each of the two allowed retransmissions (negative) and Closed plus the StopCCN log at the next deadline (positive), so ignoring 2 for 5 or exhausting early both fail. TestConfig_MaxRetransmit and TestReloadAppliesMaxRetransmit cover the default 5 and parsed values reaching the reactor.
+Audit verdict: enforced (the tests do what the requirement demands), fresh. Re-read RFC 2661 Section 5.8 and the current producer chain after ExtractParameters gained independent PPP LCP parsing. This requirement owns the configurable reliable-delivery retransmission budget, not the separate 5.8-3 clearing obligation. ExtractParameters still parses max-retransmit into Parameters.MaxRetransmit, tunnelDefaults and reliableConfig still carry it to both tunnel constructors, and ReliableEngine.Tick still exhausts that budget. TestRFC2661ConfiguredMaxRetransmitClearsTunnel sets two before creating the tunnel, disables HELLO dead-peer detection, asserts Established through each allowed retransmission, and Closed after the next deadline. A fixed five fails the positive assertion; premature clearing fails the distinct negative assertions. TestConfig_MaxRetransmit separately asserts default five and an explicit nine; TestReloadAppliesMaxRetransmit asserts an explicit eight reaches reactor and new-tunnel defaults. The new PPP LCP parse does not alter this reliable-delivery setting or the existing tagged assertions.
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|

@@ -151,6 +151,11 @@ runs in-process even inside an `external` stanza, while
 `run "ze plugin bgp-rib"` forks a subprocess. Validation and derived receive
 bindings use that same resolved declaration.
 
+Replay admission identifies FlowSpec from each configured family's registered
+SAFI, including VPN FlowSpec, rather than from a fixed list of family names.
+A configured name absent from the registry is refused.
+<!-- source: internal/component/bgp/config/flowspec_binding.go -- hasFlowSpecFamily -->
+
 <!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
 <!-- source: internal/component/bgp/config/flowspec_binding.go -- requireRIBDelivery -->
 

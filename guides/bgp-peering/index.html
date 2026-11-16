@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BGP Peering - Ze</title>
         <meta name="description" content="Ze documentation: guide/bgp-peering.md" />
         <meta property="og:title" content="BGP Peering - Ze" />
@@ -265,7 +265,7 @@ provider set is derived.</p>
 <td><code>connection / remote / range</code></td>
 <td>leaf-list of prefixes</td>
 <td>--</td>
-<td>The addresses that can open a session. Overlapping ranges take the longest match.</td>
+<td>The addresses that can open a session. Overlapping ranges take the longest match among groups accepting on the connection's local address and port.</td>
 </tr>
 <tr>
 <td><code>connection / remote / max-peers</code></td>
@@ -333,7 +333,10 @@ provider set is derived.</p>
 <!-- source: internal/component/bgp/config/templated_chain.go -- checkTemplatedMember, templatedChain.CompileResolved -->
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- resolveDynamicPolicy -->
 <p>A dynamic group is held to the same rules as a static peer. A family with no prefix maximum is refused (RFC 4486). A hold time RFC 4271 Section 4.2 refuses is refused here too.</p>
-<p>The group opens its own listening socket on <code>connection/local/ip</code> and the group's listen port. A configuration that names no static peer is enough to accept members. When a static peer and a dynamic group share one socket, Ze attributes each connection by remote address, so a static peer inside the group's range keeps its own session and its own settings.</p>
+<p>The group opens its own listening socket on <code>connection/local/ip</code> and the group's listen port. A configuration that names no static peer is enough to accept members. Ze selects a dynamic group using the connection's actual local address and port before choosing the longest remote prefix. An <code>auto</code> local address accepts any local address on that listen port. Explicit wildcard addresses <code>0.0.0.0</code> and <code>::</code> keep TCP wildcard binding semantics while still checking the receiving port. A group whose local address or port does not admit the socket cannot create or reuse a member through it. The member keeps the remote address's interface zone in its identity.</p>
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- findDynamicGroupEligible, tryCreateDynamicPeerAt -->
+<p>When a static peer and a dynamic group share one socket, Ze attributes each connection by remote address, so a static peer inside the group's range keeps its own session and its own settings. The incoming source port is ephemeral; it does not replace the configured remote port in the peer's key.</p>
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- peerForConnection, handleListenerConnection -->
 <p>A per-peer plugin config that a group states reaches its members. RFC 9234 role checks, the RPKI action, the blackhole block, and the community policy all resolve through the group when the member has no entry of its own. See the <a href="../bgp-role/">BGP Role guide</a>.</p>
 <p>A configuration reload keeps a member's session up when its settings did not change. Ze removes a member in three cases only: its group is gone, its address left every range, or the group template would now build different settings for that address. A wider range or a raised <code>max-peers</code> changes no member and bounces no session.</p>
 <h2 id="address-families">Address families</h2>
@@ -461,7 +464,8 @@ group blocks too.</p>
 second connection waits for its OPEN before collision arbitration; it cannot
 displace the held connection merely by connecting.</p>
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf delay-open -->
-<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision -->
 <p>With <code>connection { bfd { enabled true; strict true; } }</code> and strict mode
 negotiated by both peers, an early OPEN sends Ze's OPEN but withholds KEEPALIVE
 until BFD permits the session. <code>show bgp peer detail</code> reports a Connect or Active
@@ -551,7 +555,7 @@ ze cli -c "show bgp rib status"
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 4659 requirements and tests - Ze</title>
         <meta name="description" content="RFC 4659: BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN. 18 mandatory requirements included in automatic checks, 13 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 4659 requirements and tests - Ze" />
@@ -132,13 +132,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>2</strong><b>of 18 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 18 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 18 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>21</strong><b>21 of 28 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>11</strong><b>11 of 28 tests linked to requirements, 0 without a fault test and 10 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
 <div class="rfc-card-grid reveal">
 <article class="rfc-card rfc-bad"><span>Declared gap or no test</span><strong>13</strong><b>of 18 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 18 mandatory requirements reviewed</b><p>1 weak, wrong or unimplemented, 0 no longer current. Each is named below under its own requirement id</p></article>
+<article class="rfc-card rfc-bad"><span>Audit verdicts</span><strong>6</strong><b>of 18 mandatory requirements reviewed</b><p>2 weak, wrong or unimplemented, 1 no longer current. Each is named below under its own requirement id</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -280,8 +280,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> VPNv6</p>
-<p><strong>Proof:</strong> 4 of 18 MUST proven</p>
-<p><strong>Evidence:</strong> interop 1, unit 3</p>
+<p><strong>Proof:</strong> 3 of 18 MUST proven</p>
+<p><strong>Evidence:</strong> interop 1, unit 2</p>
 <p><strong>Unmet:</strong> RFC4659-3.2.1.2-1, RFC4659-4-1, RFC4659-4-2, RFC4659-4-3, RFC4659-4-4, RFC4659-4-5, RFC4659-4-6, RFC4659-4-7, RFC4659-8-1, RFC4659-8-2, RFC4659-8-3, RFC4659-8-4, RFC4659-8-5</p>
 
 </section>
@@ -327,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc4659:must">Ze proven 4, Proof pending 1, Not built 13</div>
+<div data-ze-rfc-bar="rfc4659:must">Ze proven 3, Proof pending 2, Not built 13</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc4659:overview">Ze MUST proven 4, Proof pending 1, Not assessed 6, Not built 13</div>
+<div data-ze-rfc-bar="rfc4659:overview">Ze MUST proven 3, Proof pending 2, Not assessed 6, Not built 13</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -350,13 +350,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc4659:must.kept">18</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc4659:must.ze-proven">4</span></td>
+<td><span data-ze-rfc="rfc4659:must.ze-proven">3</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc4659:must.os-verified">0</span></td>
 </tr>
 <tr><td>Proof pending</td>
-<td><span data-ze-rfc="rfc4659:must.proof-pending">1</span></td>
+<td><span data-ze-rfc="rfc4659:must.proof-pending">2</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc4659:must.os-gap">0</span></td>
@@ -456,12 +456,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>3.4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC4659-3.4-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L172" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestOpenAdvertisesVPNv6Capability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L173" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestOpenAdvertisesVPNv6Capability</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L68" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6RouteSentWhenNegotiated</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L127" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6UpdateAcceptedWhenNegotiated</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L217" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L87" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6RouteWithheldWhenNotNegotiated</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L141" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6UpdateRefusedWhenNotNegotiated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L129" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6UpdateAcceptedWhenNegotiated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L218" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L88" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6RouteWithheldWhenNotNegotiated</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L143" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6UpdateRefusedWhenNotNegotiated</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc4659-4-1">RFC4659-4-1</code></td><td colspan="3"><span class="rfc-subject">The ingress PE Router MUST tunnel IPv6 VPN data over the backbone towards the Egress PE router (Section 4)</span></td></tr>
@@ -789,38 +789,38 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc4659-3.4-1"><code>RFC4659-3.4-1</code></a></h3>
 <p>In order for two PEs to exchange labeled IPv6 VPN NLRIs, they MUST use BGP Capabilities Negotiation to ensure that they both are capable of properly processing such NLRIs. This is done as specified in [BGP-MP] and [BGP-CAP], by using capability code 1 (multiprotocol BGP), with AFI and SAFI values as specified above, in Section 3.2. (§3.4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 4659 Section 3.4 read: &#34;In order for two PEs to exchange labeled IPv6 VPN NLRIs, they MUST use BGP Capabilities Negotiation to ensure that they both are capable of properly processing such NLRIs.&#34; Units read: TestRFC4659VPNv6RouteSentWhenNegotiated and TestRFC4659VPNv6RouteWithheldWhenNotNegotiated; only their initial-sync call changed. 08fe903803 moved the initial-sync gate (sendingInitialRoutes) and the End-of-RIB owed mark (initialSyncEOROwed) from Peer onto Session. In the tagged units named stale it replaced peer.sendInitialRoutes() with peer.runInitialSyncNow(), which is Peer.sendInitialRoutes(p.testInitialSync()) (initial_sync_helpers_test.go): the same production sync body, run on the session the fixture installed (or one built with NewSession(p.settings) and published through establishedSession as enterEstablished does); it replaced peer.&lt;flag&gt;.Store(v) with peer.testInitialSync().&lt;flag&gt;.Store(v) or setTestInitialSync, and drainAndCloseQueueGate now takes that session. git diff 08fe903803^ against the working tree shows no assertion, expected byte, driven input or tag prose changed in any of them, each under the RFC-approved line 08fe903803 carries. Questions 1, 3 and 4 answer exactly as the earlier judgement below; question 2 still rests on the same producers, whose discrimination records are retaken by ./le rfc record after this stamp. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-14 (independent auditor). Only TestOpenAdvertisesVPNv6Capability changed, mechanically: it now packs ps.Capabilities through capability.PackOptionalParams (the one packer buildOpen uses) instead of the removed buildOptionalParams, then requires Multiprotocol AFI 2/SAFI 128 in the decoded OPEN parameters for a configured ipv6/mpls-vpn family. The send and receive units in rfc4659_vpnv6_negotiated_send_test.go (route sent only when AFI 2/SAFI 128 negotiated, UPDATE refused when not) and the negotiateWith negative are unchanged and still carry the enforcement.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6RouteSentWhenNegotiated, internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go::TestRFC4659VPNv6RouteWithheldWhenNotNegotiated moved. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 4659 Section 3.4 read: &#34;In order for two PEs to exchange labeled IPv6 VPN NLRIs, they MUST use BGP Capabilities Negotiation to ensure that they both are capable of properly processing such NLRIs.&#34; Units read: TestRFC4659VPNv6RouteSentWhenNegotiated and TestRFC4659VPNv6RouteWithheldWhenNotNegotiated; only their initial-sync call changed. 08fe903803 moved the initial-sync gate (sendingInitialRoutes) and the End-of-RIB owed mark (initialSyncEOROwed) from Peer onto Session. In the tagged units named stale it replaced peer.sendInitialRoutes() with peer.runInitialSyncNow(), which is Peer.sendInitialRoutes(p.testInitialSync()) (initial_sync_helpers_test.go): the same production sync body, run on the session the fixture installed (or one built with NewSession(p.settings) and published through establishedSession as enterEstablished does); it replaced peer.&lt;flag&gt;.Store(v) with peer.testInitialSync().&lt;flag&gt;.Store(v) or setTestInitialSync, and drainAndCloseQueueGate now takes that session. git diff 08fe903803^ against the working tree shows no assertion, expected byte, driven input or tag prose changed in any of them, each under the RFC-approved line 08fe903803 carries. Questions 1, 3 and 4 answer exactly as the earlier judgement below; question 2 still rests on the same producers, whose discrimination records are retaken by ./le rfc record after this stamp. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-14 (independent auditor). Only TestOpenAdvertisesVPNv6Capability changed, mechanically: it now packs ps.Capabilities through capability.PackOptionalParams (the one packer buildOpen uses) instead of the removed buildOptionalParams, then requires Multiprotocol AFI 2/SAFI 128 in the decoded OPEN parameters for a configured ipv6/mpls-vpn family. The send and receive units in rfc4659_vpnv6_negotiated_send_test.go (route sent only when AFI 2/SAFI 128 negotiated, UPDATE refused when not) and the negotiateWith negative are unchanged and still carry the enforcement.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L87" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6RouteWithheldWhenNotNegotiated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L88" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6RouteWithheldWhenNotNegotiated</code></a></td>
+<td>unit/verify</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
+</tr>
+<tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L143" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6UpdateRefusedWhenNotNegotiated</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L141" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6UpdateRefusedWhenNotNegotiated</code></a></td>
-<td>unit/verify</td>
-<td>revert, verified</td>
-</tr>
-<tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L217" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L218" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestNegotiateWith_VPNv6NotActiveWithoutPeerCapability</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L68" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6RouteSentWhenNegotiated</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L127" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6UpdateAcceptedWhenNegotiated</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go#L129" title="internal/component/bgp/reactor/rfc4659_vpnv6_negotiated_send_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6UpdateAcceptedWhenNegotiated</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L172" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestOpenAdvertisesVPNv6Capability</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_negotiate_test.go#L173" title="internal/component/bgp/reactor/session_negotiate_test.go" target="_blank" rel="noopener"><code>TestOpenAdvertisesVPNv6Capability</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -882,12 +882,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go#L54" title="internal/component/bgp/reactor/rfc4659_configured_ipv6_transport_integration_linux_test.go" target="_blank" rel="noopener"><code>TestRFC4659ConfiguredIPv6TransportNextHopWire</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_link_local_peering_test.go#L40" title="internal/component/bgp/reactor/rfc4659_link_local_peering_test.go" target="_blank" rel="noopener"><code>TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -902,11 +902,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>No test carries RFC4659-8-4, so there is no linked test.</p>
 <h3><a href="#rfc4659-8-5"><code>RFC4659-8-5</code></a></h3>
 <p>When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address. (§8)</p>
-<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 4659 Section 8 read: &#34;When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address.&#34; The cited sysrib.go::processEvent no longer exists: 13590fe5b2 and d73a860caf replaced the publication path with the routing-view projection, whose entry guard is sysrib/projection_path.go selectedProjection.prepare (refuses an entry of an unregistered family or with an invalid, host-bit, IPv4-mapped or zoned prefix). That guard replaces processEvent in the code map. RIB checkRouteBestChange still excludes native VPN routes from its prefix-keyed mirror, buildMPReachVPN and mpReachNextHopHandler still only carry the supplied next hop and labels, and nothing builds an ASBR-local label binding or selects IPv6 tunnel transport. The integrated option-(b) path stays absent. Verdict unchanged: unimplemented. Earlier judgement follows. Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 4659 Section 8: &#34;When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address.&#34; 238bdb62e9 changed the cited producer rib_bestchange.go::checkRouteBestChange: a best change is now also published when only the winner&#39;s attribute set changes (sameAttributeSet over the storage fingerprint), and the entry carries the winner&#39;s attribute bytes (storedAttributes, setEntryPath). Its only consumer of those bytes is BMP Loc-RIB (bmp/bmp_locrib.go). Native VPN routes are still non-CIDR and not mirrored by prefix, and nothing builds an ASBR-local label binding or selects IPv6 tunnel transport, so the gap stands. Verdict unchanged: unimplemented. Earlier judgement follows. RFC 4659 Section 8, approach (b), rfc/full/rfc4659.txt:644-664: &#34;When the VPN-IPv6 traffic is to be transported using IPv6 tunneling, the BGP Next Hop Field SHALL contain an IPv6 address.&#34; No tagged carriers exist for this row. Independently read all four retained guard producers. buildMPReachVPN writes a supplied IPv6 next hop behind a zero RD and carries supplied labels; mpReachNextHopHandler preserves native NLRI while enforcing admitted next-hop lengths. Those generic control-plane facilities are implemented but unverified for this integrated transport-conditioned requirement, not absent generic VPNv6 support. checkRouteBestChange still excludes native VPN routes from its prefix-keyed Loc-RIB mirror, extracting labeled-unicast labels or separate attribute-40 SRv6 metadata rather than creating an ASBR-local VPN label binding; sysrib.processEvent skips native-NLRI changes without a valid prefix. The integrated option-(b) inter-ASBR label/forwarding relationship and IPv6-transport selection remain absent. Retain the explicit unimplemented boundary and every guard; the SHALL remains applicable when its transport condition holds. This is neither not-applicable nor permission to add ASBR scope. No checks run.</p>
+<p><strong>Audit verdict:</strong> unimplemented (no code path enforces the requirement), fresh. Independent AC12 rejudgment on 2026-11-16 against RFC4659 Section8 approach(b): the IPv6-transport-conditioned SHALL still applies. The current buildMPReachVPN selects the registered profile and writes the supplied next-hop addresses and labels; mpReachNextHopHandler materializes a next-hop Set while preserving the remaining NLRI. Neither selects IPv6 tunnel transport or installs an ASBR-local VPN label/forwarding relationship. RIB checkRouteBestChange now handles opaque route selection too, but only CIDR families mirror into prefix-keyed Loc-RIB; selectedProjection.prepare requires a registered IP family and valid unmapped unzoned CIDR prefix. Thus generic VPN control-plane handling is implemented while the integrated option-(b) service remains absent. No positive/negative carriers tag this row. Retain unimplemented and the explicit gap, with no exemption or whole-row credit. The annotation still names retired sysrib.go::processEvent and should be corrected to the actual projection_path.go::selectedProjection.prepare guard without changing the RFC quote or narrowing applicability. No run or proof replay performed.</p>
 <p>No test carries RFC4659-8-5, so there is no linked test.</p>
 <h3><a href="#rfc4659-3.2.1.1-3"><code>RFC4659-3.2.1.1-3</code></a></h3>
 <p>The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to [BGP-IPv6]. (§3.2.1.1)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent source rejudgment against RFC 4659 Section 3.2.1.1: &#34;The link-local address shall be included in the Next Hop field if and only if the advertising BGP speaker shares a common subnet with the peer the route is being advertised to&#34;; the same section defines the global as the advertising speaker&#39;s. Read all tagged tests, helpers, cited producers and current native configs/checker. Static, API, forwarding and next-hop-rewrite tests assert exact zero-RD 48-octet pairs on-link versus 24-octet fields off-link. The loopback-global cases distinguish this peer-only condition from RFC 2545&#39;s joint condition; configured, relay and next-hop-self rails retain the pair despite a speaker-owned global outside the connected prefix. linkLocalConditionFor selects the VPN peer-only condition and the builders preserve the two zero RDs. The functional positive asserts the 48-octet field. The moved checkVPNFRR positive now requires BIRD&#39;s exact ordered global plus topology-owned link-local; FRR&#39;s output cannot independently prove the pair. Its negative remains only a third-party-global omission control on the SAME on-link sessions, not evidence of no common subnet; the true no-common-subnet negative is provided by the Go units and is not credited to that interop tag. Source limitations for non-speaker-owned globals remain outside this section&#39;s defined global-address form; no new whole-RFC support claim follows. Verdict enforced on the stated requirement. No native run, proof replay or freshness verification performed.</p>
+<p><strong>Audit verdict:</strong> weak (the tests pass over code that does not enforce the requirement), fresh. Independent AC12 rejudgment on 2026-11-16 against RFC 4659 Section 3.2.1.1 and every current tagged carrier: the Go units assert exact zero-RD 48-octet pairs for speaker-owned globals with a configured usable LinkLocal on a common subnet, and exact 24-octet fields for recipients on no connected subnet. The loopback-global controls correctly distinguish VPN peer-only scope from RFC2545 joint scope. The functional positive covers the same configured case. The interop positive requires BIRD exact ordered global and topology-owned Link-Local; its negative is only third-party omission on those same on-link sessions, not a no-common-subnet negative. These narrow assertions remain useful. Whole-row enforced is unsupported: applyLinkLocal accepts an absent leaf, the only production assignment of PeerSettings.LinkLocal is that parser, and linkScope.linkLocalNextHop returns no address for the speaker when that configured value is absent. The shared normalizer and builder then retain the global-only field even when the actual speaker/peer common-subnet condition holds. No tagged carrier exercises interface-derived own Link-Local without this override. This is a source-demonstrated pre-existing implementation/testing gap, not an observed runtime failure. Existing spec-bgp-link-local-only-next-hop AC9-19/AC20 owns interface-derived address selection and actual-interface binding. Verdict weak until that required case is proven and fixed; a later valid partial annotation may preserve the tested scope with an explicit gap, but no partial or enforced claim is made now. No tests, records, audit stamps, compilation or runtime checks were executed by this reviewer.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -914,7 +914,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L79" title="internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC4659APIVPNv6LinkLocalCommonSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-gone (the producer the break was applied to is no longer in the tree)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L121" title="internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC4659ForwardVPNv6LinkLocalCommonSubnet</code></a></td>
@@ -924,12 +924,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L84" title="internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC4659StaticVPNv6LinkLocalCommonSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-gone (the producer the break was applied to is no longer in the tree)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L88" title="internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go" target="_blank" rel="noopener"><code>TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L647" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkVPNFRR</code></a></td>
@@ -939,7 +939,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go#L78" title="internal/component/bgp/reactor/rfc4659_api_vpn_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC4659APIVPNv6LinkLocalCommonSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-gone (the producer the break was applied to is no longer in the tree)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go#L38" title="internal/component/bgp/reactor/rfc4659_vpn_link_local_loopback_test.go" target="_blank" rel="noopener"><code>TestRFC4659VPNv6LinkLocalLoopbackGlobal</code></a></td>
@@ -954,12 +954,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go#L83" title="internal/component/bgp/reactor/rfc4659_vpn_link_local_test.go" target="_blank" rel="noopener"><code>TestRFC4659StaticVPNv6LinkLocalCommonSubnet</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-gone (the producer the break was applied to is no longer in the tree)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go#L87" title="internal/component/bgp/reactor/rfc4659_vpn_next_hop_rewrite_test.go" target="_blank" rel="noopener"><code>TestRFC4659ForwardVPNv6NextHopRewriteCarriesRD</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/le/interoplab/bgp/check_rfc.go#L646" title="internal/le/interoplab/bgp/check_rfc.go" target="_blank" rel="noopener"><code>checkVPNFRR</code></a></td>
@@ -1219,7 +1219,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

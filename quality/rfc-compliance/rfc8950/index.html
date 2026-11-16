@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 8950 requirements and tests - Ze</title>
         <meta name="description" content="RFC 8950: Advertising IPv4 Network Layer Reachability Information (NLRI) with an IPv6 Next Hop. 6 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 8950 requirements and tests - Ze" />
@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 6 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 6 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 6 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>16</strong><b>16 of 28 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>12</strong><b>12 of 28 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Extended Next Hop</p>
-<p><strong>Proof:</strong> 3 of 6 MUST proven</p>
-<p><strong>Evidence:</strong> unit 3</p>
+<p><strong>Proof:</strong> 2 of 6 MUST proven</p>
+<p><strong>Evidence:</strong> unit 2</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -322,9 +322,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc8950:must">Ze proven 3, Proof pending 3</div>
+<div data-ze-rfc-bar="rfc8950:must">Ze proven 2, Proof pending 4</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc8950:overview">Ze MUST proven 3, Proof pending 3, Not assessed 2</div>
+<div data-ze-rfc-bar="rfc8950:overview">Ze MUST proven 2, Proof pending 4, Not assessed 2</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -345,13 +345,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc8950:must.kept">6</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc8950:must.ze-proven">3</span></td>
+<td><span data-ze-rfc="rfc8950:must.ze-proven">2</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc8950:must.os-verified">0</span></td>
 </tr>
 <tr><td>Proof pending</td>
-<td><span data-ze-rfc="rfc8950:must.proof-pending">3</span></td>
+<td><span data-ze-rfc="rfc8950:must.proof-pending">4</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc8950:must.os-gap">0</span></td>
@@ -526,7 +526,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc8950-4-1"><code>RFC8950-4-1</code></a></h3>
 <p>A BGP speaker MUST only advertise the IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has first ascertained via the BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), shifted: internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_CrossFamilyNoCap, internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_ExtendedNH, internal/component/bgp/reactor/peer_test.go::TestCanUseNextHopFor_NilSendCtx moved. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 8950 Section 4 read: &#34;A BGP speaker MUST only advertise the IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has first ascertained via the BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair.&#34; Units read: TestFamilyNextHopOriginationAdmission (both tags), TestStaticGroupedResolvedNextHopWire; only their sync calls and flag writes changed. 08fe903803 moved the initial-sync gate (sendingInitialRoutes) and the End-of-RIB owed mark (initialSyncEOROwed) from Peer onto Session. In the tagged units named stale it replaced peer.sendInitialRoutes() with peer.runInitialSyncNow(), which is Peer.sendInitialRoutes(p.testInitialSync()) (initial_sync_helpers_test.go): the same production sync body, run on the session the fixture installed (or one built with NewSession(p.settings) and published through establishedSession as enterEstablished does); it replaced peer.&lt;flag&gt;.Store(v) with peer.testInitialSync().&lt;flag&gt;.Store(v) or setTestInitialSync, and drainAndCloseQueueGate now takes that session. git diff 08fe903803^ against the working tree shows no assertion, expected byte, driven input or tag prose changed in any of them, each under the RFC-approved line 08fe903803 carries. Questions 1, 3 and 4 answer exactly as the earlier judgement below; question 2 still rests on the same producers, whose discrimination records are retaken by ./le rfc record after this stamp. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-11-13 against the current complete tagged population, adding TestDefaultNextHopIPv6RequiresExactExtendedPair positive/negative and TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy negative. RFC 8950 Section 4: &#34;A BGP speaker MUST only advertise the IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has first ascertained via the BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair.&#34; Q1: yes, current tags assert the relevant pair rather than any capability or any IPv4-family permission. New direct and both actual-drain cases require exact IPv4/unicast MP_REACH next-hop/prefix bytes under the exact tuple, and no such announcement under no tuple or VPN-only, while an explicit IPv4 survivor remains. Internal Default gateway, external Default session self and explicit API under configured self use the same observed output contract. Existing self/explicit matrices retain unicast-versus-VPN resolver checks; existing API, queued, commit, post-policy and static-group tests observe actual output, and general/RS controls withhold unlicensed IPv6 reachability while retaining withdrawals. Q2: yes, exact wire and count assertions reject over-admission or blanket refusal. Current new mutant records and ROOT&#39;s retained native outputs show clean GREEN then queued announcements=1,want2 when Negotiate&#39;s exact tuple is removed, and announcements=2,want1 in no-pair/VPN-only cases when an unadvertised tuple is injected. The link-local record likewise shows actual queued extra announcements beside the IPv4 survivor after its explicitly compound tuple-plus-capability-77 state forgery. Direct error-class failures alone are not used as normative emitted-wire proof. Existing whole-producer revert records retain their producer-reach scope. Q3: the global-unicast exact-pair cases isolate this rule: valid address roles, MP family and useful IPv4 survivor leave no capability-77 or link-local gate to hide tuple mistakes. The new link-local carrier is supplementary: absence of both permissions has two independent refusals, so its compound record does not prove the capability-5 guard alone, capability-77 negotiation or draft conformance. Existing TestFamilyNextHopOriginationAdmission separately checks capability 77 without required capability 5, and valid negotiated-pair output. Q4: the collective tagged population continues to enforce the exact-pair advertisement condition on the implemented origination and forwarding boundaries reviewed. No new positive VPN socket/forwarding proof, actual OPEN-exchange proof or capability-77 proof is claimed; the VPN positive remains the existing explicit/self resolver scope. RFC 8950 Section 4 also states that allowed AFI/SAFI is determined separately by the Multiprotocol Extensions capability, and the new negotiation fixture includes IPv4/unicast. Producer review: Negotiate intersects complete triples before publishing composite encoding facts; resolveNextHop/canUseNextHopFor check the selected address against that family; writeUpdateGated rechecks final post-policy MP wire against session.negotiated; egressNextHopLacksExtendedNextHop checks the final forwarding address under the same family scope. SR Policy and independently defined mapped forms remain separate contracts. Verdict unchanged. This auditor authored the original untagged default controls; this is a requirement rejudgment, not an independent weakening approval. ROOT owns audit-stamp and the final check.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), stale-unit: internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair, internal/component/bgp/reactor/default_next_hop_controls_test.go::TestDefaultNextHopIPv6RequiresExactExtendedPair#2, internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission, internal/component/bgp/reactor/next_hop_family_admission_test.go::TestFamilyNextHopOriginationAdmission#2, internal/component/bgp/reactor/peer_static_group_next_hop_test.go::TestStaticGroupedResolvedNextHopWire, internal/component/bgp/reactor/rfc8950_default_link_local_test.go::TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy, internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair, internal/component/bgp/reactor/rfc8950_reactor_a2_forward_test.go::TestRFC8950ForwardWithholdsIPv6NextHopFromPeerLackingThePair#2 moved. Re-judged 2026-11-14 by an independent auditor who authored neither 08fe903803 nor the uncommitted phase 2 of spec-single-owner-lifecycle-2-bgp-session. RFC 8950 Section 4 read: &#34;A BGP speaker MUST only advertise the IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has first ascertained via the BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair.&#34; Units read: TestFamilyNextHopOriginationAdmission (both tags), TestStaticGroupedResolvedNextHopWire; only their sync calls and flag writes changed. 08fe903803 moved the initial-sync gate (sendingInitialRoutes) and the End-of-RIB owed mark (initialSyncEOROwed) from Peer onto Session. In the tagged units named stale it replaced peer.sendInitialRoutes() with peer.runInitialSyncNow(), which is Peer.sendInitialRoutes(p.testInitialSync()) (initial_sync_helpers_test.go): the same production sync body, run on the session the fixture installed (or one built with NewSession(p.settings) and published through establishedSession as enterEstablished does); it replaced peer.&lt;flag&gt;.Store(v) with peer.testInitialSync().&lt;flag&gt;.Store(v) or setTestInitialSync, and drainAndCloseQueueGate now takes that session. git diff 08fe903803^ against the working tree shows no assertion, expected byte, driven input or tag prose changed in any of them, each under the RFC-approved line 08fe903803 carries. Questions 1, 3 and 4 answer exactly as the earlier judgement below; question 2 still rests on the same producers, whose discrimination records are retaken by ./le rfc record after this stamp. Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-11-13 against the current complete tagged population, adding TestDefaultNextHopIPv6RequiresExactExtendedPair positive/negative and TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy negative. RFC 8950 Section 4: &#34;A BGP speaker MUST only advertise the IPv4 or VPN-IPv4 NLRI with an IPv6 next hop to a BGP peer if the BGP speaker has first ascertained via the BGP Capability Advertisement that the BGP peer supports the Extended Next Hop Encoding capability for the relevant AFI/SAFI pair.&#34; Q1: yes, current tags assert the relevant pair rather than any capability or any IPv4-family permission. New direct and both actual-drain cases require exact IPv4/unicast MP_REACH next-hop/prefix bytes under the exact tuple, and no such announcement under no tuple or VPN-only, while an explicit IPv4 survivor remains. Internal Default gateway, external Default session self and explicit API under configured self use the same observed output contract. Existing self/explicit matrices retain unicast-versus-VPN resolver checks; existing API, queued, commit, post-policy and static-group tests observe actual output, and general/RS controls withhold unlicensed IPv6 reachability while retaining withdrawals. Q2: yes, exact wire and count assertions reject over-admission or blanket refusal. Current new mutant records and ROOT&#39;s retained native outputs show clean GREEN then queued announcements=1,want2 when Negotiate&#39;s exact tuple is removed, and announcements=2,want1 in no-pair/VPN-only cases when an unadvertised tuple is injected. The link-local record likewise shows actual queued extra announcements beside the IPv4 survivor after its explicitly compound tuple-plus-capability-77 state forgery. Direct error-class failures alone are not used as normative emitted-wire proof. Existing whole-producer revert records retain their producer-reach scope. Q3: the global-unicast exact-pair cases isolate this rule: valid address roles, MP family and useful IPv4 survivor leave no capability-77 or link-local gate to hide tuple mistakes. The new link-local carrier is supplementary: absence of both permissions has two independent refusals, so its compound record does not prove the capability-5 guard alone, capability-77 negotiation or draft conformance. Existing TestFamilyNextHopOriginationAdmission separately checks capability 77 without required capability 5, and valid negotiated-pair output. Q4: the collective tagged population continues to enforce the exact-pair advertisement condition on the implemented origination and forwarding boundaries reviewed. No new positive VPN socket/forwarding proof, actual OPEN-exchange proof or capability-77 proof is claimed; the VPN positive remains the existing explicit/self resolver scope. RFC 8950 Section 4 also states that allowed AFI/SAFI is determined separately by the Multiprotocol Extensions capability, and the new negotiation fixture includes IPv4/unicast. Producer review: Negotiate intersects complete triples before publishing composite encoding facts; resolveNextHop/canUseNextHopFor check the selected address against that family; writeUpdateGated rechecks final post-policy MP wire against session.negotiated; egressNextHopLacksExtendedNextHop checks the final forwarding address under the same family scope. SR Policy and independently defined mapped forms remain separate contracts. Verdict unchanged. This auditor authored the original untagged default controls; this is a requirement rejudgment, not an independent weakening approval. ROOT owns audit-stamp and the final check.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -534,7 +534,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L129" title="internal/component/bgp/reactor/default_next_hop_controls_test.go" target="_blank" rel="noopener"><code>TestDefaultNextHopIPv6RequiresExactExtendedPair</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L39" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></td>
@@ -559,7 +559,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_default_link_local_test.go#L18" title="internal/component/bgp/reactor/rfc8950_default_link_local_test.go" target="_blank" rel="noopener"><code>TestDefaultNextHopLinkLocalCandidateUsesSessionPolicy</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go#L37" title="internal/component/bgp/reactor/rfc8950_nexthop_pair_test.go" target="_blank" rel="noopener"><code>TestRFC8950IPv6NextHopFollowsTheNegotiatedPair</code></a></td>
@@ -574,7 +574,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/default_next_hop_controls_test.go#L126" title="internal/component/bgp/reactor/default_next_hop_controls_test.go" target="_blank" rel="noopener"><code>TestDefaultNextHopIPv6RequiresExactExtendedPair</code></a></td>
 <td>unit/verify</td>
-<td>mutant, verified</td>
+<td>mutant, unit-changed (the tagged unit&#39;s behavior changed since the red was observed)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/next_hop_family_admission_test.go#L37" title="internal/component/bgp/reactor/next_hop_family_admission_test.go" target="_blank" rel="noopener"><code>TestFamilyNextHopOriginationAdmission</code></a></td>
@@ -719,7 +719,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/attribute/rfc8950_vpn_nexthop_test.go#L27" title="internal/core/bgp/attribute/rfc8950_vpn_nexthop_test.go" target="_blank" rel="noopener"><code>TestRFC8950VPNIPv6NextHopCarriesZeroRD</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-gone (the producer the break was applied to is no longer in the tree)</td>
 </tr>
 </tbody>
 </table>
@@ -920,7 +920,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

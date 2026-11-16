@@ -1529,270 +1529,6 @@
     ]
   },
   {
-    "path": "clear firewall irr as-set",
-    "short-help": "Remove the cached IRR prefix-list for an AS-SET.",
-    "description": "Drops the entry from memory and from the persisted\ncache, then re-applies the firewall tables.",
-    "mode": "daemon",
-    "wire-method": "ze-firewall:clear-irr-as-set",
-    "args": [
-      {
-        "name": "as-set",
-        "type": "string",
-        "mandatory": true,
-        "short-help": "AS-SET name",
-        "description": "The RPSL set name the update command stored, for example\nAS-EXAMPLE. The entry under that exact name is purged."
-      }
-    ],
-    "usage": "clear firewall irr as-set <as-set>",
-    "grammar": [
-      {
-        "text": "clear",
-        "kind": "keyword"
-      },
-      {
-        "text": "firewall",
-        "kind": "keyword"
-      },
-      {
-        "text": "irr",
-        "kind": "keyword"
-      },
-      {
-        "text": "as-set",
-        "kind": "keyword"
-      },
-      {
-        "text": "as-set",
-        "kind": "value"
-      }
-    ],
-    "operators": [
-      {
-        "name": "json",
-        "class": "global",
-        "available": "always",
-        "description": "JSON output"
-      },
-      {
-        "name": "ndjson",
-        "class": "global",
-        "available": "always",
-        "description": "One JSON object per line"
-      },
-      {
-        "name": "table",
-        "class": "global",
-        "available": "always",
-        "description": "Render as table"
-      },
-      {
-        "name": "text",
-        "class": "global",
-        "available": "always",
-        "description": "Space-aligned columns"
-      },
-      {
-        "name": "yaml",
-        "class": "global",
-        "available": "always",
-        "description": "YAML output"
-      },
-      {
-        "name": "raw",
-        "class": "global",
-        "available": "always",
-        "description": "Dispatcher JSON, unformatted"
-      },
-      {
-        "name": "no-more",
-        "class": "global",
-        "available": "always",
-        "description": "Disable paging"
-      },
-      {
-        "name": "log",
-        "class": "stream",
-        "available": "when-streaming",
-        "description": "Append each update instead of replacing it, where the command keeps answering"
-      },
-      {
-        "name": "save",
-        "class": "global",
-        "available": "always",
-        "local-only": true,
-        "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Answer with these fields, in this order"
-      },
-      {
-        "name": "fill",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Bring the remaining columns back, in the command's order or a named one"
-      }
-    ]
-  },
-  {
-    "path": "clear firewall irr asn",
-    "short-help": "Remove the cached IRR prefix-list for an ASN.",
-    "description": "Drops the entry from memory and from the persisted\ncache, then re-applies the firewall tables. Config that still references the\nASN fails to verify until it is fetched again with\n'update firewall irr asn <asn>'.",
-    "mode": "daemon",
-    "wire-method": "ze-firewall:clear-irr-asn",
-    "args": [
-      {
-        "name": "asn",
-        "type": "string",
-        "mandatory": true,
-        "short-help": "ASN number",
-        "description": "The AS number, 1 to 4294967294, in plain or dotted form.\nThe entry purged is the one the update command stored under the decimal spelling."
-      }
-    ],
-    "usage": "clear firewall irr asn <asn>",
-    "grammar": [
-      {
-        "text": "clear",
-        "kind": "keyword"
-      },
-      {
-        "text": "firewall",
-        "kind": "keyword"
-      },
-      {
-        "text": "irr",
-        "kind": "keyword"
-      },
-      {
-        "text": "asn",
-        "kind": "keyword"
-      },
-      {
-        "text": "asn",
-        "kind": "value"
-      }
-    ],
-    "operators": [
-      {
-        "name": "json",
-        "class": "global",
-        "available": "always",
-        "description": "JSON output"
-      },
-      {
-        "name": "ndjson",
-        "class": "global",
-        "available": "always",
-        "description": "One JSON object per line"
-      },
-      {
-        "name": "table",
-        "class": "global",
-        "available": "always",
-        "description": "Render as table"
-      },
-      {
-        "name": "text",
-        "class": "global",
-        "available": "always",
-        "description": "Space-aligned columns"
-      },
-      {
-        "name": "yaml",
-        "class": "global",
-        "available": "always",
-        "description": "YAML output"
-      },
-      {
-        "name": "raw",
-        "class": "global",
-        "available": "always",
-        "description": "Dispatcher JSON, unformatted"
-      },
-      {
-        "name": "no-more",
-        "class": "global",
-        "available": "always",
-        "description": "Disable paging"
-      },
-      {
-        "name": "log",
-        "class": "stream",
-        "available": "when-streaming",
-        "description": "Append each update instead of replacing it, where the command keeps answering"
-      },
-      {
-        "name": "save",
-        "class": "global",
-        "available": "always",
-        "local-only": true,
-        "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Answer with these fields, in this order"
-      },
-      {
-        "name": "fill",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Bring the remaining columns back, in the command's order or a named one"
-      }
-    ]
-  },
-  {
     "path": "clear interface counters all",
     "short-help": "Zero the Rx/Tx counters for every managed interface.",
     "description": "One call resets every interface the backend manages, and the answer\nreports the scope as all. Nothing else about the interfaces changes.",
@@ -1947,6 +1683,262 @@
       {
         "text": "counters",
         "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "clear irr as-set",
+    "short-help": "Remove the stored IRR dataset of an AS-SET.",
+    "description": "Removes the stored dataset and pointer of one AS-SET. The answer\nnames every consumer still referencing it; those consumers stop enforcing it, and\nit is not fetched again until update irr or a commit that newly names it.",
+    "mode": "daemon",
+    "wire-method": "ze-irr:clear-irr-as-set",
+    "args": [
+      {
+        "name": "as-set",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "AS-SET name.",
+        "description": "The RPSL set name the update stored, for example AS-EXAMPLE."
+      }
+    ],
+    "usage": "clear irr as-set <as-set>",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "irr",
+        "kind": "keyword"
+      },
+      {
+        "text": "as-set",
+        "kind": "keyword"
+      },
+      {
+        "text": "as-set",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "clear irr asn",
+    "short-help": "Remove the stored IRR dataset of an AS number.",
+    "description": "Removes the stored binding of the AS number and the dataset of the\nAS-SET it names. The answer names every consumer still referencing it; those\nconsumers stop enforcing it, and it is not fetched again until update irr or a\ncommit that newly names it.",
+    "mode": "daemon",
+    "wire-method": "ze-irr:clear-irr-asn",
+    "args": [
+      {
+        "name": "asn",
+        "type": "union",
+        "mandatory": true,
+        "short-help": "AS number.",
+        "description": "The AS number in plain decimal or in asdot notation, which Ze parses to\none 32-bit value: 0 to 4294967295 in plain decimal, 0.0 to 65535.65535 in asdot.\nA spelling that parses to no AS number is refused."
+      }
+    ],
+    "usage": "clear irr asn <asn>",
+    "grammar": [
+      {
+        "text": "clear",
+        "kind": "keyword"
+      },
+      {
+        "text": "irr",
+        "kind": "keyword"
+      },
+      {
+        "text": "asn",
+        "kind": "keyword"
+      },
+      {
+        "text": "asn",
+        "kind": "value"
       }
     ],
     "operators": [
@@ -5913,7 +5905,7 @@
     "description": "The flooding scope is derived from the LS Type S2/S1 bits (a reserved scope is\nrejected). Requires `debug ospf inject enable`.",
     "mode": "daemon",
     "wire-method": "ze-ospf:debug-ospfv3-inject",
-    "usage": "debug ipv6 ospf inject lsa type <ls-type> id <link-state-id> [scope <link|area|as>] [hex <body> ...] [withdraw]",
+    "usage": "debug ipv6 ospf inject lsa type <ls-type> id <link-state-id> [scope <link|area|as>] [hex <body> ...] [withdraw] [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "debug",
@@ -5978,6 +5970,22 @@
       },
       {
         "text": "withdraw",
+        "kind": "group"
+      },
+      {
+        "text": "address-family",
+        "group": [
+          {
+            "text": "address-family",
+            "values": [
+              "ipv6-unicast",
+              "ipv6-multicast",
+              "ipv4-unicast",
+              "ipv4-multicast"
+            ],
+            "kind": "value"
+          }
+        ],
         "kind": "group"
       }
     ],
@@ -6075,6 +6083,7 @@
       }
     ],
     "subcommands": [
+      "address-family",
       "hex",
       "id",
       "scope",
@@ -13050,6 +13059,241 @@
     ]
   },
   {
+    "path": "request container restart",
+    "short-help": "Restart one container: name <container>.",
+    "description": "A restart needs the name of one container, after the name keyword:\nrequest container restart name <container>.",
+    "mode": "daemon",
+    "usage": "request container restart name <container>",
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ],
+    "subcommands": [
+      "name"
+    ]
+  },
+  {
+    "path": "request container restart name",
+    "short-help": "Stop the named container, then start it again.",
+    "description": "A running container is stopped, with its stop signal and then a kill\nafter its stop timeout, and started again as a new process. A container in the\nstopped or failed state is started. A disabled container and one that waits for\nits image are refused, with the statement or command that lets it run.",
+    "mode": "daemon",
+    "wire-method": "ze-container:request-restart",
+    "args": [
+      {
+        "name": "value",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Name of the container.",
+        "description": "The name of a configured container, as its instance entry spells it.\nThe word after the name keyword is the value."
+      }
+    ],
+    "usage": "request container restart name <value>",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "container",
+        "kind": "keyword"
+      },
+      {
+        "text": "restart",
+        "kind": "keyword"
+      },
+      {
+        "text": "name",
+        "kind": "keyword"
+      },
+      {
+        "text": "value",
+        "kind": "value"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
     "path": "request data backup",
     "short-help": "Write a backup of the whole store to a file on the daemon's host.",
     "description": "Copies every key of the store into one blob artifact while the daemon runs. A\ncommit that lands meanwhile is in the backup whole or not at all. The file holds\ncredentials and private keys and is written 0600.",
@@ -17179,6 +17423,125 @@
       {
         "text": "reason",
         "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "with-rows",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ]
+  },
+  {
+    "path": "request system storage grow",
+    "short-help": "Grow the persistent storage to the size of its disk.",
+    "description": "Extends the persistent partition to the end of its disk and grows its\nfilesystem to the partition, with no reboot. The answer carries the sizes before\nand after. A system whose storage already uses the whole disk gets that answer\nand nothing is written. Read the current sizes with 'show host storage'.",
+    "mode": "daemon",
+    "wire-method": "ze-host:request-system-storage-grow",
+    "usage": "request system storage grow",
+    "grammar": [
+      {
+        "text": "request",
+        "kind": "keyword"
+      },
+      {
+        "text": "system",
+        "kind": "keyword"
+      },
+      {
+        "text": "storage",
+        "kind": "keyword"
+      },
+      {
+        "text": "grow",
+        "kind": "keyword"
       }
     ],
     "operators": [
@@ -24141,7 +24504,7 @@
   {
     "path": "show bgp irr",
     "short-help": "Show IRR filter status per ASN.",
-    "description": "Lists each enrolled ASN with its resolved AS-SET, prefix counts,\nlast refresh time, and error status. Use this to confirm that IRR\nprefix-lists are loaded and current.",
+    "description": "Lists each enrolled ASN with the AS-SET it is filtered by, the prefix\ncounts of the stored copy the filter enforces, which copy that is (server,\ngeneration, checked-at, refreshed-at), and whether it could be read. The irr\nplugin fetches and stores the copies; show irr answers when each is due.",
     "mode": "read-only",
     "wire-method": "ze-bgp:show-irr-status",
     "usage": "show bgp irr",
@@ -24261,14 +24624,11 @@
         "error",
         "ipv4-count",
         "ipv6-count",
-        "last-refresh",
-        "peers"
-      ],
-      [
         "server",
-        "last-refresh",
-        "next-refresh",
-        "entries"
+        "generation",
+        "checked-at",
+        "refreshed-at",
+        "peers"
       ]
     ],
     "subcommands": [
@@ -34451,8 +34811,8 @@
   },
   {
     "path": "show firewall irr",
-    "short-help": "Show IRR filter status for all cached ASN/AS-SET entries.",
-    "description": "Lists each cached entry with prefix counts, last\nrefresh time, and error status. Use this to confirm that IRR prefix-lists are\nloaded and current before committing firewall config.",
+    "short-help": "Show the IRR lists the firewall enforces.",
+    "description": "Lists each configured reference with the stored\ncopy the firewall enforces for it: its status, prefix counts, server,\ngeneration, check and refresh times. Use this to confirm that IRR prefix-lists\nare stored and current before committing firewall config.",
     "mode": "read-only",
     "wire-method": "ze-firewall:show-irr-status",
     "usage": "show firewall irr",
@@ -34569,8 +34929,8 @@
   },
   {
     "path": "show firewall irr prefix",
-    "short-help": "Show IRR-resolved prefixes for a cached entry.",
-    "description": "Lists all IPv4 and IPv6 prefixes in the cached\nprefix-list for the given ASN or AS-SET.",
+    "short-help": "Show the prefixes the firewall enforces for a reference.",
+    "description": "Lists all IPv4 and IPv6 prefixes the firewall\nenforces for the given ASN or AS-SET.",
     "mode": "read-only",
     "wire-method": "ze-firewall:show-irr-prefix",
     "args": [
@@ -34579,7 +34939,7 @@
         "type": "string",
         "mandatory": true,
         "short-help": "ASN or AS-SET name",
-        "description": "The cache key, as the update command stored it: an ASN\nin the form AS64500, or an AS-SET name. A key with no cached data is an error."
+        "description": "The reference as the firewall config names it: an ASN\nin the form AS64500, or an AS-SET name. A name no rule references, or one with\nnothing stored, is an error."
       }
     ],
     "usage": "show firewall irr prefix <name>",
@@ -37775,6 +38135,133 @@
         "available": "with-rows",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ]
+  },
+  {
+    "path": "show irr",
+    "short-help": "Show the stored IRR datasets and their refresh schedule.",
+    "description": "One row per stored AS-SET: the server it came from, the prefix\ncounts, when the server last answered, when the next refresh is due, and the\nconsumers that enforce it. With refresh-interval 0 the schedule reads manual.",
+    "mode": "read-only",
+    "wire-method": "ze-irr:show-irr",
+    "usage": "show irr",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "irr",
+        "kind": "keyword"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "always",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "as-set",
+        "server",
+        "status",
+        "ipv4-count",
+        "ipv6-count",
+        "refreshed-at",
+        "checked-at",
+        "stale-since",
+        "next-refresh",
+        "generation",
+        "consumers"
+      ]
     ]
   },
   {
@@ -43983,10 +44470,24 @@
   {
     "path": "show ospf database router-information",
     "short-help": "Show the Router Information LSAs (RFC 7770) for both address families.",
-    "description": "OSPFv2 opaque type 4 and OSPFv3 function code 12, decoded into the\nadvertised informational capability bits and the TLV list.",
+    "description": "OSPFv2 opaque type 4 and OSPFv3 function code 12, decoded into the\nadvertised informational capability bits and the TLV list. The address-family keyword\nnarrows the OSPFv3 part to one address family and leaves the OSPFv2 part whole.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-database-router-information",
-    "usage": "show ospf database router-information",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf database router-information [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -44003,6 +44504,16 @@
       {
         "text": "router-information",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -44064,39 +44575,47 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "af",
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -44805,6 +45324,7 @@
       "instance",
       "interface",
       "neighbor",
+      "route",
       "segment-routing",
       "spf"
     ]
@@ -44815,7 +45335,21 @@
     "description": "Base types decode into named fields; unknown function codes fall back to a\nscope-aware header + body-hex view (spec-ospf-ext-14).",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-database",
-    "usage": "show ospf ipv6 database",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 database [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -44832,6 +45366,16 @@
       {
         "text": "database",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -44893,39 +45437,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ],
     "subcommands": [
       "detail",
@@ -44942,7 +45493,21 @@
     "description": "The parent command decodes the base types only. This form decodes\nevery LSA body. An unknown function code then arrives as a scope-aware header\nbeside its body hex, rather than as a named record.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-database-detail",
-    "usage": "show ospf ipv6 database detail",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 database detail [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -44963,6 +45528,16 @@
       {
         "text": "detail",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -45024,39 +45599,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -45065,7 +45647,21 @@
     "description": "Covers E-Router, E-Network, E-Inter-Area, E-AS-External, E-Link and\nE-Intra-Area-Prefix. Each LSA decodes into named TLVs.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-database-extended",
-    "usage": "show ospf ipv6 database extended",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 database extended [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -45086,6 +45682,16 @@
       {
         "text": "extended",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -45147,39 +45753,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -45188,7 +45801,21 @@
     "description": "Each body decodes into its interface records: the type, the metric, the\nInterface ID, the neighbor Interface ID and the neighbor Router ID. RFC 5340\nSection 2.2 states that a Router-LSA no longer contains a network address and\nexpresses topology only.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-database-router-detail",
-    "usage": "show ospf ipv6 database router detail",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 database router detail [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -45213,6 +45840,16 @@
       {
         "text": "detail",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -45274,39 +45911,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -45315,7 +45959,21 @@
     "description": "The LSA carries function code 12. Each one decodes into its\ncapability bits and its TLVs.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-database-router-information",
-    "usage": "show ospf ipv6 database router-information",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 database router-information [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -45336,6 +45994,16 @@
       {
         "text": "router-information",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -45397,39 +46065,47 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "af",
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -45438,7 +46114,21 @@
     "description": "RFC 5340 Section 2.3 gives area scope to the router-LSA, the network-LSA,\nthe inter-area-prefix-LSA, the inter-area-router-LSA and the\nintra-area-prefix-LSA. Ze reads the per-area store for them.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-database-scope-area",
-    "usage": "show ospf ipv6 database scope area",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 database scope area [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -45463,6 +46153,16 @@
       {
         "text": "area",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -45524,39 +46224,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -45565,7 +46272,21 @@
     "description": "RFC 5340 Section 2.3 states that an AS-scope LSA is flooded throughout the\nrouting domain, and that a router which originates one is an AS Boundary\nRouter. Ze reads the AS-wide store for it, and no area appears in the answer.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-database-scope-as",
-    "usage": "show ospf ipv6 database scope as",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 database scope as [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -45590,6 +46311,16 @@
       {
         "text": "as",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -45651,39 +46382,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -45692,7 +46430,21 @@
     "description": "Ze reads the per-interface Link-LSA store as well as the area store, so a\nLink-LSA appears here beside its interface. RFC 5340 Section 2.3 states that a\nlink-local LSA is flooded on the local link and no further.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-database-scope-link",
-    "usage": "show ospf ipv6 database scope link",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 database scope link [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -45717,6 +46469,16 @@
       {
         "text": "link",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -45778,39 +46540,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -45819,7 +46588,21 @@
     "description": "This is a summary rather than a decode. The Segment Routing content lives in\nthe Router Information LSA and in the extended LSAs, and the two commands\nabove decode those LSAs in full.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-database-segment-routing",
-    "usage": "show ospf ipv6 database segment-routing",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 database segment-routing [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -45840,6 +46623,16 @@
       {
         "text": "segment-routing",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -45901,39 +46694,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -45942,7 +46742,21 @@
     "description": "The restarter state (in-restart or not, grace end, reason) and the\nper-neighbor helper sessions (which neighbors are being helped and their\nremaining grace).",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ipv6-graceful-restart",
-    "usage": "show ospf ipv6 graceful-restart",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 graceful-restart [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -45959,6 +46773,16 @@
       {
         "text": "graceful-restart",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -46020,39 +46844,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -46180,7 +47011,21 @@
     "description": "Returns per interface whether IPsec is configured, the protocol (ah/esp) and\nSPI, and whether the kernel SA is installed. The key is never shown.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ipv6-interface",
-    "usage": "show ospf ipv6 interface",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 interface [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -46197,6 +47042,16 @@
       {
         "text": "interface",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -46258,39 +47113,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ],
     "subcommands": [
       "detail"
@@ -46302,7 +47164,21 @@
     "description": "Returns the ISM state, the DR and BDR by Router ID, the timers, the\nlocal Interface ID, and the Instance ID.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-interface-detail",
-    "usage": "show ospf ipv6 interface detail",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 interface detail [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -46323,6 +47199,16 @@
       {
         "text": "detail",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -46384,39 +47270,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -46425,7 +47318,21 @@
     "description": "Each neighbor carries the link-local address as its identity, the\nadjacency state, the DR and BDR by Router ID, and the dead time.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-neighbor",
-    "usage": "show ospf ipv6 neighbor",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 neighbor [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -46442,6 +47349,16 @@
       {
         "text": "neighbor",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -46503,39 +47420,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ],
     "subcommands": [
       "detail"
@@ -46547,7 +47471,21 @@
     "description": "Returns the advertised Interface ID, the DD sequence, the decoded\nOptions (R/V6/E/N/AF), the list sizes, the last NSM event, and the timers.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-neighbor-detail",
-    "usage": "show ospf ipv6 neighbor detail",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 neighbor detail [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -46568,6 +47506,16 @@
       {
         "text": "detail",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -46629,39 +47577,196 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
+    ]
+  },
+  {
+    "path": "show ospf ipv6 route",
+    "short-help": "Show the OSPFv3-computed routes of every address family (RFC 5838).",
+    "description": "Lists each prefix an OSPFv3 SPF run computed, with its path type, cost,\nnext-hops and area. Each row names the address-family and instance-id of the\nengine that computed it, so an IPv4-unicast instance's routes sit beside the\nIPv6-unicast ones. show ospf route answers the OSPFv2 routes.",
+    "mode": "read-only",
+    "wire-method": "ze-ospf:show-ospfv3-route",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 route [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "ospf",
+        "kind": "keyword"
+      },
+      {
+        "text": "ipv6",
+        "kind": "keyword"
+      },
+      {
+        "text": "route",
+        "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "always",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -46670,7 +47775,21 @@
     "description": "The configured SRGB/SRLB label ranges, the advertised SR-Algorithm,\nthis node's node Prefix-SIDs, and the Adjacency-SIDs allocated per adjacency.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ipv6-segment-routing",
-    "usage": "show ospf ipv6 segment-routing",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 segment-routing [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -46687,6 +47806,16 @@
       {
         "text": "segment-routing",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -46748,48 +47877,69 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
     "path": "show ospf ipv6 spf",
     "short-help": "Show the OSPFv3 (IPv6) per-area SPF run history.",
-    "description": "The history is read from the IPv6 unicast engine alone. Another\naddress family is not covered here. A router that runs no OSPFv3\nengine answers an empty list rather than an error. That reads the\nsame as a router whose engine has run no SPF yet.",
+    "description": "The history is read from every running OSPFv3 address family, and\neach run names its address-family and instance-id. A router that\nruns no OSPFv3 engine answers an empty list rather than an error.\nThat reads the same as a router whose engines have run no SPF yet.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-spf",
-    "usage": "show ospf ipv6 spf",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 spf [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -46806,6 +47956,16 @@
       {
         "text": "spf",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -46867,39 +48027,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ],
     "subcommands": [
       "detail"
@@ -46911,7 +48078,21 @@
     "description": "The command is read-only.",
     "mode": "read-only",
     "wire-method": "ze-ospf:show-ospfv3-spf-detail",
-    "usage": "show ospf ipv6 spf detail",
+    "args": [
+      {
+        "name": "address-family",
+        "type": "enum",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "short-help": "Limit the answer to one OSPFv3 address family.",
+        "description": "Without it the view answers for every running OSPFv3 address family, and\neach row names its address-family and instance-id. With it the view answers for that one\nfamily. A family that is not running is refused, and the refusal names the running ones;\nshow ospf ipv6 instance lists them too."
+      }
+    ],
+    "usage": "show ospf ipv6 spf detail [address-family <ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast>]",
     "grammar": [
       {
         "text": "show",
@@ -46932,6 +48113,16 @@
       {
         "text": "detail",
         "kind": "keyword"
+      },
+      {
+        "text": "address-family",
+        "values": [
+          "ipv6-unicast",
+          "ipv6-multicast",
+          "ipv4-unicast",
+          "ipv4-multicast"
+        ],
+        "kind": "option"
       }
     ],
     "operators": [
@@ -46993,39 +48184,46 @@
       {
         "name": "match",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Keep the rows holding this text"
       },
       {
         "name": "count",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Count the rows"
       },
       {
         "name": "first",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take first N rows"
       },
       {
         "name": "last",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Take last N rows"
       },
       {
         "name": "display",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Answer with these fields, in this order"
       },
       {
         "name": "fill",
         "class": "data",
-        "available": "with-rows",
+        "available": "always",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "address-family",
+        "instance-id"
+      ]
     ]
   },
   {
@@ -49160,6 +50358,158 @@
         "available": "with-rows",
         "description": "Bring the remaining columns back, in the command's order or a named one"
       }
+    ]
+  },
+  {
+    "path": "show plugin conformance run",
+    "short-help": "Start a program in declare mode and check it behaves as a plugin.",
+    "description": "The program is started in declare mode, the way 'show plugin\ndeclarations' starts a configured plugin, and what it writes is judged with the\nchecks the daemon applies at Stage 1. One row is written for each check: its\nname, the stage it belongs to, a verdict of pass, fail or not-judged, the\nreason, and the change that fixes a failure. A behavior this version does not\njudge keeps its row with the verdict not-judged, so an answer with no failure\nis not full conformance. The command exits 1 when a check failed.\nIt runs in your own ze process only: the daemon starts no program a remote\ncaller names, and answers with the command to run in your own shell.",
+    "mode": "read-only, offline",
+    "wire-method": "ze-plugin:show-conformance-run",
+    "args": [
+      {
+        "name": "command",
+        "type": "string",
+        "mandatory": true,
+        "short-help": "Run string of the program to check, as one quoted token",
+        "description": "The run string an operator would configure under plugin\nexternal <name> run, as one quoted token. A shell starts\nit, and a relative path is read from the caller's directory."
+      },
+      {
+        "name": "name",
+        "type": "string",
+        "short-help": "Plugin name the report is written for",
+        "description": "The plugin name the checks name in their refusals. It defaults\nto the file name of the program the run string starts."
+      }
+    ],
+    "usage": "show plugin conformance run <command> [name <name>]",
+    "grammar": [
+      {
+        "text": "show",
+        "kind": "keyword"
+      },
+      {
+        "text": "plugin",
+        "kind": "keyword"
+      },
+      {
+        "text": "conformance",
+        "kind": "keyword"
+      },
+      {
+        "text": "run",
+        "kind": "keyword"
+      },
+      {
+        "text": "command",
+        "kind": "value"
+      },
+      {
+        "text": "name",
+        "kind": "option"
+      }
+    ],
+    "operators": [
+      {
+        "name": "json",
+        "class": "global",
+        "available": "always",
+        "description": "JSON output"
+      },
+      {
+        "name": "ndjson",
+        "class": "global",
+        "available": "always",
+        "description": "One JSON object per line"
+      },
+      {
+        "name": "table",
+        "class": "global",
+        "available": "always",
+        "description": "Render as table"
+      },
+      {
+        "name": "text",
+        "class": "global",
+        "available": "always",
+        "description": "Space-aligned columns"
+      },
+      {
+        "name": "yaml",
+        "class": "global",
+        "available": "always",
+        "description": "YAML output"
+      },
+      {
+        "name": "raw",
+        "class": "global",
+        "available": "always",
+        "description": "Dispatcher JSON, unformatted"
+      },
+      {
+        "name": "no-more",
+        "class": "global",
+        "available": "always",
+        "description": "Disable paging"
+      },
+      {
+        "name": "log",
+        "class": "stream",
+        "available": "when-streaming",
+        "description": "Append each update instead of replacing it, where the command keeps answering"
+      },
+      {
+        "name": "save",
+        "class": "global",
+        "available": "always",
+        "local-only": true,
+        "description": "Write the answer to a file"
+      },
+      {
+        "name": "match",
+        "class": "data",
+        "available": "always",
+        "description": "Keep the rows holding this text"
+      },
+      {
+        "name": "count",
+        "class": "data",
+        "available": "always",
+        "description": "Count the rows"
+      },
+      {
+        "name": "first",
+        "class": "data",
+        "available": "always",
+        "description": "Take first N rows"
+      },
+      {
+        "name": "last",
+        "class": "data",
+        "available": "always",
+        "description": "Take last N rows"
+      },
+      {
+        "name": "display",
+        "class": "data",
+        "available": "always",
+        "description": "Answer with these fields, in this order"
+      },
+      {
+        "name": "fill",
+        "class": "data",
+        "available": "always",
+        "description": "Bring the remaining columns back, in the command's order or a named one"
+      }
+    ],
+    "answer-shape": "tab",
+    "column-orders": [
+      [
+        "check",
+        "stage",
+        "verdict",
+        "reason",
+        "fix"
+      ]
     ]
   },
   {
@@ -60573,389 +61923,6 @@
     ]
   },
   {
-    "path": "update bgp irr all",
-    "short-help": "Refresh all IRR prefix-lists immediately.",
-    "description": "Re-queries the IRR server for every enrolled ASN and atomically\nswaps prefix-lists on success. Failed refreshes preserve the\nexisting prefix-list and report an error.",
-    "mode": "daemon",
-    "wire-method": "ze-bgp:update-irr-all",
-    "usage": "update bgp irr all",
-    "grammar": [
-      {
-        "text": "update",
-        "kind": "keyword"
-      },
-      {
-        "text": "bgp",
-        "kind": "keyword"
-      },
-      {
-        "text": "irr",
-        "kind": "keyword"
-      },
-      {
-        "text": "all",
-        "kind": "keyword"
-      }
-    ],
-    "operators": [
-      {
-        "name": "json",
-        "class": "global",
-        "available": "always",
-        "description": "JSON output"
-      },
-      {
-        "name": "ndjson",
-        "class": "global",
-        "available": "always",
-        "description": "One JSON object per line"
-      },
-      {
-        "name": "table",
-        "class": "global",
-        "available": "always",
-        "description": "Render as table"
-      },
-      {
-        "name": "text",
-        "class": "global",
-        "available": "always",
-        "description": "Space-aligned columns"
-      },
-      {
-        "name": "yaml",
-        "class": "global",
-        "available": "always",
-        "description": "YAML output"
-      },
-      {
-        "name": "raw",
-        "class": "global",
-        "available": "always",
-        "description": "Dispatcher JSON, unformatted"
-      },
-      {
-        "name": "no-more",
-        "class": "global",
-        "available": "always",
-        "description": "Disable paging"
-      },
-      {
-        "name": "log",
-        "class": "stream",
-        "available": "when-streaming",
-        "description": "Append each update instead of replacing it, where the command keeps answering"
-      },
-      {
-        "name": "save",
-        "class": "global",
-        "available": "always",
-        "local-only": true,
-        "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Answer with these fields, in this order"
-      },
-      {
-        "name": "fill",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Bring the remaining columns back, in the command's order or a named one"
-      }
-    ]
-  },
-  {
-    "path": "update bgp irr as-set",
-    "short-help": "Refresh IRR prefix-list for a specific AS-SET.",
-    "description": "Re-queries the IRR server\nfor all peers using the given AS-SET name.",
-    "mode": "daemon",
-    "wire-method": "ze-bgp:update-irr-as-set",
-    "args": [
-      {
-        "name": "as-set",
-        "type": "string",
-        "mandatory": true,
-        "short-help": "AS-SET name.",
-        "description": "The AS-SET name as the peer configuration spells it, compared as an\nexact string. Every enrolled ASN that resolves through this AS-SET is refreshed, and a\nname no enrolled ASN uses is refused."
-      }
-    ],
-    "usage": "update bgp irr as-set <as-set>",
-    "grammar": [
-      {
-        "text": "update",
-        "kind": "keyword"
-      },
-      {
-        "text": "bgp",
-        "kind": "keyword"
-      },
-      {
-        "text": "irr",
-        "kind": "keyword"
-      },
-      {
-        "text": "as-set",
-        "kind": "keyword"
-      },
-      {
-        "text": "as-set",
-        "kind": "value"
-      }
-    ],
-    "operators": [
-      {
-        "name": "json",
-        "class": "global",
-        "available": "always",
-        "description": "JSON output"
-      },
-      {
-        "name": "ndjson",
-        "class": "global",
-        "available": "always",
-        "description": "One JSON object per line"
-      },
-      {
-        "name": "table",
-        "class": "global",
-        "available": "always",
-        "description": "Render as table"
-      },
-      {
-        "name": "text",
-        "class": "global",
-        "available": "always",
-        "description": "Space-aligned columns"
-      },
-      {
-        "name": "yaml",
-        "class": "global",
-        "available": "always",
-        "description": "YAML output"
-      },
-      {
-        "name": "raw",
-        "class": "global",
-        "available": "always",
-        "description": "Dispatcher JSON, unformatted"
-      },
-      {
-        "name": "no-more",
-        "class": "global",
-        "available": "always",
-        "description": "Disable paging"
-      },
-      {
-        "name": "log",
-        "class": "stream",
-        "available": "when-streaming",
-        "description": "Append each update instead of replacing it, where the command keeps answering"
-      },
-      {
-        "name": "save",
-        "class": "global",
-        "available": "always",
-        "local-only": true,
-        "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Answer with these fields, in this order"
-      },
-      {
-        "name": "fill",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Bring the remaining columns back, in the command's order or a named one"
-      }
-    ]
-  },
-  {
-    "path": "update bgp irr asn",
-    "short-help": "Refresh IRR prefix-list for a specific ASN.",
-    "description": "Re-queries the IRR server for\nthe given ASN only.",
-    "mode": "daemon",
-    "wire-method": "ze-bgp:update-irr-asn",
-    "args": [
-      {
-        "name": "asn",
-        "type": "string",
-        "mandatory": true,
-        "short-help": "ASN number.",
-        "description": "The AS number as a plain decimal from 0 to 4294967295. An ASN with\nno IRR-filtered peer is refused, and a refresh the IRR server fails is reported with the\nserver's error."
-      }
-    ],
-    "usage": "update bgp irr asn <asn>",
-    "grammar": [
-      {
-        "text": "update",
-        "kind": "keyword"
-      },
-      {
-        "text": "bgp",
-        "kind": "keyword"
-      },
-      {
-        "text": "irr",
-        "kind": "keyword"
-      },
-      {
-        "text": "asn",
-        "kind": "keyword"
-      },
-      {
-        "text": "asn",
-        "kind": "value"
-      }
-    ],
-    "operators": [
-      {
-        "name": "json",
-        "class": "global",
-        "available": "always",
-        "description": "JSON output"
-      },
-      {
-        "name": "ndjson",
-        "class": "global",
-        "available": "always",
-        "description": "One JSON object per line"
-      },
-      {
-        "name": "table",
-        "class": "global",
-        "available": "always",
-        "description": "Render as table"
-      },
-      {
-        "name": "text",
-        "class": "global",
-        "available": "always",
-        "description": "Space-aligned columns"
-      },
-      {
-        "name": "yaml",
-        "class": "global",
-        "available": "always",
-        "description": "YAML output"
-      },
-      {
-        "name": "raw",
-        "class": "global",
-        "available": "always",
-        "description": "Dispatcher JSON, unformatted"
-      },
-      {
-        "name": "no-more",
-        "class": "global",
-        "available": "always",
-        "description": "Disable paging"
-      },
-      {
-        "name": "log",
-        "class": "stream",
-        "available": "when-streaming",
-        "description": "Append each update instead of replacing it, where the command keeps answering"
-      },
-      {
-        "name": "save",
-        "class": "global",
-        "available": "always",
-        "local-only": true,
-        "description": "Write the answer to a file"
-      },
-      {
-        "name": "match",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Keep the rows holding this text"
-      },
-      {
-        "name": "count",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Count the rows"
-      },
-      {
-        "name": "first",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take first N rows"
-      },
-      {
-        "name": "last",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Take last N rows"
-      },
-      {
-        "name": "display",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Answer with these fields, in this order"
-      },
-      {
-        "name": "fill",
-        "class": "data",
-        "available": "with-rows",
-        "description": "Bring the remaining columns back, in the command's order or a named one"
-      }
-    ]
-  },
-  {
     "path": "update bgp peer prefix",
     "short-help": "Refresh max-prefix limits from PeeringDB.",
     "description": "Queries PeeringDB for each matched peer's ASN, applies the configured\nmargin, and writes the result to the config draft. Run 'config commit'\nto apply.",
@@ -61494,19 +62461,15 @@
     ]
   },
   {
-    "path": "update firewall irr all",
-    "short-help": "Refresh all cached IRR prefix-lists.",
-    "description": "Re-queries the IRR server for every cached\nASN/AS-SET entry and updates the zefs cache on success. A failed refresh\npreserves the existing cache and reports an error.",
+    "path": "update irr all",
+    "short-help": "Fetch every referenced IRR dataset now.",
+    "description": "Fetches every AS-SET a consumer enforces, and answers the counts\nof each one.",
     "mode": "daemon",
-    "wire-method": "ze-firewall:update-irr-all",
-    "usage": "update firewall irr all",
+    "wire-method": "ze-irr:update-irr-all",
+    "usage": "update irr all",
     "grammar": [
       {
         "text": "update",
-        "kind": "keyword"
-      },
-      {
-        "text": "firewall",
         "kind": "keyword"
       },
       {
@@ -61613,28 +62576,24 @@
     ]
   },
   {
-    "path": "update firewall irr as-set",
-    "short-help": "Fetch or refresh IRR prefix-list for an AS-SET.",
-    "description": "Queries the IRR server and saves resolved prefixes\nto the zefs cache.",
+    "path": "update irr as-set",
+    "short-help": "Fetch the IRR dataset of an AS-SET now.",
+    "description": "Fetches and stores the prefixes of one AS-SET. A firewall commit\nnaming an AS-SET with nothing stored is refused until this has run.",
     "mode": "daemon",
-    "wire-method": "ze-firewall:update-irr-as-set",
+    "wire-method": "ze-irr:update-irr-as-set",
     "args": [
       {
         "name": "as-set",
         "type": "string",
         "mandatory": true,
-        "short-help": "AS-SET name",
-        "description": "The RPSL set name, for example AS-EXAMPLE or RIPE::AS-EXAMPLE.\nLetters, digits, hyphen, underscore, colon and period are accepted, and the name is the cache key."
+        "short-help": "AS-SET name.",
+        "description": "The RPSL set name, for example AS-EXAMPLE or RIPE::AS-EXAMPLE.\nLetters, digits, hyphen, underscore, colon and period are accepted."
       }
     ],
-    "usage": "update firewall irr as-set <as-set>",
+    "usage": "update irr as-set <as-set>",
     "grammar": [
       {
         "text": "update",
-        "kind": "keyword"
-      },
-      {
-        "text": "firewall",
         "kind": "keyword"
       },
       {
@@ -61745,28 +62704,24 @@
     ]
   },
   {
-    "path": "update firewall irr asn",
-    "short-help": "Fetch or refresh IRR prefix-list for an ASN.",
-    "description": "Queries the IRR server and saves resolved prefixes\nto the zefs cache. Creates the cache entry if it does not exist.",
+    "path": "update irr asn",
+    "short-help": "Fetch the IRR dataset of an AS number now.",
+    "description": "Asks PeeringDB for the AS-SET of the AS number, stores that\nbinding, then fetches and stores the AS-SET's prefixes.",
     "mode": "daemon",
-    "wire-method": "ze-firewall:update-irr-asn",
+    "wire-method": "ze-irr:update-irr-asn",
     "args": [
       {
         "name": "asn",
-        "type": "string",
+        "type": "union",
         "mandatory": true,
-        "short-help": "ASN number",
-        "description": "The AS number, 1 to 4294967294, in plain or dotted form.\nThe cache key is the decimal spelling with an AS prefix, so 1.10 and 65546 name one entry."
+        "short-help": "AS number.",
+        "description": "The AS number in plain decimal or in asdot notation, which Ze parses to\none 32-bit value: 0 to 4294967295 in plain decimal, 0.0 to 65535.65535 in asdot.\nA spelling that parses to no AS number is refused."
       }
     ],
-    "usage": "update firewall irr asn <asn>",
+    "usage": "update irr asn <asn>",
     "grammar": [
       {
         "text": "update",
-        "kind": "keyword"
-      },
-      {
-        "text": "firewall",
         "kind": "keyword"
       },
       {

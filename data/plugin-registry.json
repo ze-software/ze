@@ -91,7 +91,9 @@
       "policy"
     ],
     "optional_dependencies": [],
-    "start_after": [],
+    "start_after": [
+      "interface"
+    ],
     "source_dir": "internal/component/bgp/plugin",
     "yang_files": [
       "internal/component/bgp/yang/ze-bgp-api.yang",
@@ -252,7 +254,7 @@
     ],
     "dependencies": [
       "bgp",
-      "policy"
+      "irr"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -690,6 +692,21 @@
     ]
   },
   {
+    "name": "container",
+    "description": "OCI containers run by ze: confined, limited, supervised and removed without a trace",
+    "config_roots": [
+      "container"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "start_after": [],
+    "source_dir": "internal/plugins/container",
+    "yang_files": [
+      "internal/plugins/container/yang/ze-container-cmd.yang",
+      "internal/plugins/container/yang/ze-container-conf.yang"
+    ]
+  },
+  {
     "name": "copp",
     "description": "Control-plane policing: rate-limit new TCP connections to BGP listen port",
     "config_roots": [
@@ -951,7 +968,8 @@
       "firewall"
     ],
     "dependencies": [
-      "firewall"
+      "firewall",
+      "irr"
     ],
     "optional_dependencies": [],
     "start_after": [],
@@ -1082,6 +1100,21 @@
       "internal/component/iface/yang/ze-iface-interface-cmd.yang",
       "internal/component/iface/yang/ze-iface-monitor-cmd.yang",
       "internal/component/iface/yang/ze-iface-show-cmd.yang"
+    ]
+  },
+  {
+    "name": "irr",
+    "description": "IRR data owner: fetches, schedules and stores the IRR prefix lists every consumer enforces",
+    "config_roots": [
+      "system/irr"
+    ],
+    "dependencies": [],
+    "optional_dependencies": [],
+    "start_after": [],
+    "source_dir": "internal/plugins/irr",
+    "yang_files": [
+      "internal/plugins/irr/yang/ze-irr-cmd.yang",
+      "internal/plugins/irr/yang/ze-irr-conf.yang"
     ]
   },
   {

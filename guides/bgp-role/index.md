@@ -122,6 +122,16 @@ Suppression is not bounded by the second rule: a route that already carries OTC
 is withheld from a Provider, Peer, or RS whether or not this particular UPDATE
 advertises it.
 
+On an external session between two public ASNs, an advertised route carrying
+a Private Use OTC is also withheld. This enforces the Internet-facing boundary
+without rewriting the attribute: a public upstream OTC remains unchanged, as
+do OTC values on internal sessions and sessions involving a private ASN.
+The check reads the declared session kind, so a local-AS migration session
+classified as internal remains internal even when its AS numbers differ.
+Withdrawal-only messages are outside this boundary check.
+<!-- source: internal/component/bgp/plugins/role/otc.go -- privateOTCLeavesPublicAS, otcPrivateASN -->
+<!-- source: internal/component/bgp/plugins/role/otc_filter.go -- otcFilterDecls, viewOTCSession, fieldsOTCSession -->
+
 ## Export Set
 
 `role { export [ ... ] }` names the destination roles that can receive routes from this peer. It is operator policy on top of the RFC gates, and it applies only when the SOURCE peer states it.
@@ -163,9 +173,13 @@ Every drop is counted, and the first one of each reason raises a warning that na
 | Metric | Reason labels |
 |--------|---------------|
 | `ze_role_route_rejects_total` | `leak`, `malformed-otc` |
-| `ze_role_route_suppressions_total` | `otc-present`, `source-role`, `export-set`, `role-unrecorded` |
+| `ze_role_route_suppressions_total` | `otc-present`, `private-otc`, `source-role`, `export-set`, `role-unrecorded` |
 
-The label set is bounded at six series per metric. Peer identity is in the log line, never in a label.
+The label set is bounded at seven series per metric. Peer identity is in the log line, never in a label.
+
+`private-otc` identifies a route withheld at public eBGP egress because its OTC
+still names a Private Use ASN. The route remains available to destinations
+inside that private domain; its attribute is not replaced or removed.
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop, dropReasonLabels -->
 
 `role-unrecorded` and `export-set` both mean the destination was outside the export set. They are counted apart because they call for opposite actions: `export-set` points at the policy, and `role-unrecorded` points at validate-open.

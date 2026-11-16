@@ -8,13 +8,13 @@
   "must": {
     "total": 26,
     "kept": 26,
-    "ze-proven": 8,
+    "ze-proven": 7,
     "os-verified": 0,
     "os-gap": 0,
     "proof-pending": 3,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 15,
+    "not-built": 16,
     "not-owed": 0,
     "not-owed-by-kind": {}
   },
@@ -31,7 +31,7 @@
     "not-owed-by-kind": {}
   },
   "proven-by-kind": {
-    "unit": 8
+    "unit": 7
   },
   "unmet": [
     "RFC7752-3.2-2",
@@ -47,6 +47,7 @@
     "RFC7752-3.3.2.2-1",
     "RFC7752-3.3.2.7-1",
     "RFC7752-3.3.3-1",
+    "RFC7752-3.4-1",
     "RFC7752-6.2.2-1",
     "RFC7752-6.2.6-1",
     "RFC7752-8-1"

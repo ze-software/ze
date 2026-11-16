@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>debug ipv6 ospf inject lsa - Command Equivalents - Ze</title>
         <meta name="description" content="Inject a crafted OSPFv3 LSA into the local LSDB (RFC 5340)." />
         <meta property="og:title" content="debug ipv6 ospf inject lsa - Command Equivalents - Ze" />
@@ -54,12 +54,12 @@
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
 <div><dt>Registry path</dt><dd><code>debug ipv6 ospf inject lsa</code></dd></div>
-<div><dt>Usage</dt><dd><code>debug ipv6 ospf inject lsa type &lt;ls-type&gt; id &lt;link-state-id&gt; [scope &lt;link|area|as&gt;] [hex &lt;body&gt; ...] [withdraw]</code></dd></div>
+<div><dt>Usage</dt><dd><code>debug ipv6 ospf inject lsa type &lt;ls-type&gt; id &lt;link-state-id&gt; [scope &lt;link|area|as&gt;] [hex &lt;body&gt; ...] [withdraw] [address-family &lt;ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast&gt;]</code></dd></div>
 <div><dt>Mode</dt><dd>Daemon</dd></div>
 <div><dt>Wire method</dt><dd><code>ze-ospf:debug-ospfv3-inject</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
-<div><dt>Subcommands</dt><dd><code>hex</code> <code>id</code> <code>scope</code> <code>type</code> <code>withdraw</code></dd></div>
+<div><dt>Subcommands</dt><dd><code>address-family</code> <code>hex</code> <code>id</code> <code>scope</code> <code>type</code> <code>withdraw</code></dd></div>
 <div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
 <div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
@@ -132,7 +132,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

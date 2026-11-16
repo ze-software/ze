@@ -11,10 +11,10 @@
     "ze-proven": 44,
     "os-verified": 0,
     "os-gap": 0,
-    "proof-pending": 8,
+    "proof-pending": 7,
     "exclusion-unchecked": 0,
     "not-assessed": 0,
-    "not-built": 6,
+    "not-built": 7,
     "not-owed": 1,
     "not-owed-by-kind": {
       "not-applicable": 1
@@ -43,6 +43,7 @@
     "RFC9552-5.3-2",
     "RFC9552-5.3.2.7-1",
     "RFC9552-5.4-2",
+    "RFC9552-5.5-1",
     "RFC9552-8.2.6-2"
   ]
 }

@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Plugin Handlers - Ze</title>
         <meta name="description" content="Ze documentation: plugin-development/handlers.md" />
         <meta property="og:title" content="Plugin Handlers - Ze" />
@@ -396,15 +396,19 @@ panics on a nil one.</p>
 <h3 id="declareappliesnothing">DeclareAppliesNothing</h3>
 <p>A plugin that declares <code>WantsConfig</code> but holds nothing a reload can apply says
 so in place of an apply handler. Use it when the plugin reads no leaf of its
-roots, or reads only capability leaves, whose change <code>DeclareCapabilitiesFrom</code>
-already refuses at config-verify. Its <code>config-apply</code> is accepted, the rollback
+roots, or reads only capability leaves. <code>DeclareCapabilitiesFrom</code> carries the
+candidate declaration at config-verify, and the engine installs it when the
+transaction applies, so the plugin has no separate capability state to apply.
+Its <code>config-apply</code> is accepted, the rollback
 gate opens as for any accepted apply, and a debug line names the plugin, the
 changed roots and the reason. The reason must not be empty: the call panics on
 an empty one. A plugin that reads a leaf it could apply registers
 <code>OnConfigApply</code> instead.</p>
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- DeclareAppliesNothing -->
-<pre><code class="language-go">p.DeclareCapabilitiesFrom(hostnameCapabilities, hostnameCapabilityLeaves)
-p.DeclareAppliesNothing("reads only the hostname capability leaves, fixed for the process life")
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom, composeCapabilityVerify -->
+<!-- source: internal/component/plugin/server/config_tx_capabilities.go -- installStagedCapabilities -->
+<pre><code class="language-go">p.DeclareCapabilitiesFrom(hostnameCapabilities)
+p.DeclareAppliesNothing("the engine installs the candidate hostname capability declaration")
 </code></pre>
 <h3 id="a-plugin-with-no-apply-handler">A plugin with no apply handler</h3>
 <p>A plugin that registers neither <code>OnConfigApply</code> nor <code>DeclareAppliesNothing</code>
@@ -952,7 +956,7 @@ return fmt.Errorf("validation failed")
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

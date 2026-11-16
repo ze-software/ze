@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Plugin Metrics - Ze</title>
         <meta name="description" content="Ze documentation: plugin-development/metrics.md" />
         <meta property="og:title" content="Plugin Metrics - Ze" />
@@ -603,6 +603,12 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>isis</td>
 </tr>
 <tr>
+<td><code>ze_isis_lsp_change_events_refused_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>isis (events)</td>
+</tr>
+<tr>
 <td><code>ze_isis_lsps</code></td>
 <td>GaugeVec</td>
 <td>level</td>
@@ -769,6 +775,42 @@ in the same scope: <code>installed</code>, <code>active</code>, <code>up</code>,
 <td>Gauge</td>
 <td></td>
 <td>isis (transport)</td>
+</tr>
+<tr>
+<td><code>ze_ldp_sessions_active</code></td>
+<td>Gauge</td>
+<td></td>
+<td>ldp</td>
+</tr>
+<tr>
+<td><code>ze_ldp_sessions_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>ldp</td>
+</tr>
+<tr>
+<td><code>ze_ldp_bindings_active</code></td>
+<td>Gauge</td>
+<td></td>
+<td>ldp (LIB)</td>
+</tr>
+<tr>
+<td><code>ze_ldp_bindings_total</code></td>
+<td>Counter</td>
+<td></td>
+<td>ldp (LIB)</td>
+</tr>
+<tr>
+<td><code>ze_ldp_hello_send_errors_total</code></td>
+<td>CounterVec</td>
+<td>interface</td>
+<td>ldp (discovery): one per Hello that failed to send; the first after a success is logged and raised as <code>doctor-ldp-hello-send-failed</code></td>
+</tr>
+<tr>
+<td><code>ze_ldp_hello_discards_total</code></td>
+<td>CounterVec</td>
+<td>interface</td>
+<td>ldp (discovery): one per malformed datagram discarded on the discovery port; the first after a quiet minute is logged and raised as <code>doctor-ldp-hello-discarded</code></td>
 </tr>
 <tr>
 <td><code>ze_ospf_packets_sent_total</code></td>
@@ -1316,6 +1358,12 @@ area.</p>
 LANs): <code>ze_isis_dis_elections_total</code> counts DIS elections that changed the elected
 DIS per level, and <code>ze_isis_pseudonode_lsps</code> gauges the pseudo-node LSPs this node
 currently originates as the elected DIS per level.</p>
+<p>The <code>isis (events)</code> series <code>ze_isis_lsp_change_events_refused_total</code> counts the
+<code>lsp-change</code> events the event bus refused to publish. The bus refuses only an
+event it does not know, so any sample above zero is a defect in Ze: the first
+refusal is also logged at WARN under <code>doctor-internal-defect</code> and raised as an
+error event, and the later ones are only counted here.</p>
+<!-- source: internal/plugins/isis/events.go -- noteLSPChangeRefused -->
 <p>The <code>isis (auth)</code> series <code>ze_isis_auth_failures_total</code> counts IS-IS PDUs rejected
 because authentication verification failed, by level and receiving interface. It
 is incremented at the receive verify site (a PDU with no, wrong, or misordered
@@ -1624,7 +1672,7 @@ atomic pointer, periodic update loop, and per-peer label cleanup.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

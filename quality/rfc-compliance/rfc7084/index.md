@@ -13,7 +13,7 @@ what Ze has
 | Tested both ways | 5 | of 41 mandatory requirements | a positive test proves Ze does what the requirement demands and a negative one proves it refuses what the requirement forbids |
 | One polarity plus reason | 14 | of 41 mandatory requirements | the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it |
 | One polarity, unexcused | 0 | of 41 mandatory requirements | one direction is tested, the other is neither tested nor excused, and nothing states which |
-| Tests shown to detect a fault | 30 | 30 of 30 tests linked to requirements | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
+| Tests shown to detect a fault | 27 | 27 of 30 tests linked to requirements, 0 without a fault test and 3 with outdated fault tests | each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault |
 
 ### Negative
 
@@ -93,9 +93,9 @@ Included in automatic checks: Ze plays the IPv6 CE router of the fttx-edge use c
 
 **Area:** IPv6 customer edge router
 
-**Proof:** 19 of 41 MUST proven
+**Proof:** 18 of 41 MUST proven
 
-**Evidence:** unit 19
+**Evidence:** unit 18
 
 **Unmet:** RFC7084-4.1-3, RFC7084-4.2-14, RFC7084-4.2-15, RFC7084-4.2-16, RFC7084-4.2-20, RFC7084-4.2-22, RFC7084-4.2-9, RFC7084-4.3-10, RFC7084-4.3-11, RFC7084-4.3-12, RFC7084-4.3-14, RFC7084-4.3-19, RFC7084-4.3-2, RFC7084-4.3-3, RFC7084-4.3-5, RFC7084-4.3-6
 
@@ -123,8 +123,8 @@ Included in automatic checks: Ze plays the IPv6 CE router of the fttx-edge use c
 
 ## Figures
 
-- **MUST bar**: Ze proven 19, OS testing gap 7, Not built 15
-- **Overview bar**: Ze MUST proven 19, OS testing gap 7, Not assessed 24, Not built 16
+- **MUST bar**: Ze proven 18, Proof pending 1, OS testing gap 7, Not built 15
+- **Overview bar**: Ze MUST proven 18, Proof pending 1, OS testing gap 7, Not assessed 24, Not built 16
 
 | Figure | Rows |
 |---|---|
@@ -133,9 +133,9 @@ Included in automatic checks: Ze plays the IPv6 CE router of the fttx-edge use c
 | Mandatory requirements complete | not complete |
 | MUST rows | 41 |
 | MUST rows kept (the MUST bar) | 41 |
-| Ze proven | 19 |
+| Ze proven | 18 |
 | OS verified | 0 |
-| Proof pending | 0 |
+| Proof pending | 1 |
 | OS testing gap | 7 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -179,7 +179,7 @@ Source: [data/rfc/rfc7084.json](../../../data/rfc/rfc7084.json).
 | `RFC7084-4.2-7` | The DUID MUST NOT change between network-interface resets or IPv6 CE router reboots. (§4.2) | MUST NOT | 4.2 | **positive:** no positive test. **negative:** `unit/verify` [`TestDHCPv6DefaultDUIDStable`](https://github.com/ze-software/ze/blob/main/internal/plugins/iface/dhcp/rfc9915_dhcp_v6_lease_linux_test.go#L623). **{single-polarity}:** the row forbids a DUID change, which only the absence of a change across a restart can show |
 | `RFC7084-4.2-8` | WLL-1: If the WAN interface supports Ethernet encapsulation, then the IPv6 CE router MUST support IPv6 over Ethernet [RFC2464]. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux IPv6 over Ethernet (net/ipv6 with the Ethernet interface identifier in net/ipv6/addrconf.c and address resolution in net/ipv6/ndisc.c), linux:CONFIG_IPV6; internal/plugins/iface/netlink/manage_linux.go::AddAddress installs the IPv6 addresses of the Ethernet interface, and Ze writes no frame and no value the encapsulation reads |
 | `RFC7084-4.2-9` | WLL-2: If the WAN interface supports PPP encapsulation, the IPv6 CE router MUST support IPv6 over PPP [RFC5072]. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{gap}:** the PPPoE client runs IPV6CP beside IPCP (internal/component/l2tp/pppoeclient/ipv6cp_client.go clientIPv6CP, attached by dialer.go Dial through connectedSession.enableIPv6CP) and passes IPv6 on the unit once it opens, but its RFC 5072 support is not complete: RFC5072-4.1-8, RFC5072-4.1-10 and RFC5072-4.1-11 are open gaps and RFC5072-2-2 is untested, and no test tagged with this row proves IPv6 carried over the PPP WAN interface |
-| `RFC7084-4.2-10` | WLL-3: If the WAN interface supports PPP encapsulation, in a dual- stack environment with IPCP and IPV6CP running over one PPP logical channel, the Network Control Protocols (NCPs) MUST be treated as independent of each other and start and terminate independently. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC7084WLL3IPCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L214). **positive:** `unit/verify` [`TestRFC7084WLL3NCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L60). **negative:** `unit/verify` [`TestRFC7084WLL3IPCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L219) |
+| `RFC7084-4.2-10` | WLL-3: If the WAN interface supports PPP encapsulation, in a dual- stack environment with IPCP and IPV6CP running over one PPP logical channel, the Network Control Protocols (NCPs) MUST be treated as independent of each other and start and terminate independently. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC7084WLL3IPCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L215). **positive:** `unit/verify` [`TestRFC7084WLL3NCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L61). **negative:** `unit/verify` [`TestRFC7084WLL3IPCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L220) |
 | `RFC7084-4.2-11` | WAA-1: The IPv6 CE router MUST support Stateless Address Autoconfiguration (SLAAC) [RFC4862]. (§4.2) | MUST | 4.2 | **positive:** `unit/verify` [`TestRFC7084WANUnitTurnsOnSLAAC`](https://github.com/ze-software/ze/blob/main/internal/component/iface/rfc7084_ce_router_test.go#L28). **negative:** no negative test. **{single-polarity}:** the row asks for SLAAC support, and no input exists under which a conforming router declines it |
 | `RFC7084-4.2-12` | WAA-2: The IPv6 CE router MUST follow the recommendations in Section 4 of [RFC5942], and in particular the handling of the L flag in the Router Advertisement Prefix Information option. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{lower-layer}:** Linux IPv6 address configuration (net/ipv6/addrconf.c addrconf_prefix_rcv installs an on-link prefix route only for a Prefix Information option whose L flag is set, and forms an address from the A flag independently of it), linux:CONFIG_IPV6; internal/component/iface/config_sysctl.go::applySysctl writes the autoconf and accept_ra values, and no value Ze writes decides how the L flag is read |
 | `RFC7084-4.2-13` | WAA-3: The IPv6 CE router MUST support DHCPv6 [RFC3315] client behavior. (§4.2) | MUST | 4.2 | **positive:** no positive test. **negative:** no negative test. **{rollup}:** rfc9915; WAA-3 asks for the DHCPv6 client behaviour of RFC 3315, which RFC 9915 now states, and asserts nothing of its own. **derived:** gap: RFC9915-10-1 is annotated {gap} |
@@ -404,9 +404,9 @@ Audit verdict: not reviewed: no reviewer has checked whether these tests enforce
 
 | Polarity | Test | Kind and tier | Proof state |
 |---|---|---|---|
-| negative | [`TestRFC7084WLL3IPCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L219) | unit/verify | mutant, verified |
-| positive | [`TestRFC7084WLL3IPCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L214) | unit/verify | mutant, verified |
-| positive | [`TestRFC7084WLL3NCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L60) | unit/verify | mutant, verified |
+| negative | [`TestRFC7084WLL3IPCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L220) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC7084WLL3IPCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L215) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
+| positive | [`TestRFC7084WLL3NCPIndependence`](https://github.com/ze-software/ze/blob/main/internal/component/l2tp/pppoeclient/rfc7084_ncp_independence_test.go#L61) | unit/verify | mutant, unit-changed (the tagged unit's behavior changed since the red was observed) |
 
 ### [`RFC7084-4.2-11`](#rfc7084-4.2-11)
 

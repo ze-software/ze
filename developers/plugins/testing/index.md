@@ -2,6 +2,169 @@
 
 This guide covers testing strategies for ze plugins using the SDK (`pkg/plugin/sdk`).
 
+## Checking That a Program Is a Valid Plugin
+
+The conformance checker judges a plugin program in any language. It starts the
+program in declare mode (`ZE_PLUGIN_MODE=declare`, described in
+[protocol.md](../protocol/index.md), "Query Mode: Answering Without Starting") and judges
+what the program wrote. It needs no daemon and no config file.
+
+Two commands run the same checker and write the same rows:
+
+```bash
+# The shipped binary, for a plugin author or an operator.
+ze show plugin conformance run "./my-plugin --flag"
+ze show plugin conformance run "./my-plugin --flag" name acme-monitor
+
+# The development launcher, inside the Ze repository.
+./le plugin conformance check run "./my-plugin --flag"
+./le plugin conformance check run "./my-plugin --flag" name acme-monitor
+```
+
+The value after `run` is the run string you would configure under
+`plugin { external <name> { run ...; } }`, as one quoted token. A shell starts
+it, and a relative path is read from the directory you typed the command in.
+`name` is the plugin name the checks use in their refusals. Without it, the
+name is the file name of the program the run string starts. The program has the
+budget `ze.plugin.query.timeout` sets, 5 seconds by default.
+<!-- source: internal/component/plugin/conformance/register.go -- dataConformance -->
+<!-- source: internal/le/plugin/conformance/actions.go -- runCheck -->
+<!-- source: internal/component/plugin/conformance/conformance.go -- Run, DefaultName -->
+
+### The report
+
+The report holds one row for each check, in the order the protocol reaches
+them. Each row carries these fields:
+
+| Field | Value |
+|-------|-------|
+| `check` | The name of the check |
+| `stage` | The part of the protocol the check belongs to: `declare` for query mode, a stage number, or `transport`, `runtime`, `shutdown`, `schema` |
+| `verdict` | `pass`, `fail` or `not-judged` |
+| `reason` | What the check found. A passed row carries none |
+| `fix` | The change that clears the row. A passed row carries none |
+<!-- source: internal/component/plugin/conformance/conformance.go -- Row, Verdict -->
+
+A `not-judged` row is a check that nobody ran, and its reason says why. A report
+with no failed row is therefore not full conformance: read the `not-judged`
+rows to learn what is still unproven.
+
+The first four rows judge the declare-mode run itself:
+
+| Check | It passes when |
+|-------|----------------|
+| `program-starts` | The run string starts a program. A shell exit of 126 or 127 means that no program started |
+| `exits-clean` | The program exits 0 inside the budget and leaves no process holding its standard output |
+| `declaration-line` | Standard output holds exactly one line: `#1 ze-plugin-engine:declare-registration` and the declaration as compact JSON, ended by one line feed |
+| `declaration-decodes` | The JSON of that line decodes as a Stage 1 declaration |
+<!-- source: internal/component/plugin/conformance/checks.go -- programStarts, exitsClean, declarationLine, strictLine, declarationDecodes -->
+<!-- source: internal/component/plugin/declarations.go -- queryExitOf -->
+
+The next rows are the daemon's own Stage 1 checks, run over the declaration the
+program wrote. The checker and the daemon read one table, so a row that fails
+here is a declaration the daemon refuses, with the daemon's own reason. These
+rows carry stage `1`: `protocol-version`, `filter-declarations`,
+`filter-insertions`, `filter-insertion-paths`, `drain`, `resolver-caches`,
+`doctor-checks`, `enrichers`, `pipe-aliases`, `answer-shapes` and `help-texts`.
+The row `command-names` carries stage `5`. The daemon applies that rule at
+Stage 5, where a bad name refuses the command and keeps the plugin.
+
+When the program did not start, every later row is `not-judged`. When no
+declaration was read, every Stage 1 row is `not-judged`. A row is never passed
+for a declaration that nobody read.
+<!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks, JudgeDeclaration -->
+<!-- source: internal/component/plugin/conformance/checks.go -- stage1Rows, judgedRow, notStartedRow -->
+
+### What this version does not judge
+
+These rows are `not-judged` in every report. Test each behavior under a
+daemon: configure the plugin with `plugin { external <name> { run ...; } }` and
+start ze.
+
+| Check | Stage | Why the checker does not judge it |
+|-------|-------|-----------------------------------|
+| `ambiguous-registration` | `1` | The check compares the declaration with the other plugins the daemon runs |
+| `doctor-check-declared-twice` | `1` | The check compares the declared doctor checks with the registry row of the operator's block |
+| `respawn-agreement` | `1` | The check compares the declared failure policy with the `respawn` leaf of the operator's config |
+| `dependencies` | `1` | The check looks for each declared dependency among the plugins the daemon configured or loaded |
+| `registration-conflicts` | `1` | The check writes the plugin's names into the daemon's registries, where another plugin can hold the same name |
+| `tls-connect-back` | `transport` | The checker starts no hub, so the TLS connect-back and the `#0 auth` exchange do not run |
+| `stage-2-config` | `2` | The checker sends no configure message |
+| `stage-3-capabilities` | `3` | The checker reads no declare-capabilities message |
+| `stage-4-registry` | `4` | The checker sends no share-registry message |
+| `stage-5-ready` | `5` | The checker reads no ready message, so the subscriptions are not judged |
+| `config-callbacks` | `runtime` | The checker opens no config transaction, so it calls no verify, apply, rollback or committed callback |
+| `execute-command-framing` | `runtime` | The checker sends no execute-command, so it reads no answer line |
+| `bye-and-exit` | `shutdown` | The checker sends no bye |
+| `schema` | `schema` | The checker does not compile the YANG module in the `schema` field of the declaration |
+<!-- source: internal/component/plugin/conformance/register.go -- init, the notJudged registrations -->
+<!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks, the entries with daemonState -->
+<!-- source: internal/component/plugin/conformance/checks.go -- daemonStateRows, notJudged -->
+
+### Exit codes
+
+| Code | Meaning |
+|------|---------|
+| 0 | No row failed. Some rows are `not-judged` |
+| 1 | One row or more failed |
+| 2 | The run did not happen, so there is no report: no run string, no shell on this host, an invalid budget, or a caller that is not local |
+<!-- source: internal/component/plugin/conformance/conformance.go -- ExitConforms, ExitViolation, ExitNoRun, Run -->
+
+### A sample report
+
+This is the report of a conforming program. The `reason` and `fix` columns are
+left out here to keep the lines short.
+
+```
+check                        stage      verdict
+program-starts               declare    pass
+exits-clean                  declare    pass
+declaration-line             declare    pass
+declaration-decodes          declare    pass
+protocol-version             1          pass
+filter-declarations          1          pass
+filter-insertions            1          pass
+filter-insertion-paths       1          pass
+drain                        1          pass
+resolver-caches              1          pass
+doctor-checks                1          pass
+enrichers                    1          pass
+pipe-aliases                 1          pass
+answer-shapes                1          pass
+help-texts                   1          pass
+command-names                5          pass
+ambiguous-registration       1          not-judged
+doctor-check-declared-twice  1          not-judged
+respawn-agreement            1          not-judged
+dependencies                 1          not-judged
+registration-conflicts       1          not-judged
+tls-connect-back             transport  not-judged
+stage-2-config               2          not-judged
+stage-3-capabilities         3          not-judged
+stage-4-registry             4          not-judged
+stage-5-ready                5          not-judged
+config-callbacks             runtime    not-judged
+execute-command-framing      runtime    not-judged
+bye-and-exit                 shutdown   not-judged
+schema                       schema     not-judged
+```
+<!-- source: internal/component/plugin/conformance/register.go -- init, the check order and the column order -->
+
+`| json` gives the same rows under the key `checks`. The `le` command answers
+one document that holds `plugin`, `run`, `verdict` and `checks`.
+<!-- source: internal/component/plugin/conformance/register.go -- keyChecks -->
+<!-- source: internal/component/plugin/conformance/conformance.go -- Report -->
+
+### The `ze` command runs locally only
+
+`ze show plugin conformance run` starts the program that the command line
+names, so it runs in your own `ze` process, under your own identity. The daemon
+starts no program that a remote caller names. Through the daemon (SSH, the web
+UI, REST, gRPC, MCP), the command starts nothing and answers a refusal with
+code 2. The refusal gives the reason and the command to run in your own shell
+on the host that holds the program.
+<!-- source: internal/component/plugin/conformance/register.go -- refuseRemoteCaller -->
+
 ## Unit Testing with `net.Pipe`
 
 The SDK is designed for testability. Use `net.Pipe()` to create a connected pair of

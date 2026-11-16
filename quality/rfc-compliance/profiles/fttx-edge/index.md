@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/fttx-edge.json](../..
 
 ## Figures
 
-- **MUST bar**: Ze proven 361, Proof pending 89, OS testing gap 120, Not assessed 2, Not built 188
-- **Overview bar**: Ze MUST proven 361, SHOULD proven 12, Proof pending 90, OS testing gap 120, Not assessed 338, Not built 189
+- **MUST bar**: Ze proven 371, Proof pending 79, OS testing gap 120, Not assessed 2, Not built 188
+- **Overview bar**: Ze MUST proven 371, SHOULD proven 12, Proof pending 80, OS testing gap 120, Not assessed 338, Not built 189
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/fttx-edge.json](../..
 | Mandatory requirements complete | not complete |
 | MUST rows | 760 |
 | MUST rows kept (the MUST bar) | 760 |
-| Ze proven | 361 |
+| Ze proven | 371 |
 | OS verified | 0 |
-| Proof pending | 89 |
+| Proof pending | 79 |
 | OS testing gap | 120 |
 | Exclusion unchecked | 0 |
 | Not assessed | 2 |
@@ -52,7 +52,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
-| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 35, Proof pending 26, OS testing gap 2, Not built 13 | Ze MUST proven 35, SHOULD proven 2, Proof pending 27, OS testing gap 2, Not assessed 22, Not built 13 | fttx-edge: required by rfc/short/rfc1661.md |
+| [RFC 1661](../../rfc1661/) | The Point-to-Point Protocol (PPP) | Ze proven 47, Proof pending 14, OS testing gap 2, Not built 13 | Ze MUST proven 47, SHOULD proven 2, Proof pending 15, OS testing gap 2, Not assessed 22, Not built 13 | fttx-edge: required by rfc/short/rfc1661.md |
 
 ### Level 1
 
@@ -67,7 +67,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 1035](../../rfc1035/) (cycle with rfc1034, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Domain Names - Implementation and Specification | Ze proven 12, Proof pending 13, Not assessed 2 | Ze MUST proven 12, Proof pending 13, Not assessed 8 | fttx-edge: required by rfc/short/rfc1035.md |
-| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 6, Proof pending 2 | Ze MUST proven 6, Proof pending 2, Not assessed 6 | fttx-edge: required by rfc/short/rfc1332.md |
+| [RFC 1332](../../rfc1332/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | The PPP Internet Protocol Control Protocol (IPCP) | Ze proven 5, Proof pending 3 | Ze MUST proven 5, Proof pending 3, Not assessed 6 | fttx-edge: required by rfc/short/rfc1332.md |
 | [RFC 2131](../../rfc2131/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2132, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | Dynamic Host Configuration Protocol | Ze proven 21, Proof pending 13, OS testing gap 9, Not built 28 | Ze MUST proven 21, SHOULD proven 3, Proof pending 13, OS testing gap 9, Not assessed 35, Not built 28 | fttx-edge: required by rfc/short/rfc2131.md |
 | [RFC 2132](../../rfc2132/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc4291, rfc4443, rfc4861, rfc5905, rfc8200, rfc8201, rfc9293) | DHCP Options and BOOTP Vendor Extensions | Ze proven 1, Proof pending 7, Not built 26 | Ze MUST proven 1, Proof pending 7, Not assessed 34, Not built 26 | fttx-edge: required by rfc/short/rfc2132.md |
 | [RFC 4861](../../rfc4861/) (cycle with rfc1034, rfc1035, rfc1122, rfc1123, rfc1191, rfc1195, rfc1332, rfc1350, rfc1812, rfc2131, rfc2132, rfc4291, rfc4443, rfc5905, rfc8200, rfc8201, rfc9293) | Neighbor Discovery for IP version 6 (IPv6) | Ze proven 30, OS testing gap 91, Not built 17 | Ze MUST proven 30, OS testing gap 91, Not assessed 79, Not built 17 | fttx-edge: required by rfc/short/rfc4861.md |
@@ -100,7 +100,7 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar | Why it is here |
 |---|---|---|---|---|
 | [RFC 5625](../../rfc5625/) | DNS Proxy Implementation Guidelines | Ze proven 12 | Ze MUST proven 12, Not assessed 15 | fttx-edge: required by rfc/short/rfc5625.md |
-| [RFC 7084](../../rfc7084/) | Basic Requirements for IPv6 Customer Edge Routers | Ze proven 19, OS testing gap 7, Not built 15 | Ze MUST proven 19, OS testing gap 7, Not assessed 24, Not built 16 | fttx-edge: required by rfc/short/rfc7084.md |
+| [RFC 7084](../../rfc7084/) | Basic Requirements for IPv6 Customer Edge Routers | Ze proven 18, Proof pending 1, OS testing gap 7, Not built 15 | Ze MUST proven 18, Proof pending 1, OS testing gap 7, Not assessed 24, Not built 16 | fttx-edge: required by rfc/short/rfc7084.md |
 
 ## Optional (not counted)
 

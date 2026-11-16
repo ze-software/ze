@@ -96,6 +96,12 @@ download. Manual commands warn but proceed.
 Optional fields: `minimum-version` (sequential upgrade enforcement),
 `download-url` (override download location, must be HTTPS).
 
+The server answers each request where it is asked. Ze follows a redirect of
+the manifest or of the binary only within the scheme and host of the request:
+a redirect to another host, or from `https` to `http`, is refused, and the
+target receives nothing. Configure the `url` the manifest really lives at, and
+name a binary on another host in `download-url`.
+
 ## Client Configuration
 
 ### Check-only (default)
@@ -239,6 +245,7 @@ can reach the target release.
 | "binary and temp directory must be on the same filesystem" | Temp files must be on the same filesystem as the binary for atomic rename |
 | "upgrade requires intermediate version" | Running version too old for direct upgrade; update to the intermediate version first |
 | "no previous version available" | No `.prev` file for rollback (first install or already rolled back) |
+| "redirects to ..., and Ze did not follow it" | The server redirected the manifest or the binary to another host or to `http`. Follow the error's `fix:` line: it sets `url` to the final manifest location, or asks the server to publish the binary's location as `download-url`, or to answer over `https` with no redirect |
 
 History (`show system update history`) shows the result of each update attempt,
 including failures with their reason. History survives restarts.

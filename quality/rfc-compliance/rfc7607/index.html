@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 7607 requirements and tests - Ze</title>
         <meta name="description" content="RFC 7607: Codification of AS 0 Processing. 5 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 7607 requirements and tests - Ze" />
@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 5 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 5 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 5 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>0</strong><b>0 of 29 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>19</strong><b>19 of 34 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -246,16 +246,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>29</td>
+<td>34</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>29</td>
+<td>34</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
-<td>0</td>
+<td>2</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>0</td>
+<td>19</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc7607.md</code></td>
@@ -271,12 +271,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 </section>
 <section><h2>Automatic checks</h2>
-<p>Included in automatic checks: Codification of AS 0 Processing: five MUST-level requirements, all in Section 2, all met and all proven in both polarities. RFC7607-2-2 (AS 0 in AS_PATH or AGGREGATOR is malformed, handled per RFC 7606) is enforced by validateASPathAttr and validateAggregatorAttr (internal/component/bgp/message/rfc7606.go), which land on treat-as-withdraw and attribute discard as RFC 7606 sections 7.2 and 7.7 each require. RFC7607-2-3 (AS 0 in AS4_PATH or AS4_AGGREGATOR, handled per RFC 6793) is enforced by validateAS4PathAttr and validateAS4AggregatorAttr (internal/component/bgp/message/rfc7607.go), which register the first validators codes 17 and 18 ever had and land on the attribute discard RFC 6793 section 6 chooses. RFC7607-2-1 (never originate or propagate AS 0) is proven over the real receive rail in internal/component/bgp/reactor/rfc7607_update_test.go, driving Session.enforceRFC7606 rather than a leaf validator: an AS 0 route is stopped before any plugin sees it, so nothing can relay one, and the paired negatives accept the same UPDATE with one AS number changed. RFC7607-2-4 (a peer AS of zero aborts the connection with NOTIFICATION 2/2 Bad Peer AS) is enforced by Session.validateOpenPeerAS (internal/component/bgp/reactor/session_open_as.go) on BOTH OPEN rails, handleOpen and the collision-winner processOpen, and reads the Four-octet AS capability as well as the two-octet My AS because a four-octet speaker carries its real AS there. RFC7607-2-5 (never initiate a connection claiming to be AS 0) is enforced by Session.sendOpen, paired with the zt:asn YANG range &#34;1..4294967295&#34; that refuses AS 0 at config load. Ze uses AS 0 internally as a not-known-yet sentinel for a dynamic peer, for observation grouping and for BGP-LS descriptors; every check above reads the WIRE field instead, and rfc/short/rfc7607.md tabulates the five sentinel sites against the check that leaves each one alone. Enrolled 2026-08-30.</p>
+<p>Included in automatic checks: Five MUST-level requirements in Section 2. The receive validators in message/rfc7606.go and message/rfc7607.go apply the distinct RFC 7606 and RFC 6793 malformed-attribute procedures. The final outbound Session.writeUpdateBody guard (reactor/session_rfc7607.go) judges all four attributes after policy on originated, raw-injected and both relay rails, withdrawing offending routes without examining internal AS-zero sentinels or NLRI descriptors. rfc7607_egress_test.go reads actual Session output at both negotiated ASN widths and pairs each forbidden input with its real-AS control. Session.validateOpenPeerAS refuses peer AS zero on both OPEN rails with NOTIFICATION 2/2, and Session.sendOpen plus the YANG ASN range refuse a local AS-zero claim. Verified discrimination records determine the proven share; receive-only tests do not establish the complete outbound prohibition.</p>
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> Codification of AS 0 processing</p>
-<p><strong>Proof:</strong> 0 of 5 MUST proven</p>
-<p><strong>Evidence:</strong> -</p>
+<p><strong>Proof:</strong> 5 of 5 MUST proven</p>
+<p><strong>Evidence:</strong> unit 5</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -321,9 +321,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc7607:must">Proof pending 5</div>
+<div data-ze-rfc-bar="rfc7607:must">Ze proven 5</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc7607:overview">Proof pending 5</div>
+<div data-ze-rfc-bar="rfc7607:overview">Ze MUST proven 5</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -335,7 +335,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7607:not-walked">0</span></td>
 </tr>
 <tr><td>Mandatory requirements complete</td>
-<td><span data-ze-rfc="rfc7607:register">not complete</span></td>
+<td><span data-ze-rfc="rfc7607:register">complete</span></td>
 </tr>
 <tr><td>MUST rows</td>
 <td><span data-ze-rfc="rfc7607:must.total">5</span></td>
@@ -344,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc7607:must.kept">5</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc7607:must.ze-proven">0</span></td>
+<td><span data-ze-rfc="rfc7607:must.ze-proven">5</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc7607:must.os-verified">0</span></td>
 </tr>
 <tr><td>Proof pending</td>
-<td><span data-ze-rfc="rfc7607:must.proof-pending">5</span></td>
+<td><span data-ze-rfc="rfc7607:must.proof-pending">0</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc7607:must.os-gap">0</span></td>
@@ -428,9 +428,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST NOT</td>
 <td>2 - Behavior</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7607-2-1">
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_egress_test.go#L31" title="internal/component/bgp/reactor/rfc7607_egress_test.go" target="_blank" rel="noopener"><code>TestRFC7607ASZeroNeverLeavesOriginatedOrRelayedRoutes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_egress_boundaries_test.go#L24" title="internal/component/bgp/reactor/rfc7607_egress_boundaries_test.go" target="_blank" rel="noopener"><code>TestRFC7607ASZeroReplacementWithdrawsMixedFamilies</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_update_test.go#L88" title="internal/component/bgp/reactor/rfc7607_update_test.go" target="_blank" rel="noopener"><code>TestRFC7607AggregatorASZeroIsDiscarded</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_update_test.go#L48" title="internal/component/bgp/reactor/rfc7607_update_test.go" target="_blank" rel="noopener"><code>TestRFC7607UpdateWithASZeroIsNotAccepted</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_update_test.go#L104" title="internal/component/bgp/reactor/rfc7607_update_test.go" target="_blank" rel="noopener"><code>TestRFC7607AggregatorRealASIsKept</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_egress_test.go#L39" title="internal/component/bgp/reactor/rfc7607_egress_test.go" target="_blank" rel="noopener"><code>TestRFC7607RealASLeavesOriginatedAndRelayedRoutes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_update_test.go#L68" title="internal/component/bgp/reactor/rfc7607_update_test.go" target="_blank" rel="noopener"><code>TestRFC7607UpdateWithRealASIsAccepted</code></a></span></div>
 </div></td>
 </tr>
@@ -474,8 +477,10 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC7607-2-4">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L48" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsPeerASZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L108" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsPeerASZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_open_abort_tcp_test.go#L31" title="internal/component/bgp/reactor/rfc7607_open_abort_tcp_test.go" target="_blank" rel="noopener"><code>TestRFC7607ZeroASOpenAbortsTCP</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L51" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsPeerASZero</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L110" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsPeerASZero</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_open_abort_tcp_test.go#L56" title="internal/component/bgp/reactor/rfc7607_open_abort_tcp_test.go" target="_blank" rel="noopener"><code>TestRFC7607RealASOpenRetainsTCP</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc7607-2-5">RFC7607-2-5</code></td><td colspan="3"><span class="rfc-subject">A router MUST NOT initiate a connection claiming to be AS 0 (§2)</span></td></tr>
@@ -504,6 +509,11 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_egress_test.go#L39" title="internal/component/bgp/reactor/rfc7607_egress_test.go" target="_blank" rel="noopener"><code>TestRFC7607RealASLeavesOriginatedAndRelayedRoutes</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_update_test.go#L104" title="internal/component/bgp/reactor/rfc7607_update_test.go" target="_blank" rel="noopener"><code>TestRFC7607AggregatorRealASIsKept</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
@@ -512,6 +522,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_update_test.go#L68" title="internal/component/bgp/reactor/rfc7607_update_test.go" target="_blank" rel="noopener"><code>TestRFC7607UpdateWithRealASIsAccepted</code></a></td>
 <td>unit/verify</td>
 <td>unproven</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_egress_boundaries_test.go#L24" title="internal/component/bgp/reactor/rfc7607_egress_boundaries_test.go" target="_blank" rel="noopener"><code>TestRFC7607ASZeroReplacementWithdrawsMixedFamilies</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_egress_test.go#L31" title="internal/component/bgp/reactor/rfc7607_egress_test.go" target="_blank" rel="noopener"><code>TestRFC7607ASZeroNeverLeavesOriginatedOrRelayedRoutes</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_update_test.go#L88" title="internal/component/bgp/reactor/rfc7607_update_test.go" target="_blank" rel="noopener"><code>TestRFC7607AggregatorASZeroIsDiscarded</code></a></td>
@@ -536,12 +556,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L50" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607ASPathNonZeroAccepted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L92" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607AggregatorNonZeroAccepted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L194" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607CompleteUpdateAccepted</code></a></td>
@@ -556,12 +576,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L29" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607ASPathZeroTreatAsWithdraw</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L65" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607AggregatorZeroDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L181" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607CompleteUpdateASPathZero</code></a></td>
@@ -596,12 +616,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L156" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607AS4AggregatorNonZeroAccepted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L130" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607AS4PathNonZeroAccepted</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L226" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607CompleteUpdateAS4PathAccepted</code></a></td>
@@ -616,7 +636,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L140" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607AS4AggregatorZeroDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L268" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607AS4PathReachesTheAttributeWalk</code></a></td>
@@ -626,7 +646,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L113" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607AS4PathZeroDiscard</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/rfc7607_test.go#L210" title="internal/component/bgp/message/rfc7607_test.go" target="_blank" rel="noopener"><code>TestRFC7607CompleteUpdateAS4PathZero</code></a></td>
@@ -643,37 +663,47 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc7607-2-4"><code>RFC7607-2-4</code></a></h3>
 <p>If a BGP speaker receives zero as the peer AS in an OPEN message, it MUST abort the connection and send a NOTIFICATION with Error Code &#34;OPEN Message Error&#34; and subcode &#34;Bad Peer AS&#34; (§2)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Read the complete RFC 7607 and every tagged unit for this row. Section 2 says: If a BGP speaker receives zero as the peer AS in an OPEN message, it MUST abort the connection and send a NOTIFICATION with Error Code &#34;OPEN Message Error&#34; and subcode &#34;Bad Peer AS&#34; (see Section 6 of [RFC4271]). The older TestHandleOpenRejectsPeerASZero covers My AS zero and AS_TRANS with a zero Four-octet AS capability, exact notification 2/2 and no OpenConfirm; matching configured real-AS controls reach OpenConfirm with no notification. TestProcessOpenRejectsPeerASZero supplies the pre-parsed collision consumer with My AS zero versus a real AS and checks the exact notification/error versus success. Those older tests alone do not observe TCP abort. The new TestRFC7607ZeroASOpenAbortsTCP supplies both field encodings on real loopback TCP through ordinary ReadAndProcess/handleOpen and pre-read acceptWithOpen/processOpen, requires the complete notification payload [2,2], then a zero-byte read with io.EOF and Idle. It starts no Session.Run, so outer teardown cannot conceal a missing producer close, and cleanup runs after these assertions. TestRFC7607RealASOpenRetainsTCP pairs each case with a matching real AS, reaches Established through the actual OPEN/KEEPALIVE exchange and sends a further KEEPALIVE on the same TCP connection. The parent baseline log names all eight cases passing. Existing native records remove the notification while preserving close and force valid AS rejection; the queued new records must additionally observe closure omission and valid-AS refusal before stamping. The collision test exercises the winner consumer and handoff, not the separate identifier election. This supersedes the unstamped weak proposal based only on the older units and makes no judgment about RFC7607-2-1, -2-2 or -2-3.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_open_abort_tcp_test.go#L56" title="internal/component/bgp/reactor/rfc7607_open_abort_tcp_test.go" target="_blank" rel="noopener"><code>TestRFC7607RealASOpenRetainsTCP</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L51" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsPeerASZero</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L110" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsPeerASZero</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_open_abort_tcp_test.go#L31" title="internal/component/bgp/reactor/rfc7607_open_abort_tcp_test.go" target="_blank" rel="noopener"><code>TestRFC7607ZeroASOpenAbortsTCP</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L48" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestHandleOpenRejectsPeerASZero</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L108" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestProcessOpenRejectsPeerASZero</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc7607-2-5"><code>RFC7607-2-5</code></a></h3>
 <p>A router MUST NOT initiate a connection claiming to be AS 0 (§2)</p>
-<p><strong>Audit verdict:</strong> not reviewed: no reviewer has checked whether these tests enforce the requirement</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Read the complete RFC 7607 and every tagged occurrence of this row. Section 2 says: A router MUST NOT initiate a connection claiming to be AS 0. TestSendOpenRefusesLocalASZero reaches connectionEstablished and sendOpen through Session.Accept on an installed net.Pipe; it is not an unconnected helper invocation that could fail with ErrNotConnected. The AS-zero case requires ErrLocalASZero and searches the captured socket writes for an OPEN, which must be absent. Its real-AS twin requires successful Accept, OpenSent and an actual OPEN carrying My AS 65001, so unconditional OPEN suppression or guard rejection fails. Both tags reside in this one table unit. The source connects the outgoing Connect rail and incoming Accept rail through the same connectionEstablished/sendOpen producer; sendOpen rejects LocalAS zero before preparing or writing any OPEN. The YANG ASN range also excludes zero, but the tagged proof rests on the runtime sender boundary, not on claiming a schema test was run. The two native records must verify zero-guard removal and overbroad refusal of a real local AS before stamping. No separate outbound-dial integration run or full RFC 7607 coverage is claimed.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -681,12 +711,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L209" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestSendOpenRefusesLocalASZero</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc7607_session_open_as_test.go#L206" title="internal/component/bgp/reactor/rfc7607_session_open_as_test.go" target="_blank" rel="noopener"><code>TestSendOpenRefusesLocalASZero</code></a></td>
 <td>unit/verify</td>
-<td>unproven</td>
+<td>mutant, verified</td>
 </tr>
 </tbody>
 </table>
@@ -834,7 +864,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:41 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

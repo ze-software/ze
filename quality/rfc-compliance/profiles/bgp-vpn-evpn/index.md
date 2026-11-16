@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-vpn-evpn.json](..
 
 ## Figures
 
-- **MUST bar**: Ze proven 31, Proof pending 6, Not built 165
-- **Overview bar**: Ze MUST proven 31, SHOULD proven 1, Proof pending 6, Not assessed 53, Not built 165
+- **MUST bar**: Ze proven 29, Proof pending 8, Not built 165
+- **Overview bar**: Ze MUST proven 29, SHOULD proven 1, Proof pending 8, Not assessed 53, Not built 165
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/bgp-vpn-evpn.json](..
 | Mandatory requirements complete | not complete |
 | MUST rows | 202 |
 | MUST rows kept (the MUST bar) | 202 |
-| Ze proven | 31 |
+| Ze proven | 29 |
 | OS verified | 0 |
-| Proof pending | 6 |
+| Proof pending | 8 |
 | OS testing gap | 0 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -53,8 +53,8 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
 | [RFC 4364](../../rfc4364/) (cycle with rfc4659, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950) | BGP/MPLS IP Virtual Private Networks (VPNs) | Not built 8 | Not assessed 5, Not built 8 |
-| [RFC 4659](../../rfc4659/) (cycle with rfc4364, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950) | BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN | Ze proven 4, Proof pending 1, Not built 13 | Ze MUST proven 4, Proof pending 1, Not assessed 6, Not built 13 |
-| [RFC 8277](../../rfc8277/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8950) | Using BGP to Bind MPLS Labels to Address Prefixes | Ze proven 11, Not built 24 | Ze MUST proven 11, SHOULD proven 1, Not assessed 6, Not built 24 |
+| [RFC 4659](../../rfc4659/) (cycle with rfc4364, rfc4798, rfc6368, rfc7606, rfc8277, rfc8950) | BGP-MPLS IP Virtual Private Network (VPN) Extension for IPv6 VPN | Ze proven 3, Proof pending 2, Not built 13 | Ze MUST proven 3, Proof pending 2, Not assessed 6, Not built 13 |
+| [RFC 8277](../../rfc8277/) (cycle with rfc4364, rfc4659, rfc4798, rfc6368, rfc7606, rfc8950) | Using BGP to Bind MPLS Labels to Address Prefixes | Ze proven 10, Proof pending 1, Not built 24 | Ze MUST proven 10, SHOULD proven 1, Proof pending 1, Not assessed 6, Not built 24 |
 
 ### Level 8
 

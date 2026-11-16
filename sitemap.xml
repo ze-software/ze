@@ -1456,6 +1456,9 @@
     <loc>https://ze-software.net/quality/rfc-compliance/sflow-v5/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/quality/rfc-map/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/quality/unit-fuzz-mutation/</loc>
   </url>
   <url>
@@ -1507,16 +1510,16 @@
     <loc>https://ze-software.net/reference/command-equivalents/clear-firewall-domain-group/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/clear-firewall-irr-as-set/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/clear-firewall-irr-asn/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-interface-counters-all/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-interface-name-counters/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-irr-as-set/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/clear-irr-asn/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/clear-irr-cache-all/</loc>
@@ -1789,6 +1792,12 @@
     <loc>https://ze-software.net/reference/command-equivalents/request-config-archive/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-container-restart-name/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-container-restart/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-data-backup/</loc>
   </url>
   <url>
@@ -1883,6 +1892,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-support-archive/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/request-system-storage-grow/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/request-unsubscribe/</loc>
@@ -2371,6 +2383,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-interface/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-irr/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-isis-database-detail/</loc>
   </url>
   <url>
@@ -2587,6 +2602,9 @@
     <loc>https://ze-software.net/reference/command-equivalents/show-ospf-ipv6-neighbor/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-ospf-ipv6-route/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-ospf-ipv6-segment-routing/</loc>
   </url>
   <url>
@@ -2651,6 +2669,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-pki-local-ca-pem/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/command-equivalents/show-plugin-conformance-run/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/show-plugin-declarations-config/</loc>
@@ -2938,15 +2959,6 @@
     <loc>https://ze-software.net/reference/command-equivalents/update-bgp-config/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/update-bgp-irr-all/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/update-bgp-irr-as-set/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/reference/command-equivalents/update-bgp-irr-asn/</loc>
-  </url>
-  <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-bgp-peer-prefix/</loc>
   </url>
   <url>
@@ -2959,13 +2971,13 @@
     <loc>https://ze-software.net/reference/command-equivalents/update-firewall-domain-group/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/update-firewall-irr-all/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/update-irr-all/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/update-firewall-irr-as-set/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/update-irr-as-set/</loc>
   </url>
   <url>
-    <loc>https://ze-software.net/reference/command-equivalents/update-firewall-irr-asn/</loc>
+    <loc>https://ze-software.net/reference/command-equivalents/update-irr-asn/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/command-equivalents/update-resolve-rir/</loc>
@@ -3154,6 +3166,9 @@
     <loc>https://ze-software.net/reference/plugins/connected/</loc>
   </url>
   <url>
+    <loc>https://ze-software.net/reference/plugins/container/</loc>
+  </url>
+  <url>
     <loc>https://ze-software.net/reference/plugins/copp/</loc>
   </url>
   <url>
@@ -3227,6 +3242,9 @@
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/interface/</loc>
+  </url>
+  <url>
+    <loc>https://ze-software.net/reference/plugins/irr/</loc>
   </url>
   <url>
     <loc>https://ze-software.net/reference/plugins/isis/</loc>
@@ -3353,8 +3371,5 @@
   </url>
   <url>
     <loc>https://ze-software.net/zeledon/</loc>
-  </url>
-  <url>
-    <loc>https://ze-software.net/quality/rfc-map/</loc>
   </url>
 </urlset>

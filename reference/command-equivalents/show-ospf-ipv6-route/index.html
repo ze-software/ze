@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>show ospf ipv6 route - Command Equivalents - Ze</title>
+        <meta name="description" content="Show the OSPFv3-computed routes of every address family (RFC 5838)." />
+        <meta property="og:title" content="show ospf ipv6 route - Command Equivalents - Ze" />
+        <meta property="og:description" content="Show the OSPFv3-computed routes of every address family (RFC 5838)." />
+        <meta property="og:type" content="website" />
+        <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+        <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
+        <meta name="twitter:card" content="summary_large_image" />
+        <meta name="twitter:title" content="show ospf ipv6 route - Command Equivalents - Ze" />
+        <meta name="twitter:description" content="Show the OSPFv3-computed routes of every address family (RFC 5838)." />
+        <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
+        <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
+        <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
+        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/show-ospf-ipv6-route/" />
+        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/show-ospf-ipv6-route/" />
+        <link rel="stylesheet" href="../../../assets/site.css" />
+        <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
+    </head>
+    <body>
+        <a class="skip-link" href="#top">Skip to main content</a>
+        <div id="site-header-mount" data-header-src="../../../assets/header.html" data-site-root="../../../">
+            <noscript>
+                <nav class="site-header-fallback" aria-label="Site navigation">
+                    <a class="brand" href="../../../#top">Ze</a>
+                    <a href="../../../#top">Home</a>
+                    <a href="../../../docs/">Docs</a>
+                    <a href="../../../features/">Features</a>
+                    <a href="../../../compare/">Compare</a>
+                    <a href="../../../project/roadmap/">Roadmap</a>
+                    <a href="../../../project/changes/">Changes</a>
+                    <a href="../../../faq/">FAQ</a>
+                    <a href="../../../contribute/">Contribute</a>
+                </nav>
+            </noscript>
+        </div>
+
+        <main id="top" class="has-page-sidebar" tabindex="-1">
+
+<section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
+<div class="journey-hero reveal">
+    <span class="journey-eyebrow">Command map</span>
+    <h1 id="command-equivalent-detail-title">show ospf ipv6 route</h1>
+    <p>Show the OSPFv3-computed routes of every address family (RFC 5838).</p>
+</div>
+<div class="cmd-detail-grid">
+<article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
+<dl class="cmd-meta">
+<div><dt>Registry path</dt><dd><code>show ospf ipv6 route</code></dd></div>
+<div><dt>Usage</dt><dd><code>show ospf ipv6 route [address-family &lt;ipv6-unicast|ipv6-multicast|ipv4-unicast|ipv4-multicast&gt;]</code></dd></div>
+<div><dt>Mode</dt><dd>Read-only</dd></div>
+<div><dt>Wire method</dt><dd><code>ze-ospf:show-ospfv3-route</code></dd></div>
+<div><dt>Backends</dt><dd>any backend</dd></div>
+<div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
+<div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, while streaming</dt><dd>log</dd></div>
+<div><dt>Pipes, local process only</dt><dd>save</dd></div>
+<div><dt>Answer shape</dt><dd>tab</dd></div>
+<div><dt>Column order</dt><dd>address-family, instance-id</dd></div>
+</dl>
+<h3>Description</h3><p>Lists each prefix an OSPFv3 SPF run computed, with its path type, cost,<br>next-hops and area. Each row names the address-family and instance-id of the<br>engine that computed it, so an IPv4-unicast instance&#39;s routes sit beside the<br>IPv6-unicast ones. show ospf route answers the OSPFv2 routes.</p>
+<h3>Arguments</h3>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>address-family</code></td><td>enum</td><td>no</td><td><code>ipv6-unicast</code> <code>ipv6-multicast</code> <code>ipv4-unicast</code> <code>ipv4-multicast</code></td><td>Limit the answer to one OSPFv3 address family.</td><td>Without it the view answers for every running OSPFv3 address family, and
+each row names its address-family and instance-id. With it the view answers for that one
+family. A family that is not running is refused, and the refusal names the running ones;
+show ospf ipv6 instance lists them too.</td></tr>
+</tbody></table>
+</article>
+<article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
+<article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
+<p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>
+</article>
+<article class="cmd-detail-card cmd-vendor-detail"><h2>Cisco IOS XR</h2>
+<p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>
+</article>
+<article class="cmd-detail-card cmd-vendor-detail"><h2>Nokia SR OS</h2>
+<p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>
+</article>
+<article class="cmd-detail-card cmd-vendor-detail"><h2>VyOS</h2>
+<p class="cmd-no-equivalent">No equivalent is listed for this vendor yet.</p>
+</article>
+</div></section>
+            <aside class="page-sidebar" aria-label="Related page links">
+                <p class="page-sidebar-eyebrow">Command detail</p>
+                <nav class="page-sidebar-nav" aria-label="Related links">
+                <section class="page-sidebar-group">
+                    <h2>More commands</h2>
+                    <a class="page-sidebar-link" href="../../../reference/command-equivalents/">
+                        <span class="page-sidebar-link-label">Command equivalents</span>
+                        <small>Return to the side-by-side vendor map.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../reference/cli/">
+                        <span class="page-sidebar-link-label">CLI reference</span>
+                        <small>Open the generated Ze command catalogue.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="../../../features/cli-commands/">
+                        <span class="page-sidebar-link-label">CLI commands</span>
+                        <small>Understand CLI behaviour and design.</small>
+                    </a>
+                </section>
+                <section class="page-sidebar-group">
+                    <h2>Referenced vendors</h2>
+                    <a class="page-sidebar-link" href="https://www.juniper.net/documentation/" target="_blank" rel="noopener">
+                        <span class="page-sidebar-link-label concept-software">Juniper Junos</span>
+                        <small>Vendor documentation used by command equivalents.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="https://www.cisco.com/c/en/us/support/ios-nx-os-software/ios-xr-software/series.html" target="_blank" rel="noopener">
+                        <span class="page-sidebar-link-label concept-software">Cisco IOS XR</span>
+                        <small>Vendor documentation used by command equivalents.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="https://documentation.nokia.com/sr/" target="_blank" rel="noopener">
+                        <span class="page-sidebar-link-label concept-software">Nokia SR OS</span>
+                        <small>Vendor documentation used by command equivalents.</small>
+                    </a>
+                    <a class="page-sidebar-link" href="https://docs.vyos.io/" target="_blank" rel="noopener">
+                        <span class="page-sidebar-link-label">VyOS docs</span>
+                        <small>Current VyOS documentation and feature references.</small>
+                    </a>
+                </section>
+                </nav>
+            </aside>
+        </main>
+
+        <script src="../../../assets/site.js" defer></script>
+
+        <footer>
+            <div class="footer-inner">
+                <div class="footer-bottom">
+                    <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
+                    <a href="../../../license/">Ze is AGPLv3 open source.</a>
+                    <a href="../../../legal/">Legal notice</a>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
+                </div>
+            </div>
+        </footer>
+    </body>
+</html>

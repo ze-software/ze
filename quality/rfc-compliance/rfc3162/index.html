@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 3162 requirements and tests - Ze</title>
         <meta name="description" content="RFC 3162: RADIUS and IPv6. 6 mandatory requirements included in automatic checks, 3 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 3162 requirements and tests - Ze" />
@@ -432,7 +432,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.1 - NAS-IPv6-Address</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3162-2.1-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L29" title="internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC3162AccessRequestFromAnIPv6SourceNamesTheNAS</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L30" title="internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC3162AccessRequestFromAnIPv6SourceNamesTheNAS</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the fallback is an addition to the packet, so its other direction, a configured NAS-IP-Address making the NAS-Identifier optional, is RFC 2865 Section 4.1 behaviour proven by TestRFC2866AcctNASIdentityFallbackIsNarrow under RFC2866-4.1-3, not a separate obligation of this sentence</p></td>
 </tr>
@@ -460,7 +460,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>2.5 - Framed-IPv6-Route</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3162-2.5-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>no test</code></span><span role="cell">no positive test</span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L57" title="internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC3162FramedIPv6RouteTextDoesNotStopTheAccept</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L59" title="internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC3162FramedIPv6RouteTextDoesNotStopTheAccept</code></a></span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> the obligation is that the text affects nothing outside its own route, and no well-formed or malformed text exists for which stopping the Access-Accept would be correct</p></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc3162-2.6-1">RFC3162-2.6-1</code></td><td colspan="3"><span class="rfc-subject">If a NAS does not support multiple prefix pools, the NAS MUST ignore this Attribute. (§2.6)</span></td></tr>
@@ -468,7 +468,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>MUST</td>
 <td>2.6 - Framed-IPv6-Pool</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC3162-2.6-1">
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L82" title="internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC3162FramedIPv6PoolIsIgnored</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L84" title="internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC3162FramedIPv6PoolIsIgnored</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze supports no prefix pools in any configuration, so the attribute is ignored unconditionally and there is no case in which acting on it would be correct</p></td>
 </tr>
@@ -579,7 +579,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L29" title="internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC3162AccessRequestFromAnIPv6SourceNamesTheNAS</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L30" title="internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC3162AccessRequestFromAnIPv6SourceNamesTheNAS</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -602,7 +602,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L57" title="internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC3162FramedIPv6RouteTextDoesNotStopTheAccept</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L59" title="internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC3162FramedIPv6RouteTextDoesNotStopTheAccept</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -617,7 +617,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L82" title="internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC3162FramedIPv6PoolIsIgnored</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go#L84" title="internal/component/l2tp/plugins/authradius/rfc3162_nas_attributes_test.go" target="_blank" rel="noopener"><code>TestRFC3162FramedIPv6PoolIsIgnored</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -813,7 +813,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

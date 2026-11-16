@@ -1,6 +1,6 @@
 # Configuration Reference
 
-The complete Ze configuration as one tree: 39 top-level sections (27 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/features/bgp-configuration/) for a narrative walkthrough of BGP peer config specifically.
+The complete Ze configuration as one tree: 39 top-level sections (28 provided by plugins, the rest core), generated live from the YANG schema with `ze yang tree`. This is about the structure of the configuration -- every section, searchable and inspectable. See [the Configuration guide](https://ze-software.net/features/bgp-configuration/) for a narrative walkthrough of BGP peer config specifically.
 
 ## anomaly
 
@@ -330,7 +330,7 @@ A peer inherits from its group defaults. A group inherits from this global level
       - **accept** `boolean`: Accept inbound TCP connections at this local endpoint (RFC 4271 Section 8.1.1)
         The default is true. Set the leaf false for a peer Ze dials and never answers. accept and connect cannot both be false, and Ze refuses that config.
       - **ip** `union`: Local address for connection (use IP address or 'auto')
-        auto leaves the source address to the operating system. An address binds the outbound connection to it, which fixes the source address that a next-hop self rewrite uses. Ze refuses an IPv6 link-local address here.
+        auto leaves the source address to the operating system. An address binds the outbound connection to it. A scoped IPv6 link-local address retains its interface zone for TCP. Next-hop self uses the connected local endpoint. The route's next-hop encoding and negotiated capabilities decide whether that address can be advertised.
         - `auto`: Let the operating system choose the source address of the connection.
       - **port** `port`: Local listen port
         Ze opens a listener of its own for this peer on the local address and this port, and answers an inbound connection there. The default is 179, and a peer at 179 shares the global listener. The range is 1 to 65535, and Ze refuses a config outside it. Ze binds no local source port on an outbound connection, so the value applies to the listener alone. connection > remote > port is the port Ze dials, and the two are independent.
@@ -485,7 +485,7 @@ A peer inherits from its group defaults. A group inherits from this global level
         - **accept** `boolean`: Accept inbound TCP connections at this local endpoint (RFC 4271 Section 8.1.1)
           The default is true. Set the leaf false for a peer Ze dials and never answers. accept and connect cannot both be false, and Ze refuses that config.
         - **ip** `union`: Local address for connection (use IP address or 'auto')
-          auto leaves the source address to the operating system. An address binds the outbound connection to it, which fixes the source address that a next-hop self rewrite uses. Ze refuses an IPv6 link-local address here.
+          auto leaves the source address to the operating system. An address binds the outbound connection to it. A scoped IPv6 link-local address retains its interface zone for TCP. Next-hop self uses the connected local endpoint. The route's next-hop encoding and negotiated capabilities decide whether that address can be advertised.
           - `auto`: Let the operating system choose the source address of the connection.
         - **port** `port`: Local listen port
           Ze opens a listener of its own for this peer on the local address and this port, and answers an inbound connection there. The default is 179, and a peer at 179 shares the global listener. The range is 1 to 65535, and Ze refuses a config outside it. Ze binds no local source port on an outbound connection, so the value applies to the listener alone. connection > remote > port is the port Ze dials, and the two are independent.
@@ -812,15 +812,15 @@ A peer inherits from its group defaults. A group inherits from this global level
       - **irr** `container`: Per-peer IRR filter settings.
         Ze resolves the prefixes of a peer only when the peer asked for it. A filter chain that names bgp-filter-irr asks for it, and so does an as-set written here. A peer that states no remote ASN is never resolved.
         - **as-set** `string`: Explicit AS-SET name for the IRR prefix lookup.
-          The IRR filter queries an IRR database for the prefixes of one AS-SET. This leaf names that AS-SET. If this leaf is empty, Ze reads the remote ASN of the peer and discovers the AS-SET from PeeringDB.
+          The AS-SET whose prefixes the IRR filter enforces for this peer. The irr plugin fetches and stores that AS-SET's prefix list, and the filter reads the stored copy. If this leaf is empty, the irr plugin asks PeeringDB which AS-SET the peer's remote ASN names.
         - **enable** `enumeration`: Enable or disable IRR filtering for this peer.
-          disable takes the peer out of the resolution, so Ze runs no whois query and no PeeringDB query for it. The other peers of the same remote ASN keep their list.
+          disable takes the peer out of the filter, so the filter does not ask the irr plugin to fetch a list for it. The other peers of the same remote ASN keep their list.
           - `disable`: Disable IRR filtering for this peer.
           - `enable`: Enable IRR filtering for this peer (default).
       - **link-local** `ipv6-address`: IPv6 link-local address advertised after the global next hop (RFC 2545 Section 3).
         The address goes in the MP_REACH Next Hop field. The leaf supplies the address, and it does not decide that the address is sent. Ze appends the address only when this speaker shares a locally connected subnet with the peer, and with the entity that the global next hop names. That is the 'if and only if' condition of Section 3. In every other case the field carries the global address alone. Set the leaf on a session that faces a peer on a shared link. It has no effect on any other session.
       - **next-hop** `union`: Next-hop rewriting policy for a forwarded UPDATE (RFC 4271 Section 5.1.3).
-        auto rewrites the next hop for an eBGP peer, and preserves it for an iBGP peer. self always rewrites the next hop to the local address. unchanged never rewrites it, so the original next hop is preserved. An IP address sets the next hop to that address.
+        auto rewrites the next hop for an ordinary eBGP peer, and preserves it for an iBGP peer or route-server client. self rewrites to the session's connected local address. If no usable self address exists, Ze withholds the announcement and withdraws a previously advertised route. unchanged preserves the received next hop when its wire form is usable. An IP address sets the next hop to that address.
         - `auto`: RFC 4271 default: rewrite for eBGP, preserve for iBGP
         - `self`: Rewrite next-hop to local address (common for iBGP)
         - `unchanged`: Never rewrite next-hop (route-server, third-party NH)
@@ -902,12 +902,12 @@ A peer inherits from its group defaults. A group inherits from this global level
         Every entry takes the attribute block of the update block. The key is the family name, and content carries the operation keyword and the prefixes. An update block that declares no nlri entry is refused at config load.
         - **content** `string`: Operation, qualifiers, and payload
           The form is an operation keyword, then an optional rd and label, then one or more prefixes. add, del and eor are the operation keywords, and one of them is required. A block that carries del or eor announces nothing at config load.
-      - **watchdog** `container`: Watchdog-controlled route - held until 'bgp watchdog announce <name>'
+      - **watchdog** `container`: Watchdog-controlled route with an optional initial hold
         The bgp-watchdog plugin owns every route of the block, so the BGP engine holds none of them as a static route. The plugin sends a route that is not withdrawn when the session reaches Established.
         - **name** `string`: Watchdog group name
           request bgp watchdog announce <name> announces every route that carries the name, and request bgp watchdog withdraw <name> withdraws them. Ze skips a block whose name is empty.
-        - **withdraw** `boolean`: Start in withdrawn state (default true)
-          The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every route of the block withdrawn exactly as withdraw true does. Delete the leaf to announce the routes as soon as the session reaches Established. request bgp watchdog announce <name> announces a withdrawn route.
+        - **withdraw** `boolean`: Hold routes until explicitly announced (default false)
+          With true, bgp-watchdog holds every route of the block until request bgp watchdog announce <name>. With false, or when this leaf is omitted, the plugin announces the routes when the session reaches Established. The default matches ExaBGP. Changing this setting on reload preserves the runtime state of an existing route; a new route uses the configured initial state.
   - **rib** `container`: Route Information Base settings for this peer.
     The container controls which RIB tables Ze maintains, and how the outbound route batching works.
     - **adj** `container`: Adjacency RIB storage for this peer.
@@ -1151,15 +1151,15 @@ A peer inherits from its group defaults. A group inherits from this global level
     - **irr** `container`: Per-peer IRR filter settings.
       Ze resolves the prefixes of a peer only when the peer asked for it. A filter chain that names bgp-filter-irr asks for it, and so does an as-set written here. A peer that states no remote ASN is never resolved.
       - **as-set** `string`: Explicit AS-SET name for the IRR prefix lookup.
-        The IRR filter queries an IRR database for the prefixes of one AS-SET. This leaf names that AS-SET. If this leaf is empty, Ze reads the remote ASN of the peer and discovers the AS-SET from PeeringDB.
+        The AS-SET whose prefixes the IRR filter enforces for this peer. The irr plugin fetches and stores that AS-SET's prefix list, and the filter reads the stored copy. If this leaf is empty, the irr plugin asks PeeringDB which AS-SET the peer's remote ASN names.
       - **enable** `enumeration`: Enable or disable IRR filtering for this peer.
-        disable takes the peer out of the resolution, so Ze runs no whois query and no PeeringDB query for it. The other peers of the same remote ASN keep their list.
+        disable takes the peer out of the filter, so the filter does not ask the irr plugin to fetch a list for it. The other peers of the same remote ASN keep their list.
         - `disable`: Disable IRR filtering for this peer.
         - `enable`: Enable IRR filtering for this peer (default).
     - **link-local** `ipv6-address`: IPv6 link-local address advertised after the global next hop (RFC 2545 Section 3).
       The address goes in the MP_REACH Next Hop field. The leaf supplies the address, and it does not decide that the address is sent. Ze appends the address only when this speaker shares a locally connected subnet with the peer, and with the entity that the global next hop names. That is the 'if and only if' condition of Section 3. In every other case the field carries the global address alone. Set the leaf on a session that faces a peer on a shared link. It has no effect on any other session.
     - **next-hop** `union`: Next-hop rewriting policy for a forwarded UPDATE (RFC 4271 Section 5.1.3).
-      auto rewrites the next hop for an eBGP peer, and preserves it for an iBGP peer. self always rewrites the next hop to the local address. unchanged never rewrites it, so the original next hop is preserved. An IP address sets the next hop to that address.
+      auto rewrites the next hop for an ordinary eBGP peer, and preserves it for an iBGP peer or route-server client. self rewrites to the session's connected local address. If no usable self address exists, Ze withholds the announcement and withdraws a previously advertised route. unchanged preserves the received next hop when its wire form is usable. An IP address sets the next hop to that address.
       - `auto`: RFC 4271 default: rewrite for eBGP, preserve for iBGP
       - `self`: Rewrite next-hop to local address (common for iBGP)
       - `unchanged`: Never rewrite next-hop (route-server, third-party NH)
@@ -1241,12 +1241,12 @@ A peer inherits from its group defaults. A group inherits from this global level
       Every entry takes the attribute block of the update block. The key is the family name, and content carries the operation keyword and the prefixes. An update block that declares no nlri entry is refused at config load.
       - **content** `string`: Operation, qualifiers, and payload
         The form is an operation keyword, then an optional rd and label, then one or more prefixes. add, del and eor are the operation keywords, and one of them is required. A block that carries del or eor announces nothing at config load.
-    - **watchdog** `container`: Watchdog-controlled route - held until 'bgp watchdog announce <name>'
+    - **watchdog** `container`: Watchdog-controlled route with an optional initial hold
       The bgp-watchdog plugin owns every route of the block, so the BGP engine holds none of them as a static route. The plugin sends a route that is not withdrawn when the session reaches Established.
       - **name** `string`: Watchdog group name
         request bgp watchdog announce <name> announces every route that carries the name, and request bgp watchdog withdraw <name> withdraws them. Ze skips a block whose name is empty.
-      - **withdraw** `boolean`: Start in withdrawn state (default true)
-        The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every route of the block withdrawn exactly as withdraw true does. Delete the leaf to announce the routes as soon as the session reaches Established. request bgp watchdog announce <name> announces a withdrawn route.
+      - **withdraw** `boolean`: Hold routes until explicitly announced (default false)
+        With true, bgp-watchdog holds every route of the block until request bgp watchdog announce <name>. With false, or when this leaf is omitted, the plugin announces the routes when the session reaches Established. The default matches ExaBGP. Changing this setting on reload preserves the runtime state of an existing route; a new route uses the configured initial state.
 - **healthcheck** `container`: Healthcheck probes for service-aware BGP route management
   A probe runs a shell command on a timer and drives one watchdog group. The routes it controls are the update blocks whose watchdog name matches the group of the probe.
   - **probe <name>** `list`: Healthcheck probe definition
@@ -1370,7 +1370,7 @@ A peer inherits from its group defaults. A group inherits from this global level
       - **accept** `boolean`: Accept inbound TCP connections at this local endpoint (RFC 4271 Section 8.1.1)
         The default is true. Set the leaf false for a peer Ze dials and never answers. accept and connect cannot both be false, and Ze refuses that config.
       - **ip** `union`: Local address for connection (use IP address or 'auto')
-        auto leaves the source address to the operating system. An address binds the outbound connection to it, which fixes the source address that a next-hop self rewrite uses. Ze refuses an IPv6 link-local address here.
+        auto leaves the source address to the operating system. An address binds the outbound connection to it. A scoped IPv6 link-local address retains its interface zone for TCP. Next-hop self uses the connected local endpoint. The route's next-hop encoding and negotiated capabilities decide whether that address can be advertised.
         - `auto`: Let the operating system choose the source address of the connection.
       - **port** `port`: Local listen port
         Ze opens a listener of its own for this peer on the local address and this port, and answers an inbound connection there. The default is 179, and a peer at 179 shares the global listener. The range is 1 to 65535, and Ze refuses a config outside it. Ze binds no local source port on an outbound connection, so the value applies to the listener alone. connection > remote > port is the port Ze dials, and the two are independent.
@@ -1697,15 +1697,15 @@ A peer inherits from its group defaults. A group inherits from this global level
     - **irr** `container`: Per-peer IRR filter settings.
       Ze resolves the prefixes of a peer only when the peer asked for it. A filter chain that names bgp-filter-irr asks for it, and so does an as-set written here. A peer that states no remote ASN is never resolved.
       - **as-set** `string`: Explicit AS-SET name for the IRR prefix lookup.
-        The IRR filter queries an IRR database for the prefixes of one AS-SET. This leaf names that AS-SET. If this leaf is empty, Ze reads the remote ASN of the peer and discovers the AS-SET from PeeringDB.
+        The AS-SET whose prefixes the IRR filter enforces for this peer. The irr plugin fetches and stores that AS-SET's prefix list, and the filter reads the stored copy. If this leaf is empty, the irr plugin asks PeeringDB which AS-SET the peer's remote ASN names.
       - **enable** `enumeration`: Enable or disable IRR filtering for this peer.
-        disable takes the peer out of the resolution, so Ze runs no whois query and no PeeringDB query for it. The other peers of the same remote ASN keep their list.
+        disable takes the peer out of the filter, so the filter does not ask the irr plugin to fetch a list for it. The other peers of the same remote ASN keep their list.
         - `disable`: Disable IRR filtering for this peer.
         - `enable`: Enable IRR filtering for this peer (default).
     - **link-local** `ipv6-address`: IPv6 link-local address advertised after the global next hop (RFC 2545 Section 3).
       The address goes in the MP_REACH Next Hop field. The leaf supplies the address, and it does not decide that the address is sent. Ze appends the address only when this speaker shares a locally connected subnet with the peer, and with the entity that the global next hop names. That is the 'if and only if' condition of Section 3. In every other case the field carries the global address alone. Set the leaf on a session that faces a peer on a shared link. It has no effect on any other session.
     - **next-hop** `union`: Next-hop rewriting policy for a forwarded UPDATE (RFC 4271 Section 5.1.3).
-      auto rewrites the next hop for an eBGP peer, and preserves it for an iBGP peer. self always rewrites the next hop to the local address. unchanged never rewrites it, so the original next hop is preserved. An IP address sets the next hop to that address.
+      auto rewrites the next hop for an ordinary eBGP peer, and preserves it for an iBGP peer or route-server client. self rewrites to the session's connected local address. If no usable self address exists, Ze withholds the announcement and withdraws a previously advertised route. unchanged preserves the received next hop when its wire form is usable. An IP address sets the next hop to that address.
       - `auto`: RFC 4271 default: rewrite for eBGP, preserve for iBGP
       - `self`: Rewrite next-hop to local address (common for iBGP)
       - `unchanged`: Never rewrite next-hop (route-server, third-party NH)
@@ -1787,12 +1787,12 @@ A peer inherits from its group defaults. A group inherits from this global level
       Every entry takes the attribute block of the update block. The key is the family name, and content carries the operation keyword and the prefixes. An update block that declares no nlri entry is refused at config load.
       - **content** `string`: Operation, qualifiers, and payload
         The form is an operation keyword, then an optional rd and label, then one or more prefixes. add, del and eor are the operation keywords, and one of them is required. A block that carries del or eor announces nothing at config load.
-    - **watchdog** `container`: Watchdog-controlled route - held until 'bgp watchdog announce <name>'
+    - **watchdog** `container`: Watchdog-controlled route with an optional initial hold
       The bgp-watchdog plugin owns every route of the block, so the BGP engine holds none of them as a static route. The plugin sends a route that is not withdrawn when the session reaches Established.
       - **name** `string`: Watchdog group name
         request bgp watchdog announce <name> announces every route that carries the name, and request bgp watchdog withdraw <name> withdraws them. Ze skips a block whose name is empty.
-      - **withdraw** `boolean`: Start in withdrawn state (default true)
-        The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every route of the block withdrawn exactly as withdraw true does. Delete the leaf to announce the routes as soon as the session reaches Established. request bgp watchdog announce <name> announces a withdrawn route.
+      - **withdraw** `boolean`: Hold routes until explicitly announced (default false)
+        With true, bgp-watchdog holds every route of the block until request bgp watchdog announce <name>. With false, or when this leaf is omitted, the plugin announces the routes when the session reaches Established. The default matches ExaBGP. Changing this setting on reload preserves the runtime state of an existing route; a new route uses the configured initial state.
 - **rib** `container`: RIB plugin state and operations.
   The subtree is read-only, so the CLI refuses set on every node under it. No code answers a read of it today. show bgp rib status reports the live per-peer counts, and show bgp rib reports the routes. request bgp rib inject and request bgp rib withdraw change what the RIB holds.
   - **adj-rib-in** `container`: Routes received from peers.
@@ -1818,7 +1818,7 @@ A peer inherits from its group defaults. A group inherits from this global level
   - **action** `container`: Global origin-validation actions.
     RFC 6811 Section 3 makes the action of each validation state configurable by the operator.
     - **invalid** `validation-action`: Action Ze applies to a route in the Invalid validation state.
-      The default is reject. The received route remains in Adj-RIB-In but is ineligible for the decision process until validation or configured policy admits it.
+      The default is accept, so the Invalid state alone does not exclude a route from the decision process. Configure reject to retain the received route in Adj-RIB-In while making it ineligible for selection.
       - `accept`: Keep the route and write no log line.
       - `log-only`: Keep the route, marked with its state, and write a log line.
       - `reject`: Keep the route in the Adj-RIB-In, marked ineligible, so the decision process never selects it.
@@ -1929,12 +1929,12 @@ A peer inherits from its group defaults. A group inherits from this global level
     Every entry takes the attribute block of the update block. The key is the family name, and content carries the operation keyword and the prefixes. An update block that declares no nlri entry is refused at config load.
     - **content** `string`: Operation, qualifiers, and payload
       The form is an operation keyword, then an optional rd and label, then one or more prefixes. add, del and eor are the operation keywords, and one of them is required. A block that carries del or eor announces nothing at config load.
-  - **watchdog** `container`: Watchdog-controlled route - held until 'bgp watchdog announce <name>'
+  - **watchdog** `container`: Watchdog-controlled route with an optional initial hold
     The bgp-watchdog plugin owns every route of the block, so the BGP engine holds none of them as a static route. The plugin sends a route that is not withdrawn when the session reaches Established.
     - **name** `string`: Watchdog group name
       request bgp watchdog announce <name> announces every route that carries the name, and request bgp watchdog withdraw <name> withdraws them. Ze skips a block whose name is empty.
-    - **withdraw** `boolean`: Start in withdrawn state (default true)
-      The bgp-watchdog plugin reads the PRESENCE of the leaf and not its value, so withdraw false starts every route of the block withdrawn exactly as withdraw true does. Delete the leaf to announce the routes as soon as the session reaches Established. request bgp watchdog announce <name> announces a withdrawn route.
+    - **withdraw** `boolean`: Hold routes until explicitly announced (default false)
+      With true, bgp-watchdog holds every route of the block until request bgp watchdog announce <name>. With false, or when this leaf is omitted, the plugin announces the routes when the session reaches Established. The default matches ExaBGP. Changing this setting on reload preserves the runtime state of an existing route; a new route uses the configured initial state.
 - **update-delay** `container`: Hold the first advertisement at startup until the RIB settles.
   An absent container is the default, and it keeps the behavior Ze had before the container existed: each peer advertises as soon as it reaches Established. The container holds max-delay, which enables the feature and bounds the wait, and establish-wait, which can end the wait early. While Ze holds, sessions negotiate, reach Established and receive UPDATE messages as usual. Ze sends no UPDATE and no End-of-RIB marker until the hold ends. RFC 4724 Section 4.1 prescribes the same deferral for a speaker that restarts, and requires the configurable upper bound max-delay supplies. The hold applies at startup alone: a reload validates a changed value and Ze keeps the hold it already armed, or none, so a new value takes effect at the next restart. Ze does not enforce a relation between max-delay and the Restart Time it advertises in its graceful-restart capability, so keep max-delay below that number yourself. A neighbor whose own restart timer expires first discards the routes it kept for Ze. Read `show bgp update-delay` to see whether a speaker is holding and what it waits for.
   - **establish-wait** `uint16`: Seconds after which the peers that are held end the hold. Must not exceed max-delay.
@@ -2025,6 +2025,19 @@ The container carries no leaf, so writing it is the whole configuration. The plu
       Every present import policy must set final accept or final reject, even with no filters.
       - `accept`: Accept a route that passes every filter
       - `reject`: Reject a route that passes every filter
+
+## container
+
+*Provided by `container` ([ze-container-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/container/yang/ze-container-cmd.yang), [ze-container-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/container/yang/ze-container-conf.yang))*
+
+Containers Ze runs from OCI images.
+
+A container is a workload Ze starts from an image and confines: its own namespaces, a limited control group, a reduced capability set and a system-call filter. Ze starts each configured container, restarts it under its policy and removes it when the configuration no longer holds it.
+
+- **instance <name>** `list`: A container Ze runs from an image.
+  One entry is one container. Whether it runs is stated here and nowhere else: Ze has no start command and no stop command, and the enabled leaf says whether the container runs.
+  - **enabled** `boolean`: Run this container; false keeps its config and stops it.
+    The default is true. False keeps every other statement of the container in the configuration and keeps the container stopped, in the disabled state, until the leaf is true again.
 
 ## control-plane-protection
 
@@ -2146,7 +2159,7 @@ Distributed denial-of-service detection and mitigation subsystem. This module de
   *Provided by `ddos-flowtriq` ([ze-ddos-flowtriq-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/ddos/flowtriq/yang/ze-ddos-flowtriq-conf.yang))*
   It reports and mitigates nothing on its own. The traffic still needs a responder under flowspec or local to be stopped.
   - **api-base** `string`: Flowtriq API base URL.
-    Ze appends a path to this value, so a trailing slash gives a double slash in the request. /agent/incidents opens and closes an incident, and /agent/heartbeat reports the baseline. Each request has a timeout of 10 seconds. After 5 failures Ze stops posting for 60 seconds, then tries again.
+    Ze appends a path to this value, so a trailing slash gives a double slash in the request. /agent/incidents opens and closes an incident, and /agent/heartbeat reports the baseline. The value must be an https URL that names a host, because each request carries api-key as a bearer token. Ze refuses an http URL, a loopback one included, when enabled is true. Ze follows no redirect: a 3xx answer is a failure, and its error names the Location the server answered with, so configure the final URL here. Only a 2xx answer is success. Each request has a timeout of 10 seconds. After 5 failures, redirects included, Ze stops posting for 60 seconds, then tries again.
   - **api-key** `string`: Flowtriq API bearer token.
     Ze sends the value in the Authorization header of each request, as a Bearer token. The length is 1 to 512 characters. The leaf is required when enabled is true, and Ze refuses the config without it. The leaf is marked sensitive, so every display path prints a placeholder in place of the token. A $9$-encoded value written by hand is decoded on read. Ze does not encode it for you, so a token typed into the editor is written to the config file as you typed it.
   - **enabled** `boolean`: Enable reporting DDoS incidents to the Flowtriq cloud API.
@@ -2227,7 +2240,7 @@ The api-server container under it is the shared parent of the REST and gRPC tran
     monitor is the default and the only value. The routes of a BMP Route Monitoring message go to the BMP RIB, which show bmp rib reads. They reach neither BGP best-path selection nor the FIB, because a BMP receiver is a monitoring station: RFC 7854 defines no use of the routes it is told about. Any other value is refused when the config loads. The leaf stays with one value on purpose: a value removed from the enumeration is refused, while a removed leaf would be skipped in silence.
     - `monitor`: Store in BMP RIB for visibility (show bmp rib), isolated from BGP best-path and FIB
   - **server <name>** `list`: BMP receiver listen endpoints
-    The ze:listener extension marks this list, so config validation refuses a second listener that binds the same protocol, port and address. Ze opens one TCP listener for each entry. A bind that fails is logged, and the other entries keep their listener. An empty list binds nothing, because the receiver has no default endpoint.
+    The ze:listener extension marks this list, so config validation refuses a second listener that binds the same protocol, port and address. Ze binds every added listener before removing any old listener. If a bind fails, startup or reload fails, added sockets close, and the listeners and session limit active before the attempt stay unchanged. An empty list binds nothing, because the receiver has no default endpoint.
     - **ip** `ip-address`: Listen IP address
       The listener binds this address. 0.0.0.0 binds every IPv4 address of the host, and :: binds every IPv6 address. On most services :: is dual-stack: it also accepts IPv4 clients, so :: alone serves both families. Config validation refuses two listeners that share a protocol and a port when their addresses overlap. A wildcard address overlaps every address of its own family, and a dual-stack :: also overlaps every IPv4 address, so list :: alone rather than :: beside 0.0.0.0. A service whose IPv6 sockets are IPv6-only (L2TP, web) accepts :: beside an IPv4 address on the same port.
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
@@ -2449,8 +2462,8 @@ The api-server container under it is the shared parent of the REST and gRPC tran
     - **port** `listener-port`: Listen TCP port; 0 means OS-assigned
       The port range is 0 to 65535. Port 0 makes the operating system pick a free port at bind time, so no client can know the port before the listener starts. ze doctor tries to bind each configured endpoint and reports the one the host refuses.
   - **ui-mode** `enumeration`: Web UI mode.
-    finder is the default file-browser UI. workbench is the experimental one.
-    - `finder`: Default file-browser style UI.
+    finder is the default graphical YANG editor. workbench is an unfinished experimental alternative, selected explicitly. Environment variable: ze.web.ui-mode.
+    - `finder`: Graphical YANG editor (default).
     - `workbench`: Experimental workbench UI.
 
 ## exabgp
@@ -2583,18 +2596,12 @@ Ze-managed nftables firewall tables. Table names are bare in config, and the com
     The keyword writes net.ipv4.tcp_syncookies. The value enable writes 1, and disable writes 0. A kernel with cookies on answers a SYN that overflows the accept queue. It keeps no state for that half-open connection until the third packet returns the cookie.
     - `disable`: Disable TCP SYN cookies (tcp_syncookies=0)
     - `enable`: Enable TCP SYN cookies (tcp_syncookies=1)
-- **irr** `container`: IRR policy settings for firewall prefix-list resolution.
-  The settings under it reach every IRR reference of the firewall, in a term and on an interface alike. Ze keeps the resolved prefixes in a zefs prefix store that the BGP IRR filter shares, so one query serves both. A commit that names a reference with no cached prefixes is refused.
+- **irr** `container`: Per-interface IRR source validation.
+  The irr plugin fetches, schedules and stores every IRR list the firewall enforces, from the server and at the interval system irr names; the BGP IRR filter enforces the same stored copy, so one query serves both. A commit that names a reference with nothing stored is refused with the update irr command that fetches it.
   - **interface <name>** `list`: Per-interface AS-SET binding for ingress source validation.
     Ze drops a packet that arrives on this interface when its source address is not in the IRR-resolved prefixes of the AS-SET.
     - **source-as-set** `string`: AS-SET whose IRR-resolved prefixes are the allowed source addresses.
-      The prefixes the IRR resolves for this AS-SET form the allowed source-address set of the interface. The match needs cached prefix data. A config commit is refused when no cached data exists.
-  - **peeringdb-url** `string`: Base URL for PeeringDB API queries. Override for testing with a mock server.
-    The default is https://www.peeringdb.com. Ze adds /api/net?asn=<N> to this value for each query, and holds each answer for one hour. Ze skips TLS verification for the host 127.0.0.1 alone, which is what makes a local test server work.
-  - **refresh-interval** `uint32`: Seconds between automatic IRR re-queries.
-    The default 0 disables the automatic refresh, and the operator then runs 'update firewall irr' by hand. A value in 60..86400 starts the periodic refresh. That refresh fails closed: a failed query keeps the last-good cache.
-  - **server** `string`: IRR whois server hostname or host:port.
-    The default is whois.radb.net. Ze adds port 43 when the value names no port, so a host:port value reaches the port you name. One query waits 10 seconds at most, and Ze holds each answer for one hour.
+      The prefixes the IRR resolves for this AS-SET form the allowed source-address set of the interface. The match needs a stored prefix list. A config commit is refused when nothing is stored.
 - **table <name>** `list`: Named firewall table
   The kernel table is ze_<name>. Ze changes and deletes only a table that carries the ze_ prefix, so a table another tool wrote stays untouched. The chains, the named sets and the flowtables of one table reference each other by name, and no reference crosses a table.
   - **chain <name>** `list`: Named chain within table
@@ -2623,11 +2630,11 @@ Ze-managed nftables firewall tables. Table names are bare in config, and the com
         - **connection-state** `connection-state`: Connection tracking state(s) the rule matches.
           Connection tracking state(s). The match is conntrack-driven, and it requires a backend that integrates with the kernel nf_conntrack module.
         - **destination-address** `ip-prefix`: Destination IP prefix or @set-name
-          The value takes the same two forms the source-address leaf takes. Ze reads the IPv4 destination at network-header offset 16 and the IPv6 destination at offset 24. An inet table therefore carries an nfproto guard in front of the match, so an IPv4 rule never reads IPv6 bytes.
+          The value takes the same two forms the source-address leaf takes. A network prefix must use its network address; a value with host bits set is refused with the corrected destination-address statement. Host routes use /32 or /128. Ze reads the IPv4 destination at network-header offset 16 and the IPv6 destination at offset 24. An inet table therefore carries an nfproto guard in front of the match, so an IPv4 rule never reads IPv6 bytes.
         - **destination-as-set** `string`: Match the destination address against the IRR-resolved prefixes of this AS-SET.
-          The cache rule is the one source-as-set states. The match needs cached prefix data, so run 'update firewall irr as-set <name>' first. A config commit is refused when no cached data exists.
+          The stored-list rule is the one source-as-set states. The match needs a prefix list the irr plugin stored, so run 'update irr as-set <name>' first. A config commit is refused when nothing is stored.
         - **destination-asn** `asn`: Match the destination address against the IRR-resolved prefixes of this ASN.
-          The cache rule is the one source-asn states. The match needs cached prefix data, so run 'update firewall irr asn <N>' first. A config commit is refused when no cached data exists.
+          The stored-list rule is the one source-asn states. The match needs a prefix list the irr plugin stored, so run 'update irr asn <N>' first. A config commit is refused when nothing is stored.
         - **destination-domain-group** `string`: Match the destination address against the addresses of this domain group.
           The cache rule is the one source-domain-group states. The match needs the group's names to have resolved at least once, so a commit is refused when they have not: run 'update firewall domain-group <name>' first.
         - **destination-port** `port-spec`: Destination port, range, or list
@@ -2657,11 +2664,11 @@ Ze-managed nftables firewall tables. Table names are bare in config, and the com
           - `udp`: Match UDP, IP protocol 17.
           - `vrrp`: Match VRRP, IP protocol 112.
         - **source-address** `ip-prefix`: Source IP prefix or @set-name
-          A prefix carries its length, so write 10.0.0.0/24 or 10.0.0.1/32. A bare address is refused. The form @name matches against a named set of the same table, and that set MUST be of type ipv4 or ipv6. Ze reads the IPv4 source at network-header offset 12 and the IPv6 source at offset 8.
+          A prefix carries its length, so write 10.0.0.0/24 or 10.0.0.1/32. A bare address is refused. A network prefix must use its network address: 10.0.0.1/24 is refused with the corrected statement source-address 10.0.0.0/24. Host routes use /32 or /128. The form @name matches against a named set of the same table, and that set MUST be of type ipv4 or ipv6. Ze reads the IPv4 source at network-header offset 12 and the IPv6 source at offset 8.
         - **source-as-set** `string`: Match the source address against the IRR-resolved prefixes of this AS-SET.
-          The match needs cached prefix data, so run 'update firewall irr as-set <name>' first. A config commit is refused when no cached data exists.
+          The match needs a prefix list the irr plugin stored, so run 'update irr as-set <name>' first. A config commit is refused when nothing is stored.
         - **source-asn** `asn`: Match the source address against the IRR-resolved prefixes of this ASN.
-          The match needs cached prefix data, so run 'update firewall irr asn <N>' first. A config commit is refused when no cached data exists.
+          The match needs a prefix list the irr plugin stored, so run 'update irr asn <N>' first. A config commit is refused when nothing is stored.
         - **source-domain-group** `string`: Match the source address against the addresses of this domain group.
           Names a domain-group defined under firewall. The match needs the group's names to have resolved at least once, so a commit is refused when they have not: run 'update firewall domain-group <name>' first.
         - **source-port** `port-spec`: Source port, range, or list
@@ -2879,7 +2886,7 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
     - **match** `string`: Bind this logical interface to the kernel device that carries this hardware MAC.
       The binding is by MAC rather than by name. The resolver matches the device's permanent factory address (IFLA_PERM_ADDRESS) when the device reports one, so the binding survives an operational MAC override. For a virtual device that reports no permanent address, the resolver matches the current address. This leaf takes precedence over os-name. It applies to the ethernet kind only, which is the matched physical kind. Ze identifies the kinds it creates (dummy, veth, bridge and the rest) by the name ze assigns. When the matching device is absent, the binding waits until the device appears.
   - **member** `string[]`: Member port interface names
-    Ze enslaves each named port with the netlink call LinkSetMaster. A port that leaves the list is released with LinkSetNoMaster on the next apply. Each name must be an interface the config or the OS already carries.
+    Ze enslaves each named port with the netlink call LinkSetMaster. A port that leaves the list is released with LinkSetNoMaster on the next apply. Each name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves it through the selector map, so a port bound by mac/match or aliased by os-name is the device enslaved, and a VLAN unit is enslaved once its VLAN exists. A declared name whose selector finds no device defers that member.
   - **mtu** `uint16`: Maximum transmission unit
     The range is 68 to 16000 bytes. Ze applies the value with the netlink call LinkSetMTU after it creates the interface. Ze restores the previous value when a later step of the same apply fails. When the leaf is omitted, ze makes no MTU call and the device keeps its current MTU. For a device ze creates that is the kernel's default for the kind: 1500 for a dummy, veth or bridge, 1420 for wireguard, and the underlay MTU less the encapsulation for a tunnel. Each kind has its own value, so the schema declares no single default.
   - **offload** `container`: Network offload and packet steering features.
@@ -3093,9 +3100,9 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
     - **mirror** `container`: Traffic mirroring for this interface.
       The netlink backend mirrors through tc mirred. The vpp backend programs SPAN, through sw_interface_span_enable_disable, and it maps the ingress direction and the egress direction onto the RX SPAN state and the TX SPAN state, as a device-level port mirror.
       - **egress** `string`: Mirror egress traffic to this interface
-        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
       - **ingress** `string`: Mirror ingress traffic to this interface
-        Ze installs a tc mirred filter that copies each received frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each received frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
     - **mpls** `container`: MPLS forwarding on this interface (RFC 3031 LSR).
       Ze turns the enable leaf below into a net.mpls.conf.<iface>.input sysctl write. The size of the global label table is a separate sysctl, net.mpls.platform_labels, which the sysctl config block sets.
       - **enable** `boolean`: Enable MPLS label input on this interface.
@@ -3335,9 +3342,9 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
     - **mirror** `container`: Traffic mirroring for this interface.
       The netlink backend mirrors through tc mirred. The vpp backend programs SPAN, through sw_interface_span_enable_disable, and it maps the ingress direction and the egress direction onto the RX SPAN state and the TX SPAN state, as a device-level port mirror.
       - **egress** `string`: Mirror egress traffic to this interface
-        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
       - **ingress** `string`: Mirror ingress traffic to this interface
-        Ze installs a tc mirred filter that copies each received frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each received frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
     - **mpls** `container`: MPLS forwarding on this interface (RFC 3031 LSR).
       Ze turns the enable leaf below into a net.mpls.conf.<iface>.input sysctl write. The size of the global label table is a separate sysctl, net.mpls.platform_labels, which the sysctl config block sets.
       - **enable** `boolean`: Enable MPLS label input on this interface.
@@ -3575,9 +3582,9 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
     - **mirror** `container`: Traffic mirroring for this interface.
       The netlink backend mirrors through tc mirred. The vpp backend programs SPAN, through sw_interface_span_enable_disable, and it maps the ingress direction and the egress direction onto the RX SPAN state and the TX SPAN state, as a device-level port mirror.
       - **egress** `string`: Mirror egress traffic to this interface
-        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
       - **ingress** `string`: Mirror ingress traffic to this interface
-        Ze installs a tc mirred filter that copies each received frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each received frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
     - **mpls** `container`: MPLS forwarding on this interface (RFC 3031 LSR).
       Ze turns the enable leaf below into a net.mpls.conf.<iface>.input sysctl write. The size of the global label table is a separate sysctl, net.mpls.platform_labels, which the sysctl config block sets.
       - **enable** `boolean`: Enable MPLS label input on this interface.
@@ -3715,9 +3722,9 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
     - **mirror** `container`: Traffic mirroring for this interface.
       The netlink backend mirrors through tc mirred. The vpp backend programs SPAN, through sw_interface_span_enable_disable, and it maps the ingress direction and the egress direction onto the RX SPAN state and the TX SPAN state, as a device-level port mirror.
       - **egress** `string`: Mirror egress traffic to this interface
-        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
       - **ingress** `string`: Mirror ingress traffic to this interface
-        Ze installs a tc mirred filter that copies each received frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each received frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
     - **mpls** `container`: MPLS forwarding on this interface (RFC 3031 LSR).
       Ze turns the enable leaf below into a net.mpls.conf.<iface>.input sysctl write. The size of the global label table is a separate sysctl, net.mpls.platform_labels, which the sysctl config block sets.
       - **enable** `boolean`: Enable MPLS label input on this interface.
@@ -3802,8 +3809,8 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
     A lower value is preferred. The default 254 ranks this learned default below a static default and below a protocol-learned one, and it matches the route-priority default on a unit. Write 0 to put the route on the kernel metric that an operator's static default also uses. The two then share one kernel route, and the last writer owns it.
   - **service-name** `string`: Desired PPPoE service name. Empty or absent means accept any service (RFC 2516 Section 5.1).
     Ze puts the value in the Service-Name tag of the PADI frame and of the PADR frame. An empty value sends a zero-length tag, which every access concentrator answers.
-  - **source-interface** `string`: Physical Ethernet interface for PPPoE discovery (e.g. eth2). Must exist and be admin-up.
-    Ze opens a raw discovery socket bound to this device and sends the PADI frame on it. The source MAC of the frame is the device's own hardware address.
+  - **source-interface** `string`: Physical Ethernet interface for PPPoE discovery (e.g. eth2). Must be declared under interface ethernet.
+    The name must be an interface this config declares, usually an ethernet entry, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze opens a raw discovery socket bound to this device and sends the PADI frame on it. The source MAC of the frame is the device's own hardware address.
 - **tunnel <name>** `list`: Tunnel interface, in the GRE, GRETAP, IPIP, SIT or IP6TNL family.
   The choice below selects the encapsulation kind, and each case carries only the leaves that are valid for that kind. The local endpoint and remote endpoint pattern matches bgp peer connection { local { ip ... } remote { ip ... } }.
   - **description** `string`: Interface description
@@ -3823,7 +3830,7 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
           - **local** `container`: Local IPv4 endpoint or source interface (one of ip or interface)
             Set exactly one of ip and interface. Ze refuses both together with 'local ip and local interface are mutually exclusive', and it refuses neither with 'local ip or local interface required'.
             - **interface** `string`: Local interface to take the source address from
-              Ze looks the device up and passes its kernel index as the netlink parent field, so the kernel takes the source address from that device. The vxlan case refuses this leaf and needs a local ip.
+              The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves it through the selector map, so an uplink bound by mac/match or aliased by os-name gives its own device, and passes that device's kernel index as the netlink parent field, so the kernel takes the source address from it. A declared name whose selector finds no device fails the apply, naming the entry, because the tunnel has no underlay. The vxlan case refuses this leaf and needs a local ip.
             - **ip** `ipv4-address`: Local IPv4 endpoint
               Ze writes the address into the netlink Local field, so it becomes the source address of the outer IPv4 header. Use interface instead where the underlay address is learned by DHCP and can change.
           - **no-pmtu-discovery** `empty`: Disable Path MTU Discovery on the outer header
@@ -3845,7 +3852,7 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
           - **local** `container`: Local IPv4 endpoint or source interface (one of ip or interface)
             Set exactly one of ip and interface. Ze refuses both together with 'local ip and local interface are mutually exclusive', and it refuses neither with 'local ip or local interface required'.
             - **interface** `string`: Local interface to take the source address from
-              Ze looks the device up and passes its kernel index as the netlink parent field, so the kernel takes the source address from that device. The vxlan case refuses this leaf and needs a local ip.
+              The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves it through the selector map, so an uplink bound by mac/match or aliased by os-name gives its own device, and passes that device's kernel index as the netlink parent field, so the kernel takes the source address from it. A declared name whose selector finds no device fails the apply, naming the entry, because the tunnel has no underlay. The vxlan case refuses this leaf and needs a local ip.
             - **ip** `ipv4-address`: Local IPv4 endpoint
               Ze writes the address into the netlink Local field, so it becomes the source address of the outer IPv4 header. Use interface instead where the underlay address is learned by DHCP and can change.
           - **mac** `container`: Hardware MAC settings (L2 tunnel kinds only)
@@ -3873,7 +3880,7 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
           - **local** `container`: Local IPv6 endpoint or source interface (one of ip or interface)
             Set exactly one of ip and interface. Ze refuses both together with 'local ip and local interface are mutually exclusive', and it refuses neither with 'local ip or local interface required'.
             - **interface** `string`: Local interface to take the source address from
-              Ze looks the device up and passes its kernel index as the netlink parent field, so the kernel takes the source address from that device.
+              The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves it through the selector map, so an uplink bound by mac/match or aliased by os-name gives its own device, and passes that device's kernel index as the netlink parent field, so the kernel takes the source address from it. A declared name whose selector finds no device fails the apply, naming the entry, because the tunnel has no underlay.
             - **ip** `ipv6-address`: Local IPv6 endpoint
               Ze writes the address into the netlink Local field, so it becomes the source address of the outer IPv6 header. Use interface instead where the underlay address is learned by a Router Advertisement and can change.
           - **remote** `container`: Remote IPv6 endpoint
@@ -3893,7 +3900,7 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
           - **local** `container`: Local IPv6 endpoint or source interface (one of ip or interface)
             Set exactly one of ip and interface. Ze refuses both together with 'local ip and local interface are mutually exclusive', and it refuses neither with 'local ip or local interface required'.
             - **interface** `string`: Local interface to take the source address from
-              Ze looks the device up and passes its kernel index as the netlink parent field, so the kernel takes the source address from that device.
+              The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves it through the selector map, so an uplink bound by mac/match or aliased by os-name gives its own device, and passes that device's kernel index as the netlink parent field, so the kernel takes the source address from it. A declared name whose selector finds no device fails the apply, naming the entry, because the tunnel has no underlay.
             - **ip** `ipv6-address`: Local IPv6 endpoint
               Ze writes the address into the netlink Local field, so it becomes the source address of the outer IPv6 header. Use interface instead where the underlay address is learned by a Router Advertisement and can change.
           - **mac** `container`: Hardware MAC settings (L2 tunnel kinds only)
@@ -3917,7 +3924,7 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
           - **local** `container`: Local IPv6 endpoint or source interface (one of ip or interface)
             Set exactly one of ip and interface. Ze refuses both together with 'local ip and local interface are mutually exclusive', and it refuses neither with 'local ip or local interface required'.
             - **interface** `string`: Local interface to take the source address from
-              Ze looks the device up and passes its kernel index as the netlink parent field, so the kernel takes the source address from that device.
+              The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves it through the selector map, so an uplink bound by mac/match or aliased by os-name gives its own device, and passes that device's kernel index as the netlink parent field, so the kernel takes the source address from it. A declared name whose selector finds no device fails the apply, naming the entry, because the tunnel has no underlay.
             - **ip** `ipv6-address`: Local IPv6 endpoint
               Ze writes the address into the netlink Local field, so it becomes the source address of the outer IPv6 header. Use interface instead where the underlay address is learned by a Router Advertisement and can change.
           - **remote** `container`: Remote IPv6 endpoint
@@ -3933,7 +3940,7 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
           - **local** `container`: Local IPv4 endpoint or source interface (one of ip or interface)
             Set exactly one of ip and interface. Ze refuses both together with 'local ip and local interface are mutually exclusive', and it refuses neither with 'local ip or local interface required'.
             - **interface** `string`: Local interface to take the source address from
-              Ze looks the device up and passes its kernel index as the netlink parent field, so the kernel takes the source address from that device. The vxlan case refuses this leaf and needs a local ip.
+              The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves it through the selector map, so an uplink bound by mac/match or aliased by os-name gives its own device, and passes that device's kernel index as the netlink parent field, so the kernel takes the source address from it. A declared name whose selector finds no device fails the apply, naming the entry, because the tunnel has no underlay. The vxlan case refuses this leaf and needs a local ip.
             - **ip** `ipv4-address`: Local IPv4 endpoint
               Ze writes the address into the netlink Local field, so it becomes the source address of the outer IPv4 header. Use interface instead where the underlay address is learned by DHCP and can change.
           - **no-pmtu-discovery** `empty`: Disable Path MTU Discovery on the outer header
@@ -3957,7 +3964,7 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
           - **local** `container`: Local IPv6 endpoint or source interface (one of ip or interface)
             Set exactly one of ip and interface. Ze refuses both together with 'local ip and local interface are mutually exclusive', and it refuses neither with 'local ip or local interface required'.
             - **interface** `string`: Local interface to take the source address from
-              Ze looks the device up and passes its kernel index as the netlink parent field, so the kernel takes the source address from that device.
+              The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves it through the selector map, so an uplink bound by mac/match or aliased by os-name gives its own device, and passes that device's kernel index as the netlink parent field, so the kernel takes the source address from it. A declared name whose selector finds no device fails the apply, naming the entry, because the tunnel has no underlay.
             - **ip** `ipv6-address`: Local IPv6 endpoint
               Ze writes the address into the netlink Local field, so it becomes the source address of the outer IPv6 header. Use interface instead where the underlay address is learned by a Router Advertisement and can change.
           - **remote** `container`: Remote IPv6 endpoint
@@ -3973,7 +3980,7 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
           - **local** `container`: Local IPv4 endpoint or source interface (one of ip or interface)
             Set exactly one of ip and interface. Ze refuses both together with 'local ip and local interface are mutually exclusive', and it refuses neither with 'local ip or local interface required'.
             - **interface** `string`: Local interface to take the source address from
-              Ze looks the device up and passes its kernel index as the netlink parent field, so the kernel takes the source address from that device. The vxlan case refuses this leaf and needs a local ip.
+              The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves it through the selector map, so an uplink bound by mac/match or aliased by os-name gives its own device, and passes that device's kernel index as the netlink parent field, so the kernel takes the source address from it. A declared name whose selector finds no device fails the apply, naming the entry, because the tunnel has no underlay. The vxlan case refuses this leaf and needs a local ip.
             - **ip** `ipv4-address`: Local IPv4 endpoint
               Ze writes the address into the netlink Local field, so it becomes the source address of the outer IPv4 header. Use interface instead where the underlay address is learned by DHCP and can change.
           - **no-pmtu-discovery** `empty`: Disable Path MTU Discovery on the outer header
@@ -3993,7 +4000,7 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
           - **local** `container`: Local IPv4 endpoint or source interface (one of ip or interface)
             Set exactly one of ip and interface. Ze refuses both together with 'local ip and local interface are mutually exclusive', and it refuses neither with 'local ip or local interface required'.
             - **interface** `string`: Local interface to take the source address from
-              Ze looks the device up and passes its kernel index as the netlink parent field, so the kernel takes the source address from that device. The vxlan case refuses this leaf and needs a local ip.
+              The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves it through the selector map, so an uplink bound by mac/match or aliased by os-name gives its own device, and passes that device's kernel index as the netlink parent field, so the kernel takes the source address from it. A declared name whose selector finds no device fails the apply, naming the entry, because the tunnel has no underlay. The vxlan case refuses this leaf and needs a local ip.
             - **ip** `ipv4-address`: Local IPv4 endpoint
               Ze writes the address into the netlink Local field, so it becomes the source address of the outer IPv4 header. Use interface instead where the underlay address is learned by DHCP and can change.
           - **port** `port`: UDP destination port (IANA-assigned default 4789)
@@ -4131,9 +4138,9 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
     - **mirror** `container`: Traffic mirroring for this interface.
       The netlink backend mirrors through tc mirred. The vpp backend programs SPAN, through sw_interface_span_enable_disable, and it maps the ingress direction and the egress direction onto the RX SPAN state and the TX SPAN state, as a device-level port mirror.
       - **egress** `string`: Mirror egress traffic to this interface
-        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
       - **ingress** `string`: Mirror ingress traffic to this interface
-        Ze installs a tc mirred filter that copies each received frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each received frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
     - **mpls** `container`: MPLS forwarding on this interface (RFC 3031 LSR).
       Ze turns the enable leaf below into a net.mpls.conf.<iface>.input sysctl write. The size of the global label table is a separate sysctl, net.mpls.platform_labels, which the sysctl config block sets.
       - **enable** `boolean`: Enable MPLS label input on this interface.
@@ -4373,9 +4380,9 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
     - **mirror** `container`: Traffic mirroring for this interface.
       The netlink backend mirrors through tc mirred. The vpp backend programs SPAN, through sw_interface_span_enable_disable, and it maps the ingress direction and the egress direction onto the RX SPAN state and the TX SPAN state, as a device-level port mirror.
       - **egress** `string`: Mirror egress traffic to this interface
-        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
       - **ingress** `string`: Mirror ingress traffic to this interface
-        Ze installs a tc mirred filter that copies each received frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each received frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
     - **mpls** `container`: MPLS forwarding on this interface (RFC 3031 LSR).
       Ze turns the enable leaf below into a net.mpls.conf.<iface>.input sysctl write. The size of the global label table is a separate sysctl, net.mpls.platform_labels, which the sysctl config block sets.
       - **enable** `boolean`: Enable MPLS label input on this interface.
@@ -4545,9 +4552,9 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
     - **mirror** `container`: Traffic mirroring for this interface.
       The netlink backend mirrors through tc mirred. The vpp backend programs SPAN, through sw_interface_span_enable_disable, and it maps the ingress direction and the egress direction onto the RX SPAN state and the TX SPAN state, as a device-level port mirror.
       - **egress** `string`: Mirror egress traffic to this interface
-        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
       - **ingress** `string`: Mirror ingress traffic to this interface
-        Ze installs a tc mirred filter that copies each received frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each received frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
     - **mpls** `container`: MPLS forwarding on this interface (RFC 3031 LSR).
       Ze turns the enable leaf below into a net.mpls.conf.<iface>.input sysctl write. The size of the global label table is a separate sysctl, net.mpls.platform_labels, which the sysctl config block sets.
       - **enable** `boolean`: Enable MPLS label input on this interface.
@@ -4697,9 +4704,9 @@ This container merges profile references into ze-iface-conf. Removing the cos pl
     - **mirror** `container`: Traffic mirroring for this interface.
       The netlink backend mirrors through tc mirred. The vpp backend programs SPAN, through sw_interface_span_enable_disable, and it maps the ingress direction and the egress direction onto the RX SPAN state and the TX SPAN state, as a device-level port mirror.
       - **egress** `string`: Mirror egress traffic to this interface
-        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each transmitted frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
       - **ingress** `string`: Mirror ingress traffic to this interface
-        Ze installs a tc mirred filter that copies each received frame toward the named interface. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. An unbound name installs no mirror.
+        Ze installs a tc mirred filter that copies each received frame toward the named interface. The name must be an interface this config declares, or a VLAN unit written <interface>.<vlan-id>, and the commit refuses any other name. Ze resolves the name through the same selector map as the source, so a capture port bound by mac/match or aliased by os-name works. A declared name whose selector finds no device installs no mirror.
     - **mpls** `container`: MPLS forwarding on this interface (RFC 3031 LSR).
       Ze turns the enable leaf below into a net.mpls.conf.<iface>.input sysctl write. The size of the global label table is a separate sysctl, net.mpls.platform_labels, which the sysctl config block sets.
       - **enable** `boolean`: Enable MPLS label input on this interface.
@@ -6228,16 +6235,6 @@ Each filter type is a list that its plugin adds through an augment and marks ze:
     - `tear-down`: Close the session with a BGP NOTIFICATION when a received UPDATE carries the family.
   - **family** `address-family`: Address family to match, for example ipv4/flowspec.
     Ze treats an UPDATE with no MP_REACH attribute and no MP_UNREACH attribute as ipv4/unicast.
-- **irr** `container`: Global IRR filtering settings.
-  The container holds the IRR server, the PeeringDB endpoint and the refresh period. One resolution serves every peer of the same remote ASN, so two peers of one ASN cost one query.
-  - **peeringdb-url** `string`: Base URL of the PeeringDB API that Ze queries.
-    Ze reads the AS-SET of a peer from the PeeringDB API when the as-set leaf is empty. Set this leaf to the URL of a mock server to test the IRR filter without a query to the public PeeringDB service.
-  - **refresh-interval** `uint32`: Seconds between automatic IRR re-queries.
-    Ze re-queries every enrolled AS-SET on this period. The first query runs in the background at startup, so a slow IRR server never blocks the start of Ze. A failed query leaves the prefix list of the last query in force.
-  - **server** `string`: IRR whois server hostname or host:port.
-    Ze speaks whois to the server and adds port 43 when the value carries no port. A query that gets no answer in 10 seconds fails, and the prefix list of the last query stays in force.
-  - **source-address** `ip-address`: Source IP address for outbound IRR whois connections.
-    Ze binds the address on the whois connection only. The PeeringDB query does not read the leaf. When the leaf is absent, the kernel picks the source address of the route to the server.
 - **loop-detection <name>** `list`: Named loop detection filter instance.
   The instance configures AS loop detection and cluster-list loop detection, for each peer that references it.
   - **allow-own-as** `uint8`: Own-AS occurrences permitted in AS_PATH before ze rejects the route.
@@ -6474,7 +6471,7 @@ This block with any content in it enables the subsystem. Use 'enabled false' to 
 - **enabled** `boolean`: Enable the PPPoE subsystem.
   The default is true when the pppoe block is present. Set it to false to disable the subsystem.
 - **interface <name>** `list`: Access interfaces on which PPPoE discovery listens.
-  Each interface has an independent session ID space.
+  Each interface has an independent session ID space. Access interfaces use the session provider registered for the selected interface backend. Configuration is refused when this build has no such provider. VPP access interfaces also require VPP and its Linux Control Plane enabled.
   - **max-sessions** `uint16`: Per-interface session limit. Defaults to the global max-sessions when unset.
     Ze takes the global max-sessions when this leaf is absent or 0. The session identifiers come from a bitmap over the 16-bit space, and identifier 0 is reserved. A PADR that arrives at the limit gets no session, and Ze reports that the maximum is reached.
   - **max-sessions-per-mac** `uint16`: Per-interface override for max-sessions-per-mac. Defaults to the global value when unset.
@@ -6518,27 +6515,6 @@ Each destination protocol has its own container that holds the import rules. To 
       The decision after every filter passes. An import with filters must set it. An import with neither filters nor final imports every route from the source.
       - `accept`: Import a route that passes every filter
       - `reject`: Do not import a route that passes every filter
-
-## request
-
-Request an operation on running state.
-
-Operational actions that change the running subscriber policy.
-
-- **class-of-service** `container`: Apply subscriber class-of-service policy.
-  These actions apply a named profile to a subscriber's access VLAN.
-  - **session** `container`: Change one subscriber's VLAN marking maps.
-    The RADIUS owner prepares a change, applies its maps, then commits it after every owner succeeds. Rollback restores the maps captured before prepare.
-    - **transaction** `string`: JSON transaction operation, selection or token.
-      One JSON object carries the operation and its session selection or opaque token. This internal transaction is carried through authenticated command dispatch.
-- **l2tp** `container`: L2TP runtime operations.
-  Operations on live subscriber sessions use the running daemon.
-  - **shaper** `container`: Subscriber shaping operations.
-    The shaper confirms backend application before a rate change succeeds.
-    - **rate** `container`: Manage a subscriber rate transaction.
-      Prepare captures the complete last successfully programmed shaping state. Apply changes both directions. Rollback restores that state, and commit releases the transaction. Tokens belong to the source peer and an owner retains only one pending transaction.
-      - **transaction** `string`: JSON transaction operation and values.
-        A JSON object carries the operation and token, or the interface and rates for prepare.
 
 ## rib
 
@@ -6973,7 +6949,7 @@ The container holds the settings of each service Ze runs, and the as112 containe
 
 Static route configuration.
 
-Ze programs each route into the kernel through netlink, or into the VPP dataplane, and marks it with the static protocol number. A route the backend cannot program is skipped and logged, and the rest of the section still applies. Only a forward route in the default table reaches the redistribute bus, where BGP can announce it.
+Ze programs each route into the kernel through netlink, or into the VPP dataplane, and marks it with the static protocol number. A route the backend cannot program is skipped and logged, and the rest of the section still applies. Every route in the default table, forward, blackhole and reject alike, reaches the redistribute bus, where BGP can announce it.
 
 - **filter** `container`: Route filter chains into the Loc-RIB.
   A name references a filter instance defined under the top-level policy root. The chain judges routes as they enter the Loc-RIB.
@@ -6990,13 +6966,13 @@ Ze programs each route into the kernel through netlink, or into the VPP dataplan
   - **route <prefix>** `list`: A static route entry.
     The prefix is the key, so one table holds one entry for each prefix. Ze compares every leaf of the entry at a reload, the description included, and reprograms the route when one of them changed.
     - **action** `choice`: What to do with matching packets.
-      One case is required. Ze stops the load for a route that names none of next, blackhole and reject, and it names the prefix in the error. Only the forward case reaches the redistribute bus.
+      One case is required. Ze stops the load for a route that names none of next, blackhole and reject, and it names the prefix in the error. Every case reaches the redistribute bus.
       - **discard** `case`: Drop the packet and tell the sender nothing.
         The case holds the blackhole container, and the presence of that container selects the action. Ze installs the route with the kernel blackhole type, so the kernel drops the packet and answers nothing.
         - **blackhole** `container`: Drop the packet and send no ICMP message to the sender.
           The sender sees a timeout rather than a refusal, so a traceroute stops at this hop with no reply. Use reject when the sender SHOULD learn the destination is unreachable.
       - **forward** `case`: Send the packet on toward a next hop.
-        The case holds the next container, which carries gateway next hops and interface next hops. Two or more next hops of either kind become one ECMP route. A redistribute consumer sees this case alone.
+        The case holds the next container, which carries gateway next hops and interface next hops. Two or more next hops of either kind become one ECMP route. A redistribute consumer sees this route only while one of its next hops is active.
         - **next** `container`: Forward action. Contains gateway and interface next-hops that may be combined for ECMP.
           Ze reads the hop list and the interface list, and joins the two into one set of next hops. A route whose next container holds neither one stops the config load. One next hop becomes a plain route, and two or more become a multipath route.
           - **hop <address>** `list`: Forward via gateway. Multiple entries produce ECMP with traffic distributed by weight.
@@ -7397,6 +7373,15 @@ The container holds the system-wide settings. This module attaches the local use
   Ze expands a $ENV_VAR reference in the value when it reads the config.
 - **host** `string`: System hostname, supports $ENV_VAR expansion.
   Ze expands a $ENV_VAR reference in the value when it reads the config.
+- **irr** `container`: IRR server and refresh settings for every IRR consumer.
+  *Provided by `irr` ([ze-irr-cmd.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/irr/yang/ze-irr-cmd.yang), [ze-irr-conf.yang](https://github.com/ze-software/ze/blob/main/internal/plugins/irr/yang/ze-irr-conf.yang))*
+  One server, one source address and one refresh period serve every consumer, so an AS-SET that BGP and the firewall both name is fetched once and stored once. A stored list is loaded at start and is not fetched again until its refresh is due.
+  - **refresh-interval** `uint32`: Seconds between automatic IRR refreshes (0 = manual only).
+    Each stored dataset is fetched again this long after the server last answered for it. 0 means manual only: no automatic refresh, while an AS-SET with nothing stored is still fetched once at once, and update irr fetches on demand. A failed fetch keeps the stored list and is retried every minute.
+  - **server** `string`: IRR whois server hostname or host:port.
+    Ze speaks whois to the server and adds port 43 when the value carries no port. A dataset is stored per server, so changing the server fetches every referenced AS-SET from the new one, and the old server's list stays enforced until the new one is stored.
+  - **source-address** `ip-address`: Source IP address for outbound IRR whois connections.
+    Ze binds the address on the whois connection only. When the leaf is absent, the kernel picks the source address of the route to the server.
 - **name-server** `ip-address[]`: Static DNS name servers, written to resolv.conf and used by ze internal resolver.
   The configured source of the router's resolvers. Under the default dns-source list, Ze writes each address to the resolv.conf file named by dns/resolv-conf-path, and its own resolver asks these servers, whenever any is set. When environment mtu reference-address is not set, show mtu measures the first server as its reference address.
 - **peeringdb** `container`: PeeringDB API configuration for prefix data lookups.

@@ -246,17 +246,21 @@ p.OnConfigApply(func(diffs []sdk.ConfigDiffSection) error {
 
 A plugin that declares `WantsConfig` but holds nothing a reload can apply says
 so in place of an apply handler. Use it when the plugin reads no leaf of its
-roots, or reads only capability leaves, whose change `DeclareCapabilitiesFrom`
-already refuses at config-verify. Its `config-apply` is accepted, the rollback
+roots, or reads only capability leaves. `DeclareCapabilitiesFrom` carries the
+candidate declaration at config-verify, and the engine installs it when the
+transaction applies, so the plugin has no separate capability state to apply.
+Its `config-apply` is accepted, the rollback
 gate opens as for any accepted apply, and a debug line names the plugin, the
 changed roots and the reason. The reason must not be empty: the call panics on
 an empty one. A plugin that reads a leaf it could apply registers
 `OnConfigApply` instead.
 <!-- source: pkg/plugin/sdk/sdk_callbacks.go -- DeclareAppliesNothing -->
+<!-- source: pkg/plugin/sdk/capability_declaration.go -- DeclareCapabilitiesFrom, composeCapabilityVerify -->
+<!-- source: internal/component/plugin/server/config_tx_capabilities.go -- installStagedCapabilities -->
 
 ```go
-p.DeclareCapabilitiesFrom(hostnameCapabilities, hostnameCapabilityLeaves)
-p.DeclareAppliesNothing("reads only the hostname capability leaves, fixed for the process life")
+p.DeclareCapabilitiesFrom(hostnameCapabilities)
+p.DeclareAppliesNothing("the engine installs the candidate hostname capability declaration")
 ```
 
 ### A plugin with no apply handler

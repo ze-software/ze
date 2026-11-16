@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5575 requirements and tests - Ze</title>
         <meta name="description" content="RFC 5575: Dissemination of Flow Specification Rules. 9 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5575 requirements and tests - Ze" />
@@ -132,7 +132,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity plus reason</span><strong>1</strong><b>of 9 mandatory requirements</b><p>the requirement admits no counter-case, so one polarity plus a recorded reason is the whole proof available for it</p></article>
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 9 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 9 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>12</strong><b>12 of 29 tests linked to requirements, 0 without a fault test and 4 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>13</strong><b>13 of 31 tests linked to requirements, 0 without a fault test and 5 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Negative</h3>
 <p>what Ze owes</p>
@@ -250,16 +250,16 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>0</td>
 </tr>
 <tr><td>Test tags</td>
-<td>29</td>
+<td>31</td>
 </tr>
 <tr><td>Tests linked to requirements</td>
-<td>29</td>
+<td>31</td>
 </tr>
 <tr><td>Recorded audit verdicts</td>
 <td>8</td>
 </tr>
 <tr><td>Fault test records</td>
-<td>16</td>
+<td>18</td>
 </tr>
 <tr><td>Summary</td>
 <td><code>rfc/short/rfc5575.md</code></td>
@@ -279,8 +279,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> BGP Flowspec (obsoleted by RFC 8955)</p>
-<p><strong>Proof:</strong> 2 of 9 MUST proven</p>
-<p><strong>Evidence:</strong> unit 2</p>
+<p><strong>Proof:</strong> 3 of 9 MUST proven</p>
+<p><strong>Evidence:</strong> unit 3</p>
 <p><strong>Unmet:</strong> RFC5575-6-1</p>
 
 </section>
@@ -327,9 +327,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc5575:must">Ze proven 2, Proof pending 6, Not built 1</div>
+<div data-ze-rfc-bar="rfc5575:must">Ze proven 3, Proof pending 5, Not built 1</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc5575:overview">Ze MUST proven 2, Proof pending 6, Not assessed 4, Not built 1</div>
+<div data-ze-rfc-bar="rfc5575:overview">Ze MUST proven 3, Proof pending 5, Not assessed 4, Not built 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -350,13 +350,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc5575:must.kept">9</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc5575:must.ze-proven">2</span></td>
+<td><span data-ze-rfc="rfc5575:must.ze-proven">3</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc5575:must.os-verified">0</span></td>
 </tr>
 <tr><td>Proof pending</td>
-<td><span data-ze-rfc="rfc5575:must.proof-pending">6</span></td>
+<td><span data-ze-rfc="rfc5575:must.proof-pending">5</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc5575:must.os-gap">0</span></td>
@@ -435,7 +435,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5575-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L902" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv4FlowSpecNegotiatesMultiprotocolCapability</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L27" title="internal/component/bgp/reactor/multiprotocol_application_code_test.go" target="_blank" rel="noopener"><code>TestMultiprotocolApplicationsAdvertiseLiteralCodeOne</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L21" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L106" title="internal/component/bgp/reactor/multiprotocol_application_code_test.go" target="_blank" rel="noopener"><code>TestMultiprotocolApplicationsRejectUnrecognizedCapabilityCode</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L22" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></span></div>
 </div></td>
 </tr>
@@ -620,15 +622,20 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <p>A test reads unproven when no record shows it failing after a deliberate fault. Until then, its claim to check the requirement remains unproven.</p>
 <h3><a href="#rfc5575-4-1"><code>RFC5575-4-1</code></a></h3>
 <p>Implementations wishing to exchange flow specification rules MUST use BGP&#39;s Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) as defined in RFC 4760 [RFC4760]. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 5575 Section 4: &#34;Implementations wishing to exchange flow specification rules MUST use BGP&#39;s Capability Advertisement facility to exchange the Multiprotocol Extension Capability Code (Code 1) as defined in RFC 4760 [RFC4760].&#34; RFC 8955 Section 4 restates this obligation; the existing superseded disposition is retained. TestIPv4FlowSpecNegotiatesMultiprotocolCapability is only registration/constructed-capability evidence. The current reactor/rfc5575_capability_wire_test.go TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily additionally decodes buildOpen OptionalParams produced from real parsed configuration, verifies Code-1 families, and sends through AnnounceNLRIBatch. Matching SAFI sends exactly the required MP_REACH bytes; advertising only the other FlowSpec SAFI returns ErrNoPeersAcceptedFamily and writes zero bytes. Producers session_negotiate.go buildOpen, capability.Negotiate and reactor_api_batch.go AnnounceNLRIBatch/buildBatchAnnounceUpdate were read. Distinct matched/mismatched negotiation arms are a genuine positive/negative pair. Removed only the now-false single-polarity annotation. Independent source rejudgment only; no test, mutation, build or gate was executed by this auditor. Native observed-red renewal is a separate parent step.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-read RFC 5575 Section 4&#39;s complete capability paragraph against RFC 8955 Section 4 and the current summary/derived row; the superseded/restated RFC8955-4-1 annotation remains accurate and unchanged. TestIPv4FlowSpecNegotiatesMultiprotocolCapability is supplementary family-registration evidence; its constructed object and shared code constant are not an independent numeric-wire proof. Both tagged occurrences of TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily retain real configuration-derived OPEN capabilities, matching and crossed 133/134 SAFIs, an actual AnnounceNLRIBatch, exactly one UPDATE with the complete expected MP_REACH payload in matched cases, and exact ErrNoPeersAcceptedFamily plus no connection bytes in crossed cases. The same negotiated families reach both Peer and Session; no input or assertion is weakened. These exchange controls establish conditional use of the advertised application, while the literal pair supplies independent numeric identity. The configured OPEN fixture&#39;s test-only Session.buildOpen delegates directly to the current production buildOpenFromSnapshot with one captured plugin snapshot. In production prepareOpen retains the built message with its settings and declarations in one preparedOpen; sendOpen writes that message, and prepareNegotiation/publishNegotiation retain the advertised local/remote family intersection. The obsolete production buildOpen code key is replaced by buildOpenFromSnapshot; all other existing code anchors and tagged covers remain. The literal positive independently walks parameter and capability TLVs from the configured OPEN, requiring exactly one literal code 1, length 4 and exact AFI/reserved/SAFI payload for each exercised application (1/133, 1/134, 16388/71), then requires application and unicast negotiation against a separately handwritten code-1 peer stream. The negative provides a valid code-1 unicast control and the application payload under code 250, requires successful parsing, first excludes the application, and then requires surviving unicast. Thus a shared codec constant or rejection of every capability cannot satisfy the pair. Existing recorded breaks target Multiprotocol.WriteTo emitting 250 and parseCapability recognizing 250; the latter must fail for acceptance of the bad application, not solely loss of the unicast control. This independent current-source judgment credits only the capability-advertisement obligation. Main&#39;s final native inventories at HEAD 606a3ba2 report all existing records current: four for RFC5575-4-1, five for RFC7752-3.2-1, two for RFC8955-4-1 and five for RFC9552-5.2-7, with no stale bindings. This continuation read all sixteen actual record objects and every tagged test and reached producer before stamping. The eight numeric-code records and eight partner records remain intact; four supplementary registration/core-positive tagged covers have no historical record and are judged from their assertions without inventing execution. This verdict covers this capability-advertisement requirement alone, not whole-RFC or additional-NLRI conformance.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L106" title="internal/component/bgp/reactor/multiprotocol_application_code_test.go" target="_blank" rel="noopener"><code>TestMultiprotocolApplicationsRejectUnrecognizedCapabilityCode</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L22" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/plugins/nlri/flowspec/plugin_test.go#L902" title="internal/component/bgp/plugins/nlri/flowspec/plugin_test.go" target="_blank" rel="noopener"><code>TestIPv4FlowSpecNegotiatesMultiprotocolCapability</code></a></td>
@@ -636,16 +643,21 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/multiprotocol_application_code_test.go#L27" title="internal/component/bgp/reactor/multiprotocol_application_code_test.go" target="_blank" rel="noopener"><code>TestMultiprotocolApplicationsAdvertiseLiteralCodeOne</code></a></td>
+<td>unit/verify</td>
+<td>mutant, verified</td>
+</tr>
+<tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5575_capability_wire_test.go#L21" title="internal/component/bgp/reactor/rfc5575_capability_wire_test.go" target="_blank" rel="noopener"><code>TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily</code></a></td>
 <td>unit/verify</td>
-<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
+<td>revert, verified</td>
 </tr>
 </tbody>
 </table>
 </div>
 <h3><a href="#rfc5575-4-2"><code>RFC5575-4-2</code></a></h3>
 <p>The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type. (§4)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Re-judged 2026-10-16 after the codec moved to internal/core/bgp/nlri/flowspec; the two types_test units changed only by package qualification. RFC 5575 Section 4: &#34;The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type.&#34; TestFlowSpecIPv4Basic/TestFlowSpecVPNFamily pin the plugin-registered families (register.go family.MustRegister) to AFI 1/SAFI 133 and AFI 1-2/SAFI 134. The proof is the reactor unit TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily: for flow and flow-vpn it requires the configured OPEN to advertise the pair, requires the MP_REACH AFI/SAFI and NLRI to equal it exactly through AnnounceNLRIBatch, and with the crossed SAFI negotiated requires ErrNoPeersAcceptedFamily and zero bytes written. Scoped go test of core flowspec, plugin flowspec, message and flowspec-firewall packages green on this tree.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently re-judged against full RFC 5575 Section 4: The (AFI, SAFI) pair carried in the Multiprotocol Extension Capability MUST be the same as the one used to identify a particular application that uses this NLRI-type. TestFlowSpecIPv4Basic pins IPv4 flow to AFI 1 / SAFI 133; TestFlowSpecVPNFamily pins VPNv4 flow to AFI 1 / SAFI 134 (its additional IPv6 assertion is not evidence for RFC5575). TestRFC5575OpenCapabilityMatchesTransmittedFlowFamily and its second cover build and parse the configured OPEN, negotiate each exact application through capability.Negotiate, publish that same negotiation to both peer and session, and call AnnounceNLRIBatch. Each matched case requires exactly one UPDATE and the complete MP_REACH value, including the literal AFI/SAFI and NLRI bytes. Each crossed-SAFI case requires ErrNoPeersAcceptedFamily and zero connection bytes. The fixture additions retain all old expectations and make the session/peer encoding context agree with the actual negotiation. The producer&#39;s exact-family AnnounceNLRIBatch gate and batch writer therefore remain meaningfully exercised. All four prior test keys are preserved by the native writer; the prior audit has no code anchors. The independent Code-1 numeric oracle is a separate RFC5575-4-1 question and is not claimed here. This is a source re-judgment, not a claim that this agent ran tests or observed a red; main must finish and inspect the pending native renewal observations before stamping.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -769,17 +781,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_forward_wire_test.go#L34" title="internal/component/bgp/reactor/flowspec_forward_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecForwardingOmitsNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_origin_wire_test.go#L35" title="internal/component/bgp/reactor/flowspec_origin_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecOriginationOmitsConfiguredNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>negative</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/flowspec_rs_wire_test.go#L30" title="internal/component/bgp/reactor/flowspec_rs_wire_test.go" target="_blank" rel="noopener"><code>TestFlowSpecRouteServerOmitsNextHop</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/message/flowspec_wire_contract_test.go#L17" title="internal/component/bgp/message/flowspec_wire_contract_test.go" target="_blank" rel="noopener"><code>TestFlowSpecUpdateIgnoresConfiguredNextHop</code></a></td>
@@ -1171,7 +1183,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

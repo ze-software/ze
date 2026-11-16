@@ -1,13 +1,13 @@
-# `update firewall irr asn`
+# `clear irr asn`
 
-Fetch or refresh IRR prefix\-list for an ASN\.
+Remove the stored IRR dataset of an AS number\.
 
 ## Ze command
 
-- Registry path: `update firewall irr asn`
-- Usage: `update firewall irr asn <asn>`
+- Registry path: `clear irr asn`
+- Usage: `clear irr asn <asn>`
 - Mode: Daemon
-- Wire method: `ze-firewall:update-irr-asn`
+- Wire method: `ze-irr:clear-irr-asn`
 - Backends: any backend
 - Task support: optional: the MCP call is synchronous, which is the default
 - Subcommands: none: this command takes no subcommand
@@ -21,13 +21,13 @@ Fetch or refresh IRR prefix\-list for an ASN\.
 - Command pipes: none
 - Pipe aliases: none
 
-Queries the IRR server and saves resolved prefixes to the zefs cache\. Creates the cache entry if it does not exist\.
+Removes the stored binding of the AS number and the dataset of the AS\-SET it names\. The answer names every consumer still referencing it\; those consumers stop enforcing it\, and it is not fetched again until update irr or a commit that newly names it\.
 
 ## Arguments
 
 | Name | Type | Required | Values | Summary | Description |
 | --- | --- | --- | --- | --- | --- |
-| `asn` | string | yes | any value of this type | ASN number | The AS number\, 1 to 4294967294\, in plain or dotted form\. The cache key is the decimal spelling with an AS prefix\, so 1\.10 and 65546 name one entry\. |
+| `asn` | union | yes | any value of this type | AS number\. | The AS number in plain decimal or in asdot notation\, which Ze parses to one 32\-bit value\: 0 to 4294967295 in plain decimal\, 0\.0 to 65535\.65535 in asdot\. A spelling that parses to no AS number is refused\. |
 
 ## Mapping intents
 

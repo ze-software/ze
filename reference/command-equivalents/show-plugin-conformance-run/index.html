@@ -3,24 +3,24 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
-        <title>update firewall irr all - Command Equivalents - Ze</title>
-        <meta name="description" content="Refresh all cached IRR prefix-lists." />
-        <meta property="og:title" content="update firewall irr all - Command Equivalents - Ze" />
-        <meta property="og:description" content="Refresh all cached IRR prefix-lists." />
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <title>show plugin conformance run - Command Equivalents - Ze</title>
+        <meta name="description" content="Start a program in declare mode and check it behaves as a plugin." />
+        <meta property="og:title" content="show plugin conformance run - Command Equivalents - Ze" />
+        <meta property="og:description" content="Start a program in declare mode and check it behaves as a plugin." />
         <meta property="og:type" content="website" />
         <meta property="og:image" content="https://ze-software.net/assets/social-card.png" />
         <meta property="og:image:width" content="1200" />
         <meta property="og:image:height" content="630" />
         <meta property="og:image:alt" content="Ze, an open-source configuration and protocol engine" />
         <meta name="twitter:card" content="summary_large_image" />
-        <meta name="twitter:title" content="update firewall irr all - Command Equivalents - Ze" />
-        <meta name="twitter:description" content="Refresh all cached IRR prefix-lists." />
+        <meta name="twitter:title" content="show plugin conformance run - Command Equivalents - Ze" />
+        <meta name="twitter:description" content="Start a program in declare mode and check it behaves as a plugin." />
         <meta name="twitter:image" content="https://ze-software.net/assets/social-card.png" />
         <link rel="icon" href="../../../assets/ze.svg" type="image/svg+xml" />
         <link rel="stylesheet" href="../../../assets/vendor/fonts/fonts.css" />
-        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/update-firewall-irr-all/" />
-        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/update-firewall-irr-all/" />
+        <link rel="canonical" href="https://ze-software.net/reference/command-equivalents/show-plugin-conformance-run/" />
+        <meta property="og:url" content="https://ze-software.net/reference/command-equivalents/show-plugin-conformance-run/" />
         <link rel="stylesheet" href="../../../assets/site.css" />
         <script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"WebSite","name":"Ze","url":"https://ze-software.net/","description":"Open-source configuration and protocol engine for Linux routing, with YANG-modeled plugins, operator interfaces, telemetry, and MCP.","inLanguage":"en"},{"@type":"SoftwareSourceCode","name":"Ze","description":"Open-source configuration and protocol engine for Linux routing, used to build a plugin-based network operating system.","codeRepository":"https://github.com/ze-software/ze","license":"https://www.gnu.org/licenses/agpl-3.0.en.html","programmingLanguage":"Go","runtimePlatform":"Linux","applicationCategory":"Network operating system","isAccessibleForFree":true}]}</script>
     </head>
@@ -47,27 +47,34 @@
 <section class="md-content command-equivalents command-equivalent-detail reveal cat-operate" aria-labelledby="command-equivalent-detail-title">
 <div class="journey-hero reveal">
     <span class="journey-eyebrow">Command map</span>
-    <h1 id="command-equivalent-detail-title">update firewall irr all</h1>
-    <p>Refresh all cached IRR prefix-lists.</p>
+    <h1 id="command-equivalent-detail-title">show plugin conformance run</h1>
+    <p>Start a program in declare mode and check it behaves as a plugin.</p>
 </div>
 <div class="cmd-detail-grid">
 <article class="cmd-detail-card cmd-detail-ze"><h2>Ze command</h2>
 <dl class="cmd-meta">
-<div><dt>Registry path</dt><dd><code>update firewall irr all</code></dd></div>
-<div><dt>Usage</dt><dd><code>update firewall irr all</code></dd></div>
-<div><dt>Mode</dt><dd>Daemon</dd></div>
-<div><dt>Wire method</dt><dd><code>ze-firewall:update-irr-all</code></dd></div>
+<div><dt>Registry path</dt><dd><code>show plugin conformance run</code></dd></div>
+<div><dt>Usage</dt><dd><code>show plugin conformance run &lt;command&gt; [name &lt;name&gt;]</code></dd></div>
+<div><dt>Mode</dt><dd>read-only, offline</dd></div>
+<div><dt>Wire method</dt><dd><code>ze-plugin:show-conformance-run</code></dd></div>
 <div><dt>Backends</dt><dd>any backend</dd></div>
 <div><dt>Task support</dt><dd>optional: the MCP call is synchronous, which is the default</dd></div>
 <div><dt>Subcommands</dt><dd>none: this command takes no subcommand</dd></div>
-<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save</dd></div>
-<div><dt>Pipes, when the answer has rows</dt><dd>match, count, first, last, display, fill</dd></div>
+<div><dt>Pipes, always</dt><dd>json, ndjson, table, text, yaml, raw, no-more, save, match, count, first, last, display, fill</dd></div>
 <div><dt>Pipes, while streaming</dt><dd>log</dd></div>
 <div><dt>Pipes, local process only</dt><dd>save</dd></div>
+<div><dt>Answer shape</dt><dd>tab</dd></div>
+<div><dt>Column order</dt><dd>check, stage, verdict, reason, fix</dd></div>
 </dl>
-<h3>Description</h3><p>Re-queries the IRR server for every cached<br>ASN/AS-SET entry and updates the zefs cache on success. A failed refresh<br>preserves the existing cache and reports an error.</p>
+<h3>Description</h3><p>The program is started in declare mode, the way &#39;show plugin<br>declarations&#39; starts a configured plugin, and what it writes is judged with the<br>checks the daemon applies at Stage 1. One row is written for each check: its<br>name, the stage it belongs to, a verdict of pass, fail or not-judged, the<br>reason, and the change that fixes a failure. A behavior this version does not<br>judge keeps its row with the verdict not-judged, so an answer with no failure<br>is not full conformance. The command exits 1 when a check failed.<br>It runs in your own ze process only: the daemon starts no program a remote<br>caller names, and answers with the command to run in your own shell.</p>
 <h3>Arguments</h3>
-<p>No command-specific arguments listed.</p>
+<table class="cmd-args"><thead><tr><th>Name</th><th>Type</th><th>Required</th><th>Values</th><th>Summary</th><th>Description</th></tr></thead><tbody>
+<tr><td><code>command</code></td><td>string</td><td>yes</td><td>any value of this type</td><td>Run string of the program to check, as one quoted token</td><td>The run string an operator would configure under plugin
+external &lt;name&gt; run, as one quoted token. A shell starts
+it, and a relative path is read from the caller&#39;s directory.</td></tr>
+<tr><td><code>name</code></td><td>string</td><td>no</td><td>any value of this type</td><td>Plugin name the report is written for</td><td>The plugin name the checks name in their refusals. It defaults
+to the file name of the program the run string starts.</td></tr>
+</tbody></table>
 </article>
 <article class="cmd-detail-card"><h2>Mapping status</h2><p>No vendor equivalent has been curated yet for this Ze command.</p></article>
 <article class="cmd-detail-card cmd-vendor-detail"><h2>Juniper Junos MX</h2>
@@ -132,7 +139,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:04 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

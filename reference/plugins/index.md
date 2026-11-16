@@ -1,6 +1,6 @@
 # Plugin catalog
 
-96 runtime plugins generated from `data/plugin-registry.json`. 75 runtime plugins declare configuration roots and 79 ship YANG modules.
+98 runtime plugins generated from `data/plugin-registry.json`. 77 runtime plugins declare configuration roots and 81 ship YANG modules.
 
 The HTML page includes browser-side search across name, purpose, config roots, dependencies, YANG files, and source directories. Clicking a plugin opens its generated local detail page.
 
@@ -50,6 +50,7 @@ Generated group for registry entries mapped to the BGP area. Config roots: `bgp`
 | [`bgp-softver`](bgp-softver/index.md) | Software Version capability (code 75) | `bgp` | `bgp` | `internal/component/bgp/plugins/softver` |
 | [`bgp-watchdog`](bgp-watchdog/index.md) | Watchdog route management plugin | `bgp` | `bgp` | `internal/component/bgp/plugins/watchdog` |
 
+- [`bgp`](bgp/index.md): Start after `interface` (order only).
 - [`bgp-gr`](bgp-gr/index.md): Start after `bgp-rr` (order only).
 ## BGP Filter
 
@@ -62,7 +63,7 @@ Generated group for registry entries mapped to the BGP Filter area. Config roots
 | [`bgp-filter-community`](bgp-filter-community/index.md) | Community tag/strip filter (standard, large, extended) | `bgp` | `bgp` | `internal/component/bgp/plugins/filter_community` |
 | [`bgp-filter-community-match`](bgp-filter-community-match/index.md) | Named community match filter (ordered entries, first match wins, accept/reject) | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_community_match` |
 | [`bgp-filter-family`](bgp-filter-family/index.md) | Named address-family policy filter: remove a family's NLRI or tear down the session | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_family` |
-| [`bgp-filter-irr`](bgp-filter-irr/index.md) | IRR-based prefix-list filter for eBGP peers | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_irr` |
+| [`bgp-filter-irr`](bgp-filter-irr/index.md) | IRR-based prefix-list filter for eBGP peers | `bgp` | `bgp`, `irr` | `internal/component/bgp/plugins/filter_irr` |
 | [`bgp-filter-modify`](bgp-filter-modify/index.md) | Named route attribute modifier (set local-preference, med, origin, next-hop) | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_modify` |
 | [`bgp-filter-path-asn`](bgp-filter-path-asn/index.md) | Named reject-asn list: rejects a route whose AS_PATH carries a listed ASN at a listed position | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_path_asn` |
 | [`bgp-filter-prefix`](bgp-filter-prefix/index.md) | Named prefix-list filter (CIDR + ge/le + accept/reject) | `bgp` | `bgp`, `policy` | `internal/component/bgp/plugins/filter_prefix` |
@@ -104,6 +105,14 @@ Generated group for registry entries mapped to the Connected area. Config roots:
 | [`connected`](connected/index.md) | Connected routes: redistribute directly connected interface prefixes | `connected` | `policy` | `internal/plugins/connected` |
 
 - [`connected`](connected/index.md): Start after `redistribute-orchestrator` (order only).
+## Container
+
+Generated group for registry entries mapped to the Container area. Config roots: `container`. Source area: `internal/plugins/container`.
+
+| Plugin | Used for | Config | Depends on | Source path |
+|--------|----------|--------|------------|-------------|
+| [`container`](container/index.md) | OCI containers run by ze: confined, limited, supervised and removed without a trace | `container` | None | `internal/plugins/container` |
+
 ## Control Plane Protection
 
 Generated group for registry entries mapped to the Control Plane Protection area. Config roots: `control-plane-protection`. Source area: `internal/plugins/copp`.
@@ -166,7 +175,7 @@ Generated group for registry entries mapped to the Firewall area. Config roots: 
 |--------|----------|--------|------------|-------------|
 | [`firewall`](firewall/index.md) | Packet filter and NAT rules (nftables on Linux) | `firewall`, `system/conntrack` | None | `internal/component/firewall` |
 | [`firewall-domain`](firewall-domain/index.md) | DNS-sourced address groups for firewall rules | `firewall` | `firewall` | `internal/component/firewall/plugins/domain` |
-| [`firewall-irr`](firewall-irr/index.md) | IRR-based prefix-list filtering for firewall rules | `firewall` | `firewall` | `internal/component/firewall/plugins/irr` |
+| [`firewall-irr`](firewall-irr/index.md) | IRR-based prefix-list filtering for firewall rules | `firewall` | `firewall`, `irr` | `internal/component/firewall/plugins/irr` |
 
 ## Flow Export
 
@@ -332,6 +341,14 @@ Generated group for registry entries mapped to the Sysctl area. Config roots: `s
 | Plugin | Used for | Config | Depends on | Source path |
 |--------|----------|--------|------------|-------------|
 | [`sysctl`](sysctl/index.md) | Kernel tunable management: three-layer precedence, restore on stop | `sysctl` | None | `internal/component/sysctl` |
+
+## System
+
+Generated group for registry entries mapped to the System area. Config roots: `system`. Source area: `internal/plugins/irr`.
+
+| Plugin | Used for | Config | Depends on | Source path |
+|--------|----------|--------|------------|-------------|
+| [`irr`](irr/index.md) | IRR data owner: fetches, schedules and stores the IRR prefix lists every consumer enforces | `system/irr` | None | `internal/plugins/irr` |
 
 ## Traffic
 

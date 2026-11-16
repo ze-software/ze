@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 2866 requirements and tests - Ze</title>
         <meta name="description" content="RFC 2866: RADIUS Accounting. 15 mandatory requirements included in automatic checks, 0 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 2866 requirements and tests - Ze" />
@@ -133,7 +133,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <article class="rfc-card rfc-ok"><span>One polarity, unexcused</span><strong>0</strong><b>of 15 mandatory requirements</b><p>one direction is tested, the other is neither tested nor excused, and nothing states which</p></article>
 <article class="rfc-card rfc-ok"><span>Partial proof; remaining gap</span><strong>0</strong><b>of 15 mandatory requirements</b><p>scoped tests exist; the remaining obligation is unmet or unproven, with zero whole-requirement credit</p></article>
 <article class="rfc-card rfc-ok"><span>Declared gap or no test</span><strong>0</strong><b>of 15 mandatory requirements</b><p>the requirements the summary declares a gap for, which say what Ze does not do yet, plus the ones no test carries and no annotation excuses. The at-a-glance table lists them apart: declared gaps (at every level), and mandatory requirements with no test and no annotation</p></article>
-<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>30</strong><b>30 of 48 tests linked to requirements</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
+<article class="rfc-card rfc-ok"><span>Tests shown to detect a fault</span><strong>22</strong><b>22 of 48 tests linked to requirements, 0 without a fault test and 8 with outdated fault tests</b><p>each test was observed to fail when the code it checks was deliberately broken. The test, its stated claim, and the relevant code are checked against the saved record for changes; the deliberate fault is not run again. Having both positive and negative tests counts as proof only after this check has demonstrated that they can detect a fault</p></article>
 </div>
 <h3>Neutral</h3>
 <p>measures that are neither good news nor bad</p>
@@ -275,8 +275,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Published support status</h2>
 <p><strong>Area:</strong> RADIUS accounting</p>
-<p><strong>Proof:</strong> 8 of 15 MUST proven</p>
-<p><strong>Evidence:</strong> functional 1, unit 7</p>
+<p><strong>Proof:</strong> 7 of 15 MUST proven</p>
+<p><strong>Evidence:</strong> functional 1, unit 6</p>
 <p><strong>Unmet:</strong> -</p>
 
 </section>
@@ -321,9 +321,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </section>
 <section><h2>Figures</h2>
 <p><strong>MUST bar</strong></p>
-<div data-ze-rfc-bar="rfc2866:must">Ze proven 8, Proof pending 7</div>
+<div data-ze-rfc-bar="rfc2866:must">Ze proven 7, Proof pending 8</div>
 <p><strong>Overview bar</strong></p>
-<div data-ze-rfc-bar="rfc2866:overview">Ze MUST proven 8, Proof pending 7, Not assessed 1</div>
+<div data-ze-rfc-bar="rfc2866:overview">Ze MUST proven 7, Proof pending 8, Not assessed 1</div>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Figure</th><th>Rows</th></tr></thead>
@@ -344,13 +344,13 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td><span data-ze-rfc="rfc2866:must.kept">15</span></td>
 </tr>
 <tr><td>Ze proven</td>
-<td><span data-ze-rfc="rfc2866:must.ze-proven">8</span></td>
+<td><span data-ze-rfc="rfc2866:must.ze-proven">7</span></td>
 </tr>
 <tr><td>OS verified</td>
 <td><span data-ze-rfc="rfc2866:must.os-verified">0</span></td>
 </tr>
 <tr><td>Proof pending</td>
-<td><span data-ze-rfc="rfc2866:must.proof-pending">7</span></td>
+<td><span data-ze-rfc="rfc2866:must.proof-pending">8</span></td>
 </tr>
 <tr><td>OS testing gap</td>
 <td><span data-ze-rfc="rfc2866:must.os-gap">0</span></td>
@@ -476,8 +476,8 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>5.13 - Table of Attributes</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC2866-5.13-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L160" title="internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingRequestOnTheWireCarriesNoZeroMarkedAttribute</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L233" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L261" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L234" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L263" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go#L196" title="internal/component/l2tp/plugins/authradius/rfc2866_attribute_table_test.go" target="_blank" rel="noopener"><code>TestRFC2866SubscriberTextNeverBecomesAZeroMarkedAttribute</code></a></span></div>
 </div></td>
 </tr>
@@ -679,7 +679,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go#L121" title="internal/component/l2tp/plugins/authradius/rfc2866_acct_address_test.go" target="_blank" rel="noopener"><code>TestSessionEventDrivesAddressAndPortID</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go#L13" title="internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go" target="_blank" rel="noopener"><code>TestAccountingAddressFamiliesShareLifetime</code></a></td>
@@ -694,7 +694,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/test/l2tp/radius-acct-wire.ci#L40" title="test/l2tp/radius-acct-wire.ci" target="_blank" rel="noopener"><code>radius-acct-wire.ci</code></a></td>
 <td>functional/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -731,7 +731,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc2866-5.13-1"><code>RFC2866-5.13-1</code></a></h3>
 <p>0 This attribute MUST NOT be present (§5.13, the Accounting-Request table legend; the table marks 0 for User-Password, CHAP-Password, Reply-Message, State and CHAP-Challenge)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Judge 2026-09-30 (cont 7 re-judge). Row &#39;0 This attribute MUST NOT be present&#39; (Section 5.13 legend; User-Password, CHAP-Password, Reply-Message, State, CHAP-Challenge). Positive TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes runs the real path: provider configured over plugin RPC, CHAP login through l2tp.GetAuthHandler against a live UDP server, session up/down over the event bus; the server decodes Start and Stop, which name the user and an Acct-Session-Id and carry none of the five. Negative TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting is the missing piece of the prior weak verdict (R1(b), inputs forced toward the violation over the real path): a CHAP and a PAP login against an Access-Accept carrying State and Reply-Message; the test first proves CHAP-Challenge, a 17-octet CHAP-Password and User-Password were on the Access-Request wire, then that no Start/Stop of either session carries a 0-marked type or any of those octets (State, Reply-Message, challenge, CHAP response, CHAP-Password, PAP plaintext, hidden User-Password). Producer acct.go buildAcctPacket / acctSession holds only username, calling-station, NAS-Port-Id, peer address, so a copy would be a new input path, which the negative catches on the wire. Both new units observed red under a revert of buildAcctPacket. The builder-level pair in rfc2866_attribute_table_test.go keeps its HEAD tags; its negative (TLV framing) is supplementary.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independent rejudgment after canonical subscriber-ID fixture migration. RFC 2866 Section 5.13 defines table entry 0 as &#39;This attribute MUST NOT be present&#39;; the table assigns 0 to User-Password, CHAP-Password, Reply-Message, State and CHAP-Challenge. All four tagged units were read. The builder pair checks Start, Interim-Update and Stop after encode/decode, including every forbidden type embedded as text in each relayed text field while retaining that text whole. The provider-login pair sends real CHAP and PAP credentials to a live RADIUS server, confirms the credential attributes actually reached its Access-Request wire, and then checks both sessions&#39; Start/Stop packets for all five forbidden types and every supplied credential or accept-state byte sequence. Required status, username and accounting-session-ID checks prevent empty output from satisfying the absence assertions. Canonical request IDs and matching metadata cleanup preserve the same login and lifecycle inputs. This retains the existing whole-table-entry verdict; the builder&#39;s TLV test remains supplementary to the real credential/accept-state path. Native discrimination refresh remains separate main-thread evidence.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
@@ -742,7 +742,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L261" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L263" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoginCredentialsAndAcceptStateNeverReachAccounting</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -752,7 +752,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L233" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go#L234" title="internal/component/l2tp/plugins/authradius/rfc2866_zero_marked_login_test.go" target="_blank" rel="noopener"><code>TestRFC2866LoggedInSessionAccountsWithoutZeroMarkedAttributes</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -779,12 +779,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_acct_delay_time_omit_test.go#L120" title="internal/component/radius/rfc2866_acct_delay_time_omit_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingRetransmitWithoutDelayTimeKeepsIdentifier</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L109" title="internal/component/radius/rfc2866_sent_request_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -884,17 +884,17 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_packet_test.go#L193" title="internal/component/radius/rfc2866_packet_test.go" target="_blank" rel="noopener"><code>TestRFC2866IdentifierChangesForANewRequest</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L114" title="internal/component/radius/rfc2866_sent_request_test.go" target="_blank" rel="noopener"><code>TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/radius/rfc2866_sent_request_test.go#L148" title="internal/component/radius/rfc2866_sent_request_test.go" target="_blank" rel="noopener"><code>TestRFC2866IdentifierChangesAfterAValidReplyWithUnchangedAttributes</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 </tbody>
 </table>
@@ -954,7 +954,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go#L11" title="internal/component/l2tp/plugins/authradius/rfc2866_acct_lifetime_test.go" target="_blank" rel="noopener"><code>TestAccountingAddressFamiliesShareLifetime</code></a></td>
 <td>unit/verify</td>
-<td>revert, verified</td>
+<td>revert, producer-changed (the producer&#39;s behavior changed since the break was applied to it)</td>
 </tr>
 <tr><td>positive</td>
 <td><a href="https://github.com/ze-software/ze/blob/main/internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go#L181" title="internal/component/l2tp/plugins/authradius/rfc2866_request_contents_test.go" target="_blank" rel="noopener"><code>TestRFC2866AcctSessionIDSameAcrossRecords</code></a></td>
@@ -1316,7 +1316,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

@@ -8,8 +8,8 @@ Figures as of the last build, read from [data/rfc/profiles/dhcp-provisioning.jso
 
 ## Figures
 
-- **MUST bar**: Ze proven 190, Proof pending 20, OS testing gap 116, Not built 147
-- **Overview bar**: Ze MUST proven 190, SHOULD proven 10, Not owed 1, Proof pending 20, OS testing gap 116, Not assessed 209, Not built 148
+- **MUST bar**: Ze proven 189, Proof pending 21, OS testing gap 116, Not built 147
+- **Overview bar**: Ze MUST proven 189, SHOULD proven 10, Not owed 1, Proof pending 21, OS testing gap 116, Not assessed 209, Not built 148
 
 | Figure | Rows |
 |---|---|
@@ -18,9 +18,9 @@ Figures as of the last build, read from [data/rfc/profiles/dhcp-provisioning.jso
 | Mandatory requirements complete | not complete |
 | MUST rows | 474 |
 | MUST rows kept (the MUST bar) | 473 |
-| Ze proven | 190 |
+| Ze proven | 189 |
 | OS verified | 0 |
-| Proof pending | 20 |
+| Proof pending | 21 |
 | OS testing gap | 116 |
 | Exclusion unchecked | 0 |
 | Not assessed | 0 |
@@ -79,4 +79,4 @@ The RFCs are listed with the standards they build on first. An RFC appears one l
 
 | RFC | Title | MUST bar | Overview bar |
 |---|---|---|---|
-| [RFC 7084](../../rfc7084/) | Basic Requirements for IPv6 Customer Edge Routers | Ze proven 19, OS testing gap 7, Not built 15 | Ze MUST proven 19, OS testing gap 7, Not assessed 24, Not built 16 |
+| [RFC 7084](../../rfc7084/) | Basic Requirements for IPv6 Customer Edge Routers | Ze proven 18, Proof pending 1, OS testing gap 7, Not built 15 | Ze MUST proven 18, Proof pending 1, OS testing gap 7, Not assessed 24, Not built 16 |

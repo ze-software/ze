@@ -190,6 +190,47 @@ references are all inactive, still applies it. A raw full-UPDATE rewrite stops
 later filters, but still receives the policy final. An earlier reject,
 fail-closed error, or teardown cannot be turned into acceptance by `final accept`.
 
+If a chain's original input carries ATOMIC_AGGREGATE, these restrictions apply
+to modified results. A result that still announces routes must keep that marker
+and retain only original native route keys, including received ADD-PATH identifiers.
+Attribute changes, reordering and route removal remain supported. Ze refuses
+new marked destinations and marker removal on both import and export.
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_aggregate.go -- atomicAggregatePolicyAllowed -->
+
+This release restriction also disables
+less-specific and disjoint raw rewrites of marked routes, which the RFC alone
+does not forbid. Unmarked input keeps the existing raw rewrite facility.
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_aggregate.go -- atomicAggregatePolicyAllowed -->
+
+A refused result requests removal of the original source routes through the
+existing ownership and routing-table decision. Explicit withdrawals and EOR still work. The
+diagnostic `doctor-bgp-atomic-aggregate-policy` in `ze show doctor` or
+`ze show errors` identifies the refusal. Open `ze config edit`, correct the
+filter to keep the marker and only original routes, then run `commit now`.
+<!-- source: internal/component/bgp/reactor/filter_ordered.go -- runIngressPolicyChainMeta, runEgressPolicyChainASN4 -->
+<!-- source: internal/component/bgp/reactor/filter_atomic_diagnostic.go -- reportAtomicAggregatePolicyRefusal -->
+
+Keeping only part of a marked update preserves the chosen routes and requests
+removal of the source routes left out. These removals include any original
+withdrawal that a raw answer omitted. For example, a filter changes a marked
+update containing A and B to keep only B. Ze admits A's removal before B
+with the policy's chosen attributes.
+<!-- source: internal/component/bgp/reactor/filter_atomic_subset.go -- atomicAggregatePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- writePolicyRemovals -->
+
+Where the RIB owns the next route decision, that decision can finish later by
+withdrawing A or installing a permitted replacement. B or an EOR alone does
+not prove it complete. Immediate withdrawals keep their order. The final
+effective result decides which source routes are left out.
+<!-- source: internal/component/bgp/reactor/filter_atomic_subset.go -- atomicAggregatePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/filter_library.go -- runLibraryChain, runFinalJudges -->
+<!-- source: internal/component/bgp/reactor/forward_policy_removal.go -- writePolicyRemovals -->
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- recoveryOwedFor, run, decide -->
+
 A `match` instance naming a `prefix-list` judges each prefix of the UPDATE,
 announced and withdrawn, as the `prefix-list` filter does: an UPDATE with no
 prefix, or none the list denies, passes; one whose every prefix is denied is

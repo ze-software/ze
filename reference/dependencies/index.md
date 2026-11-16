@@ -1,6 +1,6 @@
 # Dependencies
 
-Ze uses 57 direct Go dependencies. The list and versions come from `go.mod`, and each entry explains how Ze uses that dependency, with references to the code that imports it.
+Ze uses 60 direct Go dependencies. The list and versions come from `go.mod`, and each entry explains how Ze uses that dependency, with references to the code that imports it.
 
 ## Terminal, Web & SSH Interfaces (11)
 
@@ -30,7 +30,7 @@ Ze uses 57 direct Go dependencies. The list and versions come from `go.mod`, and
 | `github.com/packetcap/go-pcap` | `v0.0.0-20260731105150-c86974bbfbcd` | Only its filter subpackage: parses tcpdump/BPF-style filter expressions for `diag capture`. Packet capture itself goes through mdlayher/packet instead. |
 | `github.com/cloudflare/circl` | `v1.6.5` | Only its Ed448 package: Ed448 signatures for IKEv2 authentication (RFC 8420). |
 
-## Linux Kernel Interfaces (7)
+## Linux Kernel Interfaces (8)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
@@ -41,6 +41,7 @@ Ze uses 57 direct Go dependencies. The list and versions come from `go.mod`, and
 | `github.com/mdlayher/genetlink` | `v1.4.0` | Generic netlink family dialing, used to attach to the kernel's psample subsystem for sampled flow export. |
 | `github.com/cilium/ebpf` | `v0.22.0` | Assembles and attaches eBPF programs in pure Go, no clang or libbpf needed, to count traffic for the trafficusage plugin. |
 | `filippo.io/mlockexe` | `v1.0.0` | Locks the running ze executable's own file-backed pages in memory with mlock2(2) and MLOCK_ONFAULT, so the kernel cannot evict the daemon's text under memory pressure. A router short of memory reclaims page cache, and the running daemon IS page cache: without the lock it waits on the disk holding its own binary at the moment it must keep sessions alive. |
+| `github.com/opencontainers/runc` | `v1.5.3` | Provides the libcontainer runtime library used by the Linux container plugin, including its container init sequence. |
 
 ## Routing & Dataplane (2)
 
@@ -83,13 +84,15 @@ Ze uses 57 direct Go dependencies. The list and versions come from `go.mod`, and
 | `golang.org/x/tools` | `v0.52.0` | Build-time only: goimports, pinned via a tools.go tracking file, never compiled into Ze's binaries. |
 | `golang.org/x/vuln` | `v1.9.0` | Build-time only: govulncheck, pinned through the tools.go tracking file, which reports known vulnerabilities in the modules Ze vendors. |
 
-## Testing & Build Tooling (11)
+## Testing & Build Tooling (13)
 
 | Module | Version | Why we use it |
 | --- | --- | --- |
 | `github.com/moby/patternmatcher` | `v0.6.1` | Applies .dockerignore patterns when preparing the files sent to Docker for lab image builds. |
 | `mvdan.cc/sh/v3` | `v3.14.1` | Parses Bash commands so the agent safety checks can inspect the commands a session is about to run. |
 | `github.com/stretchr/testify` | `v1.12.1` | Assertion and require helpers used across the Go unit test suite. |
+| `github.com/pelletier/go-toml/v2` | `v2.4.3` | Parses kl2tpd TOML configuration in the L2TP scale-input tests. |
+| `github.com/gokrazy/gokapi` | `v0.0.0-20251205165548-0927bab199d4` | Exercises the gokrazy on-device API's remote connection setup in appliance updater tests, proving reserved password bytes survive URL construction and invalid-port errors omit credentials. |
 | `github.com/gokrazy/tools` | `v0.0.0-20261026191944-942a8faaca93` | Drives gokrazy appliance image builds from Ze's appliance build tooling. |
 | `github.com/gokrazy/updater` | `v0.0.0-20260620140544-0a84d8ab3878` | Referenced only in a regression test against Ze's own vendored update-push logic, written locally after a bug was found upstream. Not used in production. |
 | `github.com/sivchari/gomu` | `v0.3.0` | Mutation-testing tool, run as a native Go command to advisory-score how well the test suite exercises the code. Not a build or CI gate. |

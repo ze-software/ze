@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC Implementation Status - Ze</title>
         <meta name="description" content="Ze documentation: features/rfc-status.md" />
         <meta property="og:title" content="RFC Implementation Status - Ze" />
@@ -213,8 +213,8 @@
 <tr>
 <td>RFC 9234</td>
 <td>BGP Role and OTC</td>
-<td>12 of 19 MUST proven</td>
-<td>interop 1, functional 5, unit 6</td>
+<td>8 of 19 MUST proven</td>
+<td>interop 1, functional 5, unit 2</td>
 <td>RFC9234-5-7, RFC9234-5-8, RFC9234-6-1</td>
 </tr>
 </tbody>
@@ -234,9 +234,9 @@
 <tr>
 <td>RFC 4271</td>
 <td>BGP-4 base protocol</td>
-<td>85 of 133 MUST proven</td>
-<td>interop 4, functional 6, unit 75</td>
-<td>RFC4271-3.1-2, RFC4271-5.1.6-1, RFC4271-5.1.7-1, RFC4271-6.2-3, RFC4271-8.2.1-3, RFC4271-8.2.2-13, RFC4271-9.1.2-1, RFC4271-9.1.2-4, RFC4271-9.1.2.1-2, RFC4271-9.1.2.2-2, RFC4271-9.2-2, RFC4271-9.2-3, RFC4271-9.2.1.1-2, RFC4271-9.2.1.1-3, RFC4271-9.2.2.2-1, RFC4271-9.2.2.2-2, RFC4271-9.2.2.2-3, RFC4271-9.2.2.2-4, RFC4271-9.2.2.2-5</td>
+<td>91 of 133 MUST proven</td>
+<td>interop 4, functional 8, unit 79</td>
+<td>RFC4271-3.1-2, RFC4271-5.1.6-1, RFC4271-5.1.7-1, RFC4271-6.2-3, RFC4271-9.1.2-1, RFC4271-9.1.2.2-2, RFC4271-9.2-2, RFC4271-9.2-3, RFC4271-9.2.1.1-2, RFC4271-9.2.1.1-3, RFC4271-9.2.2.2-1, RFC4271-9.2.2.2-2, RFC4271-9.2.2.2-3, RFC4271-9.2.2.2-4, RFC4271-9.2.2.2-5</td>
 </tr>
 <tr>
 <td>RFC 2545</td>
@@ -255,9 +255,9 @@
 <tr>
 <td>RFC 6608</td>
 <td>BGP FSM Error subcodes</td>
-<td>0 of 3 MUST proven</td>
+<td>3 of 3 MUST proven</td>
+<td>unit 3</td>
 <td>-</td>
-<td>RFC6608-4-1, RFC6608-4-2, RFC6608-4-3</td>
 </tr>
 <tr>
 <td>RFC 8212</td>
@@ -276,15 +276,15 @@
 <tr>
 <td>RFC 9687</td>
 <td>Send Hold Timer</td>
-<td>4 of 13 MUST proven</td>
-<td>unit 4</td>
+<td>13 of 13 MUST proven</td>
+<td>unit 13</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 4760</td>
 <td>Multiprotocol BGP</td>
-<td>6 of 6 MUST proven</td>
-<td>unit 6</td>
+<td>5 of 6 MUST proven</td>
+<td>unit 5</td>
 <td>-</td>
 </tr>
 <tr>
@@ -304,15 +304,15 @@
 <tr>
 <td>RFC 6793</td>
 <td>4-byte AS numbers</td>
-<td>21 of 30 MUST proven</td>
-<td>functional 2, unit 19</td>
-<td>RFC6793-4.1-3</td>
+<td>30 of 30 MUST proven</td>
+<td>functional 2, unit 28</td>
+<td>-</td>
 </tr>
 <tr>
 <td>RFC 7311</td>
 <td>AIGP attribute</td>
-<td>13 of 22 MUST proven</td>
-<td>unit 13</td>
+<td>9 of 22 MUST proven</td>
+<td>unit 9</td>
 <td>-</td>
 </tr>
 <tr>
@@ -332,15 +332,15 @@
 <tr>
 <td>RFC 7606</td>
 <td>Revised UPDATE error handling</td>
-<td>28 of 53 MUST proven</td>
-<td>interop 2, functional 4, unit 22</td>
+<td>33 of 53 MUST proven</td>
+<td>interop 2, functional 5, unit 26</td>
 <td>RFC7606-8-1</td>
 </tr>
 <tr>
 <td>RFC 8950</td>
 <td>Extended Next Hop</td>
-<td>3 of 6 MUST proven</td>
-<td>unit 3</td>
+<td>2 of 6 MUST proven</td>
+<td>unit 2</td>
 <td>-</td>
 </tr>
 <tr>
@@ -360,16 +360,16 @@
 <tr>
 <td>RFC 7607</td>
 <td>Codification of AS 0 processing</td>
-<td>0 of 5 MUST proven</td>
-<td>-</td>
+<td>5 of 5 MUST proven</td>
+<td>unit 5</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 8654</td>
 <td>BGP Extended Message</td>
-<td>9 of 12 MUST proven</td>
-<td>interop 2, unit 7</td>
-<td>RFC8654-5-3</td>
+<td>8 of 12 MUST proven</td>
+<td>interop 2, unit 6</td>
+<td>RFC8654-5-3, RFC8654-5-4</td>
 </tr>
 <tr>
 <td>RFC 9774</td>
@@ -395,15 +395,15 @@
 <tr>
 <td>RFC 8955</td>
 <td>IPv4 FlowSpec</td>
-<td>13 of 29 MUST proven</td>
-<td>unit 13</td>
+<td>14 of 29 MUST proven</td>
+<td>unit 14</td>
 <td>RFC8955-12-2, RFC8955-4-3</td>
 </tr>
 <tr>
 <td>RFC 5575</td>
 <td>BGP Flowspec (obsoleted by RFC 8955)</td>
-<td>2 of 9 MUST proven</td>
-<td>unit 2</td>
+<td>3 of 9 MUST proven</td>
+<td>unit 3</td>
 <td>RFC5575-6-1</td>
 </tr>
 <tr>
@@ -439,14 +439,14 @@
 <td>BGP-LS (obsoletes RFC 7752)</td>
 <td>44 of 59 MUST proven</td>
 <td>functional 1, unit 43</td>
-<td>RFC9552-5.1-7, RFC9552-5.2-5, RFC9552-5.3-1, RFC9552-5.3-2, RFC9552-5.3.2.7-1, RFC9552-5.4-2, RFC9552-8.2.6-2</td>
+<td>RFC9552-5.1-7, RFC9552-5.2-5, RFC9552-5.3-1, RFC9552-5.3-2, RFC9552-5.3.2.7-1, RFC9552-5.4-2, RFC9552-5.5-1, RFC9552-8.2.6-2</td>
 </tr>
 <tr>
 <td>RFC 7752</td>
 <td>BGP-LS</td>
-<td>8 of 26 MUST proven</td>
-<td>unit 8</td>
-<td>RFC7752-3.2-2, RFC7752-3.2-3, RFC7752-3.2.1-1, RFC7752-3.2.1.1-1, RFC7752-3.2.1.1-2, RFC7752-3.2.1.4-1, RFC7752-3.2.1.4-2, RFC7752-3.2.1.5-1, RFC7752-3.3-1, RFC7752-3.3.2.1-1, RFC7752-3.3.2.2-1, RFC7752-3.3.2.7-1, RFC7752-3.3.3-1, RFC7752-6.2.2-1, RFC7752-6.2.6-1, RFC7752-8-1</td>
+<td>7 of 26 MUST proven</td>
+<td>unit 7</td>
+<td>RFC7752-3.2-2, RFC7752-3.2-3, RFC7752-3.2.1-1, RFC7752-3.2.1.1-1, RFC7752-3.2.1.1-2, RFC7752-3.2.1.4-1, RFC7752-3.2.1.4-2, RFC7752-3.2.1.5-1, RFC7752-3.3-1, RFC7752-3.3.2.1-1, RFC7752-3.3.2.2-1, RFC7752-3.3.2.7-1, RFC7752-3.3.3-1, RFC7752-3.4-1, RFC7752-6.2.2-1, RFC7752-6.2.6-1, RFC7752-8-1</td>
 </tr>
 <tr>
 <td>RFC 9085</td>
@@ -528,8 +528,8 @@
 <tr>
 <td>RFC 4456</td>
 <td>Route Reflection</td>
-<td>1 of 4 MUST proven</td>
-<td>unit 1</td>
+<td>0 of 4 MUST proven</td>
+<td>-</td>
 <td>-</td>
 </tr>
 <tr>
@@ -696,15 +696,15 @@
 <tr>
 <td>RFC 4659</td>
 <td>VPNv6</td>
-<td>4 of 18 MUST proven</td>
-<td>interop 1, unit 3</td>
+<td>3 of 18 MUST proven</td>
+<td>interop 1, unit 2</td>
 <td>RFC4659-3.2.1.2-1, RFC4659-4-1, RFC4659-4-2, RFC4659-4-3, RFC4659-4-4, RFC4659-4-5, RFC4659-4-6, RFC4659-4-7, RFC4659-8-1, RFC4659-8-2, RFC4659-8-3, RFC4659-8-4, RFC4659-8-5</td>
 </tr>
 <tr>
 <td>RFC 8277</td>
 <td>BGP Labeled Unicast</td>
-<td>11 of 35 MUST proven</td>
-<td>unit 11</td>
+<td>10 of 35 MUST proven</td>
+<td>unit 10</td>
 <td>RFC8277-2-1, RFC8277-2-3, RFC8277-2.1-1, RFC8277-2.1-10, RFC8277-2.1-11, RFC8277-2.1-12, RFC8277-2.1-13, RFC8277-2.1-14, RFC8277-2.1-15, RFC8277-2.1-2, RFC8277-2.1-3, RFC8277-2.1-4, RFC8277-2.1-5, RFC8277-2.1-6, RFC8277-2.1-7, RFC8277-2.1-8, RFC8277-2.1-9, RFC8277-2.2-2, RFC8277-3.2.1-2, RFC8277-3.2.1-3, RFC8277-3.2.1-4, RFC8277-3.2.2-1, RFC8277-3.2.2-2, RFC8277-3.2.2-3</td>
 </tr>
 <tr>
@@ -843,8 +843,8 @@
 <tr>
 <td>RFC 7084</td>
 <td>IPv6 customer edge router</td>
-<td>19 of 41 MUST proven</td>
-<td>unit 19</td>
+<td>18 of 41 MUST proven</td>
+<td>unit 18</td>
 <td>RFC7084-4.1-3, RFC7084-4.2-14, RFC7084-4.2-15, RFC7084-4.2-16, RFC7084-4.2-20, RFC7084-4.2-22, RFC7084-4.2-9, RFC7084-4.3-10, RFC7084-4.3-11, RFC7084-4.3-12, RFC7084-4.3-14, RFC7084-4.3-19, RFC7084-4.3-2, RFC7084-4.3-3, RFC7084-4.3-5, RFC7084-4.3-6</td>
 </tr>
 </tbody>
@@ -978,13 +978,13 @@
 <tr>
 <td>draft-ietf-idr-linklocal-capability</td>
 <td>Link-local next-hop capability code 77</td>
-<td>13 of 15 MUST proven</td>
+<td>10 of 15 MUST proven</td>
 <td>DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-1-2, DRAFT-IETF-IDR-LINKLOCAL-CAPABILITY-4-15</td>
 </tr>
 <tr>
 <td>draft-ietf-sidrops-aspa-verification</td>
 <td>ASPA path verification</td>
-<td>8 of 10 MUST proven</td>
+<td>9 of 10 MUST proven</td>
 <td>DRAFT-IETF-SIDROPS-ASPA-VERIFICATION-5.1-2</td>
 </tr>
 <tr>
@@ -1192,8 +1192,8 @@
 <tr>
 <td>RFC 7296</td>
 <td>IKEv2</td>
-<td>89 of 234 MUST proven</td>
-<td>interop 1, functional 1, unit 87</td>
+<td>90 of 234 MUST proven</td>
+<td>interop 1, functional 1, unit 88</td>
 <td>-</td>
 </tr>
 <tr>
@@ -1647,8 +1647,8 @@
 <tr>
 <td>RFC 1661</td>
 <td>PPP LCP</td>
-<td>35 of 76 MUST proven</td>
-<td>interop 4, unit 31</td>
+<td>47 of 76 MUST proven</td>
+<td>interop 4, unit 43</td>
 <td>RFC1661-2-2, RFC1661-3.4-1, RFC1661-3.5-2, RFC1661-3.5-4, RFC1661-3.7-2, RFC1661-4.3-3, RFC1661-4.4-1, RFC1661-5-1, RFC1661-5.3-4, RFC1661-5.7-2, RFC1661-5.9-1, RFC1661-5.9-3, RFC1661-6.5-3</td>
 </tr>
 <tr>
@@ -1675,15 +1675,15 @@
 <tr>
 <td>RFC 1332</td>
 <td>IPCP</td>
-<td>6 of 8 MUST proven</td>
-<td>unit 6</td>
+<td>5 of 8 MUST proven</td>
+<td>unit 5</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 1334</td>
 <td>PAP</td>
-<td>12 of 13 MUST proven</td>
-<td>unit 12</td>
+<td>10 of 13 MUST proven</td>
+<td>unit 10</td>
 <td>-</td>
 </tr>
 <tr>
@@ -1780,15 +1780,15 @@
 <tr>
 <td>RFC 2865</td>
 <td>RADIUS authentication</td>
-<td>27 of 31 MUST proven</td>
-<td>unit 27</td>
+<td>26 of 31 MUST proven</td>
+<td>unit 26</td>
 <td>-</td>
 </tr>
 <tr>
 <td>RFC 2866</td>
 <td>RADIUS accounting</td>
-<td>8 of 15 MUST proven</td>
-<td>functional 1, unit 7</td>
+<td>7 of 15 MUST proven</td>
+<td>functional 1, unit 6</td>
 <td>-</td>
 </tr>
 <tr>
@@ -1829,8 +1829,8 @@
 <tr>
 <td>RFC 2869</td>
 <td>RADIUS extensions</td>
-<td>4 of 8 MUST proven</td>
-<td>unit 4</td>
+<td>6 of 8 MUST proven</td>
+<td>unit 6</td>
 <td>-</td>
 </tr>
 <tr>
@@ -1920,8 +1920,8 @@
 <tr>
 <td>RFC 6811</td>
 <td>RPKI origin validation</td>
-<td>1 of 5 MUST proven</td>
-<td>unit 1</td>
+<td>5 of 5 MUST proven</td>
+<td>functional 1, unit 4</td>
 <td>-</td>
 </tr>
 <tr>
@@ -2037,7 +2037,7 @@
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:41 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

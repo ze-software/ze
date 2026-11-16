@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Operations - Ze</title>
         <meta name="description" content="Ze documentation: guide/operations.md" />
         <meta property="og:title" content="Operations - Ze" />
@@ -434,6 +434,19 @@ make Ze unattractive to its neighbours before the sessions close, and Ze waits
 for the answers. The wait ends at the latest 60 s after the stop began. Only
 then does teardown start, and BGP sends Cease (Administrative Shutdown) to every
 peer. With no drain-registered plugin the stop is as fast as it was.</p>
+<p><code>ze start</code> exits 0 after a stop nothing failed in. A stop a plugin caused
+exits 1, as a refused startup does: a plugin under the <code>fatal</code> policy failed,
+or a plugin declares it must not be restarted while its block asks for
+<code>respawn true</code>. The error ze writes to stderr names the plugin and the reason,
+so <code>Restart=on-failure</code> restarts ze and a script sees the failure. For a
+<code>fatal</code> plugin its fix is <code>ze doctor</code>; when the store could not record the
+stop, doctor cannot name it, and the error sends you to the ze log lines that
+name the plugin instead. For the respawn disagreement the fix is the config
+change: remove the <code>respawn</code> leaf, or run a plugin that declares <code>restart</code>. A fatal plugin that fails on every boot therefore restarts
+ze in a loop under <code>Restart=on-failure</code> until systemd's start limit
+(<code>StartLimitBurst</code> within <code>StartLimitIntervalSec</code>) stops it. A plugin that
+exits after the stop has begun does not change its exit status. A forced exit
+(a signal during teardown) is also 1.</p>
 <p><code>ze signal restart</code>, <code>ze signal reboot</code> and <code>request reboot</code> drain with kind
 <code>restart</code>: BGP sessions are dropped without a Cease so peers keep the routes for
 graceful restart. Any IGP wait during that drain runs while BGP peers hold the
@@ -1111,7 +1124,7 @@ ze signal quit                 # goroutine dump (kills daemon!)
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 20:44 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

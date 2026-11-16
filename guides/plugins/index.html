@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>Plugins - Ze</title>
         <meta name="description" content="Ze documentation: guide/plugins.md" />
         <meta property="og:title" content="Plugins - Ze" />
@@ -317,7 +317,7 @@ what its own failure means, and ze does that.</p>
 </tr>
 <tr>
 <td><code>fatal</code></td>
-<td>stops ze</td>
+<td>stops ze, which exits 1 so a service manager sees a failure</td>
 </tr>
 <tr>
 <td>nothing</td>
@@ -1046,8 +1046,14 @@ address. A session whose events named it nothing is selected by no name.</p>
 <td>eBPF TCX per-(port, protocol) and opt-in per-IP byte accounting (IPv4, monitoring only). Pure-Go assembled eBPF (cilium/ebpf asm.Instructions, no C/clang). Prometheus <code>ze_traffic_usage_*</code> metrics, <code>show traffic usage [name &lt;interface&gt;]</code>. Linux &gt;= 6.6. <a href="../traffic-usage/">Guide</a></td>
 <td>-- (Config-driven, Bus events)</td>
 </tr>
+<tr>
+<td><code>container</code></td>
+<td>OCI containers run by Ze itself, configured under <code>container { instance &lt;name&gt; }</code>. Today the plugin holds the config root with the <code>enabled</code> leaf, the command <code>request container restart name &lt;name&gt;</code>, its doctor codes and the kernel requirement for a hard CPU limit. No build starts a container yet: a config that enables one is refused, with the statement that disables it. Compile-out-able with the <code>ze_container</code> build tag <!-- source: feature-gates.txt -- ze_container --></td>
+<td>-- (Config-driven)</td>
+</tr>
 </tbody>
 </table>
+<!-- source: internal/plugins/container/register.go -- registerContainer -->
 <!-- source: internal/plugins/trafficusage/register.go -- traffic-usage registration -->
 <!-- source: internal/plugins/policyroute/register.go -- policy-routes registration -->
 <!-- source: internal/component/sysctl/register.go -- sysctl registration -->
@@ -1083,7 +1089,7 @@ address. A session whose events named it nothing is selected by no name.</p>
 </tr>
 <tr>
 <td><code>l2tp-pool</code></td>
-<td>Bitmap-backed IPv4 address pool with default and named pools; Framed-IP-Address bypasses pool (direct RADIUS IP assignment), Framed-Pool selects a named pool; IPCP DNS from the pool's <code>dns-source</code> list (default <code>source [ radius configured received ]</code>: the Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server, else <code>dns-primary</code>/<code>dns-secondary</code>, else the learned resolvers)</td>
+<td>Bitmap-backed IPv4 address pool with default and named pools; Framed-IP-Address chooses an address and reserves any containing pool, Framed-Pool selects the gateway and DNS profile; IPCP DNS from the pool's <code>dns-source</code> list (default <code>source [ radius configured received ]</code>: the Access-Accept's MS-Primary-DNS-Server and MS-Secondary-DNS-Server, else <code>dns-primary</code>/<code>dns-secondary</code>, else the learned resolvers)</td>
 </tr>
 <tr>
 <td><code>l2tp-shaper</code></td>
@@ -1091,6 +1097,10 @@ address. A session whose events named it nothing is selected by no name.</p>
 </tr>
 </tbody>
 </table>
+<p>The pool applies committed range edits while subscribers remain connected.
+It reserves live assignments in the replacement pools and retains an
+assignment whose range was removed until that subscriber ends its session.</p>
+<!-- source: internal/component/l2tp/plugins/pool/reload.go -- installPoolConfiguration -->
 <p>These plugins register via the L2TP handler registry (<code>RegisterAuthHandler</code>,
 <code>RegisterPoolHandler</code>) at init time. Only one auth handler is active at a
 time (last registered wins). The pool and shaper plugins subscribe to
@@ -1099,6 +1109,7 @@ session lifecycle events via the EventBus.</p>
 <!-- source: internal/component/l2tp/plugins/authlocal/register.go -->
 <!-- source: internal/component/l2tp/plugins/authradius/register.go -->
 <!-- source: internal/component/l2tp/plugins/pool/register.go -->
+<!-- source: internal/component/l2tp/plugins/pool/radius.go -- reserveRADIUSAddressLocked -->
 <!-- source: internal/component/l2tp/plugins/shaper/register.go -->
 <p>The <code>iface</code> plugin defines a <code>Backend</code> interface and loads a backend by name (YANG
 <code>backend</code> leaf, default <code>netlink</code>). The <code>iface-netlink</code> backend handles all Linux
@@ -1903,14 +1914,18 @@ changed attributes. See the <a href="../command-reference/">command reference</a
 <pre><code>plugin {
     hub {
         server local {
-            host 127.0.0.1;
+            ip 127.0.0.1;
             port 0;                               # auto-assign port
             secret change-this-token-to-at-least-32-chars;  # TLS auth token
         }
     }
 }
 </code></pre>
-<!-- source: internal/component/hub/yang/ -- hub config YANG schema; pkg/plugin/sdk/ -- TLS auth -->
+<!-- source: internal/component/plugin/yang/ze-plugin-conf.yang -->
+<p>Ze validates an explicit hub configuration before starting its components.
+An invalid block stops startup with its name, the reason and a repair command.
+Removing the hub settings selects automatic local transport when a plugin needs it.</p>
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
 <h2 id="writing-external-plugins">Writing External Plugins</h2>
 <p>External plugins communicate with Ze through the same newline-framed YANG RPC
 protocol as internal plugins: <code>#&lt;id&gt; &lt;verb&gt; [json]</code>. External processes connect
@@ -2103,8 +2118,8 @@ edge fails by name.</p>
 <!-- source: internal/component/plugin/all/policy_dependency_test.go -- TestFilterAttachmentOwnersDependOnPolicy -->
 <p>The BGP filter-type plugins (<code>bgp-filter-prefix</code>, <code>bgp-filter-family</code>,
 <code>bgp-filter-modify</code>, <code>bgp-filter-aspath</code>, <code>bgp-filter-aspath-length</code>,
-<code>bgp-filter-community-match</code>, <code>bgp-filter-remove-private-as</code>,
-<code>bgp-filter-path-asn</code> and <code>bgp-filter-irr</code>) own the <code>bgp</code> root
+<code>bgp-filter-community-match</code>, <code>bgp-filter-remove-private-as</code> and
+<code>bgp-filter-path-asn</code>) own the <code>bgp</code> root
 (<code>ConfigRoots ["bgp"]</code>) and read the <code>policy</code> root (<code>ConfigReads ["policy"]</code>),
 where their named instances live. They serve BGP chains only, so a <code>bgp { }</code>
 block loads them, and a config holding <code>policy</code> with no <code>bgp</code> block loads
@@ -2115,11 +2130,16 @@ their BGP settings. A Loc-RIB chain naming a <code>prefix-list</code>, <code>mod
 <code>family-filter</code> does not need these plugins running: its evaluators are linked
 in and run inside the <code>policy</code> plugin (see <a href="https://github.com/ze-software/ze/blob/main/docs/guide/route-policy.md" target="_blank" rel="noopener">Route policy</a>).
 <code>TestPolicyOnlyConfigLoadsNoBGP</code> derives the plugins a policy-only config
-selects from the registry and refuses one that depends on <code>bgp</code>.</p>
+selects from the registry and refuses one that depends on <code>bgp</code>.
+<code>bgp-filter-irr</code> owns the <code>bgp</code> root and depends on the <code>irr</code> plugin, which
+fetches, schedules and stores the IRR prefix lists it enforces, so a config
+using the filter starts <code>irr</code> before it; the filter fetches nothing itself and
+reads the stored lists
+(see <a href="../irr-filtering/">IRR filtering</a>, "After a restart").</p>
 <!-- source: internal/component/bgp/plugins/filter_family/register.go -- ConfigRoots, ConfigReads -->
 <!-- source: internal/component/plugin/all/policy_dependency_test.go -- TestPolicyOnlyConfigLoadsNoBGP -->
 <!-- source: internal/component/policy/rib_compile.go -- compileRIBEvaluator -->
-<!-- source: internal/component/bgp/plugins/filter_irr/register.go -- ConfigRoots, ConfigReads -->
+<!-- source: internal/component/bgp/plugins/filter_irr/register.go -- ConfigRoots, Dependencies -->
 <!-- source: internal/component/policy/section.go -- SectionsParser -->
 <p><code>StartAfter</code> is separate from either kind of dependency. It orders two plugins
 only when both are already selected and never activates its target. BFD starts
@@ -2267,7 +2287,7 @@ backend. Cycles among selected plugins are refused for order-only edges too.</p>
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 11:10 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

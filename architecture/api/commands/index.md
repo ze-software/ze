@@ -84,7 +84,7 @@ produce continuously-updating output.
 | Group | start, end (batching) |
 | Monitor | monitor bgp (TUI dashboard), monitor event (live event streaming), monitor system netlink (kernel events) |
 | Subscribe | request subscribe, request unsubscribe (event filtering) |
-| OSPF | show ospf neighbor, interface, database, route, border-routers, spf |
+| OSPF | show ospf neighbor, interface, database, route, border-routers, spf; for OSPFv3, show ospf ipv6 neighbor, interface, database, route, spf, graceful-restart, segment-routing, each answering every running address family and taking `address-family <af>` to narrow |
 | Reports | show warnings, show errors (cross-subsystem operational report bus) |
 <!-- source: internal/component/plugin/server/command.go -- AllBuiltinRPCs -->
 <!-- source: internal/plugins/ospf/register.go -- sdk.CommandDecl show ospf commands -->
@@ -543,7 +543,7 @@ streaming-only, TUI-only, daemon-path and modeled declarations. Each surface pro
 gap or an offer the predicate refuses, naming the command, the surface, the
 kind and the expected answer.
 
-| Registration | SSH, `ze cli` | Shell completion (`ze <verb>`) | Web admin, web completion, MCP, REST, gRPC |
+| Registration | SSH, browser CLI completion, `ze cli` | Shell completion (`ze <verb>`) | Web admin, MCP, REST, gRPC |
 |--------------|---------------|--------------------------------|--------------------------------------------|
 | Hidden (a plugin command declared `Hidden`) | Not offered | Not offered | Not offered. It still runs when typed in full |
 | Builtin RPC, local, local-data | Offered | Offered | Offered: the daemon serves each through its handler |
@@ -989,9 +989,10 @@ The surface parity check starts the plugin that declares the command before it
 asks.
 
 The surface predicate (`command.AnswerSurface`) reads the declaration, so the
-MCP, REST and gRPC command list, the web admin tree and the web terminal
-completer leave a streaming-only command out, and the surface parity check
-fails a sample command whose one-shot answer carries no data.
+MCP, REST and gRPC command list and the web admin tree leave a streaming-only
+command out. The browser terminal completer offers it because that terminal
+has a streaming transport. The surface parity check fails a sample command
+whose one-shot answer carries no data.
 
 The refusal is decided once, from the declaration, on both one-shot routes: the
 dispatcher (`Dispatcher.Dispatch`, which MCP, REST, gRPC, the web console and a
@@ -1007,8 +1008,19 @@ route ever skipped the refusal, never a reply.
 
 #### Where a monitor command streams
 
-Every monitor command streams live on the four terminal surfaces. Each surface
+Every monitor command streams live on the terminal surfaces below. Each surface
 branches on a registry, never on a command name:
+
+Registered rich views also expose an internal request-scoped headless driver,
+`cli.RunBrowserView`. The caller supplies an authenticated factory binding and
+bounded action/frame channels; view owners declare the controls and retain the
+same model state, key handlers and data producers as the terminal. This driver
+is a rendering/interaction seam; the browser transport still determines which
+route opens it. It does not authorize commands or replace the dispatcher.
+Dashboard detail failures appear in the shared view error zone, including a
+denied detail request.
+<!-- source: internal/component/cli/view_browser.go -- RunBrowserView -->
+<!-- source: internal/component/cli/model_dashboard.go -- fetchPeerDetail -->
 
 | Surface | Route |
 |---------|-------|
@@ -1016,6 +1028,7 @@ branches on a registry, never on a command name:
 | `ze cli -c "monitor ..."` | The client streams when `pluginserver.IsStreamingCommand` holds (`internal/component/cli/client/main.go`) |
 | SSH interactive and the `ze cli` TUI | The model opens a registered live view first (the `monitor bgp` dashboard, the `monitor ping` and `monitor traceroute` views), then a streaming session for any other streaming command (`internal/component/cli/model_keys.go`) |
 | `ze monitor ...` | A registered local handler runs its live loop in-process (`monitor ping`, `monitor traceroute`), and any other command goes through `ze cli -c` |
+| Browser CLI | `/cli/stream` checks the same streaming registry, then runs the judged raw handler through `serverStreamDispatcher`. A consumer negotiating `application/x-ze-cli-view+ndjson` can instead drive the registered shared view. Both use `serverStreamCommand` admission with the browser identity, accepted authorization policy and command accounting; other commands keep the normal terminal response |
 
 The streaming handlers of the three commands that also own a live view:
 
@@ -1032,6 +1045,8 @@ a surface would answer once instead of streaming.
 <!-- source: internal/component/ping/cmd/monitor.go -- streamMonitorPing, handleMonitorPing, writePingRows -->
 <!-- source: internal/component/traceroute/cmd/monitor.go -- streamMonitorTraceroute, writeTracerouteRounds -->
 <!-- source: cmd/ze/hub/monitor_streams_test.go -- TestEveryMonitorCommandStreams -->
+<!-- source: cmd/ze/hub/server_stream.go -- serverStreamDispatcher -->
+<!-- source: internal/component/web/cli_stream.go -- HandleCLITerminalStream -->
 
 #### Netlink Monitor
 
@@ -1498,6 +1513,13 @@ A chain the answer's shape cannot support is refused AFTER the command has run, 
 `clear bgp rib out` and `clear bgp rib advertised` act on the same table in opposite ways. `out` is bgp-rib's replay: it resends what each peer was sent, configured routes included, one family at a time, and brackets each family with a BoRR before and an EoRR after (RFC 7313 Section 4, a locally initiated refresh). The engine sends the two markers only to a peer that advertised Enhanced Route Refresh; a family with nothing in the Adj-RIB-Out gets no bracket. `advertised` is the engine's: it withdraws every route the session's Adj-RIB-Out holds, configured routes included, and forgets the peer's configured set, so a later reload sends it again. The withdrawals take the local withdraw rail, so bgp-rib drops each route from its own copy and a later `out` does not bring it back. A labeled route (RFC 8277, RFC 3107) is withdrawn with the Section 2.4 Compatibility field 0x800000, rebuilt from the table key, which holds no label stack. A family whose key cannot be written back as the withdrawn NLRI is refused by name rather than guessed. A selector that matches no peer is an error.
 <!-- source: internal/component/bgp/reactor/reactor_api_advertised.go -- WithdrawAdvertised, adjOutWithdrawalNLRI -->
 <!-- source: internal/component/bgp/plugins/cmd/peer/advertised.go -- handleRibClearAdvertised -->
+
+Before `clear bgp rib out` starts replay, bgp-rib applies its queued events.
+The replay command then uses the same plugin process and connection.
+Both operations share the command deadline. A failed event, stopped owner or
+changed connection refuses the replay before the command is sent.
+<!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- forwardRibClearOut -->
+<!-- source: internal/component/plugin/server/command.go -- ForwardToPluginAfterEvents, drainCommandEvents -->
 
 RIB route filters such as `received`, `advertised`, `peer`, `family`, `prefix`, `path`, and `community` are command-specific filters registered by the RIB command and folded into the RIB iterator request before route output is generated.
 
@@ -2226,7 +2248,12 @@ A value is never quoted when its argument is a credential keyword
 (`newValueFault`), and the whole-command fix writes `<redacted>` for a valid
 value typed after such a keyword (`wholeCommand`), as the recorded command line
 holds it.
+The shared validator refuses the exact `<redacted>` placeholder for these
+credential arguments before dispatch, using the same value-fault path and a
+correction that asks for the real value. A noncredential argument may contain
+that literal text.
 <!-- source: internal/component/command/argvalue.go -- newValueFault -->
+<!-- source: internal/component/command/argvalidate.go -- ValidateArgString -->
 <!-- source: internal/component/command/argfaults.go -- wholeCommand -->
 <!-- source: internal/core/redact/redact.go -- IsCredentialKeyword -->
 Concrete corrections retain their literal identity separately from placeholders:
@@ -2485,9 +2512,12 @@ server builds the input from its lister, which carries no type. A positional tok
 command still goes to the definition whose type constrains it most
 (`positionalDef`).
 
-Runtime-dynamic hints (e.g., address families from plugin registry) remain as
-`ValueHints` callbacks. Static hints (log levels, FD limit "max") are
-YANG-declared and served through ArgDefs.
+In-process hints (e.g., registered address families) remain `ValueHints`
+callbacks. Caller-bound runtime argument queries use `ArgumentHints`, which
+receives the completed values and current partial and returns candidates or an
+error. Static hints (log levels, FD limit "max") are YANG-declared and served
+through ArgDefs. Static candidates win duplicate live names for the first
+argument; subsequent arguments use the argument-aware producer alone.
 <!-- source: internal/component/command/node.go -- Node.ArgDefs -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocation -->
 <!-- source: internal/component/config/yang/command.go -- extractArgDefs -->
@@ -2503,14 +2533,21 @@ each path into the tree as completion-only nodes. The merge is non-destructive:
 an existing YANG node keeps its `WireMethod` and description, so a plugin command
 never shadows a builtin at the completion layer (mirroring dispatch precedence).
 
-- **SSH** rebuilds the tree per session and merges eagerly
-  (`session_factory.go` `mergePluginCommands`), so each session reflects the
-  current registry. A plugin that has exited is absent from the next session.
+- **SSH** keeps the YANG tree per session and overlays the live plugin registry
+  on each completion or explanation (`pluginAwareCommandCompleter`). Its
+  argument queries use the authenticated executor with the session's context
+  and authorization generation, so a departed plugin is absent immediately.
 - **Web** builds a throwaway overlay from the current registry for each
   `/cli/complete` request (`web_completer.go` `pluginAwareCommandCompleter`).
   The shared YANG tree stays immutable. The hub binds the web listener after
   plugin startup and the initial registry freeze. The per-request overlay
   reflects plugins that a later reload adds or removes.
+
+SSH, web and the attached console share `command.ArgumentSuggestions`, the
+query writer and decoder for `system command complete args`. The daemon checks
+the target command's policy before reading runtime values. Plugin completion
+inherits the caller's deadline and cancellation; denied, canceled and failed
+queries remain failures rather than empty successful inventories.
 - **Shell completion** (`ze completion words`) runs in a standalone CLI process
   with no daemon, so it stays YANG-only; the daemon's `system command complete`
   RPC completes plugin commands directly from the registry (`Registry().Complete`).
@@ -2552,9 +2589,12 @@ per-subsystem switch. The BGP reactor auto-registers TWO quiescers when it
 attaches to the server (`registerReactorQuiescer`): `bgp-forward-pool` (the
 reactor's `FlushForwardPool`, draining post-establishment forwarded routes) and
 `bgp-peer-sync` (`DrainPeerSync`, draining each peer's initial-sync opQueue,
-which goes DIRECT to the session and bypasses the forward pool). Each drain is
-bounded by a per-subsystem timeout, so a wedged subsystem yields an error naming
-it instead of hanging the daemon.
+which goes DIRECT to the session, and outstanding route decisions and writes
+that can outlive the forward pool). Each drain is bounded by a per-subsystem
+timeout, so a wedged subsystem yields an error naming it instead of hanging
+the daemon.
+<!-- source: internal/component/plugin/server/quiesce.go -- registerReactorQuiescer, quiesceAll -->
+<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- syncOwed, routeDecisionOwed -->
 
 Invocation note: `request quiesce` and `request peer <sel> flush` are api-yang
 RPCs reached through **dispatch-command**, not as direct wire methods. A plugin
@@ -2565,16 +2605,33 @@ returns "unknown method" because `dispatchPluginRPC` routes only
 
 Extension point: Layer 2/3 subsystems (a kernel-FIB quiescer, a tc/qdisc
 quiescer) register into the same registry and `request quiesce` drains them with
-no change to the barrier. `wait_for_ack` is now a thin, sleepless wrapper over
-this barrier: the two BGP quiescers together cover the forward pool AND the
-per-peer initial-sync drain, so a route sent during establishment is on the wire
-(past its EOR) before the barrier returns.
+no change to the barrier. `wait_for_ack` is a thin, sleepless wrapper over
+this barrier. The two BGP quiescers together cover the forward pool and the
+per-peer initial-sync and route-decision drain. The wrapper therefore also
+waits for cold recovery and a pending replacement flush.
+<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- syncOwed, routeDecisionOwed -->
 
 **What `bgp-peer-sync` waits for.** A peer is settled only when it owes none
-of these: routes queued before its session came up, its initial sync, its
-End-of-RIB, a peer-up replay that has not reported done, a policy change still
-re-sending its routes, and forwarded items its worker has not written yet. The
-End-of-RIB waits for no route process (owner ruling, 2026-09-18), so a route
+of the following work:
+
+- Routes queued before its session came up.
+- Its initial sync and End-of-RIB.
+- A peer-up replay that has not reported done.
+- A policy change that still re-sends its routes.
+- Forwarded items its worker has not written yet.
+- The current session's owed route decisions or pending destination-table writes.
+<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- syncOwed, routeDecisionOwed -->
+
+The route-decision check waits for cold recovery even when no forward item is
+queued. A local takeover can remove an owed record before it flushes its useful
+replacement, so the pending write keeps the barrier closed too. The recovery
+worker's stop alone does not settle a live session's owed key. A decision or
+destination-table reset settles that key. A reset or rebound table contributes
+no route-decision debt for the captured session. Queued forwards still have
+their separate drain.
+<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- routeDecisionOwed -->
+
+The End-of-RIB waits for no route process (owner ruling, 2026-09-18), so a route
 server's, reflector's or RIB's peer-up replay can still be passing after the
 marker. The replay fence covers that replay: it is up on an Established peer
 until every process that declared it (`FencesLiveForwards`: bgp-rs, bgp-rr,
@@ -2604,7 +2661,7 @@ was absent until 2026-09-19, and until then a caller could quiesce, be told
 
 <!-- source: internal/component/plugin/server/quiesce.go -- Quiescer, QuiescerRegistry, quiesceAll, handleQuiesce, registerReactorQuiescer -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync, peersSynced; peer.go pendingSync, handshakeInFlight -->
-<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- peerSyncOwed, syncOwed, replayFenceUnreported, peerSyncOwedError -->
+<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- peerSyncOwed, syncOwed, routeDecisionOwed, replayFenceUnreported, peerSyncOwedError -->
 <!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request/quiesce -> ze-plugin:system-quiesce -->
 
 ### Peer Selector Parsing
@@ -3417,6 +3474,9 @@ nothing.
 `registerPluginShapes` then writes under `startupRegistrationMu`, between the
 pipe aliases and the runtime families, and joins the same unwind.
 `UnregisterPluginShapes` takes the whole declaration back when the plugin stops.
+The conversion from a `CommandDecl` to what the registries hold is one function,
+`command.PluginShapesFromDecls`. A test that renders a plugin's answers under the
+plugin's own declarations calls it too, so it registers the same shapes as Stage 1.
 
 **A plugin can never panic the daemon with a declaration.** The three registries
 keep the panic on `declare`, which only Go compiled into the daemon reaches. The
@@ -3436,7 +3496,7 @@ table above records, for the same reason.
 
 <!-- source: pkg/plugin/rpc/types.go -- CommandDecl -->
 <!-- source: internal/component/plugin/server/startup.go -- validateShapeDecls, validateDeclaredFieldName, registerPluginShapes -->
-<!-- source: internal/component/command/answer_shape.go -- RegisterPluginShapes, UnregisterPluginShapes -->
+<!-- source: internal/component/command/answer_shape.go -- PluginShapesFromDecls, RegisterPluginShapes, UnregisterPluginShapes -->
 <!-- source: internal/component/command/column_order.go -- declarationRegistry, declare, declareFor, withdraw -->
 <!-- source: internal/component/command/completer.go -- completeDisplayFields, completePipeForCommand -->
 <!-- source: internal/component/bgp/plugins/cmd/rib/rib.go -- registerPipeFilters, registerRibAnswerShapes -->

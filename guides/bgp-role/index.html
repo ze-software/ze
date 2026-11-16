@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>BGP Role (RFC 9234) - Ze</title>
         <meta name="description" content="Ze documentation: guide/bgp-role.md" />
         <meta property="og:title" content="BGP Role (RFC 9234) - Ze" />
@@ -312,6 +312,15 @@ operator-selected export set.</p>
 <p>Suppression is not bounded by the second rule: a route that already carries OTC
 is withheld from a Provider, Peer, or RS whether or not this particular UPDATE
 advertises it.</p>
+<p>On an external session between two public ASNs, an advertised route carrying
+a Private Use OTC is also withheld. This enforces the Internet-facing boundary
+without rewriting the attribute: a public upstream OTC remains unchanged, as
+do OTC values on internal sessions and sessions involving a private ASN.
+The check reads the declared session kind, so a local-AS migration session
+classified as internal remains internal even when its AS numbers differ.
+Withdrawal-only messages are outside this boundary check.</p>
+<!-- source: internal/component/bgp/plugins/role/otc.go -- privateOTCLeavesPublicAS, otcPrivateASN -->
+<!-- source: internal/component/bgp/plugins/role/otc_filter.go -- otcFilterDecls, viewOTCSession, fieldsOTCSession -->
 <h2 id="export-set">Export Set</h2>
 <p><code>role { export [ ... ] }</code> names the destination roles that can receive routes from this peer. It is operator policy on top of the RFC gates, and it applies only when the SOURCE peer states it.</p>
 <table>
@@ -390,11 +399,14 @@ advertises it.</p>
 </tr>
 <tr>
 <td><code>ze_role_route_suppressions_total</code></td>
-<td><code>otc-present</code>, <code>source-role</code>, <code>export-set</code>, <code>role-unrecorded</code></td>
+<td><code>otc-present</code>, <code>private-otc</code>, <code>source-role</code>, <code>export-set</code>, <code>role-unrecorded</code></td>
 </tr>
 </tbody>
 </table>
-<p>The label set is bounded at six series per metric. Peer identity is in the log line, never in a label.</p>
+<p>The label set is bounded at seven series per metric. Peer identity is in the log line, never in a label.</p>
+<p><code>private-otc</code> identifies a route withheld at public eBGP egress because its OTC
+still names a Private Use ASN. The route remains available to destinations
+inside that private domain; its attribute is not replaced or removed.</p>
 <!-- source: internal/component/bgp/plugins/role/metrics.go -- recordDrop, dropReasonLabels -->
 <p><code>role-unrecorded</code> and <code>export-set</code> both mean the destination was outside the export set. They are counted apart because they call for opposite actions: <code>export-set</code> points at the policy, and <code>role-unrecorded</code> points at validate-open.</p>
 <h2 id="strict-mode">Strict Mode</h2>
@@ -552,7 +564,7 @@ because RFC 7454 is a Best Current Practice: name it as
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 14 November 2026 02:34 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>

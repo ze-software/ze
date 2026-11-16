@@ -3,7 +3,7 @@
     <head>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>
+        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>
         <title>RFC 5492 requirements and tests - Ze</title>
         <meta name="description" content="RFC 5492: Capabilities Advertisement with BGP-4. 9 mandatory requirements included in automatic checks, 1 declared gaps (0 demonstrated by a test), 0 with no test." />
         <meta property="og:title" content="RFC 5492 requirements and tests - Ze" />
@@ -447,12 +447,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_test.go#L1173" title="internal/component/bgp/reactor/session_test.go" target="_blank" rel="noopener"><code>TestBuildUnsupportedCapabilityDataCodes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L389" title="internal/component/bgp/reactor/session_validate_test.go" target="_blank" rel="noopener"><code>TestBuildUnsupportedCapabilityDataCodes_MultipleCodes</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L63" title="internal/component/bgp/reactor/rfc5492_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC5492UnsupportedCapabilityDataListsTheCausingSet</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L315" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedAddPathNotificationPreservesFamilyTuples</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L226" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedCapabilityNotificationPreservesOpenTuples</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L320" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedAddPathNotificationPreservesFamilyTuples</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L230" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedCapabilityNotificationPreservesOpenTuples</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/session_validate_test.go#L413" title="internal/component/bgp/reactor/session_validate_test.go" target="_blank" rel="noopener"><code>TestBuildUnsupportedCapabilityDataCodes_Empty</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_reactor_b_test.go#L64" title="internal/component/bgp/reactor/rfc5492_reactor_b_test.go" target="_blank" rel="noopener"><code>TestRFC5492UnsupportedCapabilityDataListsTheCausingSet</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L316" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedAddPathNotificationPreservesFamilyTuples</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L227" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedCapabilityNotificationPreservesOpenTuples</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L321" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedAddPathNotificationPreservesFamilyTuples</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L231" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedCapabilityNotificationPreservesOpenTuples</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-1">RFC5492-4-1</code></td><td colspan="3"><span class="rfc-subject">Note, however, that processing of multiple instances of such capability does not require special handling, as additional instances do not change the meaning of the announced capability; thus, a BGP speaker MUST be prepared to accept such multiple instances. (§4)</span></td></tr>
@@ -461,7 +461,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4 - Capabilities Optional Parameter (Parameter Type 2)</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-4-1">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L310" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseAcceptsMultipleIdenticalCapabilityInstances</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L143" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L147" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>no test</code></span><span role="cell">no negative test</span></div>
 </div><p class="rfc-mark"><strong>{single-polarity}:</strong> ze&#39;s capability parser appends every capability TLV without dedup or reject (internal/core/bgp/capability/capability.go:177), so multiple identical instances are all accepted; there is no reject path, so no negative case exists</p></td>
 </tr>
@@ -471,9 +471,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>4 - Capabilities Optional Parameter (Parameter Type 2)</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-4-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L341" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseFromOptionalParamsMultipleCapabilitiesParameters</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L173" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492CapabilitiesSpreadOverSeveralParameters</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L177" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492CapabilitiesSpreadOverSeveralParameters</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L267" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestOptionalParamRejectsTruncatedCapabilityTLV</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L201" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L205" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-3-2">RFC5492-3-2</code></td><td colspan="3"><span class="rfc-subject">If a BGP speaker receives from its peer a capability that it does not itself support or recognize, it MUST ignore that capability. (§3)</span></td></tr>
@@ -482,9 +482,9 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>3 - Overview of Operations</td>
 <td><div class="rfc-tests" role="table" aria-label="tests bound to RFC5492-3-2">
 <div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L184" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseUnknownCapability</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L90" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">positive</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L94" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession</code></a></span></div>
 <div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/core/bgp/capability/capability_test.go#L233" title="internal/core/bgp/capability/capability_test.go" target="_blank" rel="noopener"><code>TestParseRejectsMalformedKnownCapabilityLength</code></a></span></div>
-<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L117" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492UnrecognizedCapabilityNeverReadAsKnown</code></a></span></div>
+<div class="rfc-tests-row" role="row"><span role="cell">negative</span><span role="cell"><code>unit/verify</code></span><span role="cell"><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L121" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492UnrecognizedCapabilityNeverReadAsKnown</code></a></span></div>
 </div></td>
 </tr>
 <tr class="rfc-span"><td class="rfc-subject-id"><code id="rfc5492-4-3">RFC5492-4-3</code></td><td colspan="3"><span class="rfc-subject">Processing of these capability instances is specific to the Capability Code and MUST be described in the document introducing the new capability. (§4)</span></td></tr>
@@ -637,18 +637,18 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 </div>
 <h3><a href="#rfc5492-5-1"><code>RFC5492-5-1</code></a></h3>
 <p>The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message. Each such capability is encoded in the same way as it would be encoded in the OPEN message. (§5)</p>
-<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. Independently rejudged both RFC5492 Section 5 sentences, requiring the complete causing set and each capability&#39;s OPEN encoding; the existing positive/negative TestRFC5492UnsupportedCapabilityDataListsTheCausingSet covers exactly both missing zero-length capabilities, only the still-missing capability, exclusion of an unknown capability, and acceptance when both requirements are met; the three existing builder carriers support ASN4 value retention, empty-valued capability tuples, and empty selection; TestUnsupportedCapabilityNotificationPreservesOpenTuples adds fourteen actual-OPEN cases across handleOpen and processOpen, asserting exact code/length/original local-required or peer-refused values, satisfied/noncausing-code exclusion, repeated Graceful Restart instances, ADD-PATH directions, and variable-length hostname; TestUnsupportedAddPathNotificationPreservesFamilyTuples adds eight actual-OPEN cases covering local-required and peer-refused family directions, exclusion of unrelated families, preserved repeated-instance grouping, and exact complete 3771-byte NOTIFICATIONs from bounded extended-parameter OPENs; buildUnsupportedCapabilityDataCodes uses the parsed actual OPEN capabilities and buildUnsupportedAddPathData retains original grouping, so filtered Data does not expand beyond the source capability bytes; Main&#39;s original before/after logs demonstrate the value/direction repairs, job-capability-repeated-grouping-before-89321fb3.log demonstrates all four added grouping cases failing with the 5601/4096 panic, and job-lifecycle-capability-bounded-after-12720db6.log records all fourteen generic and eight family cases passing after repair; these observations are executed proof only, and fresh native discrimination records for new/changed tags remain Main-owned debt before canonical closure.</p>
+<p><strong>Audit verdict:</strong> enforced (the tests do what the requirement demands), fresh. RFC 5492 Section 5 says: The Data field in the NOTIFICATION message MUST list the set of capabilities that causes the speaker to send the message. Each such capability is encoded in the same way as it would be encoded in the OPEN message. Both current actual-OPEN matrices retain every prior input and exact wire assertion. Refused capability and required/refused ADD-PATH family settings are now installed before Accept freezes the proposal, so both handleOpen and processOpen reach the intended admission rule. Fourteen generic cases require exact code 2/7 and original local-required or peer-refused ASN4, repeated Graceful Restart, ADD-PATH and hostname values while excluding satisfied or unrelated capabilities. Eight family cases require the causing family&#39;s original direction and capability grouping, including exact complete 3771-octet NOTIFICATIONs from legal extended OPENs. The existing causing-set unit independently checks both missing capabilities, only the still-missing one, unknown-code exclusion and useful acceptance; builder units check original ASN4 and empty-valued tuples and no-causes nil. Current producers select actual OPEN capabilities and use their OPEN encoders, retaining repeated instances and bounded ADD-PATH grouping. No expected value or rejection assertion was weakened. The wire and builder controls would fail on missing, extra, substituted, reversed or flattened causing data.</p>
 <div class="rfc-table-wrap">
 <table class="rfc-table">
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L316" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedAddPathNotificationPreservesFamilyTuples</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L321" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedAddPathNotificationPreservesFamilyTuples</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L227" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedCapabilityNotificationPreservesOpenTuples</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L231" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedCapabilityNotificationPreservesOpenTuples</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -663,12 +663,12 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L315" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedAddPathNotificationPreservesFamilyTuples</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L320" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedAddPathNotificationPreservesFamilyTuples</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L226" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedCapabilityNotificationPreservesOpenTuples</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L230" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestUnsupportedCapabilityNotificationPreservesOpenTuples</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -698,7 +698,7 @@ p.rfc-prose { margin: .5rem 0; line-height: 1.6; }
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L143" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L147" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -720,7 +720,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L201" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L205" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492EveryCapabilitiesParameterReadBeforeRefusing</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -730,7 +730,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L173" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492CapabilitiesSpreadOverSeveralParameters</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L177" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492CapabilitiesSpreadOverSeveralParameters</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -750,7 +750,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 <thead><tr><th>Polarity</th><th>Test</th><th>Kind and tier</th><th>Proof state</th></tr></thead>
 <tbody>
 <tr><td>negative</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L117" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492UnrecognizedCapabilityNeverReadAsKnown</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L121" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492UnrecognizedCapabilityNeverReadAsKnown</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -760,7 +760,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
 <td>unproven</td>
 </tr>
 <tr><td>positive</td>
-<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L90" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession</code></a></td>
+<td><a href="https://github.com/ze-software/ze/blob/main/internal/component/bgp/reactor/rfc5492_open_session_test.go#L94" title="internal/component/bgp/reactor/rfc5492_open_session_test.go" target="_blank" rel="noopener"><code>TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession</code></a></td>
 <td>unit/verify</td>
 <td>revert, verified</td>
 </tr>
@@ -1015,7 +1015,7 @@ Pending note: retain enforced with the exact session assertions and parser-fixtu
                     <span class="footer-copyright">© 2025-2026 Thomas Mangin.</span>
                     <a href="../../../license/">Ze is AGPLv3 open source.</a>
                     <a href="../../../legal/">Legal notice</a>
-                    <span class="footer-published">Published 15 November 2026 03:12 UTC</span>
+                    <span class="footer-published">Published 16 November 2026 14:35 UTC</span>
                 </div>
             </div>
         </footer>
