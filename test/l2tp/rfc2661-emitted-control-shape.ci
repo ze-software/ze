@@ -49,12 +49,12 @@ option=env:var=ze.log.l2tp:value=debug
 option=env:var=ze.l2tp.skip-kernel-probe:value=true
 
 cmd=background:seq=1:exec=ze -:stdin=config
-cmd=foreground:seq=2:exec=le test fixture l2tp/rfc2661-emitted-control-shape $PORT:timeout=20s
-expect=exit:code=0
-expect=stdout:contains=OK: all RFC 2661 emitted-shape checks passed
 # The daemon's own confirmation that the independently computed SCCCN response
 # verified. A positive signal, so the acceptance step cannot pass vacuously.
 expect=stderr:contains=tunnel now established
+cmd=foreground:seq=2:exec=le test fixture l2tp/rfc2661-emitted-control-shape $PORT:timeout=20s
+expect=exit:code=0
+expect=stdout:contains=OK: all RFC 2661 emitted-shape checks passed
 # One assertion per bound requirement, so each discrimination record in
 # rfc/discrimination/rfc2661.json cites the line its own red was observed at
 # rather than the whole suite. The fixture prints `PASS: <check>` only when the

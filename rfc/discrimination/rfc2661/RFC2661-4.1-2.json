@@ -36,12 +36,12 @@
     "rid": "RFC2661-4.1-2",
     "polarity": "positive",
     "unit": "test/l2tp/rfc2661-emitted-control-shape.ci",
-    "unit-sha": "709d2fdc35a37503",
+    "unit-sha": "c5b01a65b4eedd3b",
     "claim-sha": "f725c2644926dbd6",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/l2tp/tunnel_fsm.go::writeSCCRPBody",
     "producer-sha": "0e95e041fa000906",
-    "break": "body of writeSCCRPBody replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")",
+    "break": "line 659: \"return off\" -\u003e \"return func() int { var first [8]byte; copy(first[:], buf[:8]); copy(buf[:8], buf[8:16]); copy(buf[8:16], first[:]); return off }()\"",
     "citation": "expect=stdout:contains=PASS: Message Type AVP is first in SCCRP"
   }
 ]
