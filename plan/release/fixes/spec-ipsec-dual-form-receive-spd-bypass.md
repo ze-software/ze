@@ -8,11 +8,11 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Final verification — limiter and reader-lifecycle corrections, then guest and interop proof |
+| Phase | Final verification — doctor reload, Linux engine, interop and RFC proofs |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-15 |
+| Updated | 2026-11-16 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -673,8 +673,16 @@ skips under the same controlled scheduling yield
 current reader outcomes, and retirement of one absent and 1158 current readers.
 The guest used Ze's 7.3.0 kernel and stopped with check, command and lab exits
 zero. This is controlled-overlay evidence. The final unmodified-source Linux
-run remains owed. The ordered cases keep failure-before-retirement and
-retirement-before-publication distinct.
+dataplane run then passed all 35 selected tests without skips on Ze's 7.3.0
+kernel (`job-ipsec-dataplane-final-guest-b9e9af5d.log`). Its binary SHA256 was
+`0309b7b65ed086db18f3051fb4023cb959fd8c630b0e9548c384ddd25ea818cd`.
+The isolated stale-backoff guard cut also produced the intended test failure:
+`TestESPFormReceiverMatureRetiredLifeKeepsBackoff` observed 0 seconds instead
+of 30 seconds (`job-ipsec-reader-stale-backoff-guest-5c17e031.log`). That guest
+stopped with check and lab exits zero and command exit one. Reader code,
+tests and the reader-only architecture hunk landed in `afd59c50b9`.
+The ordered cases keep failure-before-retirement and retirement-before-publication
+distinct. All other acceptance criteria and remaining proofs are unchanged.
 
 These tests prove the receiver's event and recovery behavior, shared by both
 plugin modes. They do not claim an observed reader failure in the daemon's

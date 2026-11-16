@@ -22,6 +22,10 @@ must lose `{partial}` only when the broader obligation is actually proven.
 | `b43120b371`, `c9ce6ba81d` | Ordered netlink series and upstream-style tests; see the library handover |
 | `5c063bc8d6` | K1 exact state-scope and K2 fragment-context kernel patches; no native C compilation or packet proof |
 | `2ae4f0f3f4` | K3 draft preserved at `gokrazy/kernel/proposals/xfrm-fragment-reassembly.patch`; unenrolled and unproven |
+| `d5459aae36` | Correct the ESP receiver's token-refill rate |
+| `66825526f2` | Start the external IKE engine through the shared CLI and promote both runtime-doctor tests |
+| `5ab68bb5fa` | Keep an attached childless SA through the owner handoff during an ESP-group reload, with its regression and AC-21 |
+| `afd59c50b9` | Preserve reader failure events and replacement backoff through retirement, with the companion architecture paragraph |
 
 Go caller checkpoint `466ab09fd8` landed 55 files, including the callers,
 selector repairs, diagnostics, regression probes and companion documentation.
@@ -57,34 +61,113 @@ ran; none of the logs can be read now.
   passed; its optional Docker cancellation test skipped because
   `KERNEL_CONTAINER_PROOF_IMAGE` was unset.
 
+## Current receiver corrections, 2026-11-15
+
+Both specs remain open, including dual-form AC-4 and its broader RFC 4301 obligation.
+
+| Correction | Producing code | State |
+|------------|----------------|-------|
+| Refill the complete-path token bucket at 5000 tokens per second. An empty bucket gets 5000 tokens after one second and 7500 after 1.5 seconds. | `dataplane/espform.go` `espFormLimiter.allow` | Committed |
+| Stop reporting a retained TUN-open failure after the last configured peer is removed. The receiver keeps its failure record. | `engine/doctor_esp_form_fast_path.go` `espFormDeviceFindings` | Uncommitted. Unit proof passed. Linux daemon reload proof remains owed |
+| Report a recorded reader failure once across replacement, preserve the replacement's backoff, and serialize failure publication with retirement. Intentional retirement stays silent. | `dataplane/espform_open_linux.go` `read`, `revive`; `dataplane/espform_linux.go` `retireLocked` | Committed. Controlled-schedule and final unmodified-source Linux tests passed. Isolated stale-backoff cut produced the intended test failure |
+| Start the registered external IKE engine through the shared plugin CLI and its authenticated TLS connection. | `engine/register.go` `init`; `plugin/cli/cli.go` `RunPlugin`, `connFromEnv` | Committed |
+| Let an attached childless SA reach its owner before an ESP-group-only reload requires a restart. Keep the existing two-second admission deadline. | `engine/reconcile.go` `retargetESPGroup`, `adoptESPGroup` | Committed |
+
+Paths in this table are under `internal/component/ike/`, except
+`plugin/cli/cli.go`, which is under `internal/component/`.
+
+The main thread observed these results in the main checkout:
+
+| Command or proof | Observed result and limit |
+|------------------|---------------------------|
+| `./le --name session test unit pkg path ./internal/component/ike/dataplane/` | PASS after the limiter correction. This portable run preceded the Linux reader corrections. |
+| Final unmodified dataplane binary through `./le --name session test qemu docker-lab` root command mode | 35 distinct outer top-level tests PASS, with no skipped or failed nested tests. All 29 rewrite cases, TUN node/errno/user-namespace cases, eight migration tests, legacy/bitmap/ESN controls and both capability-helper markers ran. This includes all six final reader tests without a scheduling overlay. Ze kernel `7.3.0-ze`, check/command/lab exits zero, interrupted false, VM stopped. |
+| `./le --name session test unit pkg path ./internal/component/ike/engine/` | Latest run: PASS, one package, 162.552 seconds, after the childless handoff correction. `CGO_ENABLED=0`. Receipt `job-childless-engine-package-94d132fd.log` distinguishes this run from the earlier result at the reused native log path. |
+| Race-enabled selection of `TestESPGroupReloadWaitsForChildlessOwnerHandoff` and four existing reload/refusal/schedule tests | All five top-level tests and their subtests passed without skips. The new test first failed against the old nil-owner guard. Independent source review was CLEAN. |
+| `./le --name session test ipsec -p 1 -v ipsec-childless-ike-sa-recovers` | Main reported PASS, 33.2 seconds, with all 15 VERIFY STEP rows passing. The unchanged CI checks recovery under the same IKE SPI and rejects `RECONNECTED`. |
+| `./le --name session test ipsec --draft -p 1 -v ipsec-esp-form-fast-path-doctor` | PASS through the internal engine. The recording backend's cause, fix, severity and complete-path cost reached the doctor answer. |
+| The same command selecting `ipsec-esp-form-fast-path-doctor-external` | PASS through the actual forked `ze plugin ike` daemon under test and its TLS connection. |
+| `test/draft/ipsec/ipsec-esp-form-doctor-peer-removal.ci`, initial own-system run | PASS in 3.7 seconds. One selected case passed, one phase ran and none skipped. Ze kernel `7.3.0-ze`. Check, command and lab exits were zero, interrupted was false, and the VM stopped. |
+| `./le --name session test stress-repro run suite "ipsec --draft -p 1" test ipsec-esp-form-fast-path-doctor any-failure iterations 80 parallel 2 burners 1` | All 80 invocations exited 0. The retained tails contain 240 passing VERIFY STEP rows for this test. The harness returned 1 to report that it reproduced no failure. |
+| The same stress command selecting `ipsec-esp-form-fast-path-doctor-external` | All 80 invocations exited 0, with 240 passing retained VERIFY STEP rows naming the external test. The harness returned 1 for no reproduced failure. This completed after the VPP owner restored a coherent source checkpoint. |
+| Native runtime-doctor row-removal redwalk | Clean selected test PASS. Removing its runtime owner made the same test fail at its required diagnostic assertion, with `ZE-OBSERVER-FAIL`. |
+| Native external-entrypoint redwalk | Clean external test PASS. The broken DUT compiled, then timed out after the shared-runner cut prevented TLS connect-back. |
+| Affected live IPsec suite before the handoff fix | 48 cases: 34 PASS, one FAIL (`ipsec-childless-ike-sa-recovers`), 13 Linux skips. Both promoted doctor cases passed on the unmodified DUT. The later isolated childless PASS does not establish a full-suite PASS. |
+| `./le --name session doc check all` | FAIL: 389 generated website/wiki command-catalog drift findings and 12 source-anchor findings in interface, PPPoE and web pages. None of those anchors names an IPsec path. The foreign findings remain with their active owners. |
+
+The channel-ordered regression proves the handoff defect at `retargetESPGroup`.
+The earlier functional failure's elided runtime trace does not prove that attribution.
+The unchanged functional rerun separately proves recovery with the correction.
+
+The publication regression first failed under a single-file Go overlay that
+added `runtime.Gosched` between the stop check and failure publication.
+`TestESPFormReceiverConcurrentFailureAndRetirementReportsEveryRecordedFailure`
+recorded a failure with zero events on iteration 1. This was a controlled
+scheduling reproduction. The shared source carried no scheduler yield.
+
+After per-life serialization, the same yield ran inside the critical section.
+All six selected tests executed and passed on Ze kernel `7.3.0-ze`, with zero
+skips and the VM stopped after the run:
+
+```text
+TestESPFormReceiverReportsFailureRetiredBeforeRevive
+TestESPFormReceiverIntentionalRetirementHasNoFailureEvent
+TestESPFormReceiverRetiredLifeCannotReopen
+TestESPFormReceiverMatureRetiredLifeKeepsBackoff
+TestESPFormReceiverConcurrentFailureAndRetirementReportsEveryRecordedFailure
+TestESPFormReceiverReopensAStoppedReaderByItself
+```
+
+The main thread used `./le --name session test qemu docker-lab` in root command
+mode. The guest ran the rebuilt binary with `-test.v -test.count=1`, a
+three-minute test timeout, and count-mode coverage. The binary SHA256 was
+`78d5ad4f803811088816dcf0869a9712141cf92074ec92365c3cf79f1ca6571d`.
+The kernel SHA256 was
+`3c13600db1d2c6fb8028e8fdd16420e5b376a8f9315d008313edd027ab43502e`.
+Check, command and lab exits were all zero.
+
+Measured coverage counts were 67 intentional-read returns and 1090 failure
+publications, 278 stale-life returns and 812 current-life continuations in
+`revive`, and 1 nil-life return against 1158 retirements. The nested stop arm
+observed 106 recorded deaths and 67 intentional stops. These counts prove
+those outcomes ran under the controlled schedule. The final unmodified-source
+dataplane run separately passed with binary SHA256
+`0309b7b65ed086db18f3051fb4023cb959fd8c630b0e9548c384ddd25ea818cd`
+on the same kernel.
+
+The isolated stale-backoff cut then made
+`TestESPFormReceiverMatureRetiredLifeKeepsBackoff` fail: replacement backoff
+was `0s`, with `30s` required. The private overlay disabled the early
+reader-identity guard in `revive` and also omitted a G101 annotation comment.
+The shared source stayed unchanged. Main recorded the broken binary SHA256 as
+`908c6809135854584e8fc24589ba05c212a9540d3e0f9a0aa66b165505ebff01`.
+The guest used the same kernel. Check and lab exits were zero, command exit
+was one, interrupted was false, and the VM stopped.
+
+The current session state owns the raw logs, overlay paths and their cleanup
+conditions. Its root is `tmp/session/2026-11-15-130223/`. This durable receipt
+records the outcomes needed after those temporary files are removed.
+Keep the smallest raw proof logs and private comparisons until this receipt commits.
+The superseded `scratch/ipsec-reader-publication-red.test` and
+`scratch/ipsec-reader-publication-green.test` binaries are then obsolete.
+Main checks active processes and remaining references before it removes those binaries.
+
 ## Remaining work, in order
 
 1. Done: the private-ABI move landed in `8afd1ff560` (2026-11-13), and
    `plan/post-release/engineering/spec-netlink-xfrm-upstream-series.md` records
    it as AC-5 and AC-6 met. That spec's closure owes the scope install and
    read-back integration tests on Ze's kernel, which the move did not run.
-2. Compile and run fresh final guest binaries for dataplane, engine and
-   trafficusage, and require each named test and required subtest to run.
-   The guest set, every name checked in HEAD on 2026-11-15:
-   - dataplane (`internal/component/ike/dataplane/`): `TestESPFormRewriteProgram`
-     (`espform_program_integration_linux_test.go`),
-     `TestESPFormFastPathGateFollowsTheKernelRuleset`
-     (`espform_fastpath_gate_linux_test.go`), `TestESPFormNFTWatchReceiveBuffer`
-     (`espform_firewall_linux_test.go`), the TUN node tests
-     (`espform_tun_open_linux_test.go`), the unit-capability tests
-     (`unit_capabilities_integration_linux_test.go`), every
-     `TestESPFormFirewallStock*` (`espform_firewall_stock_linux_test.go`, five),
-     the migrate, teardown and form-change integration tests
-     (`xfrm_migrate_integration_linux_test.go`,
-     `xfrm_teardown_integration_linux_test.go`,
-     `encap_formchange_integration_linux_test.go`),
-     `TestESPFormFastPathSecondSATakesOver` and
-     `TestESPFormFastPathWarnsOfASharedSPIWhileAttached`
-     (`espform_fastpath_integration_linux_test.go`);
-   - engine (`internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go`):
+2. The final dataplane guest population passed as recorded above. Compile and
+   run the five engine tests and eight trafficusage tests that remain owed.
+   Require each named test and required subtest to run:
+   - engine (`internal/component/ike/engine/`):
      `TestRFC4301BareESPOnTemplatedSAIsPolicyChecked`,
      `TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE`,
-     `TestRFC4301BareESPFirewallDropKeepsTheFastPathOff`;
+     `TestRFC4301BareESPFirewallDropKeepsTheFastPathOff`,
+     `TestRFC4301KernelAdvertisesExactStateScope` and
+     `TestRFC4301FragmentReassemblyKeepsProtectionContextsSeparate`.
+     Dataplane migration success does not establish the K1/K2 scope probes.
    - trafficusage (`internal/plugins/trafficusage/`): `TestProgram_TruncatedPass`
      (`program_test.go`), the tests in `tcx_next_integration_linux_test.go`, and
      the unit-capability tests (`unit_capabilities_integration_linux_test.go`).
@@ -96,21 +179,20 @@ ran; none of the logs can be read now.
    stale-hunk failures as red evidence.
 
    Still owed on the final code for the spec's closure evidence: the dataplane
-   package in its zetest flavour; the `./le arch` gates compound-guard,
+   package in its zetest flavor; the `./le arch` gates compound-guard,
    refuse-by-default, error-wrap, operator-error and doctor-coverage; the
    scoped lint on `./internal/component/ike/...` and
    `./internal/core/diagnostic/...`; gofmt on the edited files. A lint or gate
    red is owed at release through CI and holds no commit.
-3. Run the doctor draft at
-   `test/draft/ipsec/ipsec-esp-form-fast-path-doctor.ci`, prove all 80 stress
-   iterations with the documented selected-test harness, promote through
-   `ze-test`, and run the promoted test. Final stress and promotion are owed.
-   The draft is git-ignored and exists only in the checkout on the `claude`
-   Linux host (confirmed 2026-11-15; absent on the Mac), so run it there or
-   carry it by hand before the session that runs it. Steps 1 to 8 passed in
-   batch 10. Step 9's regex expects the sorted keys `code`, `fix`, `message`,
-   `severity`, because `applyJSON` re-encodes the answer; that alignment has
-   not been run.
+3. Qualify the separate last-peer removal/re-addition tests through `ze-test`:
+   `test/draft/ipsec/ipsec-esp-form-doctor-peer-removal.ci` and
+   `test/draft/ipsec/ipsec-esp-form-doctor-peer-removal-external.ci`.
+   The initial internal Linux run passed. The external initial run, both
+   applicability-guard cuts, 80-run qualification for each and promotion remain
+   owed. Each observation requires the retained-device
+   condition and an independent counter warning in one doctor answer.
+   A missing runtime callback therefore cannot prove that the finding disappeared.
+   These tests use a synthetic retained failure and claim no packet delivery.
 4. Run the remaining interop scenarios and their deliberate breaks:
    `mtu-nat-installed-endpoint`, `icmp-error-payload-check` with bare ESP and
    both redwalks, `esp-form-change`, `esp-form-firewall-drop` with its redwalk,
@@ -145,9 +227,12 @@ ran; none of the logs can be read now.
    `phase4-validation.txt` and `phase4-proofs-run.py`, which were lost with
    the session trees, so they are prepared again from the spec.
 
-Phase 2 is needed after those five work packages: finish and prove the kernel
-fragment/SA-scope work, strict ICMP return mapping, and engine scope writer;
-then complete scoped review, RFC checks and the two spec-closure commits.
+Section 7.4 release-enforcement choice remains open in
+`plan/release/fixes/spec-rfc4301-architecture-gaps.md`, "Owner decisions open".
+Independent kernel capability probes and SA-scope isolation remain owed under
+every route. Kernel fragment/SA-scope work, strict ICMP return mapping and the
+engine scope writer remain unfinished. Scoped review, RFC checks
+and both spec-closure commits remain after the applicable implementation and proof.
 
 ## Kernel work that remains source only
 
