@@ -1007,7 +1007,7 @@ func (p *SetParser) unknownField(lineNum int, name string, parent Node, rest []s
 	if err := nodeOfAnotherOS(parent, parentLabel(p.schema, parent), name, lineNum); err != nil {
 		return err
 	}
-	return lineErrorf(lineNum, "unknown field: %s%s", name, p.unknownFieldHint(name, parent, rest))
+	return unknownNodeLinef(lineNum, "unknown field: %s%s", name, p.unknownFieldHint(name, parent, rest))
 }
 
 // parentLabel names a schema node in a refusal: "the top level" for the

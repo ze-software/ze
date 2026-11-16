@@ -3,6 +3,7 @@
 // Related: fixture.go -- newObserver, the TLS connect-back every external fixture uses
 // Related: plugin_fixture_failure_policy.go -- the generation marker this file follows
 // Related: ../../../pkg/plugin/sdk/sdk_query.go -- RunOrDeclare, the declare-mode answer
+// Related: ../externalyang/externalyang.go -- the YANG modules the variants declare
 //
 // The external plugin behind the external-yang-* functional tests. It is a
 // REAL external process the daemon forks from a `run` line, built on the public
@@ -27,6 +28,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/internal/test/externalyang"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -46,196 +48,55 @@ const externalYANGRefusedTarget = "refuse-me"
 // document a variant's module allows is three levels (service, chrony, a leaf).
 const externalYANGDepthMax = 16
 
-// The valid module: its name ends in -conf, so its top-level container joins
-// the config schema. interval carries a range and target is mandatory, so a
-// test can watch the loader's own checks apply to a module the plugin brought.
-// The container has a presence statement so a config with no acme-monitor
-// block does not miss the mandatory leaf.
-const externalYANGValidText = `module acme-monitor-conf {
-    namespace "urn:acme:monitor:conf";
-    prefix acme;
-
-    description "Configuration of the acme monitor, an external plugin.";
-
-    revision 2026-11-16 {
-        description "Initial revision";
-    }
-
-    container acme-monitor {
-        presence "The acme monitor is configured";
-        description "Settings of the acme monitor.";
-
-        leaf target {
-            type string {
-                length "1..64";
-            }
-            mandatory true;
-            description "The host the monitor probes.";
-        }
-
-        leaf interval {
-            type uint8 {
-                range "1..10";
-            }
-            description "Seconds between two probes.";
-        }
-    }
-}
-`
-
-// The module the redeclaring variant brings on its second start: the valid
-// module with one more leaf, so its text differs from the published one.
-const externalYANGRedeclaredText = `module acme-monitor-conf {
-    namespace "urn:acme:monitor:conf";
-    prefix acme;
-
-    description "Configuration of the acme monitor, an external plugin.";
-
-    revision 2026-11-16 {
-        description "Initial revision";
-    }
-
-    container acme-monitor {
-        presence "The acme monitor is configured";
-        description "Settings of the acme monitor.";
-
-        leaf target {
-            type string {
-                length "1..64";
-            }
-            mandatory true;
-            description "The host the monitor probes.";
-        }
-
-        leaf interval {
-            type uint8 {
-                range "1..10";
-            }
-            description "Seconds between two probes.";
-        }
-
-        leaf timeout {
-            type uint8 {
-                range "1..60";
-            }
-            description "Seconds before a probe is given up.";
-        }
-    }
-}
-`
-
-// A module that does not compile: the container is never closed.
-const externalYANGInvalidText = `module acme-broken-conf {
-    namespace "urn:acme:broken:conf";
-    prefix broken;
-
-    container acme-broken {
-        leaf count {
-            type uint8;
-        }
-}
-`
-
-// A module named like the compiled-in module that defines the plugin block.
-const externalYANGClashText = `module ze-plugin-conf {
-    namespace "urn:acme:clash:conf";
-    prefix clash;
-
-    container acme-clash {
-        description "Settings under a module name the daemon already holds.";
-
-        leaf enabled {
-            type boolean;
-            description "Whether the feature runs.";
-        }
-    }
-}
-`
-
-// A module that reaches the compiled-in container service by augment, the
-// sanctioned way to share a container. ze-dns-resolver-conf is the one
-// always-compiled module that defines service.
-const externalYANGAugmentText = `module acme-chrony-conf {
-    namespace "urn:acme:chrony:conf";
-    prefix chrony;
-
-    import ze-dns-resolver-conf {
-        prefix dnsresolver;
-    }
-
-    description "Configuration of the acme chrony service, an external plugin.";
-
-    revision 2026-11-16 {
-        description "Initial revision";
-    }
-
-    augment "/dnsresolver:service" {
-        container chrony {
-            presence "The chrony service is configured";
-            description "Settings of the chrony service.";
-
-            leaf server {
-                type string {
-                    length "1..253";
-                }
-                description "The time server chrony follows.";
-            }
-        }
-    }
-}
-`
-
 // externalYANGVariant is one module the fixture can bring, selected by the
 // first argument of its run line.
 type externalYANGVariant struct {
-	module    string
-	namespace string
-	text      string
+	// schema is the module the variant declares on its first start. The
+	// modules are declared in externalyang, which the config sweep reads too.
+	// When the daemon is expected to refuse it (schema.Refused), a transport
+	// that ends is the pass and a ready plugin is the failure.
+	schema externalyang.Module
 	// wants are the config roots the plugin asks for.
 	wants []string
 	// redeclaredText, when not empty, is the module text of every start after
 	// the first; the first start then exits once the daemon is ready, so the
 	// daemon starts the plugin again.
 	redeclaredText string
-	// refused says the daemon is expected to refuse this module, so a
-	// transport that ends is the pass and a ready plugin is the failure.
-	refused bool
+	// configRefused says the test gives the daemon a config it must refuse
+	// under this plugin's root, after it read the declaration. The daemon then
+	// closes the connection before it answers Stage 1, which is how a plugin
+	// learns that ze did not start: a transport that ends is the pass and a
+	// ready plugin is the failure.
+	configRefused bool
 }
 
 // externalYANGVariants maps the run-line argument to its variant.
 var externalYANGVariants = map[string]externalYANGVariant{
 	"valid": {
-		module:    "acme-monitor-conf",
-		namespace: "urn:acme:monitor:conf",
-		text:      externalYANGValidText,
-		wants:     []string{"acme-monitor"},
+		schema: externalyang.Valid(),
+		wants:  []string{"acme-monitor"},
+	},
+	"valid-config-refused": {
+		schema:        externalyang.Valid(),
+		wants:         []string{"acme-monitor"},
+		configRefused: true,
 	},
 	"redeclare": {
-		module:         "acme-monitor-conf",
-		namespace:      "urn:acme:monitor:conf",
-		text:           externalYANGValidText,
+		schema:         externalyang.Valid(),
 		wants:          []string{"acme-monitor"},
-		redeclaredText: externalYANGRedeclaredText,
+		redeclaredText: externalyang.RedeclaredText,
 	},
 	"invalid": {
-		module:    "acme-broken-conf",
-		namespace: "urn:acme:broken:conf",
-		text:      externalYANGInvalidText,
-		wants:     []string{"acme-broken"},
-		refused:   true,
+		schema: externalyang.Invalid(),
+		wants:  []string{"acme-broken"},
 	},
 	"clash": {
-		module:    "ze-plugin-conf",
-		namespace: "urn:acme:clash:conf",
-		text:      externalYANGClashText,
-		wants:     []string{"acme-clash"},
-		refused:   true,
+		schema: externalyang.Clash(),
+		wants:  []string{"acme-clash"},
 	},
 	"augment": {
-		module:    "acme-chrony-conf",
-		namespace: "urn:acme:chrony:conf",
-		text:      externalYANGAugmentText,
-		wants:     []string{"service/chrony"},
+		schema: externalyang.Augment(),
+		wants:  []string{"service/chrony"},
 	},
 }
 
@@ -263,15 +124,15 @@ func (variant externalYANGVariant) redeclares() bool {
 // declaration answers the Stage 1 registration of one start. generation is
 // one for the first start, and for a declaration query.
 func (variant externalYANGVariant) declaration(generation int) *sdk.Registration {
-	text := variant.text
+	text := variant.schema.Text
 	if variant.redeclares() && generation > 1 {
 		text = variant.redeclaredText
 	}
 	declaration := &sdk.Registration{
 		WantsConfig: variant.wants,
 		Schema: &sdk.SchemaDecl{
-			Module:    variant.module,
-			Namespace: variant.namespace,
+			Module:    variant.schema.Name,
+			Namespace: variant.schema.Namespace,
 			YANGText:  text,
 		},
 	}
@@ -477,8 +338,11 @@ func externalYANGServe(ctx context.Context, variant externalYANGVariant, generat
 	for {
 		select {
 		case <-ready:
-			if variant.refused {
-				return errors.New("the daemon accepted a module it must refuse: " + variant.module)
+			if variant.schema.Refused {
+				return errors.New("the daemon accepted a module it must refuse: " + variant.schema.Name)
+			}
+			if variant.configRefused {
+				return errors.New("the daemon started with a config it must refuse under the root of " + variant.schema.Name)
 			}
 			if variant.redeclares() && generation == 1 {
 				// Returning ends the process, and the daemon starts it again.
@@ -500,7 +364,15 @@ func externalYANGEnded(variant externalYANGVariant, generation int, runErr error
 	if runErr == nil {
 		return nil
 	}
-	if variant.refused {
+	if variant.configRefused {
+		// Ze refused the config after it read the declaration and closed the
+		// connection with Stage 1 unanswered: the normal end for this plugin.
+		var line textbuf.Buffer
+		line.Str("FIXTURE: external-yang ended with the refused config: ").Err(runErr).Byte('\n')
+		line.StdErr() //nolint:errcheck // fixture progress output
+		return nil
+	}
+	if variant.schema.Refused {
 		var line textbuf.Buffer
 		line.Str("FIXTURE: external-yang was refused: ").Err(runErr).Byte('\n')
 		line.StdErr() //nolint:errcheck // fixture progress output

@@ -64,6 +64,15 @@ func LoadCrashDumpIntent(configPath string) (crashlog.Intent, error) {
 	if err != nil {
 		return crashlog.Intent{}, err
 	}
+	// Before the parse: the step every command with no daemon takes, which
+	// fixes the module set to the compiled-in one and starts no plugin. The
+	// config is parsed whole, so a section of an external plugin refuses the
+	// read here. Not in ParseCrashDumpIntent: the daemon's boot calls that
+	// one, and boot joins those modules itself, from each plugin's live
+	// declaration.
+	if _, declaredErr := config.PublishDeclaredSchemas(config.ConfigSource{Text: string(data), Path: name}); declaredErr != nil {
+		return crashlog.Intent{}, fmt.Errorf("crash-dump intent: %s: %w", name, declaredErr)
+	}
 	return ParseCrashDumpIntent(name, data)
 }
 

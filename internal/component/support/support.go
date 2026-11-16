@@ -610,11 +610,24 @@ func collectConfig(opts *collectOptions) (any, error) {
 		configName = opts.ConfigPath
 	}
 
+	// Before the parse: the step that reads which external plugins the
+	// config declares and starts no program (config.PublishDeclaredSchemas).
+	// Served by a daemon, the parse answers from the set the daemon joined at
+	// start; with no daemon a section of an external plugin is refused, and
+	// the report says why beside the refusal.
+	declared, declaredErr := config.PublishDeclaredSchemas(config.ConfigSource{Text: string(configData), Path: configName})
+	if declaredErr != nil {
+		return map[string]any{
+			keyAvailable:  true,
+			"parse-error": declaredErr.Error(),
+			keyPath:       configName,
+		}, nil
+	}
 	result, parseErr := config.ReadConfig(string(configData), configName, nil)
 	if parseErr != nil {
 		return map[string]any{
 			keyAvailable:  true,
-			"parse-error": parseErr.Error(),
+			"parse-error": declared.Explain(parseErr).Error(),
 			keyPath:       configName,
 		}, nil
 	}

@@ -123,8 +123,10 @@ func cmdPluginTest(args []string) int {
 	}
 
 	// Parse config with the process-wide schema: the module of every internal
-	// plugin listed above is registered by init(), so it is already in it.
-	schema, schemaErr := config.YANGSchema()
+	// plugin listed above is registered by init(), so it is already in it. No
+	// external plugin is started to read its module: a section of one is
+	// refused below, with the command that reaches a running ze.
+	schema, declared, schemaErr := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: string(data), Path: configPath})
 	if schemaErr != nil {
 		fmt.Fprintf(os.Stderr, "error: %v\n", schemaErr)
 		return 1
@@ -133,7 +135,13 @@ func cmdPluginTest(args []string) int {
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "❌ Parse error: %v\n", err)
+		// One operator error: the refusal, a declared external plugin ze holds
+		// no schema of when that explains it, and the command that fixes it.
+		var refusal textbuf.Buffer
+		refusal.Str("error: ").
+			Err(declared.ParseRefusal(configPath, err, "ze plugin test starts no plugin from a config it cannot parse")).
+			Byte('\n')
+		refusal.StdErr() //nolint:errcheck // the exit code carries the failure; a stderr write error has no other channel
 		return 1
 	}
 

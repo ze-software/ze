@@ -193,7 +193,7 @@ func (p *Parser) parseBody(unknown string, hint func(name string, known []string
 				comments.drop()
 				continue
 			}
-			return nil, p.errorf(tok, "%s: %s%s", unknown, name, hint(name, known))
+			return nil, unknownNodeLinef(tok.line, "%s: %s%s", unknown, name, hint(name, known))
 		}
 
 		if markInactive {
@@ -665,7 +665,7 @@ func (p *Parser) parseContainer(tree *Tree, name string, node *ContainerNode) er
 			if err := nodeOfAnotherOS(node, name, fieldName, tok.line); err != nil {
 				return err
 			}
-			return p.errorf(tok, "unknown field in %s: %s%s", name, fieldName, KeywordHint(p.path, fieldName, node.Children()))
+			return unknownNodeLinef(tok.line, "unknown field in %s: %s%s", name, fieldName, KeywordHint(p.path, fieldName, node.Children()))
 		}
 
 		if markInactive {

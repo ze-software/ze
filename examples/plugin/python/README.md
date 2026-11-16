@@ -99,9 +99,14 @@ Against a Ze built from the branch that carries this example:
 
 ## What does not work yet
 
-- `ze config validate` and the other commands that read a config with no
-  daemon running still refuse the `acme-monitor` section. They do not ask the
-  plugin for its module yet.
+- `ze config validate` with no daemon running cannot check the `acme-monitor`
+  section. Ze starts no plugin then, so it does not hold this plugin's module:
+  the section is refused as `unknown top-level keyword: acme-monitor`, and the
+  message says that the config declares external plugin `acme-monitor`, that
+  Ze reads its schema when `ze start` runs it, and to type
+  `show config validation <file>` in a `ze cli` session of the running Ze. A
+  config with the `plugin` block and no `acme-monitor` section validates.
+
 - `rollback` has not run against a live Ze: no test yet makes another plugin
   fail after this one applied.
 

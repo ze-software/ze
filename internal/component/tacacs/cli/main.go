@@ -26,6 +26,7 @@ import (
 	tacacspkg "github.com/ze-software/ze/internal/component/tacacs"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 // keyServers is the envelope key the probe rows travel under, so a reader sees
@@ -159,9 +160,23 @@ func probeConfig(args []string) ([]probeResult, int) {
 		return nil, exitIOOrParse
 	}
 
-	tree, err := zeconfig.ParseTreeForValidation(string(data))
+	// The config is parsed whole, after the step that reads which external
+	// plugins it declares and starts none (zeconfig.PublishDeclaredSchemas):
+	// with no daemon a section of such a plugin refuses the parse below.
+	declared, err := zeconfig.PublishDeclaredSchemas(zeconfig.ConfigSource{Text: string(data), Path: configPath})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "error: parse "+configPath+":", err)
+		return nil, exitIOOrParse
+	}
+	tree, err := zeconfig.ParseTreeForValidation(string(data))
+	if err != nil {
+		// One operator error: the refusal, a declared external plugin ze holds
+		// no schema of when that explains it, and the command that fixes it.
+		var refusal textbuf.Buffer
+		refusal.Str("error: ").
+			Err(declared.ParseRefusal(configPath, err, "ze tacacs probes the servers the config names, so it probed none")).
+			Byte('\n')
+		refusal.StdErr() //nolint:errcheck // the exit code carries the failure; a stderr write error has no other channel
 		return nil, exitIOOrParse
 	}
 

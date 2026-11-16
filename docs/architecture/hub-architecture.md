@@ -159,10 +159,26 @@ third-party plugin extends the configuration schema without rebuilding Ze. The
 order is the one "Startup Flow Diagram" draws, and "What the daemon does at
 start" under it names the code.
 
-The commands that parse a config with no daemon (`ze config validate` and the
-other offline config commands) do not join an external plugin's module yet:
-they still refuse its section as an unknown keyword. That work is the rest of
-`plan/post-release/features/spec-plugin-external-yang-at-startup.md`.
+With no daemon running, Ze starts no external plugin (owner ruling, Thomas,
+2026-11-16: "plugin command requiring external plugins which can not be started
+from the code when no daemon is running to pass it to are not available, for
+command built-in then yes you should run them as we can look them up in the
+yang hardcoded in the binary"). The commands that parse a config with no daemon
+(`ze config validate` and the other offline config commands) go through one
+shared step, `config.SchemaWithDeclaredPlugins`: the first pass, which gives
+the names of the declared external plugins, then the full parse against the
+compiled-in schema. A section only an external plugin's schema defines is
+refused there, and the refusal says that the config declares those plugins,
+that Ze reads their schema when `ze start` runs them, and how to ask a running
+Ze (`ze cli`, then `show config validation <file>`). So `ze start` accepts a
+config that the offline command calls not available; the offline command never
+accepts one that `ze start` refuses. In a process whose module set is already
+fixed, which a running daemon is, the step starts no program either: a command
+the daemon serves is answered from the set the daemon joined when it started.
+`docs/architecture/config/yang-config-design.md`, "Who publishes", holds the
+cases.
+<!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins -->
+<!-- source: internal/component/config/yang/publish.go -- ModuleSetFixed -->
 <!-- source: cmd/ze/hub/declared_plugins.go -- joinDeclaredPlugins -->
 <!-- source: internal/component/config/yang_schema.go -- PublishExternalModules -->
 

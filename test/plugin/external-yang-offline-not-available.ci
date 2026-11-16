@@ -1,0 +1,95 @@
+# Test: with no daemon, validate starts no external plugin and says its section is not available
+#
+# Question: when `ze config validate` runs with no daemon on a config that
+# declares an external plugin and holds a section under that plugin's root,
+# does it refuse the section with the reason and the command that reaches a
+# running ze, without starting the program the config names? And does it still
+# accept a config that holds no such section, and a compiled-in plugin?
+# Why not a unit test: TestValidateRefusesSectionOfExternalPluginWithoutStartingIt
+# proves the validate function. This proves the `ze` binary an operator runs:
+# no route from the command line to a fork of the declared program, and the
+# message as it is printed.
+#
+# The declared program writes a marker file when it is started, in any mode,
+# and then answers a declaration query the way a conforming plugin does. Under
+# the behaviour the owner ruled out, validate ran it in declare mode, the
+# marker appeared and the section was accepted. Step 4 starts the same program
+# by hand: its marker is the control that the script writes one where the test
+# looks.
+#
+# Source of the contract (Thomas): "plugin command requiring external plugins
+# which can not be started from the code when no daemon is running to pass it
+# to are not available, for command built-in then yes you should run them as
+# we can look them up in the yang hardcoded in the binary".
+#
+# VALIDATES: AC-2 and AC-15 of spec-plugin-external-yang-at-startup, as the
+#   ruling restates them.
+# PREVENTS: inspecting a config someone else wrote running their command; a
+#   bare "unknown top-level keyword" with no word about why; validate refusing
+#   every config that declares an external plugin.
+
+tmpfs=marker.run:mode=755:terminator=EOF_RUN
+#!/bin/sh
+# Leaves a marker named after its first argument, then answers a declaration
+# query; refuses a live start.
+echo started > "started-$1.marker"
+if [ "$ZE_PLUGIN_MODE" != "declare" ]; then
+	exit 1
+fi
+cat <<'EOF_DECLARATION'
+#1 ze-plugin-engine:declare-registration {"protocol-version":1,"wants-config":["acme-shell"],"schema":{"module":"acme-shell-conf","namespace":"urn:acme:shell:conf","yang-text":"module acme-shell-conf { namespace \"urn:acme:shell:conf\"; prefix shell; container acme-shell { presence \"The acme shell plugin is configured\"; leaf greeting { type string { length \"1..64\"; } } } }"}}
+EOF_DECLARATION
+EOF_RUN
+
+tmpfs=ze.conf:terminator=EOF_CONF
+plugin {
+	external acme-shell {
+		run "./marker.run by-ze"
+		encoder json
+	}
+}
+
+acme-shell {
+	greeting hello
+}
+EOF_CONF
+
+tmpfs=no-section.conf:terminator=EOF_NO_SECTION
+plugin {
+	external acme-shell {
+		run "./marker.run by-ze"
+		encoder json
+	}
+}
+EOF_NO_SECTION
+
+tmpfs=built-in.conf:terminator=EOF_BUILT_IN
+plugin {
+	internal static {
+		use static
+	}
+}
+EOF_BUILT_IN
+
+# The section of the external plugin is refused, with why and the command that
+# reaches a running ze.
+cmd=foreground:seq=1:exec=ze config validate ze.conf:exit=1
+expect=stdout:contains=unknown top-level keyword: acme-shell
+expect=stdout:contains=the config declares external plugin "acme-shell"
+expect=stdout:contains=starts no plugin
+expect=stdout:contains=show config validation ze.conf
+expect=stdout:contains=fix: ze cli
+
+# A config that declares the plugin and holds no section of it is valid.
+cmd=foreground:seq=2:exec=ze config validate no-section.conf:exit=0
+reject=stdout:contains=external plugin "acme-shell"
+reject=stdout:contains=unknown top-level keyword
+
+# A compiled-in plugin is judged with the schema in the binary, as before.
+cmd=foreground:seq=3:exec=ze config validate built-in.conf:exit=0
+
+# Control: started by hand, the program leaves its marker in this directory.
+cmd=foreground:seq=4:exec=sh marker.run by-test:exit=1
+
+expect=file:path=started-by-test.marker:exists=true
+expect=file:path=started-by-ze.marker:absent=true

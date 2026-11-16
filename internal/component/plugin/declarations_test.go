@@ -1013,3 +1013,63 @@ func TestQueryChildEnvSpellsZeKeysForTheShell(t *testing.T) {
 		t.Fatalf("the queried child never received ze.log.query.shell-spelling; it read:\n%s", out)
 	}
 }
+
+// TestQueryKeepsSchema: the declare-mode answer of a plugin carries the YANG
+// module it declares, whole. Method: a run string that writes a declaration
+// with a schema, read back through QueryDeclaration.
+//
+// VALIDATES: QueryDeclaration answers the declaration's schema (module name,
+// namespace and text) as the plugin wrote it, which is what the conformance
+// check judges.
+// PREVENTS: a reader that keeps the commands and the pipes of a declaration
+// and drops its schema, so the check never sees the module a plugin declares.
+func TestQueryKeepsSchema(t *testing.T) {
+	const text = "module acme-query-conf { namespace \"urn:acme:query\"; prefix aq; container acme-query { leaf greeting { type string; } } }"
+	declaration := rpc.DeclareRegistrationInput{
+		ProtocolVersion: rpc.ProtocolVersion,
+		Schema:          &rpc.SchemaDecl{Module: "acme-query-conf", Namespace: "urn:acme:query", YANGText: text},
+	}
+
+	query := QueryDeclaration(PluginConfig{Name: "acme-query", Run: queryRunString(t, "", &declaration)}, 5*time.Second)
+
+	if !query.Declared {
+		t.Fatalf("no declaration was read; exit %d, cause %q, stdout %q", query.Exit, query.Cause, query.Stdout)
+	}
+	schema := query.Declaration.Schema
+	if schema == nil {
+		t.Fatalf("the declaration read back carries no schema")
+	}
+	if schema.Module != "acme-query-conf" {
+		t.Fatalf("module = %q, want acme-query-conf", schema.Module)
+	}
+	if schema.Namespace != "urn:acme:query" {
+		t.Fatalf("namespace = %q, want urn:acme:query", schema.Namespace)
+	}
+	if schema.YANGText != text {
+		t.Fatalf("the module text changed on the way:\n got %q\nwant %q", schema.YANGText, text)
+	}
+}
+
+// TestQuerySilenceSaysWhatTheRunShowed: a run that gave no declaration keeps
+// the reason `show plugin declarations` writes in its row.
+//
+// VALIDATES: the row's reason for a run string that starts nothing and for a
+// program that runs and writes nothing.
+// PREVENTS: a row that names a plugin and not why it gave no declaration.
+func TestQuerySilenceSaysWhatTheRunShowed(t *testing.T) {
+	absent := QueryDeclaration(PluginConfig{Name: "absent", Run: "/nonexistent/ze-no-such-plugin-program"}, 5*time.Second)
+	if absent.Declared {
+		t.Fatalf("a program that does not exist declared")
+	}
+	if !strings.Contains(absent.silence.reason, "no such command") {
+		t.Fatalf("silence %q does not say the run command was not found", absent.silence.reason)
+	}
+
+	mute := QueryDeclaration(PluginConfig{Name: "mute", Run: "exit 0"}, 5*time.Second)
+	if mute.Declared {
+		t.Fatalf("a program that wrote nothing declared")
+	}
+	if !strings.Contains(mute.silence.reason, "does not support query mode") {
+		t.Fatalf("silence %q does not say the program has no query mode", mute.silence.reason)
+	}
+}

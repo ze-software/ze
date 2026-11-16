@@ -42,14 +42,17 @@ func formatConfigBytes(source string, input []byte) (string, bool, []string, err
 		return "", false, nil, setFormRefusal(source, form)
 	}
 
-	schema, err := config.YANGSchema()
+	// The schema of this process's module set: with no daemon the compiled-in
+	// one, so a section of an external plugin is refused with the command
+	// that reaches a running ze (config.SchemaWithDeclaredPlugins).
+	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: string(input), Path: source})
 	if err != nil {
 		return "", false, nil, fmt.Errorf("YANG schema: %w", err)
 	}
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(input))
 	if err != nil {
-		return "", false, nil, fmt.Errorf("parse error: %w", err)
+		return "", false, nil, fmt.Errorf("parse error: %w", declared.Explain(err))
 	}
 
 	formatted, weaknesses, err := fmtTree(tree, schema)

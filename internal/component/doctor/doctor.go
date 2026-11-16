@@ -21,6 +21,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
@@ -28,6 +29,7 @@ import (
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -81,15 +83,51 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic, judged *config
 		return diags, nil
 	}
 
+	// Before any parse: the step that reads which external plugins the config
+	// declares and starts no program (config.PublishDeclaredSchemas). Served
+	// by a daemon, the set the daemon joined at start answers; with no daemon
+	// the compiled-in set does, and a section of an external plugin is
+	// refused below with the command that reaches a running ze.
+	declared, declaredErr := config.PublishDeclaredSchemas(config.ConfigSource{Text: string(configData), Path: configName})
+	if declaredErr != nil {
+		message, fix := configRefusalParts(declaredErr, configName)
+		diags = append(diags, diagnostic.Diagnostic{
+			Code:     "doctor-config-parse",
+			Severity: diagnostic.SeverityError,
+			Message:  message,
+			Fix:      fix,
+		})
+		return diags, nil
+	}
+
 	// Parsed-tree checks MUST accept invalid semantics and apply nothing. Run
 	// them before ReadConfig, whose refusal must not hide their diagnostics.
 	parsed, parseErr := config.ParseTreeForValidation(string(configData))
 	if parseErr != nil {
+		message, fix := configRefusalParts(parseErr, configName)
 		diags = append(diags, diagnostic.Diagnostic{
 			Code:     "doctor-config-parse",
 			Severity: diagnostic.SeverityError,
-			Message:  parseErr.Error(),
+			Message:  message,
+			Fix:      fix,
 		})
+		// A section only an external plugin's schema defines is an unknown
+		// name when ze holds no schema of that plugin, and the parser cannot
+		// name the plugin. One more finding says which external plugins the
+		// config declares and why ze holds no schema of them here, with its
+		// own fix, and only beside the refusal of an unknown name: no plugin's
+		// missing schema explains any other refusal (DeclaredSchemas.Explain).
+		if config.RefusesUnknownNode(parseErr) {
+			if unchecked := declared.Unchecked(configName); unchecked != nil {
+				message, fix = configRefusalParts(unchecked, configName)
+				diags = append(diags, diagnostic.Diagnostic{
+					Code:     "doctor-config-parse",
+					Severity: diagnostic.SeverityError,
+					Message:  message,
+					Fix:      fix,
+				})
+			}
+		}
 		return diags, nil
 	}
 	baseCtx.Tree = parsed
@@ -117,6 +155,26 @@ func runChecks(configPath string) (diags []diagnostic.Diagnostic, judged *config
 	diags = append(diags, runDoctorChecks(doctorCheckPhasePostConfig, checkCtx)...)
 
 	return diags, tree
+}
+
+// configRefusalParts splits refusal, a refusal of the config named configName,
+// into the message and the fix of its doctor finding, so the report states the
+// fix once, on its fix line. A refusal that holds an operator error and whose
+// text ends with that error's fix line gives the text before the line and the
+// fix alone. Any other refusal holds no fix of its own: the message is its
+// whole text, and the fix is the command that lists every problem of the
+// config with its line.
+func configRefusalParts(refusal error, configName string) (message, fix string) {
+	message = refusal.Error()
+	held, ok := errors.AsType[*opererr.Error](refusal)
+	if !ok {
+		return message, "ze config validate " + configName
+	}
+	trimmed, ends := strings.CutSuffix(message, "\n"+doctorFixLabel+held.Fix())
+	if !ends {
+		return message, "ze config validate " + configName
+	}
+	return trimmed, held.Fix()
 }
 
 func resolveStorageWithDiag(configPath string) (storage.Storage, []diagnostic.Diagnostic) {

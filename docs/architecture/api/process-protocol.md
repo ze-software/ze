@@ -1178,6 +1178,16 @@ declares no `protocol-version` speaks the text-era contract the daemon refuses
 at Stage 1, so `show plugin declarations` reports that plugin `unstartable`, with
 the refusal `rpc.NegotiateProtocolVersion` gives, never as a plugin declaring
 its commands.
+
+The query answer also carries the plugin's config schema, and the conformance
+check judges it. No command joins it to the config schema: the daemon joins the
+module of the live Stage 1 at start, and a command that parses a config with no
+daemon (`ze config validate` and the others) starts no plugin, in query mode or
+any other. It parses against the compiled-in schema and says that a section
+under an external plugin's root is not available with no daemon
+(`docs/architecture/config/yang-config-design.md`, "Who publishes"). Query mode
+is started only by `show plugin declarations` and the conformance check.
+<!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins -->
 <!-- source: pkg/plugin/rpc/declaration.go -- WriteDeclaration -->
 <!-- source: pkg/plugin/sdk/sdk_query.go -- RunOrDeclare -->
 <!-- source: internal/component/plugin/declarations.go -- queriedDeclarationRow -->

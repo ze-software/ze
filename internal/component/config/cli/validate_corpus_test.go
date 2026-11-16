@@ -17,10 +17,12 @@ import (
 
 	editorcli "github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config"
+	configyang "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/exabgp/migration"
 	"github.com/ze-software/ze/internal/test/exabgpnative"
+	"github.com/ze-software/ze/internal/test/externalyang"
 	"github.com/ze-software/ze/internal/test/labconfig"
 	"github.com/ze-software/ze/internal/test/labconfig/homecpe"
 	"github.com/ze-software/ze/internal/test/runner"
@@ -98,6 +100,12 @@ const (
 	// ruleStatementShape: a body is a Ze config only when its first statement
 	// has the shape its schema root declares.
 	ruleStatementShape
+	// ruleExternalModules: the YANG modules the external-yang test plugin
+	// declares when it runs (internal/test/externalyang) are joined to the
+	// process's schema, as boot joins them from the plugin's Stage 1. The
+	// sweep runs no plugin, and a body with a section only such a module
+	// defines is then judged in full, like every other body.
+	ruleExternalModules
 )
 
 // sweepRecordPort stands for the first port the functional runner leases a test.
@@ -247,12 +255,61 @@ func (k sweepKeep) keeps(path string, text []byte) bool {
 	return false
 }
 
+// sweepExternalModules answers the modules the external-yang test plugin is
+// expected to have accepted (externalyang.Accepted), as the declarations the
+// plugin makes when it runs. Each is declared by a plugin named after its
+// module, which is the name the external-yang-* bodies give the plugin; the
+// name decides only which plugin a refusal names, never what a body may hold.
+// The modules the plugin brings to be refused are not here: no schema holds
+// them, at boot either.
+func sweepExternalModules() []configyang.ExternalModule {
+	accepted := externalyang.Accepted()
+	modules := make([]configyang.ExternalModule, 0, len(accepted))
+	for _, module := range accepted {
+		modules = append(modules, configyang.ExternalModule{
+			Plugin:    strings.TrimSuffix(module.Name, "-conf"),
+			Module:    module.Name,
+			Namespace: module.Namespace,
+			Text:      module.Text,
+		})
+	}
+	return modules
+}
+
+// publishSweepModules makes modules the external layer of the process's
+// module set until t ends, when it restores what it found. It runs before the
+// first body: runValidation starts no plugin program, and in a process whose
+// set is not fixed it fixes it to the compiled-in one
+// (config.SchemaWithDeclaredPlugins), which refuses every section of the test
+// plugin. With the set fixed here, as a daemon's is at boot, a body is judged
+// against the plugin's module, and never depends on which body came first or
+// on an earlier test.
+//
+// A set that already holds exactly modules is left alone: resolving it again
+// would change nothing a body is judged against.
+func publishSweepModules(t *testing.T, modules []configyang.ExternalModule) {
+	t.Helper()
+	published, fixed := configyang.PublishedExternalModules()
+	if fixed && slices.Equal(published, modules) {
+		return
+	}
+	t.Cleanup(config.ResetDeclaredSchemasForTest())
+	if err := config.PublishExternalModules(modules); err != nil {
+		t.Fatalf("publish the modules of the external-yang test plugin: %v", err)
+	}
+}
+
 // runSweep walks the repository and validates every carrier of the files
 // keep keeps, with the rule off disabled (ruleNone disables none).
 func runSweep(t *testing.T, off sweepRule, keep sweepKeep) *sweepReport {
 	t.Helper()
 	diagnostic.ResetForTest()
 	diagnostic.RegisterBuiltinCodes()
+	var modules []configyang.ExternalModule
+	if off != ruleExternalModules {
+		modules = sweepExternalModules()
+	}
+	publishSweepModules(t, modules)
 	if off == ruleTestPlugins {
 		withoutTestPlugins(t)
 	}
@@ -886,7 +943,8 @@ func directoryIsAboutRFC8212(path string) bool {
 // VALIDATES: every exclusion the sweep makes is the rule's doing: with the rule
 // off, findings return that name what the rule covers (an interop scenario's
 // placeholder, a $PORT, a test-only plugin, a declared refusal, a loaded
-// fragment, a legacy native fixture, an FRR vtysh.conf).
+// fragment, a legacy native fixture, an FRR vtysh.conf, a section only the
+// external-yang test plugin's module defines).
 // PREVENTS: a rule that turns nothing away, or findings that vanish for a
 // reason no rule states.
 func TestSweepDerivesEachExclusion(t *testing.T) {
@@ -903,6 +961,7 @@ func TestSweepDerivesEachExclusion(t *testing.T) {
 		{"load sequence", ruleLoadSequence, sweepKeep{"demos/terminal"}, "demos/terminal/topics/"},
 		{"native classification", ruleNativeClassification, sweepKeep{exabgpnative.Dir}, exabgpnative.Dir},
 		{"statement shape", ruleStatementShape, sweepKeep{"vtysh"}, "vtysh.conf"},
+		{"external modules", ruleExternalModules, sweepKeep{"test/plugin/external-yang-"}, "test/plugin/external-yang-own-root.ci"},
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {

@@ -85,7 +85,10 @@ func completerFor(configPath string) (*cli.Completer, *config.Tree, int) {
 		return nil, nil, exitError
 	}
 
-	schema, err := config.YANGSchema()
+	// Before the completer is built: it takes the module set it finds, and
+	// this step fixes that set. With no daemon it is the compiled-in one: no
+	// plugin is started, so an external plugin's section is not completed.
+	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: string(data), Path: configPath})
 	if err != nil {
 		helpfmt.WriteError(os.Stderr, false, "%v", err)
 		return nil, nil, exitError
@@ -94,7 +97,7 @@ func completerFor(configPath string) (*cli.Completer, *config.Tree, int) {
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {
-		helpfmt.WriteError(os.Stderr, false, "parsing config: %v", err)
+		helpfmt.WriteError(os.Stderr, false, "parsing config: %v", declared.Explain(err))
 		return nil, nil, exitError
 	}
 

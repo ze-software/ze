@@ -30,14 +30,25 @@ func init() {
 // refused here too, with the loader's own message. ReadConfig and not
 // LoadConfig, because this command is daemon-served: LoadConfig would push the
 // file's environment block into the answering daemon's log and env settings.
+//
+// The file is parsed whole, after the step that reads which external plugins
+// it declares (PublishDeclaredSchemas). Served by a daemon, a section of a
+// plugin the daemon started with is read; with no daemon it is refused, with
+// the command that reaches a running ze. The first
+// pass alone would not answer this list: it leaves out the compiled-in
+// plugins, the plugins a section declares inline and their dependencies.
 func readConfiguredPlugins(path string) ([]plugin.PluginConfig, error) {
 	input, err := cliio.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	loaded, err := ReadConfig(string(input), path, nil)
+	declared, err := PublishDeclaredSchemas(ConfigSource{Text: string(input), Path: path})
 	if err != nil {
 		return nil, err
+	}
+	loaded, err := ReadConfig(string(input), path, nil)
+	if err != nil {
+		return nil, declared.Explain(err)
 	}
 	return loaded.Plugins, nil
 }

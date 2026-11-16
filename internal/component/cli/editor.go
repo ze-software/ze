@@ -164,8 +164,13 @@ func NewEditorFromContent(content []byte, identity string) (*Editor, error) {
 // checkPending probes the on-disk ".edit" sibling (skipped for content-sourced
 // editors, which have no sibling).
 func newEditor(store storage.Storage, identity, content string, checkPending bool) (*Editor, error) {
-	// Parse config into tree using YANG-derived schema
-	schema, err := config.YANGSchema()
+	// Parse config into tree using the YANG-derived schema of this process's
+	// module set (config.SchemaWithDeclaredPlugins), which starts no program.
+	// With no daemon that is the compiled-in set, so a section of an external
+	// plugin is refused here; inside a daemon it is the set the daemon joined
+	// from its plugins when it started, and a plugin declared during the
+	// session is known only after a restart.
+	schema, _, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: content, Path: identity})
 	if err != nil {
 		return nil, fmt.Errorf("YANG schema: %w", err)
 	}

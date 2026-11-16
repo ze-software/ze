@@ -50,15 +50,19 @@ type FirstPassResult struct {
 // module of its own, and a config that declares no external plugin answers an
 // empty External.
 //
-// The caller MUST, before it parses the full config (LoadConfig, ReadConfig):
+// A daemon that boots MUST, before it parses the full config (LoadConfig,
+// ReadConfig):
 //
-//   - obtain the Stage 1 declaration of every plugin in External, by running
-//     it or by its declare mode, join the modules they declare to the
-//     compiled-in set and publish the joined set. With an empty External there
-//     is nothing to run, join or publish, and the caller MUST go straight to
-//     the full parse;
+//   - obtain the Stage 1 declaration of every plugin in External by running
+//     it, join the modules they declare to the compiled-in set and publish
+//     the joined set. With an empty External there is nothing to run, join or
+//     publish, and the caller MUST go straight to the full parse;
 //   - keep the outcome of a plugin that did not declare, with its reason, so
 //     the refusal of a root still unknown at the full parse can name it.
+//
+// A command with no daemon MUST NOT run a plugin of External (owner ruling):
+// it parses against the compiled-in set and says which plugins the config
+// declares beside the refusal of a name that set does not define.
 //
 // The caller MUST NOT take External for the plugins the daemon runs. The full
 // load answers that list (LoadConfigResult.Plugins): it adds the compiled-in
@@ -74,7 +78,8 @@ type FirstPassResult struct {
 // joinDeclaredPlugins for the run, the join and the publish), and the start
 // path uses it where it needs the `plugin` block before boot (cmd/ze
 // judgeConfigBeforeBoot, extractManagedClientConfig). The commands that parse
-// a config with no daemon do not call it yet.
+// a config with no daemon call it through SchemaWithDeclaredPlugins
+// (declared_schemas.go), which runs no plugin and keeps the names it read.
 func FirstPass(input, configPath string, cliPlugins []string) (*FirstPassResult, error) {
 	schema, err := PluginOnlySchema()
 	if err != nil {

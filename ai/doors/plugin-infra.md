@@ -41,9 +41,14 @@ daemon runs each declared external plugin before the full parse, reads its
 Stage 1 declaration and keeps the request unanswered until the plugin's startup
 tier (`pluginserver.HoldDeclaredPlugins`, `Manager.StartDeclared`). The plugin
 waits for its Stage 1 answer in the meantime, and the tier never forks it a
-second time. The commands that run with no daemon do not join it yet
+second time. With no daemon running Ze starts no external plugin's program
+(owner ruling): the commands that parse a config then hold the compiled-in
+schema alone and say that a section of an external plugin is not available
+(`config.SchemaWithDeclaredPlugins`). Only the conformance check and `show
+plugin declarations` run a program in declare mode, because running the
+program the operator names is their purpose
 (`docs/plugin-development/schema.md`, "What works today";
-`docs/architecture/hub-architecture.md`, "What the daemon does at start").
+`docs/architecture/config/yang-config-design.md`, "Who publishes").
 
 ## Boundaries
 

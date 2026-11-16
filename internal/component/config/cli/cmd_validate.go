@@ -354,8 +354,13 @@ func runValidation(input, path string) *validationResult {
 		Valid: true,
 	}
 
-	// Parse with YANG-derived schema.
-	schema, err := config.YANGSchema()
+	// Parse with the YANG-derived schema of this process's module set
+	// (config.SchemaWithDeclaredPlugins). With no daemon that is the
+	// compiled-in set: ze starts no external plugin here, so a section only
+	// such a plugin's schema defines is refused below, with the command that
+	// reaches a running ze. Served by a daemon, it is the set the daemon
+	// joined from its plugins when it started.
+	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: input, Path: path})
 	if err != nil {
 		result.addError("config-parse", "YANG schema: "+err.Error())
 		return result
@@ -404,6 +409,24 @@ func runValidation(input, path string) *validationResult {
 		result.addErrorLine(code, message, line)
 	}
 	if len(parseErrors) > 0 {
+		// A section only an external plugin's schema defines is an unknown
+		// keyword when ze holds no schema of that plugin, and the parser's
+		// refusal cannot name the plugin. One more diagnostic says which
+		// external plugins the config declares, why ze holds no schema of
+		// them here, and the command that reaches a ze that does.
+		// Only beside the refusal of a name the schema does not define: no
+		// plugin's missing schema explains any other refusal.
+		unknownNode := false
+		for _, parseErr := range parseErrors {
+			if config.RefusesUnknownNode(parseErr) {
+				unknownNode = true
+			}
+		}
+		if unknownNode {
+			if unchecked := declared.Unchecked(path); unchecked != nil {
+				result.addError("config-parse", unchecked.Error())
+			}
+		}
 		return result
 	}
 
@@ -411,6 +434,9 @@ func runValidation(input, path string) *validationResult {
 	for _, w := range warnings {
 		result.addWarning("config-warning", w)
 	}
+	// A declared external plugin ze holds no schema of refuses nothing by
+	// itself and is not reported here: the config holds no name only its
+	// schema defines, or the parse above would have refused.
 
 	// Fail closed if a secret leaf carries the display placeholder: a masked
 	// `show config` pasted into a file (or a web upload) must not clobber the

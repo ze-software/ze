@@ -127,6 +127,21 @@ func PublishedExternalModules() (modules []ExternalModule, published bool) {
 	return slices.Clone(defaultSchema.external.modules), true
 }
 
+// ModuleSetFixed reports whether the module set DefaultLoader answers can no
+// longer take the module of an external plugin: the process published its
+// external modules (PublishExternalModules, a publish of no module included),
+// or it built a value that keeps the set for its whole life (KeepsModuleSet),
+// which is what a running daemon does when it builds its plugin server. A
+// publish of a module in such a process is refused, so a caller that would
+// first run a plugin to learn its module asks this before it runs anything.
+// Safe for concurrent use.
+func ModuleSetFixed() bool {
+	if _, published := PublishedExternalModules(); published {
+		return true
+	}
+	return len(moduleSetKeeperNames()) > 0
+}
+
 // ModulePublication is what the published set holds for one declaration: the
 // answer PublishedModule gives a caller that compares a plugin's declaration
 // with the set the process started with.

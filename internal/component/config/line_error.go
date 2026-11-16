@@ -40,7 +40,38 @@ func newLineError(line int, cause error) error {
 // not define, on line. The pre-migration set parse records one for each
 // field it skips (SetParser.UnknownFields).
 func unknownFieldLine(line int, name string) *LineError {
-	return &LineError{line: line, cause: fmt.Errorf("unknown field: %s", name)}
+	return &LineError{line: line, cause: &unknownNodeError{cause: fmt.Errorf("unknown field: %s", name)}}
+}
+
+// unknownNodeError marks the refusal of a name the schema the parser holds
+// does not define: a top-level keyword, or a field of a known section. Its
+// text is its cause's, so the marker changes no message. It exists so a caller
+// can tell this refusal from every other one without reading its words
+// (RefusesUnknownNode).
+type unknownNodeError struct {
+	cause error
+}
+
+func (e *unknownNodeError) Error() string { return e.cause.Error() }
+
+// Unwrap answers the refusal the marker carries.
+func (e *unknownNodeError) Unwrap() error { return e.cause }
+
+// unknownNodeLinef is lineErrorf for the refusal of a name the schema does
+// not define. The brace parser calls it for an unknown top-level keyword and
+// an unknown field of a container, a flex block or a list entry, the set parser for an
+// unknown field.
+func unknownNodeLinef(line int, format string, args ...any) error {
+	return &LineError{line: line, cause: &unknownNodeError{cause: fmt.Errorf(format, args...)}}
+}
+
+// RefusesUnknownNode reports whether err is, or wraps, a parser's refusal of
+// a name its schema does not define. That is the one refusal a module the
+// process does not hold can explain: every other refusal (a value out of
+// range, a missing brace, a duplicate) is about a node the schema knows.
+func RefusesUnknownNode(err error) bool {
+	_, unknown := errors.AsType[*unknownNodeError](err)
+	return unknown
 }
 
 // Error renders "line N: <refusal>".

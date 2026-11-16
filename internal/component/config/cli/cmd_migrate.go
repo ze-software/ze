@@ -173,7 +173,10 @@ func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string
 	content := string(data)
 
 	// Parse any format: auto-detect and use the appropriate parser.
-	schema, err := config.YANGSchema()
+	// The schema of this process's module set: with no daemon the compiled-in
+	// one, so a section of an external plugin is refused with the command
+	// that reaches a running ze (config.SchemaWithDeclaredPlugins).
+	schema, declared, err := config.SchemaWithDeclaredPlugins(config.ConfigSource{Text: content, Path: inputPath})
 	if err != nil {
 		return "", nil, fmt.Errorf("YANG schema: %w", err)
 	}
@@ -189,7 +192,7 @@ func configMigrateWithWarnings(inputPath, outputPath, outputForm string) (string
 		panic("BUG: unknown detected config format")
 	}
 	if err != nil {
-		return "", nil, fmt.Errorf("parse error: %w", err)
+		return "", nil, fmt.Errorf("parse error: %w", declared.Explain(err))
 	}
 
 	warnings := findUnsupportedFeatures(tree)

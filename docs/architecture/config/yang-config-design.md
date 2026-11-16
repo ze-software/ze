@@ -525,6 +525,61 @@ defect in the order of the start, and the refusal says so.
 <!-- source: internal/component/iface/validate.go -- ValidateIfaceName, reservedIfaceNamesKeeper -->
 <!-- source: cmd/ze/hub/command_meta.go -- commandMetaSource -->
 
+### Who publishes: boot, and a command with no daemon
+
+Only the daemon publishes the module of an external plugin. Owner ruling
+(Thomas, 2026-11-16): "plugin command requiring external plugins which can not
+be started from the code when no daemon is running to pass it to are not
+available, for command built-in then yes you should run them as we can look
+them up in the yang hardcoded in the binary". With no daemon running, Ze starts
+no external plugin's program, so it holds no schema of one, and what needs that
+schema is not available. A compiled-in plugin is unchanged: its YANG is in the
+binary.
+
+| Process | The module set it parses against | Caller |
+|---------|----------------------------------|--------|
+| The daemon, at `ze start` | The compiled-in set joined to the module of each declared external plugin, read from its live Stage 1 declaration | `joinDeclaredPlugins` in `cmd/ze/hub` |
+| A command that parses a config with no daemon | The compiled-in set alone. No program is started | `config.SchemaWithDeclaredPlugins`, and `config.PublishDeclaredSchemas` for a caller that parses through `ReadConfig` or `ParseTreeForValidation` |
+
+`config.SchemaWithDeclaredPlugins` is the one step every such command calls in
+place of `config.YANGSchema`, before it parses. It takes the first pass of each
+config it is given, keeps the names of the external plugins they declare, fixes
+the process's module set to the compiled-in one, and answers the schema. It
+starts no program in any process.
+
+| Case | What the step does |
+|------|--------------------|
+| No config declares an external plugin | The schema is the compiled-in one, and the process's set is recorded as holding no external module |
+| A config declares an external plugin and holds no name only its schema could define | The config parses. Nothing is reported about the plugin |
+| A config declares an external plugin and the parse refuses a name the schema does not define (`config.RefusesUnknownNode`: an unknown top-level keyword or an unknown field) | `DeclaredSchemas.ParseRefusal`, `Explain` and `Unchecked` answer one operator error: the refusal, the external plugins the config declares, that Ze reads such a plugin's schema when `ze start` runs it and that this command starts no plugin, and the daemon form to type, `show config validation <file>`. The fix is `ze cli`, which opens a session the running Ze serves. The message never says a plugin owns the refused name: Ze holds no schema that could tell |
+| Any other parse refusal | Unchanged: no plugin's schema explains a value out of range or a syntax mistake |
+| A second call in one process | Answers the same as the first |
+| The process's module set is already fixed (`yang.ModuleSetFixed`: it published, or it built a value that keeps the set, as a running daemon does) | Publishes nothing. A declared plugin whose module the process holds is not listed, and its section parses. A declared plugin the process holds no module of is named beside the refusal of an unknown name, with the restart of `ze` as the fix |
+| A config the first pass refuses | Declares nothing to the step. The caller's full parse refuses the same block |
+
+The fix is not `ze cli -c "show config validation <file>"`: `ze cli -c` answers
+a local-data command in its own process (`command.ServeLocal`), which starts no
+plugin either, so it gives the same refusal. An interactive `ze cli` session,
+SSH, the web, MCP, REST and gRPC reach the daemon's handler.
+
+A command that compares two configs passes both, so the plugins of both sides
+are remembered. The callers are the `ze config` commands (`validate`, `fmt`,
+`dump`, `diff`, `migrate`, `completion`), `show config graph`, the editor,
+`ze doctor`, the support report, the crash-capture readiness read, the TACACS+
+probe, `show plugin declarations config` and `ze plugin test`.
+
+Two commands still run a program with no daemon, because running the program
+the operator names is their purpose: `ze show plugin conformance run
+"<command>"`, and `show plugin declarations`, which runs each plugin of the
+config it is given in declare mode (`plugin.QueryDeclaration`).
+<!-- source: internal/component/config/declared_schemas.go -- SchemaWithDeclaredPlugins, PublishDeclaredSchemas, DeclaredSchemas, publishDeclaredSchemas -->
+<!-- source: internal/component/config/yang/publish.go -- ModuleSetFixed -->
+<!-- source: internal/component/command/local_data.go -- ServeLocal -->
+<!-- source: internal/component/plugin/declarations.go -- QueryDeclaration -->
+<!-- source: internal/component/config/declared_schemas_test.go -- TestDeclaredSchemasStartsNoDeclaredProgram, TestParseRefusalSaysTheSectionIsNotAvailableOffline, TestDeclaredSchemasNoExternalPluginRunsNothing, TestDeclaredSchemasRunsNothingOnceTheSetIsFixed, TestDeclaredSchemasAnswersFromThePublishedSet, TestDeclaredSchemasTakesPluginsOfEverySource -->
+<!-- source: internal/component/config/cli/cmd_validate.go -- runValidation -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- readDiffSource, parseAndResolve -->
+
 ### Registration Pattern
 
 Each component with a YANG schema follows this pattern:
