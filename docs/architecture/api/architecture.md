@@ -143,6 +143,27 @@ process ...` detail a plugin matches on), and `fix: add 'attach process <name>
 { send [ <type> ]; }' to each peer the process sends to`.
 <!-- source: internal/component/bgp/reactor/send_permission.go -- sendNotPermitted -->
 
+### Owner ruling: explicit, or refused at commit
+
+On 2026-11-16, Thomas ruled that this silence stays the rule for ze's own
+plugins too, and that a configuration which asks for a feature and lacks what
+the feature needs is refused at commit. The check finds a missing `attach
+process` block and a block that grants less than the feature needs alike, and
+the refusal gives the line that fixes it. The same holds for the `plugin`
+block: a plugin the configuration needs is declared there.
+
+This is not implemented yet. Today ze derives the bindings listed under "The
+Two Bindings Ze Derives" below, and two more that section does not list: a
+FlowSpec family, and AIGP, each derive the Loc-RIB's receive binding on every
+peer. A redistribution rule whose process is granted too little on a peer
+loads and moves no route from that peer, with one log line. The work is owned
+by
+[spec-explicit-plugin-and-attach-config](../../../plan/release/fixes/spec-explicit-plugin-and-attach-config.md),
+which also settles how far the ruling reaches into plugin loading.
+<!-- source: internal/component/bgp/config/redistribute_binding.go -- wireRedistributeDelivery -->
+<!-- source: internal/component/bgp/config/flowspec_binding.go -- requireRIBDelivery -->
+<!-- source: internal/component/plugin/server/delivery_reconcile.go -- reconcileDelivery -->
+
 ### Configuration Syntax
 
 ```

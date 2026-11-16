@@ -217,8 +217,11 @@ in the spec or commit it applies to.
   configuration prevents surprises, and the friction it adds is the accepted
   tradeoff. A design never removes that friction by deriving or implying
   configuration the operator did not write. It removes it with tooling: a
-  validate or doctor message that names what is missing and the line that adds
-  it, or a generator.
+  message that names what is missing and the line that adds it, or a
+  generator. A configuration that asks for a feature and lacks what the
+  feature needs, a process attachment, a grant narrower than the feature
+  needs or a `plugin` declaration, is refused at commit with that line. It is
+  never completed silently, and never loaded to do nothing.
 - A command path names the subject and stops; scope, presentation and format
   are pipe operations after it. A command may declare optional pipe operations
   of its own, such as `| count`, and the engine handles a declared operation

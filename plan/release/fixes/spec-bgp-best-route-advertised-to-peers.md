@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Routing correctness of a shipped capability: under the default configuration a Ze node between two BGP peers passes on only the routes it originates, where RFC 4271 Section 9.2 has a speaker advertise the routes its Decision Process chose |
 | RFC gaps | - |
-| Depends | `plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md` (a best route advertised toward an eBGP peer under the default `next-hop auto` needs the rewrite that spec owns) |
+| Depends | `plan/release/fixes/spec-bgp-next-hop-auto-rewrites-for-ebgp.md` (a best route advertised toward an eBGP peer under the default `next-hop auto` needs the rewrite that spec owns); `plan/release/fixes/spec-explicit-plugin-and-attach-config.md` (the commit-time refusal of a missing or narrower `attach process` grant, which transit uses for `bgp-rib`) |
 | Phase | Design: configured-preference origin admission and selected output |
 | Handoff | `tmp/session/2026-11-14-210034/state/session-state-bgp-best-route-advertised-to-peers-01a1db03-fbc1-7b32-8cbf-72b6284c110b.md` |
 | Design tier | strongest tier |
@@ -519,7 +519,7 @@ default, and the config is what breaks it."
 |---------|---------------------|
 | An operator's process, in any language, and the ExaBGP bridge | Nothing changes. It receives a peer's routes only where that peer's `attach process` block grants `receive`, and sends only where it grants `send`. Ordinary selected output never widens a grant, and no default feed is derived for such a process |
 | The deciding plugin, `bgp-rib` | Explicit too, by owner decision: that page says the silence "holds for ze's own plugins as it holds for an operator's program", and this spec keeps it. Transit needs `bgp-rib` attached to the peers involved. No route-server plugin is needed, which is what the first ruling asked. The bindings a redistribution rule, a FlowSpec family or AIGP derive today are outside this spec and unchanged by it |
-| A peer's own grant | Is the only grant. One too narrow for transit is reported with the line that fixes it, never widened |
+| A peer's own grant | Is the only grant. One too narrow for transit is refused at commit with the line that completes it, never widened |
 
 ### Concrete selected-output mechanism (proposed)
 
@@ -773,14 +773,21 @@ default peer-feed declaration and derives no grant.
 Extend the existing plugin registration and Stage-1 declaration with opaque
 role eligibility only. The plugin also declares, as a pure value, the receive
 and send grants its transit job needs, and nothing grants them from it:
-generic config code reads the declaration to report what is missing. A peer
-whose export policy is configured, and which no explicit role serves, needs
-the deciding plugin's send grant on itself and its receive grant on the peers
-whose routes are to reach it. Where one is absent, `ze config validate`, the
-Established log line and `ze doctor` name the peer, the process and the
-missing grant, and give the `attach process` line that adds it (AC-25). The
-config still loads, as it does for an RFC 8212 absence: nothing flows, and the
-operator is told why.
+the generic check of
+`plan/release/fixes/spec-explicit-plugin-and-attach-config.md` reads the
+declaration and refuses a commit that grants less.
+
+What asks for transit toward a peer is that peer's `attach process` block
+granting the deciding plugin `send`. An export policy alone does not ask for
+it: a peer that only receives API announcements has one too, and attaches no
+RIB. So the refusal judges the blocks the operator wrote for the deciding
+plugin, and infers nothing from a policy. A block that grants it `send` on a
+peer while no peer grants it the receive types election needs, or a block
+that grants only part of what its direction needs (the owner's example,
+`receive [ state ]` alone), is refused at validate, commit and start, with the
+line that completes it (AC-25). A peer that grants the plugin `send` and has
+no export policy is a legal config that withholds learned routes, and it gets
+the absent-policy report of AC-21, not a refusal.
 
 The effective destination role is derived from the complete declared set and
 the existing delivery graph, not whether an RS process happens to autoload.
@@ -1077,7 +1084,7 @@ resource-bound criteria below form one unapproved design for whole review.
 | AC-22 | The AC-20 config plus two role destinations, neither with an export policy: D is an internal reflector client served by an attached `bgp-rr`, E is an external route-server client served by an attached `bgp-rs`. A announces a prefix | D receives the reflected route with its RFC 4456 attributes. E receives nothing, because RFC 8212 Section 3 binds every route on an external session. `ze config validate`, the log and `ze doctor` raise the internal absence for C and not for D, and the RFC 8212 absence for E | D's reflected route survives: an attached role is the explicit decision. C stays without the route, so the exemption is tied to the role and is not unconditional |
 | AC-23 | B is internal with an accepting export policy and holds a learned route and an API announcement. Its export policy is removed, restored, removed in an apply that is then rolled back, and a learned-route write queued before a removal is released after it | Removal withdraws the learned route only. Restoration sends the current selected winner once. The rolled-back removal leaves B holding both routes. The late write installs nothing | The API announcement is never withdrawn and never re-sent across the four steps; other recipients are untouched |
 | AC-24 | A process attached to no peer, and one attached to peer A with `receive [ update ]` only, beside the default transit config | The first receives no route event and every send it attempts is refused. The second receives A's routes and nothing from other peers. Neither changes when ordinary transit starts passing routes | `bgp-rib` is fed by the same rule: only the peers that attach it |
-| AC-25 | B has an accepting export policy and no explicit role, and `bgp-rib` is attached to A with `receive` but not to B; then the `send` grant is added on B | Before: B receives no learned route, and `ze config validate`, the Established log line and `ze doctor` name B, the process and the missing `send` grant, with the `attach process` line that adds it. After: B receives the elected route and the report clears. The same holds for a missing `receive` on A | No grant is derived or widened at any step; a peer with no export policy raises this report never, since it asked for no learned route |
+| AC-25 | B's block grants `bgp-rib` `send [ update ]`; A's block for it grants `receive [ state ]` only, and no other peer grants it routes. Then A's block is completed. Separately, a config where B has an accepting export policy and attaches no `bgp-rib` at all | The first config is refused at validate, commit and start, naming A, the process under its alias, the missing receive types and the completed `attach process` line. Completed, it loads and B receives the elected route. The second config loads and B receives its API announcements | No grant is derived or widened at any step. The second config survives because an export policy alone asks for no transit |
 
 ## End-to-End User Stories
 
