@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | design |
 | Priority | P3 |
 | Release reason | Adds a capability absent from the supported release; existing supported behavior and its obligations remain required. |
 | Scope | plugin |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-10-08 |
+| Updated | 2026-11-16 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 

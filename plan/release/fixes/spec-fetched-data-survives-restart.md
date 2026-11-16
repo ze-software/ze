@@ -835,6 +835,7 @@ Not protocol scope. The domain expiry code carries the RFC 1035 Section 3.2.1 TT
 | approach | Removing the replaced dataset after every flip (b3c34bcb90) left a reader that read the old pointer before the flip refused after the removal | The reader must follow a pointer that moved | Third closure, round 1 | `store.ReadDataset` follows once |
 | approach | The third closure's round 2 passed a test helper parameter that only ever took one value, and an exported `store.InterestKey` that only tests outside the package used | Lint (unparam) and `./le repo check` refuse both, and a review round does not replace running them | The main thread's owed lint and repo check | C3-5, C3-6, reviewed in round 3 |
 | approach | The feature declaration `features/irr-bgp-import-filtering.md` (Documentation checklist row 1) was not updated by phase 4 and still said the lists live in memory only | Phase 4 owed it | Third closure, step 4 | Rewritten in the third closure |
+| approach | The third closure's round 1 claimed it covered the whole diff, but it read only the files the third closure had changed | Rounds 4 to 6 read the whole 164-file change set and found twelve ISSUEs (R4-1 to R5-3) | The main session's round 4 | R4-1 to R5-3 fixed in c7a5323d13 and 1c312489ac |
 
 ## Implementation Audit
 
@@ -913,10 +914,10 @@ Not protocol scope. The domain expiry code carries the RFC 1035 Section 3.2.1 TT
 
 | Field | Value |
 |-------|-------|
-| Artifact | `tmp/review/fetched-data-survives-restart-89674350-7290-4834-a71c-6fad00afe6e8.md` (15 files, `numberparse-allowlist.txt` by `hunks`) |
-| `./le spec review check` | `review_gate: OK (9 code files, clean, hashes match ...)` |
-| Rounds | 3 |
-| Reviewer lenses used | round 1: wiring, removed behaviour, logic and races, security and stored-input panics, docs drift, style pass over every changed Go file; round 2: the round-1 fixes; round 3: the main thread's lint and repo-check fixes (C3-5, C3-6), clean |
+| Artifact | `tmp/review/fetched-data-survives-restart-89674350-7290-4834-a71c-6fad00afe6e8.md`, recorded over the whole change set (188 paths: every file of `Spec-work: fetched-data-survives-restart`, 78229094a3, c7a5323d13 and 1c312489ac; four deleted test files pinned `DELETED`) |
+| `./le spec review check` | Run after that record, over the same 188 paths |
+| Rounds | 6. Round 6 was authorised by Thomas on 2026-11-16, asked directly by the main session after round 5 found three IRR binding defects |
+| Reviewer lenses used | round 1: wiring, removed behaviour, logic and races, security and stored-input panics, docs drift, style pass over every changed Go file; round 2: the round-1 fixes; round 3: the main thread's lint and repo-check fixes (C3-5, C3-6), clean; round 4: three independent readers over every readable file of the 164-file change set (owner, consumers, tests and docs), nine ISSUEs (R4-1 to R4-9, fixed by c7a5323d13); round 5: every lens and the style pass over c7a5323d13, three ISSUEs (R5-1 to R5-3, fixed by 1c312489ac); round 6: every lens and the style pass over 1c312489ac, 0 BLOCKER, 0 ISSUE |
 
 ### Findings fixed
 | # | Severity | Finding | Location | Fixed by |
@@ -927,6 +928,20 @@ Not protocol scope. The domain expiry code carries the RFC 1035 Section 3.2.1 TT
 | C3-5 | ISSUE | Lint (unparam): the test helper `storeSet` only ever got "AS-TEST" | `resolve/irr/store/consumer_test.go` `storeSet` | Parameter dropped, a local `const asSet = "AS-TEST"`; callers follow; no assertion changed |
 | C3-6 | ISSUE | `./le repo check`: exported `store.InterestKey` had no cross-package non-test caller | `resolve/irr/store/pointer.go` | Unexported as `interestKey` (body `zefs.KeyIRRInterest.Key(consumer)`, unchanged); the four outside tests (`irr/completion_test.go`, `irr/owner_fake_test.go`, `firewall/plugins/irr/stored_test.go`, `filter_irr/stored_test.go`) name `zefs.KeyIRRInterest.Key(...)`, the same key, so each asserts what it did |
 | C3-4 | ISSUE | Documentation checklist row 1: `features/irr-bgp-import-filtering.md` said the lists live in memory only and the filter registers refresh commands | `features/irr-bgp-import-filtering.md` | Description, Components, tests and doc review rewritten |
+| R4-1 | ISSUE | A `clear irr` whose pointer removal the store refused had already dropped the set's schedule and merge base | `internal/plugins/irr/datasets.go` `removeSet` | c7a5323d13; `TestRefusedClearKeepsMergeBase` |
+| R4-2 | ISSUE | A clear whose generation raise the store refused told no consumer and reported success | `datasets.go` `removeSet`, `announceRemoval`; `command.go` `clearASSet` | c7a5323d13; `TestUnannouncedClearHoldsAndTells` |
+| R4-3 | ISSUE | A server changed A to B and back to A lost the per-family merge base of the stored copies | `internal/plugins/irr/owner.go` `installConfig`; `datasets.go` `seedStored` | c7a5323d13; `TestServerRevertKeepsMergeBase` (red with the seed removed) |
+| R4-4 | ISSUE | Unreadable and overdue doctor findings never cleared once their cause went | `datasets.go` `writeDataset`; `owner.go` `dropUnnamedFindings` | c7a5323d13; `TestFindingsClearWithTheirCause` |
+| R4-5 | ISSUE | A PeeringDB failure was a log line only, never a doctor finding | `owner.go` `discoverASN`; `doctor.go` `problemFix` | c7a5323d13; `TestPeeringDBFailureIsAFinding` |
+| R4-6 | ISSUE | A binding moved to a set with no pointer was written at once, so consumers read no list | `owner.go` `bindTo`; `datasets.go` `moveBindingsTo` | c7a5323d13; `TestMovedBindingFlipsAfterNewSetStored` (red when `bindTo` writes at once) |
+| R4-7 | ISSUE | BGP capped both families at a combined 500,000, refusing a 400k+200k set the store held and the firewall enforced | `internal/component/bgp/plugins/filter_irr/filter_irr.go` `prefixListFromIRR` | c7a5323d13; `TestPrefixListFromIRREnforcesWhatTheStoreHolds` |
+| R4-8 | ISSUE | Firewall domain verify opened the running store and dropped its records | `internal/component/firewall/plugins/domain/domain.go` `verify` | c7a5323d13; `TestDomainGroupVerifyLeavesTheRunningStoreAlone` |
+| R4-9 | ISSUE | The ze-filter-irr YANG description said the filter queries the IRR itself, and three reload tests raced the stored list | `filter_irr/yang/ze-filter-irr.yang`; `test/reload/*irr*.ci` | c7a5323d13; fence fixture `reload/irr-listed-fence`, 80/80 under stress each |
+| R5-1 | ISSUE | A damaged binding rewritten by discovery kept its unreadable finding, and `clear irr asn` kept the binding's findings, whose fix undid the clear | `datasets.go` `writeBinding`; `command.go` `clearASN` | 1c312489ac; two `TestFindingsClearWithTheirCause` cases |
+| R5-2 | ISSUE | After a `system peeringdb url` change, a move to a set that never stored left the enforced set unfetched and PeeringDB never asked again | `owner.go` `wantedSets`, `enforcedBinding`, `reportStuckMoves` | 1c312489ac; `TestStuckMoveKeepsEnforcedSetRefreshed` (red on `validBinding`) |
+| R5-3 | ISSUE | `clear irr asn` removed the binding before the set, so a refused set removal half-cleared | `command.go` `clearASN` | 1c312489ac; `TestRefusedClearASNKeepsBinding` |
+
+Round 6 (over 1c312489ac): 0 BLOCKER, 0 ISSUE. NOTE: `reportStuckMoves` raises its binding finding on a transient IRR failure of the new set as well, beside the set's own overdue finding.
 
 NOTEs (not blocking): `ze_irr_data_age_seconds` reads 0 with nothing stored (`metrics.go` `publishMetrics`), as the firewall gauge it replaced did; `daemonKnownASSets` (`completion.go`) logs its WARN on every completion while an interest key is unreadable; `irrCountQueries` answers 0 for a missing query log, which the cold-start test's exactly-once count excludes for the shared runner layout; `features/irr-bgp-import-filtering.md` Extra criteria names `test/plugin/filter-irr-recorded-mirror.ci`, which never existed in git; `internal/le/site/testdata/published-*` are frozen site-generator fixtures.
 
@@ -945,6 +960,8 @@ NOTEs (not blocking): `ze_irr_data_age_seconds` reads 0 with nothing stored (`me
 | AC-1, AC-2, AC-6, AC-8, AC-23 | Restart, cold start, shared set, update-then-commit | `job-r3-func-bd2358e1.log` (14 IRR plugin tests, darwin), `job-g-*` (15 firewall IRR tests, QEMU guest) |
 | AC-20 | No removed leaf or command left | `grep -rlnE` over `test` and `docs` for `policy irr`, `peeringdb-url`, `update bgp irr`, `update firewall irr` and `clear firewall irr` returns nothing (third closure) |
 | AC-22 | Unusable dataset refused, never "nothing stored" | `job-r3-units-cc92635e.log` (`resolve/irr/store` green); owed rerun below |
+| AC-7, AC-11, AC-16, AC-19 | Clear, server revert, findings, PeeringDB and binding moves (R4-1 to R5-3) | The main thread's runs: units green in `internal/plugins/irr`, `filter_irr`, firewall `domain` and `irr`, `resolve/irr/store` and the fixture; scoped lint clean; red breaks for the moved binding, the server revert and the stuck move (`TestStuckMoveKeepsEnforcedSetRefreshed`: "the pass fetched [AS-Y], want AS-X") |
+| AC-4, AC-5 | Reload tests enforce the stored set | The three `test/reload/*irr*.ci` green, 80/80 under stress each; plugin drafts green on darwin and in the QEMU guest |
 
 ### Wiring Verified (end-to-end)
 | Entry Point | .ci File | Verified |
