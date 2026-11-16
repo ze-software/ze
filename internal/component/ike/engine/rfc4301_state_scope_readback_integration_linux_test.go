@@ -114,7 +114,7 @@ func TestRFC4301KernelAdvertisesExactStateScope(t *testing.T) {
 	// The capability attribute is a read-only receipt, never a mutable gather switch.
 	req := nl.NewNetlinkRequest(rfcScopeGetDefault, unix.NLM_F_REQUEST)
 	req.AddRawData([]byte{0, 0, 0, 0})
-	req.AddData(nl.NewRtAttr(rfcScopeCapsAttribute, make([]byte, 16)))
+	req.AddRawData(nl.NewRtAttr(rfcScopeCapsAttribute, make([]byte, 16)).Serialize())
 	_, err := req.Execute(unix.NETLINK_XFRM, rfcScopeGetDefault)
 	if !errors.Is(err, unix.EINVAL) {
 		t.Fatalf("writing the read-only capability receipt returned %v, want EINVAL", err)

@@ -41,6 +41,18 @@ handoff race (AC-21). An ESP-group-only reload must let an attached IKE SA enter
 loop before asking that loop to adopt the group. The existing bounded channel
 handoff keeps the same IKE SPI without publishing ownership early.
 
+AC-4's kernel capability probe also required a test-request correction (AC-22).
+The read-only receipt's negative request placed its attribute before the fixed
+header because the netlink serializer writes typed data before raw data.
+The probe must serialize the fixed header before that attribute while keeping
+every capability check and the `EINVAL` rejection expectation unchanged.
+The malformed request's failure establishes no kernel defect.
+
+AC-14's device-finding correction is committed in `2d25927741`. Both new
+peer-removal daemon cases passed their initial internal and external runs.
+Their fault-proof diagnostic correction, discrimination, 80-run qualification
+and promotion remain owed.
+
 **The defect, confirmed by an A/B interop run on 2026-11-10.**
 
 1. A Child SA whose IKE SA moved to UDP 4500 is installed with UDP encapsulation
@@ -623,6 +635,28 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 | AC-19 | A read failure races last Forget or reader replacement, including failure admission before retirement and intentional retirement before failure admission | failure admission and publication are serialized with retirement; every recorded failure is reported exactly once even when retirement precedes revive, and a retired worker neither reopens its life nor resets the replacement's backoff | intentional retirement that wins before failure admission records no failure and emits no reader-stop event, because the reader's close was requested |
 | AC-20 | An external IKE process starts through `ze plugin ike` and its loaded backend supplies the runtime doctor finding | the entrypoint reaches the registered engine over the plugin connection, and the daemon's doctor answer carries that process's cause, fix and severity; a metadata `--features` invocation also succeeds without a hub connection | declaration queries still return registration without starting an engine; the internal engine retains its runtime doctor path |
 | AC-21 | An ESP-group-only reload reaches an attached, established childless IKE SA before its owner is published | the existing channel handoff waits at most `espReloadWait` for the owner to take the request, and owner adoption keeps the session, both IKE SPIs and the responder's inactive creation schedule | a session with neither an owner nor an attached SA refuses immediately; an installed Child SA, pending responder handshake or own Child SA creation in flight still causes a restart |
+| AC-22 | The exact-state-scope probe sends a capability attribute to test the read-only receipt | the request serializes its fixed header before the capability attribute, and the kernel rejects that correctly formed write with `EINVAL`; every positive capability assertion stays unchanged | the preceding malformed request's result supports no kernel-behavior claim; passing independent packet and fragment probes retain their results |
+
+### AC-22 capability-probe correction
+
+All five selected Linux engine probes executed in
+`job-ipsec-engine-final-guest-007d433f.log`. Four passed, including the fragment
+probe's 16 protection contexts. The capability probe reached its read-only
+receipt assertion and failed with a nil error instead of `EINVAL`.
+`NetlinkRequest.Serialize` emits its typed data before its raw data, so the
+old mixed request put the capability attribute where the fixed header belongs.
+The correction keeps the fixed header and appends the serialized attribute
+as raw data. It changes no positive check or rejection expectation.
+Independent judgment approved the one-line test correction, with native approval
+recorded for `engine.TestRFC4301KernelAdvertisesExactStateScope`. The corrected
+probe passed without skips on the same Ze 7.3.0 kernel
+(`job-ipsec-receipt-encoding-guest-fc673346.log`), with check, command and lab
+exits zero and the VM stopped. Its engine binary SHA256 was
+`bb686d9bf0d12ac7005a5b15e784ba6ec1beee55a4547ecf6e6407b93b56e854`.
+All five engine probes therefore have observed PASS results across the initial
+four and this targeted correction. The unchanged four need no repeat solely
+to renew their results. AC-4's RFC annotation and other proof obligations
+remain open. No vendor, kernel or production code changed for this correction.
 
 ### AC-21 handoff proof
 
@@ -728,6 +762,7 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
+| `TestRFC4301KernelAdvertisesExactStateScope` | `internal/component/ike/engine/rfc4301_state_scope_readback_integration_linux_test.go` | AC-22: correctly ordered fixed header and capability attribute test the existing read-only `EINVAL` rejection, retaining every positive receipt check | corrected probe PASS without skips on the same Ze kernel; independent judgment and native approval recorded |
 | `TestESPGroupReloadWaitsForChildlessOwnerHandoff` | `internal/component/ike/engine/reconcile_childless_handoff_test.go` | AC-21: attached childless SA reaches owner adoption before ownership publication and keeps both SPIs and the responder schedule | actual RED, then race-enabled PASS with four existing refusal/schedule tests and no skips; unchanged functional case PASS |
 | `TestESPFormRewriteProgram` | `espform_program_integration_linux_test.go` | AC-6, IPv4 and IPv6 program variants, through `BPF_PROG_TEST_RUN` (guest-root) | |
 | `TestWriteESPFormBuildsEncapsulatedDatagram` (updated) | `espform_test.go` | IPv4 header checksum now valid | |
@@ -855,6 +890,7 @@ Feature code:
 Not this spec's, though `git status` lists them beside it: `internal/core/diagnostic/codes_plugin_infra.go` and `codes_test.go` (`doctor-config-reload-refused`), `internal/le/interoplab/bgp/check_special.go`, `check_ldp_backoff_clear.go` and `test/interop/scenarios/ldp-backoff-clear-frr/` (LDP), `test/parse/ipsec-icmp-type-selector-refused.ci` (the RFC 4301 ICMP work).
 
 Tests:
+- `internal/component/ike/engine/rfc4301_state_scope_readback_integration_linux_test.go` - serialize the negative capability-write request's fixed header before its attribute, preserving every assertion (AC-22).
 - `internal/component/ike/dataplane/espform_linux_test.go`, `espform_run_linux_test.go`, `espform_test.go`, `recording_shipped_test.go`.
 - `internal/component/ike/dataplane/encap_formchange_integration_linux_test.go`, `encap_dualform_integration_linux_test.go`, `encap_hybrid_integration_linux_test.go`, `xfrm_migrate_integration_linux_test.go`, `xfrm_migrate_linux_test.go`, `xfrm_teardown_integration_linux_test.go` - routed addresses instead of loopback, the IKE bypass, the TOS argument; with `xfrm_state_del_failure_linux_test.go`, the registry read by SPI and local address (review rounds 9 and 10).
 - `internal/component/ike/dataplane/xfrm_linux_test.go` - `TestXFRMInstallSARefusesIPv6DualFormSA`.
