@@ -90,11 +90,16 @@ RFC 4271 Section 9.1.3 allows the exclusion, and BIRD has the same default.
 FRR advertises to an internal peer with no policy, so the two disagree and Ze
 takes the explicit side.
 
+The requirement binds learned routes only, by the same ruling. A local
+announcement (API, configured or redistributed) and a destination served by an
+explicit route-server or reflector role keep the default they have today,
+because an announcement, a redistribution rule and a role attachment are each
+already an explicit operator decision. An external session keeps RFC 8212 for
+every route.
+
 This is not implemented yet. Today an unconfigured policy accepts on an
 internal session and rejects on an external one, for every route and every
-writer. Whether the new requirement also binds local announcements and the
-route-server and reflector roles is not ruled: the spec proposes that it binds
-learned routes only, and that proposal is under review.
+writer.
 <!-- source: internal/component/bgp/filterapi/policy.go -- UnconfiguredAccepts -->
 <!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- RFC8212Absences -->
 <!-- source: plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md -- Q-5 export default -->
