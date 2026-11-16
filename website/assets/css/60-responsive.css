@@ -82,6 +82,9 @@
     main.has-page-sidebar:has(> .feature-catalog) > .page-sidebar,
     main.has-page-sidebar:has(> .blog-reading-layout) > .page-sidebar { grid-column: 2; grid-row: 2; margin: 0; }
 }
+@media (min-width: 1181px) and (max-height: 800px) {
+    .site-home .hero-start-intro.hero-grid { align-items: start; padding-top: 1.5rem; }
+}
 @media (max-width: 1320px) {
     .doc-layout, .blog-reading-layout { grid-template-columns: 10rem minmax(0, 1fr); gap: 1.75rem; }
     .feature-catalog[data-enhanced="true"] { grid-template-columns: 11rem minmax(0, 1fr); gap: 1.5rem; }
@@ -152,13 +155,18 @@
 }
 @media (max-width: 640px) {
     main, main.site-main-wide, main.has-page-sidebar { width: calc(100% - 2rem); }
-    .site-home .hero-start-intro.hero-grid { padding-top: 2.25rem; padding-bottom: 1.5rem; }
-    .site-home #hero-title { font-size: clamp(2.35rem, 9vw, 3.3rem); }
-    .site-home .hero-intro { font-size: 0.96rem; line-height: 1.8; }
-    .site-home .hero-start-points { font-size: 0.72rem; gap: 0.4rem 0.85rem; }
-    .site-home .hero-actions { align-items: stretch; }
-    .site-home .hero-actions .button { flex: 1 1 12rem; }
-    .site-home .showcase .screen-tabs { order: 0; }
+    .site-home .hero-start-intro.hero-grid { padding: 0.25rem 0 1rem; gap: 0.25rem; }
+    .site-home .hero .eyebrow { margin-bottom: 0.25rem; }
+    .site-home #hero-title { font-size: clamp(2.35rem, 9vw, 3.3rem); margin-bottom: 0.25rem; }
+    .site-home .hero-intro { font-size: 0.96rem; line-height: 1.45; margin: 0 0 0.5rem; }
+    .site-home .hero-start-points { margin: 0 0 0.25rem; font-size: 0.72rem; gap: 0.4rem 0.85rem; }
+    .site-home .hero-project-intro { margin-top: 0.5rem; }
+    .site-home .hero-actions { align-items: stretch; margin-top: 0.5rem; gap: 0.5rem; }
+    .site-home .hero-actions .button { flex: 1 1 auto; padding: 0.65rem 0.6rem; gap: 0.4rem; font-size: 0.75rem; }
+    .site-home .hero-status { margin-top: 0.25rem; }
+    .site-home .showcase { display: flex; flex-direction: column; }
+    .site-home .showcase .product-panels { order: 1; }
+    .site-home .showcase .screen-tabs { order: 2; margin-bottom: 0; }
     .site-home .screen-tabs button { padding: 0.45rem 0.65rem; font-size: 0.68rem; }
     .site-home .screen-description { padding: 1rem; }
     .site-home .hero-outcome-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -184,7 +192,6 @@
     .cli-reference-content .cli-group > table::before { content: "Scroll sideways to see all columns."; display: block; padding: 0.6rem 1rem; font: 0.75rem/1.5 Lato, sans-serif; color: var(--muted); background: var(--bg-soft); }
     .site-home .showcase { display: flex; flex-direction: column; }
     .site-home .showcase .product-panels { order: 1; }
-    .site-home .showcase .screen-tabs { order: 0; }
     .site-home .screen-toolbar { gap: 0.5rem; font-size: 0.65rem; }
     .site-home .screen-description { padding: 1rem; }
     .site-home .hero-primary-actions { flex-basis: 100%; }
