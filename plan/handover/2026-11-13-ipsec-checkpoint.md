@@ -282,13 +282,31 @@ remain through closure review.
    was procedural and is corrected for future inputs, with no freshness rerun.
    Run the remaining scenarios
    and their deliberate breaks:
-   `mtu-nat-installed-endpoint`, `icmp-error-payload-check` with bare ESP and
-   both redwalks, `esp-form-firewall-drop` with its redwalk,
+   `esp-form-firewall-drop` with its redwalk,
    and `ipsec-bgp-redistribute-frr`, each with
    `IPSEC_INTEROP_SCENARIO=<name> ./le test integration interop-ipsec`, one at
    a time. The `esp-form-firewall-drop` red: make `publishFirewall` ignore a
    blocked verdict so the gate is forced open, expect the scenario's ESP-drop
    check to go red, then restore. Earlier success is not final-code evidence.
+   AC-1 is now observed for the current IPv4 single-pair tunnel: clean PASS 10s,
+   flag-cut consistent-error FAIL 8s, recovery clean PASS 10s, policy-only PASS 10s,
+   state-only PASS 10s, combined-source inconsistent-error FAIL 8s, final clean
+   PASS 10s. Logs share `job-ipsec-icmp-` and suffix `-98342191.log`; the exact
+   seven stems are `clean-current`, `flag-cut-current`, `clean-after-flag-cut`,
+   `policy-only-cut`, `state-only-cut`, `combined-selectors-cut` and
+   `clean-after-selector-cuts`. Proof (c) decrypted 336 ESP octets without
+   delivering Time Exceeded. Proof (d) delivered three inconsistent errors
+   after its consistent control and generation/carriage guards passed.
+   Independent final review CLEAR, unchanged production XFRM source, reviewed
+   private hashes matched, all VMs stopped without interruption or leftovers.
+   Fault lab exits 1/check-command 0; passes all 0. ICMP no longer needs another
+   final run. These local-delivery proofs give no general scope, multiple-pair
+   or protected inner-fragment credit. AC-4 remains open, and 79 renewals remain owed.
+   The installed-endpoint MTU scenario also passed its own named check in 4s
+   (`job-ipsec-mtu-installed-endpoint-current-dcac5194.log`), recording
+   `mtu-nat-installed-endpoint-4ON24PX74JNHTY3SGYHJZFDUNY.jsonl`. Check/command/lab
+   exits were zero, interrupted false, VM stopped and left-behind none, on
+   native image `45cb736f9a13fd62`. MTU is removed from current owed runs.
 5. The four fresh native records are now observed in
    `rfc/discrimination/rfc4301/RFC4301-5.2-2.json` and
    `rfc/discrimination/rfc7296/RFC7296-2.24-2.json`, plus
@@ -381,6 +399,22 @@ authenticated transport-state boundary before reassembly and output transform.
 Preserve legitimate outer ciphertext fragmentation and distinguish atomic
 fragments. Do not reject every earlier transport entry in a nested secpath.
 No fix or runtime probe for this finding has been implemented.
+
+The source-only audit identifies the next boundaries: K3's
+`xfrm_state_noninitial_allowed` ignores mode, and its gather checks inspect
+noninitial offsets. It adds no GETDEFAULT bit-3 advertisement, and neither
+`gokrazy/kernel/runtime.config` nor `runtime.require` enables
+`CONFIG_XFRM_FRAGMENT_GUARD`. The current capability-probe test requires only
+bits 0 and 1, so its pass is a partial receipt. The cached upstream archive
+`tmp/qemu/build/aarch64/linux-7.3.tar.xz` is now present; earlier absence claims
+remain dated history. This audit supplies no C compilation or packet proof.
+
+Keep one author on the whole K3 proposal file. The engine scope writer belongs
+in `child_scope.go`, `child.go` and their tests: derive inbound and outbound
+scopes from expanded directional `childPolicies`, validate before the first
+state publication, retain the 64-record bound and noninitial=false, and keep
+the full bits 0–3 guard. An independent author owns packet tests; main serializes
+series/config activation. The Section 7.4 route decision remains unchanged.
 
 Old Ze-kernel probes also exposed mixed-protection fragment delivery and
 general multi-pair/overlapping SA-scope leaks. Forwarded ICMP return under

@@ -6,12 +6,28 @@
 | Priority | P0 |
 | Release reason | Retain remaining IPsec architecture obligations and fragment investigation without claiming an unproven vulnerability. |
 | Scope | protocol |
-| Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set); `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` (the dual-form SPD bypass that turns `icmp-error-payload-check` red; its red proofs (c) and (d) wait on that fix) |
+| Depends | `plan/release/fixes/spec-ipsec-lifetime-volume.md` (owns the Section 4.4.2.1 byte-count SAD lifetime); `plan/release/validation/spec-rfcgate-6-supported-extraction-signoff.md` (owns the `rfc4301` extraction sign-off and the ledger scope set); `plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md` (owns dual-form receive; its local IPv4 single-pair ICMP clean and proofs (c)/(d) are observed on 2026-11-16, while full per-SA scope remains open) |
 | Phase | 2b/4/6/9 -- kernel patches enrolled without a native build or packet proof; the logic defects of the 2026-11-14 correction and the final proof are owed |
 | Handoff | - |
-| Updated | 2026-11-14 |
+| Updated | 2026-11-16 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Local ICMP proof receipt, 2026-11-16
+
+The dual-form spec's AC-1 now has all seven native runs of
+`icmp-error-payload-check`, with independent final review CLEAR. Proof (c)
+ran clean PASS 10s, ICMP-flag omission packet FAIL 8s, then clean PASS 10s.
+Proof (d) continued with policy-only PASS 10s, state-only PASS 10s, combined
+source-widening packet FAIL 8s, then final clean PASS 10s. The Observed column
+below records both intended packet failures. All runs used the current
+IPv4 single-pair tunnel, unchanged production XFRM source and reviewed private
+inputs; every VM stopped without interruption or leftover resources.
+
+This receipt supersedes the earlier local-ICMP blocked/RED progress statements.
+Their dated evidence remains historical. It does not settle forwarded ICMP,
+the other phase-3 defects, general per-SA or multiple-pair scope, protected
+inner-fragment isolation or AC-4's full requirement.
 
 ## Correction against the tree, 2026-11-14
 
@@ -399,8 +415,8 @@ errors on a Child SA (RFC 4301)"):
 |---|---|---|---|---|
 | (a) | `tunnel-df-treatment` | `xfrmDFFlag` answers false for `DFClear` | the clear phase's DF-set burst arrives with DF set | RED at the earlier `show` readback ("ze reports df-bit ... on its outbound SA, want ..."); the wire-counter check was not reached |
 | (b) | `tunnel-df-treatment` | `xfrmDFFlag` answers true for `DFCopy` | the copy phase's DF-set burst arrives with DF clear | RED at the same `show` readback; the wire-counter check was not reached |
-| (c) | `icmp-error-payload-check` | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error is not delivered, with strongSwan generation and Ze's inbound ESP carriage observed | NOT RUN: a current native clean run and the fault run remain owed |
-| (d) | `icmp-error-payload-check` | P widens the inbound IPv4 tunnel protect policy's source in `xfrmPolicyFromParams`; S widens the inbound IPv4 tunnel state selector's source in `xfrmStateFromParams`, each to `0.0.0.0/0` | clean PASS, P alone PASS, S alone PASS, S+P packet-delivery RED, then clean PASS; together the faults deliver the inconsistent error | NOT RUN: both selectors now enforce the source, so the original policy-only fault is masked; preserve the negotiated selectors, template-free entries and all other state and policy fields |
+| (c) | `icmp-error-payload-check` | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error is not delivered, with strongSwan generation and Ze's inbound ESP carriage observed | OBSERVED 2026-11-16: clean PASS 10s → flag-cut packet FAIL 8s with 336 ESP octets decrypted but no Time Exceeded → clean PASS 10s. Generation/carriage guards passed; exact generation count is not printed. Logs `job-ipsec-icmp-clean-current-98342191.log`, `job-ipsec-icmp-flag-cut-current-98342191.log`, `job-ipsec-icmp-clean-after-flag-cut-98342191.log`. Independently CLEAR for current IPv4 single-pair local delivery |
+| (d) | `icmp-error-payload-check` | P widens the inbound IPv4 tunnel protect policy's source in `xfrmPolicyFromParams`; S widens the inbound IPv4 tunnel state selector's source in `xfrmStateFromParams`, each to `0.0.0.0/0` | clean PASS, P alone PASS, S alone PASS, S+P packet-delivery RED, then clean PASS; together the faults deliver the inconsistent error | OBSERVED 2026-11-16: recovery clean PASS 10s → P PASS 10s → S PASS 10s → S+P packet FAIL 8s, delivering three inconsistent Time Exceeded messages → final clean PASS 10s. Consistent control and generation/carriage guards passed. Logs `job-ipsec-icmp-policy-only-cut-98342191.log`, `job-ipsec-icmp-state-only-cut-98342191.log`, `job-ipsec-icmp-combined-selectors-cut-98342191.log`, `job-ipsec-icmp-clean-after-selector-cuts-98342191.log`. Independently CLEAR for current IPv4 single-pair local delivery; no general scope or protected inner-fragment credit |
 
 **Decisions.**
 
@@ -780,7 +796,7 @@ fragment needs a raw sender and a capture, which the netns packet tests carry.
 |----------|-----------|-------------|----------------|--------|
 | `spd-discard-entry` | `test/interop-ipsec/scenarios/` | strongSwan | a discard entry drops traffic strongSwan would otherwise carry, and the tunnel beside it stays up | not written; owed by phase 2a |
 | `bypass-fragment-forgery` | `test/interop-ipsec/scenarios/` | strongSwan | a forged non-initial fragment aimed at the bypassed IKE port range does not reach the protected side | not written; owed by phase 2b under the route of owner decision 1 |
-| `icmp-error-payload-check` | `test/interop-ipsec/scenarios/` | strongSwan | an ICMP error addressed to Ze (local delivery) arriving on the SA: one whose payload header is consistent with the SA selectors is delivered, an inconsistent one is dropped. A transit (forwarded) error is out of scope here and stays `LL-XFRM-ICMP-TRANSIT` | RED as committed from the dual-form SPD bypass, PASS with `encap = yes`; red proofs wait on that fix |
+| `icmp-error-payload-check` | `test/interop-ipsec/scenarios/` | strongSwan | an ICMP error addressed to Ze (local delivery) arriving on the SA: one whose payload header is consistent with the SA selectors is delivered, an inconsistent one is dropped. A transit (forwarded) error is out of scope here and stays `LL-XFRM-ICMP-TRANSIT` | current IPv4 single-pair clean PASS and proofs (c)/(d) observed in all seven native runs on 2026-11-16, independently CLEAR; general scope and other phase-3 obligations remain open |
 | `pad-subtree-identity` | `test/interop-ipsec/scenarios/` | strongSwan | a strongSwan peer whose ID_FQDN falls under a configured sub-tree authenticates, and one outside it is refused | not written; owed by phase 5 |
 | `tunnel-df-treatment` | `test/interop-ipsec/scenarios/` | strongSwan | the outer header DF bit carries each configured treatment, read on the wire | PASS; both red proofs red at the `show` readback |
 

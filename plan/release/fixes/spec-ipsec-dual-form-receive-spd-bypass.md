@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Final verification — doctor reload, Linux engine, interop and RFC proofs |
+| Phase | Remaining firewall and FRR interop; AC-4 scope/kernel implementation and outstanding RFC proofs |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -648,6 +648,25 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 | AC-22 | The exact-state-scope probe sends a capability attribute to test the read-only receipt | the request serializes its fixed header before the capability attribute, and the kernel rejects that correctly formed write with `EINVAL`; every positive capability assertion stays unchanged | the preceding malformed request's result supports no kernel-behavior claim; passing independent packet and fragment probes retain their results |
 | AC-23 | The ESP-form interop checker receives missing, populated valid, or populated same-form Ze XFRM state evidence | empty or whitespace-only snapshots return a missing-state error; a populated valid-state control succeeds after the existing template, traffic, counter, direction and SPI checks; a populated same-form control reaches its distinct form-agreement diagnostic | a populated snapshot still proceeds through the existing template, traffic, direction and SPI checks; AC-2's full form-switch and counter repair remain owed |
 
+### AC-1 native ICMP proof receipt
+
+All seven runs of the bare-ESP `icmp-error-payload-check` scenario are observed
+and independently reviewed CLEAR for the current IPv4 single-pair tunnel.
+Logs use the `job-ipsec-icmp-` prefix and `-98342191.log` suffix in session scratch.
+
+| Proof | Observed sequence and packet assertion |
+|---|---|
+| (c) | `clean-current` PASS 10s, `flag-cut-current` FAIL 8s, `clean-after-flag-cut` PASS 10s. With the ICMP state flag omitted, the consistent error decrypted 336 ESP octets but delivered no Time Exceeded. The preceding guards require strongSwan error generation and SA carriage; the exact generation count is not printed |
+| (d) | Starting from that recovery clean, `policy-only-cut` PASS 10s, `state-only-cut` PASS 10s, `combined-selectors-cut` FAIL 8s, `clean-after-selector-cuts` PASS 10s. Widening both sources delivered three Time Exceeded messages for the inconsistent embedded 10.2.0.1 to 10.7.0.5 packet. The consistent control and generation/carriage guards passed before this intended failure |
+
+The production XFRM source stayed at SHA256 `cb56b012a0e12c75353b2d3a881701c0034a882a2da1ccf379550cbf5c26db19`.
+Reviewed private source/overlay hashes matched before each trial. All seven
+VMs stopped without interruption or leftover resources on the same native
+image `45cb736f9a13fd62`. Fault runs had check/command exits zero and lab exit
+one; passes had all zero exits. This observes AC-1 and its two required proofs.
+It gives no general per-SA, multiple-pair or protected inner-fragment credit,
+and leaves AC-4 unchanged.
+
 ### AC-2 native form-switch receipt
 
 The clean live run passed in 8s (`job-ipsec-live-form-switch-clean-de5e18d6.log`).
@@ -928,7 +947,7 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| `icmp-error-payload-check` | `test/interop-ipsec/scenarios/` | strongSwan | AC-1 | |
+| `icmp-error-payload-check` | `test/interop-ipsec/scenarios/` | strongSwan | AC-1 | current IPv4 single-pair clean and proofs (c)/(d) observed in all seven native runs, independently reviewed CLEAR |
 | `esp-form-change` | `test/interop-ipsec/scenarios/` | strongSwan | AC-2 | |
 | `esp-form-firewall-drop` | `test/interop-ipsec/scenarios/esp-form-firewall-drop/` (`ze.conf`, `swanctl.conf`), checker `checkESPFormFirewallDrop` (`internal/le/interoplab/ipsec/espformfirewall.go`) | strongSwan | AC-13: strongSwan sends bare ESP on a 4500-without-NAT SA, Ze's `drop-esp` term drops it and counts it, the doctor names the blocking table and term; red when `writeGateLocked` writes the open value whatever it is given (`docs/architecture/testing/interop.md`) | |
 
@@ -1240,6 +1259,7 @@ not claim that their final-code tests or mutation proofs have run.
 
 | Evidence | Observed state |
 |----------|----------------|
+| Current installed-endpoint MTU interop | `mtu-nat-installed-endpoint` PASS 4s in `job-ipsec-mtu-installed-endpoint-current-dcac5194.log`, recording `mtu-nat-installed-endpoint-4ON24PX74JNHTY3SGYHJZFDUNY.jsonl`. Native image `45cb736f9a13fd62`, check/command/lab exits zero, no interruption, VM stopped and no leftover resources |
 | Main-thread `./le --name session doc check all` | This turn's direct run exited 1 and initially reported 389 documentation-drift issues; its remaining output was truncated and no new log path was retained. Earlier retained run `job-ipsec-doc-check-f119ecea.log` separately reports 389 drift issues, mostly published wiki/gh-pages CLI drift, plus 12 source-anchor findings outside IPsec paths. Neither receipt supplies an owned-docs PASS |
 | Bounded lint-repair source phase | Both packages PASS in `job-ipsec-lint-repair-packages-4419bc1f.log` (native `job-unit-pkg-cf26cae2.log`): checker 12.442s, helper 1.304s. Linux rebuild PASS in `job-ipsec-peerform-lint-fix-linux-build-1732f37d.log`; all 31 top-level guest tests, including fuzz seeds, PASS without skips in `job-ipsec-peerform-lint-fix-linux-units-bad03c34.log`, on the current c3583fe5 kernel/45cb736f9a13fd62 image, all zero exits and stopped VM. Independent review CLEAR. After the final import-group correction, helper-only lint `job-ipsec-peerform-final-import-lint-25898e43.log` reports zero Linux issues and one Darwin `encapsulation` unused finding, for a field consumed by Linux. The 30-file code phase landed in `7d49a5e3f9`; proof metadata is prepared separately. Earlier parent-package findings plus the counter-test modernization note remain; no overall lint-green claim |
 | AC-2 repaired helper/checker and clean live switch | Both full portable packages PASS in `job-ipsec-peerform-checker-packages-green-2d1ebed9.log`; native Linux helper PASS without skips in `job-ipsec-peerform-linux-units-dcd7f143.log`, on current kernel `c3583fe57d83e971a6c24c7d6e93d5b4e682a5797dbb0d15dad42d642f1c8798` and matching image `45cb736f9a13fd62`. Live `esp-form-change` PASS in 8s (`job-ipsec-live-form-switch-clean-de5e18d6.log`), with bare sequence 1, UDP acknowledgement 1, UDP probe sequence 2, bare acknowledgement 2 and bare probe sequence 3 on helper SPI `0x2bfcb9ba`, reqid 1. The real checker verified four counters and identities. Check/command/lab exits zero, no interruption, no resources left, VM stopped. The as-used binding fault produced its intended first-bare-reply failure in 16s, then the post-clean run passed in 8s (the AC-2 receipt records source identities); the later comment-only input remains unexecuted and AC-4 stays open |
@@ -1248,7 +1268,7 @@ not claim that their final-code tests or mutation proofs have run.
 | Initial final-code main-thread `./le test unit pkg path ./internal/component/ike/dataplane/ path ./internal/component/ike/engine/ path ./internal/core/diagnostic/` | engine and diagnostic packages passed; three dataplane fixture/expectation failures were subsequently corrected and committed in `bd8e21b487`. The targeted package run `job-unit-pkg-58fce57a.log` and narrow race/count-20 scheduling run `job-ipsec-reopen-schedule-e00a01c8.log` passed. Final guest verification remains owed |
 | Receiver doctor and binding fixture units | the named tests passed under race/verbose execution in `job-ipsec-binding-doctor-units-419db7fc.log`; this includes the offload and complete-path doctor findings |
 | Host mutation walks 27, 31–33, 37, 39–49 | all sixteen returned the native red verdict, with clean own-test passes and broken own-test failures, in `job-ipsec-dualform-host-redwalks-aa95f75a.log`; guest mutant 20 remains owed |
-| Remaining closure evidence | Final Linux populations, doctor qualification/promotion, repaired helper/checker and AC-2's as-used clean → binding-cut → clean proof are observed; remaining final interop and broader RFC obligations stay open. All four fresh clause records and the four older same-row transport/tunnel dependency renewals are observed. Tunnel positive `job-ipsec-sad-tunnel-positive-record-8cbbeb8e.log` and negative `job-ipsec-sad-tunnel-negative-record-3ca64234.log` each passed clean in 3.80s and failed with producer halt in 0.01s. Independent canonical-RFC review cleared the partial audit after all nine covers across six functions, and main natively stamped `rfc/audit/rfc4301/RFC4301-5.2-2.json`. The current check `job-ipsec-rfc4301-partial-refresh-check-4fea72ad.log` reports 451 corpus findings but no audit/discrimination freshness finding for this exact ID, which appears only in the normal partial report. The 83-entry old-record manifest now records four observed renewals and 79 unobserved renewals, including separate claims on the same units. General per-SA scope/isolation, bits 0–3 admission and K3's unenrolled status are unchanged; AC-4 stays partial. These records do not reconstruct historical guest mutant 20 |
+| Remaining closure evidence | Final Linux populations, doctor qualification/promotion, repaired helper/checker, AC-2's as-used clean → binding-cut → clean proof and AC-1's seven-run local IPv4 single-pair ICMP sequence are observed. Installed-endpoint MTU also passed its named scenario in 4s. Remaining interop is firewall clean/cut/clean and FRR; AC-4's scope/kernel implementation and broader RFC obligations stay open. All four fresh clause records and the four older same-row transport/tunnel dependency renewals are observed. Tunnel positive `job-ipsec-sad-tunnel-positive-record-8cbbeb8e.log` and negative `job-ipsec-sad-tunnel-negative-record-3ca64234.log` each passed clean in 3.80s and failed with producer halt in 0.01s. Independent canonical-RFC review cleared the partial audit after all nine covers across six functions, and main natively stamped `rfc/audit/rfc4301/RFC4301-5.2-2.json`. The current check `job-ipsec-rfc4301-partial-refresh-check-4fea72ad.log` reports 451 corpus findings but no audit/discrimination freshness finding for this exact ID, which appears only in the normal partial report. The 83-entry old-record manifest now records four observed renewals and 79 unobserved renewals, including separate claims on the same units. General per-SA scope/isolation, bits 0–3 admission and K3's unenrolled status are unchanged; AC-4 stays partial. These records do not reconstruct historical guest mutant 20 |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
