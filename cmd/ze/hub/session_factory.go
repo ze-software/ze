@@ -10,6 +10,7 @@
 package hub
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -26,10 +27,8 @@ import (
 	"github.com/ze-software/ze/internal/component/cli/sshclient"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/yang"
-	pingcmd "github.com/ze-software/ze/internal/component/ping/cmd"
 	"github.com/ze-software/ze/internal/component/plugin"
 	zessh "github.com/ze-software/ze/internal/component/ssh"
-	traceroutecmd "github.com/ze-software/ze/internal/component/traceroute/cmd"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/slogutil"
 )
@@ -42,7 +41,7 @@ import (
 func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, recorder audit.Recorder, reloadFn func() error) zessh.SessionModelFactory {
 	log := slogutil.Logger("hub.session")
 
-	return func(username, remoteAddr string, authorizer plugin.Authorizer, request zessh.SessionRequest) (tea.Model, error) {
+	return func(sessionCtx context.Context, username, remoteAddr string, authorizer plugin.Authorizer, request zessh.SessionRequest) (tea.Model, error) {
 		configPath := params.ConfigPath
 		commitReload := reloadFn
 		if request.ConfigName != "" {
@@ -65,8 +64,11 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		if err != nil {
 			return nil, fmt.Errorf("command tree: %w", err)
 		}
-		mergePluginCommands(cmdTree, params)
-		cmdCompleter := cli.NewCommandCompleter(cmdTree)
+		var cmdCompleter cli.CommandModeCompleter = cli.NewCommandCompleter(cmdTree)
+		var registered func(string) bool
+		if params.APIServer != nil {
+			registered = serverOperationalCommand(params.APIServer())
+		}
 
 		// Collect login warnings.
 		var warnings []contract.LoginWarning
@@ -79,7 +81,38 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		cliWarnings := warnings
 
 		// Get executors from the server.
-		executor := srv.ExecutorForUser(username, remoteAddr, authorizer)
+		executor := srv.ExecutorForUser(sessionCtx, username, remoteAddr, authorizer)
+		if params.APIServer != nil {
+			entries := func() []command.CommandEntry {
+				server := params.APIServer()
+				if server == nil {
+					return nil
+				}
+				if server.Dispatcher() == nil {
+					return nil
+				}
+				return server.Dispatcher().Registry().VisibleCommandEntries()
+			}
+			var arguments func(*command.Node) *command.Node
+			if executor != nil {
+				query := func(line string) (string, error) {
+					answer, err := executor(line)
+					if answer == nil {
+						return "", err
+					}
+					defer answer.TransportComplete()
+					return plugin.ResponseJSON(answer.Response, err)
+				}
+				arguments = func(base *command.Node) *command.Node {
+					server := params.APIServer()
+					if server == nil {
+						return base
+					}
+					return server.WithArgCompletion(base, query)
+				}
+			}
+			cmdCompleter = newPluginAwareCommandCompleter(cmdTree, entries, arguments, command.SurfaceSSH)
+		}
 
 		// Try to create editor-capable model.
 		if configPath != "" && configPath != "-" && params.Store != nil {
@@ -94,6 +127,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 				if modelErr == nil {
 					m.SetAuditRecorder(recorder, audit.SSH, username, remoteAddr)
 					m.SetCommandCompleter(cmdCompleter)
+					m.SetRegisteredOperational(registered)
 					m.SetHistory(cli.NewHistory(params.Store, username))
 					if executor != nil {
 						m.SetCommandExecutor(cliExecutor(executor))
@@ -103,14 +137,6 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 					monitorFn := srv.MonitorFactoryFunc()
 					if monitorFn != nil {
 						m.SetMonitorFactory(monitorFn)
-					}
-					shutdownFn := srv.ShutdownFunc()
-					if shutdownFn != nil {
-						m.SetShutdownFunc(shutdownFn)
-					}
-					restartFn := srv.RestartFunc()
-					if restartFn != nil {
-						m.SetRestartFunc(restartFn)
 					}
 					m.SetLoginWarnings(cliWarnings)
 					if request.Mode == sshclient.CLIModeCommand {
@@ -133,6 +159,7 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		// Fallback: command-only model.
 		m := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 		m.SetCommandCompleter(cmdCompleter)
+		m.SetRegisteredOperational(registered)
 		if params.Store != nil {
 			m.SetHistory(cli.NewHistory(params.Store, username))
 		}
@@ -144,14 +171,6 @@ func buildSessionModelFactory(srv *zessh.Server, params infra.HookParams, record
 		monitorFn := srv.MonitorFactoryFunc()
 		if monitorFn != nil {
 			m.SetMonitorFactory(monitorFn)
-		}
-		shutdownFn := srv.ShutdownFunc()
-		if shutdownFn != nil {
-			m.SetShutdownFunc(shutdownFn)
-		}
-		restartFn := srv.RestartFunc()
-		if restartFn != nil {
-			m.SetRestartFunc(restartFn)
 		}
 		m.SetLoginWarnings(cliWarnings)
 		return m, nil
@@ -197,9 +216,8 @@ func buildCommandTree() (*command.Node, error) {
 // factory is built before the dispatcher is wired: the per-session closure runs
 // after post-start, when the registry is populated. A nil dispatcher (no plugin
 // engine, e.g. early startup) is a no-op, leaving the YANG-only tree intact.
-// The builtins that complete an argument from the daemon's state (`request
-// plugin restart <name>`) get their completer hung on their node here too,
-// called in this process at each Tab.
+// The live session completer overlays these entries and authenticated argument
+// producers at each request; this helper also serves registry-coverage probes.
 func mergePluginCommands(tree *command.Node, params infra.HookParams) {
 	if params.APIServer == nil {
 		return
@@ -213,51 +231,4 @@ func mergePluginCommands(tree *command.Node, params infra.HookParams) {
 		return
 	}
 	command.MergeCommandPaths(tree, d.Registry().VisibleCommandEntries())
-	srv.WireArgCompletion(tree)
-}
-
-// cliExecutor carries an SSH command response into the Bubble Tea writer.
-func cliExecutor(executor zessh.CommandExecutor) cli.CommandExecutor {
-	return func(input string) (cli.CommandOutput, error) {
-		rendered, err := executor(input)
-		if rendered == nil {
-			return cli.CommandOutput{}, err
-		}
-		return cli.CommandOutput{
-			Text:              rendered.Output,
-			Warning:           rendered.Response.WarningText(),
-			TransportComplete: rendered.TransportComplete,
-		}, err
-	}
-}
-
-// injectViewFactories injects each registered live view's concrete factory into
-// the model by iterating cli.RegisteredViews() instead of calling per-view typed
-// setters. The owner-cmd factories are built here so imports stay in the
-// consumer while the model discovers views through the registry.
-func injectViewFactories(m *cli.Model, executor zessh.CommandExecutor) {
-	for _, v := range cli.RegisteredViews() {
-		switch v.Key {
-		case cli.ViewKeyDashboard:
-			m.SetViewFactory(v.Key, dashboardFactoryFromExecutor(executor))
-		case cli.ViewKeyTraceroute:
-			m.SetViewFactory(v.Key, cli.TracerouteFactory(traceroutecmd.NewTracerouteSession))
-		case cli.ViewKeyPing:
-			m.SetViewFactory(v.Key, cli.PingFactory(pingcmd.NewPingSession))
-		}
-	}
-}
-
-// dashboardFactoryFromExecutor creates a DashboardFactory from a CommandExecutor.
-func dashboardFactoryFromExecutor(cmdExec zessh.CommandExecutor) cli.DashboardFactory {
-	return func() (func() (string, error), error) {
-		return func() (string, error) {
-			rendered, err := cmdExec("show bgp")
-			if rendered != nil {
-				defer rendered.TransportComplete()
-				return rendered.Output, err
-			}
-			return "", err
-		}, nil
-	}
 }

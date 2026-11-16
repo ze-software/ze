@@ -503,7 +503,7 @@ func (m *Model) stopPingMonitorPiped() {
 }
 
 func drainPingReplies(ch <-chan map[string]any) (replies []map[string]any, closed bool) {
-	for {
+	for len(replies) < liveViewDrainBatchMax {
 		select {
 		case reply, ok := <-ch:
 			if !ok {
@@ -514,6 +514,7 @@ func drainPingReplies(ch <-chan map[string]any) (replies []map[string]any, close
 			return replies, false
 		}
 	}
+	return replies, false
 }
 
 func applyPingReply(stats *pingStats, reply map[string]any) {

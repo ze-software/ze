@@ -1727,6 +1727,28 @@ func ProcessPipesDefaultFormatLocal(input, sessionFormat string) (command string
 }
 
 func processPipesDefaultFormat(input, sessionFormat string, saveAllowed bool) (command string, format func(string) string, errMsg string) {
+	command, apply, errMsg := processPipesDefaultFormatResult(input, sessionFormat, saveAllowed)
+	if errMsg != "" {
+		return command, nil, errMsg
+	}
+	return command, func(rawJSON string) string {
+		result, failure := apply(rawJSON)
+		if failure != "" {
+			return pipeError(failure)
+		}
+		return result
+	}, ""
+}
+
+// ProcessPipesDefaultFormatResult is the remote formatter with application
+// errors kept separate from output. A successful answer may itself start with
+// diagnostic-looking text; transports must use this outcome instead of parsing
+// rendered bytes. Caller-local filesystem operators remain refused.
+func ProcessPipesDefaultFormatResult(input, sessionFormat string) (command string, format func(string) (string, string), errMsg string) {
+	return processPipesDefaultFormatResult(input, sessionFormat, false)
+}
+
+func processPipesDefaultFormatResult(input, sessionFormat string, saveAllowed bool) (command string, format func(string) (string, string), errMsg string) {
 	command, ops := parsePipeChain(input)
 	columns := ColumnsForCommand(command)
 	command, ops, meta := foldFilters(command, ops)
@@ -1738,12 +1760,8 @@ func processPipesDefaultFormat(input, sessionFormat string, saveAllowed bool) (c
 		ops = append(ops, pipeOp{kind: defaultFormatFor(command, sessionFormat)})
 	}
 
-	return command, func(rawJSON string) string {
-		result, errMsg := ApplyPipes(rawJSON, ops, meta, columns)
-		if errMsg != "" {
-			return pipeError(errMsg)
-		}
-		return result
+	return command, func(rawJSON string) (string, string) {
+		return ApplyPipes(rawJSON, ops, meta, columns)
 	}, ""
 }
 

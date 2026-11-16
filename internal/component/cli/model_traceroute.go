@@ -436,7 +436,7 @@ func (m *Model) stopTraceroutePiped() {
 }
 
 func drainTracerouteHops(ch <-chan map[string]any) (hops []map[string]any, closed bool) {
-	for {
+	for len(hops) < liveViewDrainBatchMax {
 		select {
 		case hop, ok := <-ch:
 			if !ok {
@@ -447,6 +447,7 @@ func drainTracerouteHops(ch <-chan map[string]any) (hops []map[string]any, close
 			return hops, false
 		}
 	}
+	return hops, false
 }
 
 func applyHop(ts *tracerouteState, hop map[string]any) {

@@ -50,6 +50,16 @@ message-only recent-log header rather than adding structured fields implicitly.
 
 <!-- source: internal/plugins/log/cmd/handlers.go -- log query attributes -->
 
+Browser command recall reports failed submission recording and failed JSON
+delivery under separate doctor codes. Web network cleanup reports its own
+failure before history cleanup starts. These bounded report-bus events also
+appear in the daemon's `show doctor` recent-events check. The recall events
+exclude commands, usernames and raw errors. The network event directs the
+operator to `ze show log recent level err component web.server`.
+<!-- source: internal/component/web/register_cli_history_diagnostic.go -- reportBrowserHistoryUnavailable, reportBrowserHistoryResponseFailure -->
+<!-- source: cmd/ze/hub/register_web_history_diagnostic.go -- reportWebNetworkCleanupFailure -->
+<!-- source: internal/component/doctor/checks_recent_events.go -- checkRecentEvents -->
+
 ## Ring buffers with atomic opt-in
 
 A ring that is off costs nothing and takes no lock when on:

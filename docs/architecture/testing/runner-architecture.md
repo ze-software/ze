@@ -621,18 +621,54 @@ Accepted intermediate drafts are counted separately from fully validated
 configurations: a load does not publish the candidate. A submitted commit command
 records the current candidate for the full configuration validator; merely filling
 the input with a commit command records no publication boundary. Invalid syntax,
-typed values and refused load operations still fail draft composition. A filename
-typed after `load file` is a label; the `upload` action names
+typed values and refused load operations still fail draft composition unless a
+native graphical import's immediately following parsed step declares the exact
+visible problem produced by that actual refusal. That refused import stages
+nothing and leaves the candidate available for a later corrected import.
+Absent, mismatched or nonadjacent declarations keep the invalid-load finding.
+A filename typed after `load file` is a label; the `upload` action names
 the physical source. Relative loads retain the replayed editor context, and
 replacement loads cannot borrow omitted mandatory settings from the baseline.
-An unsupported composition is a finding and leaves the physical file eligible
-for standalone validation. This includes a login before a load: the structural
-replay does not yet model authenticated editor ownership or user switching, and
-does not silently apply a reader's denied mutation. Authenticated permission
+Native graphical import forms are also load carriers. Their parsed file/paste
+controls supply the content, and their scope and operation choices select root
+or the graphical token path and merge or replace. Unchanged form choices come
+from `web.GraphicalImportDefaults`, the same authority the native selects render.
+The graphical path uses the
+live editor's transport decoder, preserving slash-containing keys. Navigation
+between CLI and graphical pages changes the viewed path without replacing the
+authenticated owner's candidate.
+
+For declared authentication the replay reads credentials and policy from the
+same generated daemon baseline, checks the login password with the local
+authenticator and retains the resolved profile snapshot. Mutations use the
+live browser config-permission mapping and that caller's policy before a file
+is consumed. A repeated login is unsupported because the browser runner opens
+an authenticated page that has no second login form. Unknown composition,
+failed authentication and denied mutation remain explicit findings and leave
+the physical file eligible for standalone validation. Authenticated permission
 journeys without loads need no replay exemption. No fixture-specific validation
 exception is needed.
 
+Supplied graphical inspection is a read carrier, separately counted from
+candidate loads and published configurations. The corpus follows the actual
+parsed command selection and submission through the native inspection form,
+authentication middleware and registered daemon dispatcher in memory. Control
+IDs and field names come from the rendered descriptor-backed form; the native
+handler owns encoding, limits and the actual inspection producer. A physical
+file leaves standalone validation only after that producer accepts its submitted
+bytes, or the native handler produces an HTTP 413 whose complete visible problem
+is declared by the immediately following sole `element:text` expectation.
+Unknown selections and composition, failed authentication, denied mutations,
+undeclared refusals and rejected producer inputs remain findings and retain
+standalone validation. Selecting or uploading without submitting consumes
+nothing. Actual commits still use full publication validation.
+
+<!-- source: internal/component/config/cli/validate_corpus_browser_supplied_replay_test.go -- browserCorpus.inspectionAction, browserCorpus.inspectionSubmit, browserCorpus.inspectionRequest -->
+<!-- source: internal/component/web/graphical_supplied.go -- HandleSuppliedInspectionForm, HandleSuppliedInspection -->
+
 <!-- source: internal/component/config/cli/validate_corpus_browser_test.go -- sweepContext.browserSequences, browserCorpus.command, browserCorpus.apply -->
+<!-- source: internal/component/config/cli/validate_corpus_browser_graphical_replay_test.go -- browserImportErrorDeclaration, browserCorpus.graphicalAction -->
+<!-- source: internal/component/web/graphical_import.go -- GraphicalImportDefaults, GraphicalImportError -->
 <!-- source: internal/component/config/cli/validate_corpus_test.go -- loadCorpusStep, sweepContext.judgeSequence -->
 The scheduler starts the case deadline before server startup. It passes the
 parsed case and that context to `RunWBCase`; browser execution does not re-read

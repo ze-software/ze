@@ -918,6 +918,7 @@ Selector patterns: `*` (all), `<ip>` (specific), `!<ip>` (all except)
 | `system version software` | Ze version |
 | `system version api` | IPC protocol version |
 | `request shutdown` | Gracefully shutdown |
+| `request restart` | Restart the daemon in place after the accepted response; keep the host running |
 | `show status` | Show process status |
 | `request reload` | Reload the configuration |
 <!-- source: internal/core/ipc/yang/ze-system-api.yang -- system RPCs -->

@@ -1,0 +1,72 @@
+# Test: selected-item graphical actions stage deletion and discard one subtree
+# VALIDATES: graphical changes remain the same per-user candidate the CLI reads;
+# selected discard keeps unrelated edits and neither action publishes early
+# PREVENTS: selected discard silently discarding all, stale entry controls after
+# deletion, and a graphical operation bypassing normal review and commit
+
+option=timeout:value=90s
+option=server:kind=daemon
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=set bgp group selected description original-selected
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=set bgp group retained description original-retained
+action=press:id=terminal-input:key=Enter
+action=wait
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=commit successful
+
+action=open:path=/show/bgp/group/retained/
+action=fill:id=input-bgp-sgroup-sretained-sdescription:value=changed-retained
+action=press:id=input-bgp-sgroup-sretained-sdescription:key=Enter
+action=wait
+action=open:path=/show/bgp/group/selected/
+action=fill:id=input-bgp-sgroup-sselected-sdescription:value=changed-selected
+action=press:id=input-bgp-sgroup-sselected-sdescription:key=Enter
+action=wait
+action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
+action=click:id=graphical-discard-selected
+action=wait
+expect=element:text=discarded:
+expect=html:contains=value="original-selected"
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=show | format config
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=original-selected
+expect=element:text=changed-retained
+expect=element:not-text=changed-selected
+action=fill:id=terminal-input:value=show confirmed | format config
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=original-selected
+expect=element:text=original-retained
+expect=element:not-text=changed-retained
+
+action=open:path=/show/bgp/group/selected/
+action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
+action=click:id=graphical-delete-selected
+action=wait
+expect=url:contains=/show/bgp/group/
+expect=url:not-contains=/selected/
+expect=html:not-contains=id="graphical-entry-target"
+action=open:path=/cli
+action=fill:id=terminal-input:value=show | format config
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:not-text=original-selected
+expect=element:text=changed-retained
+action=fill:id=terminal-input:value=show confirmed | format config
+action=press:id=terminal-input:key=Enter
+action=wait
+expect=element:text=original-selected
+expect=element:text=original-retained
+action=fill:id=terminal-input:value=discard all
+action=press:id=terminal-input:key=Enter
+action=wait

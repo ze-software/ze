@@ -1,0 +1,17 @@
+# Test: authenticated read-only graphical editor excludes import controls
+# VALIDATES: a reader still has source inspection without candidate mutation.
+# PREVENTS: presenting file/paste controls to an account denied edit permission.
+
+option=timeout:value=45s
+option=server:kind=daemon
+option=auth:user=admin:password=ze-web-import:role=admin
+option=auth:user=noc:password=ze-web-reader:role=read-only
+
+action=login:user=noc:password=ze-web-reader
+action=open:path=/show/bgp/
+action=click:id=graphical-actions-toggle
+expect=element:text=This account has read-only access.
+expect=element:not-id=graphical-import-file
+expect=element:not-id=graphical-import-paste
+expect=element:not-id=graphical-edit-toggle
+expect=html:contains=id="graphical-inspect"

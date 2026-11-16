@@ -20,8 +20,9 @@ func init() {
 	command.RegisterAddressFields([]string{commandMonitorPing}, "target")
 
 	RegisterView(viewSpec{
-		key:    ViewKeyPing,
-		prefix: commandMonitorPing,
+		key:     ViewKeyPing,
+		prefix:  commandMonitorPing,
+		browser: func(_ *Model) []browserViewControl { return []browserViewControl{browserViewStopControl()} },
 		// Plain and piped monitor-ping share one spec; the "| ..." split is a
 		// render-mode detail resolved inside start.
 		matches: func(input string) bool {

@@ -35,7 +35,9 @@ func newTestEditorManager(t *testing.T) *EditorManager {
 	schema, schemaErr := config.YANGSchema()
 	require.NoError(t, schemaErr, "YANG schema must load")
 
-	return NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
+	return mgr
 }
 
 // TestEditorManagerGetOrCreate verifies that calling GetOrCreate twice with the

@@ -4,12 +4,17 @@
 package cli
 
 import (
+	"errors"
 	"io/fs"
 	"slices"
 	"strconv"
 	"strings"
 	"sync"
 
+	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/core/configtext"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/redact"
 	"github.com/ze-software/ze/internal/core/syncutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/zefs"
@@ -42,16 +47,22 @@ type historyRW interface {
 // share this *History. A nil rw remains memory-only and starts no worker.
 // A History MUST NOT be copied; share its pointer instead.
 type History struct {
-	rw      historyRW
-	max     int
-	prefix  string   // Key prefix for storage (includes username)
-	entries []string // Previous commands (oldest first)
-	idx     int      // Current browsing position (-1 = not browsing)
-	tmp     string   // Saved input when browsing history
+	rw         historyRW
+	max        int
+	prefix     string   // Key prefix for storage (includes username)
+	entries    []string // Previous commands (oldest first)
+	idx        int      // Current browsing position (-1 = not browsing)
+	tmp        string   // Saved input when browsing history
+	mode       EditorMode
+	scopes     map[EditorMode][]string
+	loaded     map[EditorMode]bool
+	loadErrors map[EditorMode]error
+	mask       func(string, []string) string
 
-	mu     sync.Mutex // Protects the publication lifetime, not UI entries.
-	writer *syncutil.Coalescer[string, []string]
-	closed bool
+	mu          sync.Mutex // Protects the publication lifetime, not UI entries.
+	writer      *syncutil.Coalescer[string, []string]
+	closed      bool
+	writeErrors map[string]error // Latest completed publication outcome, bounded to two modes.
 }
 
 // NewHistory creates a History backed by the given reader/writer.
@@ -60,16 +71,35 @@ type History struct {
 // The max entry count is read from meta/history/max (default 100).
 // Construction starts no worker. The caller MUST call Close after its last Save.
 func NewHistory(rw historyRW, username string) *History {
+	return newHistory(rw, username, config.DisplayCommandAtPath)
+}
+
+// NewHistoryWithMask binds the owner's display producer before any history can
+// be loaded, recorded or published. The mask MUST be nonnil and MUST resolve the
+// owning editor's actual schema. The caller MUST close the returned History
+// before releasing its borrowed store. Construction starts no worker.
+func NewHistoryWithMask(rw historyRW, username string, mask func(string, []string) string) (*History, error) {
+	if mask == nil {
+		return nil, errors.New("command history requires a display mask")
+	}
+	return newHistory(rw, username, mask), nil
+}
+
+func newHistory(rw historyRW, username string, mask func(string, []string) string) *History {
 	prefix := historyKeyPrefix
 	if username != "" {
 		var tb textbuf.Buffer
 		prefix = tb.Str(historyKeyPrefix).Str(username).Byte('/').String()
 	}
 	h := &History{
-		rw:     rw,
-		max:    historyMaxDefault,
-		prefix: prefix,
-		idx:    -1,
+		rw:         rw,
+		max:        historyMaxDefault,
+		prefix:     prefix,
+		idx:        -1,
+		scopes:     make(map[EditorMode][]string),
+		loaded:     make(map[EditorMode]bool),
+		loadErrors: make(map[EditorMode]error),
+		mask:       mask,
 	}
 	if rw == nil {
 		return h
@@ -98,9 +128,9 @@ func (h *History) Max() int {
 	return h.max
 }
 
-// Entries returns the current history entries.
+// Entries returns a detached copy of the current history entries.
 func (h *History) Entries() []string {
-	return h.entries
+	return slices.Clone(h.entries)
 }
 
 // Append adds a command to history with consecutive dedup.
@@ -200,17 +230,26 @@ func (h *History) restore(snap historySnapshot) {
 	}
 }
 
-// Load reads the history for the given mode from the store.
-// Returns nil if no history exists or the store is nil.
-// Results are trimmed to the configured max.
-func (h *History) Load(mode string) []string {
+// Load reads stored records for one mode. Missing history and a nil store are
+// empty successful reads; other storage failures MUST reach the owner. Recall
+// consumers MUST use Snapshot, which also masks records written by older code.
+func (h *History) Load(mode string) ([]string, error) {
+	if mode != modeNameConfig {
+		if mode != modeNameOperational {
+			return nil, opererr.New("The command history mode is invalid.", "History belongs to configuration or operational mode.", "Use configure or exit to select a CLI mode")
+		}
+	}
 	if h.rw == nil {
-		return nil
+		return nil, nil
 	}
 
 	data, err := h.rw.ReadFile(h.prefix + mode)
-	if err != nil || len(data) == 0 {
-		return nil
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return nil, nil
+		}
+		reportHistoryReadFailure(mode)
+		return nil, opererr.Wrap(err, "Your "+mode+" command history is unavailable.", "Previously saved commands could not be read; this mode's history will not be overwritten.", "Reconnect after the configuration store is available to restore command recall")
 	}
 
 	// Split and filter empty lines.
@@ -221,7 +260,7 @@ func (h *History) Load(mode string) []string {
 		}
 	}
 	if len(result) == 0 {
-		return nil
+		return nil, nil
 	}
 
 	// Trim to max on load (#5: prevent unbounded memory from crafted blob).
@@ -229,7 +268,130 @@ func (h *History) Load(mode string) []string {
 		result = result[len(result)-h.max:]
 	}
 
-	return result
+	return result, nil
+}
+
+// Snapshot returns bounded, masked recall for mode without exposing its backing
+// slice. The serial owner MUST hold its session lock. Failed reads remain errors
+// for this owner; a new History retries storage when the session is reopened.
+func (h *History) Snapshot(mode EditorMode) ([]string, error) {
+	switch mode {
+	case ModeConfig, ModeOperational:
+	default:
+		return nil, opererr.New("The command history mode is invalid.", "History belongs to configuration or operational mode.", "Use configure or exit to select a CLI mode")
+	}
+	if err := h.loadErrors[mode]; err != nil {
+		return nil, err
+	}
+	if h.loaded[mode] {
+		entries := h.scopes[mode]
+		if h.mode == mode {
+			entries = h.entries
+		}
+		if len(entries) > h.max {
+			entries = entries[len(entries)-h.max:]
+		}
+		return slices.Clone(entries), nil
+	}
+	stored, err := h.Load(mode.String())
+	if err != nil {
+		h.loadErrors[mode] = err
+		return nil, err
+	}
+	if h.rw == nil {
+		if h.mode == mode {
+			stored = h.entries
+		}
+	}
+	entries := make([]string, 0, len(stored))
+	for _, line := range stored {
+		line = h.displayCommand(mode, nil, line)
+		if len(entries) > 0 {
+			if entries[len(entries)-1] == line {
+				continue
+			}
+		}
+		entries = append(entries, line)
+	}
+	if len(entries) > h.max {
+		entries = entries[len(entries)-h.max:]
+	}
+	h.scopes[mode] = entries
+	h.loaded[mode] = true
+	if h.mode == mode {
+		h.entries = entries
+	}
+	return slices.Clone(entries), nil
+}
+
+// Record appends one command in its submitted mode, using the shared display
+// mask before either recall or publication. Content supplied separately to load
+// MUST NOT be passed as command. The serial owner MUST hold its session lock,
+// stop recording before Close, and close before releasing the borrowed store.
+func (h *History) Record(mode EditorMode, path []string, command string) ([]string, error) {
+	h.mu.Lock()
+	closed := h.closed
+	h.mu.Unlock()
+	if closed {
+		return nil, opererr.New("Command history is closed.", "This session has ended, so no command can be recorded.", "Reconnect to open a new CLI session")
+	}
+	entries, err := h.Snapshot(mode)
+	if err != nil {
+		return nil, err
+	}
+	if h.mode != mode {
+		h.scopes[h.mode] = slices.Clone(h.entries)
+		h.mode = mode
+	}
+	h.entries = entries
+	command, err = absoluteHistoryCommand(mode, path, command)
+	if err != nil {
+		return nil, err
+	}
+	if h.Append(h.displayCommand(mode, path, command)) {
+		if len(h.entries) > h.max {
+			h.entries = h.entries[len(h.entries)-h.max:]
+		}
+		h.scopes[mode] = h.entries
+		h.Save(mode)
+	}
+	return slices.Clone(h.entries), nil
+}
+
+func absoluteHistoryCommand(mode EditorMode, path []string, command string) (string, error) {
+	if mode != ModeConfig {
+		return command, nil
+	}
+	if len(path) == 0 {
+		return command, nil
+	}
+	words, err := ParseCommandWords(command)
+	if err != nil {
+		return "", err
+	}
+	tokens := words.Tokens()
+	if len(tokens) == 0 {
+		return command, nil
+	}
+	if tokens[0] != cmdSet {
+		return command, nil
+	}
+	var absolute textbuf.Buffer
+	absolute.Str(cmdTop).Byte(' ').Str(cmdSet)
+	for _, token := range path {
+		absolute.Byte(' ').Str(configtext.QuoteCommandWord(token))
+	}
+	absolute.Byte(' ').Str(words.Tail().String())
+	return absolute.String(), nil
+}
+
+func (h *History) displayCommand(mode EditorMode, path []string, command string) string {
+	if mode == ModeOperational {
+		if IsSessionFormatCommand(command) {
+			return redact.Command(command)
+		}
+	}
+	return h.mask(command, path)
 }
 
 // Save queues the newest whole history for mode without waiting for storage.
@@ -239,6 +401,9 @@ func (h *History) Load(mode string) []string {
 // Nil-store Save returns before trimming, preserving memory-only behavior.
 // The owner MUST stop calling Save before Close and release the store afterward.
 func (h *History) Save(mode EditorMode) {
+	if h.loadErrors[mode] != nil {
+		return // Snapshot exposes this failure; unread history must not be replaced.
+	}
 	if h.rw == nil {
 		return
 	}
@@ -269,13 +434,45 @@ func (h *History) Save(mode EditorMode) {
 func (h *History) publish(mode string, entries []string) {
 	buf := textbuf.Get()
 	defer buf.Release()
-	_ = h.rw.WriteFile(h.prefix+mode, buf.Join(entries, "\n").Bytes(), 0) //nolint:errcheck // History remains best-effort.
+	err := h.rw.WriteFile(h.prefix+mode, buf.Join(entries, "\n").Bytes(), 0)
+	if err != nil {
+		reportHistoryWriteFailure(mode)
+	}
+	h.mu.Lock()
+	if h.writeErrors == nil {
+		h.writeErrors = make(map[string]error, 2)
+	}
+	h.writeErrors[mode] = err
+	h.mu.Unlock()
+}
+
+// LastWriteError reports known publication failures. Before Close has joined
+// the worker, nil means only that no completed write is known to have failed.
+// The owner MUST call Close before treating this as its final drain status.
+// Safe for concurrent use; a later successful write clears that mode's failure.
+func (h *History) LastWriteError() error {
+	if h == nil {
+		return nil
+	}
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var failures []error
+	for _, mode := range []string{modeNameConfig, modeNameOperational} {
+		if err := h.writeErrors[mode]; err != nil {
+			failures = append(failures, opererr.Wrap(err,
+				"Your "+mode+" command history could not be saved.",
+				"Command recall may be lost when this session ends.",
+				"Check the disk holding the configuration store, then reconnect"))
+		}
+	}
+	return errors.Join(failures...)
 }
 
 // Close drains every accepted publication and joins the worker, if one started.
 // The owner MUST call Close before closing the borrowed store. It is idempotent
 // and needs neither command-result application nor a live dispatch context.
 // Nil and an unused History have nothing to drain.
+// The owner MUST inspect LastWriteError after Close to judge publication.
 func (h *History) Close() {
 	if h == nil {
 		return

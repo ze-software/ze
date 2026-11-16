@@ -8,6 +8,12 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+// DisplayCommandAtPath masks a command using this editor's actual schema.
+// History owners MUST bind this producer before loading or recording commands.
+func (e *Editor) DisplayCommandAtPath(input string, path []string) string {
+	return config.DisplayCommandWithSchema(input, path, e.schema)
+}
+
 // displayTreeOf parses raw config text and answers a tree whose secret leaves
 // read as the display placeholder. It answers nil when nothing parses.
 //

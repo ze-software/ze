@@ -527,15 +527,3 @@ func (hm *headlessModel) SetReloadNotifier(fn cli.ReloadNotifier) {
 	}
 	hm.editor.SetReloadNotifier(fn)
 }
-
-// SetShutdownFunc configures the shutdown callback on the model.
-// Used by the .et test runner to simulate daemon stop behavior.
-func (hm *headlessModel) SetShutdownFunc(fn func()) {
-	hm.model.SetShutdownFunc(fn)
-}
-
-// SetRestartFunc configures the restart callback on the model.
-// Used by the .et test runner to simulate daemon restart behavior (GR marker write + stop).
-func (hm *headlessModel) SetRestartFunc(fn func()) {
-	hm.model.SetRestartFunc(fn)
-}

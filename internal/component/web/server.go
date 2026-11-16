@@ -92,7 +92,10 @@ type WebServer struct {
 	// reads it per handshake rather than per listener, so UpdateTLSCertificate
 	// rotates the served material without touching a bound listener. Never nil
 	// after NewWebServer returns.
-	cert atomic.Pointer[tls.Certificate]
+	cert          atomic.Pointer[tls.Certificate]
+	requests      requestOwners
+	shutdownOnce  sync.Once
+	shutdownError error
 }
 
 // NewWebServer creates a new WebServer from the given configuration.
@@ -145,6 +148,7 @@ func NewWebServer(cfg WebConfig) (*WebServer, error) {
 			ErrorLog: stdlog.New(io.Discard, "", 0),
 		},
 	}
+	srv.server.Handler = srv.serveRequest(serverHandler(mux))
 
 	// Move the certificate behind a per-handshake lookup. crypto/tls consults
 	// GetCertificate before Certificates, so an already-bound listener picks up
@@ -456,14 +460,25 @@ func (s *WebServer) WaitReady(ctx context.Context) error {
 	}
 }
 
-// Shutdown gracefully shuts down the server without interrupting active connections.
-// It waits for active requests to complete or until the context deadline is reached.
-// Shutdown closes every listener that ListenAndServe bound.
-// After Shutdown, Reconfigure returns errWebServerShutDown.
+// Shutdown seals HTTP admission, grants ctx's network grace, then cancels and
+// force-closes remaining requests and joins their handlers. The service MUST
+// finish this join before draining history or releasing the borrowed store.
+// A stuck handler may block this join; the service owner bounds its own wait and
+// reports failure. Safe concurrently; later calls join the same shutdown.
 func (s *WebServer) Shutdown(ctx context.Context) error {
-	s.mu.Lock()
-	s.stopped = true
-	s.mu.Unlock()
-	s.logger.Info("web server shutting down")
-	return s.server.Shutdown(ctx)
+	s.shutdownOnce.Do(func() {
+		s.mu.Lock()
+		s.stopped = true
+		s.mu.Unlock()
+		s.requests.seal()
+		s.logger.Info("web server shutting down")
+		err := s.server.Shutdown(ctx)
+		s.requests.cancel()
+		if err != nil {
+			err = errors.Join(err, s.server.Close())
+		}
+		s.requests.wait()
+		s.shutdownError = err
+	})
+	return s.shutdownError
 }

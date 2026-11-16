@@ -42,7 +42,7 @@ func TestAttachedModelOwnerClosesHistory(t *testing.T) {
 	t.Cleanup(env.ResetCache)
 	// Resolve the registered schema outside synctest; no filesystem initialization
 	// is smuggled into the deterministic lifetime observation.
-	warm, err := newAttachedModel(attachedTestDispatch, unicli.CommandExecutor(attachedTestDispatch), nil)
+	warm, err := newAttachedModel(attachedTestDispatch, unicli.CommandExecutor(attachedTestDispatch), nil, nil)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -77,7 +77,7 @@ func TestAttachedModelOwnerClosesHistory(t *testing.T) {
 						joined := make(chan struct{})
 						go func() {
 							defer close(joined)
-							ended <- runInteractiveWithProgram(attachedTestDispatch, ed, func(model *unicli.Model) error {
+							ended <- runInteractiveWithProgram(attachedTestDispatch, ed, nil, func(model *unicli.Model) error {
 								history = unicli.NewHistory(store, "attached-owner")
 								model.SetHistory(history)
 								model.SetInput("show owner")
@@ -111,7 +111,11 @@ func TestAttachedModelOwnerClosesHistory(t *testing.T) {
 						if got := <-ended; got != want {
 							t.Errorf("exit = %d, want %d", got, want)
 						}
-						if got := history.Load(unicli.ModeOperational.String()); !slices.Equal(got, []string{"show owner"}) {
+						gotHistory, historyErr := history.Load(unicli.ModeOperational.String())
+						if historyErr != nil {
+							t.Fatal(historyErr)
+						}
+						if got := gotHistory; !slices.Equal(got, []string{"show owner"}) {
 							t.Errorf("attached history reload = %v", got)
 						}
 						if err := store.Storage.WriteFile("meta/borrowed-open", []byte("yes"), 0); err != nil {
@@ -131,7 +135,7 @@ func TestAttachedModelConstructorRefusalOwnsNoHistory(t *testing.T) {
 	defer func() { restore(); resetYANGStateForTest() }()
 	resetYANGStateForTest()
 	called := false
-	code := runInteractiveWithProgram(attachedTestDispatch, nil, func(*unicli.Model) error { called = true; return nil })
+	code := runInteractiveWithProgram(attachedTestDispatch, nil, nil, func(*unicli.Model) error { called = true; return nil })
 	if code != 1 {
 		t.Errorf("schema refusal exit = %d, want 1", code)
 	}

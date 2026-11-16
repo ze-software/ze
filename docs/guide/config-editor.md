@@ -59,7 +59,31 @@ This does not depend on stop-callback ordering or a live editor Update loop.
 Abrupt process death can lose queued command history; draft, configuration and
 commit durability are unchanged. Slow draft I/O can still delay a command's own
 result. Separate sessions keep independent whole snapshots, not merged history.
+Missing history is an empty successful read. A history storage failure instead
+shows recovery instructions and disables publication for that mode until the
+session is reopened; diagnostic commands remain usable. Recall and newly
+published snapshots mask credentials using the shared schema-aware command
+display producer, including records written by older sessions.
+Completed publication failures remain visible when the model closes. A final
+write status is meaningful only after that close has joined the history worker;
+the absence of an earlier error does not prove an outstanding write succeeded.
+An editor resolves these assignments against its own schema before either mode
+is loaded, so ordinary values remain usable when the editor's schema differs
+from the process-wide schema. Recalled credentials contain a display marker;
+commit refuses that marker in a secret leaf and asks for the real value.
+
+A `set` entered at a relative configuration address is recalled as the equivalent
+absolute `top set <address> ...` command. This retains its original target after
+reconnecting or moving to another configuration context. Safe nonsecret values
+remain usable after reopening; an older relative record whose address was not
+stored is masked conservatively. Mode snapshots are detached, bounded by the
+configured entry count, and deduplicate consecutive displayed commands.
 <!-- source: internal/component/cli/history.go -- Save, publish, Close -->
+<!-- source: internal/component/cli/history.go -- Load, Snapshot, Record -->
+<!-- source: internal/component/config/mask.go -- DisplayCommandAtPath, DisplayCommandWithSchema, RejectMaskedSecretLeaves -->
+<!-- source: internal/component/cli/editor_mask.go -- DisplayCommandAtPath -->
+<!-- source: internal/component/cli/model.go -- SetHistory, recordHistory -->
+<!-- source: internal/component/cli/model_render.go -- feedbackLine -->
 <!-- source: internal/component/cli/model.go -- Close, SetHistory -->
 <!-- source: internal/component/cli/client/main.go -- runInteractiveWithDispatch, runInteractiveWithProgram -->
 <!-- source: internal/component/config/cli/cmd_edit.go -- runEditorProgram, runEditorProgramWith, runBackupModel, runEditor -->
@@ -72,6 +96,13 @@ result. Separate sessions keep independent whole snapshots, not merged history.
 <!-- source: cmd/ze/hub/ssh_infra.go -- sshServer -->
 
 ## Editor Commands
+
+The graphical web editor's **Import into candidate** forms use the same load
+producer as these editor commands. A local file or pasted text can merge into
+or replace the root or selected subtree. Import stages changes for your account;
+review and commit them separately to publish them. A refused import leaves your
+candidate intact. See [Web interface](web-interface.md#collections-and-configuration-actions).
+<!-- source: internal/component/web/graphical_import.go -- HandleGraphicalImport -->
 
 | Command | Description |
 |---------|-------------|
@@ -226,9 +257,13 @@ continues to display the last committed state until the candidate is committed.
 The web interface's CLI page uses these same editor command producers without
 an SSH connection. `show | blame`, `show | changes`, `show | history`,
 `show | active`, `show | inactive` and `show | errors` retain their editor
-meanings. `option` preferences remain with your editing session. `insert`
+meanings. `option` preferences remain with your editing session. The shared
+display-option catalog supplies CLI completion and the graphical editor's
+preference controls: author, date, source and changes columns, all or no
+columns, and diagnostic hints or hiding. `insert`
 inserts an ordered leaf-list member with `first`, `last`, `before` or `after`;
 create a named list entry with `set`.
+<!-- source: internal/component/cli/contract/editor_options.go -- EditorOptions -->
 
 In operational mode (`ze>`), `set cli format` shows your current output format
 and `set cli format json` changes it for your browser editing session. Tab

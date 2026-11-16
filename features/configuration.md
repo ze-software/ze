@@ -19,3 +19,9 @@
 ## Description
 
 YANG-modeled config with prefix limits, update groups, session resilience, duplicate list-key rejection, side-effect-free in-process plugin verifiers for static/API/CLI validation, and transactional commits using active/candidate/rollback pointers. Live external plugin `OnConfigVerify` callbacks run only in daemon reload/commit transactions.
+
+Read-only commands under `show config supplied` inspect bounded caller-held
+bytes through the same dump, validation, formatting, graph and comparison
+producers as file inputs. They do not stage or publish configuration.
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler -->
+<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->

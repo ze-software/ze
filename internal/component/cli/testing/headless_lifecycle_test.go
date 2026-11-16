@@ -2,35 +2,52 @@ package testing
 
 import (
 	"testing"
+
+	"github.com/ze-software/ze/internal/component/cli"
 )
 
-// TestHeadlessRestartFuncPropagation verifies that restartFunc set on
+// TestHeadlessRestartFuncPropagation verifies that commandExecutor set on
 // a HeadlessModel survives the TypeText + PressEnter chain.
-// VALIDATES: .et lifecycle infrastructure -- restartFunc through headless model.
-// PREVENTS: restartFunc nil when model processes "restart" command.
+// VALIDATES: .et lifecycle infrastructure -- commandExecutor through headless model.
+// PREVENTS: commandExecutor nil when model processes "restart" command.
 func TestHeadlessRestartFuncPropagation(t *testing.T) {
 	hm, err := newHeadlessCommandModel()
 	if err != nil {
 		t.Fatalf("creating the command model: %v", err)
 	}
 
-	// Set restartFunc via the Model() pointer (same as runner line 225-227).
+	// Supply the canonical operational executor through the Model() pointer.
 	called := false
 	m := hm.Model()
-	m.SetShutdownFunc(func() {})
-	m.SetRestartFunc(func() { called = true })
+	m.SetCommandExecutor(func(input string) (cli.CommandOutput, error) {
+		if input != "request restart" {
+			t.Errorf("restart dispatch = %q, want request restart", input)
+		}
+		return cli.CommandOutput{TransportComplete: func() { called = true }}, nil
+	})
+
+	if called {
+		t.Fatal("executor ran before confirmation")
+	}
 
 	// Type "restart" and press Enter (same as .et input=type:text=restart + input=enter).
 	hm.typeText("restart")
 	hm.pressEnter()
 
-	// The status message reveals whether restartFunc was nil.
+	// The status message reveals whether commandExecutor was nil.
 	// "restart not available" = nil, confirmation prompt = set.
 	status := hm.StatusMessage()
 	t.Logf("status: %q, called: %v", status, called)
 
 	if status == "restart not available (not connected to daemon)" {
-		t.Error("restartFunc was nil when model processed 'restart' -- lost in headless Update chain")
+		t.Error("commandExecutor was nil when model processed 'restart' -- lost in headless Update chain")
+	}
+	if called {
+		t.Fatal("accepted action ran before confirmation")
+	}
+	hm.typeText("y")
+	if !called {
+		t.Fatal("confirmed restart never completed its accepted action")
 	}
 }
 
@@ -40,7 +57,7 @@ func TestHeadlessRestartFuncPropagation(t *testing.T) {
 // It calls runTestCaseIn, the runner's whole wiring (option=lifecycle:wired
 // included), in t.TempDir(), and not runTestCase, whose only addition is the
 // wall-clock budget runner_timeout_test.go already proves. This test is about
-// the restart callback, not time: the store it opened used to fsync, and under
+// the restart executor, not time: the store it opened used to fsync, and under
 // a loaded -race verify one fsync on the TMPDIR disk outlasted the 5s budget it
 // used to declare. The runner's tree-mode store is now in memory; `go test
 // -timeout` stays the bound on a run that hangs.

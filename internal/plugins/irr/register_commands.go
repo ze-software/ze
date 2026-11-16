@@ -39,7 +39,17 @@ func init() {
 // The dispatcher matches the typed prefix (builtinArgCompletions), and the
 // SSH tree hangs it on the command's node (WireArgCompletion). Safe for
 // concurrent use.
-func completeASSetArgument(_ *pluginserver.Server) []pluginserver.Completion {
+func completeASSetArgument(_ *pluginserver.Server, completed []string) []pluginserver.Completion {
+	// Both commands take one AS-SET name, so no value follows a completed
+	// name. The daemon store remains the source of first-position values.
+	if len(completed) > 0 {
+		if len(completed) != 1 {
+			return nil
+		}
+		if completed[0] != leafASSet {
+			return nil
+		}
+	}
 	known := daemonKnownASSets()
 	candidates := make([]pluginserver.Completion, 0, len(known))
 	for _, set := range known {

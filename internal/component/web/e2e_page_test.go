@@ -23,7 +23,7 @@ func TestE2E_FragmentHandlerRendersHTMX(t *testing.T) {
 	}
 	tree := config.NewTree()
 
-	handler := HandleFragment(renderer, schema, tree, nil, false)
+	handler := HandleFragment(renderer, schema, tree, nil, false, nil)
 
 	// Full page request to /show/ (root)
 	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/show/", http.NoBody)

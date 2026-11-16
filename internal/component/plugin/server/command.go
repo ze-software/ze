@@ -51,7 +51,15 @@ var ErrEmptyCommand = errors.New("empty command")
 // ErrUnauthorized is returned when a command is denied by authorization.
 // Its text is plugin.UnauthorizedMessage because operators read it directly:
 // the ssh exec handler prints this error, not the Response.Error below.
-var ErrUnauthorized = errors.New(plugin.UnauthorizedMessage)
+var ErrUnauthorized error = authorizationRefusal{}
+
+type authorizationRefusal struct{}
+
+func (authorizationRefusal) Error() string { return plugin.UnauthorizedMessage }
+
+// PermissionDenied lets transport adapters classify a refusal without importing
+// this server or comparing operator-facing text.
+func (authorizationRefusal) PermissionDenied() bool { return true }
 
 // unauthorizedError builds the Response.Error for a denied command. Surfaces
 // that render Response.Error rather than the returned error still name the
@@ -780,6 +788,39 @@ func (d *Dispatcher) isCommandPath(lowerPath []byte) bool {
 		return true
 	}
 	return d.subsystems != nil && d.subsystems.hasCommandPath(string(lowerPath))
+}
+
+// RecognizesCommand reports whether Dispatch can resolve input, without running
+// authorization, accounting or a handler. Interactive surfaces use this before
+// entering the config editor, so an operational command keeps its meaning even
+// when its verb is also an editor command. Pipes belong to the rendering surface
+// and do not affect command recognition. Safe alongside registry publications;
+// builtin registration follows Dispatch's existing startup/freeze contract.
+func (d *Dispatcher) RecognizesCommand(input string) bool {
+	tokens, pipeAt, err := scanCommand(input)
+	if err != nil {
+		return false
+	}
+	if pipeAt != noPipe {
+		input = strings.TrimSpace(input[:pipeAt])
+		tokens, _, err = scanCommand(input)
+		if err != nil {
+			return false
+		}
+	}
+	if len(tokens) == 0 {
+		return false
+	}
+	if _, _, _, found := d.matchBuiltinTokens(tokens); found {
+		return true
+	}
+	if d.subsystems != nil {
+		if d.subsystems.FindHandler(input) != nil {
+			return true
+		}
+	}
+	matched, _ := d.matchPluginCommand(strings.ToLower(strings.TrimSpace(input)))
+	return matched != nil
 }
 
 func matchCommandTokens(tokens []string, key string, defs []command.ArgDef) ([]string, map[string]string, bool) {

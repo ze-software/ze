@@ -20,6 +20,13 @@ func newTestHistory(t *testing.T) (*History, storage.Storage) {
 	return h, store
 }
 
+func readHistory(t *testing.T, h *History, mode string) []string {
+	t.Helper()
+	entries, err := h.Load(mode)
+	require.NoError(t, err)
+	return entries
+}
+
 // VALIDATES: Round-trip save then load returns same entries.
 // PREVENTS: Data loss on persist/reload cycle.
 func TestHistoryLoadSave(t *testing.T) {
@@ -33,7 +40,7 @@ func TestHistoryLoadSave(t *testing.T) {
 
 	// Reload from store.
 	h2 := NewHistory(store, "testuser")
-	loaded := h2.Load("config")
+	loaded := readHistory(t, h2, "config")
 	assert.Equal(t, []string{"show", "set bgp local-as 65000", "commit"}, loaded)
 }
 
@@ -49,7 +56,7 @@ func TestHistoryRolling(t *testing.T) {
 	h.Close()
 
 	h2 := NewHistory(store, "testuser")
-	loaded := h2.Load("config")
+	loaded := readHistory(t, h2, "config")
 	assert.Len(t, loaded, 100)
 	// After Save, h.Entries() is already trimmed to the newest 100.
 	assert.Equal(t, h.Entries(), loaded, "should keep the newest 100 entries")
@@ -83,7 +90,7 @@ func TestHistoryCustomMax(t *testing.T) {
 	h2.Close()
 
 	h3 := NewHistory(store, "testuser")
-	loaded := h3.Load("config")
+	loaded := readHistory(t, h3, "config")
 	assert.Len(t, loaded, 50)
 }
 
@@ -91,7 +98,7 @@ func TestHistoryCustomMax(t *testing.T) {
 // PREVENTS: Error or panic on first launch with empty store.
 func TestHistoryEmpty(t *testing.T) {
 	h, _ := newTestHistory(t)
-	loaded := h.Load("config")
+	loaded := readHistory(t, h, "config")
 	assert.Nil(t, loaded)
 }
 
@@ -112,8 +119,8 @@ func TestHistoryPerMode(t *testing.T) {
 	h.Close()
 
 	h2 := NewHistory(store, "testuser")
-	assert.Equal(t, []string{"set bgp local-as 65000", "commit"}, h2.Load("config"))
-	assert.Equal(t, []string{"peer list", "daemon status"}, h2.Load("operational"))
+	assert.Equal(t, []string{"set bgp local-as 65000", "commit"}, readHistory(t, h2, "config"))
+	assert.Equal(t, []string{"peer list", "daemon status"}, readHistory(t, h2, "operational"))
 }
 
 // VALIDATES: Nil store returns empty on load, save is no-op.
@@ -121,7 +128,7 @@ func TestHistoryPerMode(t *testing.T) {
 func TestHistoryNilGraceful(t *testing.T) {
 	h := NewHistory(nil, "")
 
-	assert.Nil(t, h.Load("config"))
+	assert.Nil(t, readHistory(t, h, "config"))
 	h.Append("show")
 	h.Save(ModeConfig)
 	// Entries exist in memory but nothing persisted.
@@ -286,7 +293,7 @@ func TestHistoryAppendNewlineReplaced(t *testing.T) {
 	h.Close()
 
 	h2 := NewHistory(store, "testuser")
-	loaded := h2.Load("config")
+	loaded := readHistory(t, h2, "config")
 	assert.Equal(t, []string{"foo bar"}, loaded)
 }
 
@@ -350,7 +357,7 @@ func TestHistoryLoadTrimsToMax(t *testing.T) {
 	require.NoError(t, store.WriteFile("meta/history/testuser/config", []byte(entries), 0))
 
 	h := NewHistory(store, "testuser")
-	loaded := h.Load("config")
+	loaded := readHistory(t, h, "config")
 	assert.Len(t, loaded, 5)
 	assert.Equal(t, []string{"p", "q", "r", "s", "t"}, loaded, "should keep newest 5")
 }
@@ -362,6 +369,6 @@ func TestHistoryLoadOnlyNewlines(t *testing.T) {
 	require.NoError(t, store.WriteFile("meta/history/testuser/config", []byte("\n\n\n"), 0))
 
 	h := NewHistory(store, "testuser")
-	loaded := h.Load("config")
+	loaded := readHistory(t, h, "config")
 	assert.Nil(t, loaded)
 }

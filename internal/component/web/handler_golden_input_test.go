@@ -5,15 +5,20 @@ package web
 import (
 	"context"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"golang.org/x/crypto/bcrypt"
 
 	"github.com/ze-software/ze/internal/component/aaa"
+	"github.com/ze-software/ze/internal/component/authz"
 	zeconfigcli "github.com/ze-software/ze/internal/component/config/cli"
+	yangloader "github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin"
+	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	"github.com/ze-software/ze/internal/core/health"
 )
 
@@ -125,6 +130,53 @@ func webGoldenDispatch() CommandDispatcher {
 
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(out)), nil
 	}
+}
+
+// webGoldenInspectionParts keeps supplied-input captures on their actual
+// registered owner and model. Existing page fixtures retain webGoldenDispatch.
+func webGoldenInspectionParts(t *testing.T) (AdminCommandTree, CommandDispatcher) {
+	t.Helper()
+	resolved, err := yangloader.DefaultLoader()
+	require.NoError(t, err)
+	dispatcher := pluginserver.NewDispatcher()
+	require.NoError(t, pluginserver.LoadBuiltins(dispatcher, yangloader.WireMethodToPath(resolved),
+		yangloader.PathToDescription(resolved), yangloader.PathToHelp(resolved), yangloader.PathToArgDefs(resolved)))
+	return StaticCommandTree(yangloader.BuildCommandTree(resolved)),
+		func(ctx context.Context, caller plugin.CallerIdentity, line string) (*plugin.Response, error) {
+			return dispatcher.Dispatch(&pluginserver.CommandContext{
+				Username: caller.Username, RemoteAddr: caller.RemoteAddr, Authorizer: caller.Authorizer,
+				RequestContext: ctx, Surface: "web", Sender: plugin.OperatorSender(),
+			}, line)
+		}
+}
+
+// webGoldenInspectionReader keeps allowed reads and denied edits on the same
+// actual policy. The original deny-all webGoldenDenyEdits remains unchanged.
+func webGoldenInspectionReader() aaaAuthorizer {
+	store := authz.NewStore()
+	store.AddProfile(authz.Profile{Name: "golden-reader", Run: authz.Section{Default: authz.Allow}, Edit: authz.Section{Default: authz.Deny}})
+	store.AssignProfiles(webGoldenUser, []string{"golden-reader"})
+	return authz.StoreAuthorizer{Store: store}
+}
+
+func webGoldenForbidden(t *testing.T, response *httptest.ResponseRecorder) {
+	t.Helper()
+	require.Equal(t, http.StatusForbidden, response.Code, response.Body.String())
+}
+
+func webGoldenInspectionInputs(t *testing.T, response *httptest.ResponseRecorder) {
+	t.Helper()
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	require.Contains(t, response.Body.String(), `id="graphical-supplied-inputs"`)
+	require.Contains(t, response.Body.String(), `hx-post="/config/inspect"`)
+}
+
+func webGoldenInspectionAnswer(t *testing.T, response *httptest.ResponseRecorder) {
+	t.Helper()
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+	require.Contains(t, response.Body.String(), `id="graphical-supplied-result"`)
+	require.Contains(t, response.Body.String(), "inspection-capture")
+	require.NotContains(t, response.Body.String(), "The inspection could not be completed.")
 }
 
 // webGoldenHash is the operator's bcrypt hash, at the cheapest cost the library

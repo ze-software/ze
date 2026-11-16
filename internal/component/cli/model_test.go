@@ -46,13 +46,13 @@ var knownModelFields = map[string]bool{
 	"pasteModePosition": true, "topOrigin": true, "underTop": true,
 	"history": true, "outputBuf": true, "lastCommand": true,
 	"mode": true, "modeStates": true, "commandCompleter": true, "commandExecutor": true,
-	"filesystemAuthority": true,
-	"monitorFactory":      true, "monitorSession": true,
+	"filesystemAuthority":   true,
+	"registeredOperational": true, // Registry-derived mode/history authority, never live-view state.
+	"monitorFactory":        true, "monitorSession": true,
 	"activeView": true, "viewFactories": true,
 	"loginWarnings": true,
 	"auditRecorder": true, "auditSurface": true, "auditUsername": true, "auditRemoteAddr": true,
-	"transcript":   true,
-	"shutdownFunc": true, "restartFunc": true,
+	"transcript":  true,
 	"confirmStop": true, "confirmRestart": true,
 }
 
@@ -1006,7 +1006,7 @@ func TestModelHistoryPersistOnEnter(t *testing.T) {
 
 	// Reload history from the same store.
 	h2 := NewHistory(store, "testuser")
-	loaded := h2.Load("config")
+	loaded := readHistory(t, h2, "config")
 
 	assert.Equal(t, []string{"show"}, loaded, "command should be persisted to store via Save")
 }
@@ -1037,7 +1037,7 @@ func TestCommandModelHistoryPersistOnEnter(t *testing.T) {
 
 	// Reload from store and verify saved under "operational" key.
 	h2 := NewHistory(store, "testuser")
-	loaded := h2.Load("operational")
+	loaded := readHistory(t, h2, "operational")
 
 	assert.Equal(t, []string{"peer list"}, loaded, "operational-mode history should be persisted under 'operational' key")
 }

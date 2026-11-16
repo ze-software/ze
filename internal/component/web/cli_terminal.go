@@ -34,12 +34,16 @@ const (
 // The JS client updates the output viewport, message area, and prompt from
 // these fields, matching the SSH CLI's fixed-zone layout.
 type terminalResponse struct {
-	Output   string `json:"output"`
-	Feedback string `json:"feedback"`
-	Path     string `json:"path"`
-	Prompt   string `json:"prompt,omitempty"`
-	Mode     string `json:"mode,omitempty"`
-	Input    string `json:"input,omitempty"`
+	Output         string `json:"output"`
+	Feedback       string `json:"feedback"`
+	Path           string `json:"path"`
+	Prompt         string `json:"prompt,omitempty"`
+	Mode           string `json:"mode,omitempty"`
+	Input          string `json:"input,omitempty"`
+	HistoryWarning string `json:"history-warning,omitempty"`
+	Confirmation   string `json:"confirmation,omitempty"`
+	Navigate       string `json:"navigate,omitempty"`
+	OutputComplete bool   `json:"output-complete"`
 }
 
 // HandleCLITerminalWithDispatchAuthorizerAndAudit returns a POST handler for
@@ -54,7 +58,11 @@ type terminalResponse struct {
 //
 // authorizer enforces profile-based RBAC before direct editor mutations and
 // recorder records successful commit/discard/rollback actions; either may be nil.
-func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema *config.Schema, tree *config.Tree, dispatch CommandDispatcher, authorizer aaa.Authorizer, recorder audit.Recorder) http.HandlerFunc {
+func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema *config.Schema, tree *config.Tree, dispatch CommandDispatcher, authorizer aaa.Authorizer, recorder audit.Recorder, registered ...func(string) bool) http.HandlerFunc {
+	var recognizes func(string) bool
+	if len(registered) > 0 {
+		recognizes = registered[0]
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -84,6 +92,10 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 			http.Error(w, "command too long", http.StatusBadRequest)
 			return
 		}
+		// Registration can change while this request runs. Resolve this input
+		// once, so authorization cannot select operational dispatch while a
+		// later lookup selects an unapproved configuration mutation.
+		registeredInput := frozenCLIRegistration(r, commandText, recognizes)
 
 		pathStr := r.FormValue(webPathField)
 		contextPath, pathErr := decodeConfigPath(pathStr)
@@ -92,8 +104,12 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 			return
 		}
 
-		mode := normalizeTerminalMode(r.FormValue("mode"))
+		mode, validMode := submittedCLIMode(w, r)
+		if !validMode {
+			return
+		}
 		cmd := parseCLICommand(commandText)
+		cmd.confirmed = r.PostFormValue("confirm") == "true"
 		if values, ok := r.PostForm["content"]; ok {
 			if len(values) > 0 {
 				if len(values[0]) > editorContentMax {
@@ -106,22 +122,28 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 			}
 		}
 		cmd.Operator = contextPath
-		if authCommand := terminalAuthCommandForMode(mode, cmd, commandText); authCommand != "" {
+		r = recordCLIHistory(w, r, mgr, mode, contextPath, commandText, registeredInput)
+		if authCommand := terminalAuthCommandForMode(mode, cmd, commandText, registeredInput); authCommand != "" {
 			if !authorizeWebConfigMutation(w, r, authorizer, username, authCommand) {
 				return
 			}
 		}
-		auditAction, auditDetail, err := terminalAuditContext(mgr, username, cmd, commandText)
-		if err != nil {
-			http.Error(w, editorSessionRefusal(err).Error(), http.StatusInternalServerError)
-			return
+		var auditAction, auditDetail string
+		configCommand := mode != terminalModeOperational || cli.ShouldEnterConfigMode(commandText, registeredInput)
+		if configCommand {
+			var err error
+			auditAction, auditDetail, err = terminalAuditContext(mgr, username, cmd, commandText)
+			if err != nil {
+				http.Error(w, editorSessionRefusal(err).Error(), http.StatusInternalServerError)
+				return
+			}
 		}
 
 		// Keep the committed hub tree as the compare baseline. Display commands
 		// use the per-user working tree when one exists.
 		viewTree := tree
 
-		result := executeTerminalCommand(r.Context(), schema, viewTree, mgr, username, r.RemoteAddr, contextPath, mode, cmd, commandText, dispatch)
+		result := executeTerminalCommand(r.Context(), schema, viewTree, mgr, username, r.RemoteAddr, contextPath, mode, cmd, commandText, dispatch, registeredInput)
 		if result.completion != nil {
 			defer result.completion.TransportComplete()
 		}
@@ -133,13 +155,21 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 			recordWebAudit(recorder, r, username, auditAction, auditDetail)
 		}
 
+		feedback := ""
+		if configCommand {
+			feedback = terminalFeedback(cmd, result.output)
+		}
 		resp := terminalResponse{
-			Output:   result.output,
-			Feedback: terminalFeedback(cmd, result.output),
-			Path:     encodeConfigPath(result.path),
-			Prompt:   formatTerminalPrompt(result.mode, result.path),
-			Mode:     result.mode,
-			Input:    result.input,
+			Output:         result.output,
+			Feedback:       feedback,
+			Path:           encodeConfigPath(result.path),
+			Prompt:         formatTerminalPrompt(result.mode, result.path),
+			Mode:           result.mode,
+			Input:          result.input,
+			HistoryWarning: cliHistoryWarning(r),
+			Confirmation:   result.confirmation,
+			Navigate:       result.navigate,
+			OutputComplete: result.outputComplete,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -181,12 +211,12 @@ func terminalAuthCommand(cmd cliCommand) string {
 	return ""
 }
 
-func terminalAuthCommandForMode(mode string, cmd cliCommand, raw string) string {
+func terminalAuthCommandForMode(mode string, cmd cliCommand, raw string, registered func(string) bool) string {
 	if normalizeTerminalMode(mode) == terminalModeOperational {
 		if cli.IsSessionFormatCommand(strings.TrimSpace(raw)) {
 			return ""
 		}
-		if !terminalConfigCommandInOperationalMode(cmd.Verb) {
+		if !cli.ShouldEnterConfigMode(raw, registered) {
 			return ""
 		}
 	}
@@ -195,11 +225,20 @@ func terminalAuthCommandForMode(mode string, cmd cliCommand, raw string) string 
 
 type terminalCommandResult struct {
 	auditSuccess bool
-	input        string
-	path         []string
-	mode         string
-	output       string
-	completion   *plugin.RenderedResponse
+	// outputComplete follows actual producer/formatter outcomes. It is never
+	// inferred from output text, which may itself describe an error.
+	outputComplete bool
+	input          string
+	path           []string
+	mode           string
+	output         string
+	completion     *plugin.RenderedResponse
+	confirmation   string
+	navigate       string
+	// operational is a confirmed control's canonical daemon command. It is
+	// dispatched by the same executor as ordinary operational input, never by
+	// a web-owned lifecycle callback.
+	operational string
 	// navigated is set when the command answered a new position (edit, up,
 	// top), so `top <command>` keeps the operator's position unless the
 	// command behind it moved it.
@@ -210,7 +249,7 @@ type terminalCommandResult struct {
 	discarded bool
 }
 
-func executeTerminalCommand(ctx context.Context, schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, mode string, cmd cliCommand, raw string, dispatch CommandDispatcher) terminalCommandResult {
+func executeTerminalCommand(ctx context.Context, schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, mode string, cmd cliCommand, raw string, dispatch CommandDispatcher, registered ...func(string) bool) terminalCommandResult {
 	result := terminalCommandResult{
 		path: append([]string{}, contextPath...),
 		mode: normalizeTerminalMode(mode),
@@ -219,9 +258,25 @@ func executeTerminalCommand(ctx context.Context, schema *config.Schema, viewTree
 		result.output = "error: " + cmd.parseErr.Error()
 		return result
 	}
+	var recognizes func(string) bool
+	if len(registered) > 0 {
+		recognizes = registered[0]
+	}
+	controlMode := result.mode
+	if controlMode == terminalModeOperational {
+		if cli.ShouldEnterConfigMode(raw, recognizes) {
+			controlMode = terminalModeConfig
+		}
+	}
+	if control, handled := executeTerminalControl(schema, viewTree, mgr, username, result.path, controlMode, cmd); handled {
+		if control.operational != "" {
+			control.output, control.completion, control.outputComplete = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, control.operational)
+		}
+		return control
+	}
 
 	if result.mode == terminalModeOperational {
-		return executeTerminalOperationalMode(ctx, schema, viewTree, mgr, username, remoteAddr, result.path, cmd, raw, dispatch)
+		return executeTerminalOperationalMode(ctx, schema, viewTree, mgr, username, remoteAddr, result.path, cmd, raw, dispatch, recognizes)
 	}
 	return executeTerminalConfigMode(ctx, schema, viewTree, mgr, username, remoteAddr, result.path, cmd, dispatch)
 }
@@ -257,22 +312,30 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 			result.output = "usage: run <command>"
 			return result
 		}
-		result.output, result.completion = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, cmd.words.Tail().String())
-		return result
-	case verbExit:
-		if mgr.ChangeCount(username) > 0 {
-			result.output = "Pending changes. Use 'commit now' or 'discard' before exit."
-			return result
-		}
-		result.mode = terminalModeOperational
+		result.output, result.completion, result.outputComplete = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, cmd.words.Tail().String())
 		return result
 	case verbConfigure:
 		result.output = "already in config mode"
+		result.outputComplete = true
+		return result
+	case verbHelp:
+		result.output = terminalEditorHelp()
+		result.outputComplete = true
 		return result
 	case verbCommit:
 		answer, err := runWebCommit(mgr, username, cmd.Args, cmd.Operator)
 		result.output = terminalCommitOutput(answer, err)
 		result.auditSuccess = answer.applied
+		if err != nil {
+			return result
+		}
+		if len(answer.conflicts) > 0 {
+			return result
+		}
+		if answer.refusal != "" {
+			return result
+		}
+		result.outputComplete = true
 		return result
 	case verbDiscard:
 		// Discard runs here, not in executeTerminalNav, because its success is
@@ -296,6 +359,7 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 		}
 		result.output = answer
 		result.discarded = true
+		result.outputComplete = true
 		return result
 	}
 
@@ -303,12 +367,13 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 	return result
 }
 
-func executeTerminalOperationalMode(ctx context.Context, schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, cmd cliCommand, raw string, dispatch CommandDispatcher) terminalCommandResult {
+func executeTerminalOperationalMode(ctx context.Context, schema *config.Schema, viewTree *config.Tree, mgr *EditorManager, username, remoteAddr string, contextPath []string, cmd cliCommand, raw string, dispatch CommandDispatcher, registered func(string) bool) terminalCommandResult {
 	result := terminalCommandResult{path: contextPath, mode: terminalModeOperational}
 	raw = strings.TrimSpace(raw)
 	if cli.IsSessionFormatCommand(raw) {
 		output, err := mgr.sessionFormatCommand(username, raw)
 		result.output = output
+		result.outputComplete = err == nil
 		if err != nil {
 			result.output = err.Error()
 		}
@@ -318,67 +383,90 @@ func executeTerminalOperationalMode(ctx context.Context, schema *config.Schema, 
 	case verbConfigure:
 		result.mode = terminalModeConfig
 		result.output = serializeTreeAtPath(displayTree(viewTree, mgr, username), schema, contextPath)
-		return result
-	case verbExit, verbQuit:
-		result.output = "exit is not available in the web CLI; use Workbench or Finder to leave CLI."
+		result.outputComplete = true
 		return result
 	case verbHelp:
-		result.output = terminalOperationalHelp()
+		result.output = terminalEditorHelp()
+		result.outputComplete = true
 		return result
 	}
-	if terminalConfigCommandInOperationalMode(cmd.Verb) {
+	if cli.ShouldEnterConfigMode(raw, registered) {
 		return executeTerminalConfigMode(ctx, schema, viewTree, mgr, username, remoteAddr, contextPath, cmd, dispatch)
 	}
-	result.output, result.completion = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, raw)
+	result.output, result.completion, result.outputComplete = executeTerminalOperationalForUser(ctx, mgr, dispatch, username, remoteAddr, raw)
 	return result
 }
 
-func terminalConfigCommandInOperationalMode(verb string) bool {
-	switch verb {
-	case verbSet, verbDelete, verbEdit, verbTop, verbUp, verbCommit, verbDiscard,
-		verbCompare, verbSave, verbHistory, verbRollback, verbRename, verbCopy,
-		verbInsert, verbDeactivate, verbActivate:
-		return true
-	case verbLoad, verbOption:
-		return true
-	default:
-		return false
-	}
+func executeTerminalOperational(ctx context.Context, dispatch CommandDispatcher, username, remoteAddr, input, sessionFormat string) (string, *plugin.RenderedResponse) {
+	output, rendered, _, _ := executeTerminalOperationalResult(ctx, dispatch, username, remoteAddr, input, sessionFormat) //nolint:errcheck // Output already carries the original failure; this text projection has no status result.
+	return output, rendered
 }
 
-func executeTerminalOperational(ctx context.Context, dispatch CommandDispatcher, username, remoteAddr, input, sessionFormat string) (string, *plugin.RenderedResponse) {
+// executeTerminalOperationalResult retains both a failed command's diagnostic
+// payload and its original error. A rendered payload never makes a failure
+// complete, and an authorization refusal never exposes attached data.
+func executeTerminalOperationalResult(ctx context.Context, dispatch CommandDispatcher, username, remoteAddr, input, sessionFormat string) (string, *plugin.RenderedResponse, bool, error) {
 	if dispatch == nil {
-		return "error: operational command dispatch not available", nil
+		err := errors.New("operational command dispatch not available")
+		return "error: " + err.Error(), nil, false, err
 	}
-	cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatChecked(input, sessionFormat)
+	cmdStr, formatFn, pipeErr := command.ProcessPipesDefaultFormatResult(input, sessionFormat)
 	if pipeErr != "" {
 		var tb textbuf.Buffer
-		return tb.Str("pipe error: ").Str(pipeErr).String(), nil
+		return tb.Str("pipe error: ").Str(pipeErr).String(), nil, false, errors.New(pipeErr)
 	}
-	rendered, err := dispatch.JSON(ctx, plugin.CallerIdentity{Username: username, RemoteAddr: remoteAddr}, cmdStr)
-	if err != nil {
-		// A refusal a command wrote whole reads as `ze <command>` prints it.
-		if line, refused := plugin.RefusalLine(err); refused {
-			return line, rendered
+	rendered, executionErr := dispatch.JSON(ctx, plugin.CallerIdentity{
+		Username: username, RemoteAddr: remoteAddr, Authorizer: plugin.CallerAuthorizer(ctx),
+	}, cmdStr)
+	if executionErr != nil {
+		output := "error: " + executionErr.Error()
+		if line, refused := plugin.RefusalLine(executionErr); refused {
+			output = line
 		}
-		var tb textbuf.Buffer
-		return tb.Str("error: ").Err(err).String(), rendered
+		if !operationalPermissionDenied(executionErr) {
+			if rendered.Response != nil {
+				if rendered.Response.Data != nil {
+					payload, encodeErr := json.Marshal(rendered.Response.Data)
+					if encodeErr != nil {
+						output += "\nerror: diagnostic payload cannot be encoded: " + encodeErr.Error()
+						executionErr = errors.Join(executionErr, encodeErr)
+					} else {
+						data, applyErr := formatFn(string(payload))
+						if applyErr != "" {
+							output += "\n" + command.PipeErrorPrefix + applyErr
+							executionErr = errors.Join(executionErr, errors.New(applyErr))
+						} else {
+							output += "\n" + data
+						}
+					}
+				}
+			}
+		}
+		return operationalWarningOutput(rendered, output), rendered, false, executionErr
 	}
-	// A warning reads above the answer, where `ze <command>` prints it first
-	// on stderr.
-	if warning := rendered.Response.WarningText(); warning != "" {
-		var tb textbuf.Buffer
-		return tb.Str(warning).Byte('\n').Str(formatFn(rendered.Output)).String(), rendered
+	output, applyErr := formatFn(rendered.Output)
+	if applyErr != "" {
+		return command.PipeErrorPrefix + applyErr, rendered, false, errors.New(applyErr)
 	}
-	return formatFn(rendered.Output), rendered
+	return operationalWarningOutput(rendered, output), rendered, true, nil
 }
 
-func terminalOperationalHelp() string {
-	return `commands:
-  configure            Enter config mode
-  <command>            Execute operational command
-  <command> | json     Use pipe operators
-  exit                 Stay on the web CLI page`
+func operationalPermissionDenied(err error) bool {
+	var denial interface{ PermissionDenied() bool }
+	if errors.As(err, &denial) {
+		return denial.PermissionDenied()
+	}
+	return false
+}
+
+func operationalWarningOutput(rendered *plugin.RenderedResponse, output string) string {
+	// A warning reads above the answer, where the local command prints it
+	// first on stderr, including when a failed answer retains useful data.
+	if warning := rendered.Response.WarningText(); warning != "" {
+		var tb textbuf.Buffer
+		return tb.Str(warning).Byte('\n').Str(output).String()
+	}
+	return output
 }
 
 // terminalAuditContext prepares the audit detail before the command runs.
@@ -488,12 +576,7 @@ func executeTerminalNav(_ *config.Schema, _ *config.Tree, mgr *EditorManager, us
 		return executeTerminalCommit(mgr, username, cmd)
 
 	case verbHelp:
-		var output textbuf.Buffer
-		output.Str("commands:\n")
-		for _, entry := range cli.EditorHelpEntries() {
-			output.Str("  ").Str(entry.Name).Str("  ").Str(entry.Desc).Byte('\n')
-		}
-		return output.String()
+		return terminalEditorHelp()
 	case "":
 		return ""
 	}
@@ -775,6 +858,7 @@ type cliPageData struct {
 	Mode           string
 	ContextPath    string
 	InitialCommand string
+	LocalControls  []cliLocalOutputControl
 }
 
 // notificationBarClass is the notification bar's class list. Anything that is

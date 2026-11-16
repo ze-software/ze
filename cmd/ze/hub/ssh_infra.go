@@ -51,7 +51,7 @@ type sshBuildInputs struct {
 }
 
 // sshWireInputs carries the inputs for the post-start setter wiring (command
-// executors, monitor, shutdown/restart/reboot, login warnings). The gated wire
+// executors, monitor and login warnings). The gated wire
 // step re-derives the dispatcher and api server from the reactor/params.
 //
 // Reactor is the reactor-free infra.ReactorHandle, not *reactor.Reactor: this
@@ -60,11 +60,6 @@ type sshBuildInputs struct {
 type sshWireInputs struct {
 	Reactor infra.ReactorHandle
 	Params  infra.HookParams
-	// StopForRestart persists the graceful-restart marker and then stops the
-	// reactor WITHOUT a Cease NOTIFICATION, which is the stop `restart` and
-	// `reboot` take. Built in infra_setup.go, where the marker write and the
-	// silent stop are paired -- see the comment there and RFC 4724 Section 5.
-	StopForRestart func()
 }
 
 // sshStandaloneInputs carries the inputs for the no-bgp{} startup path

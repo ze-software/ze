@@ -15,6 +15,7 @@ import (
 
 	"github.com/a-h/templ"
 
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/test/golden"
 )
@@ -64,6 +65,41 @@ func webGoldenGraphicalInlineList() GraphicalInlineList {
 	entry.Set("description", "Lab route")
 	tree.AddListEntry("routes", "lab", entry)
 	return *buildFragmentData(schema, tree, []string{"routes"}).InlineList
+}
+
+// webGoldenGraphicalInspection captures populated comparison and session
+// controls with the same preference catalog the shared editor supplies.
+func webGoldenGraphicalInspection() *GraphicalActions {
+	return &GraphicalActions{
+		Path: "bgp/group/edge", Output: "Candidate inspection is available.",
+		Revisions: []GraphicalRevision{{Number: 1, Timestamp: "2026-11-15T12:00:00Z", Key: "revision-one"}},
+		Users:     []string{"alice", "operator<&>"},
+		Sessions: []GraphicalSession{
+			{ID: "editor-alice-42", Changes: 2, Own: true},
+			{ID: "editor-operator-73", Changes: 1},
+		},
+		Options: contract.EditorOptions(),
+	}
+}
+
+// webGoldenSuppliedPanel supplies fixed typed markup inputs. HTTP captures
+// separately exercise the registered model, owner, caller and policy.
+func webGoldenSuppliedPanel() *GraphicalSuppliedPanel {
+	return &GraphicalSuppliedPanel{
+		Choices: []GraphicalSuppliedChoice{{Path: "capture-single", Label: "One source"}, {Path: "capture-pair", Label: "Compare sources"}},
+		Input: &GraphicalSuppliedInputs{
+			Command: "capture-pair", Summary: "Compare supplied inputs", Description: "Each source remains local to this request.", Limit: "786,432",
+			Sources: []GraphicalSuppliedSource{
+				{Label: "Before", Field: "before", FileField: "before-file", ContentID: "capture-before", FileID: "capture-before-file"},
+				{Label: "After", Field: "after", FileField: "after-file", ContentID: "capture-after", FileID: "capture-after-file"},
+			},
+			Options: []GraphicalSuppliedOption{
+				{Name: "check", Label: "Check", Description: "Report differences", Flag: true},
+				{Name: "format", Label: "Format", Choices: []string{"tree", "set"}},
+				{Name: "name", Label: "Label", Required: true},
+			},
+		},
+	}
 }
 
 // webTemplGoldenSpec maps each templ source to the components it declares and
@@ -367,7 +403,40 @@ var webTemplGoldenSpec = golden.Spec{
 			{Name: "owner-window", Data: graphicalActionPanel(&GraphicalActions{Window: "Your confirmed commit expires in 60 seconds.", WindowOwner: true}, false)},
 			{Name: "other-window", Data: graphicalActionPanel(&GraphicalActions{Window: "Another operator has a confirmed commit pending."}, false)},
 		},
+	}, {
+		Name: "graphicalInspectionPanel", Fixture: "component/graphical_inspection",
+		Variants: []golden.Variant{
+			{Name: "root", Data: graphicalInspectionPanel(&GraphicalActions{Options: contract.EditorOptions()}, false)},
+			{Name: "selected", Data: graphicalInspectionPanel(webGoldenGraphicalInspection(), false)},
+			{Name: "readonly", Data: graphicalInspectionPanel(webGoldenGraphicalInspection(), true)},
+		},
 	}},
+	"component_graphical_import.templ": {
+		{Name: "graphicalImportPanel", Fixture: "component/graphical_import", Variants: []golden.Variant{
+			{Name: "root", Data: graphicalImportPanel(&GraphicalActions{})},
+			{Name: "selected", Data: graphicalImportPanel(&GraphicalActions{Path: "bgp/peer/alpha"})},
+		}},
+		{Name: "graphicalImportChoices", Fixture: "component/graphical_import_choices", Variants: []golden.Variant{
+			{Data: graphicalImportChoices(graphicalImportChoicesData{LocationID: "capture-location", ActionID: "capture-action"})},
+		}},
+	},
+	"component_graphical_supplied.templ": {
+		{Name: "graphicalSuppliedPanel", Fixture: "component/graphical_supplied", Variants: []golden.Variant{
+			{Name: "inputs", Data: graphicalSuppliedPanel(webGoldenSuppliedPanel())},
+			{Name: "empty", Data: graphicalSuppliedPanel(&GraphicalSuppliedPanel{})},
+			{Name: "error", Data: graphicalSuppliedPanel(&GraphicalSuppliedPanel{Error: "The registered inspection inputs cannot be displayed."})},
+		}},
+		{Name: "graphicalSuppliedInputs", Fixture: "component/graphical_supplied_inputs", Variants: []golden.Variant{
+			{Data: graphicalSuppliedInputs(webGoldenSuppliedPanel().Input)},
+		}},
+		{Name: "graphicalSuppliedClearAnswer", Fixture: "component/graphical_supplied_clear", Variants: []golden.Variant{
+			{Data: graphicalSuppliedClearAnswer()},
+		}},
+		{Name: "graphicalSuppliedAnswer", Fixture: "component/graphical_supplied_answer", Variants: []golden.Variant{
+			{Name: "ok", Data: graphicalSuppliedAnswer(GraphicalSuppliedAnswer{Output: "system { host & <capture>; }"})},
+			{Name: "error", Data: graphicalSuppliedAnswer(GraphicalSuppliedAnswer{Output: "Invalid supplied configuration: <capture>", Failed: true})},
+		}},
+	},
 	"component_graphical_values.templ": {
 		{Name: "graphicalValues", Fixture: "component/graphical_values", Variants: []golden.Variant{
 			{Name: "text", Data: graphicalValues(webGoldenGraphicalValues("text"), false)},
@@ -591,6 +660,9 @@ var webTemplGoldenSpec = golden.Spec{
 	"component_cli_terminal.templ": {
 		{Name: "cliPage", Fixture: "component/cli_page", Variants: []golden.Variant{
 			{Data: cliPage(cliPageData{Prompt: "ze[bgp]# ", Mode: "config"})},
+		}},
+		{Name: "cliConfirmPanel", Fixture: "component/cli_confirm_panel", Variants: []golden.Variant{
+			{Data: cliConfirmPanel()},
 		}},
 		{Name: "cliLoadPanel", Fixture: "component/cli_load_panel", Variants: []golden.Variant{
 			{Data: cliLoadPanel()},

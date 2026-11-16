@@ -15,6 +15,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -243,14 +244,21 @@ func fmtAnswer(route command.Route, args []string) command.LocalAnswer {
 	if err != nil {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
+	return fmtBytesAnswer(configPath, input, *check, *diff, *write)
+}
 
+// fmtBytesAnswer is the shared formatting answer after a source has been
+// read. Only the local file route can ask for write; supplied commands always
+// pass false and retain the same check/diff diagnostics and masked output.
+func fmtBytesAnswer(configPath string, input []byte, check, diff, write bool) command.LocalAnswer {
+	var diag textbuf.Buffer
 	formatted, hasChanges, weaknesses, err := formatConfigBytes(configPath, input)
 	if err != nil {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
 	writePasswordWeaknesses(&diag, weaknesses)
 
-	if *check {
+	if check {
 		if !hasChanges {
 			return command.LocalAnswer{Code: exitOK, Diagnostic: diag.String()}
 		}
@@ -259,17 +267,19 @@ func fmtAnswer(route command.Route, args []string) command.LocalAnswer {
 		} else {
 			diag.Str(configPath).Str(" needs formatting\n")
 		}
-		return command.LocalRefusal(1, diag.String())
+		// Formatting was checked successfully. Exit 1 reports a changed
+		// condition to CI, rather than an inability to answer the request.
+		return command.LocalAnswer{Code: 1, Diagnostic: diag.String()}
 	}
 
-	if *diff {
+	if diff {
 		if hasChanges {
 			writeFmtDiff(&diag, configPath, string(input), formatted)
 		}
 		return command.LocalAnswer{Code: exitOK, Diagnostic: diag.String()}
 	}
 
-	if *write {
+	if write {
 		return fmtWriteAnswer(&diag, configPath, formatted, hasChanges)
 	}
 
@@ -287,8 +297,11 @@ func fmtWriteAnswer(diag *textbuf.Buffer, configPath, formatted string, hasChang
 		return command.LocalAnswer{Code: exitOK, Diagnostic: diag.String()}
 	}
 	if err := cliio.WriteFile(configPath, []byte(formatted), 0o600); err != nil {
-		diag.Str(command.LocalErrorLine(err))
-		return command.LocalRefusal(exitError, diag.String())
+		quotedPath := "'" + strings.ReplaceAll(configPath, "'", "'\\''") + "'"
+		refusal := opererr.Wrap(err, "The formatted configuration could not be saved to "+configPath+".",
+			"Check the destination's write access and free space before retrying; ze config fmt "+quotedPath+" prints the result without writing the file.",
+			"ze config fmt -w "+quotedPath)
+		return command.LocalRefusal(exitError, diag.String()+command.LocalErrorLine(refusal))
 	}
 	diag.Str("Formatted: ").Str(configPath).Byte('\n')
 	return command.LocalAnswer{Code: exitOK, Diagnostic: diag.String()}

@@ -15,10 +15,15 @@ templ graphicalActionPanel(v *GraphicalActions, readOnly bool) {
 		if v.Window != "" {
 			<p id="graphical-confirm-status" role="status">{ v.Window }</p>
 		}
+		@graphicalSuppliedPanel(v.Supplied)
+		@graphicalInspectionPanel(v, readOnly)
 		if readOnly {
 			<p>This account has read-only access.</p>
 		} else {
+			<details>
+				<summary id="graphical-edit-toggle">Edit</summary>
 			<div class="config-fields">
+				@graphicalImportPanel(v)
 				<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
 					<input type="hidden" name="path" value={ v.Path }>
 					<button class="config-btn" id="graphical-validate" name="action" value="verify">Validate candidate</button>
@@ -49,6 +54,18 @@ templ graphicalActionPanel(v *GraphicalActions, readOnly bool) {
 						}
 					</form>
 				}
+				if v.Path != "" {
+					<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+						<fieldset>
+							<legend>Edit selected item</legend>
+							<input type="hidden" name="path" value={ v.Path }>
+							if v.HasNode || v.HasList {
+								<button class="config-btn" id="graphical-delete-selected" name="action" value={ verbDelete }>Delete selected item</button>
+							}
+							<button class="config-btn" id="graphical-discard-selected" name="action" value="discard-path">Discard changes here</button>
+						</fieldset>
+					</form>
+					}
 				if len(v.History) > 0 {
 					<table class="finder-table" id="graphical-revisions">
 						<thead><tr><th>Revision</th><th>Saved</th><th>Action</th></tr></thead>
@@ -91,6 +108,114 @@ templ graphicalActionPanel(v *GraphicalActions, readOnly bool) {
 					}
 				</details>
 			</div>
+			</details>
 		}
+	</details>
+}
+
+// graphicalInspectionPanel presents structured choices over the shared CLI
+// producers. Candidate metadata stays separate from alternate-source display.
+templ graphicalInspectionPanel(v *GraphicalActions, readOnly bool) {
+	<details open?={ v.Output != "" }>
+		<summary>Inspect</summary>
+		<div class="config-fields">
+			<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+				<input type="hidden" name="path" value={ v.Path }>
+				<input type="hidden" name="action" value="inspect">
+				<label>Configuration source <select id="graphical-inspect-source" name="source">
+					<option value="candidate">Candidate</option><option value="confirmed">Running configuration</option><option value="saved">Saved draft</option>
+				</select></label>
+				<label>Presentation <select id="graphical-inspect-format" name="format">
+					<option value="tree">Tree</option><option value="config">Set commands</option>
+				</select></label>
+				<button class="config-btn" id="graphical-inspect">Inspect selected configuration</button>
+			</form>
+			<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+				<input type="hidden" name="path" value={ v.Path }>
+				<input type="hidden" name="action" value="inspect-metadata">
+				<label>Candidate metadata <select name="view">
+					<option value="blame">Authorship</option><option value="active">Active settings</option><option value="inactive">Inactive settings</option>
+					<option value="changes">My pending changes</option><option value="allchanges">All pending changes</option><option value="errors">Validation issues</option>
+				</select></label>
+				<button class="config-btn" id="graphical-inspect-metadata">Inspect candidate metadata</button>
+			</form>
+			<details>
+				<summary>Compare candidate</summary>
+				<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+					<input type="hidden" name="path" value={ v.Path }>
+					<input type="hidden" name="action" value="compare">
+					<label>Compare with <select name="target">
+						<option value="confirmed">Running configuration</option><option value="saved">Saved draft</option>
+						if len(v.Revisions) > 0 {
+							<option value="revision">Selected saved revision</option>
+						}
+						if len(v.Users) > 0 {
+							<option value="user">Selected user's changes</option>
+						}
+					</select></label>
+					if len(v.Revisions) > 0 {
+						<label>Saved revision <select name="revision">
+							for _, revision := range v.Revisions {
+								<option value={ revision.Key }>{ intText(revision.Number) + ": " + revision.Timestamp }</option>
+							}
+						</select></label>
+					}
+					if len(v.Users) > 0 {
+						<label>Metadata owner <select name="username">
+							for _, username := range v.Users {
+								<option value={ username }>{ username }</option>
+							}
+						</select></label>
+					}
+					<label>Presentation <select name="format"><option value="tree">Tree</option><option value="config">Set commands</option></select></label>
+					<button class="config-btn" id="graphical-compare">Compare candidate</button>
+				</form>
+			</details>
+			<details>
+				<summary>Editing sessions</summary>
+				<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+					<input type="hidden" name="path" value={ v.Path }>
+					<button class="config-btn" id="graphical-sessions" name="action" value="sessions">Refresh editing sessions</button>
+				</form>
+				if len(v.Sessions) > 0 {
+					<table class="finder-table"><thead><tr><th>Session</th><th>Pending changes</th><th>Action</th></tr></thead><tbody>
+						for _, session := range v.Sessions {
+							<tr><td>{ session.ID }</td><td>{ intText(session.Changes) }</td><td>
+								if session.Own {
+									<span>Your session; use Discard to drop your changes.</span>
+								} else if !readOnly {
+									<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+										<input type="hidden" name="path" value={ v.Path }>
+										<input type="hidden" name="session" value={ session.ID }>
+										<button class="config-btn" name="action" value="disconnect">Disconnect session</button>
+									</form>
+								}
+							</td></tr>
+						}
+					</tbody></table>
+				} else {
+					<p>No editing sessions have pending changes.</p>
+				}
+			</details>
+			<details>
+				<summary id="graphical-preference">Display preferences</summary>
+				for _, option := range v.Options {
+					<form hx-post="/config/action" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+						<input type="hidden" name="path" value={ v.Path }>
+						<input type="hidden" name="action" value="preference">
+						<input type="hidden" name="option" value={ option.Name }>
+						<fieldset><legend>{ option.Help }</legend>
+							for _, value := range option.Values {
+								if value == "" {
+									<button class="config-btn" name="value" value="">Apply</button>
+								} else {
+									<button class="config-btn" name="value" value={ value }>{ value }</button>
+								}
+							}
+						</fieldset>
+					</form>
+				}
+			</details>
+		</div>
 	</details>
 }

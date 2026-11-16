@@ -60,6 +60,7 @@ func init() {
 	// A daemon-route handler reads a file its caller names only inside the
 	// places this package reads configuration from (command.CallerPath).
 	command.RegisterCallerPathDirs(callerPathDirs, callerPathWithheld)
+	registerSuppliedCommands()
 
 	registry.MustRegisterRootHandler("config", func(_ *registry.RuntimeContext, args []string) int {
 		return Run(args)
@@ -162,5 +163,39 @@ func init() {
 	// command.Blob, prints unchanged, and refuses the row operators by name.
 	command.RegisterShape([]string{
 		"show config cat", "show config fmt", "show config graph",
+	}, command.ShapeBlob)
+}
+
+// registerSuppliedCommands declares owned daemon forms for inputs held by the
+// caller. The model owns every argument and its constraints; this metadata
+// describes input composition for generic controls on any command surface.
+// Paths and summaries remain literal so source-based contract gates read the
+// same declarations that populate the runtime registry.
+func registerSuppliedCommands() {
+	command.MustRegisterLocalData("show config supplied dump", suppliedHandler("show config supplied dump", suppliedDump), registry.Meta{
+		ShortHelp: "Show the resolved configuration from supplied bytes.", Mode: modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: "content", NameArg: "name"},
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config supplied validation", suppliedHandler("show config supplied validation", suppliedValidation), registry.Meta{
+		ShortHelp: "Check supplied configuration bytes without applying them.", Mode: modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: "content", NameArg: "name"},
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config supplied fmt", suppliedHandler("show config supplied fmt", suppliedFmt), registry.Meta{
+		ShortHelp: "Format supplied configuration bytes without writing a file.", Mode: modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: "content", NameArg: "name"},
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config supplied graph", suppliedHandler("show config supplied graph", suppliedGraph), registry.Meta{
+		ShortHelp: "Show dependencies from supplied configuration bytes.", Mode: modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: "content", NameArg: "name"},
+	}, command.RenderLocalAnswer)
+	command.MustRegisterLocalData("show config supplied diff", suppliedHandler("show config supplied diff", suppliedDiff), registry.Meta{
+		ShortHelp: "Compare two supplied configurations with secrets masked.", Mode: modeOffline,
+		SuppliedInput: &registry.SuppliedInput{ContentArg: "content", Fields: []string{suppliedBefore, suppliedAfter}},
+	}, command.RenderLocalAnswer)
+	command.RegisterShape([]string{
+		"show config supplied dump", "show config supplied validation", "show config supplied diff",
+	}, command.ShapeDoc)
+	command.RegisterShape([]string{
+		"show config supplied fmt", "show config supplied graph",
 	}, command.ShapeBlob)
 }

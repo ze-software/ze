@@ -20,6 +20,7 @@ func TestEditorManagerListEntryPersistence(t *testing.T) {
 
 	store := testConfigStore(t, configPath)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 
 	// Simulate CLI set from web handler
 	err = mgr.SetValue("insecure", []string{"bgp", "peer", "test-peer", "session", "asn"}, "remote", "65001")

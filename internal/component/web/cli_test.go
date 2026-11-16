@@ -159,6 +159,7 @@ func setupCLITest(t *testing.T) (*EditorManager, *Renderer) {
 	schema, _ := buildTestSchemaAndTree()
 	store := testConfigStore(t, configPath)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
@@ -180,6 +181,7 @@ func setupCLITerminalYANGTest(t *testing.T) (*EditorManager, *config.Schema, *co
 
 	store := testConfigStore(t, configPath)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 
 	return mgr, schema, tree, configPath
 }
@@ -221,6 +223,14 @@ type fakeCommandCompleter struct {
 func (f *fakeCommandCompleter) Complete(input string) []contract.Completion {
 	f.seenInput = input
 	return f.items
+}
+
+func (f *fakeCommandCompleter) CompleteChecked(input string) ([]contract.Completion, error) {
+	return f.Complete(input), nil
+}
+
+func (*fakeCommandCompleter) Explain(string) (string, bool) {
+	return "", false
 }
 
 // authedRequest creates a request with a username in context for handler tests.

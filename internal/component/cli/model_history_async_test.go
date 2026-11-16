@@ -141,11 +141,11 @@ func TestModelHistoryModeSnapshotsDrainInOrder(t *testing.T) {
 		if err := model.Close(); err != nil {
 			t.Fatal(err)
 		}
-		if !slices.Equal(history.Load(ModeConfig.String()), config) {
-			t.Errorf("config reload = %v, want %v", history.Load(ModeConfig.String()), config)
+		if !slices.Equal(readHistory(t, history, ModeConfig.String()), config) {
+			t.Errorf("config reload = %v, want %v", readHistory(t, history, ModeConfig.String()), config)
 		}
-		if !slices.Equal(history.Load(ModeOperational.String()), operational) {
-			t.Errorf("operational reload = %v, want %v", history.Load(ModeOperational.String()), operational)
+		if !slices.Equal(readHistory(t, history, ModeOperational.String()), operational) {
+			t.Errorf("operational reload = %v, want %v", readHistory(t, history, ModeOperational.String()), operational)
 		}
 		want := []blockedHistoryWrite{
 			{key: historyKeyPrefix + "snapshot-user/config", content: "run show initial"},
@@ -285,7 +285,7 @@ func TestModelSetHistoryDrainsReplacedOwner(t *testing.T) {
 		if err := model.Close(); err != nil {
 			t.Fatal(err)
 		}
-		if got := NewHistory(old, "old").Load(ModeOperational.String()); !slices.Equal(got, []string{"old command"}) {
+		if got := readHistory(t, NewHistory(old, "old"), ModeOperational.String()); !slices.Equal(got, []string{"old command"}) {
 			t.Errorf("replaced owner lost history: %v", got)
 		}
 		if next.writer != nil {
@@ -317,7 +317,7 @@ func TestModelHistoryAutoConfigAttribution(t *testing.T) {
 	model.SetInput("configure")
 	applyHistoryProgressMessage(t, model, tea.KeyPressMsg{Code: tea.KeyEnter})
 	model.SetMode(ModeOperational)
-	for _, input := range []string{"set cli format text", "set system host-name history", "run show", ""} {
+	for _, input := range []string{"set cli format text", "set system host history", "run show", ""} {
 		model.SetInput(input)
 		applyHistoryProgressMessage(t, model, tea.KeyPressMsg{Code: tea.KeyEnter})
 	}
@@ -327,10 +327,10 @@ func TestModelHistoryAutoConfigAttribution(t *testing.T) {
 	if err := model.Close(); err != nil {
 		t.Fatal(err)
 	}
-	if got := model.history.Load(ModeConfig.String()); !slices.Equal(got, []string{"set system host-name history", "run show"}) {
+	if got := readHistory(t, model.history, ModeConfig.String()); !slices.Equal(got, []string{"set system host history", "run show"}) {
 		t.Errorf("config attribution = %v", got)
 	}
-	if got := model.history.Load(ModeOperational.String()); !slices.Equal(got, []string{"set cli format text"}) {
+	if got := readHistory(t, model.history, ModeOperational.String()); !slices.Equal(got, []string{"set cli format text"}) {
 		t.Errorf("operational attribution = %v", got)
 	}
 }
@@ -349,7 +349,7 @@ func TestHistorySessionsKeepIndependentSnapshots(t *testing.T) {
 	first.Close()
 	second.Save(ModeConfig)
 	second.Close()
-	if got := NewHistory(store, "same-user").Load(ModeConfig.String()); !slices.Equal(got, []string{"second session"}) {
+	if got := readHistory(t, NewHistory(store, "same-user"), ModeConfig.String()); !slices.Equal(got, []string{"second session"}) {
 		t.Errorf("independent last snapshot = %v", got)
 	}
 }
@@ -390,7 +390,7 @@ func TestHistoryPublicationRespectsMaxBoundaries(t *testing.T) {
 			if !slices.Equal(history.Entries(), want) {
 				t.Errorf("retained %d entries, want exact newest %d", len(history.Entries()), tc.maximum)
 			}
-			if got := history.Load(ModeConfig.String()); !slices.Equal(got, want) {
+			if got := readHistory(t, history, ModeConfig.String()); !slices.Equal(got, want) {
 				t.Errorf("reloaded %d entries, want exact newest %d", len(got), tc.maximum)
 			}
 		})

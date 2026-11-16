@@ -452,9 +452,11 @@ After all plugins send `ready`, BGP peers start.
 | Command | Description |
 |---------|-------------|
 | `system subsystem list` | List available subsystems |
-| `system shutdown` | Graceful shutdown |
+| `request shutdown` | Graceful shutdown |
+| `request restart` | Graceful daemon restart; keep the host running |
 | `system version software` | Ze version |
 | `system version api` | IPC protocol version |
+<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request and system commands -->
 
 ---
 

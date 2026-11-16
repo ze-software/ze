@@ -77,6 +77,23 @@ func serverDispatcher(s *pluginserver.Server, surface string) plugin.CommandDisp
 	}
 }
 
+// serverOperationalCommand asks the live daemon registry without dispatching.
+// A missing server/dispatcher means no operational registration can preempt an
+// editor convenience; the operational executor separately refuses unavailable
+// daemon commands. The callback is safe alongside registry publications.
+func serverOperationalCommand(s *pluginserver.Server) func(string) bool {
+	return func(input string) bool {
+		if s == nil {
+			return false
+		}
+		d := s.Dispatcher()
+		if d == nil {
+			return false
+		}
+		return d.RecognizesCommand(input)
+	}
+}
+
 // endpointsToAddrs converts a slice of config.ServerEndpoint into the
 // "host:port" string slice that every multi-listener binder accepts.
 func endpointsToAddrs(servers []zeconfig.ServerEndpoint) []string {

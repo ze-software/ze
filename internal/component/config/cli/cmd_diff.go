@@ -151,10 +151,16 @@ func resolveDiff(store storage.Storage, args []string, diag *textbuf.Buffer) (*c
 		return nil, exitError
 	}
 
+	return diffSources(schema, tree1, tree2), exitOK
+}
+
+// diffSources compares parsed and resolved sources from either input route.
+// Secret masking and schema-declared list ordering have one producer.
+func diffSources(schema *config.Schema, tree1, tree2 *diffSource) *config.ConfigDiff {
 	diff := config.DiffMaps(tree1.resolved, tree2.resolved)
 	diffListOrders(tree1.parsed, tree2.parsed, schema, diff)
 	maskDiffSecrets(diff, config.SecretKeys(schema))
-	return diff, exitOK
+	return diff
 }
 
 // resolveRollbackVersion resolves a revision number to its history entry key

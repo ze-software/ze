@@ -387,6 +387,7 @@ func GhostTextFrom(input string, completions []Suggestion) string {
 	// When pipe has sub-args (e.g., "| json c"), lastWord should be "c".
 	var lastWord string
 	words, pipeAt, _, err := ScanInvocation(input)
+	// refuse-by-default: guards TreeCompleter.GhostText -- Complete retains the scan error as SuggestionError, so invalid input has no insertable suffix
 	if err != nil {
 		return ""
 	}

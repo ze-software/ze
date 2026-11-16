@@ -5,6 +5,7 @@ module ze-config-cli-cmd {
     // These handlers inspect, compare, and format configuration files through
     // the config backend. See ai/rules/plugin-self-containment.md.
     description "The show config command tree, owned by the config CLI.";
+    revision 2026-11-16 { description "Add bounded caller-supplied configuration inspection and comparison through the same command handlers on every surface."; }
     revision 2026-11-02 { description "Declare strip-private on show config dump, and check and diff on show config fmt, so every surface can make those choices."; }
     revision 2026-10-24 { description "Add show config running, the configuration the daemon applied, answered by the daemon."; }
     revision 2026-10-12 { description "Rename validate config to show config validation: the first word of a command is its verb."; }
@@ -15,6 +16,40 @@ module ze-config-cli-cmd {
     revision 2026-08-29 { description "Declare the value the description spelled in prose."; }
     revision 2026-06-06 { description "Relocated show config out of the central show schema (plugin self-containment)."; }
 
+    grouping supplied-content {
+        description "One command-packet-sized caller input, shared by every supplied inspection.";
+        leaf content {
+            type string {
+                length "4..261120" {
+                    error-message "content is 4 to 261,120 padded base64 characters, at most 195,840 input bytes in one SSH command packet. Use a smaller input or inspect the file with the local ze config command.";
+                }
+                pattern "([A-Za-z0-9+/]{4})*([A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?" {
+                    error-message "content must be padded base64. Encode the input bytes as base64 and give the result after content.";
+                }
+            }
+            mandatory true;
+            description "Caller-held bytes encoded as padded base64. The whole input is bounded to
+195,840 decoded bytes and never recorded in command history or accounting.";
+            ze:help "Input bytes in padded base64, at most 195,840 bytes.";
+        }
+    }
+
+    grouping supplied-source {
+        description "A single supplied source with an optional diagnostic label.";
+        uses supplied-content;
+        leaf name {
+            type string {
+                length "1..255";
+                pattern '[^/\\]+' {
+                    error-message "name is a filename label without a directory. Give the filename alone.";
+                }
+            }
+            description "An optional filename label for diagnostics, without a directory or control
+characters. The default is supplied.conf. No file is opened or written.";
+            ze:help "Filename label for diagnostics; no file is opened.";
+        }
+    }
+
     container show {
         config false;
         ze:help "Read-only commands to inspect system, protocol, and network state.";
@@ -24,6 +59,77 @@ module ze-config-cli-cmd {
             description "Everything here reads. Nothing under show config applies a change, so it is safe
                          against a production router.";
             ze:help "Inspect, compare, and format configuration.";
+
+            container supplied {
+                config false;
+                description "Inspect caller-held configuration through the normal command channel.
+Nothing is staged, applied, loaded into the daemon environment, or written to a
+file. Native input syntax and answer masking match the existing file readers.";
+                ze:help "Inspect configuration supplied as bytes by the caller.";
+
+                container dump {
+                    config false;
+                    ze:command "ze-config-cli:show-config-supplied-dump";
+                    description "Parse and resolve supplied configuration bytes with the same producer
+as show config dump. Sensitive values retain its encoded or stripped display.";
+                    ze:help "Show the resolved tree from supplied configuration bytes.";
+                    uses supplied-source;
+                    leaf strip-private {
+                        type empty;
+                        description "Replace sensitive values with the same placeholder as the file-based
+dump, so the resolved tree can be shared without its secrets.";
+                        ze:help "Replace sensitive values with a marker.";
+                    }
+                }
+                container validation {
+                    config false;
+                    ze:command "ze-config-cli:show-config-supplied-validation";
+                    description "Check supplied configuration with the existing full validation producer.
+An invalid configuration retains its diagnostics and failed verdict. Nothing is applied.";
+                    ze:help "Validate supplied configuration without applying it.";
+                    uses supplied-source;
+                }
+                container fmt {
+                    config false;
+                    ze:command "ze-config-cli:show-config-supplied-fmt";
+                    description "Format supplied configuration through the existing formatter. The
+answer is formatted configuration text, or the selected check or diff diagnostic.
+This command has no file-write option.";
+                    ze:help "Format supplied configuration without writing a file.";
+                    uses supplied-source;
+                    leaf check {
+                        type empty;
+                        description "Report whether formatting would change the supplied bytes, with the
+same verdict as show config fmt check.";
+                        ze:help "Report whether formatting is needed.";
+                    }
+                    leaf diff {
+                        type empty;
+                        description "Show the formatting changes as the same diagnostic hunks as show
+config fmt diff, using the supplied name as a label.";
+                        ze:help "Show what formatting would change.";
+                    }
+                }
+                container graph {
+                    config false;
+                    ze:command "ze-config-cli:show-config-supplied-graph";
+                    description "Build the dependency graph from supplied bytes through the existing
+graph producer. Inactive configuration contributes no dependency.";
+                    ze:help "Show dependencies from supplied configuration bytes.";
+                    uses supplied-source;
+                }
+                container diff {
+                    config false;
+                    ze:command "ze-config-cli:show-config-supplied-diff";
+                    description "Compare two caller-held sources with the existing resolved diff and
+secret masking. Decode content as one JSON object with required before and after
+string fields, each holding native configuration text. Duplicate, missing,
+unknown or nonstring fields and trailing data are refused. The combined JSON
+envelope, not each individual source, has the content byte limit.";
+                    ze:help "Compare two supplied configurations with secrets masked.";
+                    uses supplied-content;
+                }
+            }
 
             container dump {
                 config false;

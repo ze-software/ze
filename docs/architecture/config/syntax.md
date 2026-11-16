@@ -25,6 +25,14 @@
 Ze configuration uses a JUNOS-like hierarchy of sections, keywords, and values. A value statement can use an explicit semicolon. The tokenizer automatically inserts a semicolon after a value-ending token at a newline, at end of file (EOF), or before `}`.
 <!-- source: internal/component/config/tokenizer.go -- tokenizer.scan -->
 
+File-based dump, validation, formatting, graph and comparison commands also
+have caller-supplied forms under `show config supplied`. They receive bounded
+base64 input through the normal command dispatcher and use the same native
+syntax and byte producers as the file forms. They do not edit the candidate
+or publish configuration. Input grammar and bounds are documented in
+[Caller-supplied configuration inspection](../api/commands.md#caller-supplied-configuration-inspection).
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler, suppliedDump, suppliedValidation, suppliedFmt, suppliedGraph, suppliedDiff -->
+
 A `[` opens a list, except straight after a `:` inside a word, where it
 brackets an address and stays in the word through its `]`. That is how the
 IPv6 route-target redirect is written, `extended-community

@@ -62,7 +62,7 @@ func TestRPCRegistrationPerModule(t *testing.T) {
 	}
 
 	assert.Greater(t, counts["ze-bgp"], 0, "ze-bgp RPCs registered via plugin/all")
-	assert.Equal(t, 22, counts["ze-plugin"], "ze-plugin RPCs: the server package's 15 system-* and 7 plugin RPCs (stable count, incl. ze-plugin:system-quiesce barrier and ze-plugin:system-plugin-restart)")
+	assert.Equal(t, 23, counts["ze-plugin"], "ze-plugin RPCs: the server package's 16 system-* and 7 plugin RPCs (stable count, incl. ze-plugin:system-quiesce barrier and ze-plugin:system-plugin-restart)")
 	assert.Zero(t, counts["ze-system"], "ze-system is no subsystem: the server package registers under ze-plugin")
 	// ze-editor RPCs may or may not be loaded depending on plugin/all
 	// ze-rib RPCs may or may not be loaded depending on plugin/all

@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Each row is incorrect operator-facing behaviour: a secret echoed, a commit not audited, a list shown as empty, a YANG statement ignored, markup that does not render |
 | Depends | - |
-| Phase | web amendment CI follow-up: discard audit snapshots |
+| Phase | feature parity: corpus correction and capability audit |
 | Handoff | verify |
 | Updated | 2026-11-16 |
 
@@ -150,6 +150,130 @@ The existing verification handoff remains in place.
 - [ ] `rfc/full/rfc7950.txt` Sections 7.13.1, 7.20.3.2 (AC-15)
 
 ## Current Behavior (MANDATORY)
+
+### Authorized feature-parity continuation (2026-11-16)
+
+Owner instruction, verbatim:
+
+> ok, fix it and work for parity of features
+
+This continuation fixes the browser-load corpus finding and closes differences
+between the existing interactive CLI and the primary web interface. CLI mode
+must offer the same editor and operational capabilities through their existing
+producers. The graphical YANG editor must expose useful graphical equivalents
+for configuration operations and inspection. Experimental Workbench remains an
+alternative; its unfinished page designs do not replace the primary editor.
+The original unrelated journal obligations remain separately open.
+
+The corpus finding is a discovery defect: `runSweep` treats the intentionally
+partial browser upload as a standalone configuration because it does not derive
+the `.wb` load composition. The file must remain partial. Adding mandatory
+baseline fields would remove the condition that the browser test proves.
+
+#### Existing mechanisms and decisions
+
+| Mechanism | Current producer | Continuation decision |
+|-----------|------------------|-----------------------|
+| Browser-case parser and daemon fixture | `web/testing.ParseWBFile`; `internal/test/cli` `daemonWebConfig` | Derive ordered browser load composition from parsed actions; share the actual fixture-config authority rather than copying its values |
+| CLI command grammar and candidate editing | `cli.ExecuteConfigCommand`, `Model.applyLoad`, `Editor.LoadMerge` / `LoadReplace` | Reuse for corpus replay, browser CLI and graphical operations; no second merge interpreter |
+| Command availability | `command.AnswerSurface`; `hub.TestEveryCommandOnEverySurface` | Extend the existing registry-derived parity proof; do not publish a handwritten duplicate command inventory |
+| Durable command recall | `cli.History`; existing registered per-user/per-mode history keys | Extend the shared history owner and its lifetime; browser local storage is rejected because it duplicates persistence and retains raw commands |
+| Sensitive command display | `config.DisplayCommand` and transcript masking | Reuse schema-aware masking for new history publication and returned legacy entries; do not persist uploaded content. A contextual configuration `set` recalls the equivalent absolute `top set <context> ...` so its target and safe nonsecret values survive reopening without changing the line-delimited storage format. |
+| Graphical actions and candidate views | `web.HandleGraphicalAction`, `EditorManager.ConfigCommand` | Add forms and inspection controls over the same producers, preserving candidate isolation, authorization and commit semantics |
+
+#### Acceptance criteria
+
+| AC | Positive observable behavior | Permitted survivors and reason |
+|----|------------------------------|--------------------------------|
+| AC-39 | The corpus sweep discovers browser file/paste loads from parsed `.wb` actions and applies them over the actual daemon base, in action order, through the shared editor. Accepted loads count as staged drafts; an executed commit validates its exact candidate through the full publication validator. The existing partial upload passes staging and invalid typed loads remain refused. | An unsupported composition is an explicit finding and remains validated as a standalone input where applicable; no filename exception or schema weakening is permitted. An engine-invalid intermediate draft is never counted as a validated published configuration. |
+| AC-40 | Browser command recall persists across reload and editor eviction, is bounded and deduplicated by the shared history producer, and remains isolated by authenticated user and effective CLI mode, including automatic entry into configuration mode. Up/Down restores unfinished input. Accepted writes drain before the borrowed store is released. | Abrupt process death retains the shared history producer's documented durability limit. Missing history is distinct from a failed read. Credentials and uploaded content are never returned or newly persisted in recall. |
+| AC-41 | Every registered operational command reaches the same dispatcher from browser and SSH, including operational verbs also used by the config editor. Web completion uses live argument producers and shared long explanations. Clear, exit and mode transitions provide their browser equivalents. Daemon restart registers as `request restart`, uses real command authorization/accounting, and releases the existing GR/StopForRestart action only after its accepted response. | Browser navigation replaces closing an SSH connection; daemon shutdown/restart remains an explicitly authorized operational action, never an alias for clearing the display. Daemon restart never requests a host reboot; the service supervisor owns starting the process again. |
+| AC-42 | The graphical editor can delete the selected node, discard selected-path changes, inspect candidate/confirmed/saved sources and metadata, compare supported targets, inspect/manage editing sessions, adjust inspection preferences and import a file or pasted content into the candidate. A stable-revision comparison retains every deleted flat statement when another setting changes; shared line comparison never consumes a deletion using indentation alone. | The shared editor may refuse an operation with its existing reason. Candidate import does not use the legacy directly publishing upload path. Read-only users retain inspection without mutation controls. Flat statements may show separate removal/addition markers because indentation does not establish node identity. |
+| AC-43 | Browser acceptance runs with distinct synthetic administrator and read-only identities against authenticated daemon fixtures. Existing permission and raw-download denial cases execute, with positive allowed-read controls and unchanged enforcement. | A backend capability unavailable on the host remains explicitly unavailable, not a passed authorization test or an empty observed result. |
+| AC-44 | Interactive monitoring capabilities available through CLI views have useful browser equivalents for sorting, selecting a peer, inspecting detail, returning to the live view and stopping updates. | Browser controls may differ from terminal keystrokes; the same data producers, identity and authorization remain authoritative. No protocol state is imported into the web adapter. |
+| AC-45 | A source-derived capability matrix accounts for editor commands, operational commands, completion, explanations, history, streams, monitoring, graphical equivalents and authorization. Executable parity probes cover the concrete gaps alongside registry-derived offered/dispatch coverage, including shared CLI preservation of removed flat statements in revision comparisons. | Unsupported behavior on both CLI and web is reported as such and is not invented as a web-only feature. Unfinished Workbench layouts remain experimental when the equivalent capability is available in the primary interfaces. |
+
+#### Implementation phases and wiring proof
+
+| Phase | Work | Entry point and owed proof |
+|-------|------|---------------------------|
+| P1 | Corpus discovery and shared browser daemon-config authority | `TestSweepBrowserUploadUsesDaemonComposition`, invalid/replace/order controls, `TestRepositoryConfigsValidate`, existing browser partial-file load journey |
+| P2 | Shared masked, bounded history ownership and browser recall | Authenticated CLI page/history projection plus command/terminal/stream submissions; storage-failure, mode/user isolation, reload, eviction and close/drain tests |
+| P3 | Operational routing, live argument completion and explanations | Operational `delete agent skill` dispatch/auth tests; live plugin-name completion; completed-input explanation; clear/exit browser journey; shared daemon-restart registration, authorization/accounting, response completion and GR owner wiring |
+| P4 | Graphical configuration operations and inspection/import | Selected-node delete/path discard, source/compare/session/preferences forms and candidate import; graphical-to-CLI readbacks and unchanged committed state before acceptance |
+| P5 | Authenticated permission fixtures | Actual admin/read-only daemon setup; retained authorization/download browser cases and allowed-read controls |
+| P6 | Interactive monitoring and complete capability evidence | Existing monitor/view producers plus browser sorting/detail/back/stop journeys; registry-derived inventory and executable gap probes |
+| P6c | Caller-supplied configuration inspection through owned daemon commands | Registered supplied dump, validation, formatting, dependency graph and comparison commands; local-producer equivalence, bounded input, secret masking and shared dispatcher authorization/accounting probes |
+
+P1 and the shared-history foundation P2a have independent source concerns.
+P3 backend routing/completion can proceed alongside P2a, with the history owner
+writing its model input sites first. Browser history wiring P2b follows P3's
+shared terminal/frontend source handoff. P4 follows P3 where they share action
+adapters; P5 follows P1's shared daemon fixture authority. Main runs all scoped
+tests and native jobs. Each implementation phase updates its owning pages.
+
+P6c closes the caller-input gap identified by AC-45's capability census. The
+existing file-taking commands retain their path confinement, stdin behavior and
+revision grammar. The config CLI owner registers the separate command namespace
+`show config supplied`, with dump, validation, fmt, graph and diff commands
+declared in its YANG module. The input is the existing command argument channel,
+never a daemon file or an editor candidate. The registered handlers use the same
+byte-based producers as the file readers.
+
+| Input field or declaration | Contract |
+|----------------------------|----------|
+| `content` | Padded base64 bytes, bounded by the declared 261,120 encoded characters and 195,840 decoded bytes that fit one SSH command packet. One shared bounded codec serves the existing store writers and the supplied readers. |
+| Single-source content | Native configuration bytes. An optional bounded `name` is a diagnostic label, never a filesystem path. |
+| Comparison content | One encoded JSON object containing the native configuration strings in `before` and `after`. Both are required; duplicate fields, unknown fields, malformed JSON and trailing data are refused. The combined envelope has the same packet bound as a single source. |
+| Command selections | Dump retains strip-private; fmt retains check and diff. The supplied forms have no write selection. |
+| Supplied-input descriptor | Generic optional command metadata declares input count and envelope for actual supplied commands. The descriptor reads bounds and label constraints from the YANG arguments, so the browser can derive controls without a config-domain import or a second command inventory. |
+
+The one comparison envelope puts both inputs behind the already masked
+`content` keyword. Authorization, accounting, caller context, cancellation and
+pipes remain with the shared dispatcher. Reads do not modify candidate,
+committed configuration, daemon environment, storage or files. New behavioral
+tests first use the existing local-data lookup, model validator and remote
+answer APIs; a missing registration or rejected model is the expected initial
+failure. Browser forms follow the registered descriptor in a separate frontend
+phase, with authenticated file/paste and denied-call acceptance still owed.
+
+The shared local/supplied comparison resolves BGP values and compares
+schema-declared ordered-list ordering. It does not compare other non-BGP values
+such as `system host`. AC-45 records that shared boundary; the browser does not
+invent a wider comparison or claim to repair the local command's scope.
+Producer: `config/cli.parseAndResolve`, `diffSources` and `diffListOrders` in
+`internal/component/config/cli/cmd_diff.go`.
+
+#### Risks and assumptions
+
+| ID | Kind | Basis or failure mode | Validation / mitigation | Status |
+|----|------|-----------------------|-------------------------|--------|
+| A-P1 | Assumption | The browser fixture is a partial absolute merge over the runner's complete daemon base. | Read the parsed case, `daemonWebConfig`, `Model.applyLoad` and `Editor.LoadMerge`; retain an actual failing corpus regression. | Confirmed; RED produced zero sequences and the two missing mandatory fields. |
+| A-P2 | Assumption | Shared command registration establishes offering and dispatch availability, but not equivalent execution for every command. | Read `collectCommandRegistrations` and `dispatcherServes`; add targeted execution probes for concrete transport differences. | Confirmed by source audit. |
+| R-P1 | Risk | History persistence leaks secrets or retains uploaded bodies. | Schema-aware command masking before append and legacy projection; relative/top/run secret controls; never record content payloads. | Open until P2 proof. |
+| R-P2 | Risk | Per-user history workers outlive editor eviction or borrowed-store shutdown. | Explicit owner/admission close, detached bounded snapshots, blocked-I/O/drain tests and startup-failure cleanup. | Open until P2 proof. |
+| R-P3 | Risk | Config convenience verbs swallow registered operational commands. | Mode/registry authority and direct operational dispatch/auth tests with configuration-delete preservation controls. | Confirmed defect; P3 owns it. |
+| R-P4 | Risk | A nominal read-only browser fixture actually seeds its user as the administrator. | Distinct synthetic identities, real daemon authorization declarations and positive/negative browser controls. | Confirmed fixture defect; P5 owns it. |
+
+#### Integration and documentation obligations
+
+| Surface | Disposition |
+|---------|-------------|
+| YANG/config/env | Reuse existing schema, authorization and registered history keys; no new configuration option is planned. |
+| Command grammar/registry | Reuse shared command and load parsers, surface predicate and argument completers; no adapter-owned operational command list. |
+| Web routes and assets | Reuse authenticated CLI/action routes and external `cli.js`; any new response field has an explicit Go producer and JavaScript consumer census, with typed templ forms. |
+| Runtime lifetime | P2 names every manager/history constructor, eviction/discard path, shutdown and startup-failure owner before adding a worker. |
+| Doctor/errors | Reuse existing store/daemon diagnostics and actionable operator errors; a new failure class must name its owning diagnostic and recovery rather than silently return empty history. |
+| Metrics | No protocol counter is added by these transport corrections; new bounded-history/read failures must remain observable through their owning error path. |
+| Functional/goal validation | Browser journeys prove actual partial input, persistent recall, operational dispatch/completion, graphical candidate operations, permissions and monitoring controls; registry listing alone does not prove feature parity. |
+| Pages | `docs/architecture/web-interface.md`, `web-components.md`, `docs/guide/config-editor.md`, `docs/architecture/cli/command-completion.md`, `docs/architecture/api/commands.md`, `docs/architecture/zefs-format.md`, `docs/architecture/testing/runner-architecture.md` and relevant `docs/contributing/testing.md` sections are updated in the phases that change their behavior. |
+
+The strongest design concern is preserving lifetime and secrecy while making
+browser recall durable. The shared history owner is the preferred mechanism;
+duplicating it in browser storage or a new persistence service would create a
+second lifecycle and an inconsistent source of history. The owner has authorized
+this continuation; routine design choices follow that scope and the shared
+mechanisms above. Independent release review remains separate from implementation.
 
 Spot-checked on 2026-10-23: `serializeTreeAtPath` in
 `internal/component/web/cli_terminal.go` still returns an empty string with no

@@ -529,14 +529,20 @@ func (m Model) messageLines() (string, string) {
 
 // feedbackLine returns the top message line: command results and status.
 func (m Model) feedbackLine() string {
-	if m.err != nil {
+	err := m.err
+	if err == nil {
+		if m.history != nil {
+			err = m.history.loadErrors[m.mode]
+		}
+	}
+	if err != nil {
 		// A refusal a command wrote whole reads as `ze <command>` prints it.
-		if line, refused := plugin.RefusalLine(m.err); refused {
+		if line, refused := plugin.RefusalLine(err); refused {
 			return errorStyle.Render(line)
 		}
 		// The row holds the first line; an error of several lines is whole in
 		// the viewport (setError).
-		problem, _, _ := strings.Cut(m.err.Error(), "\n")
+		problem, _, _ := strings.Cut(err.Error(), "\n")
 		var tb textbuf.Buffer
 		return errorStyle.Render(tb.Str("Error: ").Str(problem).String())
 	}

@@ -1,0 +1,48 @@
+# Test: browser recall separates modes and restores unfinished input
+# VALIDATES: mode changes select server history and Up/Down preserve a typed draft
+# PREVENTS: operational recall leaking configuration commands or swallowing drafts
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+action=open:path=/cli
+expect=element:id=terminal-input
+action=fill:id=terminal-input:value=edit bgp
+action=press:id=terminal-input:key=Enter
+expect=element:text=ze[bgp]#
+action=fill:id=terminal-input:value=exit
+action=press:id=terminal-input:key=Enter
+expect=html:contains=>operational<
+action=fill:id=terminal-input:value=show event namespaces | json
+action=press:id=terminal-input:key=Enter
+expect=element:text=namespace
+action=open:path=/cli
+expect=element:id=terminal-input
+action=fill:id=terminal-input:value=exit
+action=press:id=terminal-input:key=Enter
+expect=html:contains=>operational<
+action=press:id=terminal-input:key=ArrowUp
+action=press:id=terminal-input:key=Enter
+expect=element:text=namespace
+expect=html:contains=>operational<
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+expect=html:contains=>config<
+action=press:id=terminal-input:key=ArrowUp
+action=press:id=terminal-input:key=Enter
+expect=element:text=ze[bgp]#
+action=fill:id=terminal-input:value=top
+action=press:id=terminal-input:key=ArrowUp
+action=press:id=terminal-input:key=ArrowDown
+action=press:id=terminal-input:key=Enter
+expect=element:text=ze#
+
+# The completion menu takes arrow keys before recall does.
+action=fill:id=terminal-input:value=s
+action=press:id=terminal-input:key=Tab
+expect=html:contains=class="cli-completion-item selected" data-explanation=""><b>set</b>
+action=press:id=terminal-input:key=ArrowDown
+expect=html:contains=class="cli-completion-item selected" data-explanation=""><b>show</b>
+action=press:id=terminal-input:key=Enter
+expect=html:contains=class="terminal-completions is-hidden"
+expect=element:text=ze#

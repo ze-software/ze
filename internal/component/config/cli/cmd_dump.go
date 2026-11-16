@@ -9,12 +9,14 @@ import (
 	"log/slog"
 	"os"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config/infra"
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/secret"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -189,17 +191,29 @@ func resolveDump(configPath string, stripPrivate bool, diag *textbuf.Buffer) (du
 		diag.Str("Error reading config: ").Err(err).Byte('\n')
 		return dumpResult{}, 1
 	}
+	result, err := resolveDumpBytes(data, stripPrivate, diag)
+	if err != nil {
+		diag.Str(command.LocalErrorLine(err))
+		return dumpResult{}, 1
+	}
+	return result, 0
+}
 
+// resolveDumpBytes is the file and supplied-content routes' shared producer.
+// It parses and masks bytes without reading or publishing configuration.
+func resolveDumpBytes(data []byte, stripPrivate bool, diag *textbuf.Buffer) (dumpResult, error) {
 	schema, err := config.YANGSchema()
 	if err != nil {
-		diag.Str("error: ").Err(err).Byte('\n')
-		return dumpResult{}, 1
+		return dumpResult{}, opererr.Wrap(err, "The configuration schema could not be loaded.",
+			"The configuration could not be interpreted; no dump was produced.",
+			"ze show doctor")
 	}
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {
-		diag.Str("Error parsing config: ").Err(err).Byte('\n')
-		return dumpResult{}, 1
+		return dumpResult{}, opererr.Wrap(err, "Error parsing config",
+			"The supplied configuration could not be parsed; no configuration dump was produced.",
+			"ze config validate -")
 	}
 
 	if warnings := p.Warnings(); len(warnings) > 0 {
@@ -217,8 +231,9 @@ func resolveDump(configPath string, stripPrivate bool, diag *textbuf.Buffer) (du
 	// BGP-less dump (the seam fails closed).
 	bgpTree, err := infra.ResolveBGPTree(tree)
 	if err != nil {
-		diag.Str("Error resolving config: ").Err(err).Byte('\n')
-		return dumpResult{}, 1
+		return dumpResult{}, opererr.Wrap(err, "Error resolving config",
+			"The supplied configuration could not be resolved; no configuration dump was produced.",
+			"ze config validate -")
 	}
 
 	mode := config.DisplayEncode
@@ -244,5 +259,5 @@ func resolveDump(configPath string, stripPrivate bool, diag *textbuf.Buffer) (du
 		tree:          tree,
 		sensitiveKeys: sensitiveKeys,
 		mode:          mode,
-	}, 0
+	}, nil
 }

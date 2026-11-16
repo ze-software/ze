@@ -49,6 +49,7 @@ func TestPluginRestartCompletesConfiguredPlugins(t *testing.T) {
 	s := &Server{dispatcher: d}
 	s.procManager.Store(process.NewProcessManager([]plugin.PluginConfig{{Name: "alpha"}, {Name: "beta"}}))
 	ctx := &CommandContext{Server: s}
+	require.NoError(t, d.RegisterWithOptions("system command complete", handleSystemCommandComplete, "Complete command arguments", RegisterOptions{ReadOnly: true}))
 
 	values := func(resp *plugin.Response) []string {
 		t.Helper()
@@ -79,11 +80,16 @@ func TestPluginRestartCompletesConfiguredPlugins(t *testing.T) {
 			}},
 		}},
 	}}
-	s.WireArgCompletion(tree)
+	s.WireArgCompletion(tree, func(line string) (string, error) {
+		resp, err := d.Dispatch(ctx, line)
+		return plugin.ResponseJSON(resp, err)
+	})
 	node := command.FindNode(tree, []string{"request", "plugin", "restart"})
-	require.NotNil(t, node.ValueHints, "the SSH tree's restart node must complete its argument")
+	require.NotNil(t, node.ArgumentHints, "the SSH tree's restart node must complete its argument")
 	hinted := make([]string, 0, 2)
-	for _, suggestion := range node.ValueHints() {
+	suggestions, hintErr := node.ArgumentHints(nil, "")
+	require.NoError(t, hintErr)
+	for _, suggestion := range suggestions {
 		hinted = append(hinted, suggestion.Text)
 	}
 	assert.ElementsMatch(t, []string{"alpha", "beta"}, hinted, "the SSH hint offers the configured plugins")

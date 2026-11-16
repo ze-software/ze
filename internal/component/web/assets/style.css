@@ -2590,6 +2590,7 @@ body.ui-workbench {
 .cli-feedback {
   color: var(--accent);
   min-height: 1.1em;
+  white-space: pre-wrap;
 }
 
 .cli-feedback.cli-feedback--error {
@@ -2599,6 +2600,9 @@ body.ui-workbench {
 .cli-hint {
   color: var(--text-muted);
   min-height: 1.1em;
+  white-space: pre-wrap;
+  max-height: 12rem;
+  overflow-y: auto;
 }
 
 .cli-input-line {
@@ -2621,7 +2625,25 @@ body.ui-workbench {
 
 .cli-load[hidden],
 .cli-load [hidden],
+.cli-view-controls[hidden],
 #cli-stop[hidden] { display: none; }
+
+.cli-view-controls,
+.cli-local-output {
+  display: flex;
+  flex-shrink: 0;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-top: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
+.cli-view-controls button:disabled,
+.cli-local-output button:disabled { opacity: 0.6; }
+
+.cli-local-output { align-items: center; }
+#cli-download-status { color: var(--text-secondary); font-size: 0.8rem; }
 
 .cli-load textarea {
   display: block;
@@ -2998,3 +3020,35 @@ body.ui-workbench {
 .wb-hardware-down td:last-child { color: var(--error, #ef4444); }
 .wb-hardware-alarm { background: rgba(239, 68, 68, 0.08); }
 .wb-hardware-alarm td:last-child { color: var(--error, #ef4444); font-weight: 600; }
+
+/* Native caller-input inspection keeps large source text inside its panel. */
+.graphical-supplied { max-width: 52rem; }
+.graphical-supplied form { display: grid; gap: 0.75rem; margin-block: 0.75rem; }
+.graphical-supplied-source {
+  min-width: 0;
+  display: grid;
+  gap: 0.75rem;
+  padding: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.graphical-supplied-source label { display: grid; gap: 0.25rem; }
+.graphical-supplied textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 8rem;
+  max-height: 24rem;
+  resize: vertical;
+  font-family: var(--font-mono);
+  color: var(--text-primary);
+  background: var(--input-bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+}
+.graphical-supplied input[type="file"] { max-width: 100%; }
+#graphical-supplied-result {
+  max-height: 32rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}

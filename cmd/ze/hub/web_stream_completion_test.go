@@ -22,7 +22,7 @@ func TestWebTerminalCompletionIncludesDaemonStreams(t *testing.T) {
 	schema, err := yangloader.DefaultLoader()
 	require.NoError(t, err)
 	tree := yangloader.BuildCommandTree(schema)
-	terminal := newPluginAwareCommandCompleter(tree, func() []command.CommandEntry { return nil })
+	terminal := newPluginAwareCommandCompleter(tree, func() []command.CommandEntry { return nil }, nil, command.SurfaceWebCompletion)
 	admin := adminCommandTrees(tree, nil)()
 	prefixes := pluginserver.StreamingOnlyPrefixes()
 	require.NotEmpty(t, prefixes)

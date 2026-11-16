@@ -201,7 +201,7 @@ func TestEditorWithEmptyStoreOffersTheTypeHint(t *testing.T) {
 func TestCommandArgumentOffersStoredASSets(t *testing.T) {
 	seedASSetState(t, useDaemonStore(t))
 
-	candidates := completeASSetArgument(nil)
+	candidates := completeASSetArgument(nil, nil)
 	got := make(map[string]string, len(candidates))
 	for _, candidate := range candidates {
 		got[candidate.Value] = candidate.ShortHelp
@@ -217,5 +217,5 @@ func TestCommandArgumentOffersStoredASSets(t *testing.T) {
 // offers no AS-SET rather than failing the completion.
 func TestCommandArgumentWithNoStoreOffersNothing(t *testing.T) {
 	statestore.SetStore(nil)
-	assert.Empty(t, completeASSetArgument(nil))
+	assert.Empty(t, completeASSetArgument(nil, nil))
 }

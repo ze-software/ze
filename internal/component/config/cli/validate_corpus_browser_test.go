@@ -15,6 +15,7 @@ import (
 
 	editorcli "github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/cli/contract"
+	"github.com/ze-software/ze/internal/component/web"
 	webtesting "github.com/ze-software/ze/internal/component/web/testing"
 	"github.com/ze-software/ze/internal/test/labconfig"
 )
@@ -28,18 +29,26 @@ type browserCorpusLoad struct {
 }
 
 // browserCorpus owns one offline editor while reading a browser workflow.
-// The caller MUST close editor after replay; it never dispatches daemon actions.
+// The caller MUST close editor after replay; it never starts a daemon or publishes config.
 type browserCorpus struct {
-	editor    *editorcli.Editor
-	path      []string
-	input     string
-	pending   *browserCorpusLoad
-	sequences []loadSequence
-	applied   []sweepCarrier
+	editor      *editorcli.Editor
+	auth        *browserCorpusAuthentication
+	identity    *browserCorpusIdentity
+	context     context.Context
+	inspection  *browserCorpusInspection
+	inspected   int
+	graphical   *browserCorpusGraphical
+	path        []string
+	input       string
+	pending     *browserCorpusLoad
+	sequences   []loadSequence
+	applied     []sweepCarrier
+	importError string // Exact, immediately following native submission refusal declaration; empty means none.
+	refused     int    // Actual native refusals matched to their adjacent declaration.
 }
 
-// browserSequences derives file/paste composition from parsed actions. A source
-// is consumed only by a recognized load form followed by its Apply action;
+// browserSequences derives file/paste contracts from parsed native submissions.
+// A source is consumed only by its recognized load or inspection submission;
 // unknown composition leaves standalone validation active and records a finding.
 func (s *sweepContext) browserSequences(path string, loaded map[string]bool) []loadSequence {
 	body, err := os.ReadFile(path)
@@ -55,7 +64,8 @@ func (s *sweepContext) browserSequences(path string, loaded map[string]bool) []l
 	last := -1
 	for i, action := range workflow.Actions {
 		if action.Kind == "click" {
-			if action.Values["id"] == "cli-load-apply" {
+			switch action.Values["id"] {
+			case "cli-load-apply", "graphical-import-file-submit", "graphical-import-paste-submit", "graphical-supplied-submit":
 				last = i
 			}
 		}
@@ -87,14 +97,33 @@ func (s *sweepContext) browserSequences(path string, loaded map[string]bool) []l
 			s.t.Errorf("close browser corpus editor: %v", err)
 		}
 	}()
-	reader := &browserCorpus{editor: editor}
-	for i := range last + 1 {
-		action := &workflow.Actions[i]
+	reader := &browserCorpus{editor: editor, context: s.t.Context()}
+	if len(workflow.Auth) > 0 {
+		reader.auth, err = newBrowserCorpusAuthentication(s.schema, baseline)
+		if err != nil {
+			s.report.find(path + ": browser authentication policy: " + err.Error())
+			return nil
+		}
+	}
+	for i, step := range workflow.Steps {
+		if step.Type != webtesting.WBStepAction {
+			continue
+		}
+		if step.ActionIndex > last {
+			break
+		}
+		action := &workflow.Actions[step.ActionIndex]
+		reader.importError = ""
+		if s.on(ruleDeclaredRefusal) {
+			reader.importError = browserImportErrorDeclaration(workflow, i)
+		}
 		if err := reader.action(s.root, path, action, loaded); err != nil {
 			s.report.find(path + ":line " + strconv.Itoa(action.Line) + ": " + err.Error())
 			break
 		}
 	}
+	s.report.kinds[".wb"] += reader.inspected
+	s.report.refused += reader.refused
 	for i := range reader.applied {
 		s.judgeCarrier(&reader.applied[i])
 	}
@@ -148,6 +177,15 @@ func browserCommitBoundary(actions []webtesting.WBAction, last int) int {
 // the CLI. Other browser actions do not change this private candidate.
 func (b *browserCorpus) action(root, source string, action *webtesting.WBAction, loaded map[string]bool) error {
 	id := action.Values["id"]
+	if handled, err := b.inspectionAction(root, action, loaded); handled {
+		return err
+	}
+	if action.Kind == "login" {
+		return b.login(action.Values["user"], action.Values["password"])
+	}
+	if handled, err := b.graphicalAction(root, source, action, loaded); handled {
+		return err
+	}
 	switch action.Kind {
 	case "open":
 		if action.Values["path"] != "/cli" {
@@ -156,6 +194,7 @@ func (b *browserCorpus) action(root, source string, action *webtesting.WBAction,
 		b.path = nil
 		b.input = ""
 		b.pending = nil
+		b.graphical = nil
 	case "fill":
 		switch id {
 		case "terminal-input":
@@ -222,6 +261,9 @@ func (b *browserCorpus) command(line, source string, number int) error {
 	if len(tokens) == 0 {
 		return nil
 	}
+	if err := b.authorize(line); err != nil {
+		return err
+	}
 	if tokens[0] == "load" {
 		source, location, operation, _, err := editorcli.ParseLoadArgs(tokens[1:])
 		if err != nil {
@@ -273,6 +315,10 @@ func (b *browserCorpus) upload(root, file string) error {
 	if b.pending.source != "file" {
 		return errors.New("uploaded configuration was supplied to a terminal load")
 	}
+	return b.pending.upload(root, file)
+}
+
+func (load *browserCorpusLoad) upload(root, file string) error {
 	path := file
 	if !filepath.IsAbs(path) {
 		path = filepath.Join(root, filepath.FromSlash(file))
@@ -288,9 +334,9 @@ func (b *browserCorpus) upload(root, file string) error {
 	if err != nil {
 		return err
 	}
-	b.pending.step.source = filepath.Clean(path)
-	b.pending.step.body = string(body)
-	b.pending.payload = true
+	load.step.source = filepath.Clean(path)
+	load.step.body = string(body)
+	load.payload = true
 	return nil
 }
 
@@ -307,13 +353,22 @@ func (b *browserCorpus) apply(source string, line int, loaded map[string]bool) e
 	} else {
 		step.source = source + ":paste line " + strconv.Itoa(line)
 	}
-	b.sequences = append(b.sequences, loadSequence{source: source, base: b.editor.WorkingContent(), steps: []loadStep{step}, draft: true})
-	// Validation reports a rejected payload through judgeSequence. Replaying a
-	// rejected load leaves this editor unchanged before any later load, as live.
+	sequence := loadSequence{source: source, base: b.editor.WorkingContent(), steps: []loadStep{step}, draft: true}
+	// Only an actual refusal whose shared visible problem is declared directly
+	// after this native submission is expected. Every unmatched rejected load
+	// remains a sequence for judgeSequence's unchanged invalid-draft oracle.
 	if err := loadCorpusStep(b.editor, &step); err != nil {
 		b.pending = nil
+		if b.importError != "" {
+			if b.importError == web.GraphicalImportError(err).Problem() {
+				b.refused++
+				return nil
+			}
+		}
+		b.sequences = append(b.sequences, sequence)
 		return nil
 	}
+	b.sequences = append(b.sequences, sequence)
 	b.pending = nil
 	return nil
 }

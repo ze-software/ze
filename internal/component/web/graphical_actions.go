@@ -8,13 +8,11 @@ import (
 	"net/http"
 	"slices"
 	"strconv"
-	"strings"
 
 	"github.com/ze-software/ze/internal/component/aaa"
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/audit"
-	"github.com/ze-software/ze/internal/core/configtext"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
 
@@ -29,12 +27,18 @@ type GraphicalRevision struct {
 // GraphicalActions carries the selected schema path and its available tools.
 // It belongs to one response and is never shared between users.
 type GraphicalActions struct {
+	Supplied    *GraphicalSuppliedPanel
 	Path        string
 	HasNode     bool
+	HasList     bool // A configured whole list can be deleted but is not an activation target.
 	HasEntry    bool
 	Inactive    bool
 	Output      string
 	History     []GraphicalRevision
+	Revisions   []GraphicalRevision
+	Sessions    []GraphicalSession
+	Users       []string
+	Options     []contract.EditorOption
 	Window      string
 	WindowOwner bool
 }
@@ -42,7 +46,11 @@ type GraphicalActions struct {
 // HandleGraphicalAction adapts button forms to the same editor executor the
 // browser CLI uses. The caller MUST apply authentication and same-origin
 // middleware. Each mutation is authorized before the shared producer runs.
-func HandleGraphicalAction(mgr *EditorManager, schema *config.Schema, renderer *Renderer, authorizer aaa.Authorizer, recorder audit.Recorder, broker *EventBroker) http.HandlerFunc {
+func HandleGraphicalAction(mgr *EditorManager, schema *config.Schema, renderer *Renderer, authorizer aaa.Authorizer, recorder audit.Recorder, broker *EventBroker, suppliedTrees ...AdminCommandTree) http.HandlerFunc {
+	var suppliedTree AdminCommandTree
+	if len(suppliedTrees) > 0 {
+		suppliedTree = suppliedTrees[0]
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		username := GetUsernameFromRequest(r)
 		if username == "" {
@@ -93,6 +101,17 @@ func HandleGraphicalAction(mgr *EditorManager, schema *config.Schema, renderer *
 		var result terminalCommandResult
 		var revisions []GraphicalRevision
 		switch command.Verb {
+		case verbShow:
+			if graphicalPinnedCompare(r) {
+				result.output, err = mgr.compareGraphicalRevision(username, path, r)
+				if err != nil {
+					result.output = "error: " + err.Error()
+				}
+			} else {
+				result = executeTerminalCommand(r.Context(), schema, mgr.Tree(username), mgr, username, r.RemoteAddr, path, terminalModeConfig, command, line, nil)
+			}
+		case verbWho, verbOption:
+			result = executeTerminalCommand(r.Context(), schema, mgr.Tree(username), mgr, username, r.RemoteAddr, path, terminalModeConfig, command, line, nil)
 		case verbRollback:
 			result.output, err = mgr.rollbackGraphicalRevision(username, r.FormValue("revision"))
 			if err != nil {
@@ -130,6 +149,8 @@ func HandleGraphicalAction(mgr *EditorManager, schema *config.Schema, renderer *
 		if terminalCommandFailed(result.output) {
 			status = http.StatusBadRequest
 			responsePath = path
+		} else if r.FormValue("action") == "discard-path" {
+			responsePath = graphicalSurvivingPath(schema, mgr.Tree(username), responsePath)
 		}
 		if renderer == nil {
 			w.Header().Set("Content-Type", "text/plain; charset=utf-8")
@@ -143,8 +164,14 @@ func HandleGraphicalAction(mgr *EditorManager, schema *config.Schema, renderer *
 		data.Username = username
 		data.ReadOnly = !canEdit(r, authorizer)
 		data.Actions = mgr.graphicalActions(schema, mgr.Tree(username), responsePath, username)
+		data.Actions.Supplied = buildGraphicalSuppliedPanel(suppliedTree)
+		if data.Actions.Output != "" {
+			result.output += "\n" + data.Actions.Output
+		}
 		data.Actions.Output = result.output
-		data.Actions.History = revisions
+		if revisions != nil {
+			data.Actions.History = revisions
+		}
 		if status == http.StatusOK {
 			where := showPathPrefix
 			if len(responsePath) > 0 {
@@ -221,8 +248,20 @@ func graphicalActionCommand(schema *config.Schema, r *http.Request) (path []stri
 	case verbDiscard:
 		words = []string{verbDiscard, discardAll}
 		responsePath = nil
+	case "discard-path":
+		if len(path) == 0 {
+			return nil, command, nil, graphicalActionRefusal("Select the configuration item whose pending changes you want to discard.")
+		}
+		words = slices.Concat([]string{verbDiscard}, path)
 	default:
-		return nil, command, nil, graphicalActionRefusal("This configuration action is unknown.")
+		var inspection bool
+		words, inspection, err = graphicalInspectionWords(r)
+		if err != nil {
+			return nil, command, nil, err
+		}
+		if !inspection {
+			return nil, command, nil, graphicalActionRefusal("This configuration action is unknown.")
+		}
 	}
 	switch operation {
 	case "now", "confirmed":
@@ -236,17 +275,11 @@ func graphicalActionCommand(schema *config.Schema, r *http.Request) (path []stri
 			}
 		}
 	}
-	var line strings.Builder
-	for i, word := range words {
-		if i > 0 {
-			line.WriteByte(' ')
-		}
-		line.WriteString(configtext.QuoteCommandWord(word))
-	}
-	if len(line.String()) > maxCommandLength {
+	line := graphicalCommandLine(words)
+	if len(line) > maxCommandLength {
 		return nil, command, nil, graphicalActionRefusal("The configuration action is too long.")
 	}
-	command = parseCLICommand(line.String())
+	command = parseCLICommand(line)
 	if command.parseErr != nil {
 		return nil, command, nil, command.parseErr
 	}
@@ -274,8 +307,35 @@ func buildGraphicalActions(schema *config.Schema, tree *config.Tree, path []stri
 		if v.Inactive {
 			v.HasNode = true
 		}
+		v.HasList = len(parent.ListKeys(name)) > 0
 	}
 	return v
+}
+
+// graphicalSurvivingPath returns the parent collection of the first entry a
+// path crosses that the discard removed. Prefix enumeration is bounded by the
+// submitted path's token count; complete multi-key addresses remain one entry.
+func graphicalSurvivingPath(schema *config.Schema, tree *config.Tree, path []string) []string {
+	for end := 1; end <= len(path); end++ {
+		prefix := path[:end]
+		target, atEntry, err := config.WalkListEntryPath(schema, prefix)
+		if err != nil {
+			// A prefix may stop inside a multi-key address. The successful
+			// shared discard already judged the complete submitted path.
+			continue
+		}
+		if !atEntry {
+			continue
+		}
+		if target.End != end {
+			continue
+		}
+		if walkTree(tree, schema, prefix) != nil {
+			continue
+		}
+		return slices.Concat(target.ParentPath, []string{target.ListName})
+	}
+	return path
 }
 
 func graphicalActionRefusal(problem string) error {
@@ -284,6 +344,9 @@ func graphicalActionRefusal(problem string) error {
 
 func (m *EditorManager) graphicalActions(schema *config.Schema, tree *config.Tree, path []string, username string) *GraphicalActions {
 	v := buildGraphicalActions(schema, tree, path)
+	if err := m.populateGraphicalInspection(v, username); err != nil {
+		v.Output = editorSessionRefusal(err).Error()
+	}
 	if window := m.daemonWindow(); window != nil {
 		if state, open := window.Status(); open {
 			v.Window = state.Line(username)

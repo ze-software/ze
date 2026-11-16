@@ -7,7 +7,7 @@
 
 The web interface follows three rules:
 
-1. **Server renders HTML, HTMX handles interaction.** No custom JavaScript creates UI elements. All HTML comes from templ components. HTMX attributes on elements handle save, navigation, and error display. The only JS file (`cli.js`) handles Tab/? key interception for CLI autocomplete, which has no HTMX equivalent.
+1. **Server renders HTML, HTMX handles interaction.** HTML comes from templ components. HTMX attributes on elements handle save, navigation, and error display. The CLI asset handles command input, completion and streaming responses. Interactive monitor buttons clone a templ-authored template and receive only plain text labels and opaque action identifiers from the registered view; JavaScript does not build markup or own protocol state. The CLI's caller-local Download control and hidden download anchor also come from templ. The control's capability name and description follow the pipe catalog; the asset binds only its supported caller operation and saves the already authorized result without another request. Raw output requires authoritative completion, while interactive monitors label their exported latest frame as a snapshot.
 
 2. **One component per visual concern.** Each `.templ` file renders exactly one thing. Adding a new input type means adding one file and one line in the `fieldInputs` registry. The file names mirror the page structure.
 
@@ -327,6 +327,35 @@ offers a restore button beside each saved revision; restoration changes the
 candidate and still requires commit. Root-level actions remain available when
 there are no pending changes. Read-only views omit mutation controls.
 
+The nested **Inspect** disclosure remains available to read-only accounts. Source
+inspection selects the candidate, running configuration or saved draft and tree
+or set-command presentation through the shared editor producer. Candidate
+metadata has a separate form: authorship, activation, pending-change and
+validation pipes inspect the candidate, so the adapter refuses alternate-source
+metadata combinations that the shared command does not implement.
+
+Comparison also uses the shared editor producer. A saved revision is submitted
+by its stable storage key; lookup of its current history position and execution
+hold the same user-session lock. User baselines use exact metadata owners,
+without deriving a username from a session identifier. Editing-session rows
+carry exact shared session IDs and pending-change counts. Viewing sessions is
+read-only; disconnecting another session requires edit permission and the shared
+editor refuses disconnecting one's own session. Display preferences are derived
+from the CLI option catalog and stay with the user's editor.
+
+<!-- source: internal/component/web/graphical_inspection.go -- graphicalInspectionWords, compareGraphicalRevision -->
+
+**Edit selected item** also offers deletion of a configured node or whole list,
+and **Discard changes here** drops only pending changes under the selected path.
+Both act on the candidate; committed configuration stays unchanged. A selected
+discard retains unrelated edits, and its audit records only the changes it
+dropped. When a discard removes a newly created entry, the response navigates to
+the surviving parent collection rather than leaving stale entry controls.
+Neither selected action operates at the configuration root. Whole-list deletion
+does not make the collection an activation target.
+
+<!-- source: internal/component/web/graphical_actions.go -- graphicalActionCommand, graphicalSurvivingPath, buildGraphicalActions -->
+
 <!-- source: internal/component/web/graphical_actions.go -- buildGraphicalActions, HandleGraphicalAction -->
 
 Buttons post structured form fields to `/config/action`. The adapter checks
@@ -340,6 +369,48 @@ engine or history store exists.
 
 <!-- source: internal/component/web/graphical_actions.go -- graphicalActionCommand, HandleGraphicalAction -->
 <!-- source: internal/component/web/window_notices.go -- WindowNotices -->
+
+Candidate import uses native HTMX file and paste forms at `/config/import`.
+Both forms carry the selected path through the existing token URL codec and
+choose the shared load grammar's absolute/relative and merge/replace values.
+`GraphicalImportDefaults` supplies their explicit initial selections and the
+offline browser replay's initial choices, so option order is not a second
+source of defaults.
+The adapter bounds the entire request at 4 MiB and keeps multipart files in
+memory within that bound. `cli.ParseLoadArgs` and `cli.CommandWords` admit the
+load request; `EditorManager.ConfigCommand` serializes the existing editor's
+typed parse and atomic load for its authenticated owner. It does not use the
+directly publishing upload endpoint. Successful imports refresh the Finder,
+navigation and OOB commit status. If replacement removes the selected entry,
+navigation returns to its surviving parent collection. Refusals suppress the
+main HTMX swap so the file/paste controls remain available for correction.
+
+<!-- source: internal/component/web/graphical_import.go -- HandleGraphicalImport, readGraphicalImport, GraphicalImportDefaults -->
+<!-- source: internal/component/web/component_graphical_import.templ -- graphicalImportPanel -->
+
+**Inspect supplied configuration** is a separate disclosure outside the editing
+branch. Its typed view data joins `command.ListLocal` supplied-input descriptors
+to the same current command tree the admin console uses. The shared surface
+predicate and read-verb declaration determine which registered commands it
+offers; the adapter keeps no configuration-command inventory. The selected
+command's actual argument definitions provide its help, optional selections and
+input limits. Graphical action and import responses retain that tree source,
+so refreshing the candidate does not remove the inspection controls.
+
+A GET form swaps the selected command's native file/paste controls through
+HTMX. The POST form sends only those inputs and declared choices to
+`/config/inspect`, and swaps its result separately so refusals preserve the
+operator's form. Source bytes are encoded once. A comparison becomes one
+strict UTF-8 JSON object within the same combined byte budget. Multipart input
+stays in memory under the bounded request reader; the filename is only a
+basename label. Dispatch keeps the authenticated identity, accepted authorizer
+and request cancellation. It uses the shared CLI formatting producer without
+recording history, opening an editor or changing the candidate.
+
+<!-- source: internal/component/web/graphical_supplied_view.go -- GraphicalSuppliedPanel, GraphicalSuppliedInputs -->
+<!-- source: internal/component/web/graphical_supplied_commands.go -- suppliedInspectionCommands, newSuppliedInspectionCommand -->
+<!-- source: internal/component/web/graphical_supplied.go -- HandleSuppliedInspectionForm, HandleSuppliedInspection, invocation, readSource -->
+<!-- source: internal/component/web/component_graphical_supplied.templ -- graphicalSuppliedPanel, graphicalSuppliedInputs, graphicalSuppliedAnswer -->
 
 ```
 User clicks "Review & Commit" in commit bar

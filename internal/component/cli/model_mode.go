@@ -94,6 +94,7 @@ func (m *Model) SetMode(target EditorMode) {
 	m.showViewport = saved.showViewport
 	m.statusMessage = saved.statusMessage
 	m.history.restore(saved.histSnap)
+	m.history.mode = target
 
 	m.viewport.SetContent(saved.viewportContent)
 	m.viewport.SetYOffset(saved.viewportYOffset)
@@ -112,6 +113,7 @@ var configModeCommands = map[string]bool{
 	cmdRollback: true, cmdLoad: true,
 	cmdTop: true, cmdUp: true,
 	cmdWho: true, cmdDisconnect: true,
+	cmdCompare: true, cmdHistory: true, cmdRename: true, cmdCopy: true, cmdInsert: true,
 }
 
 // isOperationalVerb returns true if the input starts with a verb that works
@@ -130,20 +132,35 @@ func isOperationalVerb(input string) bool {
 	return false
 }
 
-// completesFromYANG says the config completer, and not the command completer,
-// answers for this input in OPERATIONAL mode.
-//
-// It subtracts the verbs that mean the same thing in both modes. handleEnter
-// makes that subtraction already, so `show bgp summary` typed in operational
-// mode RUNS operationally. Without it here, completion sent that input to YANG
-// while dispatch sent it to the daemon. The two then disagreed about what the
-// operator was typing.
-//
-// The disagreement was unreachable while only the SSH model held a config
-// completer. `ze start --cli` gained one. That console then completed `show`
-// against the config tree, and it explained none of it.
-func completesFromYANG(input string) bool {
-	return isConfigCommandWithArgs(input) && !isOperationalVerb(input)
+// ShouldEnterConfigMode preserves automatic entry for editor commands that do
+// not resolve operationally. registered MUST use the command source serving the
+// session; it is nil only when no daemon matcher is available. Recognition does
+// not grant permission: the selected executor still authorizes the command.
+func ShouldEnterConfigMode(input string, registered func(string) bool) bool {
+	if !isConfigCommand(input) {
+		return false
+	}
+	if isOperationalVerb(input) {
+		return false
+	}
+	if registered != nil {
+		if registered(input) {
+			return false
+		}
+	}
+	return true
+}
+
+// completesFromConfig uses the same mode decision as Enter, so completion and
+// explanation never describe a config edit that will dispatch operationally.
+func (m Model) completesFromConfig(input string) bool {
+	return isConfigCommandWithArgs(input) && ShouldEnterConfigMode(input, m.registeredOperational)
+}
+
+// SetRegisteredOperational installs the session's live dispatch recognition.
+// The callback MUST be safe for concurrent use when backed by a daemon registry.
+func (m *Model) SetRegisteredOperational(registered func(string) bool) {
+	m.registeredOperational = registered
 }
 
 // isConfigCommand returns true if the input starts with a config editing command.

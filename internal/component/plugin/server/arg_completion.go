@@ -2,11 +2,9 @@
 // Related: system.go -- handleArgComplete, the RPC every caller outside the daemon asks
 // Related: register_plugin_restart.go -- completePluginRestart, a completer it serves
 //
-// A builtin command whose argument names something only the running daemon
-// knows (a configured plugin, say) declares an ArgCompleter beside its handler
-// in RegisterRPCs. One completer then answers every interactive surface: the
-// `system command complete args` RPC for a caller outside the daemon, and the
-// value hint WireArgCompletion hangs on the SSH session's own tree.
+// A command whose argument names runtime state declares its completer with its
+// handler. Every interactive surface asks the same system completion RPC under
+// its own authenticated caller; no tree callback bypasses that authorization.
 
 package server
 
@@ -16,16 +14,18 @@ import (
 	"github.com/ze-software/ze/internal/component/command"
 )
 
-// ArgCompleter answers every value the command's argument may take now, read
-// from the daemon's runtime state. It never filters by what was typed: each
-// caller matches its own prefix (handleArgComplete, command.TreeCompleter). It
-// MUST be safe for concurrent use, because every session's tab calls it.
-type ArgCompleter func(s *Server) []Completion
+// ArgCompleter answers the values permitted at the position after completed,
+// read from the daemon's runtime state. completed contains whole argument
+// values, not command path words or the current partial. The producer MUST
+// neither mutate nor retain that caller-owned slice. Prefix filtering remains
+// with handleArgComplete and command.TreeCompleter. Safe for concurrent use:
+// every session can call the same registered producer.
+type ArgCompleter func(s *Server, completed []string) []Completion
 
 // builtinArgCompletions answers the candidates the builtin command name
 // completes that start with partial. ok is false when no builtin of that name
 // declares a completer, so the caller can try the plugin commands instead.
-func (d *Dispatcher) builtinArgCompletions(s *Server, name, partial string) (candidates []Completion, ok bool) {
+func (d *Dispatcher) builtinArgCompletions(s *Server, name string, completed []string, partial string) (candidates []Completion, ok bool) {
 	builtin := d.Lookup(name)
 	if builtin == nil {
 		return nil, false
@@ -34,7 +34,7 @@ func (d *Dispatcher) builtinArgCompletions(s *Server, name, partial string) (can
 		return nil, false
 	}
 	candidates = []Completion{}
-	for _, candidate := range builtin.Complete(s) {
+	for _, candidate := range builtin.Complete(s, completed) {
 		if strings.HasPrefix(candidate.Value, partial) {
 			candidates = append(candidates, candidate)
 		}
@@ -42,12 +42,12 @@ func (d *Dispatcher) builtinArgCompletions(s *Server, name, partial string) (can
 	return candidates, true
 }
 
-// WireArgCompletion hangs the completer of every builtin that declares one on
-// its node in tree, as the node's value hints, so Tab after the command offers
+// WireArgCompletion hangs the shared RPC producer of every completable command on
+// its node in tree, as argument hints, so Tab after the command offers
 // what the running daemon holds. A command tree carries no node for a command
 // it does not offer, and such a command is skipped. A nil server or dispatcher
 // wires nothing: no daemon state is there to complete from.
-func (s *Server) WireArgCompletion(tree *command.Node) {
+func (s *Server) WireArgCompletion(tree *command.Node, query command.ArgumentQuery) {
 	if s == nil {
 		return
 	}
@@ -55,31 +55,68 @@ func (s *Server) WireArgCompletion(tree *command.Node) {
 	if d == nil {
 		return
 	}
-	for _, builtin := range d.Commands() {
-		if builtin.Complete == nil {
-			continue
-		}
-		node := command.FindNode(tree, strings.Fields(builtin.Name))
+	wireArgumentPaths(tree, s.argumentPaths(tree), query)
+}
+
+// wireArgumentPaths consumes one registration snapshot. The immutable overlay
+// copies these exact paths before this writer sees them, even during reload.
+func wireArgumentPaths(tree *command.Node, paths []command.CommandEntry, query command.ArgumentQuery) {
+	for _, path := range paths {
+		node := command.FindNode(tree, strings.Fields(path.Name))
 		if node == nil {
 			continue
 		}
-		complete := builtin.Complete
-		node.ValueHints = func() []command.Suggestion {
-			return suggestionsOf(complete(s))
+		name := path.Name
+		node.ArgumentHints = func(completed []string, partial string) ([]command.Suggestion, error) {
+			return command.ArgumentSuggestions(query, name, completed, partial)
 		}
 	}
 }
 
-// suggestionsOf converts completer candidates to the command tree's value
-// suggestions, the form a tab completion lists.
-func suggestionsOf(candidates []Completion) []command.Suggestion {
-	suggestions := make([]command.Suggestion, 0, len(candidates))
-	for _, candidate := range candidates {
-		suggestions = append(suggestions, command.Suggestion{
-			Text:        candidate.Value,
-			Description: candidate.ShortHelp,
-			Type:        command.SuggestionValue,
-		})
+// WithArgCompletion returns a request-owned overlay carrying live builtin/plugin
+// argument producers. Only paths WireArgCompletion writes are copied; unrelated
+// subtrees stay immutable and shared. The input tree MUST NOT be mutated by the
+// caller while this function reads it. Safe for concurrent completion requests.
+func (s *Server) WithArgCompletion(tree *command.Node, query command.ArgumentQuery) *command.Node {
+	if s == nil {
+		return tree
 	}
-	return suggestions
+	paths := s.argumentPaths(tree)
+	overlay := command.OverlayCommandPaths(tree, paths)
+	wireArgumentPaths(overlay, paths, query)
+	return overlay
+}
+
+// argumentPaths reads actual registrations and only paths the surface offers.
+// A builtin wins a collision just as it does in command dispatch.
+func (s *Server) argumentPaths(tree *command.Node) []command.CommandEntry {
+	d := s.Dispatcher()
+	if d == nil {
+		return nil
+	}
+	var paths []command.CommandEntry
+	for _, builtin := range d.Commands() {
+		if builtin.Complete == nil {
+			continue
+		}
+		if command.FindNode(tree, strings.Fields(builtin.Name)) == nil {
+			continue
+		}
+		paths = append(paths, command.CommandEntry{Name: builtin.Name})
+	}
+	for _, registered := range d.Registry().All() {
+		if !registered.Completable {
+			continue
+		}
+		if builtin := d.Lookup(registered.Name); builtin != nil {
+			if builtin.Complete != nil {
+				continue
+			}
+		}
+		if command.FindNode(tree, strings.Fields(registered.Name)) == nil {
+			continue
+		}
+		paths = append(paths, command.CommandEntry{Name: registered.Name})
+	}
+	return paths
 }

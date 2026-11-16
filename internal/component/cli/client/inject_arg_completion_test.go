@@ -41,14 +41,17 @@ func TestDaemonArgCompletionAsksTheDaemon(t *testing.T) {
 	wireDaemonArgCompletion(tree, commands, query)
 
 	restart := cmd.FindNode(tree, []string{"request", "plugin", "restart"})
-	if restart.ValueHints == nil {
+	if restart.ArgumentHints == nil {
 		t.Fatal("the restart node got no value hint")
 	}
-	if shutdown := cmd.FindNode(tree, []string{"request", "shutdown"}); shutdown.ValueHints != nil {
+	if shutdown := cmd.FindNode(tree, []string{"request", "shutdown"}); shutdown.ArgumentHints != nil {
 		t.Error("a command the daemon does not mark completable got a value hint")
 	}
 
-	hints := restart.ValueHints()
+	hints, hintErr := restart.ArgumentHints(nil, "")
+	if hintErr != nil {
+		t.Fatal(hintErr)
+	}
 	if len(hints) != 2 || hints[0].Text != "alpha" || hints[1].Text != "beta" {
 		t.Fatalf("hints = %+v, want alpha and beta", hints)
 	}
@@ -58,12 +61,19 @@ func TestDaemonArgCompletionAsksTheDaemon(t *testing.T) {
 	if hints[0].Type != cmd.SuggestionValue {
 		t.Errorf("hint type = %q, want %q", hints[0].Type, cmd.SuggestionValue)
 	}
-	if len(asked) != 1 || asked[0] != `system command complete args "request plugin restart"` {
+	if len(asked) != 1 || asked[0] != `system command complete args "request plugin restart" ""` {
 		t.Errorf("asked %q, want one system command complete args line for the restart command", asked)
 	}
 
 	fail = true
-	if hints := restart.ValueHints(); len(hints) != 0 {
+	hints, hintErr = restart.ArgumentHints(nil, "")
+	if hintErr == nil {
+		t.Fatal("an unreachable daemon must return its failure")
+	}
+	if hintErr.Error() != "daemon unreachable" {
+		t.Errorf("wrong daemon failure: %v", hintErr)
+	}
+	if len(hints) != 0 {
 		t.Errorf("an unreachable daemon must offer nothing, got %+v", hints)
 	}
 

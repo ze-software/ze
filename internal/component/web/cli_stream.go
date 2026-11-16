@@ -12,6 +12,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"github.com/ze-software/ze/internal/component/cli"
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/opererr"
 )
@@ -28,7 +30,15 @@ var errCLIStreamOutputLimit = opererr.New("Live output reached its 4 MiB limit."
 // The caller MUST install the same authentication and same-origin middleware as
 // the ordinary terminal. Each stream lives for one HTTP request; canceling the
 // request MUST cancel the producer. This handler owns no background workers.
-func HandleCLITerminalStream(terminal http.Handler, dispatch plugin.CommandStreamDispatcher) http.HandlerFunc {
+func HandleCLITerminalStream(mgr *EditorManager, terminal http.Handler, dispatch plugin.CommandStreamDispatcher, registered ...func(string) bool) http.HandlerFunc {
+	return handleCLITerminalStream(mgr, terminal, dispatch, nil, registered...)
+}
+
+func handleCLITerminalStream(mgr *EditorManager, terminal http.Handler, dispatch plugin.CommandStreamDispatcher, views *CLIViewTransport, registered ...func(string) bool) http.HandlerFunc {
+	var recognizes func(string) bool
+	if len(registered) > 0 {
+		recognizes = registered[0]
+	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, opererr.New("The live command was not submitted through the terminal.",
@@ -57,9 +67,25 @@ func HandleCLITerminalStream(terminal http.Handler, dispatch plugin.CommandStrea
 				"Open /cli and enter a shorter command").Error(), http.StatusBadRequest)
 			return
 		}
-		input, operational := cliStreamInput(normalizeTerminalMode(r.FormValue("mode")), parseCLICommand(line))
+		registeredInput := frozenCLIRegistration(r, line, recognizes)
+		path, pathErr := decodeConfigPath(r.FormValue(webPathField))
+		if pathErr != nil {
+			http.Error(w, opererr.Wrap(pathErr, "The submitted configuration path is invalid.",
+				streamCommandNotRunWhy,
+				"Open /cli and submit the command again from the configuration root").Error(), http.StatusBadRequest)
+			return
+		}
+		mode, validMode := submittedCLIMode(w, r)
+		if !validMode {
+			return
+		}
+		r = recordCLIHistory(w, r, mgr, mode, path, line, registeredInput)
+		input, operational := cliStreamInput(mode, parseCLICommand(line), registeredInput)
 		if !operational {
 			terminal.ServeHTTP(w, r)
+			return
+		}
+		if views.stream(w, r, input) {
 			return
 		}
 		if dispatch == nil {
@@ -69,12 +95,24 @@ func HandleCLITerminalStream(terminal http.Handler, dispatch plugin.CommandStrea
 		ctx, cancel := context.WithCancel(r.Context())
 		defer cancel()
 		writer := newCLIStreamWriter(w, cancel)
+		var output io.Writer = writer
+		var frames *cliOutputWriter
+		if acceptsCLIOutput(r) {
+			frames = newCLIOutputWriter(w, ctx, cancel)
+			output = frames
+		}
 		handled, err := dispatch(ctx, plugin.CallerIdentity{
 			Username: username, RemoteAddr: r.RemoteAddr,
 			Authorizer: plugin.CallerAuthorizer(r.Context()),
-		}, input, writer)
+		}, input, output)
 		if !handled {
 			terminal.ServeHTTP(w, r)
+			return
+		}
+		if frames != nil {
+			if finishErr := frames.finish(r.Context(), err); finishErr != nil {
+				return
+			}
 			return
 		}
 		if err == nil {
@@ -158,7 +196,11 @@ func cliStreamRefusalText(refusal *opererr.Error) string {
 // stay in the ordinary executor; only a run tail or operational command can
 // reach the streaming registry. Each top consumes a word, bounded by the command
 // length checked at the HTTP boundary.
-func cliStreamInput(mode string, cmd cliCommand) (string, bool) {
+func cliStreamInput(mode string, cmd cliCommand, registered ...func(string) bool) (string, bool) {
+	var recognizes func(string) bool
+	if len(registered) > 0 {
+		recognizes = registered[0]
+	}
 	if cmd.parseErr != nil {
 		return "", false
 	}
@@ -171,8 +213,17 @@ func cliStreamInput(mode string, cmd cliCommand) (string, bool) {
 		cmd = inner
 		configMode = true
 	}
+	if _, lifecycle := contract.LifecycleCommand(cmd.words.String()); lifecycle {
+		return "", false
+	}
+	if cmd.words.String() == "clear" {
+		return "", false
+	}
 	if cmd.Verb == verbRun && configMode {
 		if len(cmd.Args) == 0 {
+			return "", false
+		}
+		if cmd.words.Tail().String() == "clear" {
 			return "", false
 		}
 		return cmd.words.Tail().String(), true
@@ -180,7 +231,7 @@ func cliStreamInput(mode string, cmd cliCommand) (string, bool) {
 	if configMode {
 		return "", false
 	}
-	if terminalConfigCommandInOperationalMode(cmd.Verb) {
+	if cli.ShouldEnterConfigMode(cmd.words.String(), recognizes) {
 		return "", false
 	}
 	switch cmd.Verb {

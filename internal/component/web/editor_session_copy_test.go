@@ -53,6 +53,7 @@ func newPromotingEditorManagerOver(t *testing.T, committed string) (*EditorManag
 	require.NoError(t, err)
 	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		validatingEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	mgr.SetCommitHook(func() error {
 		return storage.PromoteCandidate(mgr.store, mgr.configPath)
 	})
@@ -107,6 +108,7 @@ func checkWebSessionCopyAfterCommit(t *testing.T, base string) {
 	require.NoError(t, err)
 	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		validatingEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	mgr.SetCommitHook(func() error {
 		return storage.PromoteCandidate(mgr.store, mgr.configPath)
 	})

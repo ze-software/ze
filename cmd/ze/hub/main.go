@@ -57,6 +57,7 @@ import (
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/statestore"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -1060,7 +1061,6 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		default:
 		}
 	})
-
 	// Set config loader for SIGHUP reload support.
 	// Mirrors the initial-load fallback above: try the blob store first, and
 	// if the store is blob-only (e.g., gokrazy read-only root, ze-test tmpfs)
@@ -1102,6 +1102,13 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 	}
 
 	_, hasBGPBlock := configTree["bgp"]
+	// A reactorless daemon has no GR state to prepare. Its restart still
+	// records the drain cause before the shared handler signals Server.Wait.
+	// With BGP, infraSetup installs the existing GR/StopForRestart action once
+	// the reactor is ready; requests before that point are refused.
+	if !hasBGPBlock {
+		apiServer.SetRestartFunc(func() { requestRestartStop(rpc.DrainRestartInPlace) })
+	}
 	// Install the registry before plugins construct their metric handles.
 	if _, hasTelemetry := configTree["telemetry"]; hasTelemetry && !hasBGPBlock {
 		if st := startStandaloneTelemetry(loadResult.Tree); st != nil {
@@ -1576,7 +1583,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		ConfigPath:     configPath,
 		Resolvers:      resolvers,
 		Dispatch:       webDispatch,
-		StreamDispatch: serverStreamDispatcher(apiServer),
+		Streams:        zePlugin.CommandStreamHandlers{Dispatch: serverStreamDispatcher(apiServer), Admit: serverStreamAdmission(apiServer)},
 		LGAddrs:        lgAddrs,
 		LGTLS:          lgTLS,
 		LGTLSExplicit:  lgTLSSet,
@@ -1608,6 +1615,8 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 			}
 			return d.Registry().VisibleCommandEntries()
 		},
+		WebArgumentTree:    apiServer.WithArgCompletion,
+		OperationalCommand: serverOperationalCommand(apiServer),
 		// MCP is built through the registry (service_mcp.go, //go:build ze_mcp)
 		// like web/lg. The listen/token/config resolution stays always-on here
 		// (plain values); the gated factory converts them into zemcp types. With
@@ -1684,7 +1693,7 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 				Text:              rendered.Output,
 				TransportComplete: rendered.TransportComplete,
 			}, err
-		}, attachedConsoleEditor(store, configPath, reloadAfterCommit))
+		}, attachedConsoleEditor(store, configPath, reloadAfterCommit), serverOperationalCommand(apiServer))
 		fmt.Println("CLI detached. Press Ctrl+C to stop daemon.")
 	}
 
@@ -1792,6 +1801,11 @@ func runYANGConfig(store storage.Storage, configPath string, data []byte, plugin
 		var tb textbuf.Buffer
 		tb.Str("error: ").Err(failure).Byte('\n').StdErr() //nolint:errcheck // the process exits next; a lost line does not change the exit status
 		return 1
+	}
+	if cause := stopRestartCause.Load(); cause != nil {
+		if *cause == rpc.DrainRestartInPlace {
+			return rpc.DaemonRestartExitStatus
+		}
 	}
 	return 0
 }

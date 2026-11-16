@@ -17,6 +17,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/require"
 	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/command"
@@ -56,6 +57,9 @@ type webHandlerCase struct {
 	// ReadOnly sends the request to the server built with an authorizer that
 	// refuses configuration edits.
 	ReadOnly bool
+	// Authorizer supplies a real command policy for an additional capture.
+	// Nil preserves the original fixture's policy; ReadOnly still denies all.
+	Authorizer aaaAuthorizer
 	// Stream marks a route that writes until the client goes away. The request
 	// carries a canceled context, so the capture holds what the handler emits
 	// before it returns rather than blocking on a ticker.
@@ -140,6 +144,15 @@ var (
 		Pattern:     regexp.MustCompile(`(?m)^(header: Set-Cookie: ze-session=)[^;]*`),
 		Replacement: "${1}<SESSION>",
 	}
+	// cli.NewEditSession stamps the shared editor's identity with the current
+	// UTC second. Keep the exact operator, origin and complete session cell;
+	// only its RFC3339 timestamp varies between otherwise identical imports.
+	webEditorSessionStampRewrite = golden.Rewrite{
+		Pattern: regexp.MustCompile(
+			`(<td>` + regexp.QuoteMeta(webGoldenUser) + `@web%)[0-9]{4}-(?:0[1-9]|1[0-2])-` +
+				`(?:0[1-9]|[12][0-9]|3[01])T(?:[01][0-9]|2[0-3]):[0-5][0-9]:[0-5][0-9]Z(</td>)`),
+		Replacement: "${1}<SESSION-TIME>${2}",
+	}
 )
 
 // webHandlerGoldenCases requests every route the hub serves. The route list is
@@ -182,8 +195,53 @@ var webHandlerGoldenCases = []webHandlerCase{
 	{Name: "post-cli-stream", Method: http.MethodPost, Target: "/cli/stream",
 		Form: "command=monitor+fixture&path=&mode=operational"},
 	{Name: "post-cli-mode", Method: http.MethodPost, Target: "/cli/mode", Form: "mode=configure&path="},
+	{Name: "post-cli-view-action-ended", Method: http.MethodPost, Target: "/cli/view/action",
+		Form: "handle=ended&action=stop", CheckResponse: func(t *testing.T, response *httptest.ResponseRecorder) {
+			require.Equal(t, http.StatusGone, response.Code, response.Body.String())
+			require.Contains(t, response.Body.String(), "This live monitor has ended.")
+		}},
 
 	// Configuration editing.
+	{Name: "post-config-import", Method: http.MethodPost, Target: "/config/import", HTMX: true,
+		Form:     "source=terminal&location=absolute&action=merge&content=system+%7B+host+import-capture%3B+%7D",
+		Rewrites: []golden.Rewrite{webEditorSessionStampRewrite},
+		CheckResponse: func(t *testing.T, response *httptest.ResponseRecorder) {
+			require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+			require.Contains(t, response.Body.String(), "Review the candidate changes and commit separately")
+			require.Contains(t, response.Body.String(), "graphical-supplied-toggle")
+		}},
+	{Name: "post-config-import-read-only", Method: http.MethodPost, Target: "/config/import", HTMX: true,
+		Form:       "source=terminal&location=absolute&action=merge&content=system+%7B+host+import-capture%3B+%7D",
+		Authorizer: webGoldenInspectionReader(), CheckResponse: webGoldenForbidden},
+	{Name: "post-config-import-anonymous", Method: http.MethodPost, Target: "/config/import", Anonymous: true,
+		Form: "source=terminal&location=absolute&action=merge&content=system+%7B+host+import-capture%3B+%7D"},
+	{Name: "get-config-inspect-form", Method: http.MethodGet,
+		Target: "/config/inspect/form?command=show+config+supplied+fmt", HTMX: true,
+		CheckResponse: webGoldenInspectionInputs},
+	{Name: "get-config-inspect-form-read-only", Method: http.MethodGet,
+		Target: "/config/inspect/form?command=show+config+supplied+diff", HTMX: true,
+		Authorizer: webGoldenInspectionReader(), CheckResponse: func(t *testing.T, response *httptest.ResponseRecorder) {
+			webGoldenInspectionInputs(t, response)
+			require.Contains(t, response.Body.String(), `name="before"`)
+			require.Contains(t, response.Body.String(), `name="after"`)
+		}},
+	{Name: "get-config-inspect-form-anonymous", Method: http.MethodGet,
+		Target: "/config/inspect/form?command=show+config+supplied+fmt", Anonymous: true},
+	{Name: "post-config-inspect", Method: http.MethodPost, Target: "/config/inspect", HTMX: true,
+		Form:          "command=show+config+supplied+fmt&content=system+%7B+host+inspection-capture%3B+%7D",
+		CheckResponse: webGoldenInspectionAnswer},
+	{Name: "post-config-inspect-read-only", Method: http.MethodPost, Target: "/config/inspect", HTMX: true,
+		Form:       "command=show+config+supplied+fmt&content=system+%7B+host+inspection-capture%3B+%7D",
+		Authorizer: webGoldenInspectionReader(), CheckResponse: webGoldenInspectionAnswer},
+	{Name: "post-config-inspect-denied", Method: http.MethodPost, Target: "/config/inspect", HTMX: true,
+		Form:     "command=show+config+supplied+fmt&content=system+%7B+host+inspection-capture%3B+%7D",
+		ReadOnly: true, CheckResponse: func(t *testing.T, response *httptest.ResponseRecorder) {
+			webGoldenForbidden(t, response)
+			require.Contains(t, response.Body.String(), plugin.UnauthorizedMessage)
+			require.NotContains(t, response.Body.String(), "inspection-capture")
+		}},
+	{Name: "post-config-inspect-anonymous", Method: http.MethodPost, Target: "/config/inspect", Anonymous: true,
+		Form: "command=show+config+supplied+fmt&content=system+%7B+host+inspection-capture%3B+%7D"},
 	{Name: "post-config-action", Method: http.MethodPost, Target: "/config/action", Form: "action=verify", HTMX: true,
 		EditorSetup: func(t *testing.T, manager *EditorManager) {
 			installPeerValidator(t, func(*config.Tree) error { return nil })
@@ -534,7 +592,7 @@ func webGoldenCommandTree() *command.Node {
 // listeners, needs blob storage and a certificate store, and serves in a
 // goroutine. The mirror is held honest by webLiveRoutes, which reads the route
 // list from that file and fails when the two drift.
-func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
+func newWebGoldenEnv(t *testing.T, readOnly bool, policies ...aaaAuthorizer) *webGoldenEnv {
 	t.Helper()
 
 	renderer, schema, tree, commandTree := webGoldenParts(t)
@@ -548,8 +606,11 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 
 	store := testConfigStore(t, configPath)
 	editorMgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, editorMgr.Close()) })
 	broker := NewEventBroker(0)
 	dispatch := webGoldenDispatch()
+	inspectionTrees, inspectionDispatch := webGoldenInspectionParts(t)
+	views := NewCLIViewTransport(nil, nil)
 
 	users := []authz.UserConfig{{Name: webGoldenUser, Hash: webGoldenHash(t)}}
 	localUsers := func() ([]authz.UserConfig, error) { return users, nil }
@@ -564,6 +625,9 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 	}
 
 	var authorizer aaaAuthorizer
+	if len(policies) > 0 {
+		authorizer = policies[0]
+	}
 	if readOnly {
 		authorizer = webGoldenDenyEdits{}
 	}
@@ -581,7 +645,7 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 	// developer who sets ze.web.ui-mode cannot rewrite every page fixture.
 	const uiMode = UIModeWorkbench
 
-	finderHandler := HandleFragment(renderer, schema, tree, editorMgr, false, authorizer)
+	finderHandler := HandleFragment(renderer, schema, tree, editorMgr, false, authorizer, inspectionTrees)
 	workbenchHandler := HandleWorkbench(renderer, schema, tree, editorMgr, false,
 		WithDispatch(dispatch), WithBroker(broker), WithPowerUsers([]string{webGoldenUser}),
 		WithAuthorizer(authorizer))
@@ -609,13 +673,13 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 
 		HandleAdminView(renderer, StaticCommandTree(commandTree))(w, r)
 	})))
-	mux.Handle("GET /cli", authWrap(HandleCLIPageHTTP(renderer, false)))
+	mux.Handle("GET /cli", authWrap(HandleCLIPageHTTP(renderer, false, editorMgr)))
 	mux.Handle("POST /cli", mutationWrap(HandleCLICommandWithAuthorizer(editorMgr, schema, renderer, authorizer)))
 	mux.Handle("/cli/complete", authWrap(HandleCLICompleteWithCommandCompleter(
 		newCompleter(t), cli.NewCommandCompleter(webGoldenCommandTree()), editorMgr, schema)))
 	mux.Handle("POST /cli/terminal", mutationWrap(HandleCLITerminalWithDispatchAuthorizerAndAudit(
 		editorMgr, schema, tree, dispatch, authorizer, nil)))
-	mux.Handle("POST /cli/stream", mutationWrap(HandleCLITerminalStream(
+	mux.Handle("POST /cli/stream", mutationWrap(HandleCLITerminalStream(editorMgr,
 		HandleCLITerminalWithDispatchAuthorizerAndAudit(editorMgr, schema, tree, dispatch, authorizer, nil),
 		func(_ context.Context, _ plugin.CallerIdentity, input string, out io.Writer) (bool, error) {
 			if input != "monitor fixture" {
@@ -625,9 +689,13 @@ func newWebGoldenEnv(t *testing.T, readOnly bool) *webGoldenEnv {
 			return true, err
 		})))
 	mux.Handle("POST /cli/mode", mutationWrap(HandleCLIModeToggle(editorMgr, schema, renderer)))
+	mux.Handle("POST /cli/view/action", mutationWrap(http.HandlerFunc(views.Action)))
 	mux.Handle("/fragment/detail", authWrap(finderHandler))
 	mux.Handle("POST /config/set/", mutationWrap(HandleConfigSetWithAuthorizer(editorMgr, schema, renderer, authorizer)))
-	mux.Handle("POST /config/action", mutationWrap(HandleGraphicalAction(editorMgr, schema, renderer, authorizer, nil, broker)))
+	mux.Handle("POST /config/action", mutationWrap(HandleGraphicalAction(editorMgr, schema, renderer, authorizer, nil, broker, inspectionTrees)))
+	mux.Handle("POST /config/import", mutationWrap(HandleGraphicalImport(editorMgr, schema, renderer, authorizer, inspectionTrees)))
+	mux.Handle("GET /config/inspect/form", authWrap(HandleSuppliedInspectionForm(renderer, inspectionTrees)))
+	mux.Handle("POST /config/inspect", mutationWrap(HandleSuppliedInspection(renderer, editorMgr, inspectionDispatch, inspectionTrees, authorizer)))
 	mux.Handle("POST /config/form/", mutationWrap(HandleConfigFormWithAuthorizer(editorMgr, schema, renderer, authorizer)))
 	mux.Handle("POST /config/add/", mutationWrap(HandleConfigAddWithAuthorizer(editorMgr, schema, renderer, authorizer)))
 	mux.Handle("GET /config/add-form/", editWrap(HandleConfigAddForm(editorMgr, schema, renderer)))
@@ -736,7 +804,7 @@ func webGoldenRequest(t *testing.T, env *webGoldenEnv, c webHandlerCase) *http.R
 func webGoldenServe(t *testing.T, c webHandlerCase) []byte {
 	t.Helper()
 
-	env := newWebGoldenEnv(t, c.ReadOnly)
+	env := newWebGoldenEnv(t, c.ReadOnly, c.Authorizer)
 	if c.EditorSetup != nil {
 		c.EditorSetup(t, env.editors)
 	}

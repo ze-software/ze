@@ -37,6 +37,7 @@ var logger = slogutil.Logger("api.grpc")
 type transportCompletionKey struct{}
 
 type transportCompletion struct {
+	mu     sync.Mutex
 	result *api.ExecResult
 }
 
@@ -47,16 +48,25 @@ func (transportCompletionStatsHandler) TagRPC(ctx context.Context, _ *stats.RPCT
 }
 
 func (transportCompletionStatsHandler) HandleRPC(ctx context.Context, rpcStats stats.RPCStats) {
-	if _, sent := rpcStats.(*stats.OutPayload); !sent {
+	// grpc-go can end an accepted call before it writes a payload. Both
+	// terminal paths release the same response, including failed writes.
+	switch rpcStats.(type) {
+	case *stats.OutPayload, *stats.End:
+	default:
+		// Other stats report progress rather than response completion.
 		return
 	}
 	completion, ok := ctx.Value(transportCompletionKey{}).(*transportCompletion)
-	if !ok || completion.result == nil {
+	if !ok {
 		return
 	}
+	completion.mu.Lock()
 	result := completion.result
 	completion.result = nil
-	result.TransportComplete()
+	completion.mu.Unlock()
+	if result != nil {
+		result.TransportComplete()
+	}
 }
 
 func (transportCompletionStatsHandler) TagConn(ctx context.Context, _ *stats.ConnTagInfo) context.Context {
@@ -65,10 +75,12 @@ func (transportCompletionStatsHandler) TagConn(ctx context.Context, _ *stats.Con
 
 func (transportCompletionStatsHandler) HandleConn(context.Context, stats.ConnStats) {}
 
-func completeAfterGRPCPayload(ctx context.Context, result *api.ExecResult) {
+func completeAfterGRPCResponse(ctx context.Context, result *api.ExecResult) {
 	completion, ok := ctx.Value(transportCompletionKey{}).(*transportCompletion)
 	if ok {
+		completion.mu.Lock()
 		completion.result = result
+		completion.mu.Unlock()
 	}
 }
 
@@ -572,7 +584,7 @@ func (s *zeServiceImpl) Execute(ctx context.Context, req *zepb.CommandRequest) (
 		return nil, status.Error(codes.PermissionDenied, result.Error)
 	}
 	response := execResultToProto(result)
-	completeAfterGRPCPayload(ctx, result)
+	completeAfterGRPCResponse(ctx, result)
 	return response, nil
 }
 
@@ -681,7 +693,7 @@ func (s *zeConfigServiceImpl) GetRunningConfig(ctx context.Context, _ *zepb.Empt
 	if jsonErr != nil {
 		return nil, status.Error(codes.Internal, jsonErr.Error())
 	}
-	completeAfterGRPCPayload(ctx, result)
+	completeAfterGRPCResponse(ctx, result)
 	// `show config running` answers the daemon's applied tree as one JSON
 	// object (config/cli handleShowConfigRunning), and that object is the
 	// config this RPC returns.

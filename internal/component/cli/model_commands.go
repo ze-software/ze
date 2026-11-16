@@ -463,7 +463,7 @@ func quoteOpen(prefix string) bool {
 	return open
 }
 
-// lineBehindTop answers the line a leading `top ` runs, every leading `top`
+// LineBehindTop answers the line a leading `top ` runs, every leading `top`
 // word dropped, and whether one was there. A line with no `top` in front
 // answers itself. Leading blanks of the rest are dropped and trailing ones
 // kept, so completion still reads a finished last word.
@@ -471,7 +471,7 @@ func quoteOpen(prefix string) bool {
 // handleEnter tests its intercepted verbs (run, exit, quit, stop, restart,
 // clear) on this line, and completion completes it at the root. The loop
 // ends because each pass removes at least one word.
-func lineBehindTop(input string) (string, bool) {
+func LineBehindTop(input string) (string, bool) {
 	rest, under := input, false
 	for len(rest) > len(cmdTop) && strings.HasPrefix(rest, cmdTop) && isCommandBlank(rest[len(cmdTop)]) {
 		rest, under = strings.TrimLeft(rest[len(cmdTop):], " \t"), true

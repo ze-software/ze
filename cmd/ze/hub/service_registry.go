@@ -59,9 +59,9 @@ type serviceDeps struct {
 	// -- so the always-on registry still names no service type. A service adapts
 	// it (rendering typed *plugin.Response at its edge via .JSON) internally.
 	Dispatch plugin.CommandDispatcher
-	// StreamDispatch serves registered live commands with the same trusted
-	// identity. A nil callback leaves the service's one-shot path available.
-	StreamDispatch plugin.CommandStreamDispatcher
+	// Streams serves raw and interactive live commands under shared admission
+	// with the same trusted identity. Nil callbacks leave one-shot paths available.
+	Streams plugin.CommandStreamHandlers
 
 	// Looking-glass resolved binding (pilot). LGToken is a plain string (no lg
 	// import): empty leaves the looking glass open, which is its default
@@ -120,6 +120,12 @@ type serviceDeps struct {
 	// type preserves the always-on registry boundary. `nil` leaves web
 	// completion YANG-only.
 	WebCommands func() []command.CommandEntry
+	// WebArgumentTree attaches live daemon argument hints on a request-owned
+	// overlay. Nil is the web-only mode with no daemon argument producers.
+	WebArgumentTree func(*command.Node, command.ArgumentQuery) *command.Node
+	// OperationalCommand recognizes the live dispatch registrations before an
+	// editor convenience can change modes. It never grants authorization.
+	OperationalCommand func(string) bool
 
 	// MCP resolved bindings + command source (all generic types). Consumed only
 	// by the ze_mcp-gated factory (service_mcp.go); populated always-on so a

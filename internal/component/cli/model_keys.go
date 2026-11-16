@@ -8,6 +8,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -56,15 +57,19 @@ func (m Model) handleKeyMsg(msg tea.KeyPressMsg) (tea.Model, tea.Cmd) {
 			confirmed = true
 		}
 		if confirmed {
-			if m.confirmStop && m.shutdownFunc != nil {
-				m.shutdownFunc()
-				m.quitting = true
-				return m, tea.Quit
+			alias := ""
+			if m.confirmStop {
+				alias = cmdStop
 			}
-			if m.confirmRestart && m.restartFunc != nil {
-				m.restartFunc()
-				m.quitting = true
-				return m, tea.Quit
+			if m.confirmRestart {
+				alias = cmdRestart
+			}
+			if canonical, recognized := contract.LifecycleCommand(alias); recognized {
+				m.confirmStop = false
+				m.confirmRestart = false
+				m.statusMessage = ""
+				m.lastCommand = canonical
+				return m, m.executeOperationalCommand(canonical)
 			}
 			if m.confirmQuit && m.confirmExitConfig {
 				m.confirmQuit = false
@@ -450,7 +455,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	// tests read it. History and dispatch keep input, the line as typed.
 	line := input
 	if m.mode == ModeConfig {
-		line, _ = lineBehindTop(input)
+		line, _ = LineBehindTop(input)
 	}
 
 	// Handle mode switching commands.
@@ -460,9 +465,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	if m.mode == ModeConfig && strings.HasPrefix(line, cmdRun+" ") {
 		args := strings.TrimSpace(strings.TrimPrefix(line, cmdRun))
 		m.textInput.SetValue("")
-		if m.history.Append(input) {
-			m.history.Save(m.mode)
-		}
+		m.recordHistory(input)
 		m.showDropdown = false
 		m.dismissReveal()
 		m.selected = -1
@@ -520,12 +523,10 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if m.mode == ModeOperational && handleSetCLIFormat(input, &m) {
-		if m.history.Append(input) {
-			m.history.Save(m.mode)
-		}
+		m.recordHistory(input)
 		return m, nil
 	}
-	if m.mode == ModeOperational && isConfigCommand(input) && !isOperationalVerb(input) {
+	if m.mode == ModeOperational && ShouldEnterConfigMode(input, m.registeredOperational) {
 		if !m.hasEditor() {
 			m.textInput.SetValue("")
 			m.statusMessage = "config mode not available (no config file loaded)"
@@ -535,7 +536,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		m.SetMode(ModeConfig)
 		// Fall through to normal dispatch -- history/clear happens below,
 		// executeCommand runs with the switched mode.
-		line, _ = lineBehindTop(input)
+		line, _ = LineBehindTop(input)
 	}
 
 	// Handle exit/quit directly (not via async command dispatch).
@@ -568,7 +569,7 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 	// Handle stop/restart: daemon lifecycle commands with confirmation.
 	// These affect all connected users, so require y/N confirmation.
 	if line == cmdStop {
-		if m.shutdownFunc == nil {
+		if m.commandExecutor == nil {
 			m.textInput.SetValue("")
 			m.statusMessage = "stop not available (not connected to daemon)"
 			return m, nil
@@ -579,21 +580,19 @@ func (m Model) handleEnter() (tea.Model, tea.Cmd) {
 		return m, nil
 	}
 	if line == cmdRestart {
-		if m.restartFunc == nil {
+		if m.commandExecutor == nil {
 			m.textInput.SetValue("")
 			m.statusMessage = "restart not available (not connected to daemon)"
 			return m, nil
 		}
 		m.textInput.SetValue("")
-		m.statusMessage = "This will restart the daemon (GR marker written). Continue? [y/N]"
+		m.statusMessage = "This will restart the daemon. Continue? [y/N]"
 		m.confirmRestart = true
 		return m, nil
 	}
 
 	// Save to history
-	if m.history.Append(input) {
-		m.history.Save(m.mode)
-	}
+	m.recordHistory(input)
 
 	// Clear input
 	m.textInput.SetValue("")

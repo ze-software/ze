@@ -12,27 +12,30 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/authz"
 	"github.com/ze-software/ze/internal/component/config/infra"
+	"github.com/ze-software/ze/internal/component/plugin"
 	pluginserver "github.com/ze-software/ze/internal/component/plugin/server"
 	zessh "github.com/ze-software/ze/internal/component/ssh"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// lifecycleReactor counts the two reactor stops an SSH lifecycle command can
-// take. It holds no dispatcher: sshWireImpl only captures it in closures.
+// lifecycleReactor counts actual infrastructure graceful stops. It supplies
+// the live dispatcher and retains the infrastructure post-start binding.
 type lifecycleReactor struct {
+	dispatcher      *pluginserver.Dispatcher
+	postStart       func()
 	stops           atomic.Int32
 	stopsForRestart atomic.Int32
 }
 
-func (r *lifecycleReactor) SetPostStartFunc(func())              {}
-func (r *lifecycleReactor) Dispatcher() *pluginserver.Dispatcher { return nil }
+func (r *lifecycleReactor) SetPostStartFunc(fn func())           { r.postStart = fn }
+func (r *lifecycleReactor) Dispatcher() *pluginserver.Dispatcher { return r.dispatcher }
 func (r *lifecycleReactor) Stop()                                { r.stops.Add(1) }
 func (r *lifecycleReactor) StopForRestart()                      { r.stopsForRestart.Add(1) }
 
-// TestSSHLifecycleEndsServerWait drives the lifecycle callbacks sshWireImpl
-// installs on the SSH server, the ones `ze signal stop`, `ze signal restart`
-// and the SSH exec `reboot` reach through the SSH exec middleware, and asserts
+// TestSSHLifecycleEndsServerWait drives the authenticated canonical SSH
+// executor through the real infrastructure lifecycle bindings and asserts
 // that the plugin server's Wait returns. That Wait is what runYANGConfig's
 // waitLoop blocks on, so a callback that stops only the reactor leaves the
 // daemon running after the client was told "stopping daemon" and exited 0.
@@ -45,13 +48,13 @@ func (r *lifecycleReactor) StopForRestart()                      { r.stopsForRes
 // It also asserts the stop kind and restart cause the hub's drain RPC will
 // carry (stopDrainInput, AC-7), and that `stop` no longer stops the reactor
 // before the drain (AC-8).
-// MUTATION: drop apiServer.SignalShutdownRequested from any callback in
-// sshWireImpl and its subtest times out; drop rebootRequested.Store(true) from
-// the reboot callback and the reboot subtest fails its last assertion.
+// MUTATION: drop SignalShutdownRequested from shared lifecycle completion and
+// Server.Wait times out; drop the restart-cause action in infraSetup and the
+// drain-kind assertion fails. No direct SSH lifecycle callback exists.
 func TestSSHLifecycleEndsServerWait(t *testing.T) {
 	tests := []struct {
 		name            string
-		action          func(*zessh.Server) func()
+		command         string
 		stops           int32
 		stopsForRestart int32
 		reboot          bool
@@ -59,19 +62,20 @@ func TestSSHLifecycleEndsServerWait(t *testing.T) {
 	}{
 		// stop stops no reactor itself: the hub's teardown sends the Cease
 		// after the drain (spec-daemon-drain-before-stop AC-8).
-		{name: "stop", action: func(s *zessh.Server) func() { return s.ShutdownFunc() },
+		{name: "stop", command: "request shutdown",
 			drain: rpc.DrainInput{Kind: rpc.DrainKindStop}},
-		{name: "restart", action: func(s *zessh.Server) func() { return s.RestartFunc() }, stopsForRestart: 1,
+		{name: "restart", command: "request restart", stopsForRestart: 1,
 			drain: rpc.DrainInput{Kind: rpc.DrainKindRestart, RestartCause: rpc.DrainRestartInPlace}},
-		{name: "reboot", action: func(s *zessh.Server) func() { return s.RebootFunc() }, stopsForRestart: 1, reboot: true,
+		{name: "reboot", command: "request reboot", stopsForRestart: 1, reboot: true,
 			drain: rpc.DrainInput{Kind: rpc.DrainKindRestart, RestartCause: rpc.DrainRestartReboot}},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
+			resetAAABundleForTest(t)
 			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 			defer cancel()
 
-			apiServer, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, nil)
+			apiServer, err := pluginserver.NewServer(&pluginserver.ServerConfig{}, &reloadTestReactor{})
 			require.NoError(t, err)
 			require.NoError(t, apiServer.StartWithContext(context.Background()))
 			t.Cleanup(apiServer.Stop)
@@ -82,21 +86,44 @@ func TestSSHLifecycleEndsServerWait(t *testing.T) {
 			stopRestartCause.Store(nil)
 			t.Cleanup(func() { stopRestartCause.Store(nil) })
 
-			reactor := &lifecycleReactor{}
+			reactor := &lifecycleReactor{dispatcher: apiServer.Dispatcher()}
+			apiServer.SetShutdownFunc(func() {})
+			params := infra.HookParams{
+				Reactor:            reactor,
+				APIServer:          func() *pluginserver.Server { return apiServer },
+				FormatResponseData: func(any) string { return "accepted" },
+			}
+			infraSetup(params, nil, &configMutationOwner{}, nil)
+			require.NotNil(t, reactor.postStart)
+			reactor.postStart()
 			sshSrv, err := zessh.NewServer(zessh.Config{HostKeyPath: filepath.Join(t.TempDir(), "host-key")})
 			require.NoError(t, err)
 			sshWireImpl(sshSrv, &sshWireInputs{
-				Reactor:        reactor,
-				Params:         infra.HookParams{APIServer: func() *pluginserver.Server { return apiServer }},
-				StopForRestart: reactor.StopForRestart,
+				Reactor: reactor,
+				Params:  params,
 			})
-			action := tt.action(sshSrv)
-			require.NotNil(t, action, "sshWireImpl installed no %s callback", tt.name)
+			policy := authz.NewStore()
+			policy.AddProfile(authz.Profile{Name: "lifecycle-admin", Edit: authz.Section{
+				Default: authz.Deny,
+				Entries: []authz.Entry{
+					{Number: 10, Action: authz.Allow, Match: "request shutdown"},
+					{Number: 20, Action: authz.Allow, Match: "request restart"},
+					{Number: 30, Action: authz.Allow, Match: "request reboot"},
+				},
+			}})
+			policy.AssignProfiles("admin", []string{"lifecycle-admin"})
+			executor := sshSrv.ExecutorForUser(ctx, "admin", "192.0.2.45:2200",
+				authz.StoreAuthorizer{Store: policy})
+			require.NotNil(t, executor)
+			response, dispatchErr := executor(tt.command)
+			require.NoError(t, dispatchErr)
+			require.NotNil(t, response)
+			require.Equal(t, plugin.StatusDone, response.Response.Status)
 
 			waitDone := make(chan error, 1)
 			go func() { waitDone <- apiServer.Wait(ctx) }()
 
-			action()
+			response.TransportComplete()
 			select {
 			case err := <-waitDone:
 				require.NoError(t, err, "Server.Wait ended on its deadline, not on the %s", tt.name)

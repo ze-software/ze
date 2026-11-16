@@ -24,6 +24,11 @@ const MethodDrain = "ze-plugin-callback:drain"
 const (
 	DrainCeilingSeconds        = 60
 	DrainTeardownMarginSeconds = 30
+	// DaemonRestartExitStatus asks the process supervisor to start ze again
+	// after an intentional in-place restart. A clean stop remains exit 0;
+	// startup or plugin failure remains exit 1. Supervisors MUST restart this
+	// class without reporting it as a daemon failure.
+	DaemonRestartExitStatus = 75
 )
 
 // DrainKind is how the daemon stops, which each plugin reads to decide what

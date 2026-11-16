@@ -273,7 +273,7 @@ func runTestCaseInContext(ctx context.Context, tc *testCase, tmpDir string) *Tes
 	width := 80
 	height := 24
 	reloadMode := ""         // "success", "fail", or "" (standalone)
-	lifecycleMode := ""      // "wired" = mock shutdown/restart callbacks
+	lifecycleMode := ""      // "wired" = canonical lifecycle executor
 	useHistoryStore := false // option=history:store -- persist history in the shared tree
 	editorMode := "config"   // option=mode:value=operational -- operational-only mode
 	monitorPing := ""        // option=monitor:ping=fake -- deterministic ping factory + resolvers
@@ -429,12 +429,13 @@ func runTestCaseInContext(ctx context.Context, tc *testCase, tmpDir string) *Tes
 		hm.SetReloadNotifier(func() error { return errDaemonNotReachable })
 	}
 
-	// Configure mock lifecycle callbacks (shutdown/restart) if requested.
-	// Assign directly to model field via Model() pointer.
+	// Lifecycle controls use the same executor as every other operation.
+	// The fixture installs no unscoped callback bypassing command dispatch.
 	if lifecycleMode == "wired" {
 		m := hm.Model()
-		m.SetShutdownFunc(func() {})
-		m.SetRestartFunc(func() {})
+		m.SetCommandExecutor(func(string) (cli.CommandOutput, error) {
+			return cli.CommandOutput{}, nil
+		})
 	}
 
 	// Configure deterministic monitor ping factory + resolvers if requested.

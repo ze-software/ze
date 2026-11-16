@@ -1,0 +1,21 @@
+# Test: authenticated browser command recall survives a full page reload
+# VALIDATES: recall comes from the shared masked history producer, not page memory
+# PREVENTS: automatic initial show hiding the user's last submitted command
+
+option=timeout:value=60s
+option=server:kind=daemon
+option=auth:user=recaller:password=ze-history-recaller:role=admin
+
+action=login:user=recaller:password=ze-history-recaller
+action=open:path=/cli
+expect=element:id=terminal-input
+action=fill:id=terminal-input:value=edit bgp
+action=press:id=terminal-input:key=Enter
+expect=element:text=ze[bgp]#
+action=open:path=/cli
+expect=element:id=terminal-input
+action=wait
+expect=element:text=ze#
+action=press:id=terminal-input:key=ArrowUp
+action=press:id=terminal-input:key=Enter
+expect=element:text=ze[bgp]#

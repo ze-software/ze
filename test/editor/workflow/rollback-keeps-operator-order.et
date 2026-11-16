@@ -4,6 +4,7 @@
 
 tmpfs=test.conf:terminator=EOF_CONF
 interface {
+  backend netlink;
   dummy zulu { description first; }
   dummy alpha { description second; }
   dummy mike { description third; }

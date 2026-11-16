@@ -96,7 +96,7 @@ func TestRefusedRemovalKeepsPluginConfigured(t *testing.T) {
 
 	require.Contains(t, pm.ConfiguredNames(), name, "the refused removal unconfigured the plugin")
 	offered := false
-	for _, candidate := range completePluginRestart(s) {
+	for _, candidate := range completePluginRestart(s, nil) {
 		offered = offered || candidate.Value == name
 	}
 	require.True(t, offered, "completion does not offer the plugin whose removal was refused")

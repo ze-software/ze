@@ -31,11 +31,34 @@ func (c *CommandCompleter) SetActiveBackends(backends map[string]string) {
 // Complete returns completions for the given input.
 func (c *CommandCompleter) Complete(input string) []Completion {
 	suggestions := c.inner.Complete(input)
+	return commandCompletions(suggestions)
+}
+
+// CompleteChecked keeps a live argument-query failure distinct from no values.
+func (c *CommandCompleter) CompleteChecked(input string) ([]Completion, error) {
+	suggestions, err := c.inner.CompleteChecked(input)
+	if err != nil {
+		return nil, err
+	}
+	return commandCompletions(suggestions), nil
+}
+
+func commandCompletions(suggestions []command.Suggestion) []Completion {
 	completions := make([]Completion, len(suggestions))
 	for i, s := range suggestions {
 		completions[i] = Completion{Text: s.Text, ShortHelp: s.Description, Type: s.Type}
 	}
 	return completions
+}
+
+// CommandGhostText derives a suffix from this update's candidates, reusing the
+// command producer's quoting and prefix rules without issuing another query.
+func CommandGhostText(input string, completions []Completion) string {
+	suggestions := make([]command.Suggestion, len(completions))
+	for i, candidate := range completions {
+		suggestions[i] = command.Suggestion{Text: candidate.Text, Type: candidate.Type}
+	}
+	return command.GhostTextFrom(input, suggestions)
 }
 
 // GhostText returns the best single completion for inline display.

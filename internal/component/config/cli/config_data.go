@@ -31,6 +31,7 @@ import (
 	"strings"
 
 	"github.com/ze-software/ze/internal/component/command"
+	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/resolve"
 
 	"github.com/ze-software/ze/internal/component/cli"
@@ -259,7 +260,13 @@ func dataValidate(validated command.ValidatedArgs) command.LocalAnswer {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
 
-	result := runValidation(string(data), args[0])
+	return validationBytesAnswer(data, args[0])
+}
+
+// validationBytesAnswer keeps the verdict and evidence identical for a file
+// and supplied bytes. The name labels diagnostics; it is never opened here.
+func validationBytesAnswer(data []byte, name string) command.LocalAnswer {
+	result := runValidation(string(data), name)
 	payload := diagnostic.NewValidateResult(result.Path, result.Valid, result.Diagnostics, result.Config)
 	if result.Valid {
 		return command.LocalAnswer{Payload: payload, Code: exitOK}
@@ -269,7 +276,7 @@ func dataValidate(validated command.ValidatedArgs) command.LocalAnswer {
 	// the daemon reported a failure "with no reason" while the reasons sat in
 	// the payload.
 	var verdict textbuf.Buffer
-	verdict.Str("error: ").Str(args[0]).Str(" is not a valid configuration: ").
+	verdict.Str("error: ").Str(name).Str(" is not a valid configuration: ").
 		Int(int64(len(result.Diagnostics))).Str(" diagnostic(s) in the answer say why\n")
 	return command.LocalAnswer{Payload: payload, Code: exitInvalid, Diagnostic: verdict.String()}
 }
@@ -306,6 +313,12 @@ func dataDiff(validated command.ValidatedArgs) command.LocalAnswer {
 	if diff == nil {
 		return command.LocalRefusal(code, diag.String())
 	}
+	return diffAnswer(diff)
+}
+
+// diffAnswer projects the shared comparison into the document both routes
+// answer, keeping its three keyed sets independent of the input transport.
+func diffAnswer(diff *config.ConfigDiff) command.LocalAnswer {
 	return command.LocalAnswer{Payload: map[string]any{
 		"added":   diff.Added,
 		"removed": diff.Removed,

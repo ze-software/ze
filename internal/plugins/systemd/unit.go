@@ -84,6 +84,10 @@ func buildUnitFile(spec unitSpec) string {
 	b.Str(execStartShell)
 	b.Str(" -c 'kill -HUP $MAINPID'\n")
 	b.Str("Restart=on-failure\n")
+	// Intentional in-place restart is successful, but MUST start a new
+	// process even under on-failure. Exit 0 remains an ordinary clean stop.
+	b.Str("SuccessExitStatus=").Int(rpc.DaemonRestartExitStatus).Byte('\n')
+	b.Str("RestartForceExitStatus=").Int(rpc.DaemonRestartExitStatus).Byte('\n')
 	b.Str("RestartSec=5\n")
 	// The stop drain runs between the SIGTERM and the teardown, so the unit
 	// gives ze the whole ceiling plus the margin before the SIGKILL, and

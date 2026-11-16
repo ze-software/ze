@@ -95,7 +95,7 @@ func TestWebDiscardHistoryRestorationReopensCurrentView(t *testing.T) {
 			unchanged, err = mgr.committedConfig()
 			require.NoError(t, err)
 			assert.Equal(t, committed, unchanged, "discard must not publish restored content")
-			view := HandleFragment(renderer, schema, startup, mgr, true)
+			view := HandleFragment(renderer, schema, startup, mgr, true, nil)
 			if mode == "workbench" {
 				view = HandleWorkbench(renderer, schema, startup, mgr, true)
 			}
@@ -120,7 +120,7 @@ func TestWebViewStoreFailureCannotRenderStartupSnapshot(t *testing.T) {
 			require.NoError(t, err)
 			renderer, err := NewRenderer()
 			require.NoError(t, err)
-			view := HandleFragment(renderer, schema, startup, mgr, true)
+			view := HandleFragment(renderer, schema, startup, mgr, true, nil)
 			if mode == "workbench" {
 				view = HandleWorkbench(renderer, schema, startup, mgr, true)
 			}

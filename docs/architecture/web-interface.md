@@ -80,10 +80,12 @@ Each input type is one file. `fieldInputFor` (`field_input.go`) reads the `field
 /config/diff-close          Close diff modal (GET, returns closed modal HTML)
 /config/commit              Apply pending changes (POST)
 /config/discard             Revert pending changes (POST)
+/config/import              Stage local file or pasted content in the user's candidate (POST)
 /cli                        CLI command execution (POST)
 /cli/complete?input=X       Tab/? autocomplete (GET, returns JSON)
 /cli/terminal               Terminal mode command (POST, returns JSON)
 /cli/stream                 Terminal command, with streamed text for live commands and JSON for other commands (POST)
+/cli/view/action            Declared control for an active interactive monitor (POST)
 /cli/mode                   Toggle CLI/GUI mode (POST)
 /admin/<yang-path>          Admin commands (GET browse, POST execute)
 /tools/related/run          workbench: execute a related operator tool (POST)
@@ -127,6 +129,10 @@ An SSE stream that is already open survives the removal until the client disconn
 ## Per-User Editor
 
 The `EditorManager` creates independent `cli.Editor` instances per authenticated user.
+Before opening or reusing an editor, it validates the account name through the
+same `cli.ValidateUser` boundary as SSH and the console. Unsupported names are
+refused before either factory runs, so configuration metadata never invents a
+different owner by stripping punctuation or path segments.
 
 <!-- source: internal/component/web/editor.go -- EditorManager, GetOrCreate -->
 
@@ -182,12 +188,82 @@ highlighted candidate without executing it; a later Enter submits the command.
 
 `Commit` detects conflicts when two users modify the same leaf and returns `CommitResult` with conflict details. Limits: 50 concurrent sessions, 1 hour idle timeout.
 
+The manager separately owns at most 50 per-user command-history owners, using
+the same idle timeout. Editor discard and eviction leave recall intact. An idle
+history owner is retired only when no call holds it; its username and capacity
+remain reserved until publication drains, so an old writer cannot overwrite a
+new owner's snapshot. All owners share the existing history keys and the
+manager's borrowed store. `Close` seals history admission and drains accepted
+writes without discarding candidate intent; the service MUST join HTTP handlers
+before calling it, and MUST finish it before releasing the store.
+<!-- source: internal/component/web/editor_history.go -- HistorySnapshot, RecordHistory, Close -->
+
+Authenticated `GET /cli?history=1&mode=config|operational` returns a bounded,
+masked `entries` array with private/no-store caching. Invalid mode and failed
+reads are explicit errors, rather than empty successful recall. The three CLI
+POST routes record the command text once before execution. An optional opaque
+`submission` id has a bounded per-user receipt window, allowing a file/paste
+continuation to reuse its initial receipt even when another command intervened.
+The receipt stores no command or uploaded content. Stream fallback carries the
+same in-request receipt. Recall failures do not prevent execution: they travel
+in `X-Ze-History-Warning`, and terminal JSON also carries `history-warning`.
+<!-- source: internal/component/web/cli_history.go -- recordCLIHistory -->
+
+Failed submission recording, including an invalid receipt, raises
+`doctor-web-history-unavailable`. An actual JSON delivery failure raises
+`doctor-web-history-response`. Each class raises once per minute from
+`web-history`, without commands, usernames or raw errors. Both tell the
+operator to open `/cli` and reconnect. Shared storage failures retain their
+own read and write codes.
+<!-- source: internal/component/web/register_cli_history_diagnostic.go -- reportBrowserHistoryUnavailable, reportBrowserHistoryResponseFailure -->
+
+A failed history snapshot owns a browser recall refusal while retaining the
+entire storage error as its cause. If both modes failed, both diagnostics and
+both `errors.Is` causes remain available; the final recovery action follows
+all of that evidence.
+<!-- source: internal/component/web/editor_history.go -- historySnapshotFailure -->
+The effective mode and control-command eligibility come from the shared CLI
+history policy, including automatic entry into configuration mode.
+<!-- source: internal/component/web/editor_history.go -- HistorySnapshot, RecordHistory, Close -->
+<!-- source: internal/component/web/cli_history.go -- recordCLIHistory, writeCLIHistory -->
+
+Both browser command inputs fetch this projection when they open, after a
+submission, and on the first Up press. Each input keeps separate navigation
+positions and unfinished drafts for configuration and operational mode. A newer
+request, input change, or mode change prevents a late recall response from
+replacing the current input. Completion menus keep priority over recall arrows.
+The browser never adds submitted commands to its recall projection or saves
+recall in localStorage.
+<!-- source: internal/component/web/assets/cli.js -- commandRecall, init, initTerminal -->
+
+Each Enter creates one opaque submission receipt. A bar-to-terminal load handoff
+and its content continuation reuse that receipt. The terminal marks only its
+automatic opening `show` with `history=0`. Streams refresh recall when their
+headers arrive, so an ongoing monitor does not delay recall. Recall warnings
+remain visible beside execution feedback while commands continue to run.
+<!-- source: internal/component/web/assets/cli.js -- newSubmission, init, submitTermCommand -->
+
 Editors with a reload hook commit transactionally: `CommitSessionCandidate` stages a candidate version, the hook (`reloadAfterCommit`) reloads the daemons and promotes the candidate. Editors without a hook commit through the shared configuration store. The web editor manager, SSH session factory and `ze start --cli` console borrow the daemon's one owning store handle.
 An explicit-file daemon keeps that file authoritative: publication checks for external changes, updates the file and records stored history. Bare `ze start` uses the stored active configuration.
 <!-- source: cmd/ze/hub/session_editor.go -- newSessionEditor reload notifier wiring, attachedConsoleEditor -->
 <!-- source: cmd/ze/hub/main.go -- sessionReloadHolder late binding -->
 
 Configuration downloads read the daemon's selected source, including external edits to an explicit file. Uploads use the same daemon-owned publication callback and report conflict or reload failures without replacing the committed configuration. Standalone managers stage uploads as candidates and promote them only after acceptance.
+
+The graphical candidate import is a separate authenticated, same-origin POST
+at `/config/import`. Native file and paste forms choose root or selected scope,
+and merge or replace. The whole form is bounded at 4 MiB before decoding.
+The adapter validates choices with the shared load grammar, preserves path
+tokens and filename quoting, and supplies the bytes to the normal per-user
+configuration command executor. That executor owns typed parsing and atomic
+candidate staging. The response refreshes the selected view and OOB commit
+status; a removed selected entry returns to its surviving parent collection.
+No import publishes configuration before a separate shared commit. Read-only
+accounts cannot submit an import; a refused import preserves their candidate
+and the submitted form for correction. `GraphicalImportError` supplies the
+visible refusal to both this response and the offline corpus's declared-error
+check; the corpus must observe a real refusal before accepting its declaration.
+<!-- source: internal/component/web/graphical_import.go -- HandleGraphicalImport, readGraphicalImport, GraphicalImportError -->
 <!-- source: internal/component/web/editor.go -- SetConfigSource, committedConfig, applyCommittedContent -->
 
 The terminal and the legacy `POST /cli` adapter parse `commit` with the grammar every editor
@@ -211,14 +287,138 @@ and rollback. Commit and discard keep the web manager's daemon publication and
 confirmed-commit coordination. Operational commands use the authenticated
 caller's daemon dispatcher; no SSH connection is opened.
 
+Display and session controls follow the CLI model's Enter behavior. `clear`
+restores the current candidate view in configuration mode and empties the
+operational output; neither form dispatches a daemon command or drops changes.
+`top clear` and configuration-mode `run clear` retain the current position.
+Configuration `exit` switches to operational mode; operational `exit` and
+`quit` return to `/show/`. A pending candidate produces a JSON `confirmation`
+prompt before leaving; only a repeat submission with `confirm=true` proceeds,
+and the candidate remains intact. JSON `navigate` carries the graphical
+destination. Both modes render help from `cli.EditorHelpEntries`.
+The terminal renders a page-local Confirm/Cancel form and repeats the same
+submission receipt with `confirm=true` only after Confirm; Cancel leaves the
+output, mode and candidate intact. No native browser dialog is involved.
+
+Bare `stop` and `restart`, including their configuration-mode `top` forms, use
+the same form before daemon execution. `contract.LifecycleCommand` is the one
+exact-word mapping to `request shutdown` and `request restart`. After Confirm,
+the normal authenticated dispatcher owns authorization and accounting, and its
+transport-completion action runs after the accepted JSON answer is written.
+Confirmation grants no authority. These controls and display `clear` bypass
+stream discovery, while an operational command beginning with `clear` retains
+normal dispatch. A restart remains the daemon's registered restart operation;
+it does not request a host reboot.
+
+<!-- source: internal/component/web/cli_controls.go -- executeTerminalControl, terminalEditorHelp -->
+<!-- source: internal/component/cli/contract/lifecycle.go -- LifecycleCommand -->
+<!-- source: internal/component/web/cli_stream.go -- cliStreamInput -->
+
+The graphical YANG editor's selected-item delete and discard buttons call those
+same candidate producers. Discarding the selected path preserves pending changes
+elsewhere; its audit detail contains only the dropped subset. A removed entry
+returns to its parent collection. The controls are absent for read-only users,
+and forged mutation requests still pass the existing authorization gate.
+
+<!-- source: internal/component/web/graphical_actions.go -- HandleGraphicalAction, graphicalActionCommand, graphicalSurvivingPath -->
+
+Registered operational commands take precedence over automatic entry into the
+configuration editor. For example, operational `delete agent skill` reaches
+the daemon, while an unregistered operational `delete` of a configuration path
+enters config mode. In config mode, `delete` remains an editor operation and
+`run` selects an operational command. The shared CLI mode predicate makes the
+same decision for mutation authorization and stream routing; daemon dispatch
+still applies the authenticated caller's policy.
+
+Operational completion overlays the current plugin registry on each request.
+Live builtin and plugin argument values come from `Server.WireArgCompletion` on copied
+paths, leaving the shared tree immutable. `GET /cli/complete` accepts `input`,
+`path` and `mode`; its normal response is the completion array. With
+`explain=true`, it returns `{ "explanation": "...", "found": true }` from the
+shared command completer's `Explain`. Unknown input and commands without a long
+explanation return an empty explanation and `found=false`. Authentication,
+input bounds and path validation apply to both forms.
+
+The operational source is bound after authentication to the request context,
+username, remote address and accepted policy generation. It asks the same
+system argument-completion RPC as SSH and the attached console. Permission
+denial returns HTTP 403, cancellation 408 and a query failure 502 (504 for a
+deadline), preserving the failure rather than claiming no runtime values exist.
+Unregistered editor conveniences use `ShouldEnterConfigMode` for completion as
+they do for Enter.
+
+Completion preserves an actionable producer refusal, including its recovery
+action. A plain transport failure gains browser context and a recovery action;
+its existing permission, cancellation or timeout HTTP status is preserved.
+Invalid submitted modes, stream paths, unauthenticated history reads and web
+request admission failures also return the problem, its effect and a final
+browser recovery action, with their existing HTTP statuses.
+
+In configuration mode, completion and explanation share the CLI's `LineBehindTop`
+selector. Repeated `top` prefixes select the root without changing the raw
+argument tail. Root-selected schema completion clears the current path before
+reading the same user's candidate tree. `top run` retains the request-bound
+operational source used by ordinary `run`.
+<!-- source: internal/component/cli/model_commands.go -- LineBehindTop -->
+<!-- source: internal/component/web/cli.go -- completeCLIInput, explainCLIInput -->
+
+The terminal checks HTTP status before decoding candidates. A failed query shows
+the returned correction in its feedback area. `?` asks the shared explanation
+endpoint for the input a selected candidate would complete, or the completed
+current input; Tab also reveals that explanation after completions are exhausted.
+Explanation queries do not edit or execute the command. Escape dismisses an
+explanation before its underlying menu. Input, path, mode and a request sequence
+prevent a late completion or explanation response from replacing newer state.
+Long help and multiline corrections preserve their line breaks; the help region
+is bounded and scrollable.
+
+<!-- source: internal/component/web/assets/cli.js -- completionResponse, initTerminal -->
+<!-- source: internal/component/web/component_cli_terminal.templ -- cliConfirmPanel -->
+
+<!-- source: internal/component/cli/model_mode.go -- ShouldEnterConfigMode -->
+<!-- source: internal/component/plugin/server/command.go -- RecognizesCommand -->
+<!-- source: cmd/ze/hub/web_completer.go -- Complete, Explain -->
+<!-- source: internal/component/plugin/server/arg_completion.go -- WithArgCompletion -->
+<!-- source: internal/component/web/cli.go -- HandleCLICompleteWithCommandCompleter -->
+
 The operational `set cli format` command and its completion are produced by
-the same CLI functions as SSH. The browser stores only the validated override
+the same CLI functions as SSH. Its completion is offered only while the browser
+is in operational mode, including prefixes that also select schema completion.
+Configuration mode offers the shared editor's candidates at the current path,
+so `set` remains a sole command match before `?` reveals that path's children.
+The browser stores only the validated override
 in the authenticated user's existing editor session, under its session lock.
 An empty override inherits the configured default; reading or changing a
 session preference never writes the process environment. Finite operational
 answers, including config-mode `run`, pass the override into the existing pipe
 processor, where an explicit format pipe takes precedence. Raw streaming
 handlers keep their existing text and pipe policy.
+
+The primary CLI projects the caller-local pipe catalog into native controls.
+The supported `save` binding offers **Download** for the current successful
+finite result. Its `output-complete` field follows the shared editor error,
+dispatcher response and pipe-application outcome; the browser never guesses
+success from output text. A successful document beginning with `error:` is
+still a successful document. Confirmation, content selection, navigation and
+refusals do not offer an export. A new request immediately invalidates the
+previous result, and downloading never dispatches a second command.
+
+The browser creates a UTF-8 text Blob only for a complete result of at most
+4 MiB. It retains the complete result separately from visible output, refuses
+an oversized result with an explicit message and never downloads a silent
+prefix. Each replacement and page exit revokes the previous object URL.
+The browser negotiates the byte-exact raw-output frames below and retains at
+most 4 MiB of original producer bytes separately from its visible tail. It offers
+Download only after a successful terminal frame and clean EOF; producer error,
+Stop, missing completion, malformed framing or a limit refusal leaves no complete
+artifact. Binary output is saved without a decode/re-encode round trip.
+An interactive monitor instead offers a **Current frame snapshot**, containing
+only the latest displayed frame. Each replacement frame revokes its previous
+download URL; a snapshot never claims to contain the monitor's complete history.
+Legacy plaintext responses remain visible without a complete-result download.
+
+<!-- source: internal/component/web/cli_download.go -- cliLocalOutputControls -->
+<!-- source: internal/component/web/assets/cli.js -- initTerminal -->
 
 <!-- source: internal/component/cli/session_format.go -- ExecuteSessionFormat, SessionFormatCompletions -->
 <!-- source: internal/component/web/cli_format.go -- sessionFormatCommand, executeTerminalOperationalForUser -->
@@ -241,18 +441,132 @@ position returned by the previous line, and a quoted `?` stays part of its value
 <!-- source: internal/component/cli/model_load.go -- applyLoad -->
 <!-- source: internal/component/web/editor.go -- ConfigCommand -->
 
+Read-only inspection of caller-held configuration is separate from candidate
+loading. The config owner registers `show config supplied` operations with
+generic `registry.Meta.SuppliedInput` metadata and YANG-bounded `content`
+arguments. The primary Finder's **Inspect supplied configuration** disclosure
+derives its choices, input count and comparison composition from those
+descriptors, and its help, selections and limits from the actual command tree.
+It sits outside **Edit**, so a read-only account can inspect when its command
+policy allows the selected operation. `GET /config/inspect/form` updates the
+native input controls; authenticated, same-origin `POST /config/inspect`
+dispatches exactly one currently offered registered command.
+
+Each source accepts a native file selection or pasted text. The adapter refuses
+duplicate or unknown fields, conflicting file/paste input and invalid UTF-8 in
+comparison sources before JSON composition. Files stay in memory within the
+4 MiB form-body limit. The single encoded command has the owner's smaller
+shared input bound, including both comparison sources and their JSON framing.
+An uploaded filename becomes a basename diagnostic label, never a daemon path.
+Neither endpoint records CLI history or opens an editing session. The current
+display preference is read without creating a candidate.
+
+Answers use the browser CLI's existing operational formatter with the original
+request context and accepted authorizer. A failed validation retains its typed
+diagnostic payload beside the original error; displaying that payload does not
+mark the result successful or complete. Authorization failures withhold payload
+data. The file/paste `load` controls above retain their own candidate staging
+behavior and larger input budget.
+<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
+<!-- source: internal/component/command/registry/registry.go -- SuppliedInput -->
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler -->
+<!-- source: internal/component/web/graphical_supplied_commands.go -- suppliedInspectionCommands, newSuppliedInspectionCommand -->
+<!-- source: internal/component/web/graphical_supplied.go -- HandleSuppliedInspectionForm, HandleSuppliedInspection, readSource -->
+<!-- source: internal/component/web/cli_format.go -- currentCLIFormat -->
+<!-- source: internal/component/web/cli_terminal.go -- executeTerminalOperationalResult -->
+
 The dedicated browser CLI submits through `/cli/stream`. A registered monitor
 streams flushed text from the daemon's existing streaming handler; ordinary
 commands retain the terminal's JSON response. Authentication, the accepted
 authorization policy and command accounting carry through to the producer.
 Stop, Ctrl+C, a new submitted command or a disconnected browser cancel the
 request and release the monitor subscription. A daemon stop cancels it too.
-The server sends at most 4 MiB per stream; the browser retains at most 1 MiB of
-visible output and marks removed older output. A failed producer reports its
-reason, and live pipe filters are refused instead of being ignored.
+The server bounds producer output to 4 MiB per stream. The browser retains a
+visible tail of at most 524,288 UTF-16 code units and marks removed older output.
+A failed producer reports its reason. Live pipes use the shared remote stream
+validator and event formatter; invalid chains and remote pathname saves are
+refused before the producer starts.
+The complete download buffer counts original bytes separately from this tail.
 
 <!-- source: internal/component/web/cli_stream.go -- HandleCLITerminalStream, cliStreamWriter.Write -->
 <!-- source: cmd/ze/hub/server_stream.go -- serverStreamDispatcher -->
+
+A raw-output consumer opts in with
+`Accept: application/x-ze-cli-output+ndjson`. Each newline-delimited JSON data
+frame carries base64 `data` and `done: false`, preserving the original bytes
+even when a producer write splits UTF-8. After dispatch returns, a final frame
+carries `done: true` and an actionable `error` if production failed. Only a final
+frame without an error establishes a complete result; cancellation or EOF
+without that frame leaves the result incomplete. Producer text is never parsed
+for an error prefix. A refusal before output retains its HTTP error status,
+including 403 for denied authorization. A command the streaming dispatcher does
+not handle retains its finite JSON response.
+
+Raw frames contain at most 32 KiB of producer bytes and 64 KiB of encoded JSON;
+the 4 MiB budget counts producer bytes before base64 encoding. Each frame write
+has a five-second socket deadline. Write, flush and deadline failures cancel
+production and prevent a successful terminal frame. The request retains no
+server transcript or output queue. Clients that do not request this media type
+retain the flushed plaintext response and its visible error trailer.
+
+<!-- source: internal/component/web/cli_output.go -- acceptsCLIOutput, cliOutputWriter.Write, cliOutputWriter.finish, cliOutputWriter.frame -->
+
+An interactive consumer opts in with
+`Accept: application/x-ze-cli-view+ndjson`. A matching registered CLI view uses
+the same owner selector and `RunBrowserView` model as the terminal. Each
+newline-delimited JSON frame carries an opaque `handle`, increasing `sequence`,
+plain `text`, owner-declared `controls` (`id` and `label`) and `done`. A failed
+request that already wrote frames adds an actionable `error` in a final frame.
+The dedicated browser CLI offers this media type on every command request; the
+server's registered view selector decides whether it applies. Ordinary commands
+retain JSON, and other live consumers retain flushed text. The browser displays
+only the latest rich frame and clones the button markup from a templ template,
+setting owner labels and frame text with `textContent`. Controls post only their
+own handle and declared action to `/cli/view/action`, await the response and
+show a producer refusal in the feedback area. Stop stays usable while another
+action is pending. No protocol-specific selection or sorting lives in JavaScript.
+
+The browser checks the request generation, handle and increasing sequence before
+projecting a frame. It decodes split UTF-8 chunks incrementally and limits each
+decoded line to the transport's 64 KiB frame budget. End, Stop, abort, a new
+command or page removal clears all controls and releases the response reader.
+A final structured producer error remains visible when updates end.
+
+Raw and interactive streams share `serverStreamCommand` admission: registry and
+schema checks, remote pipe validation, original command authorization and START/STOP
+accounting happen before a view factory or handle opens. The hub binds the same
+factory composition used by SSH. Dashboard polls and detail requests use the
+original accepted caller, policy and request context through the dispatcher;
+the web adapter reads no protocol state. Direct probe factories retain their
+existing context-cancellation contract.
+
+Raw piped streams use `command.RunStreamPipes`, the same newline event adapter
+as SSH exec. It formats each complete event once, retains split events up to
+4 MiB and refuses a larger event without truncation. Unpiped raw streams retain
+the producer's original bytes. Rich views retain the full command and apply
+their registered model's stream pipes.
+<!-- source: internal/component/command/pipe_stream.go -- RunStreamPipes, streamPipeWriter.Write -->
+<!-- source: cmd/ze/hub/server_stream.go -- serverStreamCommand -->
+
+The authenticated, same-origin `/cli/view/action` form accepts exactly one
+`handle` and one `action`. Only a currently declared control belonging to that
+user is admitted. Unknown or ended handles return 410, another user's handle
+returns 403, malformed or undeclared actions return 400, and a full queue returns
+429. A new action request cannot supply a command, config path or replacement
+policy. Two tabs receive distinct handles. Stop cancels at admission even when
+the queue or a detail RPC is busy.
+
+The server holds at most 64 active handles, eight pending actions per request
+and one latest frame per runner. Each encoded frame is limited to 64 KiB,
+action forms to 1 KiB and each socket write to five seconds. Disconnect, write
+failure, Stop and daemon shutdown cancel the runner; its owned workers join
+before the stream removes its handle. No monitor history or durable view
+manager is added.
+
+<!-- source: internal/component/web/cli_view.go -- CLIViewTransport, Action, stream, run, write -->
+<!-- source: cmd/ze/hub/server_stream.go -- serverStreamAdmission, serverStreamCommand -->
+<!-- source: cmd/ze/hub/view_factory.go -- injectViewFactories, dashboardFactoryFromExecutor -->
+<!-- source: cmd/ze/hub/view_web.go -- webViewBinding -->
 <!-- source: internal/component/web/assets/cli.js -- initTerminal -->
 
 ## YANG Schema Integration
@@ -360,6 +674,39 @@ stops waiting: the process drains its stderr relay (`crashlog.Flush`, at most
 drive both steps through `ze start --web-only`. Their driver holds a connection
 inside a request handler, so the shutdown has something to wait for, and the
 graceful test times the stop against the 3 s deadline.
+
+After the network grace period, shutdown cancels request contexts and closes
+remaining connections, including POST streams, then joins admitted handlers.
+Only after that join does the service drain command history. After a separate
+teardown allowance, a stuck handler or storage call produces an ERROR diagnostic
+while the service continues joining. The caller cannot release the borrowed
+store before cleanup finishes, including a second queued mode whose write has
+not acquired a storage guard yet. A second stop signal or the service-manager
+timeout may force process exit. An overdue cleanup never becomes successful
+drain merely because its diagnostic timer expired.
+The allowance also raises `doctor-web-cleanup-overdue` on the existing report
+bus, once per minute across concurrent shutdown callers. Its fixed subject is
+web shutdown; it holds no command, username or uploaded content. The daemon's
+doctor recent-events check reports it with
+`ze show log recent level err component web.server` as the next diagnostic
+command. Shared history read and publication failures use
+`doctor-cli-history-read` and `doctor-cli-history-write`, including a write that
+recovers before a browser polls its status. These events do not replace the
+HTTP warning or the strict cleanup join.
+<!-- source: cmd/ze/hub/service_web.go -- webService.Shutdown -->
+
+A network shutdown failure separately raises `doctor-web-network-cleanup`
+before history cleanup starts. Its fixed subject is `web-network-cleanup`,
+and its next command is `ze show log recent level err component web.server`.
+It uses the same minute bound. The returned shutdown error still includes
+both network and history failures. Startup cleanup and web-only shutdown
+rely on each failure's producer instead of logging the joined error again.
+<!-- source: cmd/ze/hub/register_web_history_diagnostic.go -- reportWebNetworkCleanupFailure -->
+<!-- source: cmd/ze/hub/service_web.go -- webService.Shutdown, runWebOnly, startWebServer -->
+
+The same owner handles startup failure and normal/web-only shutdown.
+<!-- source: internal/component/web/server_lifetime.go -- requestOwners, serveRequest -->
+<!-- source: cmd/ze/hub/service_web.go -- webService.Shutdown -->
 <!-- source: cmd/ze/hub/service_web.go -- runWebOnly, forceExitOnSignal -->
 <!-- source: internal/test/fixture/web_interrupt_fixture.go -- webInterrupt, webInterruptHold -->
 

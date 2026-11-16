@@ -521,14 +521,14 @@ func TestSSHUsesSessionModelFactory(t *testing.T) {
 	require.NoError(t, err)
 
 	// Inject a test factory that creates a command-only model.
-	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+	srv.SetSessionModelFactory(func(_ context.Context, username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 		factoryCalled = true
 		receivedUsername = username
 		receivedRemoteAddr = remoteAddr
 		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown), nil
 	})
 
-	model, err := srv.createSessionModel("testuser", "203.0.113.5:2222", nil, SessionRequest{})
+	model, err := srv.createSessionModel(t.Context(), "testuser", "203.0.113.5:2222", nil, SessionRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, model, "factory should return a model")
 	assert.True(t, factoryCalled, "factory should be called")
@@ -548,12 +548,12 @@ func TestSSHSessionGetsEditor(t *testing.T) {
 	}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+	srv.SetSessionModelFactory(func(_ context.Context, username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 		receivedUser = username
 		receivedRemoteAddr = remoteAddr
 		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown), nil
 	})
-	_, err = srv.createSessionModel("alice", "198.51.100.1:22", nil, SessionRequest{})
+	_, err = srv.createSessionModel(t.Context(), "alice", "198.51.100.1:22", nil, SessionRequest{})
 	require.NoError(t, err)
 	assert.Equal(t, "alice", receivedUser)
 	assert.Equal(t, "198.51.100.1:22", receivedRemoteAddr)
@@ -567,7 +567,7 @@ func TestSSHSessionFallbackWithoutConfig(t *testing.T) {
 	}
 	srv, err := NewServer(cfg)
 	require.NoError(t, err)
-	model, err := srv.createSessionModel("alice", "198.51.100.1:22", nil, SessionRequest{})
+	model, err := srv.createSessionModel(t.Context(), "alice", "198.51.100.1:22", nil, SessionRequest{})
 	require.Error(t, err)
 	assert.Nil(t, model)
 }
@@ -588,7 +588,7 @@ func TestSSHExecCommandPropagatesRemoteAddr(t *testing.T) {
 		gotCommand    string
 	)
 
-	srv.SetExecutorFactory(func(username, remoteAddr string, _ plugin.Authorizer) CommandExecutor {
+	srv.SetExecutorFactory(func(_ context.Context, username, remoteAddr string, _ plugin.Authorizer) CommandExecutor {
 		gotUser = username
 		gotRemoteAddr = remoteAddr
 		return func(input string) (*plugin.RenderedResponse, error) {
@@ -597,7 +597,7 @@ func TestSSHExecCommandPropagatesRemoteAddr(t *testing.T) {
 		}
 	})
 
-	exec := srv.ExecutorForUser("alice", "203.0.113.5:2222", nil)
+	exec := srv.ExecutorForUser(t.Context(), "alice", "203.0.113.5:2222", nil)
 	require.NotNil(t, exec)
 
 	output, err := exec("show version")
@@ -659,13 +659,13 @@ func TestCreateSessionModelPreservesRemoteAddr(t *testing.T) {
 		gotRemoteAddr string
 	)
 
-	srv.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+	srv.SetSessionModelFactory(func(_ context.Context, username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 		gotUser = username
 		gotRemoteAddr = remoteAddr
 		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown), nil
 	})
 
-	model, err := srv.createSessionModel("alice", "203.0.113.5:2222", nil, SessionRequest{})
+	model, err := srv.createSessionModel(t.Context(), "alice", "203.0.113.5:2222", nil, SessionRequest{})
 	require.NoError(t, err)
 	require.NotNil(t, model)
 	assert.Equal(t, "alice", gotUser)
@@ -693,7 +693,7 @@ func TestSSHSessionAuthorizationIsBoundToAuthenticationResult(t *testing.T) {
 		Authorizer:    authz.StoreAuthorizer{Store: store},
 	})
 	require.NoError(t, err)
-	srv.SetExecutorFactory(func(username, remoteAddr string, authorizer plugin.Authorizer) CommandExecutor {
+	srv.SetExecutorFactory(func(_ context.Context, username, remoteAddr string, authorizer plugin.Authorizer) CommandExecutor {
 		return func(input string) (*plugin.RenderedResponse, error) {
 			result := &plugin.RenderedResponse{Output: "allowed"}
 			if !authorizer.Authorize(username, remoteAddr, input, strings.HasPrefix(input, "show ")) {
@@ -1008,7 +1008,7 @@ func execFormatServer(t *testing.T, output string) (*Server, *string) {
 	})
 	require.NoError(t, err)
 	received := new(string)
-	srv.SetExecutorFactory(func(_, _ string, _ plugin.Authorizer) CommandExecutor {
+	srv.SetExecutorFactory(func(_ context.Context, _, _ string, _ plugin.Authorizer) CommandExecutor {
 		return func(input string) (*plugin.RenderedResponse, error) {
 			*received = input
 			return &plugin.RenderedResponse{Output: output}, nil

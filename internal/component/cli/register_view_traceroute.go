@@ -120,8 +120,9 @@ func init() {
 	command.RegisterAddressFields([]string{commandMonitorTraceroute}, "addr")
 
 	RegisterView(viewSpec{
-		key:    ViewKeyTraceroute,
-		prefix: commandMonitorTraceroute,
+		key:     ViewKeyTraceroute,
+		prefix:  commandMonitorTraceroute,
+		browser: func(_ *Model) []browserViewControl { return []browserViewControl{browserViewStopControl()} },
 		matches: func(input string) bool {
 			return isTracerouteMonitorCommand(input) || isPipedTracerouteMonitorCommand(input)
 		},

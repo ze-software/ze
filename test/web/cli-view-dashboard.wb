@@ -1,0 +1,54 @@
+# Test: authenticated browser monitoring follows owner controls through detail
+# VALIDATES: AC-44 -- shared dashboard sort, selection, detail/back, Stop and
+#            command resumption are usable through the actual daemon browser UI
+# PREVENTS: a text-only or JSON-only monitor with no usable control journey
+# The daemon baseline owns one disconnected peer; no live BGP probe is needed.
+
+option=timeout:value=60s
+option=server:kind=daemon
+option=auth:user=admin:password=ze-web-admin:role=admin
+option=auth:user=noc:password=ze-web-noc:role=read-only
+
+action=login:user=admin:password=ze-web-admin
+action=open:path=/cli
+action=fill:id=terminal-input:value=run monitor bgp
+action=press:id=terminal-input:key=Enter:wait=none
+expect=element:id=cli-view-sort
+expect=element:text=127.0.0.2
+expect=element:text=Peer ^
+action=click:id=cli-view-sort
+expect=element:text=ASN ^
+action=click:id=cli-view-reverse
+expect=element:text=ASN v
+action=click:id=cli-view-next
+action=click:id=cli-view-detail
+expect=element:id=cli-view-back
+expect=element:text=Peer Detail
+expect=element:text=127.0.0.2
+expect=element:text=Remote ASN
+expect=element:text=65001
+action=click:id=cli-view-back
+expect=element:id=cli-view-sort
+expect=element:text=ASN v
+action=click:id=cli-view-help
+expect=element:text=Cycle sort column
+action=click:id=cli-view-back
+expect=element:id=cli-view-detail
+action=click:id=cli-view-stop
+expect=element:text=Stopped
+expect=element:not-id=cli-view-detail
+action=fill:id=terminal-input:value=run show version
+action=press:id=terminal-input:key=Enter
+expect=element:text=version
+expect=element:not-id=cli-view-sort
+
+action=fill:id=terminal-input:value=run monitor bgp
+action=press:id=terminal-input:key=Enter:wait=none
+expect=element:id=cli-view-detail
+expect=element:text=127.0.0.2
+action=press:id=terminal-input:key=Control+c:wait=none
+expect=element:text=Stopped
+expect=element:not-id=cli-view-detail
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+expect=element:text=router-id

@@ -176,6 +176,7 @@ func secretEditorManager(t *testing.T, schema *config.Schema) *EditorManager {
 
 	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	_, err := mgr.GetOrCreate(secretUser)
 	require.NoError(t, err)
 	require.Equal(t, storedSecret, getConfigValue(mgr.Tree(secretUser), "environment/api-server/token"),
@@ -252,6 +253,7 @@ func secretTransportManager(t *testing.T, schema *config.Schema) *EditorManager 
 	path := filepath.Join(t.TempDir(), "test.conf")
 	require.NoError(t, os.WriteFile(path, []byte(content), 0o600))
 	mgr := NewEditorManager(testConfigStore(t, path), path, schema, testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	_, err := mgr.GetOrCreate(secretUser)
 	require.NoError(t, err)
 	assert.Equal(t, storedSecret, getConfigValue(mgr.Tree(secretUser), "web-render-secret/api-server/token"))
@@ -477,6 +479,7 @@ func TestContentAtPathAnswersNothingWhenItCannotMask(t *testing.T) {
 
 	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, nil,
 		testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	_, err := mgr.GetOrCreate(secretUser)
 	require.NoError(t, err)
 
@@ -503,6 +506,7 @@ func TestAnUntouchedSecretIsNeitherRewrittenNorDeleted(t *testing.T) {
 
 	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 
@@ -619,6 +623,7 @@ func TestUploadedConfigWithAMaskedSecretIsRefused(t *testing.T) {
 
 	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	handler := HandleConfigUpload(mgr, webGoldenValidate, configPath, adminWebAuthorizer(), nil)
 
 	masked := "environment {\n    api-server {\n        token \"" + config.SecretDataPlaceholder + "\";\n    }\n}\n"

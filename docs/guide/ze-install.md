@@ -148,6 +148,8 @@ Group=ze
 ExecStart=/bin/sh -c 'trap "" HUP; exec <prefix>/bin/ze start'
 ExecReload=/bin/sh -c 'kill -HUP $MAINPID'
 Restart=on-failure
+SuccessExitStatus=75
+RestartForceExitStatus=75
 RestartSec=5
 TimeoutStopSec=90
 KillMode=mixed
@@ -169,6 +171,20 @@ RuntimeDirectory=ze
 [Install]
 WantedBy=multi-user.target
 ```
+
+An intentional daemon restart exits 75 after teardown. `SuccessExitStatus=75`
+keeps it from being reported as a daemon failure, and `RestartForceExitStatus=75`
+starts the next process even with `Restart=on-failure`. Ordinary shutdown exits
+0 and stays stopped; startup and plugin failures still exit 1 and restart under
+the failure policy. This describes the generated policy; a supervisor restart
+roundtrip must be verified on the deployment host.
+`ze doctor` checks the effective restart properties, including drop-ins, under
+`doctor-service-restart`. An older unit missing this policy needs
+`sudo ze install systemd --force` followed by `sudo systemctl daemon-reload`;
+remove any overriding drop-in shown by `systemctl cat ze.service`.
+<!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: internal/plugins/systemd/doctor.go -- checkServicePolicy, checkServiceRestartOutput -->
 
 `CAP_BPF` lets ze load the eBPF programs of the IPsec ESP form fast path, the
 IPsec application override guard and traffic-usage; without it the kernel

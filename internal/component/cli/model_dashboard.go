@@ -494,6 +494,7 @@ func (m *Model) fetchPeerDetail(addr string) {
 		defer data.TransportComplete()
 	}
 	if err != nil {
+		m.activeDashboard().pollError = err.Error()
 		return
 	}
 	m.activeDashboard().detailData = parsePeerDetail(data.Text, addr)

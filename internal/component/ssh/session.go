@@ -8,6 +8,7 @@
 package ssh
 
 import (
+	"context"
 	"fmt"
 	"io/fs"
 	"strings"
@@ -19,7 +20,7 @@ import (
 )
 
 // createSessionModel builds the selected terminal in the owning daemon.
-func (s *Server) createSessionModel(username, remoteAddr string, authorizer plugin.Authorizer, request SessionRequest) (tea.Model, error) {
+func (s *Server) createSessionModel(sessionCtx context.Context, username, remoteAddr string, authorizer plugin.Authorizer, request SessionRequest) (tea.Model, error) {
 	s.mu.Lock()
 	factory := s.sessionModelFactory
 	s.mu.Unlock()
@@ -27,7 +28,7 @@ func (s *Server) createSessionModel(username, remoteAddr string, authorizer plug
 	if factory == nil {
 		return nil, fmt.Errorf("interactive SSH is unavailable: no session model factory")
 	}
-	return factory(username, remoteAddr, authorizer, request)
+	return factory(sessionCtx, username, remoteAddr, authorizer, request)
 }
 
 func parseSessionRequest(environ []string) (SessionRequest, error) {

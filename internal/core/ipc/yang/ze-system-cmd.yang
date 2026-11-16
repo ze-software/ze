@@ -206,6 +206,19 @@ SIGTERM triggers.";
             ze:help "Gracefully shutdown: drain connections, close peers, exit.";
         }
 
+        container restart {
+            config false;
+            ze:command "ze-plugin:system-daemon-restart";
+            ze:rpc "ze-system-api:daemon-restart";
+            description "Ze writes 'restart initiated' before it prepares an in-place daemon
+restart and signals the daemon stop. A BGP daemon writes its graceful-restart
+marker and closes sessions without a shutdown notification, through the same
+action SSH restart uses. Starting the daemon again requires a supervisor
+configured to restart it after this stop. This command does not reboot the
+host and takes no arguments.";
+            ze:help "Restart the daemon in place with graceful-restart state; keep the host running.";
+        }
+
         container reboot {
             config false;
             ze:command "ze-plugin:system-daemon-reboot";

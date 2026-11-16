@@ -59,6 +59,13 @@ func decodeConfigPath(path string) ([]string, error) {
 	return segments, nil
 }
 
+// DecodeConfigPath admits a browser's selected configuration path through the
+// same token transport as the live editor. Offline browser replay MUST call
+// this producer instead of splitting or unescaping configuration keys itself.
+func DecodeConfigPath(path string) ([]string, error) {
+	return decodeConfigPath(path)
+}
+
 // escapedRequestPath rejects inconsistent RawPath values rather than allowing
 // EscapedPath's fallback to silently turn a malformed encoding into a key.
 func escapedRequestPath(r *http.Request) (string, error) {

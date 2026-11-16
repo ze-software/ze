@@ -113,7 +113,11 @@ func TestEditorProgramOwnerClosesHistory(t *testing.T) {
 						if got := <-ended; got != want {
 							t.Errorf("exit = %d, want %d", got, want)
 						}
-						if got := history.Load(editor.ModeConfig.String()); !slices.Equal(got, []string{"show"}) {
+						gotHistory, historyErr := history.Load(editor.ModeConfig.String())
+						if historyErr != nil {
+							t.Fatal(historyErr)
+						}
+						if got := gotHistory; !slices.Equal(got, []string{"show"}) {
 							t.Errorf("program history = %v", got)
 						}
 						if err := store.WriteFile("meta/store-still-open", []byte("yes"), 0); err != nil {

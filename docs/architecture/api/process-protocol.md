@@ -1373,6 +1373,21 @@ on both transports. A startup request answers every failure.
 
 #### The stop drain
 
+`request restart` accepts an in-place daemon restart through the shared command
+dispatcher. Its response completes before the hub's existing restart action
+records `in-place`, preserves the BGP graceful-restart marker and signals the
+stop. This uses the same restart preparation as SSH; it never requests a host
+reboot. After teardown, in-place restart exits with the shared
+`rpc.DaemonRestartExitStatus` (75), while a clean stop remains 0 and a daemon
+failure remains 1. The generated systemd unit accepts 75 as successful and
+forces a new start. Gokrazy's normal supervision loop also retries this nonzero
+exit; a foreground caller must start the next process itself.
+<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart -->
+<!-- source: cmd/ze/hub/infra_setup.go -- infraSetup -->
+<!-- source: pkg/plugin/rpc/drain.go -- DaemonRestartExitStatus -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: internal/plugins/systemd/unit.go -- buildUnitFile -->
+
 Before whole-daemon shutdown closes any connection, the hub runs one drain
 phase: after config changes are fenced, the engine sends
 `ze-plugin-callback:drain` once, in parallel, to every plugin whose Stage 1

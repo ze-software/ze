@@ -380,6 +380,7 @@ func TestRefusedSecretValueNeverReachesTheBrowser(t *testing.T) {
 
 	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 
 	mux := http.NewServeMux()
 	mux.Handle("POST /config/set/", HandleConfigSetWithAuthorizer(mgr, schema, nil, nil))
@@ -430,6 +431,7 @@ func TestRefusedSecretWithAQuoteNeverReachesTheBrowser(t *testing.T) {
 
 	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 
 	mux := http.NewServeMux()
 	mux.Handle("POST /config/set/", HandleConfigSetWithAuthorizer(mgr, schema, nil, nil))

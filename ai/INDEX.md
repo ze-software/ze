@@ -85,6 +85,7 @@ Ask the question from Bash instead
 | Feature kind | Read first | Then read | Cross-cutting |
 |---|---|---|---|
 | CLI command | `ai/patterns/cli-command.md` | `ai/rules/cli.md`, `ai/rules/cli.md`, `docs/architecture/cli/command-namespacing.md` (rooting + filters-not-flags) | `ai/rules/evidence.md` if it lists things |
+| Caller-held command input | `docs/architecture/api/commands.md`, Caller-supplied configuration inspection | `command.DecodeContent`, `registry.Meta.SuppliedInput`, and the owner's YANG arguments | Derive controls and bounds from registration and schema; keep content out of command records |
 | Web page/endpoint | `ai/patterns/web-endpoint.md` | `docs/architecture/web-interface.md`, `docs/architecture/web-components.md` | SSE: `docs/architecture/web-components.md` SSE section |
 | Plugin | `ai/patterns/plugin.md` | `ai/rules/plugins.md`, `ai/rules/goroutine-lifecycle.md` | `ai/rules/go-standards.md` for registered names; `ai/rules/plugins.md` if it calls another package's function directly; `ai/rules/evidence.md` because registration metadata feeds the generated website plugin catalog |
 | Config option | `ai/patterns/config-option.md` | `ai/rules/config.md` (listener pattern if network endpoint) | `ai/rules/config.md` (YANG vs env var), `ai/rules/config.md` (naming), `ai/rules/go-standards.md` env var section |
@@ -657,6 +658,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | standard library patch, crypto/tls patch, go build -overlay, GOROOT, TLS session_id | `docs/contributing/patching-the-standard-library.md` |
 | subscriber, session, PPPoE, L2TP | `ai/digests/subscriber.md`, `internal/component/l2tp/pppoe/` |
 | editor, TUI, completion, headless | `internal/component/cli/`, `test/editor/`, `ai/rules/testing.md` (Editor Tests section) |
+| top run, top set, root completion, LineBehindTop | `docs/architecture/cli/command-completion.md` |
 | diagnostic, doctor, health, readiness, plugin setup, setup outcome, show plugin list, why is this feature absent | `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/diagnostics/production-diagnostics.md`, `ai/rules/repo-maintenance.md` |
 | BGP OPEN connection refusal, strict-BFD BGP hold expiry, doctor-bgp-open-connection-refused, doctor-bgp-bfd-wait-hold-expired | `docs/architecture/behavior/fsm-open-sent.md` (Connection diagnostics), `internal/component/bgp/reactor/session_problem_diagnostic.go` |
 | error inventory, user-visible messages, which errors name a fix, surface writer, ./le arch error-inventory | `docs/contributing/error-inventory.md`, `ai/rules/user-facing-errors.md` |

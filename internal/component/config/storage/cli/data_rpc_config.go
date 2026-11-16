@@ -6,7 +6,6 @@ package cli
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"path/filepath"
 	"strconv"
@@ -77,9 +76,9 @@ func handleDataConfigUpdate(ctx *pluginserver.CommandContext, validated command.
 			"a config is named by its file name alone, with no directory, and never . or .., so no config changed",
 			usageUpdateDataConfig)), nil
 	}
-	content, err := base64.StdEncoding.DecodeString(encoded)
+	content, err := command.DecodeContent(encoded)
 	if err != nil {
-		// The decoder's error names a byte offset, never the input.
+		// The shared decoder's error never repeats the supplied bytes.
 		return zePlugin.OperatorErrorResponse(opererr.Wrap(err,
 			pathUpdateDataConfig+": content is not base64",
 			"content carries the config's bytes in base64 (RFC 4648 Section 4, with = padding), the encoding ze data import sends a file in, so no config changed",

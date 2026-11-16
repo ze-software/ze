@@ -948,6 +948,43 @@ than in a table of codes here. `report.RaiseWarning` and `report.RaiseError`
 raise with no fix.
 <!-- source: internal/core/report/report.go -- Issue, RaiseWarningFix, RaiseErrorFix, validFields -->
 
+Shared CLI history publishes failed reads and writes as
+`doctor-cli-history-read` and `doctor-cli-history-write`, from `cli-history` on
+the fixed subject `command-recall`. Missing history raises nothing. Each class
+raises at most once per minute across users and modes, using
+`report.RaiseErrorFixOnce` and the existing error ring as its deduplication
+ledger. A write that later succeeds still leaves the earlier event. The
+messages classify the operation and mode without copying commands, usernames,
+uploaded content or storage error values. The next diagnostic command is
+`ze show doctor`, which includes the existing storage readiness checks.
+
+An overdue web cleanup raises `doctor-web-cleanup-overdue` from `web-server`
+on `web-shutdown`, with the same minute bound across concurrent shutdown calls.
+Its command is `ze show log recent level err component web.server`. The
+service keeps joining admitted requests and accepted history publications;
+the diagnostic allowance never releases their borrowed store.
+<!-- source: internal/component/cli/history_diagnostic.go -- reportHistoryReadFailure, reportHistoryWriteFailure -->
+<!-- source: cmd/ze/hub/service_web.go -- webService.Shutdown -->
+
+The browser request boundary reports a failed recall submission, including an
+invalid receipt, as `doctor-web-history-unavailable`. A failed JSON delivery
+uses `doctor-web-history-response`. Both come from `web-history`, on the fixed
+subjects `command-recall` and `command-recall-response`. Each class raises at
+most once per minute without commands, usernames or raw errors. Both name
+`Open /cli and reconnect to restore command recall` as their next action.
+These classes describe browser operations, separate from shared storage reads
+and writes.
+<!-- source: internal/component/web/register_cli_history_diagnostic.go -- reportBrowserHistoryUnavailable, reportBrowserHistoryResponseFailure -->
+
+A failed network shutdown raises `doctor-web-network-cleanup` from `web-server`
+on `web-network-cleanup`, before the service drains history. It names
+`ze show log recent level err component web.server` and raises at most once
+per minute. The service still joins history and returns both failures. Startup
+cleanup and standalone shutdown rely on these constituent producers instead of
+logging the joined error again.
+<!-- source: cmd/ze/hub/register_web_history_diagnostic.go -- reportWebNetworkCleanupFailure -->
+<!-- source: cmd/ze/hub/service_web.go -- webService.Shutdown, runWebOnly, startWebServer -->
+
 An active warning whose code another `runtime` check declares in its own
 `Codes` is that check's row and is not repeated here: the check reads the state
 the warning mirrors, so one fault gives one row (`doctor-plugin-stopped` is

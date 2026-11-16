@@ -14,6 +14,7 @@ import (
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/core/cliio"
 	"github.com/ze-software/ze/internal/core/helpfmt"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -69,16 +70,27 @@ func graphAnswer(route command.Route, args []string) command.LocalAnswer {
 	if err != nil {
 		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
 	}
+	return graphBytesAnswer(data)
+}
 
+// graphBytesAnswer builds the same inactive-pruned graph for a caller file
+// and supplied bytes, without running the configuration loader.
+func graphBytesAnswer(data []byte) command.LocalAnswer {
 	schema, err := config.YANGSchema()
 	if err != nil {
-		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
+		return command.LocalRefusal(exitError, command.LocalErrorLine(opererr.Wrap(err,
+			"The configuration schema could not be loaded.",
+			"The configuration could not be interpreted; no dependency graph was produced.",
+			"ze show doctor")))
 	}
 
 	p := config.NewParser(schema)
 	tree, err := p.Parse(string(data))
 	if err != nil {
-		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
+		return command.LocalRefusal(exitError, command.LocalErrorLine(opererr.Wrap(err,
+			"The configuration dependency graph could not be built.",
+			"The supplied configuration could not be parsed; no graph was produced.",
+			"ze config validate -")))
 	}
 
 	config.PruneInactive(tree, schema)
@@ -89,7 +101,10 @@ func graphAnswer(route command.Route, args []string) command.LocalAnswer {
 	enc := json.NewEncoder(&out)
 	enc.SetIndent("", "  ")
 	if err := enc.Encode(graph); err != nil {
-		return command.LocalRefusal(exitError, command.LocalErrorLine(err))
+		return command.LocalRefusal(exitError, command.LocalErrorLine(opererr.Wrap(err,
+			"The configuration dependency graph could not be encoded.",
+			"No complete JSON graph was produced.",
+			"ze show doctor")))
 	}
 
 	return command.LocalAnswer{Payload: command.Blob(out.Bytes()), Code: exitOK}

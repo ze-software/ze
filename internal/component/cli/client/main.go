@@ -163,8 +163,8 @@ type CommandFunc func(command string) (unicli.CommandOutput, error)
 // A nil editor leaves the command-only console, which refuses `configure`.
 // The caller builds the editor, because this package is transport and has no
 // config storage of its own.
-func RunAttached(dispatch CommandFunc, ed *unicli.Editor) int {
-	return runInteractiveWithDispatch(dispatch, ed)
+func RunAttached(dispatch CommandFunc, ed *unicli.Editor, registered func(string) bool) int {
+	return runInteractiveWithDispatch(dispatch, ed, registered)
 }
 
 // newAttachedModel assembles the model the attached console runs. The executor
@@ -176,7 +176,7 @@ func RunAttached(dispatch CommandFunc, ed *unicli.Editor) int {
 //
 // The error is the YANG loader's refusal of the schema: with no command tree
 // there is nothing to complete against, and the caller reports it.
-func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed *unicli.Editor) (unicli.Model, error) {
+func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed *unicli.Editor, registered func(string) bool) (unicli.Model, error) {
 	cmdTree, err := BuildRuntimeTreeFromDispatch(dispatch)
 	if err != nil {
 		return unicli.Model{}, err
@@ -192,6 +192,7 @@ func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed 
 		}
 	}
 	m.SetCommandExecutor(executor)
+	m.SetRegisteredOperational(registered)
 	m.SetStartMode(unicli.ModeOperational)
 	m.SetCommandCompleter(unicli.NewCommandCompleter(cmdTree))
 	injectViewFactories(&m, func() (func() (string, error), error) {
@@ -206,17 +207,17 @@ func newAttachedModel(dispatch CommandFunc, executor unicli.CommandExecutor, ed 
 	return m, nil
 }
 
-func runInteractiveWithDispatch(dispatch CommandFunc, ed *unicli.Editor) int {
-	return runInteractiveWithProgram(dispatch, ed, runAttachedProgram)
+func runInteractiveWithDispatch(dispatch CommandFunc, ed *unicli.Editor, registered func(string) bool) int {
+	return runInteractiveWithProgram(dispatch, ed, registered, runAttachedProgram)
 }
 
 // runInteractiveWithProgram owns every successfully constructed attached model.
 // The terminal runner borrows it; this owner MUST close it before returning to
 // the caller that releases the editor/store, including terminal startup refusal.
-func runInteractiveWithProgram(dispatch CommandFunc, ed *unicli.Editor, run func(*unicli.Model) error) int {
+func runInteractiveWithProgram(dispatch CommandFunc, ed *unicli.Editor, registered func(string) bool, run func(*unicli.Model) error) int {
 	executor := unicli.CommandExecutor(dispatch)
 
-	m, err := newAttachedModel(dispatch, executor, ed)
+	m, err := newAttachedModel(dispatch, executor, ed, registered)
 	if err != nil {
 		var tb textbuf.Buffer
 		tb.Str("error: ").Err(err).Byte('\n').StdErr() //nolint:errcheck // one-shot error to stderr

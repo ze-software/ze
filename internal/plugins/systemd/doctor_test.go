@@ -30,7 +30,8 @@ func withServiceUnit(t *testing.T, data string) {
 	previous := readServiceUnitFile
 	readServiceUnitFile = func(string) ([]byte, error) { return []byte(data), nil }
 	t.Cleanup(func() { readServiceUnitFile = previous })
-	withServiceStop(t, "TimeoutStopUSec=1min 30s\nKillMode=mixed\n", nil)
+	withServiceStop(t, "TimeoutStopUSec=1min 30s\nKillMode=mixed\n"+
+		"Restart=on-failure\nSuccessExitStatus=75\nRestartForceExitStatus=75\n", nil)
 }
 
 // withServiceStop stands in the answer `systemctl show` gives for the unit's

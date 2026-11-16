@@ -554,6 +554,7 @@ func newHandlerTestManager(t *testing.T) (*EditorManager, *config.Schema) {
 	require.NoError(t, schemaErr, "YANG schema must load")
 
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 
 	return mgr, schema
 }
@@ -1307,6 +1308,7 @@ func commitErrManager(t *testing.T, commitErr error) (*EditorManager, *Renderer)
 	schema, schemaErr := config.YANGSchema()
 	require.NoError(t, schemaErr)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactoryCommitErr(commitErr), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 	return mgr, renderer
@@ -1466,6 +1468,7 @@ func TestConfigFormIgnoresEmptyUnconfiguredLeaves(t *testing.T) {
 	schema, schemaErr := config.YANGSchema()
 	require.NoError(t, schemaErr)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	renderer, renderErr := NewRenderer()
 	require.NoError(t, renderErr)
 
@@ -1519,6 +1522,7 @@ func TestConfigFormSaveIsOneEdit(t *testing.T) {
 	schema, schemaErr := config.YANGSchema()
 	require.NoError(t, schemaErr)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	renderer, renderErr := NewRenderer()
 	require.NoError(t, renderErr)
 	handler := HandleConfigFormWithAuthorizer(mgr, schema, renderer, nil)
@@ -1641,6 +1645,7 @@ func TestConfigFormKeepsASecretTheOperatorDidNotTouch(t *testing.T) {
 	require.NoError(t, schemaErr)
 
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
 

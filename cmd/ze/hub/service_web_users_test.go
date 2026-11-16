@@ -59,8 +59,8 @@ func TestWebServerUsesTheCallersCredentialsWhenZefsIsUnreadable(t *testing.T) {
 	powerUsers := []authz.UserConfig{{Name: "admin", Hash: bcryptHash(t, "power-secret")}}
 	live := func() ([]authz.UserConfig, error) { return powerUsers, nil }
 
-	srv, broker := startWebServer(store, "config.conf", []string{"127.0.0.1:0"}, false, "",
-		nil, nil, nil, nil, nil, powerUsers, live, nil)
+	srv, broker, editors := startWebServer(store, "config.conf", []string{"127.0.0.1:0"}, false, "",
+		nil, nil, nil, nil, nil, powerUsers, live, nil, nil, nil)
 	require.NotNil(t, srv, "the web server must serve on the caller's power user; a second zefs read would report no authenticatable users and disable it")
 	t.Cleanup(func() {
 		if broker != nil {
@@ -69,6 +69,9 @@ func TestWebServerUsesTheCallersCredentialsWhenZefsIsUnreadable(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(ctx)
+		if editors != nil {
+			require.NoError(t, editors.Close())
+		}
 	})
 
 	readyCtx, readyCancel := context.WithTimeout(context.Background(), 10*time.Second)
@@ -216,12 +219,16 @@ func TestWebServerRefusesToServeWithNoUserSourceWired(t *testing.T) {
 
 	var srv *zeweb.WebServer
 	var broker *zeweb.EventBroker
+	var editors *zeweb.EditorManager
 	stderr := captureStderr(t, func() {
-		srv, broker = startWebServer(store, "config.conf", []string{"127.0.0.1:0"}, false, "",
-			nil, nil, nil, nil, nil, powerUsers, nil, nil)
+		srv, broker, editors = startWebServer(store, "config.conf", []string{"127.0.0.1:0"}, false, "",
+			nil, nil, nil, nil, nil, powerUsers, nil, nil, nil, nil)
 	})
 	if broker != nil {
 		broker.Close()
+	}
+	if editors != nil {
+		require.NoError(t, editors.Close())
 	}
 
 	assert.Nil(t, srv, "a nil user source must disable the server, not serve on the power-user snapshot beside it")
@@ -247,12 +254,16 @@ func TestWebServerRefusesToServeWhenTheUserSourceCannotBeRead(t *testing.T) {
 
 	var srv *zeweb.WebServer
 	var broker *zeweb.EventBroker
+	var editors *zeweb.EditorManager
 	stderr := captureStderr(t, func() {
-		srv, broker = startWebServer(store, "config.conf", []string{"127.0.0.1:0"}, false, "",
-			nil, nil, nil, nil, nil, powerUsers, live, nil)
+		srv, broker, editors = startWebServer(store, "config.conf", []string{"127.0.0.1:0"}, false, "",
+			nil, nil, nil, nil, nil, powerUsers, live, nil, nil, nil)
 	})
 	if broker != nil {
 		broker.Close()
+	}
+	if editors != nil {
+		require.NoError(t, editors.Close())
 	}
 
 	assert.Nil(t, srv, "a user source that cannot answer must disable the server")

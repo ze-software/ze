@@ -71,7 +71,7 @@ func TestGraphicalDotKeyThroughWebMux(t *testing.T) {
 	}
 	require.NotEmpty(t, entryURL)
 	srv := &WebServer{mux: http.NewServeMux()}
-	srv.HandleFunc("/show/", HandleFragment(renderer, mgr.schema, mgr.Tree("testuser"), mgr, false))
+	srv.HandleFunc("/show/", HandleFragment(renderer, mgr.schema, mgr.Tree("testuser"), mgr, false, nil))
 	srv.HandleFunc("/config/set/", HandleConfigSetWithAuthorizer(mgr, mgr.schema, renderer, nil))
 	shown := httptest.NewRecorder()
 	srv.mux.ServeHTTP(shown, authedRequest(t, http.MethodGet, entryURL, nil))

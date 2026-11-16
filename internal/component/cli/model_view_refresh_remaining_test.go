@@ -72,7 +72,7 @@ func incidentalPeerLine(m *Model, verb, args string) string {
 // assertIncidentalView compares the applied answer with the old copy-built
 // view at the position the command ran at. The whole viewport includes its
 // validation marks and diff gutter; feedback and history are checked too.
-func assertIncidentalView(t *testing.T, before, out Model, result commandResult, line, status string) {
+func assertIncidentalView(t *testing.T, before, out Model, result commandResult, line, status string, expectedHistory ...string) {
 	t.Helper()
 	require.NoError(t, out.err, line)
 	require.True(t, result.refreshConfig, "the producer must request the current-position view")
@@ -83,7 +83,11 @@ func assertIncidentalView(t *testing.T, before, out Model, result commandResult,
 	if line != "" {
 		entries := out.history.Entries()
 		require.NotEmpty(t, entries)
-		assert.Equal(t, line, entries[len(entries)-1], "history retains the typed command")
+		want := line
+		if len(expectedHistory) > 0 {
+			want = expectedHistory[0]
+		}
+		assert.Equal(t, want, entries[len(entries)-1], "history retains the expected replayable command")
 	}
 
 	legacy := out
@@ -101,12 +105,13 @@ func assertIncidentalView(t *testing.T, before, out Model, result commandResult,
 func TestRemainingIncidentalViewsWithoutTop(t *testing.T) {
 	t.Cleanup(configyang.RegisterModuleForTest("ze-incidental-view-probe-conf.yang", incidentalViewProbe))
 	type scenario struct {
-		name    string
-		session bool
-		prepare func(*testing.T, *Model)
-		line    func(*Model) string
-		status  string
-		check   func(*testing.T, *Model)
+		name        string
+		peerHistory string
+		session     bool
+		prepare     func(*testing.T, *Model)
+		line        func(*Model) string
+		status      string
+		check       func(*testing.T, *Model)
 	}
 	changeTimer := func(t *testing.T, m *Model) { setIncidentalTimer(t, m, "60") }
 	commitLine := func(*Model) string { return "commit now" }
@@ -160,7 +165,7 @@ func TestRemainingIncidentalViewsWithoutTop(t *testing.T) {
 		require.True(t, m.confirmTimerActive)
 	}
 	cases := []scenario{
-		{name: "multi-key entry creation", line: func(m *Model) string {
+		{name: "multi-key entry creation", peerHistory: "top set bgp peer peer1 probe alpha second beta", line: func(m *Model) string {
 			return incidentalPeerLine(m, "set", "probe alpha second beta")
 		}, status: "created probe", check: func(t *testing.T, m *Model) {
 			peer := m.editor.tree.GetContainer("bgp").GetList("peer")["peer1"]
@@ -260,7 +265,11 @@ func TestRemainingIncidentalViewsWithoutTop(t *testing.T) {
 				m.viewport.SetYOffset(2)
 				line := tc.line(&m)
 				out, result := enterLineResult(t, m, line)
-				assertIncidentalView(t, m, out, result, line, tc.status)
+				expectedHistory := line
+				if inPeer && tc.peerHistory != "" {
+					expectedHistory = tc.peerHistory
+				}
+				assertIncidentalView(t, m, out, result, line, tc.status, expectedHistory)
 				if tc.check != nil {
 					tc.check(t, &out)
 				}

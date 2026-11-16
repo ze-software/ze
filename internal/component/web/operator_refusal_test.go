@@ -39,7 +39,7 @@ func TestWebCLIStreamPreservesOwnerRecovery(t *testing.T) {
 	owner := opererr.New("This monitor is blocked.", "The account cannot read these events.", "Sign in at /login with an account permitted to run this command")
 	for _, started := range []bool{false, true} {
 		t.Run(fmt.Sprint(started), func(t *testing.T) {
-			handler := HandleCLITerminalStream(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+			handler := HandleCLITerminalStream(nil, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 				t.Fatal("a handled stream reached the finite terminal")
 			}), func(_ context.Context, _ plugin.CallerIdentity, _ string, output io.Writer) (bool, error) {
 				if started {

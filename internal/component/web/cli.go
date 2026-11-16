@@ -7,7 +7,9 @@
 package web
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"html/template"
 	"net/http"
@@ -19,6 +21,7 @@ import (
 	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/core/audit"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -29,7 +32,13 @@ const configEditPath = "/config/edit/"
 // CommandCompleter provides operational command completions for terminal mode.
 type CommandCompleter interface {
 	Complete(input string) []contract.Completion
+	CompleteChecked(input string) ([]contract.Completion, error)
+	Explain(input string) (string, bool)
 }
+
+// CommandCompleterFactory binds operational completion to the authenticated
+// request's context and policy generation. A static source may ignore them.
+type CommandCompleterFactory func(context.Context, plugin.CallerIdentity) CommandCompleter
 
 // Web command transports use these field names for the command and context.
 const (
@@ -93,12 +102,13 @@ const (
 // for the position a command resolves at, which `top <command>` empties. Each
 // editor sets it where it parses the line, and commandBehindTop keeps it.
 type cliCommand struct {
-	Verb     string
-	Args     []string
-	Operator []string
-	parseErr error
-	words    cli.CommandWords
-	content  *string
+	Verb      string
+	Args      []string
+	Operator  []string
+	parseErr  error
+	words     cli.CommandWords
+	content   *string
+	confirmed bool
 }
 
 // commandBehindTop answers the command `top <command>` runs once at the root:
@@ -114,7 +124,7 @@ func commandBehindTop(cmd cliCommand) (cliCommand, bool) {
 	if len(cmd.Args) == 0 {
 		return cliCommand{}, false
 	}
-	return cliCommand{Verb: cmd.Args[0], Args: cmd.Args[1:], Operator: cmd.Operator, words: cmd.words.Tail(), content: cmd.content}, true
+	return cliCommand{Verb: cmd.Args[0], Args: cmd.Args[1:], Operator: cmd.Operator, words: cmd.words.Tail(), content: cmd.content, confirmed: cmd.confirmed}, true
 }
 
 // parseCLICommand splits raw command text into a verb and argument list.
@@ -176,18 +186,23 @@ func formatTerminalPrompt(mode string, path []string) string {
 // message area shows feedback and hints, prompt + input at the very bottom.
 func HandleCLIPage(renderer *Renderer) template.HTML {
 	return renderer.renderComponent("cli_page", cliPage(cliPageData{
-		Prompt: formatTerminalPrompt(terminalModeConfig, nil),
-		Mode:   terminalModeConfig,
+		Prompt:        formatTerminalPrompt(terminalModeConfig, nil),
+		Mode:          terminalModeConfig,
+		LocalControls: cliLocalOutputControls(),
 	}))
 }
 
 // HandleCLIPageHTTP returns an HTTP handler for /cli/ that renders the CLI
 // terminal in the Finder layout (topbar + full-page terminal, no sidebar).
 // Both the Finder and Workbench link to this same page.
-func HandleCLIPageHTTP(renderer *Renderer, insecure bool) http.HandlerFunc {
+func HandleCLIPageHTTP(renderer *Renderer, insecure bool, mgr *EditorManager) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Query().Get("history") == "1" {
+			writeCLIHistory(w, r, mgr)
+			return
+		}
 		username := GetUsernameFromRequest(r)
-		data := cliPageData{Mode: terminalModeConfig}
+		data := cliPageData{Mode: terminalModeConfig, LocalControls: cliLocalOutputControls()}
 		data.InitialCommand = r.URL.Query().Get(webCommandField)
 		data.ContextPath = r.URL.Query().Get(webPathField)
 		path, pathErr := decodeConfigPath(data.ContextPath)
@@ -295,6 +310,13 @@ func HandleCLICommandWithAuthorizerAndAudit(mgr *EditorManager, schema *config.S
 		}
 
 		cmd := parseCLICommand(command)
+		historyPath := contextPath
+		if cmd.Verb != verbUp {
+			if cmd.Verb != verbTop {
+				historyPath = adjustListContext(schema, contextPath)
+			}
+		}
+		r = recordCLIHistory(w, r, mgr, terminalModeConfig, historyPath, command, nil)
 		if cmd.parseErr != nil {
 			writeCLINotification(w, renderer, cmd.parseErr.Error(), "error")
 			return
@@ -391,6 +413,9 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 	}
 	if result.input != "" {
 		query := url.Values{webCommandField: {line}, webPathField: {encodeConfigPath(contextPath)}}
+		if receipt := r.FormValue("submission"); receipt != "" {
+			query.Set("submission", receipt)
+		}
 		htmxRedirect(w, r, "/cli?"+query.Encode())
 		return
 	}
@@ -461,6 +486,12 @@ func HandleCLIComplete(completer *cli.Completer, mgr *EditorManager, schema *con
 // HandleCLICompleteWithCommandCompleter returns a completion handler that can
 // complete config-mode paths and operational-mode command trees.
 func HandleCLICompleteWithCommandCompleter(completer *cli.Completer, commandCompleter CommandCompleter, mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
+	return HandleCLICompleteWithSource(completer, func(context.Context, plugin.CallerIdentity) CommandCompleter { return commandCompleter }, nil, mgr, schema)
+}
+
+// HandleCLICompleteWithSource resolves its completer only after authentication,
+// preserving the actual caller and cancellation for live runtime queries.
+func HandleCLICompleteWithSource(completer *cli.Completer, source CommandCompleterFactory, registered func(string) bool, mgr *EditorManager, schema *config.Schema) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -484,8 +515,56 @@ func HandleCLICompleteWithCommandCompleter(completer *cli.Completer, commandComp
 			http.Error(w, "invalid path", http.StatusBadRequest)
 			return
 		}
+		commandCompleter := source(r.Context(), plugin.CallerIdentity{
+			Username: username, RemoteAddr: r.RemoteAddr, Surface: audit.Web,
+			Authorizer: plugin.CallerAuthorizer(r.Context()),
+		})
+		submittedMode := normalizeTerminalMode(r.URL.Query().Get("mode"))
+		mode := submittedMode
+		if mode == terminalModeOperational {
+			if cli.ShouldEnterConfigMode(input, registered) {
+				mode = terminalModeConfig
+			}
+		}
 
-		completions := completeCLIInput(completer, commandCompleter, mgr, schema, username, input, contextPath, normalizeTerminalMode(r.URL.Query().Get("mode")))
+		if r.URL.Query().Get("explain") == "true" {
+			text, found := explainCLIInput(commandCompleter, input, mode)
+			answer := struct {
+				Explanation string `json:"explanation"`
+				Found       bool   `json:"found"`
+			}{Explanation: text, Found: found}
+			w.Header().Set("Content-Type", "application/json")
+			if err := json.NewEncoder(w).Encode(answer); err != nil {
+				http.Error(w, opererr.Wrap(err, "The command explanation could not be sent to your browser.",
+					"The completion request produced no complete JSON answer.",
+					"Open /cli and request the command explanation again").Error(), http.StatusInternalServerError)
+			}
+			return
+		}
+
+		completions, completionErr := completeCLIInput(completer, commandCompleter, mgr, schema, username, input, contextPath, mode)
+		if completionErr != nil {
+			status := http.StatusBadGateway
+			var denial interface{ PermissionDenied() bool }
+			if errors.As(completionErr, &denial) {
+				if denial.PermissionDenied() {
+					status = http.StatusForbidden
+				}
+			}
+			if errors.Is(completionErr, context.Canceled) {
+				status = http.StatusRequestTimeout
+			}
+			if errors.Is(completionErr, context.DeadlineExceeded) {
+				status = http.StatusGatewayTimeout
+			}
+			http.Error(w, cliCompletionFailure(completionErr).Error(), status)
+			return
+		}
+		// Local preferences belong to the operator's current operational mode,
+		// even when a partial editor command selects schema completion above.
+		if submittedMode == terminalModeOperational {
+			completions = append(completions, cli.SessionFormatCompletions(schema, input)...)
+		}
 		if len(completions) > maxCompletionResults {
 			completions = completions[:maxCompletionResults]
 		}
@@ -510,32 +589,69 @@ func HandleCLICompleteWithCommandCompleter(completer *cli.Completer, commandComp
 		w.Header().Set("Content-Type", "application/json")
 
 		if err := json.NewEncoder(w).Encode(items); err != nil {
-			http.Error(w, fmt.Sprintf("json encode: %v", err), http.StatusInternalServerError)
+			http.Error(w, opererr.Wrap(err, "The command completions could not be sent to your browser.",
+				"The completion request produced no complete JSON answer.",
+				"Open /cli and request command completion again").Error(), http.StatusInternalServerError)
 		}
 	}
+}
+
+// cliCompletionFailure preserves a producer's actionable refusal. The checked
+// completer interface also permits plain transport errors, which need browser
+// context and a recovery action at this boundary.
+func cliCompletionFailure(err error) *opererr.Error {
+	var refusal *opererr.Error
+	if errors.As(err, &refusal) {
+		return refusal
+	}
+	return opererr.Wrap(err, "Command completion is unavailable.",
+		"Available commands could not be checked; the completion request did not run a command.",
+		"Open /cli and request command completion again")
+}
+
+// explainCLIInput selects the operational input exactly as config-mode run
+// does. A config path has no operational explanation, so no text is invented.
+func explainCLIInput(completer CommandCompleter, input, mode string) (string, bool) {
+	if completer == nil {
+		return "", false
+	}
+	if mode == terminalModeOperational {
+		return completer.Explain(input)
+	}
+	line, _ := cli.LineBehindTop(input)
+	rest, underRun := strings.CutPrefix(line, verbRun+" ")
+	if !underRun {
+		return "", false
+	}
+	return completer.Explain(rest)
 }
 
 // completeCLIInput answers one completion request. The completer is shared by
 // every logged-in user, so the user's candidate tree is passed into the call,
 // read under that user's session lock (EditorManager.ReadTree): no other
 // user's request and no edit of the same session can change it mid-walk.
-func completeCLIInput(completer *cli.Completer, commandCompleter CommandCompleter, mgr *EditorManager, schema *config.Schema, username, input string, contextPath []string, mode string) []contract.Completion {
+func completeCLIInput(completer *cli.Completer, commandCompleter CommandCompleter, mgr *EditorManager, schema *config.Schema, username, input string, contextPath []string, mode string) ([]contract.Completion, error) {
 	if mode == terminalModeOperational {
 		var completions []contract.Completion
 		if commandCompleter != nil {
-			completions = commandCompleter.Complete(input)
+			return commandCompleter.CompleteChecked(input)
 		}
-		return append(completions, cli.SessionFormatCompletions(schema, input)...)
+		return completions, nil
+	}
+	line, underTop := cli.LineBehindTop(input)
+	input = line
+	if underTop {
+		contextPath = nil
 	}
 	if commandCompleter != nil {
 		if rest, ok := strings.CutPrefix(input, verbRun+" "); ok {
-			return commandCompleter.Complete(rest)
+			return commandCompleter.CompleteChecked(rest)
 		}
 	}
 
 	contextPath = adjustListContext(schema, contextPath)
 	if mgr == nil {
-		return completer.Complete(nil, input, contextPath)
+		return completer.Complete(nil, input, contextPath), nil
 	}
 	var completions []contract.Completion
 	inSession := mgr.ReadTree(username, func(tree *config.Tree) {
@@ -544,7 +660,7 @@ func completeCLIInput(completer *cli.Completer, commandCompleter CommandComplete
 	if !inSession {
 		// No editing session yet: there is no candidate config to read, so
 		// the answer comes from the schema alone.
-		return completer.Complete(nil, input, contextPath)
+		return completer.Complete(nil, input, contextPath), nil
 	}
-	return completions
+	return completions, nil
 }

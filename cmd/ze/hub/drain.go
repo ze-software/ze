@@ -33,7 +33,7 @@ func stopDrainDeadline(stopStart, drainStart time.Time, budgetMax time.Duration)
 }
 
 // stopRestartCause is set by the restart and reboot lifecycle callbacks
-// (infra_setup.go, service_ssh.go) before they signal the stop, and read once
+// (infra_setup.go, and reactorless main.go) before they signal the stop, and read once
 // by run after waitLoop returns. Nil means no callback asked for a restart, so
 // the stop is DrainKindStop: SIGTERM, `request shutdown`, `quit`, SSH `stop`
 // and a plugin failure all reach the hub with nothing set here. That nil is
@@ -48,7 +48,7 @@ func requestRestartStop(cause rpc.DrainRestartCause) {
 }
 
 // requestRebootStop is the reboot lifecycle callback's body, shared by
-// `request reboot` (infra_setup.go) and SSH `reboot` (service_ssh.go). It
+// `request reboot` (infra_setup.go), including the canonical SSH alias. It
 // records the two facts run reads after waitLoop returns, the OS reboot
 // (rebootRequested) and the drain's restart cause, before stopForRestart stops
 // BGP in silence. The caller signals the stop afterwards.

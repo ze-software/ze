@@ -135,10 +135,11 @@ type Server struct {
 	stopCauseClaimed atomic.Bool
 	startupErr       error // non-nil when a config-path plugin fails during startup
 
-	configLoader          ConfigLoader   // Loads new config tree for ReloadFromDisk
-	fullReload            FullReloadFunc // Runs hub-level reload for daemon-reload RPC
-	rebootFunc            func()         // Set by daemon; called on "daemon reboot" RPC
-	shutdownFunc          func()         // Set by daemon; reactor-independent daemon shutdown (used when no BGP reactor is present)
+	configLoader          ConfigLoader           // Loads new config tree for ReloadFromDisk
+	fullReload            FullReloadFunc         // Runs hub-level reload for daemon-reload RPC
+	rebootFunc            func()                 // Set by daemon; called on "daemon reboot" RPC
+	shutdownFunc          func()                 // Set by daemon; reactor-independent daemon shutdown (used when no BGP reactor is present)
+	daemonRestart         atomic.Pointer[func()] // Installed by the daemon; one shared in-place restart action.
 	shutdownRequested     chan struct{}
 	shutdownRequestedOnce sync.Once
 

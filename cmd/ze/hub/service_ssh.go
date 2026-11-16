@@ -27,11 +27,23 @@ import (
 	zessh "github.com/ze-software/ze/internal/component/ssh"
 	coreenv "github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 var errNoCommandProvided = errors.New("no command provided")
 var errStatusErrorNoMessage = errors.New("command reported status=error")
+
+// sshMissingSessionPolicy denies every command. Its zero value is valid and
+// prevents an absent authenticated policy from selecting daemon fallback rights.
+type sshMissingSessionPolicy struct{}
+
+func (sshMissingSessionPolicy) Authorize(string, string, string, bool) bool { return false }
+
+func sshSessionPolicy(authorizer plugin.Authorizer) plugin.Authorizer {
+	if authorizer == nil {
+		return sshMissingSessionPolicy{}
+	}
+	return authorizer
+}
 
 // sshBuildImpl builds and starts the ssh server from generic infra inputs and
 // returns it as the opaque sshServer handle (nil on config/start error).
@@ -86,8 +98,8 @@ func sshBuildImpl(in *sshBuildInputs) sshServer {
 	return srv
 }
 
-// sshWireImpl wires command executors, monitor, plugin-protocol, and lifecycle
-// callbacks onto a built ssh server. Called from the reactor post-start
+// sshWireImpl wires command executors, monitor and plugin-protocol handlers
+// onto a built ssh server. Called from the reactor post-start
 // callback in infraSetup (after authorization/accounting are configured).
 func sshWireImpl(handle sshServer, in *sshWireInputs) {
 	sshSrv, ok := handle.(*zessh.Server)
@@ -96,18 +108,18 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 	}
 	r := in.Reactor
 	params := in.Params
-	stopForRestart := in.StopForRestart
 	d := r.Dispatcher()
 	apiServer := params.APIServer()
 
-	sshSrv.SetExecutorFactory(func(username, remoteAddr string, authorizer plugin.Authorizer) zessh.CommandExecutor {
+	sshSrv.SetExecutorFactory(func(sessionCtx context.Context, username, remoteAddr string, authorizer plugin.Authorizer) zessh.CommandExecutor {
 		return func(input string) (*plugin.RenderedResponse, error) {
 			ctx := &pluginserver.CommandContext{
-				Server:     apiServer,
-				Username:   username,
-				RemoteAddr: remoteAddr,
+				Server:         apiServer,
+				RequestContext: sessionCtx,
+				Username:       username,
+				RemoteAddr:     remoteAddr,
 				// An SSH session is an operator, authenticated as Username above.
-				Authorizer: authorizer,
+				Authorizer: sshSessionPolicy(authorizer),
 				Sender:     plugin.OperatorSender(),
 			}
 			resp, err := d.Dispatch(ctx, input)
@@ -135,11 +147,12 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 			}
 			input := args[0]
 			cmdCtx := &pluginserver.CommandContext{
-				Server:     apiServer,
-				Username:   username,
-				RemoteAddr: remoteAddr,
+				Server:         apiServer,
+				RequestContext: ctx,
+				Username:       username,
+				RemoteAddr:     remoteAddr,
 				// An SSH session is an operator, authenticated as Username above.
-				Authorizer: authorizer,
+				Authorizer: sshSessionPolicy(authorizer),
 				Sender:     plugin.OperatorSender(),
 			}
 			// RFC 8907 Section 8.3 requires a record for every command,
@@ -186,34 +199,6 @@ func sshWireImpl(handle sshServer, in *sshWireInputs) {
 	})
 	sshSrv.SetPluginProtocolFunc(func(ctx context.Context, reader io.ReadCloser, writer io.WriteCloser) error {
 		return apiServer.HandleAdHocPluginSession(reader, writer)
-	})
-	// `shutdown` ends the daemon, so its peers are told why (Cease /
-	// Administrative Shutdown), but only after the stop drain: it stops
-	// nothing itself and hands the stop to the hub, whose teardown sends the
-	// Cease once the drain has made Ze unattractive. `restart` and `reboot`
-	// come back, so they take stopForRestart, which writes the
-	// graceful-restart marker and stops in silence: RFC 4724 Section 5 has a
-	// peer delete every route of a connection that ends in a NOTIFICATION,
-	// with no condition on it. A bare TCP close is the only end a peer can
-	// ever retain across, so it is the only one a restart can use. See
-	// infra_setup.go, where the pair is built. They first record the restart
-	// cause, so the drain RPC carries kind restart (requestRestartStop).
-	//
-	// Each one then signals the plugin server, as `request shutdown` and
-	// `request reboot` do (handleDaemonShutdown, handleDaemonReboot): the
-	// daemon's waitLoop blocks on Server.Wait, so without the signal the
-	// daemon stayed up after telling the client "stopping daemon".
-	sshSrv.SetShutdownFunc(func() {
-		apiServer.SignalShutdownRequested()
-	})
-	sshSrv.SetRestartFunc(func() {
-		requestRestartStop(rpc.DrainRestartInPlace)
-		stopForRestart()
-		apiServer.SignalShutdownRequested()
-	})
-	sshSrv.SetRebootFunc(func() {
-		requestRebootStop(stopForRestart)
-		apiServer.SignalShutdownRequested()
 	})
 	rl := apiServer.Reactor()
 	sshSrv.SetLoginWarnings(func() []contract.LoginWarning {
@@ -294,12 +279,12 @@ func sshBuildStandaloneImpl(in *sshStandaloneInputs) func() {
 		return in.ConfigOwner.Reload(context.Background())
 	}))
 	dispatch := in.Dispatch
-	srv.SetExecutorFactory(func(username, remoteAddr string, authorizer plugin.Authorizer) zessh.CommandExecutor {
+	srv.SetExecutorFactory(func(sessionCtx context.Context, username, remoteAddr string, authorizer plugin.Authorizer) zessh.CommandExecutor {
 		return func(input string) (*plugin.RenderedResponse, error) {
 			// Answer rather than JSON: the exec channel renders a row
 			// generator itself, and Records is walked once.
-			return dispatch.Answer(context.Background(), plugin.CallerIdentity{
-				Username: username, RemoteAddr: remoteAddr, Authorizer: authorizer,
+			return dispatch.Answer(sessionCtx, plugin.CallerIdentity{
+				Username: username, RemoteAddr: remoteAddr, Authorizer: sshSessionPolicy(authorizer),
 			}, input)
 		}
 	})

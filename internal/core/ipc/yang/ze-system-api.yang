@@ -64,6 +64,16 @@ reactor stops through the same path SIGTERM uses.";
         ze:help "Shut the daemon down gracefully.";
     }
 
+    rpc daemon-restart {
+        description "The daemon answers restart initiated before it prepares the in-place
+restart and signals its stop. The installed action preserves graceful-restart
+state when BGP runs. Starting it again requires a supervisor configured to
+restart it after this stop; the host does not reboot. A caller canceled before
+acceptance is refused. An accepted
+restart still runs if its caller disconnects during response delivery.";
+        ze:help "Restart the daemon in place without rebooting the host.";
+    }
+
     rpc daemon-reboot {
         description "The command needs a running reactor. It fails with reboot not available
 when the daemon wired no reboot action, and the reboot runs after the answer is written.";

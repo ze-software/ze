@@ -140,24 +140,22 @@ func TestSSHRawExecFormatsStreamEventsAndConsumesLog(t *testing.T) {
 func TestStreamPipeWriterFormatsEachEventOnce(t *testing.T) {
 	var output bytes.Buffer
 	var calls []string
-	writer := streamPipeWriter{
-		output: &output,
-		format: func(event string) string {
-			calls = append(calls, event)
-			return "formatted[" + event + "]"
-		},
-	}
+	err := command.RunStreamPipes(&output, func(event string) string {
+		calls = append(calls, event)
+		return "formatted[" + event + "]"
+	}, func(writer io.Writer) error {
+		n, err := writer.Write([]byte(`{"event":"fir`))
+		require.NoError(t, err)
+		assert.Equal(t, len(`{"event":"fir`), n)
+		assert.Empty(t, calls, "a split event must wait for its delimiter")
 
-	n, err := writer.Write([]byte(`{"event":"fir`))
+		const remainder = "st\"}\n{\"event\":\"second\"}"
+		n, err = writer.Write([]byte(remainder))
+		require.NoError(t, err)
+		assert.Equal(t, len(remainder), n)
+		return nil
+	})
 	require.NoError(t, err)
-	assert.Equal(t, len(`{"event":"fir`), n)
-	assert.Empty(t, calls, "a split event must wait for its delimiter")
-
-	const remainder = "st\"}\n{\"event\":\"second\"}"
-	n, err = writer.Write([]byte(remainder))
-	require.NoError(t, err)
-	assert.Equal(t, len(remainder), n)
-	require.NoError(t, writer.finish())
 
 	assert.Equal(t, []string{`{"event":"first"}`, `{"event":"second"}`}, calls)
 	assert.Equal(t,
@@ -240,7 +238,7 @@ func TestAuthenticatedSSHPTYRefusesSaveBeforeModelDispatch(t *testing.T) {
 		return plugin.NewResponse(plugin.StatusDone, plugin.RawJSON(`{"version":"unused"}`)), nil
 	})
 	server.SetSessionModelFactory(
-		func(username, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+		func(_ context.Context, username, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 			factoryCalled.Store(username == "operator")
 			model := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 			model.SetCommandExecutor(func(string) (cli.CommandOutput, error) {
@@ -307,7 +305,7 @@ func TestSSHPTYRefusesInvalidSelection(t *testing.T) {
 			server := answerServer(t, func(string) (*plugin.Response, error) {
 				return plugin.NewResponse(plugin.StatusDone, nil), nil
 			})
-			server.SetSessionModelFactory(func(_, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+			server.SetSessionModelFactory(func(_ context.Context, _, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 				dispatched.Store(true)
 				return cli.NewCommandModel(cli.FilesystemAuthorityUnknown), nil
 			})

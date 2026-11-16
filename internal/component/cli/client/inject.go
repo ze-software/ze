@@ -82,12 +82,11 @@ func dispatchQuery(dispatch CommandFunc) daemonQuery {
 	}
 }
 
-// wireDaemonArgCompletion hangs a value hint on the node of every command the
+// wireDaemonArgCompletion hangs an argument hint on every command the
 // daemon marks completable, so Tab after `request plugin restart` offers what
 // the running daemon holds. The hint asks `system command complete args
-// "<cmd>"` at each Tab and lists every candidate; the tree completer matches
-// the typed prefix. A daemon that does not answer offers nothing, because a
-// completion is best-effort and a candidate guessed here would be wrong.
+// "<cmd>"` with the completed arguments and current partial at each Tab. The
+// shared query decoder preserves failures for the terminal's checked path.
 func wireDaemonArgCompletion(tree *cmd.Node, commands []commandEntry, query daemonQuery) {
 	for i := range commands {
 		if !commands[i].Completable {
@@ -97,40 +96,11 @@ func wireDaemonArgCompletion(tree *cmd.Node, commands []commandEntry, query daem
 		if node == nil {
 			continue
 		}
-		line := `system command complete args "` + commands[i].Value + `"`
-		node.ValueHints = func() []cmd.Suggestion {
-			return fetchArgCompletions(query, line)
+		name := commands[i].Value
+		node.ArgumentHints = func(completed []string, partial string) ([]cmd.Suggestion, error) {
+			return cmd.ArgumentSuggestions(cmd.ArgumentQuery(query), name, completed, partial)
 		}
 	}
-}
-
-// fetchArgCompletions runs one `system command complete args` line and
-// converts its candidates to value suggestions.
-func fetchArgCompletions(query daemonQuery, line string) []cmd.Suggestion {
-	output, err := query(line)
-	// refuse-by-default: guards wireDaemonArgCompletion -- an unreachable daemon offers no candidate, never a guessed one
-	if err != nil {
-		return nil
-	}
-	var data struct {
-		Completions []struct {
-			Value     string `json:"value"`
-			ShortHelp string `json:"short-help"`
-		} `json:"completions"`
-	}
-	// refuse-by-default: guards wireDaemonArgCompletion -- an answer that does not decode offers no candidate
-	if json.Unmarshal([]byte(output), &data) != nil {
-		return nil
-	}
-	suggestions := make([]cmd.Suggestion, 0, len(data.Completions))
-	for _, candidate := range data.Completions {
-		suggestions = append(suggestions, cmd.Suggestion{
-			Text:        candidate.Value,
-			Description: candidate.ShortHelp,
-			Type:        cmd.SuggestionValue,
-		})
-	}
-	return suggestions
 }
 
 // injectPluginCommands adds plugin-registered commands to the completion tree.

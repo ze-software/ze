@@ -1,0 +1,49 @@
+# Test: authenticated graphical paste import stays a candidate until commit
+# VALIDATES: native paste form submission, root merge, refusal recovery and
+# candidate/confirmed readbacks through the same browser CLI before publication.
+# PREVENTS: a graphical import publishing through the legacy upload route or
+# replacing the editable form with a failed request's response.
+
+option=timeout:value=90s
+option=server:kind=daemon
+option=auth:user=admin:password=ze-web-import:role=admin
+
+action=login:user=admin:password=ze-web-import
+action=open:path=/show/
+action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
+action=click:id=graphical-import-toggle
+action=fill:id=graphical-import-paste:value=system { host "unfinished; }
+action=click:id=graphical-import-paste-submit
+expect=element:text=The configuration could not be imported.
+expect=element:id=graphical-import-paste
+# The refusal opens the error drawer; retain its error while resuming the form.
+expect=html:contains=id="error-panel" class="error-panel">
+action=click:id=error-toggle
+expect=html:contains=id="error-panel" class="error-panel collapsed">
+expect=html:contains=data-count="1"
+expect=element:text=Error 400
+action=click:text=button "x"
+action=wait-html:contains=id="notification-area" class="notification-area"></div>
+action=fill:id=graphical-import-paste:value=system { host graphical-paste-import; }
+action=select:id=graphical-import-paste-location:value=absolute
+action=select:id=graphical-import-paste-action:value=merge
+action=click:id=graphical-import-paste-submit
+expect=element:text=Configuration merged
+expect=element:text=graphical-paste-import
+expect=element:id=commit-review-btn
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=show system | format config
+action=press:id=terminal-input:key=Enter
+expect=element:text=graphical-paste-import
+action=fill:id=terminal-input:value=show confirmed | format config
+action=press:id=terminal-input:key=Enter
+expect=element:text=1.2.3.4
+expect=element:not-text=graphical-paste-import
+action=fill:id=terminal-input:value=commit now
+action=press:id=terminal-input:key=Enter
+expect=element:text=commit successful
+action=fill:id=terminal-input:value=show confirmed system | format config
+action=press:id=terminal-input:key=Enter
+expect=element:text=graphical-paste-import

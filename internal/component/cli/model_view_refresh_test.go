@@ -32,12 +32,13 @@ func TestIncidentalViewUnchangedWithoutTop(t *testing.T) {
 	require.NoError(t, os.WriteFile(loadPath, []byte("bgp { router-id 9.9.9.9; }"), 0o600))
 
 	cases := []struct {
-		name   string
-		setup  []string
-		atRoot string
-		inPeer string
+		name        string
+		setup       []string
+		atRoot      string
+		inPeer      string
+		peerHistory string
 	}{
-		{name: "set", atRoot: "set bgp peer peer1 timer receive-hold-time 60", inPeer: "set timer receive-hold-time 60"},
+		{name: "set", atRoot: "set bgp peer peer1 timer receive-hold-time 60", inPeer: "set timer receive-hold-time 60", peerHistory: "top set bgp peer peer1 timer receive-hold-time 60"},
 		{name: "delete", atRoot: "delete bgp peer peer1 timer receive-hold-time", inPeer: "delete timer receive-hold-time"},
 		{name: "deactivate", atRoot: "deactivate bgp peer peer1 timer", inPeer: "deactivate timer"},
 		{
@@ -86,7 +87,11 @@ func TestIncidentalViewUnchangedWithoutTop(t *testing.T) {
 				assert.Equal(t, ref.viewportContent, out.viewportContent, "the view at the prompt's position")
 				assert.Equal(t, ref.viewport.YOffset(), out.viewport.YOffset(), "the scroll position")
 				assert.Equal(t, ref.showingConfig, out.showingConfig)
-				assertIncidentalView(t, m, out, result, line, result.statusMessage)
+				expectedHistory := line
+				if inPeer && tc.peerHistory != "" {
+					expectedHistory = tc.peerHistory
+				}
+				assertIncidentalView(t, m, out, result, line, result.statusMessage, expectedHistory)
 			})
 		}
 	}

@@ -57,6 +57,7 @@ action=wait-html:contains=id="notification-area" class="notification-area"></div
 expect=html:contains=data-count="1"
 expect=html:contains=Choose or enter the new member's value.
 action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
 action=click:text=Review changes
 expect=element:text=Review changes (0)
 action=click:text=Cancel

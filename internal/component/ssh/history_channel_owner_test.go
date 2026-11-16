@@ -61,7 +61,7 @@ func TestSSHChannelsSharingConnectionCloseTheirOwnModels(t *testing.T) {
 		writerB := &historyShutdownStore{Storage: memory, entered: make(chan struct{}), release: make(chan struct{})}
 		install := func(writer *historyShutdownStore, transcript *cli.TranscriptWriter, input string) <-chan cli.Model {
 			created := make(chan cli.Model, 1)
-			server.SetSessionModelFactory(func(username, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+			server.SetSessionModelFactory(func(_ context.Context, username, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 				model := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 				model.SetHistory(cli.NewHistory(writer, username))
 				model.SetTranscript(transcript)
@@ -166,7 +166,11 @@ func TestSSHChannelsSharingConnectionCloseTheirOwnModels(t *testing.T) {
 		if want := []historyShutdownWrite{{key: "meta/history/operator/operational", payload: "show channel-b"}}; !slices.Equal(writesB, want) {
 			t.Errorf("channel B actual publications = %v, want %v", writesB, want)
 		}
-		if got := cli.NewHistory(memory, "operator").Load(cli.ModeOperational.String()); !slices.Equal(got, []string{"show channel-b"}) {
+		gotHistory, historyErr := cli.NewHistory(memory, "operator").Load(cli.ModeOperational.String())
+		if historyErr != nil {
+			t.Fatal(historyErr)
+		}
+		if got := gotHistory; !slices.Equal(got, []string{"show channel-b"}) {
 			t.Errorf("ordered final same-user snapshot = %v, want channel B", got)
 		}
 	})

@@ -64,13 +64,12 @@ input=type:text=show | compare | format config
 input=enter
 expect=error:none
 
-# Set format still carries a change marker. This is A-5: with fmtConfig the content
-# is set-format text, so computeTreeAnnotatedDiff's config.NewParser cannot make a
-# hierarchical tree of it and the annotation falls back to the LCS line diff
-# (diff_tree.go). Isolation happens before serialization either way; this asserts the
-# markers survive the fallback. The fixture MODIFIES a leaf, so the marker is '*'
-# (diff.go: diffModified), not '+'.
-expect=viewport:contains=*
+# Set-format comparisons fall back from the tree parser to the LCS line diff.
+# Flat statements retain both sides because equal indentation does not establish
+# statement identity (diff.go: detectModifications). Require the complete removed
+# and added settings, including their markers, after isolation and serialization.
+expect=viewport:contains=- set bgp peer alpha connection remote ip 10.0.0.1
+expect=viewport:contains=+ set bgp peer alpha connection remote ip 10.9.9.9
 
 # Set format carries the change...
 expect=viewport:contains=10.9.9.9

@@ -9,13 +9,24 @@ import (
 	"fmt"
 	"slices"
 
+	"github.com/ze-software/ze/internal/component/cli/contract"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
 var errUsageOption = errors.New("usage: option <author|date|source|changes|all|none|errors> [enable|disable|hints|hide]")
 
 // isOptionColumn returns true if the name is a valid display column.
-var optionColumnNames = []string{colAuthor, colDate, colSource, colChanges}
+var optionColumnNames = editorOptionColumnNames()
+
+func editorOptionColumnNames() []string {
+	var names []string
+	for _, option := range contract.EditorOptions() {
+		if option.Column {
+			names = append(names, option.Name)
+		}
+	}
+	return names
+}
 
 func isOptionColumn(name string) bool {
 	return slices.Contains(optionColumnNames, name)

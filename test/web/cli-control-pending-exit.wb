@@ -1,0 +1,28 @@
+# Test: exiting with a draft offers explicit confirm/cancel and keeps the draft
+# VALIDATES: cancellation keeps config mode; confirmation leaves without discard
+# PREVENTS: a mode change silently dropping pending work or trapping the operator
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=set bgp router-id 192.0.2.245
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=exit
+action=press:id=terminal-input:key=Enter
+expect=element:id=cli-confirm-panel
+expect=element:text=Pending changes will stay in your candidate.
+action=click:id=cli-confirm-cancel
+expect=element:text=ze#
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+expect=element:text=192.0.2.245
+action=fill:id=terminal-input:value=exit
+action=press:id=terminal-input:key=Enter
+expect=element:text=Pending changes will stay in your candidate.
+action=click:id=cli-confirm-yes
+expect=element:text=ze>
+action=fill:id=terminal-input:value=configure
+action=press:id=terminal-input:key=Enter
+expect=element:text=192.0.2.245
+expect=element:text=ze#

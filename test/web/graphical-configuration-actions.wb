@@ -28,6 +28,7 @@ expect=element:text=commit successful
 
 action=open:path=/show/bgp/group/actions-source/
 action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
 action=fill:id=graphical-entry-target:value=actions-copy
 action=click:id=graphical-copy
 action=wait
@@ -35,28 +36,35 @@ expect=html:contains=actions-copy
 action=open:path=/show/bgp/group/actions-copy/
 expect=html:contains=value="original"
 action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
 action=fill:id=graphical-entry-target:value=actions-final
 action=click:id=graphical-rename
 action=wait
 expect=html:contains=actions-final
 action=open:path=/show/bgp/group/actions-final/
 action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-validate
 action=wait
 expect=element:text=candidate is valid
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-save-draft
 action=wait
 expect=element:id=graphical-action-result
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-deactivate
 action=wait
 expect=element:text=Inactive
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-activate
 action=wait
 expect=element:text=Active
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-commit-options
 action=click:id=graphical-commit-confirmed
 action=wait
 expect=element:id=graphical-confirm-status
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-commit-abort
 action=wait
 expect=element:text=rolled back
@@ -69,10 +77,12 @@ action=fill:id=input-bgp-sgroup-sactions--source-sdescription:value=accepted
 action=press:id=input-bgp-sgroup-sactions--source-sdescription:key=Enter
 action=wait
 action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-commit-options
 action=click:id=graphical-commit-confirmed
 action=wait
 expect=element:id=graphical-confirm-status
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-commit-accept
 action=wait
 expect=element:text=accepted
@@ -80,8 +90,10 @@ action=open:path=/show/bgp/group/actions-source/
 expect=html:contains=value="accepted"
 
 action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-history
 action=wait
+action=click:id=graphical-edit-toggle
 expect=element:id=graphical-revisions
 # Stored daemon history includes the active version. Round-trip that row first:
 # a restore button selects its actual version key, not an assumed prior state.
@@ -92,7 +104,9 @@ expect=html:contains=value="accepted"
 # The preceding version is the original configuration restored by abort before
 # the accepted edit was staged. Restore it without publishing the candidate.
 action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-history
+action=click:id=graphical-edit-toggle
 expect=element:id=graphical-restore-2
 action=click:id=graphical-restore-2
 action=wait

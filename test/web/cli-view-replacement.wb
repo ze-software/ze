@@ -1,0 +1,44 @@
+# Test: replacing or leaving an interactive view releases its browser controls
+# VALIDATES: AC-44 -- a new command, page exit and re-entry have independent views
+# PREVENTS: old frames or controls overwriting the next answer or a reopened page
+
+option=timeout:value=60s
+option=server:kind=daemon
+option=auth:user=admin:password=ze-web-admin:role=admin
+
+action=login:user=admin:password=ze-web-admin
+action=open:path=/cli
+action=fill:id=terminal-input:value=run monitor bgp
+action=press:id=terminal-input:key=Enter:wait=none
+expect=element:id=cli-view-sort
+expect=element:text=127.0.0.2
+action=fill:id=terminal-input:value=run show version
+action=press:id=terminal-input:key=Enter
+expect=element:text=version
+expect=element:not-id=cli-view-sort
+expect=element:not-text=Peer Detail
+
+action=fill:id=terminal-input:value=run monitor bgp
+action=press:id=terminal-input:key=Enter:wait=none
+expect=element:id=cli-view-detail
+action=open:path=/show/bgp/router-id/
+expect=element:text=1.2.3.4
+expect=element:not-id=cli-view-detail
+action=back
+expect=element:id=terminal-input
+expect=element:not-id=cli-view-detail
+action=open:path=/cli
+expect=element:text=router-id
+expect=element:not-id=cli-view-sort
+action=fill:id=terminal-input:value=run monitor bgp
+action=press:id=terminal-input:key=Enter:wait=none
+expect=element:id=cli-view-sort
+expect=element:text=Peer ^
+action=click:id=cli-view-help
+expect=element:text=Cycle sort column
+action=press:id=cli-view-back:key=Control+c:wait=none
+expect=element:text=Stopped
+expect=element:not-id=cli-view-back
+action=fill:id=terminal-input:value=run show version
+action=press:id=terminal-input:key=Enter
+expect=element:text=version

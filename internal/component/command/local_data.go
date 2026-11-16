@@ -67,25 +67,30 @@ type LocalDataHandler func(args ValidatedArgs) LocalAnswer
 
 // LocalAnswer is everything a local-data handler has to say.
 //
-// The three fields are INDEPENDENT. Payload says whether there is an answer to
+// The three fields are INDEPENDENT. Payload holds a structured answer to
 // render, Code says what the process exits with, and a command MAY have both:
 // `show config validation` answers the diagnostics of a config it rejects and
 // exits 1. Diagnostic is text for the operator, rendered by the local routes
 // verbatim on stderr, before the payload on stdout.
 //
-// A handler with nothing to answer returns a nil Payload and its reason in
-// Diagnostic: that pair is a refusal. A Diagnostic beside a payload is a
-// warning about the answer, such as the parse warnings `show config dump`
-// reports for a config it still resolved. Diagnostic holds whole lines, each
-// ending in a newline, exactly as the operator reads them.
+// A completed check MAY report its verdict in Diagnostic without a Payload:
+// `ze config fmt --check` exits 1 with "<path> needs formatting" after it has
+// successfully compared the source. That is an answer, not a refusal to check.
+// Neither a nonzero Code nor a nil Payload alone makes a result a refusal.
+// A handler that cannot answer uses LocalRefusal with its operator error in
+// Diagnostic. A Diagnostic beside a payload is a warning about the answer,
+// such as parse warnings for a config `show config dump` still resolved.
+// Diagnostic holds whole lines, each ending in a newline, exactly as the
+// operator reads them.
 type LocalAnswer struct {
 	Payload    any
 	Code       int
 	Diagnostic string
 }
 
-// LocalRefusal is the answer of a handler with nothing to answer: no payload,
-// the exit code, and the reason the operator reads.
+// LocalRefusal records a handler's inability to answer: no payload, the exit
+// code, and the operator error with its recovery action. A completed check's
+// negative verdict uses LocalAnswer directly; it was able to answer.
 func LocalRefusal(code int, diagnostic string) LocalAnswer {
 	return LocalAnswer{Code: code, Diagnostic: diagnostic}
 }

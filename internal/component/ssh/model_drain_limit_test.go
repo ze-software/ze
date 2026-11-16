@@ -43,7 +43,7 @@ func TestSSHStopEndsItsWaitOnStorageThatStoppedAnswering(t *testing.T) {
 		store := &historyShutdownStore{Storage: memory, entered: make(chan struct{}), release: make(chan struct{})}
 		var release sync.Once
 		unblock := func() { release.Do(func() { close(store.release) }) }
-		server.SetSessionModelFactory(func(username, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+		server.SetSessionModelFactory(func(_ context.Context, username, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 			model := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 			model.SetHistory(cli.NewHistory(store, username))
 			initial := model
@@ -82,7 +82,11 @@ func TestSSHStopEndsItsWaitOnStorageThatStoppedAnswering(t *testing.T) {
 		// A write that answers late still lands while the store stays open.
 		unblock()
 		<-ended
-		if got := cli.NewHistory(memory, "operator").Load(cli.ModeOperational.String()); !slices.Equal(got, []string{"show held"}) {
+		gotHistory, historyErr := cli.NewHistory(memory, "operator").Load(cli.ModeOperational.String())
+		if historyErr != nil {
+			t.Fatal(historyErr)
+		}
+		if got := gotHistory; !slices.Equal(got, []string{"show held"}) {
 			t.Errorf("history after the late write = %v", got)
 		}
 	})

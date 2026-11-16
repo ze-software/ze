@@ -6,7 +6,6 @@ package cli
 
 import (
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io/fs"
@@ -395,9 +394,9 @@ func handleDataKeyUpdate(_ *pluginserver.CommandContext, validated command.Valid
 	if refusal := runningOwnerError(pathUpdateDataKey, key); refusal != nil {
 		return zePlugin.OperatorErrorResponse(refusal), nil
 	}
-	content, err := base64.StdEncoding.DecodeString(encoded)
+	content, err := command.DecodeContent(encoded)
 	if err != nil {
-		// The decoder's error names a byte offset, never the input.
+		// The shared decoder's error never repeats the supplied bytes.
 		return zePlugin.OperatorErrorResponse(opererr.Wrap(err,
 			pathUpdateDataKey+": content is not base64",
 			"content carries the key's bytes in base64 (RFC 4648 Section 4, with = padding), the encoding ze data write sends a file in, so the key is unchanged",

@@ -1,0 +1,81 @@
+// Design: docs/architecture/web-components.md -- native registered input inspection.
+
+package web
+
+templ graphicalSuppliedPanel(v *GraphicalSuppliedPanel) {
+	if v != nil {
+		<details class="config-section graphical-supplied">
+			<summary id="graphical-supplied-toggle">Inspect supplied configuration</summary>
+			<p>Inspect local files or pasted configuration without loading them into your candidate.</p>
+			if v.Error != "" {
+				<p role="alert">{ v.Error }</p>
+			} else if v.Input != nil {
+				<form method="get" action="/config/inspect/form" hx-get="/config/inspect/form" hx-target="#graphical-supplied-inputs" hx-swap="outerHTML" hx-trigger="change" hx-sync="#graphical-supplied-inputs:replace">
+					<label>Inspection <select id="graphical-supplied-command" name="command">
+						for _, choice := range v.Choices {
+							<option value={ choice.Path } selected?={ choice.Path == v.Input.Command }>{ choice.Label }</option>
+						}
+					</select></label>
+				</form>
+				@graphicalSuppliedInputs(v.Input)
+				<div id="graphical-supplied-answer" aria-live="polite"></div>
+			} else {
+				<p>No supplied-input inspections are offered by this build.</p>
+			}
+		</details>
+	}
+}
+
+templ graphicalSuppliedInputs(v *GraphicalSuppliedInputs) {
+	<div id="graphical-supplied-inputs">
+		<p>{ v.Summary }</p>
+		if v.Description != "" {
+			<details><summary>About this inspection</summary><p>{ v.Description }</p></details>
+		}
+		<p>The complete input is limited to { v.Limit } bytes. Comparison inputs share this limit.</p>
+		<form method="post" action="/config/inspect" enctype="multipart/form-data" hx-post="/config/inspect" hx-encoding="multipart/form-data" hx-target="#graphical-supplied-answer" hx-swap="innerHTML" hx-sync="#graphical-supplied-inputs:replace">
+			<input type="hidden" name="command" value={ v.Command }>
+			<div class="config-fields">
+				for _, source := range v.Sources {
+					<fieldset class="graphical-supplied-source">
+						<legend>{ source.Label }</legend>
+						<label>Local file <input id={ source.FileID } type="file" name={ source.FileField }></label>
+						<label>Or paste configuration <textarea id={ source.ContentID } name={ source.Field } rows="8"></textarea></label>
+					</fieldset>
+				}
+				for _, option := range v.Options {
+					if option.Flag {
+						<label><input type="checkbox" name={ option.Name } value="true">{ option.Label }</label>
+					} else if len(option.Choices) > 0 {
+						<label>{ option.Label }<select name={ option.Name } required?={ option.Required }>
+							if !option.Required {
+								<option value="">Default</option>
+							}
+							for _, choice := range option.Choices {
+								<option value={ choice }>{ choice }</option>
+							}
+						</select></label>
+					} else {
+						<label>{ option.Label }<input type="text" name={ option.Name } required?={ option.Required }></label>
+					}
+					if option.Description != "" {
+						<p class="config-help">{ option.Description }</p>
+					}
+				}
+				<button class="config-btn" id="graphical-supplied-submit" type="submit">Inspect</button>
+			</div>
+		</form>
+	</div>
+}
+
+templ graphicalSuppliedClearAnswer() {
+	<div id="graphical-supplied-answer" hx-swap-oob="innerHTML"></div>
+}
+
+templ graphicalSuppliedAnswer(v GraphicalSuppliedAnswer) {
+	if v.Failed {
+		<p role="alert">The inspection could not be completed.</p>
+	}
+	<pre id="graphical-supplied-result" role="status">{ v.Output }</pre>
+}
+

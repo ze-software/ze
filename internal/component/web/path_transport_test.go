@@ -143,7 +143,7 @@ func TestGraphicalPrefixKeyURLSaveReadback(t *testing.T) {
 	assert.Equal(t, "reject", value)
 	reload := authedRequest(t, http.MethodGet, fragmentURL(fieldPath), nil)
 	shown := httptest.NewRecorder()
-	HandleFragment(renderer, mgr.schema, mgr.Tree("testuser"), mgr, false)(shown, reload)
+	HandleFragment(renderer, mgr.schema, mgr.Tree("testuser"), mgr, false, nil)(shown, reload)
 	require.Equal(t, http.StatusOK, shown.Code, shown.Body.String())
 	assert.Contains(t, shown.Body.String(), `value="reject" selected`)
 	// Read-only denial and schema rejection keep the same literal-key candidate.

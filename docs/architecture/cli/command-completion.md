@@ -9,7 +9,7 @@ gap was that the interactive tree never consulted it.
 
 Every producer asks one predicate what its surface owes a command:
 `command.AnswerSurface` answers must offer, must not offer, or offer with a
-qualifier (streaming on SSH, `ze cli` and the shell for a monitor command;
+qualifier (streaming on SSH, the browser CLI, `ze cli` and the shell for a monitor command;
 TUI-only for a view its registration declares so), with the reason, from the
 registration kind alone (builtin, local, local-data, plugin, view, hidden,
 streaming). A producer that feeds one list to every daemon surface asks
@@ -20,9 +20,9 @@ every producer below for its list and compares it with the predicate.
 | Surface | Producer | How it stays live |
 |---------|----------|-------------------|
 | entry source | `VisibleCommandEntries()` returns every command `ListedOnDaemonSurfaces` lists (no `Hidden` one) as a `command.CommandEntry` | RLock over the registry map, mirroring `All()` and `Complete()` |
-| injection | `MergeCommandPaths` splits each command name on spaces and inserts tree nodes | non-destructive: an existing node is never mutated. Each of the two help fields is set only on a leaf the call creates, or on one that holds nothing in THAT field |
-| SSH | `mergePluginCommands` merges into the per-session tree | the tree is rebuilt per session, so a plugin that exited is absent next session |
-| Web | `pluginAwareCommandCompleter` builds a throwaway overlay per `/cli/complete` request and composites it, YANG winning a name collision, with every streaming-only command removed (`streamingPathsOff`) | the shared YANG tree stays immutable and is never mutated |
+| injection | `MergeCommandPaths` splits each command name on spaces and inserts tree nodes | preserves existing dispatch and argument metadata, fills each empty help field, and marks every merged leaf as a command |
+| SSH | `pluginAwareCommandCompleter` overlays the per-session YANG tree | every completion and explanation reads the live registry; queries retain the authenticated session context and policy |
+| Web | `pluginAwareCommandCompleter` builds a throwaway overlay per `/cli/complete` request, with YANG winning a name collision; the browser CLI offers registered streams | the shared YANG tree stays immutable; `WithArgCompletion` copies one snapshot of builtin/plugin paths before attaching caller-bound argument producers |
 | Web admin | `adminCommandTrees` (`cmd/ze/hub/service_web.go`) answers, per request, `command.OverlayCommandPaths` of the YANG tree and `VisibleCommandEntries()`: a copy of each node on a merged path, every other subtree shared, with every streaming-only command removed (`streamingPathsOff`) | the shared YANG tree is never written, so a plugin that exited is gone on the next request |
 | MCP, REST, gRPC | `buildCommandMeta` (`cmd/ze/hub/command_meta.go`) lists the dispatcher's commands (builtins and the local-data commands it serves) and the plugin commands `ListedOnDaemonSurfaces` lists, minus every streaming-only command (`streamingPathsOff`) | built from the live dispatcher on each list call |
 | `ze cli` | `BuildRuntimeTreeFromDispatch` (`internal/component/cli/client/main.go`): the daemon's `system command list`, plus every local-data command the client answers itself (`command.ServeLocal`) | built at attach; the local-data commands are offered with or without a daemon |
@@ -63,6 +63,49 @@ They are decided one at a time, so a plugin that states a summary and no
 explanation fills the summary alone.
 
 ## What Tab and `?` reveal
+
+The browser's authenticated `/cli/complete` endpoint uses the same command
+completer for candidates and long explanations. Ordinary requests return the
+candidate array. Adding `explain=true` returns an object with `explanation` and
+`found`, for the complete `input` in the submitted `mode` and `path`. Operational
+input is explained directly; config-mode `run` (including `top run`) explains
+the operational tail. Config paths do not invent an operational explanation.
+`found=false` distinguishes an undeclared explanation from declared text.
+
+CLI and web completion use `LineBehindTop` to remove repeated leading `top`
+words in configuration mode. Configuration paths then complete from the root.
+The remaining input keeps quotes, empty arguments, incomplete values and trailing
+spaces, so live argument completion receives the same values as ordinary `run`.
+The request retains its authenticated caller, authorization policy and context.
+<!-- source: internal/component/cli/model_commands.go -- LineBehindTop -->
+<!-- source: internal/component/web/cli.go -- completeCLIInput, explainCLIInput -->
+
+Interactive lifecycle aliases are also shared through
+`contract.LifecycleCommand`: exact bare `stop` maps to `request shutdown` and
+`restart` to `request restart`. The helper consumes no arguments or whitespace
+and grants no permission. An interactive surface confirms before sending the returned
+canonical command through its authenticated dispatcher; daemon execution and
+response-completion remain with the registered command owner.
+
+<!-- source: internal/component/cli/contract/lifecycle.go -- LifecycleCommand -->
+
+Operational mode keeps a registered command operational even when its verb is
+also an editor command. The dispatcher supplies `RecognizesCommand`, which
+resolves builtin, subsystem and plugin registrations without running a handler
+or granting authorization. `ShouldEnterConfigMode` retains automatic config
+entry for editor inputs that do not resolve operationally. Enter, completion,
+web mutation authorization and stream selection use that same decision.
+
+The local `set cli format` preference is offered only in the session's current
+operational mode. Browser completion preserves that distinction even when an
+operational prefix selects schema completion. An explicit config-mode `set`
+therefore remains a sole command candidate, allowing `?` to reveal the schema
+children at the current edit path.
+
+<!-- source: internal/component/plugin/server/command.go -- RecognizesCommand -->
+<!-- source: internal/component/cli/model_mode.go -- ShouldEnterConfigMode -->
+<!-- source: internal/component/plugin/server/arg_completion.go -- WithArgCompletion, WireArgCompletion -->
+<!-- source: internal/component/web/cli.go -- HandleCLICompleteWithCommandCompleter -->
 
 Tab and `?` drive one state machine with three levels. The level is derived from the
 fields that own each screen region. It is never stored.
@@ -111,6 +154,11 @@ it is, and message line 2 reads `<command>: no explanation is declared`. Silence
 would leave the operator unable to tell an undeclared explanation from a dead
 key.
 
+Terminal arguments retain a completed command's explanation. A described
+grouping node does not claim an arbitrary argument tail. An open quote or an
+invalid escape has no explanation.
+<!-- source: internal/component/command/completer.go -- TreeCompleter.Explain -->
+
 Every key that ends a reveal calls `dismissReveal`, which clears the hint and the
 explanation in one place. The table below says what each key does at each level.
 
@@ -141,6 +189,8 @@ double-quoted value leaves that value open; its final unescaped quote closes
 it. Quoted backslashes and control spacing use the operational invocation
 escapes; unquoted backslashes remain refused. A bracketed paste
 never reaches the key handler, so a pasted `?` arrives whether quoted or not.
+The scanner retains `""` as an empty token and preserves spaces inside quotes,
+so completion can distinguish an empty argument from an absent argument.
 <!-- source: internal/component/cli/model_commands.go -- quoteOpen -->
 <!-- source: internal/component/command/invocation_scan.go -- ScanInvocation -->
 
@@ -202,18 +252,37 @@ plugin a later reload added.
    `handleArgComplete` asks that completer first and falls back to a
    `Completable` plugin command's own process. `args "<cmd>"` with no partial
    lists every candidate, and `system command list` marks each such command
-   `completable`. The interactive trees use it: the SSH session's tree, built
-   in the daemon, gets `Server.WireArgCompletion`, which hangs each completer
-   on its node as value hints, and `ze cli` hangs a hint on every command the
-   list marks completable that asks the daemon `system command complete args`
-   at each Tab. A `ze cli` whose daemon does not answer offers no candidate.
+   `completable`. The interactive trees use it through the shared
+   `command.ArgumentSuggestions` query writer and response decoder. SSH binds
+   its session context, authenticated identity and accepted authorizer; web
+   binds those values for each request. `Server.WithArgCompletion` copies the
+   current completable paths before wiring their argument hints. Completed
+   arguments and the current partial retain operational quoting, including an
+   explicitly empty partial. The target command is authorized before its
+   argument producer runs, and plugin RPC deadlines derive from the caller's
+   context. Query, authorization and cancellation failures remain errors:
+   browser completion refuses the request and the terminal shows the reason.
+   Static `ValueHints` and live argument hints may coexist: static candidates
+   win duplicate names on the first argument; subsequent arguments use the
+   argument-aware producer. Long explanations consume terminal arguments only
+   after a command node, never after an arbitrary described grouping node.
    Shell completion (path 2) has no daemon and offers no such values.
 <!-- source: internal/component/plugin/server/arg_completion.go -- ArgCompleter, builtinArgCompletions, WireArgCompletion -->
 <!-- source: internal/component/plugin/server/system.go -- handleSystemCommandComplete, handleArgComplete, commandRows -->
 <!-- source: internal/component/plugin/server/register_plugin_restart.go -- completePluginRestart -->
 <!-- source: internal/plugins/irr/register_commands.go -- completeASSetArgument -->
 <!-- source: cmd/ze/hub/session_factory.go -- mergePluginCommands -->
-<!-- source: internal/component/cli/client/inject.go -- wireDaemonArgCompletion, fetchArgCompletions -->
+<!-- source: internal/component/cli/client/inject.go -- wireDaemonArgCompletion -->
+<!-- source: internal/component/command/arg_completion.go -- ArgumentSuggestions -->
+
+A builtin `ArgCompleter` receives the completed argument values after the
+existing authorization check. It chooses values for the next argument
+position. The current partial stays separate and the shared dispatcher filters
+the returned candidates by that prefix. The producer must not change or retain
+the completed-value slice. Single-value commands return no candidates after
+their value is complete. The completion wire format and caller context stay
+the same.
+<!-- source: internal/component/plugin/server/arg_completion.go -- ArgCompleter, builtinArgCompletions -->
 
 The shell scripts `ze completion <shell>` generates use path 2 for the second
 word of every registered root. A root's second words are the verbs its `Subs`

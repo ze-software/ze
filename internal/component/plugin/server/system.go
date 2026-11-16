@@ -40,6 +40,7 @@ func init() {
 		RPCRegistration{WireMethod: "ze-plugin:system-version-software", Handler: handleSystemVersionSoftware},
 		RPCRegistration{WireMethod: "ze-plugin:system-version-api", Handler: handleSystemVersionAPI},
 		RPCRegistration{WireMethod: "ze-plugin:system-daemon-shutdown", Handler: handleDaemonShutdown},
+		RPCRegistration{WireMethod: "ze-plugin:system-daemon-restart", Handler: handleDaemonRestart},
 		RPCRegistration{WireMethod: "ze-plugin:system-daemon-reboot", Handler: handleDaemonReboot},
 		RPCRegistration{WireMethod: "ze-plugin:system-daemon-quit", Handler: handleDaemonQuit},
 		RPCRegistration{WireMethod: "ze-plugin:system-daemon-status", Handler: handleDaemonStatus},
@@ -586,10 +587,25 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 	if ctx.Dispatcher() == nil {
 		return emptyResult, nil
 	}
+	if err := ctx.Context().Err(); err != nil {
+		return emptyResult, err
+	}
+	readOnly := false
+	if builtin := ctx.Dispatcher().Lookup(cmdName); builtin != nil {
+		readOnly = builtin.ReadOnly
+	}
+	if !ctx.Dispatcher().isAuthorizedCommandArgs(ctx, cmdName, completedArgs, "*", readOnly) {
+		refusal := opererr.Wrap(ErrUnauthorized,
+			"argument completion is not permitted for "+cmdName,
+			"your session cannot access this command's runtime values",
+			"show authz",
+		)
+		return plugin.OperatorErrorResponse(refusal), refusal
+	}
 
 	// A builtin that declares an argument completer answers from the daemon's
 	// own state (arg_completion.go).
-	if candidates, ok := ctx.Dispatcher().builtinArgCompletions(ctx.Server, cmdName, partial); ok {
+	if candidates, ok := ctx.Dispatcher().builtinArgCompletions(ctx.Server, cmdName, completedArgs, partial); ok {
 		return &plugin.Response{
 			Status: plugin.StatusDone,
 			Data:   plugin.Map{fieldCompletions: candidates},
@@ -604,8 +620,13 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 
 	// Route completion request to process
 	proc := cmd.Process
-	if proc == nil || !proc.Running() {
-		return emptyResult, nil
+	if proc == nil {
+		unavailable := opererr.New("argument completion has no process for "+cmdName, "the plugin's runtime values are unavailable", "show plugin list")
+		return plugin.OperatorErrorResponse(unavailable), unavailable
+	}
+	if !proc.Running() {
+		unavailable := opererr.New("argument completion's plugin is stopped: "+proc.Name(), "the plugin's runtime values are unavailable", "request plugin restart "+proc.Name())
+		return plugin.OperatorErrorResponse(unavailable), unavailable
 	}
 
 	// Create response channel
@@ -620,24 +641,29 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 	})
 
 	if serial == "" {
-		return emptyResult, nil
+		unavailable := opererr.New("argument completion could not start for "+cmdName, "the daemon cannot admit another request", "show plugin list")
+		return plugin.OperatorErrorResponse(unavailable), unavailable
 	}
 
 	// Send completion request via RPC
 	conn := proc.Conn()
 	completion := emptyResult
+	var queryErr error
 	if conn != nil {
-		rpcCtx, cancel := context.WithTimeout(context.Background(), CompletionTimeout)
+		rpcCtx, cancel := context.WithTimeout(ctx.Context(), CompletionTimeout)
 		defer cancel()
 		input := &rpc.ExecuteCommandInput{Serial: serial, Command: cmd.Name, Args: completedArgs, Peer: partial}
 		rpcOut, rpcErr := conn.SendExecuteCommand(rpcCtx, input)
 		switch {
-		case rpcErr != nil: // The empty result is the answer to a failed call.
+		case rpcErr != nil:
+			queryErr = rpcErr
 		case rpcOut != nil && rpcOut.Status == plugin.StatusError:
 			completion = &plugin.Response{Status: plugin.StatusError, Error: string(rpcOut.Data)}
 		case rpcOut != nil:
 			completion = &plugin.Response{Status: rpcOut.Status, Data: plugin.RawJSON(rpcOut.Data)}
 		}
+	} else {
+		queryErr = opererr.New("argument completion's plugin has no connection: "+proc.Name(), "the plugin's runtime values are unavailable", "request plugin restart "+proc.Name())
 	}
 
 	if err := ctx.Dispatcher().Pending().Complete(serial, completion); err != nil {
@@ -657,8 +683,8 @@ func handleArgComplete(ctx *CommandContext, cmdName string, completedArgs []stri
 	// behind answers empty rather than waiting for a write nobody will make.
 	select {
 	case resp := <-respCh:
-		return resp, nil
+		return resp, queryErr
 	default:
-		return emptyResult, nil
+		return emptyResult, queryErr
 	}
 }

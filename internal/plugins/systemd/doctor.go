@@ -89,6 +89,7 @@ func serviceDoctorCheck() diagnostic.DoctorCheck {
 			diagnostic.CodeDoctorServiceUser,
 			diagnostic.CodeDoctorServiceGroup,
 			diagnostic.CodeDoctorServiceStop,
+			diagnostic.CodeDoctorServiceRestart,
 		},
 		Check: checkServiceInstall,
 	}
@@ -142,7 +143,7 @@ func checkServiceInstall(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnos
 	for _, executable := range unit.execReload {
 		diags = append(diags, checkServiceExecutable(unitPath, "ExecReload", executable)...)
 	}
-	diags = append(diags, checkServiceStop(unitPath)...)
+	diags = append(diags, checkServicePolicy(unitPath)...)
 	if unit.user != "" {
 		diags = append(diags, checkServiceUser(unitPath, unit.user)...)
 	}
@@ -323,7 +324,9 @@ func queryServiceStop() ([]byte, error) {
 func systemctlShowStop() ([]byte, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), serviceStopQueryTimeout)
 	defer cancel()
-	return exec.CommandContext(ctx, "systemctl", "show", "-p", "TimeoutStopUSec", "-p", "KillMode", serviceName).Output()
+	return exec.CommandContext(ctx, "systemctl", "show", "-p", "TimeoutStopUSec", "-p", "KillMode",
+		"-p", "Restart", "-p", "SuccessExitStatus", "-p", "RestartForceExitStatus",
+		"-p", "RestartPreventExitStatus", serviceName).Output()
 }
 
 // stopQueryFailure answers the warning for a stop query that gave no answer.
@@ -364,12 +367,15 @@ func stopQueryFailure(unitPath string, err error) diagnostic.Diagnostic {
 // An answer it cannot read is a warning too: silence would claim the settings
 // were checked.
 func checkServiceStop(unitPath string) []diagnostic.Diagnostic {
-	var tb textbuf.Buffer
 	output, err := showServiceStop()
 	if err != nil {
 		return []diagnostic.Diagnostic{stopQueryFailure(unitPath, err)}
 	}
+	return checkServiceStopOutput(unitPath, output)
+}
 
+func checkServiceStopOutput(unitPath string, output []byte) []diagnostic.Diagnostic {
+	var tb textbuf.Buffer
 	var timeoutStop, killMode string
 	for line := range strings.SplitSeq(string(output), "\n") {
 		key, value, ok := strings.Cut(strings.TrimSpace(line), "=")
@@ -401,6 +407,63 @@ func checkServiceStop(unitPath string) []diagnostic.Diagnostic {
 		})
 	}
 	return diags
+}
+
+// checkServicePolicy judges stop and restart from one effective systemd
+// generation. A drop-in or unreadable manager answer cannot pass from the
+// generated fragment alone.
+func checkServicePolicy(unitPath string) []diagnostic.Diagnostic {
+	output, err := showServiceStop()
+	if err != nil {
+		var tb textbuf.Buffer
+		return []diagnostic.Diagnostic{
+			stopQueryFailure(unitPath, err),
+			{
+				Code: diagnostic.CodeDoctorServiceRestart, Severity: diagnostic.SeverityWarning,
+				Message: tb.Str("systemd restart policy cannot be read, so an accepted daemon restart may leave ze stopped: ").
+					Err(err).Str("; run `systemctl show -p Restart -p SuccessExitStatus -p RestartForceExitStatus -p RestartPreventExitStatus ze.service`").String(),
+				Path: unitPath,
+				Fix:  "systemctl show -p Restart -p SuccessExitStatus -p RestartForceExitStatus -p RestartPreventExitStatus ze.service",
+			},
+		}
+	}
+	diags := checkServiceStopOutput(unitPath, output)
+	return append(diags, checkServiceRestartOutput(unitPath, output)...)
+}
+
+func checkServiceRestartOutput(unitPath string, output []byte) []diagnostic.Diagnostic {
+	properties := make(map[string]string)
+	for line := range strings.SplitSeq(string(output), "\n") {
+		key, value, assigned := strings.Cut(strings.TrimSpace(line), "=")
+		if assigned {
+			properties[key] = value
+		}
+	}
+	exit := strconv.Itoa(rpc.DaemonRestartExitStatus)
+	valid := properties["Restart"] == "on-failure"
+	if properties["SuccessExitStatus"] != exit {
+		valid = false
+	}
+	if properties["RestartForceExitStatus"] != exit {
+		valid = false
+	}
+	if properties["RestartPreventExitStatus"] != "" {
+		valid = false
+	}
+	if valid {
+		return nil
+	}
+	const fix = "sudo ze install systemd --force; sudo systemctl daemon-reload; systemctl cat ze.service"
+	var tb textbuf.Buffer
+	return []diagnostic.Diagnostic{{
+		Code: diagnostic.CodeDoctorServiceRestart, Severity: diagnostic.SeverityWarning,
+		Message: tb.Str("systemd restart policy does not preserve clean stop, intentional restart and failure recovery; ").
+			Str("run `sudo ze install systemd --force` and `sudo systemctl daemon-reload`, then remove overriding drop-ins shown by `systemctl cat ze.service`").String(),
+		Path: unitPath, Fix: fix,
+		Expected: "Restart=on-failure SuccessExitStatus=" + exit + " RestartForceExitStatus=" + exit + " RestartPreventExitStatus=",
+		Actual: "Restart=" + properties["Restart"] + " SuccessExitStatus=" + properties["SuccessExitStatus"] +
+			" RestartForceExitStatus=" + properties["RestartForceExitStatus"] + " RestartPreventExitStatus=" + properties["RestartPreventExitStatus"],
+	}}
 }
 
 // judgeStopTimeout answers the warning for a TimeoutStopUSec value systemd

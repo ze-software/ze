@@ -1,0 +1,34 @@
+# Test: a genuine reader inspects caller-held configuration through native controls
+# VALIDATES: AC-45, descriptor-derived inspection through the real daemon.
+# PREVENTS: edit authorization being required for a read or source bytes becoming a candidate.
+
+option=timeout:value=90s
+option=server:kind=daemon
+option=auth:user=admin:password=ze-supplied-admin:role=admin
+option=auth:user=noc:password=ze-supplied-reader:role=read-only
+
+action=login:user=noc:password=ze-supplied-reader
+action=open:path=/show/
+action=click:id=graphical-actions-toggle
+action=click:id=graphical-supplied-toggle
+expect=element:not-id=graphical-edit-toggle
+
+# The very same source first succeeds alone. Two inputs are individually below
+# the bound; only their shared encoded comparison envelope is too large.
+action=select:id=graphical-supplied-command:value=show config supplied dump
+action=upload:id=graphical-supplied-file:file=test/web/fixtures/graphical-supplied-budget.conf
+action=click:id=graphical-supplied-submit
+expect=element:text=supplied-native-budget
+action=select:id=graphical-supplied-command:value=show config supplied diff
+action=upload:id=graphical-supplied-before-file:file=test/web/fixtures/graphical-supplied-budget.conf
+action=upload:id=graphical-supplied-after-file:file=test/web/fixtures/graphical-supplied-budget.conf
+action=click:id=graphical-supplied-submit
+expect=element:text=The supplied inputs are too large.
+expect=element:text=195,840
+expect=element:id=graphical-supplied-submit
+action=open:path=/cli
+action=fill:id=terminal-input:value=show | format config
+action=press:id=terminal-input:key=Enter
+expect=element:text=1.2.3.4
+expect=element:not-text=supplied-native-budget
+

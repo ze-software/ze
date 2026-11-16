@@ -1,0 +1,30 @@
+# Test: a genuine reader inspects caller-held configuration through native controls
+# VALIDATES: AC-45, descriptor-derived inspection through the real daemon.
+# PREVENTS: edit authorization being required for a read or source bytes becoming a candidate.
+
+option=timeout:value=90s
+option=server:kind=daemon
+option=auth:user=admin:password=ze-supplied-admin:role=admin
+option=auth:user=noc:password=ze-supplied-reader:role=read-only
+
+action=login:user=noc:password=ze-supplied-reader
+action=open:path=/show/
+action=click:id=graphical-actions-toggle
+action=click:id=graphical-supplied-toggle
+expect=element:not-id=graphical-edit-toggle
+
+action=select:id=graphical-supplied-command:value=show config supplied dump
+action=upload:id=graphical-supplied-file:file=test/web/fixtures/graphical-supplied-before.conf
+action=click:id=graphical-supplied-submit
+expect=element:id=graphical-supplied-result
+expect=element:text=supplied-native-before
+action=open:path=/cli
+action=fill:id=terminal-input:value=show | format config
+action=press:id=terminal-input:key=Enter
+expect=element:text=1.2.3.4
+expect=element:not-text=supplied-native-before
+action=fill:id=terminal-input:value=show confirmed | format config
+action=press:id=terminal-input:key=Enter
+expect=element:text=1.2.3.4
+expect=element:not-text=supplied-native-before
+

@@ -135,13 +135,21 @@ rendered a blank panel and answered 200.
 
 | Command | What it does |
 |---------|--------------|
-| `./le repo update` | Regenerates every `*_templ.go` from its `.templ` source. Run it after any `.templ` edit |
+| Scoped native templ generation | Regenerates the selected `*_templ.go` from its `.templ` source; example below |
 | `./le doc check templ-output` | Refuses stale generated output, orphaned `*_templ.go` files, and `.templ` sources outside the generator walk |
 
-The generator runs from `vendor/`, so `./le repo update` needs no network and
-nothing on `PATH`. Run `./le repo update`, not a bare `templ generate`: the walk
-root is written into the generated Go, so a bare run rewrites every file and
-reds the check.
+The native job runs the vendored generator. For example, after changing the
+supplied-input controls:
+
+```bash
+./le job run label templ-gen command go run -mod=vendor github.com/a-h/templ/cmd/templ generate -keep-orphaned-files -path "$PWD/internal" -f internal/component/web/component_graphical_supplied.templ
+```
+
+Choose the edited `.templ` source with `-f` and retain the `internal/` root in
+`-path`: that root is written into generated runtime filenames and must match
+the checker. `./le repo update` has no templ stage. The complete workflow is in
+[Testing](../contributing/testing.md).
+<!-- source: internal/le/doc/wiring/templ.go -- answerTemplOutput -->
 
 The browser assets are vendored in `third_party/web/` and copied to each
 consumer by the same `./le repo update` run. htmx 4.0.0 and its
@@ -263,6 +271,48 @@ reviewed before committing. **Commit options** can apply a change with automatic
 rollback; the owner of that pending commit can keep it or revert it from the
 same panel. Read-only accounts can browse but have no mutation controls.
 
+Open **Inspect** to view the candidate, running configuration or saved draft as
+a tree or set commands. The separate candidate metadata controls show
+authorship, active or inactive settings, your pending changes, all pending
+changes, and validation issues. Compare the candidate with the running
+configuration, saved draft, a saved revision or a user's changes. A revision
+selection keeps its identity when a newer revision is saved.
+
+**Editing sessions** lists session identifiers and pending-change counts.
+Accounts with edit permission can disconnect another session; use Discard for
+your own changes. **Display preferences** changes the shared editor's columns
+and diagnostic presentation for your account. These inspection and preference
+controls are available to read-only accounts.
+
+Open **Inspect supplied configuration** to inspect a local file or pasted text
+without loading it into your candidate. Choose the inspection, then select a
+file or paste configuration. Comparison provides separate **Before** and
+**After** inputs, each accepting a file or paste. The complete input is limited
+to 195,840 bytes; a comparison shares that limit across both sources and their
+framing. Read-only accounts can use these controls when their command policy
+allows the inspection. Results and refusals appear below the form; the selected
+file and pasted text remain available for correction.
+
+Comparison reports resolved BGP settings and schema-declared ordered-list
+ordering, matching the local file comparison. Other non-BGP value changes,
+including `system host`, are not reported.
+
+<!-- source: internal/component/web/component_graphical_supplied.templ -- graphicalSuppliedPanel, graphicalSuppliedInputs -->
+<!-- source: internal/component/web/graphical_supplied.go -- HandleSuppliedInspection -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve, diffSources, diffListOrders -->
+
+In **Edit**, open **Import into candidate** to select a local file or paste
+configuration. Choose **Configuration root** for a complete configuration or
+**Selected item** for a body relative to the item you are viewing. **Merge**
+retains omitted settings; **Replace** removes settings omitted from that scope.
+The request is limited to 4 MiB, including form fields and file headers.
+An import changes only your candidate. Review its changes, then commit to apply
+them. A refused import keeps both the candidate and your form available for
+correction. Read-only accounts have no import controls.
+
+<!-- source: internal/component/web/component_graphical_import.templ -- graphicalImportPanel -->
+<!-- source: internal/component/web/graphical_import.go -- HandleGraphicalImport -->
+
 <!-- source: internal/component/web/component_graphical_values.templ -- graphicalValues, graphicalInlineList -->
 <!-- source: internal/component/web/component_graphical_actions.templ -- graphicalActionPanel -->
 <!-- source: internal/component/web/graphical_actions.go -- HandleGraphicalAction, rollbackGraphicalRevision -->
@@ -382,6 +432,33 @@ order, so a command following `edit` uses the position returned by that edit.
 The page displays command output and feedback separately; the up and down keys
 recall command history when the completion menu is closed.
 
+**Download** saves the current successful command result to your computer, with
+its selected output format. The download uses the answer already received and
+runs no second command. Complete finite and raw streamed results up to 4 MiB
+are supported, including older streamed bytes removed from the visible tail.
+The server must confirm successful stream completion before Download becomes
+available. Failure, Stop, missing completion or an exceeded limit never offers a
+partial capture as a complete file. Starting another command clears the previous
+download. Unfinished confirmation or load requests offer no download.
+Interactive monitors offer a **Current frame snapshot**, which saves only the
+currently displayed frame. A command containing `| save` still cannot write a
+path on the daemon.
+
+The authenticated history API is `GET /cli?history=1&mode=config` (or
+`mode=operational`). It returns a bounded, masked `entries` array for the signed-in
+user, and reports an unavailable store as an error. Commands submitted through
+the command bar, terminal and stream endpoint share this saved history producer.
+Editor discard preserves recall. A terminal response carries `history-warning`
+when recall could not be updated; the command can still execute. Uploaded file
+and pasted configuration content never become recall entries.
+<!-- source: internal/component/web/cli_history.go -- recordCLIHistory, writeCLIHistory -->
+
+Recall survives reloading the page and stays separate for each account and CLI
+mode. Press Up with the completion menu closed to read the latest saved recall.
+Press Down past the newest entry to restore your unfinished input. If recall is
+unavailable, the page displays the failure and still accepts commands.
+<!-- source: internal/component/web/assets/cli.js -- commandRecall, initTerminal -->
+
 Configuration commands use the same editor producers as the SSH CLI. Commit and
 discard use the web session's shared publication and confirmed-commit controls.
 Operational commands and live monitors require the running daemon; `--web-only`
@@ -402,12 +479,32 @@ provides configuration editing without an operational command service.
 | `commit now`, `commit confirmed <seconds>`, `commit accept`, `commit abort`, `commit verify` | Apply, confirm, revert or validate through the shared commit machinery; `commit` alone lists the accepted subcommands |
 | `discard [all\|<path>]` | Drop all candidate changes or only changes under the supplied path |
 | `run <command>` | Run an operational command while keeping the configuration position |
-| `exit`, `configure` | Switch between operational mode and configuration mode |
+| `exit`, `configure` | Leave configuration mode or enter it; operational `exit` returns to the graphical editor |
+| `quit` | Return to the graphical editor |
+| `clear` | Restore the current candidate view in configuration mode, or clear operational output |
+| `stop`, `restart` | Ask for explicit confirmation, then submit the daemon's authorized shutdown or restart operation |
 | `help` | Display the available commands |
 
 The [config editor guide](config-editor.md) describes the command grammar and
 commit conflict handling. An explicit `force` option can override warnings and
 conflicting drafts where the shared commit command permits it.
+
+Leaving with pending changes asks for confirmation and keeps your candidate.
+Clearing the display also keeps those changes and your current position.
+Configuration-mode `top clear` and `run clear` have the same effect as `clear`.
+Help in both modes uses the CLI's shared command catalog.
+The confirmation appears beside the terminal input with **Confirm** and
+**Cancel** buttons. Cancel keeps you in the current mode with your output and
+candidate unchanged.
+
+Daemon `stop` and `restart` affect every connected user. They always ask for
+confirmation and still require permission through the normal command service.
+`top stop` and `top restart` have the same effect from configuration mode.
+These actions keep your candidate and are separate from clearing the display.
+
+<!-- source: internal/component/cli/contract/lifecycle.go -- LifecycleCommand -->
+
+<!-- source: internal/component/web/cli_controls.go -- executeTerminalControl, terminalEditorHelp -->
 
 <!-- source: internal/component/web/cli_terminal.go -- executeTerminalCommand, executeTerminalConfigMode -->
 <!-- source: internal/component/web/cli_editor.go -- executeTerminalEditorCommand -->
@@ -426,12 +523,36 @@ loads can also use set-format statements.
 <!-- source: internal/component/web/assets/cli.js -- initTerminal -->
 <!-- source: internal/component/cli/editor_load.go -- ParseLoad, LoadMerge, LoadReplace -->
 
+For read-only inspection, operational commands under `show config supplied`
+accept `content <base64>` for dump, validation, formatting, dependency graphs
+and comparison. These inspect the supplied bytes without loading them into
+your candidate. Single-source content is the native configuration; comparison
+content is one JSON object with `before` and `after` configuration strings,
+encoded together. The decoded input is limited to 195,840 bytes. See the
+[command reference](command-reference.md#conventions) for labels and selections.
+The graphical **Inspect supplied configuration** controls compose these inputs
+for you, so no manual base64 encoding is needed when using those forms.
+<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler, suppliedPair -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- supplied-content -->
+
 ### Completion and Output Format
 
-Tab or an unquoted `?` offers schema and command completions for the terminal's
-current position. Arrow keys select an item, Enter accepts it, and a quoted `?`
-remains data. Enum values declared in YANG, including enum members of a union,
-are offered by the shared completer.
+Tab offers schema and command completions for the terminal's current position.
+Arrow keys or Tab select an item and Enter accepts it. An unquoted `?` explains
+the selected candidate or completed command using its declared long help; a
+quoted `?` remains data. Tab also reveals long help once no completion remains.
+Escape closes the explanation before closing a menu beneath it. Enum values
+declared in YANG, including enum members of a union, are offered by the shared
+completer. A failed runtime query displays its reason and correction, so it
+cannot be mistaken for an empty set of values.
+
+<!-- source: internal/component/web/assets/cli.js -- completionResponse, initTerminal -->
+
+In configuration mode, `top set` completes paths from the root, even when your
+current position is nested. `top run` completes operational commands and live
+argument values as `run` does. Repeated `top` prefixes keep that root selection.
+<!-- source: internal/component/web/cli.go -- completeCLIInput, explainCLIInput -->
 
 In operational mode, `set cli format` queries the output preference and
 `set cli format json` selects a format for this authenticated user's session.
@@ -445,15 +566,29 @@ unchanged, and raw live streams retain their existing text format.
 
 ### Live Commands
 
-Registered monitoring commands stream successive daemon answers into the page.
+Registered interactive monitors show the same live view as the CLI, with buttons
+for the actions that view offers. For `run monitor bgp`, use **Next sort column**
+and **Reverse order** to sort, **Previous peer** or **Next peer** to select a row,
+**Peer detail** to inspect it and **Back to peers** to return. **Help** shows the
+view's own explanation. The highlighted row, detail and updates come from the
+same producer as the terminal dashboard.
+
+Other registered monitoring commands stream successive daemon answers into the page.
 **Stop** or Ctrl+C ends the stream, and submitting a new command stops the active
 stream before running the next command. Leaving the page also cancels it. The
-server bounds each stream at 4 MiB; the browser keeps at most 1 MiB of visible
-output and marks older output that it has removed. A producer failure is shown
-in the output, and unsupported live pipe filters are refused with a reason.
+browser removes ended controls and shows why a failed action or producer could
+not continue. Raw streams are bounded at 4 MiB by the server; the browser keeps a
+bounded visible tail and marks older output that it has removed. A completed
+download retains the original bytes, including those no longer visible.
+Interactive views retain only the latest frame, limited to 64 KiB. Live commands
+accept the same stream pipes as the CLI, such as `| json`, `| log` and
+`| match <text>`. Invalid chains name the refused pipe. Remote `| save <path>`
+is refused; use Download to save results on your computer. A raw piped event
+larger than 4 MiB stops the stream with a reason.
 
 <!-- source: internal/component/web/cli_stream.go -- HandleCLITerminalStream, cliStreamWriter.Write -->
 <!-- source: cmd/ze/hub/server_stream.go -- serverStreamDispatcher -->
+<!-- source: internal/component/command/pipe_stream.go -- RunStreamPipes -->
 <!-- source: internal/component/web/assets/cli.js -- initTerminal -->
 
 ## Live Updates

@@ -17,6 +17,10 @@ import (
 	tea "charm.land/bubbletea/v2"
 )
 
+// liveViewDrainBatchMax bounds one probe update so a producer cannot starve
+// the session's action/cancellation messages. Remaining data waits for its tick.
+const liveViewDrainBatchMax = 256
+
 // activeView is the lifecycle interface a live view exposes to the Model while
 // it is the single active full-screen view. The concrete instances live in the
 // view's own file (model_ping.go / model_traceroute.go / model_dashboard.go),
@@ -72,6 +76,9 @@ type viewSpec struct {
 	// start builds the active view from input, storing it on Model.activeView,
 	// and returns the initial tea.Cmd (or nil after setting a status message).
 	start func(m *Model, input string) tea.Cmd
+	// browser projects controls owned by this view. A nil projection means the
+	// registered view has no headless interaction contract.
+	browser func(m *Model) []browserViewControl
 	// tuiOnly declares that only the interactive CLI can render the command
 	// this view serves: it has no daemon RPC, so SSH and `ze cli` offer it and
 	// every one-shot surface does not (command.AnswerSurface). No view sets it
@@ -89,6 +96,8 @@ type ViewInfo struct {
 	Prefix string
 	// TUIOnly is the view registration's TUI-only declaration (viewSpec.tuiOnly).
 	TUIOnly bool
+	// Browser reports whether the owner declares headless controls.
+	Browser bool
 }
 
 var (
@@ -132,9 +141,19 @@ func RegisteredViews() []ViewInfo {
 	defer viewRegistryMu.RUnlock()
 	out := make([]ViewInfo, 0, len(viewRegistry))
 	for _, spec := range viewRegistry {
-		out = append(out, ViewInfo{Key: spec.key, Prefix: spec.prefix, TUIOnly: spec.tuiOnly})
+		out = append(out, ViewInfo{Key: spec.key, Prefix: spec.prefix, TUIOnly: spec.tuiOnly, Browser: spec.browser != nil})
 	}
 	return out
+}
+
+// BrowserViewAvailable asks the same owner selector RunBrowserView uses. It
+// includes argument and pipe-aware matching, never a separate browser inventory.
+func BrowserViewAvailable(input string) bool {
+	spec, found := resolveView(input)
+	if !found {
+		return false
+	}
+	return spec.browser != nil
 }
 
 // resolveView resolves input to a registered view by longest-prefix match.

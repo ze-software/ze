@@ -34,24 +34,32 @@ expect=html:contains=value="120"
 # focused value in the operator journey, before exercising either field.
 action=open:path=/show/bgp/group/enter-proof/
 action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
 action=fill:id=graphical-entry-target:value=enter-copy
 action=click:id=graphical-copy
 action=open:path=/show/bgp/group/enter-copy/
 action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
 action=fill:id=graphical-entry-target:value=enter-final
 action=click:id=graphical-rename
 action=open:path=/show/bgp/group/enter-final/
 action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-validate
 expect=element:text=candidate is valid
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-save-draft
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-deactivate
 expect=element:text=Inactive
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-activate
 expect=element:text=Active
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-commit-options
 action=click:id=graphical-commit-confirmed
 expect=element:id=graphical-confirm-status
+action=click:id=graphical-edit-toggle
 action=click:id=graphical-commit-abort
 expect=element:text=rolled back
 action=open:path=/show/bgp/group/

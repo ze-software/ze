@@ -44,7 +44,7 @@ func TestWebCLIStreamRefusalPreservesVisibleRecoveryBudget(t *testing.T) {
 		},
 	} {
 		t.Run(tc.name, func(t *testing.T) {
-			handler := HandleCLITerminalStream(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+			handler := HandleCLITerminalStream(nil, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 				t.Fatal("a handled stream reached the finite terminal")
 			}), func(_ context.Context, _ plugin.CallerIdentity, _ string, output io.Writer) (bool, error) {
 				if _, err := io.WriteString(output, "first\n"); err != nil {

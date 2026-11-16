@@ -195,10 +195,10 @@ type FragmentData struct {
 // A full page request renders the layout with all fragments embedded.
 // An HTMX request (HX-Request header) returns only the requested fragment
 // with out-of-band swaps for sidebar and breadcrumb.
-func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree, mgr *EditorManager, insecure bool, authorizers ...aaa.Authorizer) http.HandlerFunc {
-	var authorizer aaa.Authorizer
-	if len(authorizers) > 0 {
-		authorizer = authorizers[0]
+func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree, mgr *EditorManager, insecure bool, authorizer aaa.Authorizer, suppliedTrees ...AdminCommandTree) http.HandlerFunc {
+	var suppliedTree AdminCommandTree
+	if len(suppliedTrees) > 0 {
+		suppliedTree = suppliedTrees[0]
 	}
 	return func(w http.ResponseWriter, r *http.Request) {
 		path, err := extractPath(r)
@@ -242,6 +242,7 @@ func HandleFragment(renderer *Renderer, schema *config.Schema, tree *config.Tree
 		data.ReadOnly = !canEdit(r, authorizer)
 		if mgr != nil {
 			data.Actions = mgr.graphicalActions(schema, viewTree, path, username)
+			data.Actions.Supplied = buildGraphicalSuppliedPanel(suppliedTree)
 		}
 		renderer.ResolveDecorations(data.Fields)
 		data.Username = username

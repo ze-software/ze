@@ -16,11 +16,21 @@ package web
 templ cliPage(v cliPageData) {
 	<div class="cli-page" data-initial-command={ v.InitialCommand }>
 		<div class="cli-output" id="cli-output"></div>
+		<div class="cli-local-output" role="group" aria-label="Save command output">
+			for _, control := range v.LocalControls {
+				<button type="button" data-cli-local-operator={ control.Name } title={ control.Description } disabled>{ control.Label }</button>
+			}
+			<span id="cli-download-status" role="status"></span>
+			<a id="cli-download-file" download="ze-command.txt" hidden>Download command output</a>
+		</div>
 		<div class="cli-messages" id="cli-messages">
 			<div class="cli-feedback" id="cli-feedback"></div>
 			<div class="cli-hint" id="cli-hint">Tab/?: complete, Enter: execute</div>
 		</div>
+		<div class="cli-view-controls" id="cli-view-controls" role="group" aria-label="Live monitor controls" hidden></div>
+		<template id="cli-view-control-template"><button type="button"></button></template>
 		@cliLoadPanel()
+		@cliConfirmPanel()
 		<div class="cli-input-line">
 			<span class="terminal-prompt" id="terminal-prompt">{ v.Prompt }</span><input type="text" class="terminal-input" id="terminal-input" autocomplete="off" spellcheck="false" name="command">
 			<button type="button" id="cli-stop" hidden>Stop</button>
@@ -28,6 +38,18 @@ templ cliPage(v cliPageData) {
 		</div>
 		<span id="cli-context-path" class="is-hidden">{ v.ContextPath }</span><span id="cli-mode" class="is-hidden">{ v.Mode }</span>
 	</div>
+}
+
+// cliConfirmPanel keeps explicit command confirmation within the page, so
+// cancellation and continuation remain visible without a native browser dialog.
+templ cliConfirmPanel() {
+	<form class="cli-load" id="cli-confirm-panel" hidden>
+		<p id="cli-confirm-prompt"></p>
+		<div class="cli-load-actions">
+			<button type="submit" id="cli-confirm-yes">Confirm</button>
+			<button type="button" id="cli-confirm-cancel">Cancel</button>
+		</div>
+	</form>
 }
 
 // cliLoadPanel is shared by file and pasted-content loading. JavaScript only

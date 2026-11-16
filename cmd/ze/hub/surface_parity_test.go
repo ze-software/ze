@@ -176,8 +176,8 @@ func surfaceArms(t *testing.T, server *pluginserver.Server) map[command.Surface]
 
 	// Web terminal: the completer service_web.go builds over the same tree,
 	// with the live plugin overlay main.go wires as WebCommands.
-	webCompleter := newPluginAwareCommandCompleter(yangloader.BuildCommandTree(adminSchema),
-		func() []command.CommandEntry { return d.Registry().VisibleCommandEntries() })
+	webCompleter := webCompletionSource(yangloader.BuildCommandTree(adminSchema),
+		func() []command.CommandEntry { return d.Registry().VisibleCommandEntries() }, server.WithArgCompletion, serverDispatcher(server, "web"))(t.Context(), plugin.CallerIdentity{Username: "operator"})
 
 	// MCP tools/list, the REST command list and the gRPC command list: the one
 	// list commandMetaSource answers from the live dispatcher.

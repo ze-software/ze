@@ -165,7 +165,7 @@ func TestSSHStopDrainsDisconnectedModelBeforeStoreClose(t *testing.T) {
 		var release sync.Once
 		unblock := func() { release.Do(func() { close(store.release) }) }
 		defer unblock()
-		server.SetSessionModelFactory(func(username, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+		server.SetSessionModelFactory(func(_ context.Context, username, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 			model := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 			model.SetHistory(cli.NewHistory(store, username))
 			initial := model
@@ -275,7 +275,7 @@ func TestSSHSessionCleanupDrainsBeforeTranscriptClose(t *testing.T) {
 		store := &historyShutdownStore{Storage: memory, entered: make(chan struct{}), release: make(chan struct{})}
 		var release sync.Once
 		unblock := func() { release.Do(func() { close(store.release) }) }
-		server.SetSessionModelFactory(func(username, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+		server.SetSessionModelFactory(func(_ context.Context, username, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 			model := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 			model.SetHistory(cli.NewHistory(store, username))
 			model.SetTranscript(transcript)
@@ -319,7 +319,11 @@ func TestSSHSessionCleanupDrainsBeforeTranscriptClose(t *testing.T) {
 		if _, err := file.WriteString("must be closed"); !errors.Is(err, os.ErrClosed) {
 			t.Errorf("transcript after cleanup = %v, want os.ErrClosed", err)
 		}
-		if got := cli.NewHistory(memory, "operator").Load(cli.ModeOperational.String()); !slices.Equal(got, []string{"show cleanup"}) {
+		gotHistory, historyErr := cli.NewHistory(memory, "operator").Load(cli.ModeOperational.String())
+		if historyErr != nil {
+			t.Fatal(historyErr)
+		}
+		if got := gotHistory; !slices.Equal(got, []string{"show cleanup"}) {
 			t.Errorf("history after causal cleanup = %v", got)
 		}
 	})
@@ -333,7 +337,7 @@ func TestSSHRestartKeepsOldModelAdmissionSealed(t *testing.T) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	})
 	calls := 0
-	server.SetSessionModelFactory(func(_, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+	server.SetSessionModelFactory(func(_ context.Context, _, _ string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 		calls++
 		return cli.NewCommandModel(cli.FilesystemAuthorityUnknown), nil
 	})
@@ -401,12 +405,12 @@ func TestSSHStopJoinsFactoryAlreadyAdmitted(t *testing.T) {
 		factoryRelease := make(chan struct{})
 		var release sync.Once
 		unblock := func() { release.Do(func() { close(factoryRelease) }) }
-		server.SetSessionModelFactory(func(username, remote string, authorizer plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+		server.SetSessionModelFactory(func(_ context.Context, username, remote string, authorizer plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 			close(factoryEntered)
 			<-factoryRelease
 			// This existing public getter takes s.mu. Stop MUST NOT hold that
 			// mutex while waiting for admitted model construction/cleanup.
-			server.ExecutorForUser(username, remote, authorizer)
+			server.ExecutorForUser(t.Context(), username, remote, authorizer)
 			model := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 			model.SetHistory(cli.NewHistory(store, username))
 			initial := model
@@ -448,7 +452,11 @@ func TestSSHStopJoinsFactoryAlreadyAdmitted(t *testing.T) {
 			t.Errorf("lost network shutdown error: %v", err)
 		}
 		<-ended
-		if got := cli.NewHistory(memory, "operator").Load(cli.ModeOperational.String()); !slices.Equal(got, []string{"show admitted-factory"}) {
+		gotHistory, historyErr := cli.NewHistory(memory, "operator").Load(cli.ModeOperational.String())
+		if historyErr != nil {
+			t.Fatal(historyErr)
+		}
+		if got := gotHistory; !slices.Equal(got, []string{"show admitted-factory"}) {
 			t.Errorf("admitted factory publication = %v", got)
 		}
 	})
@@ -473,11 +481,20 @@ func TestSSHExecStopCallbackDoesNotJoinItself(t *testing.T) {
 		cancel()
 		ctx := &observedShutdownContext{Context: base, observed: make(chan struct{})}
 		stopped := make(chan error, 1)
-		server.SetShutdownFunc(func() { stopped <- server.Stop(ctx) })
+		server.SetExecutorFactory(func(context.Context, string, string, plugin.Authorizer) CommandExecutor {
+			return func(input string) (*plugin.RenderedResponse, error) {
+				if input != "request shutdown" {
+					t.Errorf("stop dispatch = %q, want request shutdown", input)
+				}
+				response := plugin.NewResponse(plugin.StatusDone, nil)
+				response.OnTransportComplete(func() { stopped <- server.Stop(ctx) })
+				return &plugin.RenderedResponse{Response: response}, nil
+			}
+		})
 		ended := make(chan struct{})
 		session := &historySession{
 			ctx:     &historySessionContext{Context: context.Background()},
-			command: []string{commandStop},
+			command: []string{"stop"},
 		}
 		handler := server.execMiddleware()(server.sessionCloseMiddleware()(func(charmssh.Session) {
 			t.Error("exec stop reached TUI/model admission")

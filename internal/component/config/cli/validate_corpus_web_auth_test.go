@@ -17,7 +17,7 @@ import (
 
 // TestBrowserCorpusAuthBaselineUsesDeclaredProfiles reads the emitted sequence
 // baseline through the real corpus entry point. This decides structural config
-// composition only; login replay and per-user authorization remain unsupported.
+// composition with the authenticated browser owner's declared policy.
 func TestBrowserCorpusAuthBaselineUsesDeclaredProfiles(t *testing.T) {
 	for _, kind := range []string{"daemon", "web"} {
 		t.Run(kind, func(t *testing.T) {
@@ -29,6 +29,8 @@ func TestBrowserCorpusAuthBaselineUsesDeclaredProfiles(t *testing.T) {
 			workflow := "option=auth:user=admin:password=admin-fixture:role=admin\n" +
 				"option=auth:user=noc:password=reader-fixture:role=read-only\n" +
 				strings.Replace(string(body), "option=server:kind=daemon", "option=server:kind="+kind, 1)
+			workflow = strings.Replace(workflow, "action=open:path=/cli",
+				"action=login:user=admin:password=admin-fixture\naction=open:path=/cli", 1)
 			if err := os.WriteFile(path, []byte(workflow), 0o600); err != nil {
 				t.Fatal(err)
 			}
@@ -70,10 +72,10 @@ func TestBrowserCorpusAuthBaselineUsesDeclaredProfiles(t *testing.T) {
 	}
 }
 
-// TestBrowserCorpusAuthLoginRetainsUnsupportedFinding keeps a login ahead of a
-// load explicit until replay can model the authenticated user's editor owner.
-func TestBrowserCorpusAuthLoginRetainsUnsupportedFinding(t *testing.T) {
-	s, path := browserCorpusCase(t, "merge", "set bgp group auth-corpus description fragment\n", "action=login:user=admin:password=admin-fixture\n")
+// TestBrowserCorpusAuthInvalidLoginKeepsStandaloneValidation keeps a failed
+// authentication explicit without consuming its later physical input.
+func TestBrowserCorpusAuthInvalidLoginKeepsStandaloneValidation(t *testing.T) {
+	s, path := browserCorpusCase(t, "merge", "set bgp group auth-corpus description fragment\n", "action=login:user=admin:password=wrong-fixture\n")
 	body, err := os.ReadFile(path)
 	if err != nil {
 		t.Fatal(err)
@@ -83,12 +85,12 @@ func TestBrowserCorpusAuthLoginRetainsUnsupportedFinding(t *testing.T) {
 	}
 	loaded := map[string]bool{}
 	if sequences := s.browserSequences(path, loaded); len(sequences) != 0 {
-		t.Fatal("unsupported login silently produced an accepted load composition")
+		t.Fatal("failed login silently produced an accepted load composition")
 	}
-	if !strings.Contains(strings.Join(s.report.findings, "\n"), `browser action "login"`) {
-		t.Fatalf("unsupported authenticated owner was hidden: %v", s.report.findings)
+	if !strings.Contains(strings.Join(s.report.findings, "\n"), "authentication failed") {
+		t.Fatalf("failed authenticated owner was hidden: %v", s.report.findings)
 	}
 	if loaded[filepath.Join(s.root, "fragment.conf")] {
-		t.Fatal("unsupported login removed the standalone fragment oracle")
+		t.Fatal("failed login removed the standalone fragment oracle")
 	}
 }

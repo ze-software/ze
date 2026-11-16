@@ -33,7 +33,7 @@ func TestWebCLIStreamFlushesAndCancels(t *testing.T) {
 		<-ctx.Done()
 		return true, ctx.Err()
 	})
-	handler := HandleCLITerminalStream(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+	handler := HandleCLITerminalStream(nil, http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		t.Error("a streaming command reached the one-shot terminal")
 		w.WriteHeader(http.StatusInternalServerError)
 	}), dispatch)
@@ -68,7 +68,7 @@ func TestWebCLIStreamFlushesAndCancels(t *testing.T) {
 // TestWebCLIStreamPreservesFiniteCommands proves non-streaming commands keep
 // their complete original request, including pasted content and identity.
 func TestWebCLIStreamPreservesFiniteCommands(t *testing.T) {
-	handler := HandleCLITerminalStream(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	handler := HandleCLITerminalStream(nil, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		assert.Equal(t, "testuser", GetUsernameFromRequest(r))
 		assert.Equal(t, "set bgp router-id 192.0.2.5", r.FormValue("command"))
 		assert.Equal(t, "pasted body", r.FormValue("content"))
@@ -91,7 +91,7 @@ func TestWebCLIStreamPreservesFiniteCommands(t *testing.T) {
 // TestWebCLIStreamDenialHasNoOutput proves a refused stream has no successful
 // response headers or producer bytes, and an unauthenticated request is refused.
 func TestWebCLIStreamDenialHasNoOutput(t *testing.T) {
-	handler := HandleCLITerminalStream(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+	handler := HandleCLITerminalStream(nil, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Error("a refused stream reached the finite-command handler")
 	}), func(context.Context, plugin.CallerIdentity, string, io.Writer) (bool, error) {
 		return true, plugin.ErrStreamUnauthorized
@@ -117,7 +117,7 @@ func TestWebCLIStreamBoundAndFailureAreVisible(t *testing.T) {
 	assert.Zero(t, n)
 	assert.ErrorIs(t, err, errCLIStreamOutputLimit)
 	assert.Empty(t, w.Body.String())
-	handler := HandleCLITerminalStream(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), func(_ context.Context, _ plugin.CallerIdentity, _ string, output io.Writer) (bool, error) {
+	handler := HandleCLITerminalStream(nil, http.HandlerFunc(func(http.ResponseWriter, *http.Request) {}), func(_ context.Context, _ plugin.CallerIdentity, _ string, output io.Writer) (bool, error) {
 		if _, err := io.WriteString(output, "first\n"); err != nil {
 			return true, err
 		}

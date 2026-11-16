@@ -3,6 +3,7 @@
 package ssh
 
 import (
+	"context"
 	"errors"
 	"os"
 	"path/filepath"
@@ -29,7 +30,7 @@ func TestSSHPTYClosesModelAtSessionEnd(t *testing.T) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	})
 	server.SetSessionModelFactory(
-		func(username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+		func(_ context.Context, username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 			model := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 			model.SetTranscript(cli.NewTranscriptWriter(transcript, username, remoteAddr))
 			return model, nil
@@ -75,7 +76,7 @@ func TestSSHNoPTYClosesModelAtSessionEnd(t *testing.T) {
 		return plugin.NewResponse(plugin.StatusDone, nil), nil
 	})
 	server.SetSessionModelFactory(
-		func(username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+		func(_ context.Context, username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 			model := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 			model.SetTranscript(cli.NewTranscriptWriter(transcript, username, remoteAddr))
 			return model, nil

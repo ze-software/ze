@@ -1,0 +1,46 @@
+# Test: authenticated graphical file import replaces one slash-key subtree
+# VALIDATES: native multipart input, encoded selection, relative replacement,
+# removal of omitted settings, unrelated candidate survival and no publication.
+# PREVENTS: splitting a key at its slash, reading a browser filename on the
+# daemon, or replacing the root when the operator chose the selected item.
+
+option=timeout:value=90s
+option=server:kind=daemon
+option=auth:user=admin:password=ze-web-import:role=admin
+
+action=login:user=admin:password=ze-web-import
+action=open:path=/cli
+action=fill:id=terminal-input:value=set bgp group "graphical/file" description original-file-draft
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=set bgp group "graphical/file" session asn remote 65002
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=set bgp group retained-import description unrelated-candidate
+action=press:id=terminal-input:key=Enter
+
+action=open:path=/show/bgp/group/graphical%2Ffile/
+expect=html:contains=value="original-file-draft"
+action=click:id=graphical-actions-toggle
+action=click:id=graphical-edit-toggle
+action=click:id=graphical-import-toggle
+action=upload:id=graphical-import-file:file=test/web/fixtures/graphical-import-relative.conf
+action=select:id=graphical-import-file-location:value=relative
+action=select:id=graphical-import-file-action:value=replace
+action=click:id=graphical-import-file-submit
+expect=element:text=Configuration loaded
+expect=html:contains=value="file-subtree-import"
+expect=url:contains=/show/bgp/group/graphical%2Ffile/
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=show bgp group "graphical/file" | format config
+action=press:id=terminal-input:key=Enter
+expect=element:text=file-subtree-import
+expect=element:not-text=original-file-draft
+expect=element:not-text=65002
+action=fill:id=terminal-input:value=show bgp group retained-import | format config
+action=press:id=terminal-input:key=Enter
+expect=element:text=unrelated-candidate
+action=fill:id=terminal-input:value=show confirmed | format config
+action=press:id=terminal-input:key=Enter
+expect=element:text=1.2.3.4
+expect=element:not-text=file-subtree-import
+expect=element:not-text=unrelated-candidate

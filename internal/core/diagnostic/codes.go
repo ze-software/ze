@@ -139,6 +139,12 @@ const (
 	CodeDoctorTLSInvalid                           = "doctor-tls-invalid"
 	CodeDoctorStorageNotGrown                      = "doctor-storage-not-grown"
 	CodeDoctorStorageUnavailable                   = "doctor-storage-unavailable"
+	CodeDoctorCLIHistoryRead                       = "doctor-cli-history-read"
+	CodeDoctorCLIHistoryWrite                      = "doctor-cli-history-write"
+	CodeDoctorWebCleanupOverdue                    = "doctor-web-cleanup-overdue"
+	CodeDoctorWebHistoryUnavailable                = "doctor-web-history-unavailable"
+	CodeDoctorWebHistoryResponse                   = "doctor-web-history-response"
+	CodeDoctorWebNetworkCleanup                    = "doctor-web-network-cleanup"
 	CodeDoctorTLSMissing                           = "doctor-tls-missing"
 	CodeDoctorTLSReference                         = "doctor-tls-reference"
 	CodeDoctorVPPLCPNetns                          = "doctor-vpp-lcp-netns"
@@ -166,6 +172,7 @@ const (
 	CodeDoctorPlatformUnknown                      = "doctor-platform-unknown"
 	CodeDoctorServiceExecutable                    = "doctor-service-executable"
 	CodeDoctorServiceGroup                         = "doctor-service-group"
+	CodeDoctorServiceRestart                       = "doctor-service-restart"
 	CodeDoctorServiceStop                          = "doctor-service-stop"
 	CodeDoctorServiceUnit                          = "doctor-service-unit"
 	CodeDoctorServiceUser                          = "doctor-service-user"
@@ -387,6 +394,42 @@ var builtinCodes = append([]CodeMeta{
 		Examples:    []string{exampleDoctorJSON},
 	},
 	{
+		Code:        CodeDoctorCLIHistoryRead,
+		Title:       "Command recall could not be read",
+		Description: "Saved command recall could not be read, so it was not returned or overwritten. Missing history is not an error. One recent event per minute covers all users and modes without recording commands, usernames or storage error values. Run ze show doctor to diagnose storage readiness, then reconnect after restoring storage access.",
+		Examples:    []string{exampleShowDoctor},
+	},
+	{
+		Code:        CodeDoctorCLIHistoryWrite,
+		Title:       "Command recall could not be saved",
+		Description: "A command-history publication failed, so that recall may be lost when the session ends. A later successful publication clears the current failure but retains this recent event. One event per minute covers all users and modes without recording commands, usernames or storage error values. Run ze show doctor to diagnose storage readiness, then reconnect after restoring storage access.",
+		Examples:    []string{exampleShowDoctor},
+	},
+	{
+		Code:        CodeDoctorWebHistoryUnavailable,
+		Title:       "Browser command recall unavailable",
+		Description: "A browser submission could not be recorded for recall, including an invalid submission identifier. Command execution remains available. One event per minute covers all requests without retaining commands, usernames or error values. Open /cli and reconnect to restore command recall.",
+		Examples:    []string{exampleShowDoctor},
+	},
+	{
+		Code:        CodeDoctorWebHistoryResponse,
+		Title:       "Browser command recall response failed",
+		Description: "Saved command recall was read but its JSON response could not be delivered to the browser. Saved recall is unchanged. One event per minute covers all requests without retaining commands, usernames or error values. Open /cli and reconnect to restore command recall.",
+		Examples:    []string{exampleShowDoctor},
+	},
+	{
+		Code:        CodeDoctorWebNetworkCleanup,
+		Title:       "Web network cleanup failed",
+		Description: "Web network shutdown reported a failure after joining admitted handlers. History cleanup still runs and the caller retains its strict cleanup join. One recent event per minute covers repeated shutdown callers. Inspect recent web.server errors to locate the cause.",
+		Examples:    []string{"ze show log recent level err component web.server"},
+	},
+	{
+		Code:        CodeDoctorWebCleanupOverdue,
+		Title:       "Web cleanup is still waiting",
+		Description: "An admitted web request or accepted command-history publication did not finish within the cleanup allowance. The service keeps joining it and retains the borrowed configuration store. Inspect recent web.server errors to locate the blocked work. One recent event per minute covers concurrent shutdown callers without recording commands or user data.",
+		Examples:    []string{"ze show log recent level err component web.server"},
+	},
+	{
 		Code:        "doctor-static-interface-nexthop-no-backend",
 		Title:       "Static interface next-hop has no iface backend",
 		Description: "A static route forwards over an interface-only next-hop (no gateway address) but the config declares no `interface { backend ... }` stanza. The next-hop interface name cannot be resolved to an ifindex at runtime, so the static section fails to load. Add an interface backend, or give the next-hop a gateway address.",
@@ -517,6 +560,14 @@ var builtinCodes = append([]CodeMeta{
 			"The acceptor binds it, the managed listener is skipped, and every managed client that dials that address is dropped by an acceptor which routes only to a plugin waiter. " +
 			"Move the client entries to a server block with its own port.",
 		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-hub-managed-collision"},
+	},
+	{
+		Code:  CodeDoctorServiceRestart,
+		Title: "Systemd policy cannot preserve daemon restart",
+		Description: "An intentional in-place daemon restart exits 75 after teardown. The generated unit marks that exit successful and forces restart, while clean stop exits 0 and failures exit 1. " +
+			"Doctor reads the effective Restart, SuccessExitStatus, RestartForceExitStatus and RestartPreventExitStatus properties, including drop-ins, and warns when this contract is missing or cannot be read. " +
+			"Run `sudo ze install systemd --force` and `sudo systemctl daemon-reload`, then remove overriding drop-ins shown by `systemctl cat ze.service`.",
+		Examples: []string{exampleDoctorJSON, "ze show diagnostic doctor-service-restart"},
 	},
 	{
 		Code:  CodeDoctorServiceStop,

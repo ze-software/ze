@@ -13,6 +13,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -32,24 +33,84 @@ import (
 	"github.com/ze-software/ze/internal/component/resolve"
 	zeweb "github.com/ze-software/ze/internal/component/web"
 	"github.com/ze-software/ze/internal/core/audit"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/health"
+	"github.com/ze-software/ze/internal/core/opererr"
+	"github.com/ze-software/ze/internal/core/report"
 	internalresolve "github.com/ze-software/ze/internal/core/resolve"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 type webService struct {
 	*zeweb.WebServer
-	broker *zeweb.EventBroker
+	broker     *zeweb.EventBroker
+	editors    *zeweb.EditorManager
+	stopOnce   sync.Once
+	stopped    chan struct{}
+	stopError  error
+	drainLimit time.Duration
 }
 
-func (webService) Name() string { return "web" }
+// webDrainLimit reserves the same share of the process teardown margin as SSH
+// model cleanup. It bounds the diagnostic, not the strict borrowed-store join.
+const webDrainLimit = rpc.DrainTeardownMarginSeconds * time.Second / 6
 
-func (s webService) Shutdown(ctx context.Context) error {
-	if s.broker != nil {
-		s.broker.Close()
+var errWebHistoryDrainOverdue = opererr.New("Web cleanup is still waiting for an active request or command-history write.",
+	"The configuration store remains owned until all accepted work finishes.", webCleanupEventFix)
+
+func newWebService(server *zeweb.WebServer, broker *zeweb.EventBroker, editors *zeweb.EditorManager) *webService {
+	return &webService{WebServer: server, broker: broker, editors: editors, stopped: make(chan struct{}), drainLimit: webDrainLimit}
+}
+
+func (*webService) Name() string { return "web" }
+
+// Shutdown owns one component-lifecycle cleanup worker. It MUST join handlers
+// before draining histories and MUST complete before the caller releases their
+// borrowed store. Network failure cannot skip that cleanup. A stuck handler or
+// write keeps its owner alive; exceeding the allowance logs a visible error and
+// keeps joining. The second stop signal or service-manager timeout can force
+// process exit, but a returning caller can never race accepted history against
+// store release. Repeated calls wait for the same cleanup.
+func (s *webService) Shutdown(ctx context.Context) error {
+	s.stopOnce.Do(func() {
+		go func() {
+			defer close(s.stopped)
+			if s.broker != nil {
+				s.broker.Close()
+			}
+			networkError := s.WebServer.Shutdown(ctx)
+			if networkError != nil {
+				reportWebNetworkCleanupFailure(networkError)
+			}
+			var historyError error
+			if s.editors != nil {
+				historyError = s.editors.Close()
+			}
+			s.stopError = errors.Join(networkError, historyError)
+			if historyError != nil {
+				slogutil.Logger("web.server").Error("web command history cleanup failed", "code", diagnostic.CodeDoctorCLIHistoryWrite, "fix", "ze show doctor", "error", historyError)
+			}
+		}()
+	})
+	allowance := s.drainLimit
+	if deadline, found := ctx.Deadline(); found {
+		allowance += max(time.Until(deadline), 0)
 	}
-	return s.WebServer.Shutdown(ctx)
+	timer := time.NewTimer(allowance)
+	defer timer.Stop()
+	select {
+	case <-s.stopped:
+		return s.stopError
+	case <-timer.C:
+		message := "Web cleanup is still waiting for an active request or command-history write; the configuration store remains owned until cleanup finishes. Inspect recent web.server errors to locate the blocked work."
+		report.RaiseErrorFixOnce(webCleanupEventSource, diagnostic.CodeDoctorWebCleanupOverdue, webCleanupEventSubject,
+			message, webCleanupEventFix, webCleanupEventWindow)
+		slogutil.Logger("web.server").Error(message, "code", diagnostic.CodeDoctorWebCleanupOverdue, "fix", webCleanupEventFix, "limit", allowance)
+		<-s.stopped
+		return errors.Join(errWebHistoryDrainOverdue, s.stopError)
+	}
 }
 
 func buildWebService(deps *serviceDeps) (Service, error) {
@@ -62,7 +123,7 @@ func buildWebService(deps *serviceDeps) (Service, error) {
 	for _, svc := range deps.WebPortalServices {
 		zeweb.RegisterPortalService(zeweb.PortalService{Key: svc.Key, Title: svc.Title, Path: svc.Path, Icon: svc.Icon})
 	}
-	webSrv, broker := startWebServer(
+	webSrv, broker, editors := startWebServer(
 		deps.Store,
 		deps.ConfigPath,
 		webAddrs,
@@ -76,7 +137,9 @@ func buildWebService(deps *serviceDeps) (Service, error) {
 		deps.PowerUsers,
 		deps.LocalUsersLive,
 		deps.WebCommands,
-		deps.StreamDispatch,
+		deps.WebArgumentTree,
+		deps.OperationalCommand,
+		deps.Streams,
 	)
 	if webSrv == nil {
 		return nil, nil //nolint:nilnil // startWebServer preserves prior best-effort skip behavior
@@ -85,7 +148,7 @@ func buildWebService(deps *serviceDeps) (Service, error) {
 		ring.Append("web", "server.started")
 		wireEventRingToBroker(ring, broker)
 	}
-	return webService{WebServer: webSrv, broker: broker}, nil
+	return newWebService(webSrv, broker, editors), nil
 }
 
 func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int {
@@ -132,11 +195,12 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 		fmt.Fprintf(os.Stderr, "warning: web power-user auth unavailable: %v\n", powerErr)
 	}
 	localUsersLive := liveLocalUsers(powerUsers, noConfigUsers, slogutil.Logger("hub.web.auth"))
-	webSrv, broker := startWebServer(store, "", listenAddrs, insecureWeb, "", dispatch, resolvers, nil, auditLog, nil, powerUsers, localUsersLive, nil)
+	webSrv, broker, editors := startWebServer(store, "", listenAddrs, insecureWeb, "", dispatch, resolvers, nil, auditLog, nil, powerUsers, localUsersLive, nil, nil, nil)
 	if webSrv == nil {
 		return 1
 	}
 	wireEventRingToBroker(ring, broker)
+	service := newWebService(webSrv, broker, editors)
 
 	sigCh := make(chan os.Signal, 2) //nolint:mnd // buffer 2: graceful + force
 	signal.Notify(sigCh, syscall.SIGINT, syscall.SIGTERM)
@@ -149,10 +213,11 @@ func runWebOnly(store storage.Storage, listenAddr string, insecureWeb bool) int 
 	// Second signal forces immediate exit (lifecycle goroutine, not hot path).
 	go forceExitOnSignal(sigCh)
 
-	broker.Close()
 	shutdownCtx, shutdownCancel := context.WithTimeout(context.Background(), 3*time.Second)
 	defer shutdownCancel()
-	_ = webSrv.Shutdown(shutdownCtx)
+	// Shutdown's network, history and overdue producers already report each
+	// constituent failure. Standalone shutdown keeps its best-effort exit code.
+	_ = service.Shutdown(shutdownCtx) //nolint:errcheck // The producers report failures; this call still joins cleanup.
 
 	return 0
 }
@@ -271,7 +336,7 @@ func wireEventRingToBroker(ring *pluginserver.EventRing, broker *zeweb.EventBrok
 //
 // powerUsers is the caller's zefs snapshot, used to NAME those accounts for the
 // UI. It never decides who may log in; localUsersLive already carries them.
-func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, certName string, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, configOwner *configMutationOwner, powerUsers []authz.UserConfig, localUsersLive func() ([]authz.UserConfig, error), commandEntries func() []command.CommandEntry, streams ...plugin.CommandStreamDispatcher) (*zeweb.WebServer, *zeweb.EventBroker) {
+func startWebServer(store storage.Storage, configPath string, listenAddrs []string, insecureWeb bool, certName string, dispatch zeweb.CommandDispatcher, resolvers *resolve.Resolvers, authorizer aaa.Authorizer, recorder audit.Recorder, configOwner *configMutationOwner, powerUsers []authz.UserConfig, localUsersLive func() ([]authz.UserConfig, error), commandEntries func() []command.CommandEntry, argumentTree func(*command.Node, command.ArgumentQuery) *command.Node, registered func(string) bool, streams ...plugin.CommandStreamHandlers) (*zeweb.WebServer, *zeweb.EventBroker, *zeweb.EditorManager) {
 	dispatch = withBGPDecode(dispatch)
 	if insecureWeb {
 		authorizer = nil
@@ -279,7 +344,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	if store == nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: persistent store unavailable (run ze init first)\n")
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	listenAddrs = resolveWebListeners(true, listenAddrs)
@@ -301,16 +366,16 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		// closed -- never serve an unauthenticated admin UI).
 		if localUsersLive == nil {
 			fmt.Fprintf(os.Stderr, "warning: web server disabled: no user source wired\n")
-			return nil, nil
+			return nil, nil, nil
 		}
 		serving, usersErr := localUsersLive()
 		if usersErr != nil {
 			fmt.Fprintf(os.Stderr, "warning: web server disabled: cannot read the running configuration users: %v\n", usersErr)
-			return nil, nil
+			return nil, nil, nil
 		}
 		if len(serving) == 0 {
 			fmt.Fprintf(os.Stderr, "warning: web server disabled: no authenticatable users\n")
-			return nil, nil
+			return nil, nil, nil
 		}
 	}
 
@@ -320,13 +385,13 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	certPEM, keyPEM, err := listenerTLSMaterial(certName, certStore, listenAddrs[0])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: TLS cert: %v\n", err)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	renderer, err := zeweb.NewRenderer()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: renderer: %v\n", err)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Register display-time decorators (e.g., ASN -> org name via Team Cymru DNS).
@@ -349,14 +414,14 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	})
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: %v\n", err)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// Load YANG schema for config tree navigation.
 	schema, schemaErr := zeconfig.YANGSchema()
 	if schemaErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: YANG schema: %v\n", schemaErr)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// The operational command tree comes from the same registered modules as
@@ -367,7 +432,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	if loaderErr != nil {
 		var tb textbuf.Buffer
 		tb.Str("warning: web server disabled: operational command tree: ").Err(loaderErr).Byte('\n').StdErr() //nolint:errcheck // a warning to stderr has nowhere further to report
-		return nil, nil
+		return nil, nil, nil
 	}
 	commandTree := yangloader.BuildCommandTree(resolved)
 	// Strict ze:related validation against the full operational command
@@ -385,7 +450,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		name, err := internalresolve.DefaultConfig(store)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "warning: web server disabled:", err)
-			return nil, nil
+			return nil, nil, nil
 		}
 		configPath = name
 	}
@@ -399,6 +464,17 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	// Create editor manager for config editing via web.
 	editorMgr := zeweb.NewEditorManager(store, configPath, schema, newEditorFactory(zeconfigcmd.ValidateContent), newEditSessionFactory())
+	var broker *zeweb.EventBroker
+	managerOwned := true
+	defer func() {
+		if managerOwned {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			defer cancel()
+			// The constituent producers report network, history and overdue
+			// failures; startup failure still strictly joins borrowed-store work.
+			_ = newWebService(srv, broker, editorMgr).Shutdown(ctx) //nolint:errcheck // Cleanup failures are reported by their producers.
+		}
+	}()
 	var commitHook func() error
 	if configOwner != nil {
 		commitHook = func() error { return configOwner.Reload(context.Background()) }
@@ -420,17 +496,12 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	// register after the web service is built, and may come and go), so the
 	// YANG tree stays immutable and completion always reflects the current
 	// registry. YANG-only when there is no plugin source (web-only mode).
-	var commandCompleter zeweb.CommandCompleter
-	if commandEntries != nil {
-		commandCompleter = newPluginAwareCommandCompleter(commandTree, commandEntries)
-	} else {
-		commandCompleter = cli.NewCommandCompleter(commandTree)
-	}
+	completionSource := webCompletionSource(commandTree, commandEntries, argumentTree, dispatch)
 	// Create CLI completer for Tab/? autocomplete.
 	completer, err := cli.NewCompleter()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server disabled: completer: %v\n", err)
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	// The caller's one live view of the local credentials, shared by the session
@@ -446,7 +517,7 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	}
 
 	// SSE broker for live config change notifications and log streaming.
-	broker := zeweb.NewEventBroker(0)
+	broker = zeweb.NewEventBroker(0)
 	if commitHook != nil {
 		// Web users see the daemon window's countdown and how it ended, and a
 		// forced commit's discard notice, as the SSH draft poll shows them.
@@ -457,7 +528,8 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	// The graphical YANG editor is primary. The unfinished Workbench requires
 	// ze.web.ui-mode=workbench or an explicit current browser switch cookie.
 	uiMode := zeweb.GetUIMode()
-	finderHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb, authorizer)
+	adminTrees := adminCommandTrees(commandTree, commandEntries)
+	finderHandler := zeweb.HandleFragment(renderer, schema, tree, editorMgr, insecureWeb, authorizer, adminTrees)
 	workbenchHandler := zeweb.HandleWorkbench(renderer, schema, tree, editorMgr, insecureWeb,
 		zeweb.WithDispatch(dispatch), zeweb.WithBroker(broker), zeweb.WithPowerUsers(powerUserNames),
 		zeweb.WithAuthorizer(authorizer))
@@ -478,7 +550,10 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	// Config set, add, and delete handlers for editing leaf values.
 	setHandler := zeweb.HandleConfigSetWithAuthorizer(editorMgr, schema, renderer, authorizer)
-	actionHandler := zeweb.HandleGraphicalAction(editorMgr, schema, renderer, authorizer, recorder, broker)
+	actionHandler := zeweb.HandleGraphicalAction(editorMgr, schema, renderer, authorizer, recorder, broker, adminTrees)
+	importHandler := zeweb.HandleGraphicalImport(editorMgr, schema, renderer, authorizer, adminTrees)
+	inspectionFormHandler := zeweb.HandleSuppliedInspectionForm(renderer, adminTrees)
+	inspectionHandler := zeweb.HandleSuppliedInspection(renderer, editorMgr, dispatch, adminTrees, authorizer)
 	formHandler := zeweb.HandleConfigFormWithAuthorizer(editorMgr, schema, renderer, authorizer)
 	addHandler := zeweb.HandleConfigAddWithAuthorizer(editorMgr, schema, renderer, authorizer)
 	addFormHandler := zeweb.HandleConfigAddForm(editorMgr, schema, renderer)
@@ -533,14 +608,15 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 
 	// CLI handlers: command execution, autocomplete, terminal mode.
 	cliHandler := zeweb.HandleCLICommandWithAuthorizerAndAudit(editorMgr, schema, renderer, authorizer, recorder, dispatch)
-	terminalHandler := zeweb.HandleCLITerminalWithDispatchAuthorizerAndAudit(editorMgr, schema, tree, dispatch, authorizer, recorder)
-	var streamDispatch plugin.CommandStreamDispatcher
+	terminalHandler := zeweb.HandleCLITerminalWithDispatchAuthorizerAndAudit(editorMgr, schema, tree, dispatch, authorizer, recorder, registered)
+	var streamHandlers plugin.CommandStreamHandlers
 	if len(streams) > 0 {
-		streamDispatch = streams[0]
+		streamHandlers = streams[0]
 	}
-	streamHandler := zeweb.HandleCLITerminalStream(terminalHandler, streamDispatch)
+	views := zeweb.NewCLIViewTransport(streamHandlers.Admit, webViewBinding(dispatch))
+	streamHandler := views.Handler(editorMgr, terminalHandler, streamHandlers.Dispatch, registered)
 	modeHandler := zeweb.HandleCLIModeToggle(editorMgr, schema, renderer)
-	completeHandler := zeweb.HandleCLICompleteWithCommandCompleter(completer, commandCompleter, editorMgr, schema)
+	completeHandler := zeweb.HandleCLICompleteWithSource(completer, completionSource, registered, editorMgr, schema)
 
 	// The live AAA chain decides ordinary logins once installed. Only an
 	// unavailable chain permits ordinary local fallback; an explicit remote
@@ -580,7 +656,6 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	// plugin registry overlaid per request (adminCommandTrees). Each command's
 	// declared summary and explanation reach its form. A loader failure
 	// disabled the server above rather than serving broken admin links.
-	adminTrees := adminCommandTrees(commandTree, commandEntries)
 	adminViewHandler := zeweb.HandleAdminView(renderer, adminTrees)
 	adminExecHandler := zeweb.HandleAdminExecute(renderer, dispatch, adminTrees)
 
@@ -599,15 +674,19 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 		}
 		adminViewHandler(w, r)
 	})))
-	srv.Handle("GET /cli", authWrap(zeweb.HandleCLIPageHTTP(renderer, insecureWeb)))
+	srv.Handle("GET /cli", authWrap(zeweb.HandleCLIPageHTTP(renderer, insecureWeb, editorMgr)))
 	srv.Handle("POST /cli", mutationWrap(cliHandler))
 	srv.Handle("/cli/complete", authWrap(completeHandler))
 	srv.Handle("POST /cli/terminal", mutationWrap(terminalHandler))
 	srv.Handle("POST /cli/stream", mutationWrap(streamHandler))
+	srv.Handle("POST /cli/view/action", mutationWrap(http.HandlerFunc(views.Action)))
 	srv.Handle("POST /cli/mode", mutationWrap(modeHandler))
 	srv.Handle("/fragment/detail", authWrap(fragmentHandler))
 	srv.Handle("POST /config/set/", mutationWrap(setHandler))
 	srv.Handle("POST /config/action", mutationWrap(actionHandler))
+	srv.Handle("POST /config/import", mutationWrap(importHandler))
+	srv.Handle("GET /config/inspect/form", authWrap(inspectionFormHandler))
+	srv.Handle("POST /config/inspect", mutationWrap(inspectionHandler))
 	srv.Handle("POST /config/form/", mutationWrap(formHandler))
 	srv.Handle("POST /config/add/", mutationWrap(addHandler))
 	srv.Handle("GET /config/add-form/", editWrap(addFormHandler))
@@ -683,12 +762,12 @@ func startWebServer(store storage.Storage, configPath string, listenAddrs []stri
 	defer readyCancel()
 	if waitErr := srv.WaitReady(readyCtx); waitErr != nil {
 		fmt.Fprintf(os.Stderr, "warning: web server failed to start: %v\n", waitErr)
-		_ = srv.Shutdown(context.Background())
-		return nil, nil
+		return nil, nil, nil
 	}
 
 	fmt.Fprintf(os.Stderr, "web server listening on https://%s/\n", srv.Address())
-	return srv, broker
+	managerOwned = false
+	return srv, broker, editorMgr
 }
 
 // forceExitOnSignal waits for a second signal and exits immediately.

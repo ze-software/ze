@@ -95,7 +95,7 @@ func TestSSHAuthPanicContained(t *testing.T) {
 		Authenticator: panickingAuthenticator{},
 	})
 	require.NoError(t, err)
-	srv.SetExecutorFactory(func(_, _ string, _ plugin.Authorizer) CommandExecutor {
+	srv.SetExecutorFactory(func(_ context.Context, _, _ string, _ plugin.Authorizer) CommandExecutor {
 		return func(string) (*plugin.RenderedResponse, error) {
 			return &plugin.RenderedResponse{Output: "pong"}, nil
 		}

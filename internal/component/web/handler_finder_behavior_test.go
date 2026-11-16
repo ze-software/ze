@@ -175,7 +175,7 @@ func TestWebFinderEscapesFieldValues(t *testing.T) {
 	container := config.NewTree()
 	container.Set("description", value)
 	tree.SetContainer("example", container)
-	handler := HandleFragment(renderer, schema, tree, nil, false)
+	handler := HandleFragment(renderer, schema, tree, nil, false, nil)
 	for _, htmx := range []bool{false, true} {
 		req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/fragment/detail?path=example", http.NoBody)
 		if htmx {

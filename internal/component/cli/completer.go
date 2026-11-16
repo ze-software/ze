@@ -566,14 +566,14 @@ func (c *completion) completeShowPath(tokens, contextPath []string, endsWithSpac
 }
 
 // optionSubcommands are completions offered when typing "option ".
-var optionSubcommands = []Completion{
-	{Text: colAuthor, ShortHelp: "Toggle author column (enable/disable)", Type: completionKeyword},
-	{Text: colDate, ShortHelp: "Toggle date column (enable/disable)", Type: completionKeyword},
-	{Text: colSource, ShortHelp: "Toggle source column (enable/disable)", Type: completionKeyword},
-	{Text: colChanges, ShortHelp: "Toggle changes column (enable/disable)", Type: completionKeyword},
-	{Text: cmdErrors, ShortHelp: "Error display (hints/hide)", Type: completionKeyword},
-	{Text: cmdAll, ShortHelp: "Enable all display columns", Type: completionKeyword},
-	{Text: cmdNone, ShortHelp: "Disable all display columns", Type: completionKeyword},
+var optionSubcommands = editorOptionCompletions()
+
+func editorOptionCompletions() []Completion {
+	var choices []Completion
+	for _, option := range contract.EditorOptions() {
+		choices = append(choices, Completion{Text: option.Name, ShortHelp: option.Help, Type: completionKeyword})
+	}
+	return choices
 }
 
 // completeOptionPath completes paths for option command (display settings).
@@ -586,19 +586,18 @@ func (c *Completer) completeOptionPath(tokens, _ []string, endsWithSpace bool) [
 		return filterCompletions(optionSubcommands, prefix)
 	}
 
-	// "option errors " -> offer hints/hide.
-	if len(tokens) == 1 && tokens[0] == cmdErrors && endsWithSpace {
-		return []Completion{
-			{Text: "hints", ShortHelp: "Toggle inline diagnostic hints", Type: completionKeyword},
-			{Text: "hide", ShortHelp: "Hide error annotations", Type: completionKeyword},
-		}
-	}
-
-	// "option <column> " -> offer enable/disable.
-	if len(tokens) == 1 && endsWithSpace && isOptionColumn(tokens[0]) {
-		return []Completion{
-			{Text: cmdEnable, ShortHelp: "Enable column", Type: completionKeyword},
-			{Text: cmdDisable, ShortHelp: "Disable column", Type: completionKeyword},
+	if len(tokens) == 1 && endsWithSpace {
+		for _, option := range contract.EditorOptions() {
+			if option.Name != tokens[0] {
+				continue
+			}
+			var choices []Completion
+			for _, value := range option.Values {
+				if value != "" {
+					choices = append(choices, Completion{Text: value, ShortHelp: option.Help, Type: completionKeyword})
+				}
+			}
+			return choices
 		}
 	}
 

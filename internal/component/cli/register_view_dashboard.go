@@ -47,8 +47,36 @@ func init() {
 		key:     ViewKeyDashboard,
 		prefix:  "monitor bgp",
 		matches: isDashboardCommand, // "monitor bgp" [args]; no piped variant.
+		browser: dashboardBrowserControls,
 		start: func(m *Model, _ string) tea.Cmd {
 			return m.startDashboard()
 		},
 	})
+}
+
+// dashboardBrowserControls projects only the keys the current dashboard state
+// accepts. Selection, sorting and detail remain in handleDashboardKey.
+func dashboardBrowserControls(m *Model) []browserViewControl {
+	stop := browserViewStopControl()
+	ds := m.activeDashboard()
+	if ds == nil {
+		return []browserViewControl{stop}
+	}
+	if ds.showHelp {
+		return []browserViewControl{{BrowserViewControl: BrowserViewControl{ID: "back", Label: "Back"}, key: "?"}, stop}
+	}
+	if ds.detailAddr != "" {
+		return []browserViewControl{
+			{BrowserViewControl: BrowserViewControl{ID: "back", Label: "Back to peers"}, key: "esc"},
+			{BrowserViewControl: BrowserViewControl{ID: "help", Label: "Help"}, key: "?"}, stop,
+		}
+	}
+	return []browserViewControl{
+		{BrowserViewControl: BrowserViewControl{ID: "sort", Label: "Next sort column"}, key: "s"},
+		{BrowserViewControl: BrowserViewControl{ID: "reverse", Label: "Reverse order"}, key: "S"},
+		{BrowserViewControl: BrowserViewControl{ID: "previous", Label: "Previous peer"}, key: "up"},
+		{BrowserViewControl: BrowserViewControl{ID: "next", Label: "Next peer"}, key: "down"},
+		{BrowserViewControl: BrowserViewControl{ID: "detail", Label: "Peer detail"}, key: "enter"},
+		{BrowserViewControl: BrowserViewControl{ID: "help", Label: "Help"}, key: "?"}, stop,
+	}
 }

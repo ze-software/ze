@@ -223,12 +223,13 @@ type Model struct {
 	lastCommand string           // Most recently dispatched command (for echo in output buffer)
 
 	// Mode state
-	mode                EditorMode               // Current editor mode (config or operational)
-	modeStates          map[EditorMode]modeState // Saved screen state per mode
-	commandCompleter    CommandModeCompleter     // Completer for command mode (nil if no daemon)
-	commandExecutor     CommandExecutor          // Executes operational commands via RPC (nil if no daemon)
-	transcript          *TranscriptWriter        // Session transcript the executor records into; nil when disabled
-	filesystemAuthority FilesystemAuthority      // Whose OS identity would perform filesystem effects.
+	mode                  EditorMode               // Current editor mode (config or operational)
+	modeStates            map[EditorMode]modeState // Saved screen state per mode
+	commandCompleter      CommandModeCompleter     // Completer for command mode (nil if no daemon)
+	registeredOperational func(string) bool        // Live dispatch recognition, before config-mode convenience.
+	commandExecutor       CommandExecutor          // Executes operational commands via RPC (nil if no daemon)
+	transcript            *TranscriptWriter        // Session transcript the executor records into; nil when disabled
+	filesystemAuthority   FilesystemAuthority      // Whose OS identity would perform filesystem effects.
 
 	// Monitor streaming state (generic monitor view; not a registered live view)
 	monitorFactory MonitorFactory  // Creates monitor sessions (nil if unavailable)
@@ -249,10 +250,6 @@ type Model struct {
 	auditSurface    string
 	auditUsername   string
 	auditRemoteAddr string
-
-	// Daemon lifecycle callbacks (set by SSH session for stop/restart commands)
-	shutdownFunc func() // Called on "stop" in interactive CLI (no GR marker)
-	restartFunc  func() // Called on "restart" in interactive CLI (writes GR marker)
 
 	// Lifecycle confirmation state
 	confirmStop    bool // True if waiting for y/n to confirm stop
@@ -452,6 +449,10 @@ func NewModel(ed *Editor, filesystemAuthority FilesystemAuthority) (Model, error
 		var tb textbuf.Buffer
 		welcome = tb.Str("welcome to ze, ").Str(ed.session.User).Byte('!').String()
 	}
+	history, err := NewHistoryWithMask(nil, "", ed.DisplayCommandAtPath)
+	if err != nil {
+		return Model{}, err
+	}
 
 	return Model{
 		editor:              ed,
@@ -463,7 +464,7 @@ func NewModel(ed *Editor, filesystemAuthority FilesystemAuthority) (Model, error
 		viewport:            vp,
 		contextPath:         nil,
 		selected:            -1,
-		history:             NewHistory(nil, ""),
+		history:             history,
 		validationErrors:    result.Errors,
 		validationWarnings:  result.Warnings,
 		showHints:           true,
@@ -497,13 +498,15 @@ func NewCommandModel(filesystemAuthority FilesystemAuthority) Model {
 		Border(lipgloss.RoundedBorder()).
 		BorderForeground(lipgloss.Color("62"))
 
+	history := NewHistory(nil, "")
+	history.mode = ModeOperational
 	return Model{
 		textInput:           ti,
 		viewport:            vp,
 		dispatch:            newDispatchQueue(),
 		filesystemAuthority: filesystemAuthority,
 		selected:            -1,
-		history:             NewHistory(nil, ""),
+		history:             history,
 		mode:                ModeOperational,
 		modeStates:          make(map[EditorMode]modeState),
 		statusMessage:       "welcome to ze!",
@@ -835,18 +838,39 @@ func (m Model) commandCompleterInput() (string, bool) {
 		// `top run ...` runs the same command (handleEnter strips the `top`).
 		// The trailing spaces are preserved: they tell Complete that the last
 		// word is finished.
-		line, _ := lineBehindTop(input)
+		line, _ := LineBehindTop(input)
 		if !strings.HasPrefix(line, cmdRun+" ") {
 			return "", false
 		}
 		return line[len(cmdRun)+1:], true
 	}
 
-	if completesFromYANG(input) && m.completer != nil {
+	if m.completesFromConfig(input) && m.completer != nil {
 		// A config command with arguments is completed from YANG.
 		return "", false
 	}
 	return input, true
+}
+
+// completeOperational uses checked completion when the producer performs I/O.
+// Static completers need no error channel. The failure is displayed rather than
+// offered as an insertable candidate, and ghost text reuses the queried answer.
+func (m *Model) completeOperational(input string) {
+	if checked, ok := m.commandCompleter.(interface {
+		CompleteChecked(string) ([]Completion, error)
+	}); ok {
+		completions, err := checked.CompleteChecked(input)
+		if err != nil {
+			m.completions = nil
+			m.ghostText = ""
+			m.statusMessage = err.Error()
+			return
+		}
+		m.completions = completions
+	} else {
+		m.completions = m.commandCompleter.Complete(input)
+	}
+	m.ghostText = CommandGhostText(input, m.completions)
 }
 
 // updateCompletions updates completions based on current input.
@@ -857,7 +881,7 @@ func (m Model) commandCompleterInput() (string, bool) {
 func (m *Model) updateCompletions() {
 	input := m.textInput.Value()
 	commandArgs, hasCommandArgs := m.commandCompleterInput()
-	behindTop, underTop := lineBehindTop(input)
+	behindTop, underTop := LineBehindTop(input)
 
 	switch {
 	case strings.HasPrefix(input, "/"):
@@ -868,11 +892,10 @@ func (m *Model) updateCompletions() {
 	case m.mode == ModeConfig && strings.HasPrefix(behindTop, cmdRun+" "):
 		// Config mode with "run " prefix: delegate to command completer for operational completions.
 		if hasCommandArgs {
-			m.completions = m.commandCompleter.Complete(commandArgs)
-			m.ghostText = m.commandCompleter.GhostText(commandArgs)
+			m.completeOperational(commandArgs)
 		}
 
-	case m.mode == ModeOperational && completesFromYANG(input) && m.completer != nil:
+	case m.mode == ModeOperational && m.completesFromConfig(input) && m.completer != nil:
 		// Operational mode with a full config command followed by args: YANG completions.
 		m.completions = m.completer.Complete(m.completionTree(), input, m.contextPath)
 		m.ghostText = m.completer.GhostText(m.completionTree(), input, m.contextPath)
@@ -880,8 +903,7 @@ func (m *Model) updateCompletions() {
 	case m.mode == ModeOperational:
 		// Operational mode top-level: merge operational + config command completions.
 		if hasCommandArgs {
-			m.completions = m.commandCompleter.Complete(commandArgs)
-			m.ghostText = m.commandCompleter.GhostText(commandArgs)
+			m.completeOperational(commandArgs)
 		}
 		m.completions = appendCLIFormatCompletions(m.completions, input, m.cliFormatNames())
 		if m.hasEditor() && (input == "" || strings.HasPrefix(cmdConfigure, input)) {
@@ -1155,7 +1177,7 @@ func (m *Model) SetTranscript(tw *TranscriptWriter) {
 func (m Model) Close() error {
 	m.dispatch.end()
 	m.history.Close()
-	return m.transcript.Close()
+	return errors.Join(m.history.LastWriteError(), m.transcript.Close())
 }
 
 // SetStartMode selects the mode this model opens in, before the program runs.
@@ -1221,29 +1243,26 @@ func (m *Model) recordAudit(action, detail string) {
 	})
 }
 
-// SetShutdownFunc sets the callback for the "stop" interactive CLI command.
-// When set, typing "stop" prompts for confirmation, then calls fn and quits.
-func (m *Model) SetShutdownFunc(fn func()) {
-	m.shutdownFunc = fn
-}
-
-// SetRestartFunc sets the callback for the "restart" interactive CLI command.
-// When set, typing "restart" prompts for confirmation, then calls fn and quits.
-func (m *Model) SetRestartFunc(fn func()) {
-	m.restartFunc = fn
-}
-
 // SetHistory transfers ownership of h to the model and drains the old history.
 // The caller MUST use it only during setup, before copying/running the model,
 // and MUST call Model.Close before releasing h's borrowed store. It loads the
 // current and other mode so switching modes remains memory-only.
+// The caller MUST supply h before its first load, record or Save; this setup
+// binds the actual editor's schema before either mode is read.
 func (m *Model) SetHistory(h *History) {
 	if m.history != h {
 		m.history.Close()
 	}
 	m.history = h
+	if m.editor != nil {
+		h.mask = m.editor.DisplayCommandAtPath
+	}
+	h.mode = m.mode
 	// Load history for the current mode.
-	if loaded := h.Load(m.mode.String()); len(loaded) > 0 {
+	loaded, err := h.Snapshot(m.mode)
+	if err != nil {
+		m.setError(err)
+	} else {
 		m.history.entries = loaded
 	}
 	// Pre-load history for the other mode into modeStates so it's
@@ -1252,10 +1271,28 @@ func (m *Model) SetHistory(h *History) {
 	if m.mode == ModeOperational {
 		other = ModeConfig
 	}
-	if loaded := h.Load(other.String()); len(loaded) > 0 {
+	loaded, err = h.Snapshot(other)
+	if err != nil {
+		m.setError(err)
+	} else {
 		saved := m.modeStates[other]
 		saved.histSnap = historySnapshot{entries: loaded, idx: -1}
 		m.modeStates[other] = saved
+	}
+}
+
+// recordHistory reports unavailable recall without blocking command execution.
+// History remembers a failed read so later commands cannot overwrite that mode.
+func (m *Model) recordHistory(input string) {
+	mode, record := HistoryCommandMode(m.mode, input, m.registeredOperational)
+	if !record {
+		return
+	}
+	if _, err := m.history.Record(mode, m.contextPath, input); err != nil {
+		m.setError(err)
+	}
+	if err := m.history.LastWriteError(); err != nil {
+		m.setError(err)
 	}
 }
 

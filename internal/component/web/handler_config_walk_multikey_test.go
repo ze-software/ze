@@ -5,14 +5,17 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	_ "github.com/ze-software/ze/internal/component/bfd/yang" // Register the BFD YANG: single-hop-session is keyed `peer vrf interface`.
+	"github.com/ze-software/ze/internal/component/cli"
 	"github.com/ze-software/ze/internal/component/config"
 	configyang "github.com/ze-software/ze/internal/component/config/yang"
+	"github.com/ze-software/ze/pkg/zefs"
 )
 
 // twoLinkSessionsConfig is the AC-2 config of spec-bfd-link-local-peer-zone:
@@ -200,10 +203,22 @@ func TestWebRenameAndTerminalRefuseAKeylessListEntry(t *testing.T) {
 	require.NoError(t, err)
 	before := config.Serialize(mgr.Tree("alice"), schema)
 	beforeDirty := us.editor.Dirty()
-	writes := 0
-	mgr.store.SetWriteObserver(func(string) { writes++ })
-	t.Cleanup(func() { mgr.store.SetWriteObserver(nil) })
+	historyKey := zefs.KeyHistory.Key("alice", cli.ModeConfig.String())
+	var writes atomic.Int64
+	var historyWrites atomic.Int64
+	mgr.store.SetWriteObserver(func(key string) {
+		if key == historyKey {
+			historyWrites.Add(1)
+			return
+		}
+		writes.Add(1)
+	})
+	t.Cleanup(func() {
+		assert.NoError(t, mgr.Close())
+		mgr.store.SetWriteObserver(nil)
+	})
 	handler := handleConfigRename(mgr, schema)
+	var history []string
 
 	for _, path := range [][]string{
 		{"policy", "rule", "1"},
@@ -217,16 +232,27 @@ func TestWebRenameAndTerminalRefuseAKeylessListEntry(t *testing.T) {
 		assert.Contains(t, rec.Body.String(), "rename refused: rule has no key, so its entries cannot be renamed or copied.", "%v", path)
 
 		for _, verb := range []string{"rename", "copy"} {
-			out := terminalAsUser(t, mgr, "alice", nil, verb+" "+strings.Join(path, " ")+" to 2").Output
+			line := verb + " " + strings.Join(path, " ") + " to 2"
+			history = append(history, line)
+			out := terminalAsUser(t, mgr, "alice", nil, line).Output
 			assert.Equal(t, "error: "+verb+" refused: rule has no key, so its entries cannot be renamed or copied.", out, "%v", path)
 		}
 		assert.Equal(t, before, config.Serialize(mgr.Tree("alice"), schema), "the refused paths preserve the candidate")
 		assert.Equal(t, beforeDirty, us.editor.Dirty(), "the refusals stage no mutation")
 	}
-	assert.Zero(t, writes, "a refused rename or copy never writes a mutation to the editor store")
+	assert.Zero(t, writes.Load(), "a refused rename or copy never writes a mutation to the editor store")
 	accepted := terminalAsUser(t, mgr, "alice", nil, "set bgp router-id 192.0.2.71")
 	require.NotContains(t, accepted.Output, "error:")
-	assert.Positive(t, writes, "the observer must see a valid mutation through the acquired write guard")
+	assert.Positive(t, writes.Load(), "the observer must see a valid mutation through the acquired write guard")
+
+	// AC-40 records submitted commands even when execution refuses them.
+	// Join publication before checking its bytes or removing the observer.
+	require.NoError(t, mgr.Close())
+	assert.Positive(t, historyWrites.Load(), "the exact recall key must receive an accepted publication")
+	recalled, err := mgr.store.ReadKey(historyKey)
+	require.NoError(t, err)
+	history = append(history, "set bgp router-id 192.0.2.71")
+	assert.Equal(t, strings.Join(history, "\n"), string(recalled), "drained recall contains every submitted command")
 }
 
 // TestWebAddKeepsTheCaseOfTheFirstKeyValue is AC-20 of

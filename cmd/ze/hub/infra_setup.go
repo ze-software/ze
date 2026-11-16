@@ -17,6 +17,7 @@ import (
 	"github.com/ze-software/ze/internal/core/audit"
 	coreenv "github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // buildAAABundle composes the AAA bundle through the pluggable backend
@@ -272,6 +273,10 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, mutations *con
 		}
 
 		if apiSrv := params.APIServer(); apiSrv != nil {
+			apiSrv.SetRestartFunc(func() {
+				requestRestartStop(rpc.DrainRestartInPlace)
+				stopForRestart()
+			})
 			apiSrv.SetRebootFunc(func() { requestRebootStop(stopForRestart) })
 		}
 
@@ -311,9 +316,8 @@ func infraSetup(params infra.HookParams, recorder audit.Recorder, mutations *con
 
 		if sshSrv != nil && sshWirePostStart != nil {
 			sshWirePostStart(sshSrv, &sshWireInputs{
-				Reactor:        r,
-				Params:         params,
-				StopForRestart: stopForRestart,
+				Reactor: r,
+				Params:  params,
 			})
 			log.Info("SSH command executor wired")
 		}

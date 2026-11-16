@@ -48,7 +48,17 @@ const (
 // completePluginRestart offers every configured plugin, exactly the names
 // handlePluginRestart accepts, saying which run. A name nothing configured is
 // never offered.
-func completePluginRestart(s *Server) []Completion {
+func completePluginRestart(s *Server, completed []string) []Completion {
+	// This command takes one name. Once that value is complete, no second
+	// argument is permitted and no name belongs at the next position.
+	if len(completed) > 0 {
+		if len(completed) != 1 {
+			return nil
+		}
+		if completed[0] != pluginRestartLeaf {
+			return nil
+		}
+	}
 	// refuse-by-default: guards handleArgComplete -- no plugin server holds no configured plugin, so no name completes
 	if s == nil {
 		return nil

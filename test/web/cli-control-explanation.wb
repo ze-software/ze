@@ -1,0 +1,21 @@
+# Test: browser question mark reveals shared completed-command explanations
+# VALIDATES: long help is fetched for complete input and remains in config run
+# PREVENTS: exhausting completions leaving question mark with no useful answer
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=run show version
+action=press:id=terminal-input:key=?
+expect=element:text=You can verify which release is deployed on this box.
+expect=element:text=ze#
+action=press:id=terminal-input:key=Escape
+action=fill:id=terminal-input:value=exit
+action=press:id=terminal-input:key=Enter
+expect=element:text=ze>
+action=fill:id=terminal-input:value=show ver
+action=press:id=terminal-input:key=Tab
+action=press:id=terminal-input:key=?
+expect=element:text=You can verify which release is deployed on this box.
+expect=element:text=ze>

@@ -40,6 +40,7 @@ func TestWebTerminalCommitForceOverridesConflict(t *testing.T) {
 		require.NoError(t, err)
 		mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 			validatingEditorFactory(), testEditSessionFactory())
+		t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 		checkWebCommitForce(t, mgr, schema)
 	})
 }

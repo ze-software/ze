@@ -42,7 +42,7 @@ func TestCLIBarLoadHandoffKeepsCommandAndContext(t *testing.T) {
 func TestCLIPageLoadHandoffIsContentOnly(t *testing.T) {
 	renderer, err := NewRenderer()
 	require.NoError(t, err)
-	handler := HandleCLIPageHTTP(renderer, false)
+	handler := HandleCLIPageHTTP(renderer, false, newTestEditorManager(t))
 	rec := httptest.NewRecorder()
 	query := url.Values{"command": {"load terminal relative merge"}, "path": {"bgp"}}
 	handler(rec, authedRequest(t, http.MethodGet, "/cli?"+query.Encode(), nil))

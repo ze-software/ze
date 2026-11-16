@@ -63,11 +63,18 @@ type EditorManager struct {
 	// commitsInFlight counts, per user, the window commits runCommit holds:
 	// a guard, so pollWindow never reads a window the user's own commit is
 	// closing as closed by another session. Guarded by watchMu.
-	commitsInFlight map[string]int
+	commitsInFlight        map[string]int
+	historyMu              sync.Mutex
+	histories              map[string]*historyOwner
+	historyClosed          bool
+	historyCloseOnce       sync.Once
+	historyCloseError      error
+	historyRetirementError error
 }
 
 // NewEditorManager creates an EditorManager for the given storage backend and config path.
 // Default limits: 50 concurrent sessions, 1 hour idle timeout.
+// The owner MUST join HTTP handlers, then call Close before releasing store.
 func NewEditorManager(store storage.Storage, configPath string, schema *config.Schema, editorFactory contract.EditorFactory, editSessionFactory contract.EditSessionFactory) *EditorManager {
 	return &EditorManager{
 		sessions:           make(map[string]*userSession),
@@ -80,6 +87,7 @@ func NewEditorManager(store storage.Storage, configPath string, schema *config.S
 		editorFactory:      editorFactory,
 		editSessionFactory: editSessionFactory,
 		idleTimeout:        time.Hour,
+		histories:          make(map[string]*historyOwner),
 	}
 }
 
@@ -106,6 +114,12 @@ func (m *EditorManager) SetConfigSource(read func() ([]byte, error), commit func
 // a new one backed by a fresh Editor and EditSession. When the session count exceeds
 // maxSessions, idle sessions older than idleTimeout are evicted.
 func (m *EditorManager) GetOrCreate(username string) (*userSession, error) {
+	if err := cli.ValidateUser(username); err != nil {
+		return nil, opererr.Wrap(err,
+			"Your username cannot own a configuration editing session.",
+			"Configuration metadata requires a username containing only letters, numbers, hyphens, underscores or dots",
+			"Ask an administrator to configure an account with a permitted username, then sign in with that account")
+	}
 	// Fast path: session already exists. Uses write lock because
 	// lastActivity update is a write that races under RLock.
 	m.mu.Lock()

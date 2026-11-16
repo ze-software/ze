@@ -3,6 +3,7 @@
 package hub
 
 import (
+	"context"
 	"io"
 	"os"
 	"path/filepath"
@@ -79,7 +80,7 @@ func TestSessionFactoryModelRefusesSaveBeforeDispatch(t *testing.T) {
 
 	var dispatched atomic.Bool
 	server.SetExecutorFactory(
-		func(_, _ string, _ plugin.Authorizer) zessh.CommandExecutor {
+		func(_ context.Context, _, _ string, _ plugin.Authorizer) zessh.CommandExecutor {
 			return func(string) (*plugin.RenderedResponse, error) {
 				dispatched.Store(true)
 				return &plugin.RenderedResponse{Output: `{"version":"test"}`}, nil
@@ -87,7 +88,7 @@ func TestSessionFactoryModelRefusesSaveBeforeDispatch(t *testing.T) {
 		},
 	)
 	factory := buildSessionModelFactory(server, infra.HookParams{}, nil, nil)
-	created, createErr := factory("operator", "192.0.2.10:2222", nil, zessh.SessionRequest{})
+	created, createErr := factory(t.Context(), "operator", "192.0.2.10:2222", nil, zessh.SessionRequest{})
 	require.NoError(t, createErr)
 	model, ok := created.(cli.Model)
 	require.True(t, ok, "session model type = %T, want cli.Model", created)
@@ -130,7 +131,7 @@ func TestSessionFactoryEditorModelRefusesSaveBeforeDispatch(t *testing.T) {
 	var dispatches atomic.Int32
 	var dispatchedInput string
 	server.SetExecutorFactory(
-		func(_, _ string, _ plugin.Authorizer) zessh.CommandExecutor {
+		func(_ context.Context, _, _ string, _ plugin.Authorizer) zessh.CommandExecutor {
 			return func(input string) (*plugin.RenderedResponse, error) {
 				dispatchedInput = input
 				dispatches.Add(1)
@@ -142,7 +143,7 @@ func TestSessionFactoryEditorModelRefusesSaveBeforeDispatch(t *testing.T) {
 		ConfigPath: configPath,
 		Store:      store,
 	}, nil, nil)
-	created, createErr := factory("operator", "192.0.2.10:2222", nil, zessh.SessionRequest{})
+	created, createErr := factory(t.Context(), "operator", "192.0.2.10:2222", nil, zessh.SessionRequest{})
 	require.NoError(t, createErr)
 	model, ok := created.(cli.Model)
 	require.True(t, ok, "session model type = %T, want cli.Model", created)
@@ -182,11 +183,11 @@ func TestSessionFactoryRefusesUnavailableEditTarget(t *testing.T) {
 	server, err := zessh.NewServer(zessh.Config{HostKeyPath: filepath.Join(t.TempDir(), "host-key")})
 	require.NoError(t, err)
 	factory := buildSessionModelFactory(server, infra.HookParams{Store: store, ConfigPath: "router.conf"}, nil, nil)
-	model, err := factory("operator", "192.0.2.10:2222", nil, zessh.SessionRequest{ConfigName: "missing.conf", Mode: "edit"})
+	model, err := factory(t.Context(), "operator", "192.0.2.10:2222", nil, zessh.SessionRequest{ConfigName: "missing.conf", Mode: "edit"})
 	require.Error(t, err)
 	require.Nil(t, model)
 	storeless := buildSessionModelFactory(server, infra.HookParams{}, nil, nil)
-	model, err = storeless("operator", "192.0.2.10:2222", nil, zessh.SessionRequest{Mode: "edit"})
+	model, err = storeless(t.Context(), "operator", "192.0.2.10:2222", nil, zessh.SessionRequest{Mode: "edit"})
 	require.Error(t, err)
 	require.Nil(t, model)
 }
@@ -207,13 +208,13 @@ func TestSessionFactoryRecordsTranscript(t *testing.T) {
 
 	server, err := zessh.NewServer(zessh.Config{HostKeyPath: filepath.Join(t.TempDir(), "host-key")})
 	require.NoError(t, err)
-	server.SetExecutorFactory(func(_, _ string, _ plugin.Authorizer) zessh.CommandExecutor {
+	server.SetExecutorFactory(func(_ context.Context, _, _ string, _ plugin.Authorizer) zessh.CommandExecutor {
 		return func(string) (*plugin.RenderedResponse, error) {
 			return &plugin.RenderedResponse{Output: `{"version":"transcribed"}`}, nil
 		}
 	})
 	factory := buildSessionModelFactory(server, infra.HookParams{}, nil, nil)
-	created, createErr := factory("../../x", "192.0.2.10:2222", nil, zessh.SessionRequest{})
+	created, createErr := factory(t.Context(), "../../x", "192.0.2.10:2222", nil, zessh.SessionRequest{})
 	require.NoError(t, createErr)
 	model, ok := created.(cli.Model)
 	require.True(t, ok, "session model type = %T, want cli.Model", created)

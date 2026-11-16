@@ -345,11 +345,18 @@ and a plugin failure under the `fatal` policy stop nothing themselves: they
 hand the stop to the hub through the daemon shutdown function, so BGP sends
 its Cease from teardown, after the drain. Those stops, and SIGTERM, carry kind
 `stop`. When teardown completes, `run` returns 1 if the plugin server caused
-the stop because a plugin failed (`Server.StopFailure`), and 0 for every
-other stop. `request reboot`, SSH `restart` and SSH `reboot` record kind `restart`
-with the cause `in-place` (SSH `restart`) or `reboot` before they stop BGP in
-silence for graceful restart. From the start of the drain the stop is
+the stop because a plugin failed (`Server.StopFailure`), 75 for an intentional
+in-place restart, and 0 for an ordinary clean stop. The supervisor restarts
+exit 75; the generated systemd unit marks it successful and forces restart,
+and gokrazy's normal supervision loop retries nonzero exits other than 125.
+A foreground process exits 75 and needs its caller to start it again.
+`request restart`, `request reboot`, SSH `restart` and SSH `reboot`
+record kind `restart` with the cause `in-place` (daemon restart) or `reboot`
+before they stop BGP in silence for graceful restart. From the start of the drain the stop is
 terminal: a plugin that exits is not started again.
+<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart -->
+<!-- source: cmd/ze/hub/infra_setup.go -- infraSetup -->
+<!-- source: cmd/ze/hub/drain.go -- requestRestartStop, requestRebootStop -->
 
 A signal during the stop follows one table. During the config fence it skips
 the drain and the fence goes on ("drain skipped by signal"); during the drain

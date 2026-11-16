@@ -3,6 +3,7 @@
 package ssh
 
 import (
+	"context"
 	"errors"
 	"io"
 	"io/fs"
@@ -67,7 +68,7 @@ func testSSHHistoryDrain(t *testing.T, pty bool) {
 	}()
 	server := answerServer(t, func(string) (*plugin.Response, error) { return plugin.NewResponse(plugin.StatusDone, nil), nil })
 	created := make(chan cli.Model, 1)
-	server.SetSessionModelFactory(func(username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
+	server.SetSessionModelFactory(func(_ context.Context, username, remoteAddr string, _ plugin.Authorizer, _ SessionRequest) (tea.Model, error) {
 		model := cli.NewCommandModel(cli.FilesystemAuthorityUnknown)
 		model.SetHistory(cli.NewHistory(store, username))
 		model.SetTranscript(cli.NewTranscriptWriter(transcript, username, remoteAddr))
@@ -139,7 +140,11 @@ func testSSHHistoryDrain(t *testing.T, pty bool) {
 	default:
 		t.Fatal("SSH transcript closed before history publication finished")
 	}
-	if got := cli.NewHistory(store, "operator").Load(cli.ModeOperational.String()); !slices.Equal(got, []string{"show history-owner"}) {
+	gotHistory, historyErr := cli.NewHistory(store, "operator").Load(cli.ModeOperational.String())
+	if historyErr != nil {
+		t.Fatal(historyErr)
+	}
+	if got := gotHistory; !slices.Equal(got, []string{"show history-owner"}) {
 		t.Errorf("SSH owner history = %v", got)
 	}
 	if err := store.Storage.WriteFile("meta/borrowed-after-ssh", []byte("usable"), 0); err != nil {

@@ -5,7 +5,6 @@
 package ssh
 
 import (
-	"bytes"
 	"context"
 	"crypto/ed25519"
 	"crypto/rand"
@@ -92,7 +91,8 @@ type CommandExecutor func(input string) (*plugin.RenderedResponse, error)
 
 // CommandExecutorFactory creates a per-session CommandExecutor.
 // authorizer is bound to the authentication result for this SSH connection.
-type CommandExecutorFactory func(username, remoteAddr string, authorizer plugin.Authorizer) CommandExecutor
+// sessionCtx MUST be the non-nil owning session context, never a placeholder.
+type CommandExecutorFactory func(sessionCtx context.Context, username, remoteAddr string, authorizer plugin.Authorizer) CommandExecutor
 
 // StreamingExecutor executes a streaming command, writing output line-by-line
 // to the writer until the context is canceled or a write error occurs.
@@ -112,7 +112,8 @@ type SessionRequest struct {
 
 // SessionModelFactory creates a terminal with the authenticated authorization
 // view and the requested configuration. A refused selection returns an error.
-type SessionModelFactory func(username, remoteAddr string, authorizer plugin.Authorizer, request SessionRequest) (tea.Model, error)
+// sessionCtx MUST be the non-nil owning session context.
+type SessionModelFactory func(sessionCtx context.Context, username, remoteAddr string, authorizer plugin.Authorizer, request SessionRequest) (tea.Model, error)
 
 // PluginProtocolFunc handles a "plugin protocol" SSH session by running
 // the 5-stage plugin handshake and runtime command loop over the SSH channel.
@@ -147,23 +148,8 @@ type Config struct {
 	Executor      CommandExecutor     // injected by daemon, not from config
 }
 
-// ShutdownFunc is called when the SSH server receives a "stop" exec command.
-type ShutdownFunc func()
-
-// RestartFunc is called when the SSH server receives a "restart" exec command.
-// It writes the GR marker to zefs, then shuts down the daemon.
-type RestartFunc func()
-
-// The two exec commands that end the daemon's current run.
-const (
-	commandReboot  = "reboot"
-	commandRestart = "restart"
-	commandStop    = "stop"
-)
-
-// RebootFunc is called when the SSH server receives a "reboot" exec command.
-// It initiates graceful shutdown followed by an OS-level system reboot.
-type RebootFunc func()
+// commandReboot is the existing SSH exec control for a host reboot.
+const commandReboot = "reboot"
 
 // Server is the SSH server subsystem.
 // It serves the config editor over SSH with password authentication.
@@ -188,9 +174,6 @@ type Server struct {
 	pluginProtocolFunc       PluginProtocolFunc       // set after reactor starts; for plugin debug shell
 	monitorFactory           contract.MonitorFactory  // set after reactor starts; for TUI monitor mode
 	sessionModelFactory      SessionModelFactory      // set by hub; creates TUI model per session
-	shutdownFunc             ShutdownFunc             // set by daemon; called on "stop" exec command
-	restartFunc              RestartFunc              // set by daemon; called on "restart" exec command
-	rebootFunc               RebootFunc               // set by daemon; called on "reboot" exec command
 	loginWarningsFunc        LoginWarningsFunc        // set by daemon; returns login warnings for SSH sessions
 }
 
@@ -365,30 +348,6 @@ func (s *Server) HasSessionModelFactoryForTest() bool {
 	return s.sessionModelFactory != nil
 }
 
-// SetShutdownFunc sets the callback for "stop" exec commands.
-// Called by the daemon to wire graceful shutdown via SSH.
-func (s *Server) SetShutdownFunc(f ShutdownFunc) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.shutdownFunc = f
-}
-
-// SetRestartFunc sets the callback for "restart" exec commands.
-// Called by the daemon to wire graceful restart (GR marker + shutdown) via SSH.
-func (s *Server) SetRestartFunc(f RestartFunc) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.restartFunc = f
-}
-
-// SetRebootFunc sets the callback for "reboot" exec commands.
-// Called by the daemon to wire graceful shutdown + OS reboot via SSH.
-func (s *Server) SetRebootFunc(f RebootFunc) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.rebootFunc = f
-}
-
 // SetLoginWarnings sets the function that returns login warnings for new SSH sessions.
 // Called by the daemon after the reactor starts, alongside SetExecutorFactory.
 // The function is called once per session in createSessionModel.
@@ -400,7 +359,7 @@ func (s *Server) SetLoginWarnings(f LoginWarningsFunc) {
 
 // ExecutorForUser returns a CommandExecutor for the authenticated session.
 // Returns nil if no executor factory is set.
-func (s *Server) ExecutorForUser(username, remoteAddr string, authorizer plugin.Authorizer) CommandExecutor {
+func (s *Server) ExecutorForUser(sessionCtx context.Context, username, remoteAddr string, authorizer plugin.Authorizer) CommandExecutor {
 	s.mu.Lock()
 	factory := s.executorFactory
 	s.mu.Unlock()
@@ -410,7 +369,7 @@ func (s *Server) ExecutorForUser(username, remoteAddr string, authorizer plugin.
 		}
 		return nil
 	}
-	return factory(username, remoteAddr, authorizer)
+	return factory(sessionCtx, username, remoteAddr, authorizer)
 }
 
 // streamingExecutorForUser returns a StreamingExecutor for the authenticated
@@ -430,27 +389,6 @@ func (s *Server) MonitorFactoryFunc() contract.MonitorFactory {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.monitorFactory
-}
-
-// ShutdownFunc returns the shutdown callback, or nil if not set.
-func (s *Server) ShutdownFunc() ShutdownFunc {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.shutdownFunc
-}
-
-// RestartFunc returns the restart callback, or nil if not set.
-func (s *Server) RestartFunc() RestartFunc {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.restartFunc
-}
-
-// RebootFunc returns the reboot callback, or nil if not set.
-func (s *Server) RebootFunc() RebootFunc {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	return s.rebootFunc
 }
 
 // LoginWarningsFunc returns the login warnings function, or nil if not set.
@@ -920,78 +858,15 @@ func truncateForLog(cmd string) string {
 	return b.Reset().Str(cmd[:cut]).Str("...(").Int(int64(len(cmd))).Str(" bytes total)").String()
 }
 
-// streamPipeWriter applies a stream pipe chain to each newline-delimited event
-// before it reaches an SSH exec channel. Handlers may split one event across
-// writes, so pending bytes are retained until the delimiter arrives.
-type streamPipeWriter struct {
-	output  io.Writer
-	format  func(string) string
-	pending bytes.Buffer
-}
-
-func (w *streamPipeWriter) Write(p []byte) (int, error) {
-	originalLen := len(p)
-	consumed := 0
-	for len(p) > 0 {
-		newline := bytes.IndexByte(p, '\n')
-		if newline < 0 {
-			w.pending.Write(p) //nolint:errcheck // bytes.Buffer.Write cannot fail
-			return originalLen, nil
-		}
-		w.pending.Write(p[:newline]) //nolint:errcheck // bytes.Buffer.Write cannot fail
-		consumed += newline + 1
-		if err := w.writeEvent(); err != nil {
-			return consumed, err
-		}
-		p = p[newline+1:]
-	}
-	return originalLen, nil
-}
-
-// finish emits a final event from a handler that omitted its trailing newline.
-func (w *streamPipeWriter) finish() error {
-	if w.pending.Len() == 0 {
-		return nil
-	}
-	return w.writeEvent()
-}
-
-func (w *streamPipeWriter) writeEvent() error {
-	raw := strings.TrimSuffix(w.pending.String(), "\r")
-	formatted := strings.TrimRight(w.format(raw), "\r\n")
-	w.pending.Reset()
-	if command.IsPipeError(formatted) {
-		return errors.New(formatted)
-	}
-	if formatted == "" {
-		return nil
-	}
-	if err := writeStreamText(w.output, formatted); err != nil {
-		return err
-	}
-	return writeStreamText(w.output, "\n")
-}
-
-func writeStreamText(w io.Writer, text string) error {
-	n, err := io.WriteString(w, text)
-	if err != nil {
-		return err
-	}
-	if n != len(text) {
-		return io.ErrShortWrite
-	}
-	return nil
-}
-
 // execMiddleware handles non-interactive SSH exec commands (e.g., "ssh daemon stop").
 // If the session has a command, it dispatches through the executor and renders the
 // answer with the command's pipe chain, or with the configured default format
 // (ze.cli.format) when the chain names none. A handler answering with a row
 // generator is rendered record by record as the rows arrive, and a client that
 // declared the answer shape also receives the frame on stderr (answer.go).
-// Lifecycle commands (stop, restart, reboot), the plugin protocol channel and
-// streaming commands are answered before that split: none of them carries command
-// dispatcher output, so none of them is formatted here.
+// Lifecycle aliases use that same command path. The plugin protocol channel and
+// streaming commands are answered before the split because they have their own
+// response writer.
 // Interactive sessions (no command) pass through to the next middleware (BubbleTea).
 func (s *Server) execMiddleware() wish.Middleware {
 	return func(next ssh.Handler) ssh.Handler {
@@ -1007,52 +882,15 @@ func (s *Server) execMiddleware() wish.Middleware {
 			// the logged form is sanitized via loggedCommand.
 			s.logger.Info("SSH exec command", "user", sess.User(), "command", loggedCommand(input), "remote", sess.RemoteAddr().String())
 
-			// Handle lifecycle commands. Authorization is checked via the
-			// command executor; only explicit ErrUnauthorized blocks the
-			// action (the dispatcher does not register lifecycle commands,
-			// so "unknown command" errors are expected and allowed through).
-			lcInput := strings.ToLower(strings.TrimSpace(input))
-			if lcInput == commandStop || lcInput == commandRestart || lcInput == commandReboot {
-				s.mu.Lock()
-				lcFactory := s.executorFactory
-				s.mu.Unlock()
-				if lcFactory == nil {
-					fmt.Fprintln(sess.Stderr(), "error: daemon still starting, lifecycle commands unavailable") //nolint:errcheck // best-effort
-					sess.Exit(1)                                                                                //nolint:errcheck // best-effort
-					return
-				}
-				executor := lcFactory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
-				rendered, err := executor(lcInput)
-				if errors.Is(err, pluginserver.ErrUnauthorized) {
-					fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
-					sess.Exit(1)                                   //nolint:errcheck // best-effort
-					rendered.TransportComplete()
-					return
-				}
-				s.mu.Lock()
-				var fn func()
-				switch lcInput {
-				case commandStop:
-					fn = s.shutdownFunc
-				case commandRestart:
-					fn = s.restartFunc
-				case commandReboot:
-					fn = s.rebootFunc
-				}
-				s.mu.Unlock()
-				if fn != nil {
-					msg := map[string]string{commandStop: "stopping", commandRestart: "restarting", commandReboot: "rebooting"}
-					fmt.Fprintf(sess, "%s daemon\n", msg[lcInput]) //nolint:errcheck // best-effort
-					sess.Exit(0)                                   //nolint:errcheck // best-effort exit status
-					rendered.TransportComplete()
-					fn()
-				} else {
-					fmt.Fprintf(sess.Stderr(), "error: %s not available\n", lcInput) //nolint:errcheck // best-effort
-					sess.Exit(1)                                                     //nolint:errcheck // best-effort
-					rendered.TransportComplete()
-				}
-				return
+			// Bare lifecycle controls share the command dispatcher. The normal
+			// answer writer owns completion, including refused or failed writes.
+			if canonical, recognized := contract.LifecycleCommand(input); recognized {
+				input = canonical
 			}
+			if input == commandReboot {
+				input = "request reboot"
+			}
+			lcInput := strings.ToLower(strings.TrimSpace(input))
 
 			s.mu.Lock()
 			factory := s.executorFactory
@@ -1069,7 +907,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 					sess.Exit(1)                                                                             //nolint:errcheck // best-effort
 					return
 				}
-				executor := factory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
+				executor := factory(sess.Context(), sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
 				rendered, err := executor("plugin protocol")
 				if errors.Is(err, pluginserver.ErrUnauthorized) {
 					fmt.Fprintf(sess.Stderr(), "error: %v\n", err) //nolint:errcheck // best-effort
@@ -1105,11 +943,9 @@ func (s *Server) execMiddleware() wish.Middleware {
 			isStreaming := pluginserver.IsStreamingCommand(streamCommand)
 			if streamFactory != nil && isStreaming {
 				streamExec := streamFactory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
-				output := &streamPipeWriter{output: sess, format: formatStreamEvent}
-				streamErr := streamExec(sess.Context(), output, []string{streamCommand})
-				if streamErr == nil {
-					streamErr = output.finish()
-				}
+				streamErr := command.RunStreamPipes(sess, formatStreamEvent, func(output io.Writer) error {
+					return streamExec(sess.Context(), output, []string{streamCommand})
+				})
 				if streamErr != nil {
 					writeExecError(sess, streamErr)
 					sess.Exit(1) //nolint:errcheck // best-effort
@@ -1151,7 +987,7 @@ func (s *Server) execMiddleware() wish.Middleware {
 			frame := newAnswerFrame(sess.Stderr())
 			defer frame.release()
 
-			executor := factory(sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
+			executor := factory(sess.Context(), sess.User(), sess.RemoteAddr().String(), getSessionAuthorizer(sess))
 			result, err := executor(dispatched)
 			if err != nil {
 				writeExecFailure(sess, frame, err)
@@ -1197,7 +1033,7 @@ func (s *Server) teaHandler(sess ssh.Session) (tea.Model, []tea.ProgramOption) {
 		_ = sess.Exit(1)
 		return nil, nil
 	}
-	model, err := s.createSessionModel(username, remoteAddr, getSessionAuthorizer(sess), request)
+	model, err := s.createSessionModel(sess.Context(), username, remoteAddr, getSessionAuthorizer(sess), request)
 	if err != nil {
 		writeExecError(sess, err)
 		_ = sess.Exit(1)

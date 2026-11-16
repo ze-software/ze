@@ -44,7 +44,7 @@ func TestPushedURLsAnswerAFullPage(t *testing.T) {
 		t.Fatalf("YANGSchema: %v", schemaErr)
 	}
 
-	handler := HandleFragment(renderer, schema, config.NewTree(), nil, false)
+	handler := HandleFragment(renderer, schema, config.NewTree(), nil, false, nil)
 
 	// The crawl starts where the operator starts and follows what the markup
 	// pushes, so the population is DERIVED. A list typed here would hold what

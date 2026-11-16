@@ -101,6 +101,7 @@ func newCommitTestManager(t *testing.T) (*EditorManager, string) {
 	require.NoError(t, err)
 	mgr := NewEditorManager(testConfigStore(t, configPath), configPath, schema,
 		validatingEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	return mgr, configPath
 }
 

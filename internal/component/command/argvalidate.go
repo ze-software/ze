@@ -8,6 +8,8 @@ import (
 	"slices"
 	"strconv"
 	"unicode/utf8"
+
+	"github.com/ze-software/ze/internal/core/redact"
 )
 
 // maxArgLength is the most bytes a token may hold for a leaf whose model
@@ -26,6 +28,13 @@ const echoMax = 64
 func ValidateArgString(arg string, def *ArgDef) error {
 	if !def.constructed {
 		return fmt.Errorf("%w: argument %q was not built by a constructor", ErrArgDef, def.name)
+	}
+	if arg == redact.Placeholder {
+		if redact.IsCredentialKeyword(def.name) {
+			return newValueFault(def, arg, " is masked for display",
+				"A masked credential or uploaded content cannot be used as a real value.",
+				"<real value>")
+		}
 	}
 	if limit := argLengthMax(def); len(arg) > limit {
 		// A token past the byte cap of a leaf that declares a length is

@@ -36,7 +36,7 @@ func answerServer(t *testing.T, respond func(input string) (*plugin.Response, er
 		Authenticator: passwordProfilesAuthenticator{},
 	})
 	require.NoError(t, err)
-	srv.SetExecutorFactory(func(_, _ string, _ plugin.Authorizer) CommandExecutor {
+	srv.SetExecutorFactory(func(_ context.Context, _, _ string, _ plugin.Authorizer) CommandExecutor {
 		return func(input string) (*plugin.RenderedResponse, error) {
 			resp, respErr := respond(input)
 			if respErr != nil {

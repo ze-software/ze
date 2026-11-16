@@ -296,7 +296,7 @@ func TestRestartCommandRefusals(t *testing.T) {
 func TestRestartCompletionOffersRunningPlugin(t *testing.T) {
 	const name = "restart-complete"
 	s := startRestartTarget(t, name, rpc.FailureUnspecified, nil)
-	for _, candidate := range completePluginRestart(s) {
+	for _, candidate := range completePluginRestart(s, nil) {
 		if candidate.Value == name {
 			if candidate.ShortHelp != completionRunning {
 				t.Fatalf("the running plugin is offered as %q", candidate.ShortHelp)

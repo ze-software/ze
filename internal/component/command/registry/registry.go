@@ -147,6 +147,21 @@ type Meta struct {
 	// Artifact is set on a command whose answer names a file it produced;
 	// nil on every other command.
 	Artifact *Artifact
+	// SuppliedInput declares the caller-held inputs this command accepts.
+	// Consumers join these argument names to the command's YANG ArgDefs for
+	// labels, constraints and bounds; metadata never repeats the schema.
+	SuppliedInput *SuppliedInput
+}
+
+// SuppliedInput declares how caller-selected bytes reach a command. ContentArg
+// names the base64 argument, and NameArg is an optional diagnostic-label
+// argument. No field names a daemon file. An empty Fields slice means one raw
+// input; otherwise the decoded content is one JSON object whose required
+// string fields are these names, in the order a form presents the sources.
+type SuppliedInput struct {
+	ContentArg string
+	NameArg    string
+	Fields     []string
 }
 
 // Artifact declares how a command that produces a file names it on each

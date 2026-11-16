@@ -338,6 +338,7 @@ ze-plugin:system-command-list
 ze-plugin:system-daemon-quit
 ze-plugin:system-daemon-reboot
 ze-plugin:system-daemon-reload
+ze-plugin:system-daemon-restart
 ze-plugin:system-daemon-shutdown
 ze-plugin:system-daemon-status
 ze-plugin:system-dispatch

@@ -32,7 +32,7 @@ func TestPluginAwareCommandCompleterIsLive(t *testing.T) {
 		"show": {Name: "show", Children: map[string]*command.Node{}},
 	}}
 	var live []command.CommandEntry
-	c := newPluginAwareCommandCompleter(tree, func() []command.CommandEntry { return live })
+	c := newPluginAwareCommandCompleter(tree, func() []command.CommandEntry { return live }, nil, command.SurfaceWebCompletion)
 
 	// Nothing registered yet: only the YANG surface (empty under show).
 	comps := c.Complete("show myplugin ")
@@ -67,7 +67,7 @@ func TestPluginAwareCommandCompleterYANGWins(t *testing.T) {
 	}}
 	c := newPluginAwareCommandCompleter(tree, func() []command.CommandEntry {
 		return []command.CommandEntry{{Name: "show status", ShortHelp: "PLUGIN"}}
-	})
+	}, nil, command.SurfaceWebCompletion)
 
 	comps := c.Complete("show ")
 	var count int

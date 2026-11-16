@@ -37,6 +37,24 @@ error rather than reading empty. A file literally named `-` is addressed as
 on-disk revision history that a pipe does not have.
 <!-- source: internal/core/cliio/cliio.go -- ReadFile/OpenReader/Create/WriteFile, ErrStdinClaimed -->
 
+When the input is on another machine, the daemon can inspect supplied bytes
+without reading a caller-named path. Use `show config supplied dump`,
+`validation`, `fmt` or `graph` with `content <base64>` and an optional
+`name <filename>` diagnostic label. Dump also accepts `strip-private`; fmt
+accepts `check` or `diff`. These read-only commands use the same producers as
+the file commands and do not stage or apply configuration.
+<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler -->
+
+`show config supplied diff content <base64>` compares one encoded JSON object
+with `before` and `after` fields containing the two native configuration
+strings. Encode the whole object once. The combined object, or one ordinary
+source, is limited to 195,840 bytes before base64 encoding. The encoded
+content is masked in command records.
+<!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- supplied-content, show config supplied diff -->
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedPair -->
+<!-- source: internal/core/redact/redact.go -- Command -->
+
 MRT analysis (`le mrt show`, `density`, and content filters) derives mixed-family
 ADD-PATH decoding from both actual directional OPEN messages in the same input.
 Missing or ambiguous negotiation is an explicit decoding error, not a successful
@@ -348,6 +366,21 @@ config reads such a value as encoded.
 | 1 | The value cannot be decoded or encoded: a one-way hash, no `$9$` prefix, a damaged `$9$` value, or an empty value |
 | 2 | Usage error (no value, two values, an unknown option or action), or stdin could not be read |
 <!-- source: internal/component/config/cli/cmd_secret.go -- runSecret, decodeSecret, encodeSecret -->
+
+### request restart
+
+`ze request restart` restarts the daemon in place through the same dispatcher
+as SSH and the browser CLI. It requires permission to run `request restart`.
+The daemon answers `restart initiated` before it prepares its graceful stop.
+With BGP, the existing restart action writes the graceful-restart marker and
+closes sessions without a shutdown notification. Starting the process again
+uses exit 75 after teardown. The generated systemd unit and gokrazy's normal
+supervision loop start the next process; a foreground caller must start it
+again itself. The command
+does not reboot the host and takes no arguments.
+<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request restart -->
+<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart -->
+<!-- source: cmd/ze/hub/infra_setup.go -- infraSetup -->
 
 ### ze signal
 

@@ -51,6 +51,7 @@ func executeTerminalEditorCommand(mgr *EditorManager, username string, path []st
 	answer.path = result.Path
 	answer.navigated = result.Navigated
 	answer.auditSuccess = result.Input == ""
+	answer.outputComplete = result.Input == ""
 	if result.Input != "" {
 		answer.output = "Select a file or paste configuration to finish load " + result.Input + "."
 	}

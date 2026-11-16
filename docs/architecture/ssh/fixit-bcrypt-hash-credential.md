@@ -40,6 +40,19 @@ applied at each display choke point: the CLI show, annotated, diff and search
 paths, the display twins of the unmasked accessors, the web CLI terminal
 serializers, the web per-leaf builders, and the config dump.
 
+Command recall uses `DisplayCommandAtPath` before publication and when projecting
+legacy records. It resolves relative configuration addresses and leading
+`top`/`run` words through the same schema-aware display mask. The executed
+command retains its original bytes; the history display copy may use an
+absolute `top set` address to preserve a relative assignment's target.
+Editor-owned history binds `Editor.DisplayCommandAtPath` before either mode is
+loaded or recorded. It supplies the editor's actual schema to
+`DisplayCommandWithSchema`; an operational owner without an editor uses the
+process-wide producer. An unavailable schema still masks assignments closed.
+<!-- source: internal/component/config/mask.go -- DisplayCommand, DisplayCommandAtPath, DisplayCommandWithSchema -->
+<!-- source: internal/component/cli/editor_mask.go -- DisplayCommandAtPath -->
+<!-- source: internal/component/cli/history.go -- Snapshot, Record -->
+
 **Map-shaped data is masked by leaf NAME.** `SecretKeys` answers that set from
 the same predicate. The BGP resolver flattens group and peer inheritance, so a
 path in the resolved map addresses no schema node. The config dump and the
@@ -68,7 +81,9 @@ skips a value that already equals the placeholder, because a leaf name can be
 both bcrypt in one module and sensitive in another.
 
 **The commit guard fails closed.** `RejectMaskedSecretLeaves` rejects a secret
-leaf that holds the placeholder rather than silently resolving it. It reads
+leaf that holds either the tree display placeholder `SECRET-DATA` or command
+recall's `<redacted>` rather than silently resolving it. Ordinary leaves may
+retain those strings as literal values. It reads
 `LeafHoldsSecret`, so it covers a `ze:sensitive` leaf as well as a `ze:bcrypt`
 one, and it answers the one predicate the display mask reads. It is wired
 at every commit and validate entry point, which is also what backs the web
@@ -96,10 +111,11 @@ leaf package any tier may import. The fourth reads the YANG SCHEMA to decide
 whether the leaf at that path is marked, so it cannot live below the config
 component.
 
-`redact.Command` has one caller, `config.DisplayCommand`, which judges a
-`set` line by the schema first and hands every other line, and a `set` line
-whose leaf holds no secret, to `redact.Command`. Every record of a command line
-reaches it through `DisplayCommand`: the accounting record
+The config command-display producer judges a `set` line by the schema first
+and hands every other line, and a `set` line whose leaf holds no secret, to
+`redact.Command`. History uses the keyword producer directly for operational
+CLI-format settings, which are not configuration assignments. Other command
+records reach it through `DisplayCommand`: the accounting record
 (`Dispatcher.BeginAccounting`, and `beginAccountingArgs` for a typed
 inter-plugin call), the audit log entry (`recordCommandAudit`, which records
 only a builtin whose registration declares an `AuditAction`, today
@@ -141,8 +157,13 @@ keyword before it, is quoted as the placeholder in its own fault, but is
 written back as typed in the fix of a line whose other leaf is refused, as
 `redact.Command` keeps it in a record.
 
+`ValidateArgString` also refuses an exact `<redacted>` value for those same
+credential keywords before a handler can run. The typed value fault asks for
+the real value; ordinary arguments remain free to contain the literal marker.
+
 <!-- source: internal/core/redact/redact.go -- IsCredentialKeyword -->
 <!-- source: internal/component/command/argvalue.go -- newValueFault -->
+<!-- source: internal/component/command/argvalidate.go -- ValidateArgString -->
 <!-- source: internal/component/command/argfaults.go -- wholeCommand -->
 <!-- source: internal/component/config/storage/daemonroute/daemonroute.go -- CommandFix, Send, OverSSH -->
 

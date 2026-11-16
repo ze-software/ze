@@ -1,4 +1,4 @@
-# Test: restart shows "not available" when restartFunc is not wired
+# Test: restart shows "not available" when commandExecutor is not wired
 # VALIDATES: restart command is recognized even without daemon connection.
 # PREVENTS: restart silently ignored or treated as unknown command.
 
@@ -29,7 +29,7 @@ EOF_CONF
 option=file:path=test.conf
 option=timeout:value=10s
 
-# No option=lifecycle:mode=wired -- restartFunc is nil
+# No option=lifecycle:mode=wired -- commandExecutor is nil
 
 # Type restart -- should show "not available"
 input=type:text=restart

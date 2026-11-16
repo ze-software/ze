@@ -1,0 +1,35 @@
+# Test: clear restores the candidate and operational exit returns to YANG
+# VALIDATES: clear is local display state; exit switches modes then navigates
+# PREVENTS: clear dispatching a daemon action or exit stranding a browser user
+
+option=timeout:value=60s
+option=server:kind=daemon
+
+action=open:path=/cli
+action=fill:id=terminal-input:value=set bgp router-id 192.0.2.243
+action=press:id=terminal-input:key=Enter
+action=fill:id=terminal-input:value=show
+action=press:id=terminal-input:key=Enter
+expect=element:text=192.0.2.243
+action=fill:id=terminal-input:value=top clear
+action=press:id=terminal-input:key=Enter
+expect=element:text=192.0.2.243
+expect=element:not-text=unknown command
+action=fill:id=terminal-input:value=discard all
+action=press:id=terminal-input:key=Enter
+expect=element:text=changes discarded
+action=fill:id=terminal-input:value=exit
+action=press:id=terminal-input:key=Enter
+expect=element:text=ze>
+action=fill:id=terminal-input:value=show version
+action=press:id=terminal-input:key=Enter
+expect=element:text=version
+action=fill:id=terminal-input:value=clear
+action=press:id=terminal-input:key=Enter
+expect=element:text=ze>
+expect=element:not-text=unknown command
+action=fill:id=terminal-input:value=exit
+action=press:id=terminal-input:key=Enter
+expect=url:contains=/show/
+expect=element:text=environment
+expect=element:not-id=terminal-input

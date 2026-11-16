@@ -344,9 +344,9 @@ type RPCRegistration struct {
 	Handler          Handler // Handler function
 	RequiresSelector bool    // True if peer commands must have explicit selector (not default "*")
 	PluginCommand    string  // If set, this builtin proxies to a runtime plugin command (e.g., "bgp rib show")
-	// Complete answers the values the command's argument may take from the
-	// daemon's runtime state, for tab completion (arg_completion.go). Nil
-	// means the argument completes from its YANG leaves alone.
+	// Complete answers values at the position after the completed arguments,
+	// read from daemon runtime state for tab completion (arg_completion.go).
+	// Nil means the argument completes from its YANG leaves alone.
 	Complete ArgCompleter
 	// AuditAction is the audit action (audit.Action*) a successful run of the
 	// command records, through the dispatcher's audit recorder, with the

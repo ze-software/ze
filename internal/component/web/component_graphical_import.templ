@@ -1,0 +1,44 @@
+// Design: docs/architecture/web-components.md -- native candidate import forms.
+
+package web
+
+// graphicalImportPanel submits local content through HTMX without a CLI or
+// JavaScript content handoff. It belongs only in the writable actions branch.
+templ graphicalImportPanel(v *GraphicalActions) {
+	<details>
+		<summary id="graphical-import-toggle">Import into candidate</summary>
+		<p>Merge retains settings omitted from the import. Replace removes omitted settings in the chosen scope. Review and commit the candidate separately to apply it. The complete form must fit within 4 MiB.</p>
+		<form method="post" action="/config/import" enctype="multipart/form-data" hx-post="/config/import" hx-encoding="multipart/form-data" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+			<fieldset>
+				<legend>Import a local file</legend>
+				<input type="hidden" name="source" value="file">
+				<input type="hidden" name="path" value={ v.Path }>
+				<label>Configuration file <input id="graphical-import-file" type="file" name="file" required></label>
+				@graphicalImportChoices(graphicalImportChoicesData{LocationID: "graphical-import-file-location", ActionID: "graphical-import-file-action"})
+				<button class="config-btn" id="graphical-import-file-submit">Import file into candidate</button>
+			</fieldset>
+		</form>
+		<form method="post" action="/config/import" hx-post="/config/import" hx-target="#content-area" hx-swap="innerHTML" hx-sync="#content-area:queue all">
+			<fieldset>
+				<legend>Paste configuration</legend>
+				<input type="hidden" name="source" value="terminal">
+				<input type="hidden" name="path" value={ v.Path }>
+				<label>Configuration text <textarea id="graphical-import-paste" name="content" rows="8" required></textarea></label>
+				@graphicalImportChoices(graphicalImportChoicesData{LocationID: "graphical-import-paste-location", ActionID: "graphical-import-paste-action"})
+				<button class="config-btn" id="graphical-import-paste-submit">Import pasted configuration into candidate</button>
+			</fieldset>
+		</form>
+	</details>
+}
+
+templ graphicalImportChoices(v graphicalImportChoicesData) {
+	{{ location, operation := GraphicalImportDefaults() }}
+	<label>Import scope <select id={ v.LocationID } name="location">
+		<option value="absolute" selected?={ location == "absolute" }>Configuration root</option>
+		<option value="relative" selected?={ location == "relative" }>Selected item</option>
+	</select></label>
+	<label>Import behavior <select id={ v.ActionID } name="action">
+		<option value="merge" selected?={ operation == "merge" }>Merge</option>
+		<option value="replace" selected?={ operation == "replace" }>Replace</option>
+	</select></label>
+}

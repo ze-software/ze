@@ -336,6 +336,30 @@ Template keys use `{param}` placeholders for variable segments. The `Key()` meth
 | `.Prefix()` | Fixed prefix with trailing `/` | `KeyFileActive.Prefix()` returns `"file/active/"` |
 | `.Dir()` | Fixed prefix without trailing `/` | `KeyFileActive.Dir()` returns `"file/active"` |
 
+Command recall retains its line-delimited format under `KeyHistory`, with one
+key per user and configuration/operational mode. The shared history owner masks
+new records and legacy recall projections; contextual `set` commands use an
+absolute `top set` address so their target remains resolvable after reopening.
+A failed read does not become an empty snapshot or authorize overwriting it.
+Publication keeps the latest completed write outcome for each mode. After
+`Close` joins the worker, `LastWriteError` is the final known publication status;
+before that join, no known error does not prove an outstanding write succeeded.
+The shared producer also records a failed read or publication on the bounded
+report bus as `doctor-cli-history-read` or `doctor-cli-history-write`. Missing
+history is an empty successful read and raises no event. One event per class
+per minute covers all users and modes, with no user keys or command text in
+the event. Messages classify the failed operation without copying storage error
+values, which may contain private data. A later successful write clears the
+mode's current failure but retains the recent event. `ze show doctor` includes
+these events and the existing storage checks used to diagnose recovery.
+Web owners share the registered keys, with bounded in-memory per-user submission
+receipts; receipts contain no command text or uploaded configuration.
+An editor owner binds its own schema-aware mask before the first load or record;
+`NewHistoryWithMask` refuses a missing producer. An owner without an editor uses
+the process-wide command mask through `NewHistory`.
+<!-- source: internal/component/cli/history.go -- NewHistory, NewHistoryWithMask, Load, Snapshot, Record, Save, Close -->
+<!-- source: internal/component/cli/history_diagnostic.go -- reportHistoryReadFailure, reportHistoryWriteFailure -->
+
 Discovery: `ze data registered` lists all public key patterns. `ze data registered <pattern>` shows details for one.
 
 The Private flag hides a PATTERN from that listing. It is not a file mode, and

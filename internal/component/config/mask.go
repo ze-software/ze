@@ -10,6 +10,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/redact"
 )
 
@@ -82,8 +83,31 @@ func DisplayValueAtPath(schema *Schema, path []string, value string) string {
 // argument before the tree path. Unknown paths and unavailable schemas fail closed.
 // Only a display copy is changed; execution retains the original arguments.
 func DisplayCommand(input string) string {
+	return DisplayCommandAtPath(input, nil)
+}
+
+// DisplayCommandAtPath masks an editor command at its relative configuration
+// address. Leading top/run words reset that address without changing the text
+// the operator recalls. Unknown addresses retain DisplayCommand's closed mask.
+func DisplayCommandAtPath(input string, contextPath []string) string {
+	schema, err := YANGSchema()
+	if err != nil {
+		// An unavailable schema is deliberately passed to the closed mask;
+		// operational commands still use the credential-keyword producer.
+		return DisplayCommandWithSchema(input, contextPath, nil)
+	}
+	return DisplayCommandWithSchema(input, contextPath, schema)
+}
+
+// DisplayCommandWithSchema uses the owning editor's schema rather than the
+// process-wide schema. A nil schema masks configuration assignments closed.
+func DisplayCommandWithSchema(input string, contextPath []string, schema *Schema) string {
 	tokens := newTokenizer(input)
 	first := tokens.next()
+	for strings.EqualFold(first.value, "top") || strings.EqualFold(first.value, "run") {
+		contextPath = nil
+		first = tokens.next()
+	}
 	if strings.EqualFold(first.value, "peer") {
 		first = tokens.next()
 		// Typed accounting omits the selector value; command transcripts retain
@@ -100,17 +124,17 @@ func DisplayCommand(input string) string {
 	hasFile := false
 	if strings.EqualFold(first.value, "config") {
 		hasFile = true
+		contextPath = nil
 		first = tokens.next()
 	}
 	if !strings.EqualFold(first.value, "set") {
 		return redact.Command(input)
 	}
 	prefix := tokens.pos
-	schema, err := YANGSchema()
-	if err != nil {
+	if schema == nil {
 		return input[:prefix] + " " + redact.Placeholder
 	}
-	var path []string
+	path := slices.Clone(contextPath)
 	// Every iteration consumes a token from input. Stop before reading a
 	// secret's value: quoted or malformed values are masked in their entirety.
 	for {
@@ -383,7 +407,8 @@ func changedSecretWalk(base, work *Tree, node Node, prefix string, changed *[]st
 }
 
 // RejectMaskedSecretLeaves returns an error if any secret leaf in tree holds
-// exactly SecretDataPlaceholder, the value a display mask emits. It is a
+// exactly SecretDataPlaceholder or redact.Placeholder, the values tree and
+// command display masks emit. It is a
 // fail-closed guard for the commit, load and upload/validate entry points: a
 // masked `show config` (or a `ze config dump --strip` artifact) pasted back into
 // a commit would otherwise clobber the stored secret with the placeholder.
@@ -406,8 +431,12 @@ func RejectMaskedSecretLeaves(tree *Tree, schema *Schema) error {
 	if len(masked) == 0 {
 		return nil
 	}
-	return fmt.Errorf("config leaf %s holds the display placeholder %q: the value was masked for display and cannot be used. Restore the real value from the edit-authorized raw config download, or set the password via plaintext-<name> (e.g. plaintext-password) or 'ze passwd'",
-		strings.Join(masked, ", "), SecretDataPlaceholder)
+	return opererr.New(
+		fmt.Sprintf("config leaf %s holds a display placeholder (%q or %q).",
+			strings.Join(masked, ", "), SecretDataPlaceholder, redact.Placeholder),
+		"The value was masked for display and cannot be used. Restore the real value from the edit-authorized raw config download. For a login password, use plaintext-password or 'ze passwd'.",
+		"set <secret-leaf-path> <real-value>",
+	)
 }
 
 func rejectMaskedSecretWalk(tree *Tree, node Node, prefix string, masked *[]string) {
@@ -422,7 +451,12 @@ func rejectMaskedSecretWalk(tree *Tree, node Node, prefix string, masked *[]stri
 			if !LeafHoldsSecret(leaf) {
 				continue
 			}
-			if val, present := tree.Get(childName); present && val == SecretDataPlaceholder {
+			val, present := tree.Get(childName)
+			if !present {
+				continue
+			}
+			switch val {
+			case SecretDataPlaceholder, redact.Placeholder:
 				*masked = append(*masked, path)
 			}
 			continue

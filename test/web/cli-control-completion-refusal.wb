@@ -1,0 +1,18 @@
+# Test: checked completion errors remain visible to the authenticated reader
+# VALIDATES: a denied runtime-argument query is shown and allowed reads still work
+# PREVENTS: completion failure silently appearing as no runtime values
+
+option=timeout:value=60s
+option=server:kind=daemon
+option=auth:user=admin:password=ze-web-admin:role=admin
+option=auth:user=noc:password=ze-web-noc:role=read-only
+
+action=login:user=noc:password=ze-web-noc
+action=open:path=/cli
+action=fill:id=terminal-input:value=run show version
+action=press:id=terminal-input:key=Enter
+expect=element:text=version
+action=fill:id=terminal-input:value=run request plugin restart z
+action=press:id=terminal-input:key=Tab
+expect=element:text=command restricted by access control
+expect=element:text=ze#

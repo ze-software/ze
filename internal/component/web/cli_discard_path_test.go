@@ -39,6 +39,7 @@ func memberConflictManager(t *testing.T) (*EditorManager, *config.Schema) {
 	require.NoError(t, err)
 	store := testConfigStore(t, configPath)
 	mgr := NewEditorManager(store, configPath, schema, testEditorFactory(), testEditSessionFactory())
+	t.Cleanup(func() { require.NoError(t, mgr.Close()) })
 	_, err = mgr.ApplyActivation("testuser", strings.Fields(eth0AddressPath+" 192.0.2.2/30"), false)
 	require.NoError(t, err)
 	// The concurrent commit: the store, which the editor reads, drops the member.

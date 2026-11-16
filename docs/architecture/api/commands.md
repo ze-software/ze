@@ -191,10 +191,21 @@ needs both: it answers the diagnostics of a configuration it rejects and exits
 1. The answer therefore goes to stdout whatever the code is, because a payload
 on stderr is a payload no pipe operator can reach.
 
+A completed check can return its verdict in the diagnostic with no structured
+payload. `ze config fmt --check` successfully reads and compares the source,
+then exits 1 with exactly `<path> needs formatting` on stderr if it needs
+changes; stdout stays empty. The nonzero code expresses that negative verdict,
+and does not mean Ze was unable to perform the check. It uses `LocalAnswer`
+directly because `LocalRefusal` would misstate a completed check as an inability
+to answer. A nil payload and a nonzero code alone do not define a refusal.
+
 A handler writes nothing to the process's stdout or stderr, and neither does
-any helper it calls. A handler with nothing to answer returns a nil payload and
-its reason in the diagnostic (`command.LocalRefusal`), whole lines that each end
-in a newline. A diagnostic beside a payload is a warning about the answer, such
+any helper it calls. A handler that cannot answer returns a nil payload and
+its operator error in the diagnostic (`command.LocalRefusal`): what went wrong,
+why it prevented an answer, and the recovery action. A check that cannot run
+still takes that refusal path, rather than reporting a negative verdict.
+Diagnostics are whole lines that each end in a newline.
+A diagnostic beside a payload is a warning about the answer, such
 as the parse warnings `show config dump` reports for a config it still
 resolved. The route that ran the handler decides where the diagnostic goes: the
 local routes (`ServeLocal`, the plain `ze <verb>` handler, and `le`'s `Run`)
@@ -543,7 +554,7 @@ streaming-only, TUI-only, daemon-path and modeled declarations. Each surface pro
 gap or an offer the predicate refuses, naming the command, the surface, the
 kind and the expected answer.
 
-| Registration | SSH, `ze cli` | Shell completion (`ze <verb>`) | Web admin, web completion, MCP, REST, gRPC |
+| Registration | SSH, browser CLI completion, `ze cli` | Shell completion (`ze <verb>`) | Web admin, MCP, REST, gRPC |
 |--------------|---------------|--------------------------------|--------------------------------------------|
 | Hidden (a plugin command declared `Hidden`) | Not offered | Not offered | Not offered. It still runs when typed in full |
 | Builtin RPC, local, local-data | Offered | Offered | Offered: the daemon serves each through its handler |
@@ -806,11 +817,44 @@ typo from causing memory exhaustion.
 
 ```
 request shutdown         # Graceful shutdown
+request restart          # Graceful daemon restart; host stays running
 request reboot           # Graceful shutdown + OS reboot (requires root on Linux)
 request reload           # Reload configuration
 request halt             # Goroutine dump, then graceful shutdown (stop drain included)
 show status              # Get process status
 ```
+<!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request lifecycle commands -->
+
+`request restart` uses the shared dispatcher, authorization and accounting on
+every command surface. It answers `restart initiated` before the transport
+releases the daemon's restart action. With BGP, the action writes the existing
+graceful-restart marker and stops sessions without a shutdown notification.
+After teardown the daemon exits 75. The generated systemd unit classifies this
+as successful and forces a new start; gokrazy's normal supervision loop also
+retries this exit. A foreground invocation exits 75 and its caller must start
+the next process. A daemon without BGP uses the same stop notification, with no
+BGP marker. The host stays running.
+Bare interactive `stop` and `restart` require confirmation and dispatch the
+canonical `request shutdown` or `request restart` through the session executor.
+SSH exec also maps its bare `reboot` to `request reboot`. A missing authenticated
+SSH policy refuses the command rather than using a daemon fallback policy.
+<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart, SetRestartFunc -->
+<!-- source: cmd/ze/hub/infra_setup.go -- infraSetup -->
+<!-- source: cmd/ze/hub/main.go -- runYANGConfig -->
+<!-- source: cmd/ze/hub/session_factory.go -- buildSessionModelFactory -->
+<!-- source: cmd/ze/hub/service_ssh.go -- sshWireImpl -->
+<!-- source: internal/component/cli/model_keys.go -- handleKeyMsg -->
+<!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
+
+A request canceled before acceptance is refused. Once accepted, restart runs
+after the response write attempt even if the connection closes during delivery.
+Separate accepted requests share one restart action. Restart takes no arguments;
+an extra argument is refused before any action is accepted.
+gRPC releases an accepted action on its payload write or terminal RPC `End`,
+whichever first completes it, so an accepted call that loses its response still
+runs the action once. A rejected call installs no lifecycle action.
+<!-- source: internal/component/plugin/server/daemon_restart.go -- handleDaemonRestart, SetRestartFunc -->
+<!-- source: internal/component/api/grpc/server.go -- transportCompletionStatsHandler.HandleRPC -->
 
 ### Session Commands
 
@@ -1011,13 +1055,47 @@ route ever skipped the refusal, never a reply.
 Every monitor command streams live on the terminal surfaces below. Each surface
 branches on a registry, never on a command name:
 
+Registered rich views also expose an internal request-scoped headless driver,
+`cli.RunBrowserView`. The caller supplies an authenticated factory binding and
+bounded action/frame channels; view owners declare the controls and retain the
+same model state, key handlers and data producers as the terminal. This driver
+is a rendering/interaction seam; the browser transport still determines which
+route opens it. It does not authorize commands or replace the dispatcher.
+Dashboard detail failures appear in the shared view error zone, including a
+denied detail request.
+<!-- source: internal/component/cli/view_browser.go -- RunBrowserView -->
+<!-- source: internal/component/cli/model_dashboard.go -- fetchPeerDetail -->
+
 | Surface | Route |
 |---------|-------|
 | SSH exec (`ssh router monitor ...`) | `pluginserver.IsStreamingCommand` sends the command to the streaming executor (`cmd/ze/hub/service_ssh.go`), which runs the registered streaming handler on the judged arguments |
 | `ze cli -c "monitor ..."` | The client streams when `pluginserver.IsStreamingCommand` holds (`internal/component/cli/client/main.go`) |
 | SSH interactive and the `ze cli` TUI | The model opens a registered live view first (the `monitor bgp` dashboard, the `monitor ping` and `monitor traceroute` views), then a streaming session for any other streaming command (`internal/component/cli/model_keys.go`) |
 | `ze monitor ...` | A registered local handler runs its live loop in-process (`monitor ping`, `monitor traceroute`), and any other command goes through `ze cli -c` |
-| Browser CLI | `/cli/stream` checks the same streaming registry, then runs the judged handler through `serverStreamDispatcher` with the browser identity, accepted authorization policy and command accounting; other commands keep the normal terminal response |
+| Browser CLI | `/cli/stream` checks the same streaming registry, then runs the judged raw handler through `serverStreamDispatcher`. A consumer negotiating `application/x-ze-cli-view+ndjson` can instead drive the registered shared view. Both use `serverStreamCommand` admission with the browser identity, accepted authorization policy and command accounting; other commands keep the normal terminal response |
+
+Browser admission validates stream pipes with `ProcessRemoteStreamPipes`,
+retaining the full original command for authorization, accounting and rich
+view owners. Raw handler lookup uses the stripped, validated subject. Piped
+raw browser streams and SSH exec share `RunStreamPipes`: each newline event
+is formatted once, a final unterminated event is flushed after producer success,
+and pending event bytes are limited to 4 MiB. A larger event is refused without
+truncation. Remote pathname saves remain refused before a producer starts.
+<!-- source: cmd/ze/hub/server_stream.go -- serverStreamCommand -->
+<!-- source: internal/component/command/pipe.go -- ProcessRemoteStreamPipes -->
+<!-- source: internal/component/command/pipe_stream.go -- RunStreamPipes, streamPipeWriter.Write -->
+
+Raw browser consumers can request
+`Accept: application/x-ze-cli-output+ndjson` on the same route and dispatch.
+Data frames carry base64 producer bytes in `data` with `done: false`; dispatch
+completion carries `done: true` and an optional actionable `error`. A complete
+result requires that final frame without an error, so producer text beginning
+with `error:` stays ordinary output and a disconnected or canceled stream stays
+incomplete. The producer budget is 4 MiB, chunks are at most 32 KiB, encoded
+frames are at most 64 KiB and socket writes have a five-second deadline. A
+pre-output authorization refusal remains HTTP 403; unhandled finite commands
+keep their JSON response. Unnegotiated raw consumers retain flushed text.
+<!-- source: internal/component/web/cli_output.go -- acceptsCLIOutput, cliOutputWriter.Write, cliOutputWriter.finish -->
 
 The streaming handlers of the three commands that also own a live view:
 
@@ -1108,10 +1186,85 @@ config. The value after
 <!-- source: internal/component/plugin/server/handler.go -- RPCRegistration.AuditAction -->
 <!-- source: internal/component/plugin/server/command.go -- recordCommandAudit, LoadBuiltins, loadBuiltinsWithAliases -->
 
+#### Caller-supplied configuration inspection
+
+The config CLI owner registers `show config supplied dump`, `validation`,
+`fmt`, `graph` and `diff`. Each takes a required `content` argument through
+the same dispatcher as its file-based counterpart. A single-source command
+receives padded base64 of native configuration bytes. Its optional `name`
+is a basename used only in diagnostics; the default is `supplied.conf`.
+
+Dump and graph refusals retain the parsing or resolution error and name a
+validation command as the next step. Formatting a file that cannot be written
+retains any earlier password warnings before the actionable write error.
+Formatting `check` still answers its completed check with exit 1 and the
+existing `needs formatting` diagnostic when the source needs changes.
+The existing file commands retain their confined daemon paths, local stdin
+and revision grammar.
+<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
+<!-- source: internal/plugins/config-cli/yang/ze-config-cli-cmd.yang -- supplied-content, supplied-source, show config supplied -->
+
+For `diff`, decoded content is one JSON object with required `before` and
+`after` string fields, each containing native configuration text. Missing,
+duplicate, unknown and nonstring fields, invalid UTF-8 and trailing data are
+refused. The combined envelope has the same 195,840-byte limit as a single
+input. Both sources remain under the masked `content` keyword in history,
+transcripts and accounting. `command.DecodeContent` enforces the common
+261,120-character bound before decoding; the existing store-update handlers
+use this codec too.
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedPair, suppliedHandler -->
+<!-- source: internal/component/command/content.go -- DecodeContent, ContentEncodedMax, ContentOctetsMax -->
+<!-- source: internal/component/config/storage/cli/data_rpc.go -- handleDataKeyUpdate -->
+<!-- source: internal/component/config/storage/cli/data_rpc_config.go -- handleDataConfigUpdate -->
+<!-- source: internal/core/redact/redact.go -- IsCredentialKeyword, Command -->
+
+Comparison has the same scope as the existing local file command: resolved BGP
+values and schema-declared ordered-list ordering. Other non-BGP value changes,
+such as a changed `system host`, are not included. Supplying complete files
+does not expand that comparison scope.
+<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve, diffSources, diffListOrders -->
+
+File and supplied inputs share their parsing, resolution, validation,
+formatting, inactive pruning, comparison and secret-display producers. Dump
+retains `strip-private`; fmt retains `check` and `diff` and has no write option.
+The supplied route opens no file, store or candidate, applies no environment
+block and checks the original caller's cancellation. Shared authorization,
+accounting and answer-shape pipe rules remain in force.
+<!-- source: internal/component/config/cli/config_supplied.go -- suppliedHandler, suppliedDump, suppliedValidation, suppliedFmt, suppliedGraph, suppliedDiff -->
+
+The primary graphical editor projects these registrations into native
+file/paste inspection forms. It joins `registry.Meta.SuppliedInput` to the
+actual command-tree argument definitions, composes the input once and dispatches
+with the original authenticated identity, policy and cancellation. It does not
+add another command list, open a daemon filename, create an editor or write
+history. Failed validation retains its diagnostic data beside the original
+error through the same operational formatter the browser CLI uses; the failure
+remains incomplete.
+<!-- source: internal/component/web/graphical_supplied_commands.go -- suppliedInspectionCommands, newSuppliedInspectionCommand -->
+<!-- source: internal/component/web/graphical_supplied.go -- HandleSuppliedInspection -->
+<!-- source: internal/component/web/cli_terminal.go -- executeTerminalOperationalResult -->
+<!-- source: internal/component/config/cli/cmd_dump.go -- resolveDumpBytes -->
+<!-- source: internal/component/config/cli/config_data.go -- validationBytesAnswer, diffAnswer -->
+<!-- source: internal/component/config/cli/cmd_fmt.go -- fmtBytesAnswer -->
+<!-- source: internal/component/config/cli/cmd_graph.go -- graphBytesAnswer -->
+<!-- source: internal/component/config/cli/cmd_diff.go -- parseAndResolve, diffSources -->
+
+An input control discovers these capabilities through
+`registry.Meta.SuppliedInput`, joined to the command's YANG arguments. The
+descriptor names the content argument, optional label argument and ordered
+JSON source fields; an empty field list means one raw input. Bounds, help and
+label constraints come from the real argument definitions. A surface keeps no
+separate command list, and the generic metadata imports no config domain.
+The owner spells registration paths and summaries as literals, so the
+source-based command and help contracts read the same declarations as runtime.
+<!-- source: internal/component/command/registry/registry.go -- Meta.SuppliedInput, SuppliedInput -->
+<!-- source: internal/component/config/cli/register.go -- registerSuppliedCommands -->
+
 ### Process Lifecycle Commands
 
 ```
 request shutdown         # Gracefully shutdown
+request restart          # Restart the daemon in place; keep the host running
 request reboot           # Gracefully shutdown then reboot the system
 show status              # Show process status
 request reload           # Reload the configuration
@@ -1493,6 +1646,14 @@ A chain the answer's shape cannot support is refused AFTER the command has run, 
 <!-- source: internal/component/command/pipe_catalog.go -- pipeCatalog -->
 <!-- source: internal/component/command/pipe.go -- validateDeclaredShape -->
 <!-- source: internal/component/command/pipe_save.go -- validateSaveOps -->
+The browser's caller-side **Download** action saves an already authorized,
+formatted finite result on the caller's computer. It does not send a save path
+to the daemon or relax this pipe refusal. Complete results are bounded at
+4 MiB; an incomplete, refused or oversized result is not offered as complete.
+`ProcessPipesDefaultFormatResult` exposes the shared formatter's actual
+application error separately from its output, so a transport can preserve
+completion status without interpreting diagnostic-looking result bytes.
+
 <!-- source: internal/component/command/local_data.go -- ServeLocal -->
 <!-- source: internal/plugins/help/help_command.go -- operatorsFor -->
 <!-- source: internal/component/ssh/ssh.go -- execMiddleware -->
@@ -2147,6 +2308,8 @@ an operator. Inside double quotes, `\"`, `\\`, `\n`, `\r` and `\t` preserve a
 literal quote, backslash, newline, carriage return and tab. A backslash outside
 quotes, or an unknown quoted escape, is refused. `WriteInvocationValue` writes
 this same grammar for client values and concrete enum corrections.
+An empty value is written as `""` and retained as one empty token. Spaces
+inside a quoted value remain part of that value, including its trailing spaces.
 Accounting and authorization read the same tokens as for any other line.
 `dispatch-command-args` never reaches the tokenizer, so a pipe in its `args`
 is data.
@@ -2237,7 +2400,12 @@ A value is never quoted when its argument is a credential keyword
 (`newValueFault`), and the whole-command fix writes `<redacted>` for a valid
 value typed after such a keyword (`wholeCommand`), as the recorded command line
 holds it.
+The shared validator refuses the exact `<redacted>` placeholder for these
+credential arguments before dispatch, using the same value-fault path and a
+correction that asks for the real value. A noncredential argument may contain
+that literal text.
 <!-- source: internal/component/command/argvalue.go -- newValueFault -->
+<!-- source: internal/component/command/argvalidate.go -- ValidateArgString -->
 <!-- source: internal/component/command/argfaults.go -- wholeCommand -->
 <!-- source: internal/core/redact/redact.go -- IsCredentialKeyword -->
 Concrete corrections retain their literal identity separately from placeholders:
@@ -2496,10 +2664,13 @@ server builds the input from its lister, which carries no type. A positional tok
 command still goes to the definition whose type constrains it most
 (`positionalDef`).
 
-Runtime-dynamic hints (e.g., address families from plugin registry) remain as
-`ValueHints` callbacks. Static hints (log levels, FD limit "max") are
-YANG-declared and served through ArgDefs.
-<!-- source: internal/component/command/node.go -- Node.ArgDefs -->
+In-process hints (e.g., registered address families) remain `ValueHints`
+callbacks. Caller-bound runtime argument queries use `ArgumentHints`, which
+receives the completed values and current partial and returns candidates or an
+error. Static hints (log levels, FD limit "max") are YANG-declared and served
+through ArgDefs. Static candidates win duplicate live names for the first
+argument; subsequent arguments use the argument-aware producer alone.
+<!-- source: internal/component/command/node.go -- Node.ArgDefs, Node.ArgumentHints -->
 <!-- source: internal/component/command/arguments.go -- WriteInvocation -->
 <!-- source: internal/component/config/yang/command.go -- extractArgDefs -->
 
@@ -2514,14 +2685,27 @@ each path into the tree as completion-only nodes. The merge is non-destructive:
 an existing YANG node keeps its `WireMethod` and description, so a plugin command
 never shadows a builtin at the completion layer (mirroring dispatch precedence).
 
-- **SSH** rebuilds the tree per session and merges eagerly
-  (`session_factory.go` `mergePluginCommands`), so each session reflects the
-  current registry. A plugin that has exited is absent from the next session.
+The merged leaf is marked as a command even without a `WireMethod`. Its
+terminal arguments therefore remain attached to that command for completion
+and explanations. `OverlayCommandPaths` preserves this marker on its copied
+paths and leaves the base tree unchanged.
+<!-- source: internal/component/command/node.go -- MergeCommandPaths, OverlayCommandPaths -->
+
+- **SSH** keeps the YANG tree per session and overlays the live plugin registry
+  on each completion or explanation (`pluginAwareCommandCompleter`). Its
+  argument queries use the authenticated executor with the session's context
+  and authorization generation, so a departed plugin is absent immediately.
 - **Web** builds a throwaway overlay from the current registry for each
   `/cli/complete` request (`web_completer.go` `pluginAwareCommandCompleter`).
   The shared YANG tree stays immutable. The hub binds the web listener after
   plugin startup and the initial registry freeze. The per-request overlay
   reflects plugins that a later reload adds or removes.
+
+SSH, web and the attached console share `command.ArgumentSuggestions`, the
+query writer and decoder for `system command complete args`. The daemon checks
+the target command's policy before reading runtime values. Plugin completion
+inherits the caller's deadline and cancellation; denied, canceled and failed
+queries remain failures rather than empty successful inventories.
 - **Shell completion** (`ze completion words`) runs in a standalone CLI process
   with no daemon, so it stays YANG-only; the daemon's `system command complete`
   RPC completes plugin commands directly from the registry (`Registry().Complete`).
