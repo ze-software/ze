@@ -23,13 +23,20 @@ import (
 // callbacks. The assertions use the shared subscriber handler, not parser fields.
 func startAuthProvider(t *testing.T, name, config string) (context.Context, *rpc.DirectBridge) {
 	t.Helper()
+	return startAuthProviderWithPipe(t, name, config, net.Pipe, nil)
+}
+
+// The optional observer arms a test transport barrier before the ready reply.
+// Ordinary callers retain the same net.Pipe and original startup allowance.
+func startAuthProviderWithPipe(t *testing.T, name, config string, pipe func() (net.Conn, net.Conn), beforeReadyReply func(*rpc.DirectBridge)) (context.Context, *rpc.DirectBridge) {
+	t.Helper()
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
 	t.Cleanup(cancel)
 	reg := registry.Lookup(name)
 	if reg == nil {
 		t.Fatalf("missing provider %s", name)
 	}
-	pluginEnd, engineEnd := net.Pipe()
+	pluginEnd, engineEnd := pipe()
 	mux := rpc.NewMuxConn(rpc.NewConn(engineEnd, engineEnd))
 	bridge := rpc.NewDirectBridge()
 	done := make(chan int, 1)
@@ -51,6 +58,9 @@ func startAuthProvider(t *testing.T, name, config string) (context.Context, *rpc
 			if request == nil {
 				t.Fatal("provider startup connection closed")
 			}
+			if stage == 2 && beforeReadyReply != nil {
+				beforeReadyReply(bridge)
+			}
 			if err := mux.SendResult(ctx, request.ID, &rpc.DeclareRegistrationOutput{ProtocolVersion: rpc.ProtocolVersion}); err != nil {
 				t.Fatal(err)
 			}
@@ -66,6 +76,18 @@ func startAuthProvider(t *testing.T, name, config string) (context.Context, *rpc
 			if _, err := mux.CallRPC(ctx, "ze-plugin-callback:share-registry", &rpc.ShareRegistryInput{}); err != nil {
 				t.Fatal(err)
 			}
+		}
+	}
+	// Sending the ready reply completes the engine's startup exchange, but the
+	// SDK activates direct callbacks only after receiving that reply. Wait for
+	// that state before returning a provider callers can dispatch commands to.
+	activation := time.NewTicker(time.Millisecond)
+	defer activation.Stop()
+	for !bridge.Ready() {
+		select {
+		case <-activation.C:
+		case <-ctx.Done():
+			t.Fatalf("%s direct callbacks did not become ready: %v", name, ctx.Err())
 		}
 	}
 	return ctx, bridge
