@@ -25,7 +25,7 @@ The goal has two parts.
 - **Growth.** A device installed by the PXE or ISO installer uses its whole disk: partition 4 ends at the last usable sector and its filesystem fills the partition. A device that was not installed that way reports the difference in `ze doctor` and grows on one command.
 - **The size-cap facility.** The persistent partition is formatted so the kernel enforces an ext4 project quota on it, the kernels that mount it carry quota support, and Go code can give a folder a project id, set its limit and read its usage with no external tool. This spec delivers the facility. The image store child uses it.
 
-Ze is pre-release and no device is in the field. The new format is the format: no migration of an installed device is designed.
+Ze is pre-release and no device is in the field. The new format is the format: no migration of an installed device is designed. The repository carries one other user of the format, the docker-host lab image that is also the own-system guest Ze's tests run in, and this spec converts it in the same work (D-4).
 
 ### Owner decisions
 
@@ -43,6 +43,12 @@ Each of the three takes its recommendation, unless the owner objects at the fina
 | D-1 | A device that was not grown at install (a raw image written by hand, a virtual disk enlarged later): does it grow by itself at boot, or only on a command | Only on a command. `ze doctor` reports it | By itself: the next boot grows the partition and logs one line; no doctor finding stays. On a command: `ze doctor` shows a warning with the two sizes until the operator runs `request system storage grow`, and the boot path never writes a partition table |
 | D-2 | The command word | `request system storage grow` | `request` is the existing verb for an operational action on the system. The state is read with the existing `show host storage` |
 | D-3 | Growth fails at install after the image is written (the kernel refuses the resize, the disk has an unsupported sector size) | Finish the install, log the failure as an error on the console, and let `ze doctor` report it on the booted device | Finish: the device boots and is reachable with the image-sized partition, and doctor names the fix. Stop: the installer enters its recovery console and the machine does not boot until someone attends it, although the disk holds a complete system |
+
+A fourth decision is a ruling of the main thread and has no alternative left open.
+
+| # | Ruling | Why | What follows in this spec |
+|---|--------|-----|---------------------------|
+| D-4 | The guest that Ze's own tests run in (the docker-host lab image, which is also the own-system QEMU guest) gets the same persistent-partition format as the appliance, from one shared definition of that format | That guest is formatted by `formatPerm`, a plain format with no feature list, so it cannot enforce a size cap and the container tests would be refused there. A change of format converts every user of it the repository carries (`ai/META-DECISIONS.md`, "Ze is pre-release") | `formatPerm` derives its format from the definition the appliance build uses, its skip of an already formatted partition is deleted, and AC-14 proves the guest's partition. The runtime, image store and network children of the container work run their guest tests on AC-14 |
 
 ## Required Reading
 
@@ -78,6 +84,9 @@ Each of the three takes its recommendation, unless the owner objects at the fina
 - [ ] `docs/architecture/appliance/kernel-profiles.md`, `docs/architecture/appliance/build-artifacts.md` - kernels
   → Constraint: a kernel option is requested in the fragment, required in the manifest, and the build refuses when the emitted config does not hold it as built in. The installer floor and the runtime floor are compiled lists an edited manifest cannot drop
   → Constraint: a downloaded installer kernel has no staleness check. An installer kernel older than this change may lack quota support (R-4)
+- [ ] `docs/architecture/appliance/docker-host.md` - the lab image, which is the own-system guest (the design page of `internal/le/setup/docker/host/perm.go`)
+  → Constraint: step 5 of the image build says the partition "is formatted ext4 when it carries no superblock: gok formats it only where `mkfs.ext4` is on its PATH". No packer in the tree formats it, so the sentence is wrong today and is replaced with the new format
+  → Constraint: the image is cached under a key over its inputs, and a build with the same inputs reuses the cached image. A change of format reaches a machine only through a changed key
 - [ ] `docs/architecture/testing/qemu-integration.md` - QEMU proofs
   → Decision: the host-side `installer`, `installer-iso` and `appliance-ota` actions already boot a real install and read the stopped disk. They gain a target disk larger than the image
   → Constraint: `assertInstallGPT` requires the installed disk's first four entries to equal the image's. Entry 4 now differs by design, so that check changes with the feature
@@ -99,7 +108,8 @@ No kernel source and no kernel documentation is on this machine: the system sour
 - gokrazy init mounts the persistent partition as ext4 with no flag and no option string.
 - The build formats with the host's `mkfs.ext4` defaults, minus metadata checksums. Which features the filesystem has depends on the build host's configuration file.
 - The vendored system-call package has the block-device size and partition-resize ioctls and the quota system call number. It has no ext4 resize ioctl, no project-attribute ioctl and no quota structures: the leaf packages define them.
-- The docker-host lab image is formatted by a second formatter in development tooling. It is not the appliance and is not changed.
+- The docker-host lab image, which is also the own-system QEMU guest Ze's tests run in, is formatted by a second formatter in development tooling: a plain format with no feature list. This spec converts it to the appliance's format, from one shared definition (D-4, AC-14).
+- No packer in the tree formats partition 4 of an image file: the vendored packer and both module-cache copies only print the `mkfs.ext4` command as a hint. The lab formatter's skip of an already formatted partition therefore never fires on the fresh file its one caller passes.
 - The HTTP install proof creates its target disk at exactly the image's size, so no proof installs on a larger disk today.
 
 ## Current Behavior (MANDATORY)
@@ -126,7 +136,9 @@ No kernel source and no kernel documentation is on this machine: the system sour
 - [ ] `internal/le/test/qemu/install_boot.go` - the HTTP proof truncates its target disk to the image's exact size before it boots the installer
 - [ ] `internal/le/test/qemu/install_ota.go` - the update proof requires the persistent partition's identity to be the same before the push, after it and after recovery
 - [ ] `internal/le/test/qemu/actions.go`, `internal/le/test/qemu/alltests.go` - the registered install actions, and `integrationPackages`, the closed list of packages the guest run tests
-- [ ] `internal/le/setup/docker/host/perm.go` - `formatPerm` formats the docker-host image's persistent partition with a plain `mkfs.ext4`, found through its own GPT reader `permPartition`
+- [ ] `internal/le/setup/docker/host/perm.go` - `formatPerm` formats the docker-host image's persistent partition, found through its own GPT reader `permPartition`. The format is `mkfs.ext4` with the force flag, the partition's offset and its size in KiB: no feature list, no inode size, no journal size, so every property is the build host's default. `hasExt4` reads the two magic bytes of the superblock, and `formatPerm` returns without formatting when they are there. `findMkfs` resolves the tool through `appliance.ResolveE2FSTool`
+- [ ] `internal/le/setup/docker/host/build.go` - `builder.build` is the one caller of `formatPerm`. It passes the partial file `gok` has just written, under a name that carries the process id, and renames it into the cache afterwards. An image already in the cache under its key is returned before `gok` runs and is never formatted again. `digestRoots` lists the folders whose files enter the image key: the lab tooling's own folder is one, `internal/appliance` is not
+- [ ] `internal/le/setup/docker/host/actions.go` - the `check` action reports `mkfs.ext4` among the tools the image needs
 - [ ] `internal/le/setup/tools.go`, `internal/le/setup/probes.go` - the development setup probes `mkfs.ext4` and `debugfs` as the e2fsprogs pair
 - [ ] `internal/component/host/inventory.go`, `internal/component/host/storage_linux.go`, `internal/component/host/storage_other.go` - `show host storage` lists whole block devices with their sizes and skips partitions; it says nothing about the persistent partition
 - [ ] `internal/plugins/host-cmd/cmd/register.go` - the host command plugin registers its show, kernel-log and file-descriptor commands from `init`
@@ -140,9 +152,10 @@ No kernel source and no kernel documentation is on this machine: the system sour
 - The ISO installer powers off and the HTTP installer reboots.
 - The contents and modes the build puts on the persistent partition: the `ze` folder as root 0700, the seed database as root 0600, the build manifest.
 - The push protocol, byte for byte.
-- The docker-host lab image's format.
+- An image already in the docker-host cache is returned as it is. The cache key decides whether an image is current, never a look at its partition.
 
 **Behavior to change:**
+- The docker-host lab image's persistent partition gets the appliance's format, from the shared definition, and is formatted on every build: the skip of a partition that already holds an ext4 filesystem is deleted (D-4).
 - After the image is written, the installer extends the partition table to the disk and grows the filesystem of partition 4.
 - The ISO installer mounts partition 4 to grow it, then unmounts it.
 - The build names every filesystem property itself, adds the project and quota features, and checks them.
@@ -156,11 +169,11 @@ No kernel source and no kernel documentation is on this machine: the system sour
 | Image-file GPT validation | `internal/appliance/push_image.go` `readPushPartitions` | Validates the boot-sector signature, the primary header, its checksum, the entry-array checksum and the bounds of four entries, on an image file | Replaces its parsing: the header and entry checks move to a new core leaf for partition tables, which also reads a block device. `readPushPartitions` keeps its push-only rules (four partitions, in order) over the shared parse |
 | Last-partition finder | `internal/appliance/cmd_build.go` `findLastPartition` | Reads entries at a fixed offset with no checksum check and answers the offset and size of the highest one | Replaces: it calls the shared parse, so the build reads the table the way the installer does |
 | Test-side GPT reader | `internal/le/test/qemu/install_iso.go` `installGPTEntries`, `assertInstallGPT`; `internal/le/test/qemu/install_storage.go` `installPerm` | Reads the primary entries of a stopped disk and compares four with the image | Extends: it uses the shared parse, and `assertInstallGPT` gains the grown expectation for entry 4 and the backup header |
-| Docker-host GPT reader and formatter | `internal/le/setup/docker/host/perm.go` `permPartition`, `formatPerm` | Formats the lab Docker host image's persistent partition | Does not apply: that image is development tooling, runs dockerd and is never installed by Ze's installer. Its reader is a census row |
+| Docker-host GPT reader and formatter | `internal/le/setup/docker/host/perm.go` `permPartition`, `formatPerm` | Formats the persistent partition of the lab Docker host image, which is also the own-system QEMU guest: a plain `mkfs.ext4` with no feature list, skipped when the partition already holds an ext4 filesystem | Extends (D-4): `formatPerm` takes its format from the shared definition the appliance build uses, runs the same quota step and the same Go property check, and formats every image it is given, so the skip and `hasExt4` are deleted. `permPartition` calls the shared partition-table parse and keeps its own rule that entry 4 is a Linux filesystem partition. The image is still never installed by Ze's installer and is not grown |
 | Partition-table writer | `vendor/github.com/gokrazy/tools/packer/packer.go` `Pack.Partition`, `writeGPT` | Writes the whole table for a target size on the build host, in 32-bit sector arithmetic | Does not apply as code: it is vendored, writes a whole new table, and cannot extend one. The grown table keeps what it wrote and changes four fields and the backup copy |
 | Installer block-device seam | `internal/install/disk/system.go` function variables; `internal/install/disk/blockdev_linux.go` `sysBlkRereadPart` | One ioctl behind a function variable that tests replace | Extends: disk size, sector size and the growth call join the same seam pattern. The reread moves after the table rewrite |
 | Installer mount of partition 4 | `internal/install/disk/system.go` `mountInjectDB` | Mounts partition 4 read-write for the seed, in HTTP mode only | Extends: the mount is where the filesystem is grown, and ISO mode gains a mount for it |
-| Persistent partition formatter | `internal/appliance/cmd_build.go` `injectZeFS`; `InjectDatabase` for `internal/le/test/deployment/gokrazyimage.go` | The one formatter of an appliance image, through host e2fsprogs | Extends: the argument list names every property, and a step after the seed adds the quota feature |
+| Persistent partition formatter | `internal/appliance/cmd_build.go` `injectZeFS`; `InjectDatabase` for `internal/le/test/deployment/gokrazyimage.go` | The one formatter of an appliance image, through host e2fsprogs | Extends: the argument list names every property, and a step after the seed adds the quota feature. Both come from the shared format definition, which the lab formatter reads too |
 | Build-side verification | `internal/appliance/diskverify.go` `verifyInject`, `verifyE2fsck` | Read-back of the seed, a structural check, a loop mount | Extends: a fourth check reads the superblock in Go and refuses a missing property. The structural check stays strict and unchanged |
 | e2fsprogs tool resolution and its doctor check | `internal/appliance/cmd_build.go` `ResolveE2FSTool`; `internal/appliance/doctor_checks.go` `checkE2fsprogs`; `internal/le/setup/tools.go` | Finds `mkfs.ext4`, `debugfs` and `e2fsck` one by one and reports a missing one | Extends: `tune2fs` is resolved, required and reported the same way |
 | Kernel requirement files and floors | `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require`, `tools/installer-kernel/kernel.config`, `tools/installer-kernel/kernel.require`; `internal/appliance/kernelreq.go` | A build refuses a kernel whose emitted config lacks a required option | Extends: two quota options in both bases, both manifests and both floors |
@@ -186,6 +199,12 @@ At build:
 2. It writes the seed and the manifest with `debugfs`, as today.
 3. It adds the quota feature for the project type and stores the project-quota mount option in the superblock, with `tune2fs`, after the files are written.
 4. `verifyInject` reads the seed back, reads the superblock properties in Go, and runs the structural check, which also proves the quota usage record matches the files.
+
+At the lab image build (`./le setup docker host build`, and every action that ensures the image):
+1. `builder.build` runs `gok` into a partial file, as today.
+2. `formatPerm` finds partition 4 through the shared parse and makes the filesystem with the format step and the quota step of the shared definition. No file is written between the two, because the lab image carries no seed.
+3. It reads the superblock in Go with the check the appliance build uses, and refuses an image whose partition lacks a property, naming it.
+4. The image is renamed into the cache under a key that covers the shared definition.
 
 At install:
 1. The image is written and synced, as today.
@@ -249,7 +268,28 @@ Under A, the filesystem keeps what the build chose, for life. The build therefor
 | Quota feature | Absent | Present, project type only, added after the seed is written | The usage record is then computed from the files that are there (A-7) |
 | Stored mount option | None | Project quota | gokrazy mounts with no option; the kernel applies the stored one (A-3) |
 
-**Enforcement without a mount option.** gokrazy's init passes no option, and Ze does not patch it for this.
+**One definition of the format, two formatters.** The table above is declared once, in a new package `internal/appliance/permformat`: the format step's arguments, the quota step's arguments and the list of properties the Go check requires. `injectZeFS` and `formatPerm` both derive from it, and neither names a property of its own.
+
+| Question | Appliance build (`injectZeFS`) | Lab image build (`formatPerm`) |
+|----------|--------------------------------|--------------------------------|
+| Format step | The definition's arguments, at the partition's offset in the image | The same arguments |
+| Files written before the quota step | The seed and the manifest | None |
+| Quota step | The definition's `tune2fs` arguments, on the copy of the partition the build already makes | The same arguments, on a filesystem file (A-12) |
+| Check | The Go property check | The same check |
+| Size of the partition | Under 1 GiB on the default image | About 63 GiB on the default lab image, in a sparse file |
+
+`tune2fs` takes a device or a file that is the filesystem and has no offset argument, so it cannot work on a partition inside an image. The appliance build copies the partition out, in memory, and writes it back. The lab partition is too large for that, so the lab formatter makes the filesystem in a sparse file of the partition's size and copies it into the image at the partition's offset without filling the holes (A-12).
+
+**The skip of an already formatted partition.** `formatPerm` skips a partition that holds an ext4 magic. Two ways to stop an old format surviving through it were weighed.
+
+| # | Way | Verdict |
+|---|-----|---------|
+| S1 | Always format: delete the skip and `hasExt4` | Chosen. The one caller passes the partial file `gok` has just written, and no packer in the tree formats partition 4: the vendored `packerwrite.go` and both module-cache copies only log the `mkfs.ext4` command as a hint. The skip therefore guards a case that does not occur, the format already runs forced, and one path has nothing to disagree with |
+| S2 | Reformat only when the superblock lacks a required property | Set aside. It keeps two outcomes for one input and makes the property check a decision instead of a refusal. A filesystem that passes the check and still differs in a property the check does not read would survive |
+
+A lab image built before this work stays in the cache under its old key. The image key must change with the format: the folder of the shared definition joins `digestRoots`, so the next build makes a new image (R-10).
+
+**Enforcement without a mount option.** gokrazy's init passes no option, and Ze does not patch it for this. The lab image is a gokrazy image too, so the same route gives the own-system guest its enforcement.
 
 | # | Route | Step at run time | Failure mode | Verdict |
 |---|-------|------------------|--------------|---------|
@@ -266,6 +306,7 @@ Under A, the filesystem keeps what the build chose, for life. The build therefor
 | `ze install disk` | The same code as the two rows above | The same growth |
 | A raw image written by hand, `ze appliance run`, a cloud disk | Size is the image's | Not grown at install. `ze doctor` reports it, `show host storage` shows it, and `request system storage grow` grows it online with no reboot (D-1) |
 | OTA push | Replaces the inactive root, the boot filesystem and the boot code; never the table or partition 4 | Unchanged. A grown device stays grown. A device formatted before this work keeps its old format |
+| The docker-host lab image, booted as the Colima profile or as the own-system QEMU guest | A plain format with the build host's defaults; the partition is the image's size, 64 GiB by default | The appliance's format, with project quota enforced (AC-14). Not grown: the image is booted as built and never installed |
 
 **The facility a consumer gets.** Three new core leaf packages, each with its syscalls in Linux-only files: `gptdisk`, `ext4fs` and `projquota`.
 
@@ -318,11 +359,11 @@ Doctor, on a device whose storage is smaller than its disk:
 | Partition table (GPT) | reader | `internal/appliance/push_image.go` `readPushPartitions` | Validates the image file before a push; never reads the device | Preserved in behavior; its parse moves to the shared leaf |
 | Partition table (GPT) | reader | `internal/appliance/cmd_build.go` `findLastPartition` | Finds partition 4 of the image for the formatter | Preserved in behavior; its parse moves to the shared leaf |
 | Partition table (GPT) | reader | `internal/le/test/qemu/install_iso.go` `installGPTEntries`, `assertInstallGPT`; `internal/le/test/qemu/install_storage.go` `installPerm` | `assertInstallGPT` requires four entries equal to the image's | Changed: entry 4 is expected grown, entries 1 to 3 equal. `installPerm` reads the entry bounds and is preserved |
-| Partition table (GPT) | reader | `internal/le/setup/docker/host/perm.go` `permPartition` | Its own reader, over the docker-host image, which is never installed | Preserved, not converted: outside this spec's population by its use |
+| Partition table (GPT) | reader | `internal/le/setup/docker/host/perm.go` `permPartition` | Its own reader, over the docker-host image, which is never installed | Preserved in behavior; its parse moves to the shared leaf, and it keeps its rule that entry 4 is a Linux filesystem partition |
 | Persistent-partition ext4 superblock | writer | `internal/appliance/cmd_build.go` `injectZeFS`, reached also through `InjectDatabase` from `internal/le/test/deployment/gokrazyimage.go` | The one appliance formatter | Changed: named properties, the project and quota features, the stored mount option |
 | Persistent-partition ext4 superblock | writer | The kernel's online resize, called from the new filesystem leaf | No caller exists today | New: block count, group count and free counts grow |
-| Persistent-partition ext4 superblock | writer | `internal/le/setup/docker/host/perm.go` `formatPerm` | A plain format for the lab Docker host image | Preserved, not converted |
-| Persistent-partition ext4 superblock | reader | gokrazy `mountfs` in `gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/mount.go`, through the kernel's ext4 mount | Flags 0, no option | Preserved: mounts as before, and the kernel applies the stored option (A-3). A kernel without quota support refuses the mount read-write (A-2), so both kernels gain the option |
+| Persistent-partition ext4 superblock | writer | `internal/le/setup/docker/host/perm.go` `formatPerm` | A plain format for the lab Docker host image, which is the own-system guest | Changed (D-4): the same named properties, project and quota features and stored mount option as the appliance formatter, from the shared definition. Formats every image it is given |
+| Persistent-partition ext4 superblock | reader | gokrazy `mountfs` in `gokrazy/modcache/github.com/gokrazy/gokrazy@v0.0.0-20260703061218-a4a45a20149d/mount.go`, through the kernel's ext4 mount | Flags 0, no option, on the appliance and in the lab image | Preserved: mounts as before, and the kernel applies the stored option (A-3). A kernel without quota support refuses the mount read-write (A-2), so both kernels gain the option |
 | Persistent-partition ext4 superblock | reader | `internal/install/disk/system.go` `mountInjectDB`, through the installer kernel's mount | Mounts read-write | Preserved, with the installer kernel's quota support required |
 | Persistent-partition ext4 superblock | reader | `internal/appliance/diskverify.go` `verifyE2fsck`, `tryLoopbackVerify` | Host `e2fsck` and a read-only host mount | Preserved: the structural check stays strict and must be clean with the new features |
 | Persistent-partition ext4 superblock | reader | `internal/le/test/qemu/install_storage.go` (host `debugfs` on a copy of the partition) | Reads and writes files in the installed partition | Preserved: host `debugfs` reads the new features (A-8) |
@@ -331,6 +372,8 @@ Doctor, on a device whose storage is smaller than its disk:
 ### Integration Points
 - `internal/install/disk/run.go` `runHTTP`, `runISO`, `finishISOWrite` - the growth step sits between the image write and the reread, and the resize sits inside the mount.
 - `internal/appliance/cmd_build.go` `injectZeFS` and `internal/appliance/diskverify.go` `verifyInject` - the format and its check.
+- `internal/le/setup/docker/host/perm.go` `formatPerm` and `internal/le/setup/docker/host/build.go` `digestRoots` - the same format for the lab image, and the image key that covers it.
+- `spec-container-1-runtime.md`, `spec-container-2-image-store.md` and `spec-container-3-network.md` - their guest tests run in the own-system guest on its own persistent partition and rest on AC-14 of this spec. Without AC-14 that guest reports `no-feature` and a container config is refused there.
 - `internal/appliance/kernelreq.go` - both floors.
 - `internal/appliance/cache.go` `initrdSourceDirs` - the leaf packages the installer imports.
 - `internal/component/host/storage_linux.go` `DetectStorage` and `internal/plugins/host-cmd/cmd/register.go` - the report and the command.
@@ -354,7 +397,7 @@ Doctor, on a device whose storage is smaller than its disk:
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The kernel resizes a mounted ext4 filesystem to a larger block count through the ext4 resize ioctl on the mount point, for a root caller, when the filesystem has flexible groups and no cluster allocation | Recalled from the kernel's ext4 resize code. Not read on this machine | Growth needs a Go ext4 writer (approach C), which is a design change put to the owner | `TestOnlineResizeGrowsMountedFilesystem` in the QEMU guest; `./le test qemu installer` | unvalidated |
 | A-2 | A kernel built without quota support refuses to mount, read-write, a filesystem that has the quota or project feature | Recalled from the ext4 mount code. Not read | The quota options in the installer kernel are a safety pin rather than a requirement; nothing else changes | The kernel floors refuse a kernel without the options in every case, so the question does not reach a device. Recorded as recalled | unvalidated |
-| A-3 | The kernel applies a project-quota option stored in the superblock at every mount, and enforcement is then on with no caller step | Recalled: stored mount options are parsed at mount. Whether a quota option is accepted there was not confirmed | The design moves to E2: `ze` turns enforcement on at start on the appliance | `./le test qemu appliance-storage` reads `project-quota` as `enforced` on a booted appliance | unvalidated |
+| A-3 | The kernel applies a project-quota option stored in the superblock at every mount, and enforcement is then on with no caller step | Recalled: stored mount options are parsed at mount. Whether a quota option is accepted there was not confirmed | The design moves to E2: `ze` turns enforcement on at start on the appliance | `./le test qemu appliance-storage` reads `project-quota` as `enforced` on a booted appliance; `TestGuestPersistentPartitionEnforcesProjectQuota` reads it on the own-system guest (AC-14) | unvalidated |
 | A-4 | With the quota feature and the project inode present, the kernel accounts usage from mount, and the quota-on call turns enforcement on for a mounted filesystem | Recalled from the generic quota code. Not read | E2 is not available as the fallback, and E3 or a consumer-side remount is put to the owner | `TestProjectQuotaEnableOnMountedFilesystem` in the QEMU guest | unvalidated |
 | A-5 | Growth inside the reserved group-descriptor area needs no conversion. Beyond it the kernel converts the filesystem to the meta-group layout and continues | Recalled. The second sentence is the weaker one | A disk above about 8 TiB grows only to the bound. Doctor reports the rest as not grown, with that reason | `TestOnlineResizeGrowsMountedFilesystem` at a size inside the bound. The case beyond the bound has no test: see Known Limitations | unvalidated |
 | A-6 | A partition on a disk with mounted partitions is resized in the kernel by the partition-resize ioctl, and a full reread is refused there | Recalled. The ioctl and its argument types are in the vendored system-call package | The grow command needs a reboot to take effect, and says so | `./le test qemu appliance-storage`, which grows a booted device | unvalidated |
@@ -363,6 +406,7 @@ Doctor, on a device whose storage is smaller than its disk:
 | A-9 | arm64 kernels resolve the two quota options as built in once requested | The amd64 kernel this host runs, built from Ze's runtime profile, has both by upstream default. No arm64 config was read | The arm64 kernel build refuses, by design, until the fragment is right | An arm64 runtime and installer kernel build on the Mac | unvalidated |
 | A-10 | The resize of a filesystem without group-descriptor checksums finishes in an acceptable time on a large disk | Not known. Metadata checksums are off in the build today, and the commit that carries the flag (`e6069ffd19`) only moved the code and gives no reason | Install time grows with the disk. The format then gains group-descriptor checksums, after the reason they are off is found | The duration `./le test qemu installer` records for the resize on its larger disk, and one run on a 1 TiB sparse disk | unvalidated |
 | A-11 | UEFI firmware and the boot code find the system on a disk whose table was extended | The first partition, its GUID and the boot sector are unchanged | The installed device does not boot | `./le test qemu installer-iso`, which boots the installed disk under UEFI | unvalidated |
+| A-12 | `tune2fs` has no way to reach a filesystem at an offset inside an image file, and `mkfs.ext4` cannot store the mount option, so the lab formatter needs the filesystem as a file of its own. A sparse file of the lab partition's size is formatted, given the quota step and copied into the image without filling its holes, in a time and a disk use close to today's build, on Linux and on the Mac | The manual pages on this host: `mke2fs` lists the offset and the quota type among its extended options and no stored mount option; `tune2fs` lists the stored mount option and the quota switch and no offset. The copy's cost was not measured | If the copy is slow or fills the file, the lab image build gets slower or larger, and the route changes to a loop device on Linux, which needs root. The format itself is not affected | `TestFormatPermGivesTheApplianceFormat` with host e2fsprogs, which also checks the image's allocated size; one lab image build on Linux and one on the Mac | unvalidated |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -376,6 +420,8 @@ Doctor, on a device whose storage is smaller than its disk:
 | R-7 | The image store lands first and finds no enforced quota | Its capability reads absent everywhere | It declares this spec as a dependency |
 | R-8 | `request system storage grow` runs while a consumer writes heavily | The command takes long | The kernel's resize is online by design; the command holds no Ze lock and reports its duration |
 | R-9 | The 64 MiB journal and the reserved area take about a tenth of a 944 MB partition before growth | A seed or a first-boot import that no longer fits on an ungrown device | The build fails if the seed does not fit, and the storage report shows the free space |
+| R-10 | A lab image built before this work, or before a later change of the format, is served from the docker-host cache | The own-system guest reports `no-feature`, and AC-14 is red on a machine that has an old image | The folder of the shared definition is in `digestRoots`, so the image key changes with the format, and `TestImageKeyCoversThePermFormat` holds it there |
+| R-11 | The two formatters drift apart again | A property of the appliance differs in the guest, and a container test passes in the guest on a format no device has | Neither formatter names a property: both read the shared definition, and both run the same Go check on their result |
 
 ## Blast Radius
 
@@ -383,7 +429,7 @@ Doctor, on a device whose storage is smaller than its disk:
 |----------|--------|
 | What breaks if this is wrong? | An install that does not boot, or a device whose persistent partition does not mount. Both show in the first QEMU install. Routing code is not touched |
 | How is it reverted? | The commits revert. A device installed in between keeps a grown partition and the new format, which older code mounts as long as its kernel has quota support |
-| Who else touches this path? | `spec-container-2-image-store.md` (the consumer), `plan/release/fixes/spec-crash-capture.md` (writes to the persistent partition; its Required Reading says the partition is "grown to fill the disk at build", which is the image, not the disk), `plan/post-release/features/spec-install-9-cloud-init.md` (a raw image booted on a larger disk) |
+| Who else touches this path? | `spec-container-2-image-store.md` (the consumer), `spec-container-1-runtime.md` and `spec-container-3-network.md` (their guest tests rest on AC-14), every session that boots the own-system guest or the Colima profile (the next lab image build makes a new image under a new key), `plan/release/fixes/spec-crash-capture.md` (writes to the persistent partition; its Required Reading says the partition is "grown to fill the disk at build", which is the image, not the disk), `plan/post-release/features/spec-install-9-cloud-init.md` (a raw image booted on a larger disk) |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
@@ -397,6 +443,7 @@ Doctor, on a device whose storage is smaller than its disk:
 | `ze appliance build <name>` | → | `injectZeFS` format and `verifyInject` | `TestInjectFormatsPersistentPartition`; `TestInjectedImagePassesStructuralCheck` |
 | A consumer's call into the quota leaf | → | The quota leaf on the runtime kernel | `TestProjectQuotaRefusesWritePastLimit` in `./le test qemu all` |
 | A kernel build | → | `enforceKernelRequirements` with the two floors | `TestKernelFloorsRequireQuota` |
+| `./le setup docker host build`, and the boot of the own-system guest that ensures the image | → | `builder.build`, then `formatPerm` with the shared definition | `TestFormatPermGivesTheApplianceFormat`; `TestGuestPersistentPartitionEnforcesProjectQuota` in `./le test qemu all` |
 
 ## Acceptance Criteria
 
@@ -415,6 +462,9 @@ Doctor, on a device whose storage is smaller than its disk:
 | AC-11 | An image is pushed to a grown device and the device reboots into it | The partition bounds, the partition identity, the filesystem size and the stored config are what they were before the push | The root slot and the boot filesystem change, because that is the update |
 | AC-12 | The table rewrite is stopped after any one of its writes | A parse of the disk finds a valid table whose partition 4 holds the whole filesystem | Either the image's bounds or the grown bounds are found, because both are correct tables for that disk |
 | AC-13 | Growth fails at install after the image is written | The installer logs the failure as an error with its cause, completes the install, and the booted device reports AC-4 (D-3) | The device runs on the image-sized partition, because the written system is complete |
+| AC-14 | The own-system guest boots from a docker-host lab image built from this work, and a test in it gives a folder on the guest's own persistent partition a project id and a 1 MiB limit, then writes 2 MiB into it | The superblock of the guest's persistent partition holds every property of the format table, the project-quota state of that partition reads `enforced` with no step taken in the guest, and the write is refused with the quota error once the limit is reached | A second folder with no limit takes the 2 MiB, which proves the refusal is the limit's. The partition keeps the image's size, because this image is never installed and is not grown. A guest booted from an image built before this work is not covered: the image key changes with the format, so the build makes a new one |
+
+The runtime, image store and network children of the container work (`spec-container-1-runtime.md`, `spec-container-2-image-store.md`, `spec-container-3-network.md`) run their guest tests on AC-14: it is what makes the own-system guest a host whose data folder can enforce a size cap.
 
 ## End-to-End User Stories
 
@@ -425,10 +475,11 @@ Doctor, on a device whose storage is smaller than its disk:
 | 3 | Writes an image to a disk by hand, boots, reads doctor, and grows the storage | Doctor check, `request system storage grow`, partition resize, filesystem resize | `test/appliance/storage-grow-qemu.ci` |
 | 4 | Pushes a new image to a grown device | The updater writes root, boot and boot code; the table and partition 4 are untouched | `./le test qemu appliance-ota` |
 | 5 | A consumer caps a folder | The quota leaf: assign, limit, write refused, usage read | `TestProjectQuotaRefusesWritePastLimit` |
+| 6 | A developer runs a container test in Ze's own-system guest | The lab image build, `formatPerm` with the shared definition, the guest boot, gokrazy's mount, the quota leaf on the guest's own partition | `TestGuestPersistentPartitionEnforcesProjectQuota` in `./le test qemu all` |
 
 ## 🧪 TDD Test Plan
 
-The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The guest's own persistent partition is formatted by the docker-host tooling and has no project feature, so the guest tests use a fixture: a small filesystem image the host makes with the build's formatter before the guest boots, listed with the other things a guest needs, and attached in the guest through a loop device. A guest run that finds no fixture fails; a native run skips with the reason.
+The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The guest's own persistent partition is formatted by the docker-host tooling, which this spec gives the appliance's format (D-4). One guest test, `TestGuestPersistentPartitionEnforcesProjectQuota`, runs on that partition and proves AC-14. The other guest tests need a filesystem they can enlarge, one without the stored option and one without the feature, and none of the three may be the partition the guest lives on. They use a fixture: a small filesystem image the host makes with the build's formatter before the guest boots, listed with the other things a guest needs, and attached in the guest through a loop device. A guest run that finds no fixture, or no persistent partition, fails; a native run skips with the reason.
 
 ### Unit Tests
 | Test | File | Validates | Status |
@@ -456,6 +507,12 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 | `TestProjectQuotaRefusesWritePastLimit` | `internal/core/projquota/quota_integration_linux_test.go` | In the guest: AC-9 with its control folder | |
 | `TestProjectQuotaEnableOnMountedFilesystem` | `internal/core/projquota/quota_integration_linux_test.go` | In the guest: the state reads not enforced on a fixture without the stored option, and enforced after the quota-on call (A-4) | |
 | `TestProjectQuotaStateWithoutFeature` | `internal/core/projquota/quota_integration_linux_test.go` | In the guest: a plain filesystem reads `no-feature`, never `not-enforced` | |
+| `TestGuestPersistentPartitionEnforcesProjectQuota` | `internal/core/projquota/quota_integration_linux_test.go` | In the guest, on the guest's own persistent partition: every property of the format table is in its superblock, the state reads `enforced`, a write past a 1 MiB limit is refused, and the control folder takes the write (AC-14) | |
+| `TestPermFormatDefinitionNamesEveryProperty` | `internal/appliance/permformat/permformat_test.go` | The format step's arguments, the quota step's arguments and the checked property list each cover every row of the format table, so a property added to one is missed in none | |
+| `TestFormatPermGivesTheApplianceFormat` | `internal/le/setup/docker/host/perm_test.go` | With host e2fsprogs, a sparse image with gokrazy's four partitions comes back with a partition 4 that passes the Go property check, and the image's allocated size stays near the filesystem's metadata (D-4, A-12) | |
+| `TestFormatPermFormatsAnAlreadyFormattedPartition` | `internal/le/setup/docker/host/perm_test.go` | A partition 4 that already holds a plain ext4 filesystem is formatted again and passes the property check: the old format does not survive | |
+| `TestFormatPermRefusesAResultWithoutAProperty` | `internal/le/setup/docker/host/perm_test.go` | With a formatter that leaves one property out, the build of the image fails and names the property | |
+| `TestImageKeyCoversThePermFormat` | `internal/le/setup/docker/host/build_digest_test.go` | The folder of the shared definition is a digest root, so an edit to the definition gives a new image key (R-10) | |
 
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
@@ -491,12 +548,17 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 - `internal/plugins/host-cmd/cmd/register.go` - the command's registration
 - `internal/core/diagnostic/codes.go` - `doctor-storage-not-grown`
 - `internal/le/test/qemu/install_boot.go`, `internal/le/test/qemu/install_iso.go`, `internal/le/test/qemu/install_storage.go`, `internal/le/test/qemu/install_ota.go`, `internal/le/test/qemu/actions.go`, `internal/le/test/qemu/alltests.go` - the larger target disk, the grown checks, the new action, the fixture and the two integration packages
-- `docs/architecture/appliance/on-device-installer.md`, `docs/architecture/appliance/iso-installer.md`, `docs/architecture/appliance/installer-initrd.md`, `docs/architecture/appliance/builder.md`, `docs/architecture/appliance/kernel-profiles.md`, `docs/architecture/appliance/ota-push.md`, `docs/architecture/testing/qemu-integration.md`, `docs/architecture/host/inventory.md`, `docs/guide/appliance.md`, `docs/guide/command-reference.md`, `docs/guide/health-checks.md` - the pages the documentation checklist names
+- `internal/le/setup/docker/host/perm.go` - `formatPerm` over the shared format definition, the quota step and the property check; the skip and `hasExt4` deleted; `permPartition` over the shared parse; `findMkfs` widened to the tools the two steps run
+- `internal/le/setup/docker/host/build.go` - the folder of the shared definition in `digestRoots`
+- `internal/le/setup/docker/host/actions.go` - the `check` action reports `tune2fs` beside `mkfs.ext4`
+- `internal/le/setup/docker/host/perm_test.go`, `internal/le/setup/docker/host/build_digest_test.go` - the lab formatter's tests and the image-key test. The two `hasExt4` assertions of `TestPermPartitionIsReadFromTheGPT` go with the function they call, and `TestFormatPermFormatsAnAlreadyFormattedPartition` proves what replaces it
+- `docs/architecture/appliance/docker-host.md`, `docs/architecture/appliance/on-device-installer.md`, `docs/architecture/appliance/iso-installer.md`, `docs/architecture/appliance/installer-initrd.md`, `docs/architecture/appliance/builder.md`, `docs/architecture/appliance/kernel-profiles.md`, `docs/architecture/appliance/ota-push.md`, `docs/architecture/testing/qemu-integration.md`, `docs/architecture/host/inventory.md`, `docs/guide/appliance.md`, `docs/guide/command-reference.md`, `docs/guide/health-checks.md` - the pages the documentation checklist names
 
 ## Files to Create
 - `internal/core/gptdisk/gptdisk.go`, `internal/core/gptdisk/grow.go`, `internal/core/gptdisk/gptdisk_test.go`, `internal/core/gptdisk/grow_test.go` - parse, validate, grow
 - `internal/core/ext4fs/superblock.go`, `internal/core/ext4fs/resize_linux.go`, `internal/core/ext4fs/resize_other.go`, `internal/core/ext4fs/superblock_test.go`, `internal/core/ext4fs/resize_integration_linux_test.go` - superblock read and online resize
 - `internal/core/projquota/quota.go`, `internal/core/projquota/quota_linux.go`, `internal/core/projquota/quota_other.go`, `internal/core/projquota/quota_integration_linux_test.go` - state, enable, assign, limit, usage
+- `internal/appliance/permformat/permformat.go`, `internal/appliance/permformat/permformat_test.go` - the one definition of the persistent partition's format: the format step's arguments, the quota step's arguments, the checked property list
 - `internal/install/disk/grow_linux.go` - the installer's call into the leaves
 - `internal/component/host/doctor_storage.go`, `internal/component/host/doctor_storage_test.go` - the doctor check
 - `internal/plugins/host-cmd/cmd/storage_grow_linux.go`, `internal/plugins/host-cmd/cmd/storage_grow_other.go`, `internal/plugins/host-cmd/cmd/storage_grow_test.go`, `internal/plugins/host-cmd/yang/ze-host-request-cmd.yang` - the command
@@ -532,13 +594,13 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 | 7 | Wire format changed? | No | No protocol wire. The on-disk formats are in the appliance pages |
 | 8 | Plugin SDK/protocol changed? | No | |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | |
-| 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/qemu-integration.md`: the `appliance-storage` action, the larger target disk, the guest fixture, the changed layout check |
+| 10 | Test infrastructure changed? | Yes | `docs/architecture/testing/qemu-integration.md`: the `appliance-storage` action, the larger target disk, the guest fixture, the changed layout check, and the own-system guest's persistent partition as a filesystem that enforces project quota |
 | 11 | Affects daemon comparison? | No | |
-| 12 | Internal architecture changed? | Yes | `docs/architecture/appliance/on-device-installer.md` (growth, the format, the property check), `docs/architecture/appliance/iso-installer.md` (the "reconstructs no partitions" sentence), `docs/architecture/appliance/installer-initrd.md` (the replacement table), `docs/architecture/appliance/builder.md` (the injection steps), `docs/architecture/appliance/kernel-profiles.md` (the quota options), `docs/architecture/appliance/ota-push.md` (the device's table differs from the image's) |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/appliance/on-device-installer.md` (growth, the format, the property check), `docs/architecture/appliance/iso-installer.md` (the "reconstructs no partitions" sentence), `docs/architecture/appliance/installer-initrd.md` (the replacement table), `docs/architecture/appliance/builder.md` (the injection steps), `docs/architecture/appliance/kernel-profiles.md` (the quota options), `docs/architecture/appliance/ota-push.md` (the device's table differs from the image's), `docs/architecture/appliance/docker-host.md` (step 5 of the image build: the partition gets the appliance's format on every build, the sentence that gok formats it where `mkfs.ext4` is on its PATH is removed because no packer in the tree does, the shared definition is a path that shapes the image key, and `check` reports `tune2fs`) |
 | 13 | Route metadata keys added/changed? | No | |
 | 14 | Prometheus counters added/changed? | No | |
 | 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | The command inventory pages `./le doc check all` derives; `docs/guide/status.md` if it lists host commands |
-| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Derived by `./le spec citation anchors spec plan/post-release/features/spec-appliance-perm-grows-at-install.md`, run at the start of implementation. The pages in rows 6, 10 and 12 are the ones the design headers of the changed files declare. Two more are declared: `docs/architecture/host/inventory.md`, by the host component and host command files, which gains the persistent object and the grow command; and `docs/features/ai-first.md`, by `internal/core/diagnostic/codes.go`, which is unaffected, because it describes how diagnostic codes reach machine readers and one more code changes nothing it says |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Derived by `./le spec citation anchors spec plan/post-release/features/spec-appliance-perm-grows-at-install.md`, run at the start of implementation. The pages in rows 6, 10 and 12 are the ones the design headers of the changed files declare; `docs/architecture/appliance/docker-host.md` in row 12 is the page the headers of `internal/le/setup/docker/host/perm.go`, `build.go` and `actions.go` name. Two more are declared: `docs/architecture/host/inventory.md`, by the host component and host command files, which gains the persistent object and the grow command; and `docs/features/ai-first.md`, by `internal/core/diagnostic/codes.go`, which is unaffected, because it describes how diagnostic codes reach machine readers and one more code changes nothing it says |
 | 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/appliance.md` install walk-through and `docs/guide/command-reference.md` `show host storage` sample |
 
 ## Implementation Steps
@@ -551,13 +613,13 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
    - Tests: `TestOnlineResizeGrowsMountedFilesystem`, `TestProjectQuotaRefusesWritePastLimit`, `TestProjectQuotaEnableOnMountedFilesystem`, `TestProjectQuotaStateWithoutFeature`
    - Files: the filesystem and quota leaves, `internal/le/test/qemu/alltests.go`, the two kernel bases and manifests, `internal/appliance/kernelreq.go`
    - Verify: A-1 and A-4 are confirmed or broken in the guest. A broken one stops the work and goes to the main thread
-3. **Phase: Partition table** -- parse, validate, grow; the three existing readers move to the shared parse
-   - Tests: the partition-table unit tests; the existing push and build tests stay green
-   - Files: the partition-table leaf, `internal/appliance/push_image.go`, `internal/appliance/cmd_build.go`, `internal/le/test/qemu/install_iso.go`
+3. **Phase: Partition table** -- parse, validate, grow; the four existing readers move to the shared parse
+   - Tests: the partition-table unit tests; the existing push, build and lab-image partition tests stay green
+   - Files: the partition-table leaf, `internal/appliance/push_image.go`, `internal/appliance/cmd_build.go`, `internal/le/test/qemu/install_iso.go`, `internal/le/setup/docker/host/perm.go`
    - Verify: tests fail, implement, tests pass
-4. **Phase: Build format** -- the named properties, the quota step, the property check, `tune2fs`
-   - Tests: `TestInjectFormatsPersistentPartition`, `TestVerifyRefusesMissingProperty`, `TestInjectedImagePassesStructuralCheck`, `TestKernelFloorsRequireQuota`
-   - Files: `internal/appliance/cmd_build.go`, `internal/appliance/diskverify.go`, `internal/appliance/doctor_checks.go`, `internal/le/setup/tools.go`, `internal/le/setup/probes.go`
+4. **Phase: Build format** -- the shared format definition, the named properties, the quota step, the property check, `tune2fs`
+   - Tests: `TestPermFormatDefinitionNamesEveryProperty`, `TestInjectFormatsPersistentPartition`, `TestVerifyRefusesMissingProperty`, `TestInjectedImagePassesStructuralCheck`, `TestKernelFloorsRequireQuota`
+   - Files: `internal/appliance/permformat/permformat.go`, `internal/appliance/cmd_build.go`, `internal/appliance/diskverify.go`, `internal/appliance/doctor_checks.go`, `internal/le/setup/tools.go`, `internal/le/setup/probes.go`
    - Verify: A-7 and A-8 are confirmed or broken on the build host
 5. **Phase: Installer growth** -- both modes, the cache key
    - Tests: `TestGrowthFailureCompletesInstall`, `TestInitrdCacheKeyCoversGrowthPackages`, `./le test qemu installer`, `./le test qemu installer-iso`
@@ -567,7 +629,11 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
    - Tests: `TestDetectStoragePersistentObject`, `TestStorageDoctorReportsStorageSmallerThanDisk`, `TestStorageGrowRefusals`, `test/appliance/storage-grow-qemu.ci`, `./le test qemu appliance-ota`
    - Files: the host component and host command files, `internal/core/diagnostic/codes.go`, `internal/le/test/qemu/install_storage_grow.go`, `internal/le/test/qemu/install_ota.go`
    - Verify: AC-4, AC-5, AC-6, AC-8, AC-11, and A-3 confirmed or the design moved to E2
-7. **Phase: Pages** -- every page of the documentation checklist, in the phase that makes it wrong where that is earlier
+7. **Phase: Own-system guest format** -- the lab formatter over the shared definition, the deleted skip, the image key, then a new lab image and the guest test on its own partition. It follows phase 4, which makes the definition, and may run before phases 5 and 6
+   - Tests: `TestFormatPermGivesTheApplianceFormat`, `TestFormatPermFormatsAnAlreadyFormattedPartition`, `TestFormatPermRefusesAResultWithoutAProperty`, `TestImageKeyCoversThePermFormat`, `TestGuestPersistentPartitionEnforcesProjectQuota` in `./le test qemu all`
+   - Files: `internal/le/setup/docker/host/perm.go`, `internal/le/setup/docker/host/build.go`, `internal/le/setup/docker/host/actions.go`, `internal/core/projquota/quota_integration_linux_test.go`
+   - Verify: AC-14, and A-12 confirmed or broken on a Linux and a Mac build host. A-3 is first seen here or in phase 6, whichever runs first
+8. **Phase: Pages** -- every page of the documentation checklist, in the phase that makes it wrong where that is earlier
 
 ### Critical Review Checklist
 
@@ -581,7 +647,8 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 | Operator errors and doctor codes | Every refusal is an `opererr` error with its fix on the last line, every `Warn`/`Error` line and raise names the code the Integration Checklist's doctor row lists, and each doctor check carries `Fix` at the phase that holds its state (`ai/rules/user-facing-errors.md`) |
 | Rule: `ai/rules/go-standards.md` | No external program is run from the installer package, the leaf packages or the host command. A state that cannot be read answers unknown with its reason, never grown and never enforced |
 | Rule: `ai/rules/platform-linux.md` | Every syscall is in a Linux-only file behind a seam; the guest tests carry the integration and Linux tags; the two packages are in `integrationPackages`; the new action has a caller |
-| Rule: `ai/rules/no-layering.md` | The own parsing of `findLastPartition` and `readPushPartitions` is deleted when the shared parse replaces it |
+| Rule: `ai/rules/no-layering.md` | The own parsing of `findLastPartition`, `readPushPartitions` and `permPartition` is deleted when the shared parse replaces it. `hasExt4` and the skip in `formatPerm` are deleted, not kept beside the new format |
+| One definition of the format | No property of the format table is written in `injectZeFS` or in `formatPerm`: a search for a feature name, the inode size or the journal size finds each in the shared definition only |
 
 ### Deliverables Checklist
 
@@ -591,6 +658,7 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 | A device grows on the command | `./le test qemu appliance-storage` |
 | The quota is enforced by the kernel | `./le test qemu all` reaching `TestProjectQuotaRefusesWritePastLimit`, and the fixture check that refuses a skipped run |
 | The build's format is fixed and checked | `./le test unit pkg path ./internal/appliance/` |
+| The own-system guest has the appliance's format and enforces a size cap | `./le test unit pkg path ./internal/le/setup/docker/host/`, and `./le test qemu all` reaching `TestGuestPersistentPartitionEnforcesProjectQuota` on a lab image built from this work |
 | The installer runs no external program | A search for the exec call in the installer package and the three leaf packages answers nothing outside tests |
 | Both kernels require quota support | A search for the two option names in the three manifests finds each in each |
 | The pages are right | `./le doc check all` |
@@ -600,7 +668,7 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 | Check | What to look for |
 |-------|-----------------|
 | Input validation | The table read from a disk is untrusted: every offset, count and size is bounded before it is used, with 64-bit arithmetic, as `readPushPartitions` does today |
-| Destructive write to the wrong disk | The installer grows only the disk it just wrote. The command grows only the disk that holds the mounted persistent partition, found from the mount table, never from an argument |
+| Destructive write to the wrong disk | The installer grows only the disk it just wrote. The command grows only the disk that holds the mounted persistent partition, found from the mount table, never from an argument. The lab formatter, which now formats without looking, is given only the partial file its own build has just written, never an image in the cache or a device |
 | Authorization | `request system storage grow` is a write command and follows the command authorization of the surface it arrives on. An observer login is refused |
 | Resource exhaustion | The command is not repeatable into harm: a second run writes nothing. The quota leaf refuses a zero limit and project id 0 |
 | Error leakage | Messages name device nodes and sizes only |
@@ -641,7 +709,8 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 | Enforcement by a mount option stored in the superblock (E1) | `ze` turns it on at start (E2); a diff to gokrazy's mount (E3) | No run-time step, no ordering against consumers, and the same answer for every process. E2 is the fallback when A-3 is false |
 | Project quota type only | User and group types as well | Nothing uses them, and a changed owner in the seed step would then also need its usage recomputed |
 | Not automatic at boot (D-1, recommended) | Grow at every boot when the disk is larger | The owner ruled install. A boot path that never writes a partition table cannot damage one |
-| The docker-host lab image keeps its format | One formatter for both | It is development tooling that runs dockerd, and no Ze container runs on it |
+| The docker-host lab image takes the appliance's format, from one shared definition read by two formatters (D-4) | The lab image keeps its plain format and the guest tests use only a fixture; one formatter function for both images | The lab image is the own-system guest the container tests run in, and a guest that cannot enforce a size cap refuses a container config. The two formatters stay separate because the appliance writes a seed between its two steps and works on an in-memory copy of a small partition, and the lab partition is about 63 GiB with no seed. What they share is the format, so that is what is declared once |
+| The lab formatter always formats | Reformat only when the superblock lacks a required property | Its one caller passes a file `gok` has just written, and no packer in the tree formats partition 4, so the skip guards a case that does not occur. One path cannot keep an old format |
 
 ## Known Limitations
 - A disk above about 8 TiB is not covered by a test. Growth beyond the reserved area depends on A-5, and proving it needs a filesystem larger than a test guest can initialise in reasonable time. Inside the bound the design does not depend on A-5.
@@ -665,7 +734,7 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 - [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
 
 ### Goal Gates (MUST pass)
-- [ ] AC-1..AC-13 all demonstrated
+- [ ] AC-1..AC-14 all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
 - [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches, and the QEMU actions this spec names. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit, and the full verification is Thomas's release check. A red CI reports gets a fix commit
