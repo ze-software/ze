@@ -537,6 +537,28 @@ so query mode reads nothing new and adds no second list to keep in step.
   anything above it has already run.
 <!-- source: pkg/plugin/sdk/sdk.go -- QueryModeRequested, EnvPluginMode, ModeDeclare -->
 
+### Write the declaration line alone
+
+In declare mode, write nothing to stdout except the declaration line. Send
+every diagnostic, banner and log line to stderr.
+
+The line is `#1 ze-plugin-engine:declare-registration`, one space, and the
+declaration as compact JSON, ended by one line feed (LF). A carriage return, a
+second line, a blank line and white space between the JSON tokens each break
+the rule. `sdk.RunOrDeclare` writes the line in this form.
+
+Two readers apply the rule differently. The reader behind `show plugin
+declarations` finds the declaration line and skips each other line on stdout,
+so the daemon side still reads a plugin that writes a banner. The conformance
+checker is strict: its `declaration-line` row fails when stdout holds more than
+the one line, and the row names the rule the output broke. A plugin that passes
+the strict check is read correctly by every reader.
+`ze show plugin conformance run "<run string>"` runs the check
+([testing.md](testing.md), "Checking That a Program Is a Valid Plugin").
+<!-- source: internal/component/plugin/conformance/checks.go -- strictLine, declarationLine -->
+<!-- source: internal/component/plugin/declarations.go -- declarationFromStdout -->
+<!-- source: pkg/plugin/rpc/declaration.go -- WriteDeclaration -->
+
 ## Runtime Callbacks (Engine to Plugin)
 
 After startup, the engine sends runtime RPCs to the plugin. The SDK dispatches

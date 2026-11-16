@@ -1,5 +1,5 @@
 // Design: docs/architecture/api/process-protocol.md -- how an external plugin is started
-// Related: declarations.go -- runQuery, the declaration query that forks this shell
+// Related: declarations.go -- QueryDeclaration, the declaration query that forks this shell
 // Related: process/process.go -- (*Process).startExternal, the live start that forks it
 // Related: doctor/check_shell.go -- the doctor check that reports the shell absent
 //

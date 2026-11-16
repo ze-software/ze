@@ -99,7 +99,7 @@ func init() {
 			"this binary also carries keeps one row rather than two.",
 		Mode: modeOffline,
 		// Answering starts each external plugin's `run` line from the file
-		// (declarations.go runQuery), so on the daemon it is process execution
+		// (declarations.go QueryDeclaration), so on the daemon it is process execution
 		// under the daemon's identity: authorized as more than a read.
 		NotReadOnly: true,
 	}, command.RenderLocalAnswer)

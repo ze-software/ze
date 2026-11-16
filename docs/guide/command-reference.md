@@ -722,7 +722,7 @@ Every pipe operator applies: `| json`, `| yaml`, `| table`, `| count`,
 |-----|-------|
 | `name` | The plugin name, as the registry or the config block spells it |
 | `kind` | `internal` for code this binary carries, `external` for another program |
-| `state` | One of the five below |
+| `state` | One of the six below |
 | `commands` | The commands the plugin declares. Absent when it declares none |
 | `pipes` | The pipe aliases the plugin declares. Absent when it declares none |
 | `reason` | Why a row carries no declaration. Absent when one was read |
@@ -732,12 +732,19 @@ Every pipe operator applies: `| json`, `| yaml`, `| table`, `| count`,
 | `declared` | an answer arrived carrying declarations |
 | `declared-none` | an answer arrived carrying an empty declaration |
 | `no-answer` | the process ran and wrote no declaration, which is what a plugin with no query mode in it does |
-| `unstartable` | the process could not be started |
+| `unstartable` | the process could not be started, or it wrote a declaration the daemon refuses at Stage 1 |
 | `timeout` | the process started, wrote no declaration inside the budget, and was stopped |
+| `not-judged` | an answer arrived in a binary that holds no Stage 1 checks, so nobody judged the declaration |
 
 No plugin is ever omitted: a plugin that could not answer keeps its row and says
 why. `declared-none` and `no-answer` stay apart, because a plugin with nothing
 to declare and a plugin that answered nothing are different facts.
+
+A declaration that was read is judged by the checks the daemon applies at
+Stage 1, so a row reads `declared` only when the daemon would start the plugin.
+A refused declaration reads `unstartable`, and its reason is the daemon's own.
+The `ze` binary holds the checks, so `not-judged` appears only in another
+binary, and its reason says to run the command from `ze`.
 
 The budget is 5 seconds per plugin, the same wait a startup stage gets, and
 `ze.plugin.query.timeout` sets it. Zero or less is refused rather than read as
@@ -746,6 +753,52 @@ started.
 
 <!-- source: internal/component/plugin/declarations.go -- dataDeclarations, declarationRows, queriedDeclarationRow -->
 <!-- source: internal/component/plugin/register.go -- the two show plugin declarations registrations -->
+<!-- source: internal/component/plugin/declaration_judge.go -- JudgeDeclaration, ErrNoDeclarationJudge -->
+
+### show plugin conformance run
+
+Checks that a program behaves as a Ze plugin. The command starts the program in
+declare mode and judges what it wrote, with the checks the daemon applies at
+Stage 1. It needs no daemon and no config file.
+
+```
+ze show plugin conformance run "./my-plugin --flag"                     # judge the program
+ze show plugin conformance run "./my-plugin --flag" name acme-monitor   # name the plugin in the report
+```
+
+The value after `run` is the run string of `plugin { external <name> { run
+...; } }`, as one quoted token. A shell starts it. Without `name`, the plugin
+name is the file name of the program. The budget is `ze.plugin.query.timeout`,
+5 seconds by default.
+
+The answer holds one row for each check, with these keys:
+
+| Key | Value |
+|-----|-------|
+| `check` | The name of the check |
+| `stage` | `declare`, a stage number, `transport`, `runtime`, `shutdown` or `schema` |
+| `verdict` | `pass`, `fail` or `not-judged` |
+| `reason` | What the check found. Absent on a passed row |
+| `fix` | The change that clears the row. Absent on a passed row |
+
+A `not-judged` row is a behavior this version does not check, such as the TLS
+connect-back and Stages 2 to 5. An answer with no failed row is therefore not
+full conformance. Each check is described in
+[plugin-development/testing.md](../plugin-development/testing.md).
+
+| Exit code | Meaning |
+|-----------|---------|
+| 0 | No row failed |
+| 1 | One row or more failed |
+| 2 | The run did not happen, so there is no answer |
+
+The command runs in your own `ze` process only. Through the daemon (SSH, the
+web UI, REST, gRPC, MCP) it starts nothing: the daemon starts no program that a
+remote caller names, and it answers a refusal that gives the command to run in
+your own shell.
+
+<!-- source: internal/component/plugin/conformance/register.go -- dataConformance, refuseRemoteCaller, init -->
+<!-- source: internal/component/plugin/conformance/conformance.go -- Run, Row, ExitConforms, ExitViolation, ExitNoRun -->
 
 ### request plugin restart
 

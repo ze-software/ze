@@ -1,6 +1,6 @@
 // Design: docs/architecture/api/process-protocol.md -- how an external plugin is started
 // Related: sysproc_linux.go -- NewSysProcAttr, the Setpgid this signal relies on
-// Related: declarations.go -- runQuery, the declaration query that forks with this
+// Related: declarations.go -- QueryDeclaration, the declaration query that forks with this
 // Related: process/exitwait_other.go -- newPluginShell, the live start that forks with this off Linux
 
 package plugin

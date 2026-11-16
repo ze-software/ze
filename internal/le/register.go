@@ -105,6 +105,7 @@ import (
 	_ "github.com/ze-software/ze/internal/le/perf"
 	_ "github.com/ze-software/ze/internal/le/plugin"
 	_ "github.com/ze-software/ze/internal/le/plugin/boundary"
+	_ "github.com/ze-software/ze/internal/le/plugin/conformance"
 	_ "github.com/ze-software/ze/internal/le/plugin/coupling"
 	_ "github.com/ze-software/ze/internal/le/plugin/declarations"
 	_ "github.com/ze-software/ze/internal/le/plugin/gatedtable"

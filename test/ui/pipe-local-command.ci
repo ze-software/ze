@@ -44,6 +44,7 @@ expect=stdout:contains=COVERED: show diagnostic [done]
 expect=stdout:contains=COVERED: show env get [done]
 expect=stdout:contains=COVERED: show env list [done]
 expect=stdout:contains=COVERED: show env registered [done]
+expect=stdout:contains=COVERED: show plugin conformance run [done]
 expect=stdout:contains=COVERED: show plugin declarations [done]
 expect=stdout:contains=COVERED: show plugin declarations config [done]
 expect=stdout:contains=COVERED: show plugin list [done]
@@ -57,4 +58,4 @@ expect=stdout:contains=COVERED: show skills [done]
 expect=stdout:contains=COVERED: show yang completion [done]
 expect=stdout:contains=COVERED: show yang doc [done]
 expect=stdout:contains=COVERED: show yang tree [done]
-expect=stdout:contains=OK: 44/44 local-data commands and local one-shot save
+expect=stdout:contains=OK: 45/45 local-data commands and local one-shot save

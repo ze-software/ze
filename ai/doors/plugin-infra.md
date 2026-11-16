@@ -124,6 +124,7 @@ compiled yet (`docs/plugin-development/schema.md`, "What works today").
 |---------|----------------|
 | `./le plugin boundary check` | Known in-process calls that break when the plugin runs forked (a heuristic) |
 | `./le plugin declarations check` | Stage 1 commands match the registration |
+| `./le plugin conformance check run "<run string>"` | A program started in declare mode writes the declaration line alone, exits 0, and passes the Stage 1 check table (`ze show plugin conformance run` is the shipped form; a `not-judged` row is unproven) |
 | `./le plugin imports check` | The generated composition root is current |
 | `./le arch tier check` | Placement and plugin import ownership |
 | `./le doc yang-contract command-contract` | Every YANG command has a handler |

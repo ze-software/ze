@@ -1,0 +1,77 @@
+# Test: a declaration the daemon refuses at Stage 1 is not listed as declared
+# VALIDATES: `show plugin declarations config <path>` judges the declaration an
+#   external plugin answers with the daemon's own Stage 1 checks, so a plugin
+#   whose declaration the daemon refuses has the state `unstartable` and the
+#   daemon's reason, and a plugin whose declaration the daemon accepts stays
+#   `declared` with its command.
+# PREVENTS: an operator reading `declared` for a plugin the daemon will refuse
+#   to start. The reader once judged the protocol version alone, so a
+#   declaration refused for any other reason was listed with its commands, as if
+#   configuring the plugin would add them.
+#
+# The one question: does the row an operator reads carry the Stage 1 verdict?
+# The unit tests judge a declaration held in a Go struct
+# (internal/component/plugin/server/stage1_checks_test.go). They cannot decide
+# whether the command that parses a config, starts each external plugin in
+# declare mode and renders the rows asks the judge at all: that wiring is
+# queriedDeclarationRow (internal/component/plugin/declarations.go), reached
+# only through the command.
+#
+# No daemon runs here. The command is a local-data command, so `ze show ...`
+# serves it in its own process.
+#
+# Both plugins write a well-formed declaration line with a protocol version, so
+# the one difference between the two rows is what the declaration says. The
+# accepted plugin is the control: without it, a reader that refused every
+# external plugin would pass this test.
+#
+# Each plugin is a script, because a declaration holds double quotes and the
+# config's run string is itself double-quoted. The plugin starts in the
+# directory the command runs in, which is the test's directory, where the
+# runner writes these files.
+
+# A doctor check whose diagnostic code lacks the doctor- prefix. The daemon
+# refuses it at Stage 1 (validateDoctorCheckDecls,
+# internal/component/plugin/server/startup.go), under the doctor-checks entry of
+# the Stage 1 table (internal/component/plugin/server/stage1_checks.go).
+tmpfs=refused-doctor-code.sh:terminator=EOF_REFUSED
+printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show refused answer","short-help":"Show the answer."}],"doctor-checks":[{"name":"plugin-ready","phase":"pre-config","codes":["plugin-not-ready"]}]}'
+EOF_REFUSED
+
+# The same shape of declaration with nothing the daemon refuses.
+tmpfs=accepted.sh:terminator=EOF_ACCEPTED
+printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show accepted answer","short-help":"Show the answer."}],"doctor-checks":[{"name":"plugin-ready","phase":"pre-config","codes":["doctor-plugin-not-ready"]}]}'
+EOF_ACCEPTED
+
+tmpfs=plugin-declarations-stage1-refusal.conf:terminator=EOF_CONF
+plugin {
+    external plugin-accepted {
+        run "sh accepted.sh"
+        encoder json
+    }
+    external plugin-refused {
+        run "sh refused-doctor-code.sh"
+        encoder json
+    }
+}
+EOF_CONF
+
+# The command itself succeeds: a plugin the daemon would refuse is a row, never
+# an error.
+cmd=foreground:seq=1:exec=ze show plugin declarations config plugin-declarations-stage1-refusal.conf:exit=0
+
+# The control. The daemon accepts this declaration, so the row is declared and
+# carries the command.
+expect=stdout:pattern=plugin-accepted +external +declared
+expect=stdout:contains=show accepted answer
+
+# The refused declaration is unstartable, and the reason is the daemon's own
+# Stage 1 text, wrap prefix included.
+expect=stdout:pattern=plugin-refused +external +unstartable
+expect=stdout:contains=invalid doctor check: invalid doctor check code
+expect=stdout:contains=must start with
+
+# It is not listed as declared, and the command it named is not offered: an
+# unstartable row carries no command.
+reject=stdout:pattern=plugin-refused +external +declared
+reject=stdout:contains=show refused answer

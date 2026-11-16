@@ -338,6 +338,7 @@ func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 		{Command: "show plugin list | json compact", Evidence: "show plugin list"},
 		{Command: "show plugin declarations | json compact", Evidence: "show plugin declarations"},
 		{Command: "show plugin declarations config %s | json compact", Evidence: "show plugin declarations config"},
+		{Command: "show plugin conformance run cat<%s | json compact", Evidence: "show plugin conformance run"},
 		{Command: "show config cat pipe-local.conf | json compact", Evidence: "show config cat"},
 		{Command: "show config fmt %s | json compact", Evidence: "show config fmt"},
 		{Command: "show config graph %s | json compact", Evidence: "show config graph"},
@@ -366,7 +367,7 @@ func TestEvidenceAndMarkersAreTheCurrentPopulation(t *testing.T) {
 	if got := Evidence(); !reflect.DeepEqual(got, want) {
 		t.Fatalf("Evidence() = %#v, want %#v", got, want)
 	}
-	if CompletionMarker != "OK: 44/44 local-data commands and local one-shot save" {
+	if CompletionMarker != "OK: 45/45 local-data commands and local one-shot save" {
 		t.Fatalf("CompletionMarker = %q", CompletionMarker)
 	}
 	for _, invocation := range want {

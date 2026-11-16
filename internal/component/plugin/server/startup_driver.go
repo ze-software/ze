@@ -17,10 +17,8 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/ze-software/ze/internal/component/config"
 	plugin "github.com/ze-software/ze/internal/component/plugin"
 	pluginipc "github.com/ze-software/ze/internal/component/plugin/ipc"
-	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
@@ -170,37 +168,18 @@ func runStartupHandshake(ctx context.Context, sink startupSink) error {
 		_ = conn.SendError(ctx, req.ID, tb.Str("invalid registration: ").Err(err).String())
 		return fmt.Errorf("stage 1 parse: %w", err)
 	}
-	// The version is negotiated before the sink sees the declaration: a
-	// text-era plugin gets this one refusal and no other (D-2).
+	// The driver-phase checks of the Stage 1 table run before the sink sees
+	// the declaration, in table order: the protocol version first, so a
+	// text-era plugin gets that one refusal and no other (D-2), then the
+	// filters and their insertions (stage1_checks.go).
+	if err := refuseDriverChecks(sink.pluginName(), sink.registrationName(), &regInput); err != nil {
+		_ = conn.SendError(ctx, req.ID, err.Error())
+		return err
+	}
+	// The table judged the declared version above. This call reads the version
+	// both sides speak, which the answer carries.
 	version, err := rpc.NegotiateProtocolVersion(sink.pluginName(), regInput.ProtocolVersion)
 	if err != nil {
-		_ = conn.SendError(ctx, req.ID, err.Error())
-		return err
-	}
-	// The filters are judged before the sink stores them: a name the
-	// vocabulary does not hold, or a chain the declared fields do not fit,
-	// fails the plugin here (D-10).
-	// The filters, the insertions and the references a loaded config makes to
-	// them are judged under the registration the process runs, because the
-	// reference's prefix names the plugin and never the operator's block.
-	registration := sink.registrationName()
-	if err := registry.CheckFilterDeclarations(registration, regInput.Filters); err != nil {
-		_ = conn.SendError(ctx, req.ID, err.Error())
-		return err
-	}
-	// The auto-insertions are judged by the same static rules config load
-	// applies to a compiled-in registration: a reference the plugin does not
-	// serve, two directions, no condition, or a required one with no reason
-	// fails the plugin here (spec-filter-wire-6-stage-filters AC-2).
-	if err := registry.CheckFilterInsertions(registration, regInput.Filters,
-		registry.OwnedFilterTypes(registration), regInput.FilterInsertions); err != nil {
-		_ = conn.SendError(ctx, req.ID, err.Error())
-		return err
-	}
-	// Each condition path is judged against the compiled schema, and a
-	// compiled-in plugin's against the config its own module adds (A-10).
-	if err := config.CheckFilterInsertionPaths(registration, registry.OwnedYANG(registration),
-		regInput.FilterInsertions); err != nil {
 		_ = conn.SendError(ctx, req.ID, err.Error())
 		return err
 	}

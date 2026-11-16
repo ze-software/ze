@@ -302,9 +302,12 @@ so it gets no hub host, no token and no CA. The spelling is load-bearing:
 the dotted key with `os.Setenv`, so a drop matching `ZE_PLUGIN_` alone leaves
 `ze.plugin.hub.token` in the child's environment. The child writes one
 newline-framed Stage 1 `declare-registration` line to stdout and exits; every
-other line it writes is ignored. The state field then says which of five
+other line it writes is ignored. The state field then says which of six
 answers the row carries: `declared`, `declared-none`, `no-answer`,
-`unstartable` or `timeout`. The wait is `ze.plugin.query.timeout`, 5 seconds by
+`unstartable`, `timeout` or `not-judged`. A declaration that was read is judged
+by the Stage 1 check table before the row reads `declared`: a declaration the
+daemon refuses reads `unstartable` with the daemon's own reason, and a binary
+that links no check table answers `not-judged`. The wait is `ze.plugin.query.timeout`, 5 seconds by
 default, and a child that runs out of it is stopped with everything it started:
 the fork puts the plugin in its own process group and the stop signals that
 group, because a stop aimed at the shell alone leaves the plugin running its
@@ -328,7 +331,7 @@ package cannot import it back; the plugin package declares the reader type and
 the config component registers a reader for it from an `init()`. A binary that
 links no config parser refuses the `config` keyword rather than reporting that
 the file names no plugin.
-<!-- source: internal/component/plugin/declarations.go -- declarationRows, queriedDeclarationRow, runQuery -->
+<!-- source: internal/component/plugin/declarations.go -- declarationRows, queriedDeclarationRow, QueryDeclaration -->
 <!-- source: internal/component/plugin/childenv.go -- ChildPathEnv, EngineBinDir -->
 <!-- source: internal/component/plugin/sysproc.go -- KillGroupOnCancel -->
 <!-- source: internal/component/plugin/process/exitwait_linux.go -- newPluginShell -->
@@ -336,6 +339,76 @@ the file names no plugin.
 <!-- source: internal/component/config/register_plugin_declarations.go -- readConfiguredPlugins -->
 <!-- source: internal/component/plugin/registry/config_need.go -- ConfigNeed, validateConfigNeeds -->
 <!-- source: internal/component/config/optional_provider.go -- refuseAbsentOptionalProviders -->
+
+## One table of Stage 1 checks, and the conformance checker
+
+The checks a Stage 1 declaration must pass are one ordered table,
+`stage1Checks` in `internal/component/plugin/server/stage1_checks.go`. The
+daemon takes its checks from the table: `refuseDriverChecks` runs the
+driver-phase entries in `runStartupHandshake`, and `refuseSinkChecks` runs the
+sink-phase entries in `onRegistration`. The order is part of the contract,
+because the first failed check is the reason the plugin reads. The validator
+functions stay in their own files. The table holds what the call sites held
+before: the order, the wrap prefix and the log line of each refusal.
+<!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Checks, refuseDriverChecks, refuseSinkChecks -->
+
+Each entry says how it is judged:
+
+| Entry | Judged by | For a program in isolation |
+|-------|-----------|----------------------------|
+| `isolated` is set | The declaration and the plugin name alone | `JudgeDeclaration` runs it and answers a verdict |
+| `live` is set | The daemon the startup sink belongs to | Unjudged, with the daemon state the entry names |
+| Phase `stage1PhaseInline` | Its own statements in `onRegistration`, where the check and the write it guards are one step | Unjudged, with the daemon state the entry names |
+| Phase `stage1PhaseReady` | The daemon at Stage 5, where a failure refuses a command and keeps the plugin | A verdict whose `KeepsPlugin` is true |
+<!-- source: internal/component/plugin/server/stage1_checks.go -- stage1Check, stage1Phase -->
+
+`server.JudgeDeclaration` runs the same entries for a program nobody started.
+It answers one verdict for each entry that needs no daemon state, in the
+daemon's order, with every failure and not only the first. The entries that
+need daemon state come back as unjudged. The daemon and a checker therefore
+cannot disagree about what a valid declaration is. A judge call writes no log
+line: the daemon asks for the refusal log and a checker does not.
+<!-- source: internal/component/plugin/server/stage1_checks.go -- JudgeDeclaration, stage1Check.refusal -->
+
+The judge reaches `internal/component/plugin` through a seam. The server
+package holds the table and imports the plugin package, so the plugin package
+cannot import it back. The plugin package declares `DeclarationJudge`, and the
+server registers its judge with `SetDeclarationJudge` from an `init()`.
+`plugin.JudgeDeclaration` answers `ErrNoDeclarationJudge` in a binary that links
+no check table. An empty seam is a refusal, never a pass: `show plugin
+declarations` then writes the state `not-judged`, and never `declared`.
+`DeclarationJudgement.Refusal` answers the first failed verdict that refuses
+the plugin, which is the reason the daemon gives.
+<!-- source: internal/component/plugin/declaration_judge.go -- DeclarationJudge, SetDeclarationJudge, JudgeDeclaration, ErrNoDeclarationJudge, Refusal -->
+<!-- source: internal/component/plugin/declarations.go -- queriedDeclarationRow -->
+
+A third command on the plugin noun uses the judge:
+
+| Command | Question | Population |
+|---------|----------|------------|
+| `show plugin conformance run <command> [name <plugin-name>]` | Does this program behave as a Ze plugin? | One row for each registered conformance check |
+
+`conformance.Run` (`internal/component/plugin/conformance`) starts the run
+string once with `plugin.QueryDeclaration`, the declare-mode fork `show plugin
+declarations` uses, and gives the declaration to `server.JudgeDeclaration`.
+Each check registers with `conformance.Register` from an `init()` and answers
+its rows from that evidence, so no list names the checks. A documented behavior
+that no check judges is registered too, and answers a `not-judged` row with its
+reason. A report with no failed row is therefore never read as full
+conformance. The rows and the exit codes are in
+`docs/plugin-development/testing.md`.
+<!-- source: internal/component/plugin/conformance/conformance.go -- Run, Register, Check, Evidence -->
+<!-- source: internal/component/plugin/conformance/register.go -- init -->
+
+The command is a local-data command, and it answers on the local route alone.
+It starts a program that the command line names, and a daemon that did so for a
+remote caller would run that caller's command under the daemon's identity.
+`refuseRemoteCaller` refuses every route that is not the caller's own process,
+the unmarked route included, with code 2 and the command to run in a shell. The
+development launcher reaches the same `conformance.Run` through `le plugin
+conformance check run <command> [name <name>]`.
+<!-- source: internal/component/plugin/conformance/register.go -- dataConformance, refuseRemoteCaller -->
+<!-- source: internal/le/plugin/conformance/actions.go -- runCheck -->
 
 ## Dependencies
 

@@ -1,0 +1,173 @@
+# Test: `show plugin conformance run` judges a program from the operator's shell
+# VALIDATES: `ze show plugin conformance run "<command>" [name <plugin-name>]`
+#   starts the program in declare mode, prints one row per check with its stage
+#   and verdict, fails the row that names what the program did wrong with the
+#   reason, and exits 0 when no row failed and 1 when one did.
+# PREVENTS: a plugin author being told a program conforms when the daemon would
+#   refuse it: a failed check rendered as `pass`, a failed report exiting 0 (a
+#   script that gates on the status then ships the plugin), or a passing report
+#   that no longer says which behaviors nobody judged and so reads as full
+#   conformance.
+#
+# The one question: does what an operator TYPES reach the checker and come back
+# as the table and the exit status? The unit tests
+# (internal/component/plugin/conformance/conformance_test.go) call Run() with a
+# Go struct and read a Go report. They cannot decide whether the run string
+# survives as one quoted token, whether `name` reaches the daemon's refusal
+# text, whether a failed row is printed at all when the command exits 1, or
+# what the process exit status is. Each case below is one class of violation
+# from those unit tests, sent through the real command line.
+#
+# No daemon runs here. The command is a local-data command, so `ze show ...`
+# serves it in its own process.
+#
+# Every expectation sits under the `cmd=` line whose output it describes and
+# reads that command's stdout alone (docs/architecture/testing/ci-format.md,
+# "Every stream assertion sits under a command and is scoped to it"), and each
+# command asserts its own status with `exit=`. A row is asserted with a regex
+# that holds the check, its stage and its verdict on ONE line, because a bare
+# `contains=pass` is satisfied by any other row.
+#
+# Each program is a script, because an `exec=` value has no backslash escape:
+# a run string that holds both quote characters cannot be written on a `cmd=`
+# line. The command starts the program in its own directory, which is the
+# test's directory, where the runner writes these files.
+
+# The line the protocol's own writer produces for a plugin with one command
+# (validDeclaration, conformance_test.go).
+tmpfs=conforming.sh:terminator=EOF_CONFORMING
+printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show query answer","short-help":"Show the answer."}]}'
+EOF_CONFORMING
+
+# The same line, and then a status that is not 0.
+tmpfs=exits-three.sh:terminator=EOF_EXITS_THREE
+printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show query answer","short-help":"Show the answer."}]}'
+exit 3
+EOF_EXITS_THREE
+
+# A declaration with no protocol version: the text-era plugin.
+tmpfs=no-version.sh:terminator=EOF_NO_VERSION
+printf '%s\n' '#1 ze-plugin-engine:declare-registration {}'
+EOF_NO_VERSION
+
+# printf reads the escapes of its format, so this line ends CR LF.
+tmpfs=crlf.sh:terminator=EOF_CRLF
+printf '%s\r\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show query answer","short-help":"Show the answer."}]}'
+EOF_CRLF
+
+# A banner on standard output, in front of a declaration that is itself valid.
+tmpfs=two-lines.sh:terminator=EOF_TWO_LINES
+echo starting up
+printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show query answer","short-help":"Show the answer."}]}'
+EOF_TWO_LINES
+
+# A doctor check whose diagnostic code lacks the doctor- prefix
+# (validateDoctorCheckDecls, internal/component/plugin/server/startup.go).
+tmpfs=doctor-code.sh:terminator=EOF_DOCTOR_CODE
+printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"doctor-checks":[{"name":"plugin-ready","phase":"pre-config","codes":["plugin-not-ready"]}]}'
+EOF_DOCTOR_CODE
+
+# A command that declares an answer shape ze does not have (the answer-shapes
+# case of stage1Cases, internal/component/plugin/server/stage1_checks_test.go).
+tmpfs=answer-shape.sh:terminator=EOF_ANSWER_SHAPE
+printf '%s\n' '#1 ze-plugin-engine:declare-registration {"protocol-version":1,"commands":[{"name":"show query answer","shape":"no-such-shape"}]}'
+EOF_ANSWER_SHAPE
+
+# --- A conforming program -------------------------------------------------
+# Every declare-mode check and every Stage 1 check the declaration reaches
+# passes, no row failed, and the command exits 0.
+cmd=foreground:seq=1:exec=ze show plugin conformance run "sh conforming.sh" name conformance-subject:exit=0
+expect=stdout:pattern=program-starts +declare +pass
+expect=stdout:pattern=exits-clean +declare +pass
+expect=stdout:pattern=declaration-line +declare +pass
+expect=stdout:pattern=declaration-decodes +declare +pass
+expect=stdout:pattern=protocol-version +1 +pass
+expect=stdout:pattern=doctor-checks +1 +pass
+expect=stdout:pattern=answer-shapes +1 +pass
+expect=stdout:pattern=help-texts +1 +pass
+expect=stdout:pattern=command-names +5 +pass
+# A passing report still says what it did not judge, with the reason. Without
+# these rows a report with no failure reads as full conformance.
+expect=stdout:pattern=tls-connect-back +transport +not-judged +the checker starts no hub
+expect=stdout:pattern=schema +schema +not-judged
+expect=stdout:pattern=respawn-agreement +1 +not-judged +only a running daemon judges this check
+reject=stdout:pattern= (declare|1|5) +fail
+
+# The in-tree mrt plugin, started as its own process the way an operator
+# configures it, conforms too: the checker accepts what ze's own SDK writes.
+cmd=foreground:seq=2:exec=ze show plugin conformance run "ze plugin mrt":exit=0
+expect=stdout:pattern=program-starts +declare +pass
+expect=stdout:pattern=declaration-line +declare +pass
+expect=stdout:pattern=declaration-decodes +declare +pass
+expect=stdout:pattern=protocol-version +1 +pass
+expect=stdout:pattern=command-names +5 +pass
+reject=stdout:pattern= (declare|1|5) +fail
+
+# --- A program that writes nothing -----------------------------------------
+# It started and exited 0, so those two rows pass. It declared nothing, so the
+# two declaration rows fail, and the Stage 1 rows are not-judged: a row nobody
+# could judge is never a pass.
+cmd=foreground:seq=3:exec=ze show plugin conformance run "exit 0" name conformance-subject:exit=1
+expect=stdout:pattern=program-starts +declare +pass
+expect=stdout:pattern=exits-clean +declare +pass
+expect=stdout:pattern=declaration-line +declare +fail +the program wrote nothing to standard output
+expect=stdout:pattern=declaration-decodes +declare +fail +no ze-plugin-engine
+expect=stdout:pattern=protocol-version +1 +not-judged +no declaration was read
+reject=stdout:pattern=protocol-version +1 +pass
+
+# --- A status that is not 0 -------------------------------------------------
+# The declaration is the valid one, so only the exit fails.
+cmd=foreground:seq=4:exec=ze show plugin conformance run "sh exits-three.sh" name conformance-subject:exit=1
+expect=stdout:pattern=exits-clean +declare +fail +the program exited 3 in declare mode
+expect=stdout:pattern=declaration-line +declare +pass
+expect=stdout:pattern=protocol-version +1 +pass
+
+# --- No protocol version ----------------------------------------------------
+# The line is well formed and decodes, so the declare-mode rows pass. The
+# refusal is the daemon's own Stage 1 text, and it names the plugin the
+# command line named.
+cmd=foreground:seq=5:exec=ze show plugin conformance run "sh no-version.sh" name conformance-subject:exit=1
+expect=stdout:pattern=declaration-line +declare +pass
+expect=stdout:pattern=declaration-decodes +declare +pass
+expect=stdout:pattern=protocol-version +1 +fail +plugin conformance-subject declared no protocol version
+
+# --- A CR LF line ending ----------------------------------------------------
+cmd=foreground:seq=6:exec=ze show plugin conformance run "sh crlf.sh" name conformance-subject:exit=1
+expect=stdout:pattern=declaration-line +declare +fail +standard output holds a carriage return
+expect=stdout:pattern=exits-clean +declare +pass
+
+# --- A second line on standard output ----------------------------------------
+# The lenient reader of `show plugin declarations` skips the banner, so the
+# declaration still decodes. The strict form is what refuses it.
+cmd=foreground:seq=7:exec=ze show plugin conformance run "sh two-lines.sh" name conformance-subject:exit=1
+expect=stdout:pattern=declaration-line +declare +fail +standard output holds 2 lines
+expect=stdout:pattern=declaration-decodes +declare +pass
+
+# --- A declaration a Stage 1 content check refuses ---------------------------
+# The line is exactly the strict form, so every declare-mode row passes and
+# the failure is the daemon's refusal of what the declaration says.
+cmd=foreground:seq=8:exec=ze show plugin conformance run "sh doctor-code.sh" name conformance-subject:exit=1
+expect=stdout:pattern=declaration-line +declare +pass
+expect=stdout:pattern=protocol-version +1 +pass
+expect=stdout:pattern=doctor-checks +1 +fail +invalid doctor check: invalid doctor check code
+expect=stdout:contains=must start with
+
+cmd=foreground:seq=9:exec=ze show plugin conformance run "sh answer-shape.sh" name conformance-subject:exit=1
+expect=stdout:pattern=declaration-line +declare +pass
+expect=stdout:pattern=doctor-checks +1 +pass
+expect=stdout:pattern=answer-shapes +1 +fail +invalid answer shape: conformance-subject
+
+# --- A run string that names no program --------------------------------------
+# This is a REPORT, not a run that could not happen: the shell started and
+# found no such command, so program-starts is the failed row and the command
+# exits 1 (queryExitOf, internal/component/plugin/declarations.go; Run,
+# conformance.go, "A program that fails to start is a failed row of the
+# report, never an error"). Exit 2 is kept for a target the checker refuses
+# before it starts anything. Every later row is not-judged, never passed.
+cmd=foreground:seq=10:exec=ze show plugin conformance run "/no/such/ze-plugin" name conformance-subject:exit=1
+expect=stdout:pattern=program-starts +declare +fail +the run string
+expect=stdout:contains=started no program
+expect=stdout:pattern=exits-clean +declare +not-judged +the program did not start
+expect=stdout:pattern=declaration-line +declare +not-judged
+expect=stdout:pattern=protocol-version +1 +not-judged
+reject=stdout:pattern= (declare|1|5) +pass

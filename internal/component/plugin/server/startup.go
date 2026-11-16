@@ -788,61 +788,10 @@ func (e *engineStartupSink) registrationName() string { return e.proc.Registrati
 func (e *engineStartupSink) onRegistration(input *rpc.DeclareRegistrationInput) error {
 	s, proc := e.s, e.proc
 
-	// A chain reference names the plugin, so a second block running the same
-	// plugin's filters would leave every reference to it ambiguous.
-	if err := s.refuseAmbiguousRegistration(proc, input); err != nil {
-		return err
-	}
-	// Validate the drain declaration before conversion: a budget the daemon
-	// could not honor is refused, never clamped.
-	if err := validateDrainDecl(proc.Config().Name, input.DrainBudget, input.DrainHandler); err != nil {
-		return err
-	}
-	// Validate the resolver caches before conversion: a misspelled cache
-	// would leave the plugin out of every clear with nothing said.
-	if err := validateResolverCacheDecls(proc.Config().Name, input.ResolverCaches); err != nil {
-		return err
-	}
-	// Validate doctor check declarations before conversion.
-	if err := validateDoctorCheckDecls(input.DoctorChecks); err != nil {
-		return fmt.Errorf("invalid doctor check: %w", err)
-	}
-	if err := refuseDoctorCheckDeclaredTwice(proc.Config().Name, registryRow(proc.Config()), input.DoctorChecks); err != nil {
-		return err
-	}
-	// Validate enricher declarations before proxy registration.
-	if err := validateEnricherDecls(input.Enrichers); err != nil {
-		return fmt.Errorf("invalid enricher: %w", err)
-	}
-	// Validate pipe alias declarations before conversion. The pipe resolver
-	// reads the alias registry in this process. A declaration that reaches that
-	// registry is live for every operator, so a refusal happens before it. The
-	// commands travel with the pipes because an alias may sit only on a command
-	// path this same message declares.
-	if err := validatePipeDecls(input.Pipes, input.Commands); err != nil {
-		return fmt.Errorf("invalid pipe alias: %w", err)
-	}
-	// Validate the answer-shape declarations in the same position and for the
-	// same reason. A shape decides which operators the command publishes and
-	// which it refuses before dispatch, so a declaration is checked against a
-	// closed set and a bound before any of it is stored.
-	if err := validateShapeDecls(input.Commands); err != nil {
-		logger().Error("plugin answer shape refused", "plugin", proc.Config().Name, "error", err)
-		return fmt.Errorf("invalid answer shape: %s: %w", proc.Config().Name, err)
-	}
-	// Validate the two declared help texts in the same position. They reach an
-	// operator's terminal, an HTML page and a JSON document, so the bound and
-	// the control-character refusal happen before the declaration is stored.
-	if err := validateHelpDecls(input.Commands); err != nil {
-		logger().Error("plugin help text refused", "plugin", proc.Config().Name, "error", err)
-		return fmt.Errorf("invalid help text: %s: %w", proc.Config().Name, err)
-	}
-
-	// The plugin has now said what its own failure means, and the configuration
-	// said what the operator expects. This is the first moment both are known,
-	// so it is where they are checked against each other.
-	if err := refuseRespawnDisagreement(proc.Config().Name, proc.Config().Respawn, input.FailurePolicy); err != nil {
-		logger().Error("plugin respawn refused", "plugin", proc.Config().Name, "error", err)
+	// The sink-phase checks of the Stage 1 table run before conversion, in
+	// table order, so a refused declaration stores nothing. Each entry carries
+	// its reason, its wrap prefix and its log line (stage1_checks.go).
+	if err := e.refuseSinkChecks(input); err != nil {
 		return err
 	}
 

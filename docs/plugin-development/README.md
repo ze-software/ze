@@ -70,6 +70,24 @@ go build -o my-plugin
 `ze plugin test [options] <config-file>` inspects plugin YANG loading and config delivery. It does not validate an arbitrary plugin binary. To exercise an external binary, run ze with a config that declares it in `plugin { external ... }`, or add a functional test that starts the plugin through the normal process manager.
 <!-- source: internal/component/plugin/cli/test_cmd.go -- cmdPluginTest usage -->
 
+To check that a program in any language behaves as a plugin, run the
+conformance checker on its run string:
+
+```bash
+ze show plugin conformance run "./my-plugin"
+```
+
+The checker starts the program in declare mode and writes one row for each
+check, with a verdict of `pass`, `fail` or `not-judged`. It exits 0 when no row
+failed, 1 when a row failed, and 2 when the run did not happen. Inside the Ze
+repository, `./le plugin conformance check run "./my-plugin"` runs the same
+checker. A `not-judged` row is a behavior this version does not check, such as
+the TLS connect-back and Stages 2 to 5, so test those under a daemon. The rows,
+the exit codes and a sample report are in [testing.md](testing.md), "Checking
+That a Program Is a Valid Plugin".
+<!-- source: internal/component/plugin/conformance/register.go -- dataConformance, init -->
+<!-- source: internal/le/plugin/conformance/actions.go -- runCheck -->
+
 ### 3. Configure Ze
 
 ```

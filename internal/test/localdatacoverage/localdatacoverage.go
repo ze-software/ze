@@ -18,6 +18,7 @@ import (
 	// The help plugin is hand-wired outside plugin/all (it imports
 	// cli/client, which cycles with plugin/all), so this binary links it here.
 	_ "github.com/ze-software/ze/internal/plugins/help"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // The two schema views this coverage walk names in its command, its evidence
@@ -38,7 +39,7 @@ const envConfigDirDotted = "ze.config.dir"
 // this walk was never run against.
 const pluginNameRIB = "rib"
 
-const CompletionMarker = "OK: 44/44 local-data commands and local one-shot save"
+const CompletionMarker = "OK: 45/45 local-data commands and local one-shot save"
 
 // Marker returns the terminal-delimited evidence emitted after a local command
 // has successfully run and answered JSON.
@@ -78,6 +79,7 @@ func Evidence() []Invocation {
 		{Command: "show plugin list | json compact", Evidence: "show plugin list"},
 		{Command: "show plugin declarations | json compact", Evidence: "show plugin declarations"},
 		{Command: "show plugin declarations config %s | json compact", Evidence: "show plugin declarations config"},
+		{Command: "show plugin conformance run cat<%s | json compact", Evidence: "show plugin conformance run"},
 		{Command: "show config cat pipe-local.conf | json compact", Evidence: "show config cat"},
 		{Command: "show config fmt %s | json compact", Evidence: "show config fmt"},
 		{Command: "show config graph %s | json compact", Evidence: "show config graph"},
@@ -985,6 +987,48 @@ func runScenario(output io.Writer, work string) error {
 	if err := requireAnyRow(values, func(row map[string]any) bool {
 		return row["name"] == pluginNameRIB
 	}, "show plugin declarations config dropped the compiled-in rows: %#v", values); err != nil {
+		return err
+	}
+
+	// The program the checker starts is `cat` reading a file that holds the
+	// declaration line the protocol's own writer produces. `ze cli -c` splits
+	// a command on white space, so the run string is one word: the shell reads
+	// `cat<file` as cat with its input redirected.
+	var declarationLine bytes.Buffer
+	if err := rpc.WriteDeclaration(&declarationLine, &rpc.DeclareRegistrationInput{
+		ProtocolVersion: rpc.ProtocolVersion,
+		Commands:        []rpc.CommandDecl{{Name: "show pipe-local answer", ShortHelp: "Show the answer."}},
+	}); err != nil {
+		return fmt.Errorf("write the conformance declaration: %w", err)
+	}
+	declarationPath := filepath.Join(work, "pipe-local-declaration.line")
+	if err := writeFixture(declarationPath, declarationLine.String()); err != nil {
+		return err
+	}
+	// localJSON refuses an exit other than 0, so an answer here already says
+	// no row failed. The rows below say the program was really started and its
+	// declaration really judged, and that a behavior nobody judged stays a row.
+	payload, err = localJSON(
+		"show plugin conformance run cat<"+declarationPath+" | json compact",
+		"show plugin conformance run", output)
+	if err != nil {
+		return err
+	}
+	values, err = rows(payload, "checks")
+	if err != nil {
+		return err
+	}
+	for _, check := range []string{"program-starts", "declaration-line", "protocol-version"} {
+		if err := requireAnyRow(values, func(row map[string]any) bool {
+			return row["check"] == check && row["verdict"] == "pass"
+		}, "show plugin conformance run did not pass the check %s for a conforming program: %#v", check, values); err != nil {
+			return err
+		}
+	}
+	if err := requireAnyRow(values, func(row map[string]any) bool {
+		reason, hasReason := row["reason"].(string)
+		return row["check"] == "schema" && row["verdict"] == "not-judged" && hasReason && reason != ""
+	}, "show plugin conformance run lost the row of a behavior it does not judge: %#v", values); err != nil {
 		return err
 	}
 
