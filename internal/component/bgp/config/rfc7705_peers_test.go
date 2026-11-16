@@ -1,3 +1,6 @@
+// Design: docs/architecture/config/syntax.md -- dynamic peer transport and next-hop configuration
+// Related: ../reactor/config.go -- shared peer and dynamic-group template parser
+
 package bgpconfig
 
 import (
@@ -531,28 +534,16 @@ func TestClusterIDSync(t *testing.T) {
 }
 
 // TestDynamicGroupTemplateRefusesLinkLocalGlobalNextHop drives the RFC 2545
-// Section 3 next-hop form guard from the dynamic-group entry point.
+// Section 3 guard for an explicit global next hop from the dynamic-group entry point.
 //
 // RFC 2545 Section 3: "A BGP speaker shall advertise to its peer in the Network
 // Address of Next Hop field the global IPv6 address of the next hop, potentially
-// followed by the link-local IPv6 address of the next hop." A dynamic group's
-// template feeds the same two leaves as a statically configured peer, and since
-// 2026-08-13 it feeds them to the same parser, so the config is REFUSED rather
-// than accepted with the value dropped.
+// followed by the link-local IPv6 address of the next hop." This field is
+// independent of the TCP endpoint parsed from connection > local > ip.
 //
-// VALIDATES: a link-local `local ip` and a link-local `next-hop` each fail the
-// build, naming the group.
-// PREVENTS: a dynamic peer emitting a link-local as the sole address of the Next
-// Hop field.
+// VALIDATES: a link-local session > next-hop fails parsing and names the group.
+// PREVENTS: an explicit global next hop bypassing its wire-form guard.
 func TestDynamicGroupTemplateRefusesLinkLocalGlobalNextHop(t *testing.T) {
-	t.Run("local ip", func(t *testing.T) {
-		_, err := reactor.ParseDynamicGroupTemplate("ix", map[string]any{
-			"connection": map[string]any{"local": map[string]any{"ip": "fe80::1"}},
-		}, 65000, 0x0a000001)
-		require.Error(t, err)
-		assert.Contains(t, err.Error(), "ix")
-	})
-
 	t.Run("next-hop", func(t *testing.T) {
 		_, err := reactor.ParseDynamicGroupTemplate("ix", map[string]any{
 			"connection": map[string]any{"local": map[string]any{"ip": "2001:db8::1"}},
@@ -561,6 +552,38 @@ func TestDynamicGroupTemplateRefusesLinkLocalGlobalNextHop(t *testing.T) {
 		require.Error(t, err)
 		assert.Contains(t, err.Error(), "ix")
 	})
+}
+
+// TestDynamicGroupTemplateAcceptsLinkLocalTransport parses both spellings of a
+// link-local TCP endpoint and checks that neither sets an explicit next hop.
+// Peer admission later refuses an unscoped local bind; next-hop resolution
+// separately checks the emitted address's wire form and negotiated capabilities.
+func TestDynamicGroupTemplateAcceptsLinkLocalTransport(t *testing.T) {
+	for _, localIP := range []string{"fe80::1", "fe80::1%if0"} {
+		t.Run(localIP, func(t *testing.T) {
+			ps, err := reactor.ParseDynamicGroupTemplate("ix", map[string]any{
+				"connection": map[string]any{"local": map[string]any{"ip": localIP}},
+			}, 65000, 0x0a000001)
+
+			require.NoError(t, err)
+			require.NotNil(t, ps)
+			assert.Equal(t, netip.MustParseAddr(localIP), ps.LocalAddress)
+			assert.Equal(t, reactor.NextHopAuto, ps.NextHopMode)
+			assert.False(t, ps.NextHopAddress.IsValid(), "a TCP endpoint is not an explicit next hop")
+		})
+	}
+}
+
+// TestDynamicGroupTemplateRefusesMalformedLocalTransport keeps syntax refusal
+// at the shared parser while link-local transport remains valid input.
+func TestDynamicGroupTemplateRefusesMalformedLocalTransport(t *testing.T) {
+	_, err := reactor.ParseDynamicGroupTemplate("ix", map[string]any{
+		"connection": map[string]any{"local": map[string]any{"ip": "not-an-ip"}},
+	}, 65000, 0x0a000001)
+
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "ix")
+	assert.Contains(t, err.Error(), "invalid local ip")
 }
 
 // TestDynamicGroupTemplateAcceptsGlobalNextHop is the other side of the guard.
