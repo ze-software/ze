@@ -389,8 +389,16 @@ zeroing clauses make the value go down, which a Prometheus counter may not do.
 - **Expiry (Event 12):** send OPEN, start the OPEN-wait HoldTimer, enter OpenSent.
 - **Failure and collision:** Connect Event 18 clears the delay and moves to
   Active without incrementing; Active Event 18 clears it and moves to Idle with
-  an increment. An inbound OPEN may retire an OPEN-less held socket with
-  Event 23 and no NOTIFICATION. Two OPEN-less sockets are not compared by ID.
+  an increment. Active's restart also applies after strict Event 20 cleared
+  DelayOpen and left the FSM in its BFD-pending sub-state. The Session preserves
+  the actual restarted ConnectRetryTimer's sampled deadline and owning clock
+  before retiring the old timer set. The Peer reads the remaining budget from
+  that clock when it starts
+  its wait, with cleanup time deducted, rather than substituting exponential
+  backoff or sampling another interval. An
+  inbound connection can still end the wait early. An inbound OPEN may retire
+  an OPEN-less held socket with Event 23 and no NOTIFICATION. Two OPEN-less
+  sockets are not compared by ID.
 - **Ownership:** the Session serializes expiry, OPEN receipt, and OPEN-less
   collision retirement. A delayed OPEN write failure and the reader it wakes
   share one Event 18 owner; transport closure must not erase the running-delay
@@ -405,8 +413,10 @@ zeroing clauses make the value go down, which a Prometheus counter may not do.
   runs that work after its own action list and before it releases the lock, so
   no other waiter acts ahead of the owed Event 18 and Peer cleanup's final join
   returns only after it. The owed work releases the lock through a deferred
-  unlock, so a panic in the Event 18 delivery cannot leave it held. The retire
-  stops every protocol timer and the RFC 9687 Send Hold Timer, and seals them:
+  unlock, so a panic in the Event 18 delivery cannot leave it held. Every retire
+  first drains an owed Event 18, including one stored after the holder's earlier
+  check, before it clears DelayOpen. The retire stops every protocol timer and
+  the RFC 9687 Send Hold Timer, and seals them:
   an arm after it (a release's Established branch, a late BFD event) arms
   nothing, and a start that answers whether to wait answers that it must. Peer
   cleanup's final join comes after the publication join. A negotiated session
@@ -416,7 +426,7 @@ zeroing clauses make the value go down, which a Prometheus counter may not do.
 
 <!-- source: internal/component/bgp/reactor/session_read.go -- handleConnectionClose, unlockOpen, runOwedOpenWork, runOwedAndUnlock -->
 <!-- source: internal/component/bgp/reactor/session_delay_open.go -- retireSessionTimers, retireTimers, stopSessionTimers -->
-<!-- source: internal/component/bgp/fsm/timer.go -- Retire -->
+<!-- source: internal/component/bgp/fsm/timer.go -- Retire, ConnectRetryBudget, retryBudget.Remaining -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- startSendHoldTimer, retireSendHoldTimer -->
 <!-- source: internal/component/bgp/reactor/peer_session_end.go -- endNegotiatedSession -->
 <!-- source: internal/component/bgp/reactor/session_owed_work_test.go -- TestOwedEvent18PanicReleasesOpenMu, TestOwedRetireStopsSendHoldAndSeals -->

@@ -72,7 +72,7 @@ func readEvents(t *testing.T, path string) (capture.Header, []*capture.Event) {
 // spec exists to close.
 func TestSessionCaptureWritesEvents(t *testing.T) {
 	dir := t.TempDir()
-	c, err := newSessionCapture(testCapturePeer(dir), true, clock.RealClock{}, nil)
+	c, err := newSessionCapture(testCapturePeer(dir), true, nil)
 	if err != nil {
 		t.Fatalf("new capture: %v", err)
 	}
@@ -127,7 +127,7 @@ func TestSessionCaptureWritesEvents(t *testing.T) {
 // PREVENTS: a replay that cannot tell which transaction changed the peer.
 func TestSessionCaptureRecordsConfigEvents(t *testing.T) {
 	dir := t.TempDir()
-	c, err := newSessionCapture(testCapturePeer(dir), false, clock.RealClock{}, nil)
+	c, err := newSessionCapture(testCapturePeer(dir), false, nil)
 	if err != nil {
 		t.Fatalf("new capture: %v", err)
 	}
@@ -171,7 +171,7 @@ func TestReactorCaptureConfigEventReachesOpenCaptures(t *testing.T) {
 	// A config event with nothing registered must be a no-op, not a panic.
 	r.CaptureConfigEvent(capture.OpCommit, "tx-none", []byte(`{"a":1}`))
 
-	first, err := newSessionCapture(testCapturePeer(dir), false, clock.RealClock{}, nil)
+	first, err := newSessionCapture(testCapturePeer(dir), false, nil)
 	if err != nil {
 		t.Fatalf("new capture: %v", err)
 	}
@@ -179,7 +179,7 @@ func TestReactorCaptureConfigEventReachesOpenCaptures(t *testing.T) {
 
 	second := testCapturePeer(dir)
 	second.Address = netip.MustParseAddr("192.0.2.2")
-	other, err := newSessionCapture(second, false, clock.RealClock{}, nil)
+	other, err := newSessionCapture(second, false, nil)
 	if err != nil {
 		t.Fatalf("new second capture: %v", err)
 	}
@@ -232,7 +232,7 @@ func TestReactorCaptureConfigEventReachesOpenCaptures(t *testing.T) {
 // ended the process, destroying both generations on the way.
 func TestSessionCaptureStopsWhenAnEventCannotEverFit(t *testing.T) {
 	dir := t.TempDir()
-	c, err := newSessionCapture(testCapturePeer(dir), false, clock.RealClock{}, nil)
+	c, err := newSessionCapture(testCapturePeer(dir), false, nil)
 	if err != nil {
 		t.Fatalf("new capture: %v", err)
 	}
@@ -285,7 +285,7 @@ func TestSessionCapturePreservesThePreviousSession(t *testing.T) {
 	dir := t.TempDir()
 	ps := testCapturePeer(dir)
 
-	first, err := newSessionCapture(ps, false, clock.RealClock{}, nil)
+	first, err := newSessionCapture(ps, false, nil)
 	if err != nil {
 		t.Fatalf("new capture: %v", err)
 	}
@@ -293,7 +293,7 @@ func TestSessionCapturePreservesThePreviousSession(t *testing.T) {
 	first.recordMessage(time.Unix(1, 0), 1, []byte{0xde, 0xad, 0xbe, 0xef}, 0, 0)
 	first.Close()
 
-	second, err := newSessionCapture(ps, false, clock.RealClock{}, nil)
+	second, err := newSessionCapture(ps, false, nil)
 	if err != nil {
 		t.Fatalf("new capture after reconnect: %v", err)
 	}
@@ -330,7 +330,7 @@ func TestReactorRefusesASecondCaptureOnOnePath(t *testing.T) {
 		t.Fatal("an empty reactor reports the path as held")
 	}
 
-	first, err := newSessionCapture(ps, false, clock.RealClock{}, nil)
+	first, err := newSessionCapture(ps, false, nil)
 	if err != nil {
 		t.Fatalf("new capture: %v", err)
 	}
@@ -363,7 +363,7 @@ func TestReactorRefusesASecondCaptureOnOnePath(t *testing.T) {
 // PREVENTS: a replay log that can fill a disk.
 func TestSessionCaptureRotatesAtLimit(t *testing.T) {
 	dir := t.TempDir()
-	c, err := newSessionCapture(testCapturePeer(dir), false, clock.RealClock{}, nil)
+	c, err := newSessionCapture(testCapturePeer(dir), false, nil)
 	if err != nil {
 		t.Fatalf("new capture: %v", err)
 	}
@@ -409,7 +409,7 @@ func TestSessionCaptureStopsAtLimit(t *testing.T) {
 	dir := t.TempDir()
 	ps := testCapturePeer(dir)
 	ps.Capture.OnLimit = CaptureLimitStop
-	c, err := newSessionCapture(ps, false, clock.RealClock{}, nil)
+	c, err := newSessionCapture(ps, false, nil)
 	if err != nil {
 		t.Fatalf("new capture: %v", err)
 	}
@@ -448,7 +448,7 @@ func TestSessionCaptureStopsAtLimit(t *testing.T) {
 func TestSessionCaptureDropsUnderBackpressure(t *testing.T) {
 	dir := t.TempDir()
 	dropped := 0
-	c, err := newSessionCapture(testCapturePeer(dir), false, clock.RealClock{},
+	c, err := newSessionCapture(testCapturePeer(dir), false,
 		func() { dropped++ })
 	if err != nil {
 		t.Fatalf("new capture: %v", err)
@@ -496,7 +496,7 @@ func TestSessionCaptureFailsClosedOnBadDirectory(t *testing.T) {
 		t.Fatalf("write blocker: %v", err)
 	}
 	bad := testCapturePeer(filepath.Join(blocker, "sub"))
-	_, err := newSessionCapture(bad, false, clock.RealClock{}, nil)
+	_, err := newSessionCapture(bad, false, nil)
 	if err == nil {
 		t.Fatal("expected an error when the capture directory cannot be created")
 	}
@@ -552,7 +552,7 @@ func BenchmarkSessionTeeCaptureEnabled(b *testing.B) {
 	dir := b.TempDir()
 	benchPeer := testCapturePeer(dir)
 	benchPeer.Capture.MaximumSize = 1024
-	c, err := newSessionCapture(benchPeer, false, clock.RealClock{}, nil)
+	c, err := newSessionCapture(benchPeer, false, nil)
 	if err != nil {
 		b.Fatalf("new capture: %v", err)
 	}
@@ -673,7 +673,7 @@ func captureBothPaths(t *testing.T, dir string, coalesce bool, msgs ...[]byte) [
 		return false
 	}
 
-	sc, err := newSessionCapture(settings, coalesce, clock.RealClock{}, nil)
+	sc, err := newSessionCapture(settings, coalesce, nil)
 	if err != nil {
 		t.Fatalf("new capture: %v", err)
 	}

@@ -248,11 +248,19 @@ reason: `peer 192.0.2.1 remote as 65001 state down reason notification notificat
 ### Connected and FSM Events
 
 A process subscribed to `connected` hears that a peer's TCP connection is
-established, before any OPEN is read on it (RFC 4271 Section 8.2.2, Event 17
-into OpenSent). A process subscribed to `fsm` hears every FSM state change,
-with the state it left and the state it entered, named IDLE, CONNECT, ACTIVE,
-OPENSENT, OPENCONFIRM or ESTABLISHED. The `connected` event comes before the
-`fsm` event of the same change.
+established, exactly once and before any OPEN is read on that connection.
+The event names that connection's actual local endpoint. A dynamic peer's
+remote AS is omitted until its OPEN has been negotiated. This also applies to
+an independent incoming candidate while another connection belongs to the
+same peer.
+
+A process subscribed to `fsm` hears every published FSM state change, with
+the state it left and the state it entered, named IDLE, CONNECT, ACTIVE,
+OPENSENT, OPENCONFIRM or ESTABLISHED. With DelayOpen disabled, `connected`
+precedes the TCP-driven transition into OpenSent (RFC 4271 Section 8.2.2,
+Event 17). With DelayOpen enabled, TCP success leaves the FSM in Connect or
+Active; `connected` is still delivered immediately, before the timer expires
+or the peer sends its OPEN. It is not repeated when the handshake advances.
 
 ```json
 {"type":"bgp","bgp":{"message":{"type":"connected"},"peer":{...}}}
@@ -265,8 +273,8 @@ structured (DirectBridge) form: every process takes the line.
 
 The engine queues `connected`, `fsm` and `signal` on each process's delivery
 queue and does not wait for the process to answer, because it emits them from
-the FSM before the OPEN goes out and from the hub before a stop or reload
-starts. A slow or wedged subscriber therefore delays neither. Each process
+the TCP and FSM lifecycle before the OPEN is read and from the hub before a
+stop or reload starts. A slow or wedged subscriber therefore delays neither. Each process
 still receives its events in the order they were emitted; a failed write is
 logged.
 <!-- source: internal/component/bgp/server/events.go -- deliverPeerLine -->

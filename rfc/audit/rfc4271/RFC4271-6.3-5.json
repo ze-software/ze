@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "7c393f540d8a8390",
     "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "7c393f540d8a8390",
-    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
-    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "f1eef5c477ba7bae",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "f1eef5c477ba7bae"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "3fbb82b3c24c3e42",

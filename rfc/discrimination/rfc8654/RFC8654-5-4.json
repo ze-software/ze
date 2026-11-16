@@ -38,10 +38,10 @@
     "unit": "internal/component/bgp/reactor/rfc8654_bad_length_session_test.go::TestRFC8654OverLengthUpdateFollowsRFC4271ErrorHandling",
     "unit-sha": "e505f6a0e2320bce",
     "claim-sha": "b4745def98d4faee",
-    "route": "revert",
-    "producer": "internal/component/bgp/reactor/session_read.go::readAndProcessMessage",
-    "producer-sha": "72cbf8588bf90014",
-    "break": "body of readAndProcessMessage replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_read.go::readFrame",
+    "producer-sha": "eac5e6e08f478752",
+    "break": "line 125: \"message.NotifyMessageHeader,\" -\u003e \"message.NotifyCease, // MUTATION-APPLIED: retain close but misclassify the fatal length\""
   },
   {
     "rid": "RFC8654-5-4",

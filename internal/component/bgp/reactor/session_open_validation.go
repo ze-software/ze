@@ -43,9 +43,13 @@ import (
 // Both OPEN rails (handleOpen and processOpen) call this; on rejection it sends the NOTIFICATION,
 // logs the FSM error event, and closes the connection, so no caller can skip the mandated report.
 func (s *Session) validateOpenIdentifier(open *message.Open) error {
-	peerAS := s.judgedPeerAS(open)
-	internal := s.settings.isIBGPWith(peerAS)
-	err := open.ValidateBGPIdentifier(s.settings.RouterID, internal)
+	proposal, err := s.openProposal()
+	if err != nil {
+		return err
+	}
+	peerAS := proposal.judgedPeerAS(open)
+	internal := proposal.settings.isIBGPWith(peerAS)
+	err = open.ValidateBGPIdentifier(proposal.message.BGPIdentifier, internal)
 	if err == nil {
 		return nil
 	}
@@ -63,8 +67,13 @@ func (s *Session) validateOpenIdentifier(open *message.Open) error {
 	sessionLogger().Warn("RFC 6286 Section 2.2: bad BGP Identifier in OPEN",
 		"peer", s.settings.Address,
 		"bgp-identifier", open.RouterID(),
-		"local-identifier", localRouterIDString(s.settings.RouterID),
-		"internal-peer", internal)
+		"local-identifier", localRouterIDString(proposal.message.BGPIdentifier),
+		"internal-peer", internal,
+		"code", codeOpenConnectionRefused, "effect", "this BGP connection is refused",
+		"action", openIdentifierRefusalAction, "fix", openConnectionRefusalFix)
+	s.reportOpenConnectionRefusal("the peer sent an unacceptable BGP Identifier",
+		openIdentifierRefusalAction, map[string]any{"bgp-identifier": open.RouterID(),
+			"local-identifier": localRouterIDString(proposal.message.BGPIdentifier), "internal-peer": internal})
 
 	return fmt.Errorf("%w: bgp identifier %s", ErrBadBGPIdentifier, open.RouterID())
 }
@@ -81,12 +90,12 @@ func localRouterIDString(id uint32) string {
 // resolution -- used to skip the validator entirely, so any per-peer OPEN policy could be bypassed
 // by arriving as the second connection.
 func (s *Session) runOpenValidator(open *message.Open) error {
-	s.mu.RLock()
-	localOpen := s.localOpen
-	s.mu.RUnlock()
-
-	if s.openValidator == nil || localOpen == nil {
+	if s.openValidator == nil {
 		return nil
+	}
+	proposal, err := s.openProposal()
+	if err != nil {
+		return err
 	}
 
 	// Use peer name for plugin lookup (plugins key by name from config).
@@ -95,7 +104,7 @@ func (s *Session) runOpenValidator(open *message.Open) error {
 		peerID = s.settings.Address.String()
 	}
 
-	err := s.openValidator(peerID, localOpen, open)
+	err = s.openValidator(peerID, proposal.message, open)
 	if err == nil {
 		return nil
 	}
@@ -127,5 +136,10 @@ func (s *Session) runOpenValidator(open *message.Open) error {
 	}
 
 	s.logNotifyErr(valConn, notifyCode, notifySubcode, nil)
+	// RFC 4271 Section 8.1.5: "An event is generated when an OPEN message has
+	// been received with errors." Event22 owns Idle and the counter before
+	// an unselected candidate's retirement can report transport closure.
+	s.logFSMEvent(fsm.EventBGPOpenMsgErr)
+	s.closeConn()
 	return fmt.Errorf("open validation failed: %w", err)
 }

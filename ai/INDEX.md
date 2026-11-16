@@ -641,6 +641,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | PPPoE, pppoe-client, access concentrator | `internal/component/l2tp/pppoe/` (AC), `internal/component/iface/` (client), `ze-pppoe-conf.yang` |
 | L2TP interop, kl2tpd, many sessions per tunnel, ff 03, ACFC | `docs/labs/l2tp-interop.md`, `internal/le/interoplab/l2tp/scale.go`, `internal/le/interoplab/l2tp/scale_window.go`, `internal/le/interoplab/l2tp/ppp_framing.go` |
 | PPP MRU, authentication-allow, authentication allow-list, CHAP-only, PAP fallback | `docs/guide/l2tp.md`, `docs/guide/pppoe.md`, `internal/component/l2tp/ppp/auth_policy.go` |
+| PPP cleanup, doctor-ppp-cleanup, unconfirmed session removal | `docs/guide/monitoring.md`, `internal/component/l2tp/ppp/cleanup_health.go`, `internal/component/l2tp/doctor_cleanup.go` |
 | wireguard, WireGuard, wg | `internal/component/iface/wireguard.go`, `ze-iface-conf.yang` |
 | VRRP, first-hop redundancy, virtual router, keepalived, gateway redundancy, virtual MAC | `internal/plugins/vrrp/` (plugin), `internal/component/iface/macvlan.go` (per-group virtual-MAC macvlan), `ze-vrrp-conf.yang`, `docs/guide/vrrp.md`, `docs/features/rfc-status.md` (First-hop redundancy) |
 | static route, default route | `internal/plugins/static/` (plugin), `ze-static-conf.yang` |
@@ -655,6 +656,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | subscriber, session, PPPoE, L2TP | `ai/digests/subscriber.md`, `internal/component/l2tp/pppoe/` |
 | editor, TUI, completion, headless | `internal/component/cli/`, `test/editor/`, `ai/rules/testing.md` (Editor Tests section) |
 | diagnostic, doctor, health, readiness, plugin setup, setup outcome, show plugin list, why is this feature absent | `docs/architecture/doctor-and-health-checks.md`, `docs/architecture/diagnostics/production-diagnostics.md`, `ai/rules/repo-maintenance.md` |
+| BGP OPEN connection refusal, strict-BFD BGP hold expiry, doctor-bgp-open-connection-refused, doctor-bgp-bfd-wait-hold-expired | `docs/architecture/behavior/fsm-open-sent.md` (Connection diagnostics), `internal/component/bgp/reactor/session_problem_diagnostic.go` |
 | error inventory, user-visible messages, which errors name a fix, surface writer, ./le arch error-inventory | `docs/contributing/error-inventory.md`, `ai/rules/user-facing-errors.md` |
 | EventBus, event, pub/sub, subscribe, emit | `pkg/ze/eventbus.go`, `ai/rules/plugins.md` (EventBus Typed Payloads), `internal/core/events/typed.go` |
 | DirectBridge, bridge, direct call, typed handler | `pkg/plugin/rpc/bridge.go`, `ai/rules/plugins.md` (DirectBridge), `plan/learned/DESIGN-HISTORY.md` "Plugin system: architecture" |

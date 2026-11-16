@@ -46,7 +46,7 @@ func pathsLimitSession(t *testing.T, limits map[family.Family]uint16) (*Session,
 	}
 	local = append(local, ap)
 	remote = append(remote, ap, pl)
-	s.localOpen = &message.Open{HoldTime: 90}
+	s.proposal = preparedOpenForTest(s, &message.Open{HoldTime: 90})
 	s.peerOpen = &message.Open{ASN4: 65001, HoldTime: 90}
 	s.negotiateWith(local, remote)
 	// Establishment publishes the negotiated wire contexts before any UPDATE.

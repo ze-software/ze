@@ -181,7 +181,7 @@ func reactorHasPeer(r *Reactor, settings *PeerSettings) bool {
 func peerHoldsInbound(p *Peer) bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.inbound.conn != nil
+	return inboundConn(p.inbound) != nil
 }
 
 // requireEndpointFree fails the test when something listens on endpoint: the

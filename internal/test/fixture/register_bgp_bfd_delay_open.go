@@ -57,7 +57,7 @@ func bgpBFDDelayOpen(ctx context.Context, args []string) error {
 			return err
 		}
 		if err := delayOpenFixtureRead(conn, 1); err != nil {
-			return err
+			return fmt.Errorf("strict DelayOpen initial OPEN: %w", err)
 		}
 		if err := bfdDelayOpenFixtureState(ctx, plugin, "ACTIVE", "ACTIVE-DELAYOPEN-BFD-UP-PENDING"); err != nil {
 			return err
@@ -83,7 +83,7 @@ func bgpBFDDelayOpen(ctx context.Context, args []string) error {
 			return err
 		}
 		if err := delayOpenFixtureRead(conn, 4); err != nil {
-			return err
+			return fmt.Errorf("strict DelayOpen BFD release KEEPALIVE: %w", err)
 		}
 		if err := bfdDelayOpenFixtureState(ctx, plugin, "OPENCONFIRM", ""); err != nil {
 			return err

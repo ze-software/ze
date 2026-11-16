@@ -119,11 +119,12 @@ In order:
 5. If an `openValidator` is configured (e.g. RFC 9234 role check), it
    runs and may reject with a typed
    `interface{ NotifyCodes() (uint8, uint8) }`. Rejection sends
-   NOTIFICATION but does **not** fire an FSM event (the caller returns
-   the error and the read loop exits, which later trips
-   `handleConnectionClose` -> `EventTCPConnectionFails`).
-6. Capabilities are parsed and negotiated via `negotiateWith`, which also fixes
-   the session's peer AS and its internal verdict. `sessionPeerAS` (`peer.go`)
+   NOTIFICATION, fires `EventBGPOpenMsgErr` (Event22), and closes that
+   connection. Its OPEN-error transition owns Idle and the retry-history
+   increment before later transport retirement runs.
+6. Parsed capabilities are negotiated by the pure `prepareNegotiation` calculation;
+   `publishNegotiation` publishes that result when admission advances. The result
+   fixes the session's peer AS and its internal verdict. `sessionPeerAS` (`peer.go`)
    answers the AS, taking the configured value before the one the OPEN
    advertises. `PeerSettings.isIBGPWith` (`session_as_migration.go`) answers the
    verdict. Both go into `capability.Negotiate` as a `PeerIdentity`, so
@@ -161,12 +162,40 @@ is in `fsm.md`.
 
 <!-- source: internal/component/bgp/reactor/session_bfd_strict.go — advanceAfterOpen, bfdStrictHolds, handleBFDEvent -->
 <!-- source: internal/component/bgp/reactor/session_handlers.go — handleOpen -->
-<!-- source: internal/component/bgp/reactor/session_negotiate.go — negotiateWith -->
+<!-- source: internal/component/bgp/reactor/session_negotiate.go — prepareNegotiation, publishNegotiation -->
+<!-- source: internal/component/bgp/reactor/session_open_admission.go — openAdmission.advance -->
 <!-- source: internal/component/bgp/reactor/peer.go -- sessionPeerAS, openAdvertisedAS -->
 <!-- source: internal/component/bgp/reactor/session_as_migration.go -- isIBGPWith -->
 <!-- source: internal/component/bgp/reactor/session_open_as.go -- validateOpenPeerAS, rejectOpenPeerAS -->
 <!-- source: internal/component/bgp/reactor/session_as_migration.go -- peerASAccepted -->
 <!-- source: internal/component/bgp/reactor/session.go — openValidator, setOpenValidator -->
+
+## Connection diagnostics
+
+An OPEN refused for a configured peer-AS mismatch or an unacceptable BGP
+Identifier raises `doctor-bgp-open-connection-refused` on the bounded report
+bus. A BGP HoldTimer that expires while waiting for strict-mode BFD or its
+hold-down interval raises `doctor-bgp-bfd-wait-hold-expired`, with the wait,
+hold time and hold-down interval. `show errors` retains these connection events;
+the runtime `recent-events` check shows them in `show doctor` under their own
+codes. They remain history if a later connection succeeds.
+
+An independent incoming connection can fail while the selected session stays
+healthy. Its event records that connection's refusal or expiry, without changing
+the selected session's last-notification record or reporting that peer down.
+Notification delivery is separate: the cause remains recorded even when the
+notification cannot be delivered. For OPEN refusals, compare the event's values
+with both routers' AS and BGP Identifier settings, correct the mismatch, and
+check `ze show bgp peer list`. For a strict-mode expiry, run
+`ze show bfd sessions`, then check BFD reachability and whether the hold-down
+interval can finish before the BGP hold timer expires.
+
+<!-- source: internal/component/bgp/reactor/session_problem_diagnostic.go -- reportOpenConnectionRefusal, reportBFDWaitHoldExpiry -->
+<!-- source: internal/component/bgp/reactor/session_open_as.go -- validateOpenPeerAS -->
+<!-- source: internal/component/bgp/reactor/session_open_validation.go -- validateOpenIdentifier -->
+<!-- source: internal/component/bgp/reactor/session_hold_expiry.go -- holdTimerExpiredLocked, logHoldDownExpiry -->
+<!-- source: internal/component/bgp/reactor/peer_stats.go -- attachStatsCallbacks, sessionOwnsStats -->
+<!-- source: internal/component/doctor/checks_recent_events.go -- checkRecentEvents, recentEventsDiagnostic -->
 
 ## Timers running in this state
 
@@ -182,9 +211,15 @@ is in `fsm.md`.
 
 ### Hold timer expiry
 
-When the hold timer fires, the callback always fires
-`EventHoldTimerExpires`. Ze grants no reprieve, per RFC 4271
-Section 8.2.2, Event 10.
+When the hold timer fires, its callback runs the shared
+`holdTimerExpiredLocked` action and fires `EventHoldTimerExpires`. OPEN
+admission, collision publication and adoption inspect the original HoldTimer
+budget too: an already elapsed deadline runs the same expiry action before
+it can publish or replace a useful connection. A queued callback cannot renew
+that deadline or deliver a second expiry after its terminal seal. Ze grants
+no reprieve, per RFC 4271 Section 8.2.2, Event10.
+
+<!-- source: internal/component/bgp/reactor/session_hold_expiry.go -- rejectExpiredHold, holdTimerExpiredLocked -->
 
 <!-- source: internal/component/bgp/reactor/session.go -- OnHoldTimerExpires callback -->
 
@@ -249,7 +284,7 @@ Section 8.2.2, Event 10.
   time `EventBGPOpen` is fired, `s.negotiated` is already populated. This
   lets the post-event code in `handleOpen` and the OpenConfirm transition
   use the negotiated values immediately.
-  <!-- source: internal/component/bgp/reactor/session_handlers.go — negotiateWith before fsm.Event(EventBGPOpen) -->
+  <!-- source: internal/component/bgp/reactor/session_open_admission.go — openAdmission.advance publishes negotiation before advanceAfterOpen -->
 
 ## Tests exercising this state
 
@@ -277,3 +312,10 @@ Section 8.2.2, Event 10.
 - `internal/component/bgp/reactor/session_test.go` — end-to-end session
   lifecycle tests driving the full handshake through OpenSent.
   <!-- source: internal/component/bgp/reactor/session_test.go -->
+
+Both ordinary OPEN receipt and the pre-parsed collision receipt use one semantic
+admission constructor. Admission checks all required and refused capabilities
+before publishing negotiation or sending KEEPALIVE. An incoming candidate must
+hold a valid admission before collision arbitration; an invalid winning
+Identifier therefore cannot close a useful incumbent. Unsupported-version
+NOTIFICATION data is the two-octet supported version, `00 04`, on both rails.

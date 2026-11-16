@@ -31,18 +31,23 @@ import (
 // The zero test is about the AS the PEER puts on the wire. It is not about ze's own AS 0
 // sentinel, which several internal surfaces use to mean "not known yet" and which never
 // leaves the process: a dynamic peer carries PeerAS 0 until resolveDynamicPeerSettings
-// fills it at establishment (reactor_dynamic.go, peer_run.go), and collisionPeerAS and
+// fills it at establishment (reactor_dynamic.go, peer_run.go), and detectCollision and
 // validateOpenIdentifier both read that 0 as absence rather than as an AS. Reading the
 // wire field is what keeps the two apart, so a dynamic peer announcing a real AS is never
 // refused as an AS 0 claim.
 //
-// The MISMATCH test below does read s.settings.PeerAS, and that same sentinel is why it
+// The MISMATCH test below reads the prepared configuration's PeerAS, and that same sentinel is why it
 // carries an explicit dynamic-peer branch rather than a comparison against 0
 // (peerASAccepted, session_as_migration.go).
 //
 // Both OPEN rails call it. On rejection it sends the NOTIFICATION, logs the FSM error
 // event and closes the connection, so no caller can accept a session ze must abort.
 func (s *Session) validateOpenPeerAS(open *message.Open) ([]capability.Capability, error) {
+	proposal, err := s.openProposal()
+	if err != nil {
+		return nil, err
+	}
+	settings := proposal.settings
 	advertised := uint32(open.MyAS)
 	var caps []capability.Capability
 	if advertised != 0 {
@@ -52,7 +57,7 @@ func (s *Session) validateOpenPeerAS(open *message.Open) ([]capability.Capabilit
 			return nil, s.rejectOpenCapabilityError(err)
 		}
 		// RFC 6793 Section 4.1
-		advertised = capability.OpenPeerAS(open.MyAS, caps, !s.settings.DisableASN4)
+		advertised = capability.OpenPeerAS(open.MyAS, caps, !settings.DisableASN4)
 	}
 	if advertised == 0 {
 		s.rejectOpenPeerAS()
@@ -72,7 +77,7 @@ func (s *Session) validateOpenPeerAS(open *message.Open) ([]capability.Capabilit
 	// the peer never claimed. peerASAccepted (session_as_migration.go) holds which ASNs
 	// are acceptable, including the RFC 7705 Section 4.2 pair, so the exception a
 	// migrating session needs is a rule rather than the absence of one.
-	if s.settings.peerASAccepted(advertised) {
+	if settings.peerASAccepted(advertised) {
 		return caps, nil
 	}
 
@@ -80,11 +85,16 @@ func (s *Session) validateOpenPeerAS(open *message.Open) ([]capability.Capabilit
 	sessionLogger().Warn("RFC 4271 Section 6.2: peer AS in OPEN is not an AS this peer is configured for",
 		"peer", s.settings.Address,
 		"advertised-as", advertised,
-		"configured-as", s.settings.PeerAS,
-		"local-as", s.settings.LocalAS,
-		"migration-as", s.settings.MigrationAS,
+		"configured-as", settings.PeerAS,
+		"local-as", settings.LocalAS,
+		"migration-as", settings.MigrationAS,
 		"effect", "the connection is aborted with NOTIFICATION 2/2 Bad Peer AS",
-		"fix", s.peerASMismatchFix(advertised))
+		"code", codeOpenConnectionRefused, "fix", openConnectionRefusalFix,
+		"action", proposal.peerASMismatchFix(advertised))
+	s.reportOpenConnectionRefusal("the peer AS does not match this peer configuration",
+		proposal.peerASMismatchFix(advertised),
+		map[string]any{"advertised-as": advertised, "configured-as": settings.PeerAS,
+			"local-as": settings.LocalAS, "migration-as": settings.MigrationAS})
 
 	return nil, fmt.Errorf("%w: advertised %d", ErrPeerASMismatch, advertised)
 }
@@ -95,8 +105,8 @@ func (s *Session) validateOpenPeerAS(open *message.Open) ([]capability.Capabilit
 // A session configured `asn4 disable` is the case an operator does not expect: it judges
 // the peer by My AS (capability.OpenPeerAS), which a peer with a four-octet AS sends as AS_TRANS
 // (RFC 6793 Section 4.2.1), so the four-octet AS the operator configured can never match.
-func (s *Session) peerASMismatchFix(advertised uint32) string {
-	if s.settings.DisableASN4 {
+func (p *preparedOpen) peerASMismatchFix(advertised uint32) string {
+	if p.settings.DisableASN4 {
 		return "this peer has capability { asn4 disable; }, so its AS is read from the two-octet My AS field" +
 			" (AS_TRANS 23456 for a four-octet AS): set session asn remote to the AS the peer sends," +
 			" or set capability { asn4 enable; }"
@@ -140,19 +150,6 @@ func checkASN4DisabledReachable(n *PeerSettings) error {
 		}
 	}
 	return fmt.Errorf("%w: remote %d", ErrASN4DisabledFourOctetRemote, n.PeerAS)
-}
-
-// judgedPeerAS returns the AS this session judges its peer by: the configured remote AS,
-// or for a dynamic peer the AS open names under RFC 6793 Section 4.1 (sessionPeerAS,
-// peer.go). It is the one place a Session states whether it advertises the Four-octet AS
-// capability, so the collision tie-break, the RFC 6286 identifier scope, the negotiated
-// identity and the reload comparison all read the AS validateOpenPeerAS accepted.
-//
-// Reads s.settings without s.mu: PeerAS and DisableASN4 are written before the session
-// starts and, for a dynamic peer, by resolveDynamicPeerSettings after the last of these
-// callers ran (reactor_dynamic.go).
-func (s *Session) judgedPeerAS(open *message.Open) uint32 {
-	return sessionPeerAS(s.settings.PeerAS, !s.settings.DisableASN4, open)
 }
 
 // rejectOpenPeerAS reports OPEN Message Error / Bad Peer AS to the peer and tears the

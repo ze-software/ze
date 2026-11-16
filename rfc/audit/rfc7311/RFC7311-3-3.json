@@ -1,16 +1,16 @@
 {
-  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc7311): \"Any other AIGP TLVs in the AIGP attribute MUST be passed along unchanged if the AIGP attribute is passed along.\" fa6552968f (refuse routes admitted under a replaced import policy) added sourcePolicyEpoch: source.sourcePolicyEpoch.Load() to the forward item TestRFC7311OtherAIGPTLVsPassedAlongUnchanged builds, beside receivedGeneration. Every forwarded announcement now needs its source's live policy epoch, so the fixture supplies the real one; without it the item would be refused as policy-stale and the unknown-TLV assertions would never be reached. The TLV bytes asserted unchanged on the wire are unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "RFC 7311 Section 3 says: Any other AIGP TLVs in the AIGP attribute MUST be passed along unchanged if the AIGP attribute is passed along. The forwarding test still constructs a first metric of 100, a second Type-1 metric of 7 and an unknown Type-9 TLV, then applies a policy replacement that attempts to drop both later TLVs. Transparent and next-hop-self cases require the transmitted AIGP value to retain its full length and every octet after the first TLV, while the first metric is exactly 100 or 130. The fixture change pairs its deliberately built local OPEN with the same immutable settings snapshot as production; it preserves negotiated identity, current encoding contexts and the actual forward-to-socket assertions. applyFactsAIGP restores the received attribute after policy and changes only the first metric when next-hop-self requires accumulation. The codec units separately require exact unknown data and second-Type-1/unknown TLV parse-write round trips. ParseAIGP retains every TLV and WriteTo emits each unchanged value. A dropped or modified later TLV, unconditional attribute suppression, or incorrect first-metric edit fails these exact assertions.",
   "requirement_sha": "ccd1ed711d398027",
   "tests": {
-    "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged": "aa1aff2b0c9f1440",
-    "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged#2": "aa1aff2b0c9f1440",
+    "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged": "4a104f5b949ba690",
+    "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged#2": "4a104f5b949ba690",
     "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestAIGPWriteToMultipleTLVs": "682ca5c47e79ad07",
     "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMultipleTLVs": "682ca5c47e79ad07",
     "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311OtherAIGPTLVsSurviveTheCodec": "7b179465862209a9"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged": "fdf3b2e8be21b6d4",
-    "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged#2": "fdf3b2e8be21b6d4",
+    "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged": "db51aa9e09650dfd",
+    "internal/component/bgp/reactor/rfc7311_aigp_other_tlvs_test.go::TestRFC7311OtherAIGPTLVsPassedAlongUnchanged#2": "db51aa9e09650dfd",
     "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestAIGPWriteToMultipleTLVs": "5e582b6e3264ec78",
     "internal/core/bgp/attribute/rfc7311_aigp_test.go::TestParseAIGPMultipleTLVs": "74ce6b46d01ae615",
     "internal/core/bgp/attribute/rfc7311_tlv_test.go::TestRFC7311OtherAIGPTLVsSurviveTheCodec": "8cee172e5190f0ea"

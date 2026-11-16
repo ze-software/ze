@@ -11,15 +11,12 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
-	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/ze-software/ze/internal/core/capture"
 	"github.com/ze-software/ze/internal/core/clock"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
-	"github.com/ze-software/ze/internal/core/version"
 )
 
 // CaptureLimitAction is what a capture does when its file reaches the size cap.
@@ -131,25 +128,7 @@ type captureItem struct {
 // queue is bounded at captureQueueDepth events, and overflow is shed rather than
 // buffered, with the count written into the stream.
 type sessionCapture struct {
-	clock  clock.Clock
-	onDrop func()
-
-	ch       chan *captureItem
-	pool     sync.Pool
-	finished chan struct{}
-
-	// sendMu guards the channel against a send racing its close. RLock is the
-	// producer side, Lock the one-time close.
-	sendMu sync.RWMutex
-	closed bool
-
-	drops atomic.Uint64
-
-	path      string
-	limit     int64
-	onLimit   CaptureLimitAction
-	header    capture.Header
-	startOnce sync.Once
+	*captureInput
 
 	// Writer-goroutine-owned once Start has run.
 	file        *os.File
@@ -173,38 +152,23 @@ func capturePath(settings CaptureSettings, peer netip.Addr) string {
 	return filepath.Join(settings.Directory, captureFileName(peer))
 }
 
-// newSessionCapture creates the directory, opens the file, and writes the header
-// and the capture-start event. It does NOT start the writer goroutine; call
-// Start for that.
+// newSessionCapture opens a selected ordinary Session's capture file and
+// writes its header and capture-start event before the writer starts.
+// Its callers use the real clock; factory inputs retain their injected clock
+// through newCaptureInput and the pending capture constructors.
 //
 // It fails closed: an unusable directory or file is an error the caller reports,
 // never a silent no-op that leaves the operator waiting for a capture that will
 // never appear.
-func newSessionCapture(ps *PeerSettings, coalesce bool, c clock.Clock, onDrop func()) (*sessionCapture, error) {
-	settings := ps.Capture
-	if err := os.MkdirAll(settings.Directory, captureDirPerm); err != nil {
+func newSessionCapture(ps *PeerSettings, coalesce bool, onDrop func()) (*sessionCapture, error) {
+	return (captureSelection{input: newCaptureInput(ps, coalesce, clock.RealClock{}, onDrop)}).open()
+}
+
+func (selected captureSelection) open() (*sessionCapture, error) {
+	if err := os.MkdirAll(filepath.Dir(selected.input.path), captureDirPerm); err != nil {
 		return nil, errors.Join(ErrCaptureDirectory, err)
 	}
-
-	sc := &sessionCapture{
-		clock:    c,
-		onDrop:   onDrop,
-		ch:       make(chan *captureItem, captureQueueDepth),
-		finished: make(chan struct{}),
-		path:     capturePath(settings, ps.Address),
-		limit:    int64(settings.MaximumSize) << 20,
-		onLimit:  settings.OnLimit,
-		header: capture.Header{
-			Peer:          ps.Address.String(),
-			Started:       c.Now().UTC().Format(capture.TimeFormat),
-			DaemonVersion: version.Short(),
-			LocalAS:       ps.LocalAS,
-			PeerAS:        ps.PeerAS,
-			RouterID:      ps.RouterID,
-			Coalesce:      coalesce,
-		},
-	}
-	sc.pool.New = func() any { return &captureItem{data: make([]byte, 0, 4096)} }
+	sc := &sessionCapture{captureInput: selected.input}
 
 	// Move a previous session's file aside rather than truncating it. A session
 	// that fails is the one an operator wants, and the peer reconnects within
@@ -216,10 +180,9 @@ func newSessionCapture(ps *PeerSettings, coalesce bool, c clock.Clock, onDrop fu
 	if err := sc.openFile(); err != nil {
 		return nil, err
 	}
-	// The start marker rides the encoder directly: the writer goroutine is not
-	// running yet, and starting it before the file carries a header would let
-	// the first drained event land in an unreadable file.
-	if err := sc.enc.WriteSession(c.Now(), capture.SessionCaptureStart, 0); err != nil {
+	// Pending input may already have a drop tally. The original start marker
+	// MUST precede the worker's gap marker and all retained input events.
+	if err := sc.enc.WriteSession(sc.started, capture.SessionCaptureStart, 0); err != nil {
 		sc.logWriteError("capture-start", err)
 	}
 	return sc, nil
@@ -266,18 +229,12 @@ func (sc *sessionCapture) openFile() error {
 // Start launches the writer goroutine. One long-lived worker per capture
 // lifetime, never a goroutine per event.
 func (sc *sessionCapture) Start() {
-	sc.startOnce.Do(func() { go sc.run() })
+	sc.captureInput.start(sc)
 }
-
-// Path is the capture file this session writes.
-func (sc *sessionCapture) Path() string { return sc.path }
-
-// Drops is the cumulative number of events shed because the queue was full.
-func (sc *sessionCapture) Drops() uint64 { return sc.drops.Load() }
 
 // recordMessage queues one complete inbound wire message. Hot path: no I/O, no
 // blocking, and no allocation once the pool is warm.
-func (sc *sessionCapture) recordMessage(ts time.Time, msgType uint8, wire []byte, sourceID uint32, ctxID uint16) {
+func (sc *captureInput) recordMessage(ts time.Time, msgType uint8, wire []byte, sourceID uint32, ctxID uint16) {
 	it := sc.get()
 	it.kind = captureKindMessage
 	it.ts = ts
@@ -290,7 +247,7 @@ func (sc *sessionCapture) recordMessage(ts time.Time, msgType uint8, wire []byte
 
 // recordConfig queues one config operation. The payload is redacted here, on the
 // caller's goroutine, so a secret never sits in the queue or reaches the file.
-func (sc *sessionCapture) recordConfig(ts time.Time, op, txID string, payload []byte) {
+func (sc *captureInput) recordConfig(ts time.Time, op, txID string, payload []byte) {
 	safe, err := capture.RedactPayload(payload)
 	if err != nil {
 		slogutil.LazyLogger(captureLogSubsystem)().Warn("config payload could not be parsed for redaction; recording a placeholder",
@@ -306,7 +263,7 @@ func (sc *sessionCapture) recordConfig(ts time.Time, op, txID string, payload []
 }
 
 // recordSession queues one session-lifecycle event.
-func (sc *sessionCapture) recordSession(ts time.Time, event string) {
+func (sc *captureInput) recordSession(ts time.Time, event string) {
 	it := sc.get()
 	it.kind = captureKindSession
 	it.ts = ts
@@ -316,7 +273,7 @@ func (sc *sessionCapture) recordSession(ts time.Time, event string) {
 
 // get takes a pooled item and clears every field the caller can leave unset, so
 // a stale value from a previous event can never be written under a new one.
-func (sc *sessionCapture) get() *captureItem {
+func (sc *captureInput) get() *captureItem {
 	it, ok := sc.pool.Get().(*captureItem)
 	if !ok || it == nil {
 		it = &captureItem{data: make([]byte, 0, 4096)}
@@ -336,7 +293,7 @@ func (sc *sessionCapture) get() *captureItem {
 // BGP read loop must never wait on a debug feature. Every shed event is counted
 // and the count is written into the stream, so a replay never mistakes a gap for
 // a quiet peer.
-func (sc *sessionCapture) offer(it *captureItem) {
+func (sc *captureInput) offer(it *captureItem) {
 	sc.sendMu.RLock()
 	defer sc.sendMu.RUnlock()
 	if sc.closed {
@@ -357,25 +314,11 @@ func (sc *sessionCapture) offer(it *captureItem) {
 // Close stops accepting events, drains what is queued, ends the file, and
 // waits for the writer goroutine to exit. Safe to call more than once.
 func (sc *sessionCapture) Close() {
-	sc.sendMu.Lock()
-	if sc.closed {
-		sc.sendMu.Unlock()
-		<-sc.finished
-		return
-	}
-	sc.closed = true
-	close(sc.ch)
-	sc.sendMu.Unlock()
-
-	// Start is not always called first (a capture that saw no traffic, or an
-	// error path). Draining now is what leaves the file readable.
-	sc.Start()
-	<-sc.finished
+	sc.captureInput.close(sc)
 }
 
 // run is the writer goroutine: one long-lived worker over the hand-off queue.
 func (sc *sessionCapture) run() {
-	defer close(sc.finished)
 	for it := range sc.ch {
 		sc.write(it)
 		sc.pool.Put(it)
@@ -521,79 +464,43 @@ func (s *Session) teeCapture(msgType uint8, wire []byte) {
 	s.captureWriter.recordMessage(s.clock.Now(), msgType, wire, uint32(sourceID), uint16(ctxID))
 }
 
-// startCapture opens this peer's protocol event capture and attaches it to the
-// session, or returns nil when the peer did not opt in.
-//
-// A capture that cannot be opened is reported and the session proceeds without
-// one: a debug feature must never stop a BGP session from establishing. The
-// operator hears about it through the log line and through `ze doctor`, which
-// checks the directory (internal/component/doctor).
-func (p *Peer) startCapture(session *Session) *sessionCapture {
-	settings := p.settings.Capture
-	if !settings.Enabled {
-		return nil
-	}
-	// One capture per file. A second capture on the same path would rotate the
-	// first one's live inode into the single `.1` slot and orphan it, so the
-	// session that is actually running would lose its file.
-	if p.reactor != nil && p.reactor.captureHeldForPath(capturePath(settings, p.settings.Address)) {
-		slogutil.LazyLogger(captureLogSubsystem)().Warn("a capture is already open for this peer's file; this session is not captured",
-			"peer", p.settings.Address.String(), "file", capturePath(settings, p.settings.Address))
-		return nil
-	}
-	var onDrop func()
-	if p.reactor != nil && p.reactor.rmetrics != nil {
-		label := p.settings.Address.String()
-		metric := p.reactor.rmetrics.captureDroppedEvents
-		onDrop = func() { metric.With(label).Inc() }
-	}
-	sc, err := newSessionCapture(p.settings, session.coalesceEnabled, p.clock, onDrop)
-	if err != nil {
-		slogutil.LazyLogger(captureLogSubsystem)().Error("bgp protocol event capture could not start; the session continues without one",
-			"peer", p.settings.Address.String(), "directory", settings.Directory, "error", err)
-		return nil
-	}
-	sc.Start()
-	sc.recordSession(p.clock.Now(), capture.SessionConnect)
-	session.captureWriter = sc
-	if p.reactor != nil {
-		p.reactor.registerCapture(sc)
-	}
-	slogutil.LazyLogger(captureLogSubsystem)().Info("bgp protocol event capture started",
-		"peer", p.settings.Address.String(), "file", sc.Path())
-	return sc
-}
-
 // stopCapture stops a capture at the end of a session.
-func (p *Peer) stopCapture(sc *sessionCapture) {
+func (p *Peer) stopCapture(sc protocolCapture) {
 	if sc == nil {
 		return
 	}
 	sc.recordSession(p.clock.Now(), capture.SessionDisconnect)
+	sc.Close()
 	if p.reactor != nil {
 		p.reactor.unregisterCapture(sc)
 	}
-	sc.Close()
 	slogutil.LazyLogger(captureLogSubsystem)().Info("bgp protocol event capture stopped",
 		"peer", p.settings.Address.String(), "file", sc.Path(), "dropped-events", sc.Drops())
 }
 
 // registerCapture adds a live capture to the reactor's set, so config events
 // reach it.
-func (r *Reactor) registerCapture(sc *sessionCapture) {
+func (r *Reactor) registerCapture(sc protocolCapture) {
 	if r == nil || sc == nil {
 		return
 	}
 	r.sessionCapturesMu.Lock()
 	if r.sessionCaptures == nil {
-		r.sessionCaptures = make(map[*sessionCapture]struct{})
+		r.sessionCaptures = make(map[protocolCapture]captureRegistration)
 	}
-	r.sessionCaptures[sc] = struct{}{}
+	switch target := sc.(type) {
+	case *sessionCapture:
+		// Direct active constructors already own their file. Runtime Session
+		// construction registers a prepared input before it may open one.
+		r.sessionCaptures[sc] = &captureFileOwner{registry: r, target: target}
+	case *pendingSessionCapture:
+		r.sessionCaptures[sc] = capturePrepared{}
+	}
 	r.sessionCapturesMu.Unlock()
 }
 
 // unregisterCapture removes a capture whose session has ended.
-func (r *Reactor) unregisterCapture(sc *sessionCapture) {
+func (r *Reactor) unregisterCapture(sc protocolCapture) {
 	if r == nil || sc == nil {
 		return
 	}
@@ -617,16 +524,13 @@ func (r *Reactor) captureHeldForPath(path string) bool {
 	}
 	r.sessionCapturesMu.Lock()
 	defer r.sessionCapturesMu.Unlock()
-	for sc := range r.sessionCaptures {
-		if sc.path == path {
-			return true
-		}
-	}
-	return false
+	return r.captureFileOwnerLocked(path) != nil
 }
 
 // closeCapturesForPeer ends every live capture of one peer and waits for the
-// files to be terminated. doRemovePeer calls it so a removal releases the
+// files to be terminated. removalLocked calls it under Reactor.mu after
+// deleting the exact Peer; capture registration MUST hold that mutex for
+// reading and recheck the same membership. Every removal releases the
 // capture path before the caller can add the address back, exactly as it
 // releases the identifier claim rather than leaving it to the peer goroutine.
 //
@@ -638,23 +542,22 @@ func (r *Reactor) closeCapturesForPeer(addr netip.Addr) {
 	}
 	want := addr.Unmap().String()
 	r.sessionCapturesMu.Lock()
-	var doomed []*sessionCapture
+	var doomed []protocolCapture
 	for sc := range r.sessionCaptures {
-		if sc.header.Peer == want {
+		if sc.peerAddress() == want {
 			doomed = append(doomed, sc)
 		}
-	}
-	for _, sc := range doomed {
-		delete(r.sessionCaptures, sc)
 	}
 	r.sessionCapturesMu.Unlock()
 
 	for _, sc := range doomed {
 		sc.Close()
+		r.unregisterCapture(sc)
 	}
 }
 
-// CapturesOpen reports whether any protocol event capture is open right now.
+// CapturesOpen reports whether any capture input is registered, including an
+// unpublished candidate that needs the submitted configuration history.
 //
 // It is the guard a caller takes BEFORE it builds a capture payload. Building
 // one is not free: a reconcile payload is a json.Marshal of the WHOLE BGP config
@@ -670,8 +573,8 @@ func (r *Reactor) CapturesOpen() bool {
 	return len(r.sessionCaptures) != 0
 }
 
-// CaptureConfigEvent records one config operation into every capture that is
-// open right now. A config operation is peer-scoped, but its effect on the
+// CaptureConfigEvent records one config operation into every registered input.
+// A config operation is peer-scoped, but its effect on the
 // reactor is global, so a replay of any captured session needs to see it.
 //
 // The event records the operation as SUBMITTED, not as accepted: a verify that
@@ -689,7 +592,7 @@ func (r *Reactor) CaptureConfigEvent(op, txID string, payload []byte) {
 		r.sessionCapturesMu.Unlock()
 		return
 	}
-	live := make([]*sessionCapture, 0, len(r.sessionCaptures))
+	live := make([]protocolCapture, 0, len(r.sessionCaptures))
 	for sc := range r.sessionCaptures {
 		live = append(live, sc)
 	}

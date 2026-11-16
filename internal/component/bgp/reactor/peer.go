@@ -644,7 +644,9 @@ type Peer struct {
 	// Collision detection (RFC 4271 §6.8):
 	// When an incoming connection arrives while we're in OpenConfirm,
 	// we queue it here and wait for its OPEN to resolve the collision.
-	pendingConn net.Conn // Pending incoming connection.
+	pending        pendingConnection
+	incomingWG     sync.WaitGroup
+	incomingClosed bool // guarded by mu; cleanup seals admission before joining workers
 
 	// One connection waits for the next runOnce epoch. A collision winner
 	// retains its already-read OPEN and original wire bytes with the socket.
@@ -806,7 +808,8 @@ func (p *Peer) Settings() *PeerSettings {
 // settingsSnapshot returns a copy of the peer's settings taken under p.mu, for a
 // caller that must read the struct as a whole.
 //
-// The reload path is that caller. reconcilePeersJournaled (reactor_api.go) compares
+// The reload path and a Session preparing its OPEN are those callers.
+// reconcilePeersJournaled (reactor_api.go) compares
 // the configured peers against the running ones and hands the result to
 // peerSettingsSwapPlan (peer_settings_apply.go), which copies the struct and reads
 // Capabilities off it. Both are whole-struct reads of the five mutable fields, so
@@ -1551,7 +1554,12 @@ func (p *Peer) getPluginFamilies() []string {
 
 // validateOpen checks router-ID uniqueness and delegates OPEN validation to plugins.
 // Used as callback for Session.setOpenValidator().
-func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error {
+func (p *Peer) validateOpen(session *Session, peerAddr string, remote *message.Open) error {
+	proposal, err := session.openProposal()
+	if err != nil {
+		return err
+	}
+	local := proposal.message
 	p.mu.RLock()
 	r := p.reactor
 	settings := p.settings
@@ -1560,10 +1568,6 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 	if r == nil {
 		return nil
 	}
-
-	// Store the remote peer's BGP Identifier for route reflection (ORIGINATOR_ID).
-	// RFC 4456 Section 8: ORIGINATOR_ID carries the BGP Identifier of the originator.
-	p.remoteRouterID.Store(remote.BGPIdentifier)
 
 	// RFC 6286 Section 2.1: the BGP Identifier SHOULD be unique within an AS. Ze enforces
 	// that by default by CLAIMING the identifier for this peer here, while its OPEN is
@@ -1578,8 +1582,8 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 	// identifier from an internal peer), which Session.validateOpenIdentifier has already
 	// rejected on both OPEN rails and which the opt-out does NOT relax.
 	if !r.config.AllowSharedRouterID {
-		peerAS := p.claimPeerAS(remote)
-		conflictAddr, claimed := r.routerIDs.claim(p, p.settings.Address, peerAS, remote.BGPIdentifier)
+		peerAS := proposal.judgedPeerAS(remote)
+		conflictAddr, claimed := r.routerIDs.claim(p, session, settings.Address, peerAS, remote.BGPIdentifier)
 		if !claimed {
 			return &routerIDConflictError{
 				conflictAddr: conflictAddr,
@@ -1590,6 +1594,7 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 	}
 
 	if r.eventDispatcher == nil {
+		p.publishValidatedRouterID(session, remote.BGPIdentifier)
 		return nil
 	}
 
@@ -1605,31 +1610,33 @@ func (p *Peer) validateOpen(peerAddr string, local, remote *message.Open) error 
 	// removal issues a generation as it deletes its peer (doRemovePeer), so the
 	// removal of an earlier peer of this name is at or below this reading, and
 	// this peer's own removal is above it.
-	return r.eventDispatcher.BroadcastValidateOpen(peerAddr, settings.GroupName, forwardGenerationClock.Load(), p.openPolicyPlugins(), local, remote)
+	if err := r.eventDispatcher.BroadcastValidateOpen(peerAddr, settings.GroupName, forwardGenerationClock.Load(), p.openPolicyPlugins(), local, remote); err != nil {
+		return err
+	}
+	p.publishValidatedRouterID(session, remote.BGPIdentifier)
+	return nil
 }
 
-// claimPeerAS returns the AS that scopes this peer's BGP Identifier claim.
-//
-// RFC 6286 Section 2.1 scopes identifier uniqueness to an AS, so the claim key needs the
-// peer's AS at OPEN time. That is sessionPeerAS, the one answer, below.
-//
-// Reads PeerAS through the p.mu-guarded accessor because resolveDynamicPeerSettings writes it
-// from the establishment goroutine.
-func (p *Peer) claimPeerAS(remote *message.Open) uint32 {
+// publishValidatedRouterID publishes only the selected connection's validated
+// identity. A pending connection owns its own OPEN and claim; it must not
+// replace the identity used by the incumbent's route-reflection work.
+// Safe for concurrent use. The caller MUST have accepted the OPEN first.
+// RFC 4456 Section 8: "This attribute will carry the BGP Identifier of the originator of the route in the local AS."
+func (p *Peer) publishValidatedRouterID(session *Session, identifier uint32) {
 	p.mu.RLock()
-	configured, localASN4 := p.settings.PeerAS, !p.settings.DisableASN4
-	p.mu.RUnlock()
-
-	return sessionPeerAS(configured, localASN4, remote)
+	defer p.mu.RUnlock()
+	if p.session == session {
+		p.remoteRouterID.Store(identifier)
+	}
 }
 
 // sessionPeerAS returns the AS a session's peer is judged by: the CONFIGURED remote AS when
 // the session has one, and the AS the peer advertises in its OPEN when it does not.
 //
 // It is the ONE answer to that question. Every AS-scoped decision taken at or before
-// establishment reads it: the RFC 6286 Section 2.1 identifier claim (claimPeerAS), the
+// establishment reads it: the RFC 6286 Section 2.1 identifier claim (validateOpen), the
 // Section 2.2 internal-peer test (validateOpenIdentifier), the Section 2.3 equal-identifier
-// tie-break (collisionPeerAS), and the identity the capability negotiation carries
+// tie-break (detectCollision), and the identity the capability negotiation carries
 // (negotiateWith). They were four copies of these two branches, and each copy that was
 // missed read a configured 0 as if it were an AS.
 //
@@ -1688,9 +1695,23 @@ func openAdvertisedAS(remote *message.Open, localASN4 bool) uint32 {
 	return uint32(remote.MyAS)
 }
 
-// releaseRouterIDClaim drops the AS-wide BGP Identifier this peer holds (RFC 6286
-// Section 2.1). Called on every session teardown so the identifier becomes available to
-// another peer as soon as this one's session ends; a no-op when nothing is held.
+// releaseSessionRouterIDClaim gives up only the ending connection's identifier.
+// The caller MUST join its OPEN work first, so no claim can follow this release.
+// Safe for concurrent use and for a Session holding nothing.
+// RFC 6286 Section 2.1: "The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS."
+func (p *Peer) releaseSessionRouterIDClaim(session *Session) {
+	p.mu.RLock()
+	r := p.reactor
+	p.mu.RUnlock()
+	if r != nil {
+		r.routerIDs.releaseSession(p, session)
+	}
+}
+
+// releaseRouterIDClaim drops every identifier held by this Peer when it is
+// removed or its run loop ends. Removal may release immediately; the lifecycle
+// owner MUST release again after joining OPEN work. A Peer holding nothing is a no-op.
+// RFC 6286 Section 2.1.
 func (p *Peer) releaseRouterIDClaim() {
 	p.mu.RLock()
 	r := p.reactor

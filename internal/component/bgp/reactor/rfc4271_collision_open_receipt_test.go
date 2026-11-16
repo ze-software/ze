@@ -29,16 +29,39 @@ func sendSecondOpen(t *testing.T, peer *Peer, remoteID uint32) net.Conn {
 	r := &Reactor{clock: clock.RealClock{}}
 	client, server := net.Pipe()
 	t.Cleanup(func() { _ = client.Close(); _ = server.Close() })
+	cleanupPendingFixturePeer(t, peer)
 	require.NoError(t, client.SetDeadline(time.Now().Add(5*time.Second)))
 
 	accepted := make(chan struct{})
 	go func() { r.acceptOrReject(server, peer, nil); close(accepted) }()
 	<-accepted
 	require.True(t, peer.hasPendingConnection(), "the second connection is tracked until its OPEN")
+	localOpen, openErr := core4271ReadMessage(client)
+	require.NoError(t, openErr)
+	require.Equal(t, byte(1), localOpen[18], "the incoming connection sends its own OPEN before remote input")
 
 	_, err := client.Write(message.PackTo(&message.Open{Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: remoteID}, nil))
 	require.NoError(t, err)
 	return client
+}
+
+// cleanupPendingFixturePeer joins the incoming workers a non-running Peer
+// fixture owns. Socket cleanup alone cannot retire a transferred candidate's
+// bridge and timers; Peer.cleanup owns that cancellation and incomingWG join.
+func cleanupPendingFixturePeer(t *testing.T, peer *Peer) {
+	t.Helper()
+	t.Cleanup(func() {
+		finished := make(chan struct{})
+		go func() {
+			defer close(finished)
+			peer.cleanup()
+		}()
+		select {
+		case <-finished:
+		case <-time.After(5 * time.Second):
+			t.Error("fixture Peer did not retire and join its incoming candidate workers")
+		}
+	})
 }
 
 // requireCollisionCease reads one message from conn and requires it to be the

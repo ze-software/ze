@@ -1,10 +1,12 @@
 package reactor
 
 import (
+	"io"
 	"net"
 	"net/netip"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 
@@ -13,6 +15,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
+	"github.com/ze-software/ze/internal/core/clock"
 )
 
 // collisionAcceptWithReader shares the pipe reader and session resource
@@ -396,56 +399,33 @@ func TestPeerResolvePendingCollisionLocalWins(t *testing.T) {
 	localID := uint32(0xC0A80001)  // 192.168.0.1
 	remoteID := uint32(0x0A000001) // 10.0.0.1
 
-	settings := NewPeerSettings(
-		netip.MustParseAddr("192.0.2.1"),
-		65001, 65002, localID,
-	)
-	settings.Connection = ConnectionPassive
-	peer := NewPeer(settings)
-
-	// Create session and get to OpenConfirm
-	session := NewSession(settings)
-	peer.mu.Lock()
+	session, existing, current := setupOpenConfirmSession(t, localID)
+	t.Cleanup(func() { closeConnQuietly(existing); closeConnQuietly(current) })
+	require.NoError(t, existing.SetDeadline(time.Now().Add(5*time.Second)))
+	peer := NewPeer(session.settings)
 	peer.session = session
-	peer.mu.Unlock()
-
-	_ = session.Start()
-	client, server := net.Pipe()
-	defer func() { _ = client.Close() }()
-	defer func() { _ = server.Close() }()
-	collisionAcceptWithReader(t, session, server, client)
-
-	// Send peer's OPEN to reach OPENCONFIRM
-	peerOpen := &message.Open{
-		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
-	}
-	openBytes := message.PackTo(peerOpen, nil)
-
-	go func() {
-		_, _ = client.Write(openBytes)
-		buf := make([]byte, 4096)
-		_, _ = client.Read(buf)
-	}()
-	_ = session.ReadAndProcess()
-	require.Equal(t, fsm.StateOpenConfirm, session.State())
-
-	// Set up pending connection
-	pendingClient, pendingServer := net.Pipe()
-	defer func() { _ = pendingClient.Close() }()
-	defer func() { _ = pendingServer.Close() }()
-	_ = peer.setPendingConnection(pendingServer)
+	pendingClient, pendingServer, candidate := collisionCandidateInput(t, peer)
 
 	// Pending OPEN from "remote" with lower BGP ID
 	pendingOpen := &message.Open{
 		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: remoteID,
 	}
 
-	// Resolve collision
-	acceptPending, conn := peer.resolvePendingCollision(pendingOpen, message.PackTo(pendingOpen, nil))
-
-	assert.False(t, acceptPending, "local wins: should reject pending")
-	assert.NotNil(t, conn, "should return connection for cleanup")
+	delayOpenWrite(t, pendingClient, pendingOpen)
+	requireCollisionCease(t, pendingClient, "the incoming loser")
+	var octet [1]byte
+	n, err := pendingClient.Read(octet[:])
+	require.Zero(t, n)
+	require.ErrorIs(t, err, io.EOF, "the actual caller closes the rejected socket")
+	assert.Same(t, pendingServer, candidate.conn, "the rejected candidate owns the exact incoming socket")
+	peer.mu.RLock()
+	retained := inboundConn(peer.inbound)
+	peer.mu.RUnlock()
+	assert.Nil(t, retained, "local wins: no incoming winner transfers")
 	assert.False(t, peer.hasPendingConnection(), "pending should be cleared")
+	assert.Same(t, session, peer.currentSession(), "local wins: keep the original Session")
+	assert.Same(t, current, session.Conn(), "local wins: keep the original socket")
+	assert.Equal(t, fsm.StateOpenConfirm, session.State())
 }
 
 // TestPeerResolvePendingCollisionRemoteWins verifies collision resolution when remote wins.
@@ -458,67 +438,65 @@ func TestPeerResolvePendingCollisionRemoteWins(t *testing.T) {
 	localID := uint32(0x0A000001)  // 10.0.0.1
 	remoteID := uint32(0xC0A80001) // 192.168.0.1
 
-	settings := NewPeerSettings(
-		netip.MustParseAddr("192.0.2.1"),
-		65001, 65002, localID,
-	)
-	settings.Connection = ConnectionPassive
-	peer := NewPeer(settings)
-
-	// Create session and get to OpenConfirm
-	session := NewSession(settings)
-	peer.mu.Lock()
+	session, existing, current := setupOpenConfirmSession(t, localID)
+	t.Cleanup(func() { closeConnQuietly(existing); closeConnQuietly(current) })
+	require.NoError(t, existing.SetDeadline(time.Now().Add(5*time.Second)))
+	peer := NewPeer(session.settings)
 	peer.session = session
-	peer.mu.Unlock()
-
-	_ = session.Start()
-	client, server := net.Pipe()
-	defer func() { _ = client.Close() }()
-	defer func() { _ = server.Close() }()
-	collisionAcceptWithReader(t, session, server, client)
-
-	// Send peer's OPEN to reach OPENCONFIRM
-	peerOpen := &message.Open{
-		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: 0x01020302,
-	}
-	openBytes := message.PackTo(peerOpen, nil)
-
-	go func() {
-		_, _ = client.Write(openBytes)
-		buf := make([]byte, 4096)
-		_, _ = client.Read(buf)
-	}()
-	_ = session.ReadAndProcess()
-	require.Equal(t, fsm.StateOpenConfirm, session.State())
-
-	// Set up pending connection
-	pendingClient, pendingServer := net.Pipe()
-	defer func() { _ = pendingClient.Close() }()
-	defer func() { _ = pendingServer.Close() }()
-	_ = peer.setPendingConnection(pendingServer)
+	pendingClient, pendingServer, candidate := collisionCandidateInput(t, peer)
 
 	// Pending OPEN from "remote" with higher BGP ID
 	pendingOpen := &message.Open{
 		Version: 4, MyAS: 65002, HoldTime: 90, BGPIdentifier: remoteID,
 	}
 
-	// Drain the NOTIFICATION that will be sent when existing is closed
-	go func() {
-		buf := make([]byte, 4096)
-		_, _ = client.Read(buf)
-	}()
-
-	// The winner and its original OPEN transfer to the next Peer epoch.
 	wire := message.PackTo(pendingOpen, nil)
-	acceptPending, rejected := peer.resolvePendingCollision(pendingOpen, wire)
-
-	assert.True(t, acceptPending, "remote wins: should accept pending")
-	assert.Nil(t, rejected, "accepted socket is owned by the Peer")
+	delayOpenWrite(t, pendingClient, pendingOpen)
+	requireCollisionCease(t, existing, "the original loser")
+	var octet [1]byte
+	n, err := existing.Read(octet[:])
+	require.Zero(t, n)
+	require.ErrorIs(t, err, io.EOF)
+	peer.mu.RLock()
+	stored := peer.inbound
+	peer.mu.RUnlock()
+	parsed, ok := stored.(*candidateOpen)
+	require.True(t, ok, "the actual parser hands off its independent candidate")
+	assert.Same(t, candidate, parsed.candidate, "the already-running candidate wins")
+	assert.Equal(t, pendingOpen, parsed.open, "the parser retains the received OPEN's fields")
 	inbound := peer.takeInboundConnection()
-	assert.Equal(t, pendingServer, inbound.conn, "same winning connection")
-	assert.Same(t, pendingOpen, inbound.open, "original parsed OPEN retained")
-	assert.Equal(t, wire, inbound.wire, "original complete OPEN retained")
+	t.Cleanup(func() { discardInbound(inbound) })
+	assert.Same(t, stored, inbound, "remote wins: the Peer transfers its exact owned receipt")
+	assert.Equal(t, pendingServer, inboundConn(inbound), "same winning connection")
+	owned, ok := inbound.(*candidateOpen)
+	require.True(t, ok)
+	assert.Same(t, parsed.open, owned.open, "the handoff retains its original parsed OPEN pointer")
+	assert.Equal(t, wire, owned.wire, "original complete OPEN retained")
+	assert.Same(t, candidate.session, owned.candidate.session, "the winning Session is not reconstructed")
+	assert.Same(t, pendingServer, candidate.session.Conn(), "accepted socket remains owned by that Session")
 	assert.False(t, peer.hasPendingConnection(), "pending should be cleared")
+}
+
+// collisionCandidateInput enters the actual listener collision path and reads
+// the incoming Session's own OPEN before its remote input. The caller MUST
+// either leave its receipt to fixture Peer cleanup or discard a taken receipt.
+func collisionCandidateInput(t *testing.T, peer *Peer) (net.Conn, net.Conn, *incomingCandidate) {
+	t.Helper()
+	cleanupPendingFixturePeer(t, peer)
+	client, server := collisionProofTCPPair(t)
+	r := &Reactor{clock: clock.RealClock{}}
+	r.acceptOrReject(server, peer, nil)
+	delayOpenReadType(t, client, 1)
+	var candidate *incomingCandidate
+	delayOpenAwait(t, func() bool {
+		peer.mu.RLock()
+		defer peer.mu.RUnlock()
+		var ok bool
+		candidate, ok = peer.pending.(*incomingCandidate)
+		return ok
+	})
+	require.Same(t, server, candidate.conn)
+	return client, server, candidate
 }
 
 // TestCollisionNonCollisionStates verifies states that cannot detect collision.
@@ -569,6 +547,13 @@ func TestCollisionNonCollisionStates(t *testing.T) {
 func openConfirmSessionWithAS(t *testing.T, localAS, peerAS, localID uint32) *Session {
 	t.Helper()
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), localAS, peerAS, localID)
+	return openConfirmSessionWithSettings(t, settings, peerAS)
+}
+
+// openConfirmSessionWithSettings configures admission before constructing the
+// actual wire OPEN, with the advertised peer AS independent of configured AS.
+func openConfirmSessionWithSettings(t *testing.T, settings *PeerSettings, peerAS uint32) *Session {
+	t.Helper()
 	settings.Connection = ConnectionPassive
 	session := NewSession(settings)
 
@@ -581,7 +566,7 @@ func openConfirmSessionWithAS(t *testing.T, localAS, peerAS, localID uint32) *Se
 	collisionAcceptWithReader(t, session, server, client)
 
 	peerOpen := &message.Open{
-		Version: 4, MyAS: uint16(peerAS), HoldTime: 90, BGPIdentifier: localID + 1, //nolint:gosec // test AS numbers < 65536
+		Version: 4, MyAS: uint16(peerAS), HoldTime: 90, BGPIdentifier: settings.RouterID + 1, //nolint:gosec // test AS numbers < 65536
 	}
 	openBytes := message.PackTo(peerOpen, nil)
 	go func() {

@@ -2,6 +2,7 @@
 package reactor
 
 import (
+	"bytes"
 	"errors"
 	"io"
 	"net"
@@ -27,7 +28,7 @@ func TestRFC4271DelayOpenPreBufferedOpen(t *testing.T) {
 			local, far := net.Pipe()
 			open := delayOpenRemote(0x02020202)
 			peer.mu.Lock()
-			peer.storeInboundLocked(inboundConnection{conn: local, open: open, wire: message.PackTo(open, nil)})
+			peer.storeInboundLocked(&bufferedIncoming{conn: local, open: open, wire: message.PackTo(open, nil)})
 			peer.collisionHandoff = true
 			peer.mu.Unlock()
 			t.Cleanup(startAndStop(t, peer))
@@ -101,7 +102,7 @@ func TestDelayOpenHandoffRechecksOpenConfirm(t *testing.T) {
 			t.Cleanup(func() { closeConnQuietly(pending) })
 			open := delayOpenRemote(id)
 			peer.mu.Lock()
-			peer.storeInboundLocked(inboundConnection{conn: local, open: open, wire: message.PackTo(open, nil)})
+			peer.storeInboundLocked(&bufferedIncoming{conn: local, open: open, wire: message.PackTo(open, nil)})
 			peer.collisionHandoff = true
 			if consumeWakeup {
 				<-peer.inboundNotify
@@ -124,7 +125,7 @@ func TestDelayOpenHandoffRechecksOpenConfirm(t *testing.T) {
 					t.Fatal("take-back blocked on consumed wakeup")
 				}
 				peer.mu.RLock()
-				reserved, inbound := peer.collisionHandoff, peer.inbound.conn
+				reserved, inbound := peer.collisionHandoff, inboundConn(peer.inbound)
 				peer.mu.RUnlock()
 				if reserved || inbound != nil {
 					t.Fatal("take-back retained inbound reservation")
@@ -154,7 +155,10 @@ func TestDelayOpenHandoffRechecksOpenConfirm(t *testing.T) {
 }
 
 // TestDelayOpenTimerWinsCollision exercises order (c): Event 12 sends OPEN on
-// the existing socket, and the pending OPEN follows the unchanged OpenSent rule.
+// the existing socket first. Without an outside-protocol remote Identifier,
+// that OpenSent connection cannot reject the incoming connection's own exchange.
+// The incoming session establishes on its original socket and retires the old
+// attempt, then carries KEEPALIVEs in both directions without another OPEN.
 func TestDelayOpenTimerWinsCollision(t *testing.T) {
 	peer, s, far, fc := startDelayOpenPeer(t, false, 240*time.Second)
 	local, pending := net.Pipe()
@@ -169,11 +173,59 @@ func TestDelayOpenTimerWinsCollision(t *testing.T) {
 		t.Fatal("expiry did not enter OpenSent")
 	}
 	delayOpenWrite(t, pending, delayOpenRemote(0x02020202))
-	delayOpenReadType(t, pending, 3)
-	delayOpenWrite(t, far, delayOpenRemote(0x02020202))
-	delayOpenReadType(t, far, 4)
-	delayOpenWrite(t, far, &message.Keepalive{})
+	delayOpenReadType(t, pending, 1)
+	delayOpenReadType(t, pending, 4)
+	if s.State() != fsm.StateOpenSent {
+		t.Fatal("the incoming OPEN changed the incumbent without an outside-protocol remote Identifier")
+	}
+	delayOpenWrite(t, pending, &message.Keepalive{})
+	notification := delayOpenReadType(t, far, 3)
+	if !bytes.Equal(notification[message.HeaderLen:], []byte{6, 7}) {
+		t.Fatalf("retired OpenSent connection did not receive collision Cease: %x", notification)
+	}
+	var octet [1]byte
+	if n, err := far.Read(octet[:]); n != 0 || !errors.Is(err, io.EOF) {
+		t.Fatalf("retired OpenSent connection: bytes=%d error=%v", n, err)
+	}
 	delayOpenAwait(t, func() bool { return peer.SessionState() == fsm.StateEstablished })
+	winner := peer.currentSession()
+	if winner == nil || winner == s || winner.Conn() != local {
+		t.Fatal("the winning incoming socket did not retain its own established Session")
+	}
+	if s.State() != fsm.StateIdle || s.Conn() != nil || peer.hasPendingConnection() {
+		t.Fatal("the incumbent or pending owner survived promotion")
+	}
+	keepalive := message.PackTo(&message.Keepalive{}, nil)
+	sent := make(chan error, 1)
+	go func() { sent <- peer.SendRawMessage(0, keepalive) }()
+	found := false
+	for range 8 {
+		packet, err := core4271ReadMessage(pending)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if bytes.Equal(packet, keepalive) {
+			found = true
+			break
+		}
+		// Initial End-of-RIB may precede our sent KEEPALIVE. No OPEN or
+		// other frame may replace the surviving connection's exact bytes.
+		if packet[18] != 2 || !bytes.Equal(packet[message.HeaderLen:], []byte{0, 0, 0, 0}) {
+			t.Fatalf("unexpected post-promotion packet: %x", packet)
+		}
+	}
+	if !found {
+		t.Fatal("the winning incoming socket did not deliver the sent KEEPALIVE")
+	}
+	if err := <-sent; err != nil {
+		t.Fatal(err)
+	}
+	before := winner.timers.HoldBudget().Expires
+	delayOpenWrite(t, pending, &message.Keepalive{})
+	delayOpenAwait(t, func() bool { return winner.timers.HoldBudget().Expires.After(before) })
+	if peer.currentSession() != winner || winner.State() != fsm.StateEstablished {
+		t.Fatal("useful traffic did not preserve the same winning Session")
+	}
 }
 
 // TestDelayOpenPendingDeadlineOnlyDropsPending gives the pending reader an
@@ -229,11 +281,11 @@ func TestDelayOpenHandoffAlreadyTaken(t *testing.T) {
 	local, pending := net.Pipe()
 	t.Cleanup(func() { closeConnQuietly(local); closeConnQuietly(pending) })
 	peer.mu.Lock()
-	peer.storeInboundLocked(inboundConnection{conn: local, open: open, wire: message.PackTo(open, nil)})
+	peer.storeInboundLocked(&bufferedIncoming{conn: local, open: open, wire: message.PackTo(open, nil)})
 	peer.collisionHandoff = true
 	peer.mu.Unlock()
 	taken := peer.takeInboundConnection()
-	if taken.conn != local {
+	if inboundConn(taken) != local {
 		t.Fatal("winner was not transferred to the run-loop owner")
 	}
 	delayOpenWrite(t, far, open)

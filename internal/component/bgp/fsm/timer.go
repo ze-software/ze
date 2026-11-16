@@ -105,6 +105,9 @@ type Timers struct {
 	holdRunning         bool
 	keepaliveRunning    bool
 	connectRetryRunning bool
+	// The last arm remains observable after expiry until explicitly stopped.
+	// Session cleanup transfers its remaining budget before retiring this set.
+	connectRetryExpires time.Time
 	bfdHoldRunning      bool
 	bfdHoldDownRunning  bool
 	delayOpenRunning    bool
@@ -491,7 +494,9 @@ func (t *Timers) StartConnectRetryTimer() {
 		return
 	}
 
-	t.connectRetryTimer = t.clock.AfterFunc(jitter(t.connectRetryTime, t.random), func() {
+	delay := jitter(t.connectRetryTime, t.random)
+	t.connectRetryExpires = t.clock.Now().Add(delay)
+	t.connectRetryTimer = t.clock.AfterFunc(delay, func() {
 		t.mu.Lock()
 		t.connectRetryRunning = false
 		cb := t.onConnectRetryExpires
@@ -533,6 +538,65 @@ func (t *Timers) stopConnectRetryTimerLocked() {
 		t.connectRetryTimer = nil
 	}
 	t.connectRetryRunning = false
+	t.connectRetryExpires = time.Time{}
+}
+
+// ConnectRetryBudget is an immutable retry deadline in its owning clock's
+// domain. Its zero value is nil, meaning no transferred retry. Only Timers
+// constructs a non-nil budget, and it never returns a typed nil. A snapshot
+// remains usable after its timer set is stopped or retired.
+type ConnectRetryBudget interface {
+	Remaining() time.Duration
+	connectRetryBudget()
+}
+
+// retryBudget is constructed only for an uncanceled timer arm. Both fields
+// are immutable; its clock continues to measure time after timer retirement.
+// Its zero value is invalid and is never constructed or exposed.
+type retryBudget struct {
+	deadline time.Time
+	clock    clock.Clock
+}
+
+func (retryBudget) connectRetryBudget() {}
+
+// Remaining reads the original timer clock at the consumer's wait boundary.
+// RFC 4271 Section 8.2.2: "If the TCP connection fails (Event 18), the local system checks
+// the DelayOpenTimer.  If the DelayOpenTimer is running, the local
+// system:
+//
+//   - restarts the ConnectRetryTimer with the initial value,
+//   - stops the DelayOpenTimer and resets its value to zero,
+//   - continues to listen for a connection that may be initiated by
+//     the remote BGP peer, and
+//   - changes its state to Active."
+//
+// Moving ownership preserves that interval, including time spent cleaning up.
+func (b retryBudget) Remaining() time.Duration {
+	return max(0, b.deadline.Sub(b.clock.Now()))
+}
+
+// ConnectRetryBudget snapshots the last uncanceled arm, without sampling time
+// again or translating its deadline into a different clock domain. Expiry
+// retains a due budget; stopping or retiring the set returns nil. Safe for
+// concurrent use. The caller MUST snapshot before stopping the set.
+// RFC 4271 Section 8.2.2: "If the local system receives a TcpConnectionFails event (Event
+// 18), the local system:
+//
+//   - restarts the ConnectRetryTimer (with the initial value),
+//   - stops and clears the DelayOpenTimer (sets the value to zero),
+//   - releases all BGP resource,
+//   - increments the ConnectRetryCounter by 1,
+//   - optionally performs peer oscillation damping if the
+//     DampPeerOscillations attribute is set to TRUE, and
+//   - changes its state to Idle."
+func (t *Timers) ConnectRetryBudget() ConnectRetryBudget {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+	if t.connectRetryExpires.IsZero() {
+		return nil // No uncanceled arm exists to transfer.
+	}
+	return retryBudget{deadline: t.connectRetryExpires, clock: t.clock}
 }
 
 // IsConnectRetryTimerRunning returns true if the connect retry timer is running.

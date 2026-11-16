@@ -9,14 +9,11 @@ import (
 	"time"
 
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
-	"github.com/ze-software/ze/internal/component/plugin"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/taskguard"
-	"github.com/ze-software/ze/pkg/plugin/rpc"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 )
 
 // run is the main peer loop.
@@ -26,8 +23,10 @@ import (
 // sits in Connect/Active waiting for both TCP completion and the retry timer.
 // Ze uses blocking DialContext, so the session either connects or fails before
 // returning. The retry delay between attempts is managed here at the Peer level
-// with exponential backoff (min 5s → max 60s), which is more robust than the
-// RFC's fixed 120s ConnectRetryTimer.
+// with exponential backoff (min 5s → max 60s) for ordinary failures. A TCP
+// failure in Active, or while DelayOpen holds Connect, transfers the restarted
+// FSM timer's sampled deadline through connectionRetryFailure instead: retiring
+// the old Session must not replace that initial-value retry with backoff.
 //
 // The delay doubles after every wait that ran to its end, up to reconnectMax.
 // It returns to reconnectMin after a session that stayed in Established at
@@ -170,18 +169,27 @@ func (p *Peer) run() {
 				}
 			}
 
-			// Normal error: Backoff before retry
+			// RFC 4271 Section 8.2.2, Connect and Active Event 18: the
+			// restarted initial-value retry survives the old session's cleanup.
+			var retry *connectionRetryFailure
+			var wait time.Duration
+			if errors.As(err, &retry) {
+				wait = retry.budget.Remaining()
+			} else {
+				wait = fsm.Jitter(delay)
+			}
+
 			p.setState(PeerStateConnecting)
 			backoffStart := p.clock.Now()
 			peerLogger().Debug("timing: backoff starting",
 				"peer", p.settings.Address,
-				"delay", delay,
+				"delay", wait,
 			)
 
 			select {
 			case <-p.ctx.Done():
 				return
-			case <-p.clock.After(fsm.Jitter(delay)):
+			case <-p.clock.After(wait):
 			case <-p.adminWake:
 				// Disable during the backoff parks now; Enable retries now.
 				delay = p.reconnectMin
@@ -198,6 +206,10 @@ func (p *Peer) run() {
 
 			if p.reactor != nil && p.reactor.rmetrics != nil {
 				p.reactor.rmetrics.peerBackoffSeconds.With(peerLabel).Observe(p.clock.Now().Sub(backoffStart).Seconds())
+			}
+			if retry != nil {
+				// This interval is the FSM's retry, not a failed backoff wait.
+				continue
 			}
 
 			// Exponential backoff
@@ -257,7 +269,7 @@ func (p *Peer) describeConnect() taskguard.Context {
 }
 
 // runOnce attempts a single connection cycle.
-func (p *Peer) runOnce() error {
+func (p *Peer) runOnce() (runErr error) {
 	runOnceStart := p.clock.Now()
 
 	// Reset notification-exchanged flag for the new session lifecycle.
@@ -267,68 +279,21 @@ func (p *Peer) runOnce() error {
 	// session-dropped error.
 	p.notificationExchanged.Store(false)
 
-	// Create session
-	session := p.newSession()
-	session.adjOut = &p.adjOut
-	// The RFC 7705 Section 4.2 fallback flag is the Peer's, and this session is one
-	// connection attempt against it: the session that MEETS Bad Peer AS is never the
-	// session that opens with the other AS (session_as_migration.go, openLocalAS).
-	session.asMigrationFallback = &p.asMigrationFallback
-	session.SetClock(p.clock)
-	session.SetDialer(p.dialer)
-	session.onMessageReceived = p.messageCallback
-	session.aigpReactor = p.reactor
-	session.aigpPeer = p
-	session.egressFinalAccepts = func() bool {
-		if facts := p.forwardFacts(); facts != nil {
-			// RFC 8212 Section 3.
-			return facts.exportPolicy.AcceptsAtEnd(facts.isEBGP)
+	// A winning incoming connection retains its original Session and timers.
+	// Its reserved slot remains present until publication and callback setup.
+	candidate := p.selectedIncomingCandidate()
+	var session *Session
+	if candidate != nil {
+		session = candidate.acquire()
+		if session == nil {
+			return ErrNotConnected
 		}
-		p.mu.RLock()
-		defer p.mu.RUnlock()
-		if p.settings.PeerAS == 0 {
-			return false
-		}
-		// RFC 8212 Section 3: no snapshot does not waive destination admission.
-		return p.settings.ExportPolicy.AcceptsAtEnd(p.settings.IsEBGP())
+	} else {
+		session = p.newSession()
 	}
-	// Originated and injected routes, and the bgp-rs `update text`
-	// re-advertisement, run the peer's export filter chain at the session write
-	// gate, the same as forwarded routes do in forwardUpdateCore. The
-	// bgp-adj-rib-in stored-route replay is not one of them: it goes through
-	// forwardUpdateCore itself (egress_inject_filter.go).
-	if p.reactor != nil {
-		settings := p.settingsSnapshot()
-		// MUST remain immutable for this connection's lifetime: send and receive
-		// callbacks borrow it concurrently and build their own observer metadata.
-		wirePeer := plugin.PeerInfo{
-			Address: settings.Address, AddressStr: p.addrString,
-			LocalAddress: settings.LocalAddress, LocalAddressStr: p.localAddrString,
-			LocalAS: settings.LocalAS, PeerAS: rpc.RemoteASOf(settings.PeerAS), RouterID: settings.RouterID,
-		}
-		session.onWireMessage = func(wire []byte, ctxID bgpctx.ContextID, sent bool, endpoints *sessionTransport) {
-			p.reactor.dispatchObservedWire(&wirePeer, wire, ctxID, sent, endpoints)
-		}
-		session.egressRouteFilter = p.egressGate(session)
-	}
-	if p.reactor != nil {
-		session.prefixMetrics = p.reactor.rmetrics
-	}
-	// Protocol event capture (capture_replay.go), opt-in per peer. Opened per
-	// session so each session lands in a file whose header names the peer, the
-	// start time, and whether the coalesced read path was active.
-	capture := p.startCapture(session)
-	p.attachStatsCallbacks(session)
-	session.SetSourceID(p.sourceID)
-	session.setPluginCapabilitySnapshotGetter(p.pluginCapabilitySnapshot)
-	session.setConfigCapabilityGetter(p.configuredCapabilities)
-	session.setPluginFamiliesGetter(p.getPluginFamilies)
-	session.setOpenValidator(p.validateOpen)
-	// draft-ietf-idr-bgp-bfd-strict-mode Section 3: the session reads
-	// bfd.SessionState through this, so its OPEN rail can apply Section 8.5.5.
-	// Wired for every BFD peer, not just a strict one, so the reader answers
-	// the same way whichever peer asks (session_bfd_strict.go).
-	session.setBFDStateReader(p.bfdSessionState)
+	// The factory installed every writer/timer input before TCP. Candidate
+	// adoption never replaces a callback a periodic writer may still read.
+	capture := session.captureWriter
 
 	// This assignment is one of the two places a conn becomes a session, the
 	// other being s.conn in Session.connectionEstablished (session_connection.go).
@@ -351,7 +316,7 @@ func (p *Peer) runOnce() error {
 	p.mu.Lock()
 	if p.stopping.Load() {
 		p.mu.Unlock()
-		p.stopCapture(capture)
+		p.retireUnpublishedSession(candidate, session)
 		// nil, not an error: run()'s loop top is the single place the seal ends
 		// the loop, and it is one statement away. An error here would send run()
 		// into its backoff select first, to sit there until the cancel.
@@ -363,10 +328,19 @@ func (p *Peer) runOnce() error {
 	// not an error, for the same reason as the seal above: the loop top parks.
 	if p.adminDown.Load() {
 		p.mu.Unlock()
-		p.stopCapture(capture)
+		p.retireUnpublishedSession(candidate, session)
 		return nil
 	}
 	p.session = session
+	// Both candidate receipts already own a validated remote identifier.
+	// Incumbent cleanup cleared its publication; OPEN advancement does not
+	// validate again, so selection MUST publish either receipt's identity.
+	switch arrival := p.inbound.(type) {
+	case *candidateOpen:
+		p.remoteRouterID.Store(arrival.open.BGPIdentifier)
+	case *candidateReady:
+		p.remoteRouterID.Store(arrival.remoteID)
+	}
 	p.mu.Unlock()
 
 	defer func() {
@@ -374,6 +348,13 @@ func (p *Peer) runOnce() error {
 		// This Peer owns the session from publication through every exit.
 		session.closeConn()
 		session.stopSessionTimers()
+		// RFC 4271 Section 8.2.2: stopSessionTimers MUST join the Event 18
+		// owner before reading its retry; every timer is retired by this point.
+		if runErr != nil {
+			if session.retryBudget != nil {
+				runErr = &connectionRetryFailure{cause: runErr, budget: session.retryBudget}
+			}
+		}
 		p.stopCapture(capture)
 		p.negotiated.Store(nil) // Clear negotiated capabilities
 		p.negotiatedHoldTime.Store(0)
@@ -381,7 +362,7 @@ func (p *Peer) runOnce() error {
 		// RFC 6286 Section 2.1: give up the AS-wide BGP Identifier this session claimed in
 		// validateOpen, so another peer may use it once this session is over. Called outside
 		// p.mu (the claim registry is a leaf lock, and clearEncodingContexts below takes p.mu).
-		p.releaseRouterIDClaim()
+		p.releaseSessionRouterIDClaim(session)
 		// The down defer has run (it was registered later), so the leave
 		// callback finished and the down was delivered before this join. It
 		// holds neither writeMu nor the forward worker.
@@ -437,6 +418,13 @@ func (p *Peer) runOnce() error {
 		p.upPhase = sessionUpUnspecified
 		p.mu.Unlock()
 	}()
+	// The preceding epoch joined its capture before this runOnce began. The
+	// selected Session's immutable input can now open and drain its own file.
+	switch target := capture.(type) {
+	case nil, *sessionCapture:
+	case *pendingSessionCapture:
+		target.selectForPublication()
+	}
 	// Register before any accept rail can process an OPEN. A retained
 	// collision winner can publish negotiation and then fail its KEEPALIVE
 	// before the delivery worker (and its Established down) even exists.
@@ -455,7 +443,6 @@ func (p *Peer) runOnce() error {
 	// counter before the start event, so the §8.2.2 clauses land on a value
 	// that survives the cycle. A counter created here would be destroyed with
 	// the Session and could never count a retry.
-	session.SetConnectRetryCounter(&p.connectRetryCounter)
 
 	// draft-ietf-idr-bgp-bfd-strict-mode Section 7: "Implementations SHOULD
 	// start the BFD session associated with the BGP BFD strict-mode session
@@ -493,8 +480,10 @@ func (p *Peer) runOnce() error {
 	if !p.operatorStarted.Swap(true) {
 		start = session.Start
 	}
-	if err := start(); err != nil {
-		return err
+	if candidate == nil {
+		if err := start(); err != nil {
+			return err
+		}
 	}
 
 	// The callback is installed before the accept and dial below, because
@@ -504,15 +493,15 @@ func (p *Peer) runOnce() error {
 	// would be lost.
 	// The leave-Established arm fills this record and closes its signal; the
 	// down defer below waits on it (sessionDown).
-	leave := &sessionLeave{signal: make(chan struct{})}
+	leave := &sessionLeave{signal: make(chan struct{}), selected: candidate == nil}
 
 	// Monitor FSM state
-	session.fsm.SetCallback(func(from, to fsm.State, event fsm.Event) {
+	publishTransition := func(from, to fsm.State, event fsm.Event) {
 		addr := p.settings.Address.String()
 		peerLogger().Debug("FSM transition", "peer", addr, "from", from.String(), "to", to.String())
 		// The engine's own facts first, so a process reads the transition
 		// before any event the new state produces (peer_fsm_events.go).
-		p.emitFSMEvents(from, to, event)
+		p.emitFSMEvents(from, to)
 
 		transitionReason := from.String() + " -> " + to.String()
 
@@ -613,26 +602,36 @@ func (p *Peer) runOnce() error {
 			To:        to.String(),
 			Reason:    transitionReason,
 		})
-	})
+	}
+	if candidate == nil {
+		session.fsm.SetCallback(publishTransition)
+	}
 
 	// Consume the Peer-owned inbound slot before dialing. A collision winner
 	// has already supplied its OPEN and MUST keep this exact socket and wire.
+	var readyIncoming *candidateReady
+	var openIncoming *candidateOpen
 	if p.settings.Connection.IsPassive() {
 		inbound := p.takeInboundConnection()
-		if inbound.conn != nil {
+		if inbound != nil {
 			var err error
-			if inbound.open != nil {
-				err = session.acceptWithOpen(inbound.conn, inbound.open, inbound.wire)
-				// The selected socket owns this session before ordinary arrivals
-				// may reach it. Taking the slot alone does not end that ownership.
+			switch arrival := inbound.(type) {
+			case *incomingSocket:
+				err = session.Accept(arrival.conn)
+			case *bufferedIncoming:
+				err = session.acceptWithOpen(arrival.conn, arrival.open, arrival.wire)
+			case *candidateOpen:
+				openIncoming = arrival
+			case *candidateReady:
+				readyIncoming = arrival
+			}
+			if inboundCandidate(inbound) == nil {
 				p.mu.Lock()
 				p.collisionHandoff = false
 				p.mu.Unlock()
-			} else {
-				err = session.Accept(inbound.conn)
 			}
 			if err != nil {
-				closeConnQuietly(inbound.conn)
+				closeConnQuietly(inboundConn(inbound))
 				if !errors.Is(err, ErrAlreadyConnected) {
 					return fmt.Errorf("accepting buffered connection: %w", err)
 				}
@@ -647,7 +646,7 @@ func (p *Peer) runOnce() error {
 	)
 
 	// A retained collision winner takes precedence in ConnectionBoth too.
-	if p.settings.Connection.IsActive() && session.Conn() == nil {
+	if candidate == nil && p.settings.Connection.IsActive() && session.Conn() == nil {
 		dialLabel := p.peerAddrLabel()
 		dialStart := p.clock.Now()
 		if err := session.Connect(p.ctx); err != nil {
@@ -756,9 +755,50 @@ func (p *Peer) runOnce() error {
 	// p.session.
 	defer p.sessionDown(session, publication, deliverChan, deliveryDone, leave)
 
+	if candidate != nil {
+		err := func() error {
+			// The typed receipt owns this reservation through installation,
+			// including an error or panic. Do not clear a newer stored winner.
+			defer func() {
+				p.mu.Lock()
+				if p.inbound == nil {
+					p.collisionHandoff = false
+				}
+				p.mu.Unlock()
+			}()
+			if openIncoming != nil {
+				if err := session.adoptIncoming(publishTransition, leave, false); err != nil {
+					return err
+				}
+				return openIncoming.openAdmission.advance()
+			}
+			if readyIncoming != nil {
+				return session.adoptIncoming(publishTransition, leave, true)
+			}
+			return ErrNotConnected
+		}()
+		if err != nil {
+			return err
+		}
+	}
+
 	// Run session loop
 	return session.Run(p.ctx)
 }
+
+// connectionRetryFailure is a failed cycle whose FSM restarted the
+// ConnectRetryTimer. Its immutable budget retains the timer's owning clock;
+// runOnce constructs it only after joining that session's failure and retirement.
+// A nil pointer is not an error value, and a zero value is never constructed.
+// The underlying error remains available to teardown and diagnostic callers.
+type connectionRetryFailure struct {
+	cause  error
+	budget fsm.ConnectRetryBudget
+}
+
+func (e *connectionRetryFailure) Error() string { return e.cause.Error() }
+
+func (e *connectionRetryFailure) Unwrap() error { return e.cause }
 
 // cleanup runs when peer stops.
 func (p *Peer) cleanup() {
@@ -769,15 +809,14 @@ func (p *Peer) cleanup() {
 	clearPrefixHold(p.peerAddrLabel())
 	// RFC 6286 Section 2.1: a stopped peer holds no BGP Identifier. Safe under any caller's
 	// locks -- the claim registry never takes r.mu or p.mu.
-	p.releaseRouterIDClaim()
 	p.clearEncodingContexts()
-	p.ClearStats()
 	// The last release of a strict peer's BFD session, which
 	// draft-ietf-idr-bgp-bfd-strict-mode Section 7 keeps alive across every
 	// BGP connection. Idempotent, so a non-strict peer whose session the FSM
 	// callback already released reaches a no-op.
 	p.stopBFDClient()
 	p.mu.Lock()
+	p.incomingClosed = true
 	// p.session is NOT read here. runOnce's own defer nils it, and that defer
 	// runs first: cleanup is `defer p.cleanup()` in run(), so it can only run
 	// after runOnce returned. The `if p.session != nil` that used to stand here
@@ -786,14 +825,22 @@ func (p *Peer) cleanup() {
 	// all. The send now happens in Reactor.Stop, before the cancel that makes
 	// every downstream guard false (reactor.go, shutdownNotify in peer.go).
 	inbound := p.inbound
-	p.inbound = inboundConnection{}
+	p.inbound = nil
+	pending := p.pending
+	p.pending = nil
 	p.collisionHandoff = false
 	p.cancel = nil
 	p.mu.Unlock()
 
-	if inbound.conn != nil {
-		closeConnQuietly(inbound.conn)
+	if pending != nil {
+		closeConnQuietly(pending.connection())
 	}
+	if inbound != nil {
+		discardInbound(inbound)
+	}
+	p.incomingWG.Wait()
+	p.releaseRouterIDClaim()
+	p.ClearStats()
 
 	p.setState(PeerStateStopped)
 }
@@ -898,8 +945,8 @@ func (p *Peer) holdDownAfterPrefixTeardown(fam string) {
 		case <-p.ctx.Done():
 			return
 		case <-p.inboundNotify:
-			if inbound := p.takeInboundConnection(); inbound.conn != nil {
-				closeConnQuietly(inbound.conn)
+			if inbound := p.takeInboundConnection(); inbound != nil {
+				discardInbound(inbound)
 				peerLogger().Debug("inbound connection refused, peer held down",
 					"peer", p.settings.Address,
 					"family", fam,

@@ -7,7 +7,7 @@
     "claim-sha": "7fb1417ee81c1df9",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
-    "producer-sha": "6c664479e5135c43",
+    "producer-sha": "142a72404862f1a2",
     "break": "body of validateOpenPeerAS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "df03ea9da0935f71",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
-    "producer-sha": "6c664479e5135c43",
+    "producer-sha": "142a72404862f1a2",
     "break": "body of validateOpenPeerAS replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

@@ -65,7 +65,7 @@ tie-break, the RFC 6286 identifier scope, the negotiated identity, the reload
 comparison (all through `judgedPeerAS`) and the AS a dynamic peer publishes at
 establishment, which is what `$remote_as` resolves to in its filter chains. An
 OPEN-validator plugin is told the same AS for the peer (`remoteOpenAS`).
-<!-- source: internal/component/bgp/reactor/session_open_as.go -- judgedPeerAS -->
+<!-- source: internal/component/bgp/reactor/session_open_proposal.go -- judgedPeerAS -->
 <!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- resolveDynamicPeerSettings -->
 <!-- source: internal/component/bgp/server/validate.go -- remoteOpenAS -->
 

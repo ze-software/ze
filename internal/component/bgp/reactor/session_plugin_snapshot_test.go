@@ -40,7 +40,7 @@ func TestPrepareOpenKeepsPluginSnapshotAcrossRollback(t *testing.T) {
 	if err := session.prepareOpen(); err != nil {
 		t.Fatal(err)
 	}
-	caps, err := capability.ParseFromOptionalParams(session.localOpen.OptionalParams, session.localOpen.ExtendedParams)
+	caps, err := capability.ParseFromOptionalParams(session.proposal.message.OptionalParams, session.proposal.message.ExtendedParams)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -58,7 +58,7 @@ func TestPrepareOpenKeepsPluginSnapshotAcrossRollback(t *testing.T) {
 	if !bytes.Equal(wire, a.Value) && !bytes.Equal(wire, b.Value) {
 		t.Fatalf("OPEN plugin value = %x, want snapshot A=%x or B=%x", wire, a.Value, b.Value)
 	}
-	recorded := session.sentPluginDecls[code]
+	recorded := session.proposal.pluginDeclarations[code]
 	if len(recorded) != 1 {
 		t.Fatalf("recorded plugin values = %x, want one wire value", recorded)
 	}

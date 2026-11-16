@@ -24,7 +24,10 @@ import (
 // TestMRTWinningCollisionPreservesOPEN follows a live Peer's collision handoff,
 // not acceptWithOpen in isolation. Two TCP connections send different actual
 // capabilities. The winner must establish, retain its noncanonical OPEN bytes,
-// and supply the context for mixed-family and isolated-family UPDATEs.
+// and supply its actual OPEN context for mixed-family and isolated-family UPDATEs.
+// BGP4MP has no TCP ports: the complete overlapping stream must report its
+// ambiguous context. The live test knows the selected TCP connection and uses
+// only its captured OPENs for a separate, explicit known-connection decode.
 // MUTATION: observeReceivedWire using sendCtxID instead of recvCtxID flips every
 // isolated inbound subtype; observedBGPWriter.observe using the receive context
 // flips every isolated outbound subtype. Mixed-family OR alone cannot detect this.
@@ -32,29 +35,41 @@ import (
 // RFC requirement: RFC8050-x-1 negative -- isolated ordinary-family announcements and withdrawals use received subtype 4 or LOCAL subtype 7 despite ADD-PATH negotiation for the other family and opposite direction.
 // RFC requirement: RFC8050-x-4 positive -- the live collision winner retains its original directional OPENs and the same TCP connection; its mixed withdrawals decode to the exact classic and MP prefixes and Path Identifiers in both directions.
 func TestMRTWinningCollisionPreservesOPEN(t *testing.T) {
-	testMRTWinningCollision(t, "")
+	testMRTWinningCollision(t, "", true)
+}
+
+// TestMRTHeldConnectionCollisionPreservesOPEN uses an OPEN-less DelayOpen
+// incumbent. Its silent retirement cannot invalidate the winning socket's two
+// actual OPENs, so ReadFile must recover the mixed UPDATE context automatically.
+// The same live socket, exact wire frames, subtypes, prefixes and IDs are checked.
+func TestMRTHeldConnectionCollisionPreservesOPEN(t *testing.T) {
+	testMRTWinningCollision(t, "", false)
 }
 
 // TestMRTCollisionWinnerReservation forces third arrivals both while the fresh
-// session is published and after it has taken the winner but cannot install it.
+// session is published and after it has taken the winner but cannot process
+// the retained remote OPEN on the socket the candidate already owns.
 // Existing Peer callbacks and the actual Session mutex provide the barriers;
 // every subtest then completes the same socket and exact MRT assertions.
 // RFC requirement: RFC8050-x-4 positive -- competing arrivals at both collision-handoff barriers leave the selected socket's original OPEN evidence intact, and its recorded mixed withdrawals retain the exact directional prefixes and Path Identifiers.
 func TestMRTCollisionWinnerReservation(t *testing.T) {
 	for _, phase := range []string{"published", "taken"} {
 		t.Run(phase, func(t *testing.T) {
-			testMRTWinningCollision(t, phase)
+			testMRTWinningCollision(t, phase, true)
 		})
 	}
 }
 
-func testMRTWinningCollision(t *testing.T, handoffPhase string) {
+func testMRTWinningCollision(t *testing.T, handoffPhase string, overlap bool) {
 	settings := NewPeerSettings(netip.MustParseAddr("127.0.0.1"), 65000, 65001, 0x0a000002)
 	// The peer is EBGP and the scenario records UPDATEs it sends and receives,
 	// so it states the accepting policies RFC 8212 Section 3 requires.
 	acceptingPolicies(t, settings)
 	settings.LocalAddress = netip.MustParseAddr("127.0.0.1")
 	settings.Connection = ConnectionPassive
+	if !overlap {
+		settings.DelayOpen = time.Minute
+	}
 	settings.Capabilities = []capability.Capability{
 		&capability.Multiprotocol{AFI: 1, SAFI: 1},
 		&capability.Multiprotocol{AFI: 2, SAFI: 1},
@@ -93,8 +108,8 @@ func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 			}
 			fresh := peer.currentSession()
 			if handoffPhase == "taken" {
-				// Start uses the FSM's lock, not Session.mu. runOnce can
-				// start and take the slot, but acceptWithOpen must wait.
+				// The candidate already owns its FSM and socket. runOnce can
+				// take the slot, but processing its retained OPEN must wait.
 				fresh.mu.Lock()
 				go func() {
 					<-resume
@@ -179,23 +194,46 @@ func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 		}
 	}
 	existing := connect()
-	oldLocal := readMRTTestPacket(t, existing)
-	if oldLocal[18] != 1 {
-		t.Fatalf("initial reply is not OPEN: %x", oldLocal)
+	var oldLocal, oldRemote []byte
+	if overlap {
+		oldLocal = readMRTTestPacket(t, existing)
+		if oldLocal[18] != 1 {
+			t.Fatalf("initial reply is not OPEN: %x", oldLocal)
+		}
+		oldRemote = mrtCollisionOPEN(2, 1)
+		write(existing, oldRemote)
+		if packet := readMRTTestPacket(t, existing); packet[18] != 4 {
+			t.Fatalf("initial OPEN was not accepted: %x", packet)
+		}
+		mrtCollisionWait(t, func() bool { return peer.SessionState() == fsm.StateOpenConfirm }, "original OpenConfirm")
+	} else {
+		mrtCollisionWait(t, func() bool { return peer.currentSession().holdsOpen() }, "OPEN-less original DelayOpen")
+		delayOpenNoBytes(t, existing)
+		if err := existing.SetReadDeadline(time.Now().Add(5 * time.Second)); err != nil {
+			t.Fatal(err)
+		}
 	}
-	oldRemote := mrtCollisionOPEN(2, 1)
-	write(existing, oldRemote)
-	if packet := readMRTTestPacket(t, existing); packet[18] != 4 {
-		t.Fatalf("initial OPEN was not accepted: %x", packet)
-	}
-	mrtCollisionWait(t, func() bool { return peer.SessionState() == fsm.StateOpenConfirm }, "original OpenConfirm")
 
 	winner := connect()
 	winningRemote := mrtCollisionOPEN(1, 2)
-	write(winner, winningRemote)
-	cease := readMRTTestPacket(t, existing)
-	if cease[18] != 3 || !bytes.Equal(cease[19:], []byte{6, 7}) {
-		t.Fatalf("losing connection did not receive collision Cease: %x", cease)
+	var winningLocal, oldCease []byte
+	if overlap {
+		winningLocal = readMRTTestPacket(t, winner)
+		write(winner, winningRemote)
+		oldCease = readMRTTestPacket(t, existing)
+		if oldCease[18] != 3 || !bytes.Equal(oldCease[19:], []byte{6, 7}) {
+			t.Fatalf("losing connection did not receive collision Cease: %x", oldCease)
+		}
+	} else {
+		write(winner, winningRemote)
+		winningLocal = readMRTTestPacket(t, winner)
+		var octet [1]byte
+		if n, err := existing.Read(octet[:]); n != 0 || !errors.Is(err, io.EOF) {
+			t.Fatalf("OPEN-less loser was not closed silently: bytes=%d error=%v", n, err)
+		}
+	}
+	if winningLocal[18] != 1 {
+		t.Fatalf("winning connection did not receive OPEN: %x", winningLocal)
 	}
 	if handoffPhase != "" {
 		select {
@@ -209,10 +247,10 @@ func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 		if handoffPhase == "taken" {
 			mrtCollisionWait(t, func() bool {
 				peer.mu.RLock()
-				empty := peer.inbound.conn == nil
+				empty := inboundConn(peer.inbound) == nil
 				peer.mu.RUnlock()
-				return empty && peer.SessionState() == fsm.StateActive
-			}, "winner taken before socket installation")
+				return empty && peer.SessionState() == fsm.StateOpenSent
+			}, "winner taken before retained OPEN processing")
 		}
 		third, server := dial()
 		accepted := make(chan struct{})
@@ -234,10 +272,6 @@ func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 	}
 	// This must be the same surviving TCP connection, not a retry. A lost
 	// handoff fails here (EOF/timeout) instead of being hidden by a new dial.
-	winningLocal := readMRTTestPacket(t, winner)
-	if winningLocal[18] != 1 {
-		t.Fatalf("winning connection did not receive OPEN: %x", winningLocal)
-	}
 	if packet := readMRTTestPacket(t, winner); packet[18] != 4 {
 		t.Fatalf("winning OPEN was not accepted: %x", packet)
 	}
@@ -291,12 +325,43 @@ func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 	var opens [][]byte
 	var directions []uint16
 	received, sent := 0, 0
+	ambiguous := 0
+	oldCeaseRecords := 0
+	var knownWinner mrt.SessionContexts
 	err = mrt.ReadFile(path, &mrt.Handler{OnMessage: func(h mrt.Header, _ uint32, record *mrt.MessageRecord) error {
 		wire := record.BGPMessage.Bytes
 		if wire[18] == 1 {
 			opens = append(opens, bytes.Clone(wire))
 			directions = append(directions, h.Subtype)
+			if overlap {
+				// Select the third and fourth actual OPEN occurrences. Both
+				// local OPENs can be byte-identical; content cannot identify TCP.
+				if len(opens) > 2 {
+					return knownWinner.ObserveMessage(h.Subtype, record)
+				}
+			}
 			return nil
+		}
+		if overlap {
+			if len(opens) > 2 {
+				// The fixture read this exact frame from the old TCP socket.
+				// Retain it in the full stream, but exclude it from the known
+				// winner's context. Feed all other frames before filtering:
+				// KEEPALIVEs, initial EOR, isolated UPDATEs and final teardown.
+				if bytes.Equal(wire, oldCease) {
+					oldCeaseRecords++
+				} else {
+					if bytes.Equal(wire, incoming) || bytes.Equal(wire, outgoing) {
+						if _, err := mrt.ParseBGPMessage(record.BGPMessage); !errors.Is(err, mrt.ErrContextUnavailable) {
+							t.Fatalf("overlapping TCP epochs must report ambiguous MRT context: %v", err)
+						}
+						ambiguous++
+					}
+					if err := knownWinner.ObserveMessage(h.Subtype, record); err != nil {
+						return err
+					}
+				}
+			}
 		}
 		if wire[18] != 2 {
 			return nil
@@ -354,11 +419,26 @@ func testMRTWinningCollision(t *testing.T, handoffPhase string) {
 		t.Fatal(err)
 	}
 	wantOpens := [][]byte{oldLocal, oldRemote, winningLocal, winningRemote}
-	if !slices.EqualFunc(opens, wantOpens, bytes.Equal) || !slices.Equal(directions, []uint16{7, 4, 7, 4}) {
+	wantDirections := []uint16{7, 4, 7, 4}
+	if !overlap {
+		wantOpens = [][]byte{winningRemote, winningLocal}
+		wantDirections = []uint16{4, 7}
+	}
+	if !slices.EqualFunc(opens, wantOpens, bytes.Equal) || !slices.Equal(directions, wantDirections) {
 		t.Fatalf("original directional OPENs changed or disappeared: directions=%v OPENs=%x", directions, opens)
 	}
 	if received != 1 || sent != 1 {
 		t.Fatalf("winning UPDATE records received/sent=%d/%d, want 1/1", received, sent)
+	}
+	wantAmbiguous := 0
+	if overlap {
+		wantAmbiguous = 2
+		if oldCeaseRecords != 1 {
+			t.Fatalf("recorded old-socket collision Cease count=%d, want 1", oldCeaseRecords)
+		}
+	}
+	if ambiguous != wantAmbiguous {
+		t.Fatalf("winning UPDATE contexts reported unavailable=%d, want %d", ambiguous, wantAmbiguous)
 	}
 	for _, update := range isolated {
 		if update.records != 1 {

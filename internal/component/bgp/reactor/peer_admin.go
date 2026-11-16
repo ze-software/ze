@@ -93,8 +93,12 @@ func (p *Peer) holdAdminDown() {
 			return
 		case <-p.adminWake:
 		case <-p.inboundNotify:
-			if inbound := p.takeInboundConnection(); inbound.conn != nil {
-				rejectAdminDownConnection(inbound.conn, p.clock)
+			if inbound := p.takeInboundConnection(); inbound != nil {
+				rejectAdminDownConnection(inboundConn(inbound), p.clock)
+				discardInbound(inbound)
+				p.mu.Lock()
+				p.collisionHandoff = false
+				p.mu.Unlock()
 			}
 		}
 	}

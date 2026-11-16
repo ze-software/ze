@@ -64,15 +64,16 @@ Both the ordinary and coalesced readers validate the header before attempting
 to read its declared body. Outbound rewrite scratch buffers are sized from the
 body being rewritten, not from the session's unrelated receive permission.
 
-Capability negotiation computes its result under the session lock, before taking
-the writer lock. Publishing that result and resizing the write buffer remain one
-writer-locked operation, so an internal negotiation panic cannot strand that lock
-and block connection cleanup. The same section records whether Ze's own OPEN
-carried the LLGR Capability, which sizes no buffer.
+Capability negotiation computes its result from the immutable prepared OPEN
+before taking the session or writer lock. Publication then holds the session
+lock; publishing the negotiated writer state and resizing its buffer remain one
+writer-locked operation. A panic in the pure calculation cannot strand either
+lock and block connection cleanup. Publication also records whether Ze's own
+OPEN carried the LLGR Capability, which sizes no buffer.
 
-<!-- source: internal/component/bgp/reactor/session_negotiate.go -- negotiateWith -->
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- prepareNegotiation, publishNegotiation, negotiateWith -->
 <!-- source: internal/component/bgp/reactor/session.go -- getReadBuffer -->
-<!-- source: internal/component/bgp/reactor/session_read.go -- readAndProcessMessage -->
+<!-- source: internal/component/bgp/reactor/session_read.go -- readFrame, readAndProcessMessage -->
 <!-- source: internal/component/bgp/reactor/session_coalesce.go -- readAndProcessCoalesced -->
 <!-- source: internal/component/bgp/reactor/session_write.go -- writeRawUpdateBody -->
 <!-- source: internal/component/bgp/reactor/session_aigp.go -- writeUpdateWithoutAIGP -->

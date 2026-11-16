@@ -451,19 +451,22 @@ func TestRFC4271ConnectRetryCounterQuietOnGoodUpdate(t *testing.T) {
 	require.Equal(t, StateEstablished, f.State())
 }
 
-// TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent verifies the catch-all
-// action list of every non-Idle state.
+// TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent verifies one
+// listed error input in each non-Idle state.
 //
-// VALIDATES: An event that lands in each state's "any other event" arm raises
-// the counter by one and drops to Idle.
+// VALIDATES: Connect and Active receive KEEPALIVE, OpenSent and OpenConfirm
+// receive UPDATE, and Established receives ConnectRetryTimer_Expires. Each
+// input returns ErrFSMError, increments the counter from 0 to 1 and enters Idle.
 //
-// PREVENTS: A new event, or an event removed from an explicit arm, falling
-// through to the default and being torn down without being counted.
+// PREVENTS: A listed error input that leaves retry history unchanged or keeps
+// its non-Idle state.
 //
-// RFC requirement: RFC4271-8.2.2-15 positive -- the default arm of
-// handleConnect, handleActive, handleOpenSent, handleOpenConfirm and
-// handleEstablished each call f.crc.Increment() before change(StateIdle)
-// (internal/component/bgp/fsm/fsm.go).
+// RFC requirement: RFC4271-8.2.2-15 positive -- Connect/Active EventKeepaliveMsg,
+// OpenSent/OpenConfirm EventUpdateMsg and Established
+// EventConnectRetryTimerExpires each return ErrFSMError, increment
+// ConnectRetryCounter from 0 to 1 and enter Idle through their listed-event
+// groups (internal/component/bgp/fsm/fsm.go, handleConnect, handleActive,
+// handleOpenSent, handleOpenConfirm, handleEstablished).
 func TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent(t *testing.T) {
 	defaultArm := []struct {
 		state State
@@ -485,21 +488,20 @@ func TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent(t *testing.T) {
 	}
 }
 
-// TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing verifies the one
-// state whose catch-all has no action list.
+// TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing verifies the
+// listed Idle ignore inputs.
 //
-// VALIDATES: Every event Idle does not name leaves both the state and the
-// counter unchanged.
+// VALIDATES: All 13 timer, transport and message inputs return no error. The
+// sequence leaves the state Idle and the seeded ConnectRetryCounter at 6.
 //
-// PREVENTS: Copying the incrementing default arm into handleIdle, which would
-// let a peer that is not even connected climb the counter on every stray
-// event.
+// PREVENTS: Counting a listed ignore input as another failed connection.
 //
-// RFC requirement: RFC4271-8.2.2-15 negative -- handleIdle's default arm
-// returns immediately, matching §8.2.2's "Any other event (Events 9-12, 15-28)
-// received in the Idle state does not cause change in the state of the local
-// system", which lists no actions at all
-// (internal/component/bgp/fsm/fsm.go, handleIdle).
+// RFC requirement: RFC4271-8.2.2-15 negative -- the tested sequence of 13 listed
+// timer, transport and message events returns no errors, ends in StateIdle and
+// retains ConnectRetryCounter 6. handleIdle processes these inputs in its
+// explicit ignore group for RFC 4271 Section 8.2.2: "Any other event (Events
+// 9-12, 15-28) received in the Idle state does not cause change in the state of
+// the local system." (internal/component/bgp/fsm/fsm.go, handleIdle).
 func TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing(t *testing.T) {
 	f, c := crcFSM(t, StateIdle, 6)
 	for _, ev := range []Event{

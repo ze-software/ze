@@ -771,7 +771,13 @@ func TestReceiveAdmissionSurvivesIdleTransition(t *testing.T) {
 			require.False(t, result.kept)
 			require.Zero(t, dispatches, "no UPDATE or false EOR reaches consumers")
 			require.Nil(t, s.Conn())
-			assertNotification(t, <-reply, 5, 0, []byte{})
+			// RFC 6608 Section 4: subcode and one-octet Data identify the
+			// receiving state and unexpected UPDATE, even after a timer wins.
+			if state == fsm.StateOpenSent {
+				assertNotification(t, <-reply, 5, 1, []byte{2})
+			} else {
+				assertNotification(t, <-reply, 5, 2, []byte{2})
+			}
 		})
 	}
 }

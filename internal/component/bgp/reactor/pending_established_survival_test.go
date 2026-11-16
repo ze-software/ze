@@ -63,6 +63,11 @@ func TestPendingFailurePreservesEstablishedSession(t *testing.T) {
 			}
 			r := &Reactor{clock: clk}
 			r.acceptOrReject(pending, peer, nil)
+			localOpen, openErr := core4271ReadMessage(client)
+			require.NoError(t, openErr)
+			require.Equal(t, byte(msgtype.TypeOPEN), localOpen[18], "the incoming connection has its own OPEN exchange")
+			initialWrites := pending.writes.Load()
+			require.Positive(t, initialWrites, "the observed socket wrote the verified local OPEN")
 			var deadline time.Time
 			select {
 			case deadline = <-pending.deadline:
@@ -73,8 +78,15 @@ func TestPendingFailurePreservesEstablishedSession(t *testing.T) {
 				require.True(t, deadline.Before(time.Now()), "the actual pending socket read deadline must already be expired")
 			} else {
 				require.True(t, peer.hasPendingConnection(), "the second connection must be tracked until its OPEN completes or fails")
-				packet := message.PackTo(&message.Open{Version: 4, MyAS: 65002, HoldTime: 0,
-					BGPIdentifier: 0x02020302, OptionalParams: []byte{2, 0}}, nil)
+				open := &message.Open{Version: 4, MyAS: 65002, HoldTime: 0,
+					BGPIdentifier: 0x02020302, OptionalParams: []byte{2, 0}}
+				if test.kind == "valid" {
+					// RFC 5492 Section 4 requires one or more capability TLVs.
+					// A Route Refresh tuple makes this control semantically valid;
+					// the malformed and partial inputs below retain their bytes.
+					open.OptionalParams = []byte{2, 2, 2, 0}
+				}
+				packet := message.PackTo(open, nil)
 				switch test.kind {
 				case "malformed":
 					// The complete BGP frame declares two optional-parameter
@@ -109,7 +121,7 @@ func TestPendingFailurePreservesEstablishedSession(t *testing.T) {
 				t.Fatal("the pending reader did not close its owned socket")
 			}
 			if len(test.notification) == 0 {
-				require.Zero(t, pending.writes.Load(), "a pending transport failure must not attempt a BGP refusal")
+				require.Equal(t, initialWrites, pending.writes.Load(), "after its verified OPEN a pending transport failure must not attempt a BGP refusal")
 			}
 			require.False(t, peer.hasPendingConnection(), "failed or rejected pending connection must be released")
 			require.Same(t, session, peer.currentSession())

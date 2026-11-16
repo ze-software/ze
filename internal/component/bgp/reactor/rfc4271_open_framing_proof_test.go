@@ -89,6 +89,9 @@ func TestRFC4271PendingOuterOPENFramingErrorsNotify(t *testing.T) {
 					t.Error("pending OPEN reader did not stop")
 				}
 			})
+			localOpen, openErr := core4271ReadMessage(client)
+			require.NoError(t, openErr)
+			require.Equal(t, byte(msgtype.TypeOPEN), localOpen[18], "the incoming connection sends its own OPEN before remote input")
 			_, err := client.Write(rfc4271ProofOPENPacket(tc.body))
 			require.NoError(t, err)
 			reply, err := core4271ReadMessage(client)

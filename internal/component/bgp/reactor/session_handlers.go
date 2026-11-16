@@ -51,8 +51,37 @@ func (s *Session) handleUnknownType(msgType msgtype.MessageType) error {
 
 // handleOpen processes a received OPEN message.
 func (s *Session) handleOpen(body []byte) error {
+	admitted, err := s.admitOpen(body)
+	if err != nil {
+		return err
+	}
+	return admitted.advance()
+}
+
+func (s *Session) admitOpen(body []byte) (*openAdmission, error) {
 	s.openMu.Lock()
 	defer s.unlockOpen()
+	if err := s.checkOpenState(); err != nil {
+		return nil, err
+	}
+	open, err := message.UnpackOpen(body)
+	if err != nil {
+		return nil, s.rejectOpenCapabilityError(err)
+	}
+	return s.validateOpenLocked(open)
+}
+
+func (s *Session) admitParsedOpen(open *message.Open) (*openAdmission, error) {
+	s.openMu.Lock()
+	defer s.unlockOpen()
+	if err := s.checkOpenState(); err != nil {
+		return nil, err
+	}
+	return s.validateOpenLocked(open)
+}
+
+// checkOpenState MUST run under openMu before decoding or validation.
+func (s *Session) checkOpenState() error {
 	// An OPEN is only legitimate while we are WAITING for the peer's OPEN. Once
 	// we have one, a further OPEN on the SAME connection must not be processed:
 	// without this gate handleOpen runs the whole path again on a live session,
@@ -121,10 +150,13 @@ func (s *Session) handleOpen(body []byte) error {
 	if s.onOpenRecv != nil {
 		s.onOpenRecv()
 	}
-	open, err := message.UnpackOpen(body)
-	if err != nil {
-		return s.rejectOpenCapabilityError(err)
-	}
+	return nil
+}
+
+// validateOpenLocked MUST run under openMu after checkOpenState. It builds
+// a pure result without publishing capabilities, advancing the FSM or sending
+// KEEPALIVE. Both wire and pre-parsed receipts use this one semantic policy.
+func (s *Session) validateOpenLocked(open *message.Open) (*openAdmission, error) {
 
 	// Validate version.
 	if open.Version != 4 {
@@ -145,7 +177,7 @@ func (s *Session) handleOpen(body []byte) error {
 		)
 		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 		s.closeConn()
-		return ErrUnsupportedVersion
+		return nil, ErrUnsupportedVersion
 	}
 
 	// RFC 4271 Section 6.2: "An implementation MUST reject Hold Time values
@@ -161,7 +193,7 @@ func (s *Session) handleOpen(body []byte) error {
 		}
 		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 		s.closeConn()
-		return fmt.Errorf("invalid hold time %d: %w", open.HoldTime, err)
+		return nil, fmt.Errorf("invalid hold time %d: %w", open.HoldTime, err)
 	}
 
 	// RFC 7607 Section 2: abort the connection when the peer presents AS 0, with OPEN
@@ -169,52 +201,43 @@ func (s *Session) handleOpen(body []byte) error {
 	// what scopes identifier uniqueness (RFC 6286 Section 2.1).
 	peerCaps, err := s.validateOpenPeerAS(open)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	// RFC 6286 Section 2.2: reject a zero BGP Identifier, or this speaker's own identifier
 	// from an internal peer, with OPEN Message Error / Bad BGP Identifier.
 	if err := s.validateOpenIdentifier(open); err != nil {
-		return err
+		return nil, err
 	}
-
-	s.mu.Lock()
-	s.peerOpen = open
-	s.mu.Unlock()
 
 	// Validate OPEN pair via the peer callback (plugins such as RFC 9234 Role, plus the
 	// RFC 6286 Section 2.1 AS-wide identifier claim).
 	// Called BEFORE negotiation — saves work if rejected.
 	if err := s.runOpenValidator(open); err != nil {
-		return err
+		return nil, err
 	}
 
-	s.mu.RLock()
-	localOpen := s.localOpen
-	s.mu.RUnlock()
+	proposal, err := s.openProposal()
+	if err != nil {
+		return nil, err
+	}
 
 	// Peer capabilities were validated before checking AS identity.
-	var localCaps []capability.Capability
-	if localOpen != nil {
-		localCaps, err = capability.ParseFromOptionalParams(localOpen.OptionalParams, localOpen.ExtendedParams)
-		if err != nil {
-			return fmt.Errorf("parse local OPEN capabilities: %w", err)
-		}
+	localCaps, err := capability.ParseFromOptionalParams(proposal.message.OptionalParams, proposal.message.ExtendedParams)
+	if err != nil {
+		return nil, fmt.Errorf("parse local OPEN capabilities: %w", err)
 	}
 
 	// Negotiate capabilities.
-	s.negotiateWith(localCaps, peerCaps)
-	// draft-ietf-idr-bgp-bfd-strict-mode Section 6: the BfdStrictNegotiated
-	// attribute is settled by this exchange, and every clause below reads it.
-	s.applyBFDStrictNegotiation()
+	negotiated := proposal.prepareNegotiation(open, localCaps, peerCaps)
 
 	// Validate required families and capabilities are negotiated.
 	s.mu.RLock()
 	conn := s.conn
-	neg := s.negotiated
-	requiredFamilies := s.settings.RequiredFamilies
-	requiredCaps := s.settings.RequiredCapabilities
-	refusedCaps := s.settings.RefusedCapabilities
+	neg := negotiated
+	requiredFamilies := proposal.settings.RequiredFamilies
+	requiredCaps := proposal.settings.RequiredCapabilities
+	refusedCaps := proposal.settings.RefusedCapabilities
 	s.mu.RUnlock()
 
 	if len(requiredFamilies) > 0 && neg != nil {
@@ -229,25 +252,37 @@ func (s *Session) handleOpen(body []byte) error {
 			)
 			s.logFSMEvent(fsm.EventBGPOpenMsgErr)
 			s.closeConn()
-			return fmt.Errorf("%w: required families not negotiated: %v", ErrInvalidState, missing)
+			return nil, fmt.Errorf("%w: required families not negotiated: %v", ErrInvalidState, missing)
 		}
 	}
 
 	// RFC 5492 Section 3: Validate required/refused capability codes.
 	if err := s.validateCapabilityModes(conn, neg, requiredCaps, refusedCaps, localCaps, peerCaps); err != nil {
-		return err
+		return nil, err
 	}
 
 	// Validate per-family ADD-PATH required/refused.
-	if err := s.validateAddPathFamilyModes(conn, neg, s.settings.RequiredAddPathFamilies, s.settings.RefusedAddPathFamilies, localCaps, peerCaps); err != nil {
-		return err
+	if err := s.validateAddPathFamilyModes(conn, neg, proposal.settings.RequiredAddPathFamilies, proposal.settings.RefusedAddPathFamilies, localCaps, peerCaps); err != nil {
+		return nil, err
 	}
 
-	// Update the FSM, send the KEEPALIVE and reset the hold timer to the
-	// negotiated value -- unless draft-ietf-idr-bgp-bfd-strict-mode Section
-	// 8.5.5 says to withhold the KEEPALIVE and wait for BFD
-	// (session_bfd_strict.go).
-	return s.advanceAfterOpen(conn)
+	if s.tearingDown.Load() {
+		return nil, ErrNotConnected
+	}
+	if conn == nil {
+		return nil, ErrNotConnected
+	}
+	if s.socketClosedIs(conn) {
+		return nil, ErrNotConnected
+	}
+	if s.Conn() != conn {
+		return nil, ErrNotConnected
+	}
+	// RFC 4271 Section 8.2.2, Event10: semantic validation grants no reprieve.
+	if s.rejectExpiredHold() {
+		return nil, ErrHoldTimerExpired
+	}
+	return &openAdmission{session: s, conn: conn, proposal: proposal, open: open, negotiated: negotiated, localCaps: localCaps}, nil
 }
 
 func (s *Session) rejectOpenCapabilityError(err error) error {

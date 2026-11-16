@@ -198,16 +198,28 @@ first value octet as part of the length and lose following attributes.
   callbacks cannot overwrite each other's directional context or endpoints.
 <!-- source: internal/component/bgp/reactor/session_wire.go — observeReceivedWire, observedBGPWriter -->
 <!-- source: internal/plugins/mrt/component.go — OnBGPMessage -->
-- Collision resolution transfers the winning socket and its already-read
-  original OPEN into the Peer's bounded inbound slot before tearing down the
-  loser. A Peer-owned reservation prevents a third inbound connection from
-  occupying the replacement session, including after the winner leaves the
-  slot but before its socket is installed. The next normal session epoch
-  accepts that same socket before any outgoing dial and observes the retained
-  OPEN bytes unchanged. Waiting for the old Session's `Done` and then consulting
-  its Peer cannot establish ownership of the replacement epoch.
-<!-- source: internal/component/bgp/reactor/peer_connection.go — resolvePendingCollision, inboundConnection -->
+- Each admitted incoming TCP connection owns its own Session, FSM and OPEN exchange.
+  Collision resolution transfers the winning Session, socket, buffered reader
+  and original OPEN through the Peer's bounded inbound receipt before retiring
+  the loser. A Peer-owned reservation prevents a third inbound connection from
+  occupying the replacement epoch, including after the winner leaves the slot
+  but before adoption finishes. Adoption retains that same connection and its
+  original observed bytes; it does not send or record another local OPEN.
+  Waiting for the old Session's `Done` and then consulting its Peer cannot
+  establish ownership of the replacement epoch.
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go — inboundConnection, resolveIncoming, finishIncomingHandoff, adoptIncoming -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — runOnce -->
+
+  BGP4MP identifies the peer and local addresses, AS numbers and interface; it
+  carries no TCP ports. Concurrent connections with those same fields can
+  therefore interleave their literal OPENs and a collision NOTIFICATION in one
+  MRT stream without identifying which connection closed. The recorder retains
+  those frames. The reader reports unavailable or ambiguous context for a mixed
+  family ADD-PATH UPDATE when that stream cannot identify both surviving OPENs;
+  it cannot infer the TCP winner. An OPEN-less DelayOpen loser sends no
+  NOTIFICATION and introduces no competing OPEN context, so the winning pair
+  remains available for ordinary automatic file decoding.
+<!-- source: internal/mrt/context.go — SessionContexts.ObserveMessage, updateContext -->
 
 The reactor hands the MRT component its state changes as a `*plugin.PeerInfo`,
 the type `registry.PeerLifecycleCallback` promises: `callbackAdapter` builds it

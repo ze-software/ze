@@ -127,8 +127,8 @@
     "unit-sha": "5d66c430dd89fc19",
     "claim-sha": "c666441c54ab1833",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/session_read.go::readAndProcessMessage",
-    "producer-sha": "72cbf8588bf90014",
-    "break": "line 112: \"s.extendedMessage\" -\u003e \"false\""
+    "producer": "internal/component/bgp/reactor/session_read.go::readFrame",
+    "producer-sha": "eac5e6e08f478752",
+    "break": "line 120: \"s.extendedMessage\" -\u003e \"false /* MUTATION-APPLIED: ignore advertised receive permission */\""
   }
 ]

@@ -4,6 +4,7 @@
 # OPENCONFIRM, one KEEPALIVE and ESTABLISHED. No direct FSM hook is used.
 # Discrimination: bypass the strict Event 20 entry or drop its BfdUp release;
 # the pending-state or KEEPALIVE/state assertion respectively must fail.
+option=needs-linux
 option=env:var=ze.bfd.test-parallel:value=true
 option=exclusive:group=bfd-ports
 

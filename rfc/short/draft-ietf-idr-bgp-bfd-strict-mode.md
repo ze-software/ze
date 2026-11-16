@@ -74,8 +74,10 @@ configuration change.
   state by state in `internal/component/bgp/fsm/fsm.go`.
 - Sub-states: `SubStateOpenSentBfdUpPending` and
   `SubStateOpenSentConfirmedBfdUpPending` (`internal/component/bgp/fsm/state.go`),
-  entered by `FSM.EnterBfdUpPending` and cleared by `FSM.change` on any
-  transition out of OpenSent.
+  entered by `FSM.EnterBfdUpPending`; `SubStateConnectDelayOpenBfdUpPending`
+  and `SubStateActiveDelayOpenBfdUpPending`, entered by
+  `FSM.EnterDelayOpenBfdUpPending` when OPEN arrives during DelayOpen.
+  `FSM.change` clears each sub-state when its parent state changes.
 - BfdHoldTimer: `Timers.StartBfdHoldTimer`, `DefaultBfdHoldTime`
   (`internal/component/bgp/fsm/timer.go`).
 - The wire half: `Session.advanceAfterOpen`, `Session.handleBFDEvent` and

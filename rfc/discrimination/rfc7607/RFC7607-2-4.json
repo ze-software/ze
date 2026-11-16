@@ -7,8 +7,8 @@
     "claim-sha": "4805ccec5412bf1f",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
-    "producer-sha": "6c664479e5135c43",
-    "break": "line 57: \"if advertised == 0 {\" -\u003e \"if true {\""
+    "producer-sha": "142a72404862f1a2",
+    "break": "line 62: \"if advertised == 0 {\" -\u003e \"if true { // MUTATION-APPLIED: refuse a real AS\""
   },
   {
     "rid": "RFC7607-2-4",
@@ -29,8 +29,8 @@
     "claim-sha": "82c655c6a4d10e11",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
-    "producer-sha": "6c664479e5135c43",
-    "break": "line 58: \"s.rejectOpenPeerAS()\" -\u003e \"s.closeConn()\""
+    "producer-sha": "142a72404862f1a2",
+    "break": "line 63: \"s.rejectOpenPeerAS()\" -\u003e \"s.closeConn() // MUTATION-APPLIED: omit AS-zero notification\""
   },
   {
     "rid": "RFC7607-2-4",
@@ -40,8 +40,8 @@
     "claim-sha": "6e2cdd20e4e91a98",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
-    "producer-sha": "6c664479e5135c43",
-    "break": "line 57: \"if advertised == 0 {\" -\u003e \"if true {\""
+    "producer-sha": "142a72404862f1a2",
+    "break": "line 62: \"if advertised == 0 {\" -\u003e \"if true { // MUTATION-APPLIED: refuse a real AS\""
   },
   {
     "rid": "RFC7607-2-4",
@@ -51,8 +51,8 @@
     "claim-sha": "23a7e13e96d634ed",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
-    "producer-sha": "6c664479e5135c43",
-    "break": "line 58: \"s.rejectOpenPeerAS()\" -\u003e \"s.closeConn()\""
+    "producer-sha": "142a72404862f1a2",
+    "break": "line 63: \"s.rejectOpenPeerAS()\" -\u003e \"s.closeConn() // MUTATION-APPLIED: omit AS-zero notification\""
   },
   {
     "rid": "RFC7607-2-4",
@@ -62,7 +62,7 @@
     "claim-sha": "a1e12dfa32270b12",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/session_open_as.go::validateOpenPeerAS",
-    "producer-sha": "6c664479e5135c43",
-    "break": "line 57: \"if advertised == 0 {\" -\u003e \"if true {\""
+    "producer-sha": "142a72404862f1a2",
+    "break": "line 62: \"if advertised == 0 {\" -\u003e \"if true { // MUTATION-APPLIED: refuse a real AS\""
   }
 ]

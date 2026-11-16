@@ -4,8 +4,8 @@
   "tests": {
     "internal/component/bgp/message/rfc4271_mandatory_test.go::TestRFC4271MandatoryAttributesAcrossUpdateForms": "4d20a2664cf9e755",
     "internal/component/bgp/message/rfc4271_mandatory_test.go::TestRFC4271MandatoryAttributesAcrossUpdateForms#2": "4d20a2664cf9e755",
-    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
-    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "f1eef5c477ba7bae",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "f1eef5c477ba7bae"
   },
   "units": {
     "internal/component/bgp/message/rfc4271_mandatory_test.go::TestRFC4271MandatoryAttributesAcrossUpdateForms": "7100273683108ac2",

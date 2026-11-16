@@ -23,6 +23,28 @@
   },
   {
     "rid": "RFC4271-8.2.2-15",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIdleDefaultArmCountsNothing",
+    "unit-sha": "3688ccba8e3ee3a0",
+    "claim-sha": "a4548643c3d6f39e",
+    "route": "mutant",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleIdle",
+    "producer-sha": "3810a0c678632f3f",
+    "break": "line 504: \"return\" -\u003e \"f.crc.Increment(); return // MUTATION-APPLIED: count Idle's listed ignored events\""
+  },
+  {
+    "rid": "RFC4271-8.2.2-15",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/fsm/rfc4271_connect_retry_test.go::TestRFC4271ConnectRetryCounterIncrementsOnAnyOtherEvent",
+    "unit-sha": "2c13dc1d33802cbd",
+    "claim-sha": "b977dbfe99d54a7b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleConnect",
+    "producer-sha": "5dba1dba0ad213ab",
+    "break": "line 635: \"f.crc.Increment()\" -\u003e \"_ = f.crc // MUTATION-APPLIED: omit Connect's listed catch-all increment\""
+  },
+  {
+    "rid": "RFC4271-8.2.2-15",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc4271_active_any_other_event_peer_test.go::TestRFC4271ActiveAutomaticStopReleasesThePeer",
     "unit-sha": "a708fa551614abbc",
@@ -64,5 +86,27 @@
     "producer": "internal/component/bgp/fsm/fsm.go::handleConnect",
     "producer-sha": "5dba1dba0ad213ab",
     "break": "body of handleConnect replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+  },
+  {
+    "rid": "RFC4271-8.2.2-15",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_delay_open_catchall_peer_test.go::TestRFC4271ConnectCatchAllStopsRunningDelayOpen",
+    "unit-sha": "6b741f510679b87c",
+    "claim-sha": "ebe47df8f1d276db",
+    "route": "mutant",
+    "producer": "internal/component/bgp/fsm/fsm.go::change",
+    "producer-sha": "f41a761785faeb58",
+    "break": "line 332: \"f.timers.StopDelayOpenTimer()\" -\u003e \"_ = f.timers // MUTATION-APPLIED: omit only Idle's DelayOpen stop\""
+  },
+  {
+    "rid": "RFC4271-8.2.2-15",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_delay_open_catchall_peer_test.go::TestRFC4271ConnectDuplicateStartPreservesRunningDelayOpen",
+    "unit-sha": "84fda6921ca36699",
+    "claim-sha": "e4b6bee7c1ea279f",
+    "route": "mutant",
+    "producer": "internal/component/bgp/fsm/fsm.go::handleConnect",
+    "producer-sha": "5dba1dba0ad213ab",
+    "break": "line 521: \"case EventManualStart, EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations:\" -\u003e \"case EventManualStart, EventAutomaticStart, EventAutomaticStartWithDampPeerOscillations: f.change(StateIdle) // MUTATION-APPLIED: drop an ignored-start survivor\""
   }
 ]

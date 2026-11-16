@@ -293,24 +293,46 @@ func (p *Peer) incrOpensSent() {
 	}
 }
 
-// recordNotification stores the reason this session ended. It writes the
-// record alone: notificationExchanged says a NOTIFICATION crossed the wire,
-// which a record with direction plugin.NotifSendFailed did not, so the two
-// callers that mean "exchanged" set that flag themselves.
-// attachStatsCallbacks wires the session hooks that feed this peer's counters,
-// its last-error record and its negotiated timers. runOnce calls it for every
-// connection attempt, and it is the one place that says which peer method each
-// hook reaches.
+// sessionOwnsStats keeps an independent incoming connection from replacing the
+// incumbent's last-error or notification-exchanged record. With no incumbent,
+// the sole connection (including standalone diagnostic sessions) owns it.
+func (p *Peer) sessionOwnsStats(session *Session) bool {
+	p.mu.RLock()
+	defer p.mu.RUnlock()
+	return p.session == nil || p.session == session
+}
+
+// attachStatsCallbacks installs every statistics hook before TCP starts. They
+// stay immutable for the Session's lifetime, including candidate adoption:
+// SendHold and periodic KEEPALIVE callbacks need not be stopped or rebound.
 func (p *Peer) attachStatsCallbacks(session *Session) {
-	session.onNotifSent = p.recordNotificationSend
-	session.onNotifRecv = p.incrNotificationReceived
-	session.onWriteBudgetExpired = p.recordWriteBudgetClose
+	session.onNotifSent = func(code, subcode uint8, delivered bool) {
+		if p.sessionOwnsStats(session) {
+			p.recordNotificationSend(code, subcode, delivered)
+		}
+	}
+	session.onNotifRecv = func(code, subcode uint8) {
+		if p.sessionOwnsStats(session) {
+			p.incrNotificationReceived(code, subcode)
+		}
+	}
+	session.onWriteBudgetExpired = func() {
+		if p.sessionOwnsStats(session) {
+			p.recordWriteBudgetClose()
+		}
+	}
+	// OPEN counters describe all admitted wire exchanges, including losers.
 	session.onOpenSent = p.incrOpensSent
 	session.onOpenRecv = p.incrOpensReceived
 	session.onRefreshRecv = p.incrRefreshReceived
 	session.onRead = p.touchLastRead
 	session.onWrite = p.touchLastWrite
 	session.onNegotiated = func(holdSec, keepaliveSec uint32) {
+		p.mu.RLock()
+		defer p.mu.RUnlock()
+		if p.session != session {
+			return
+		}
 		p.negotiatedHoldTime.Store(holdSec)
 		p.negotiatedKeepaliveTime.Store(keepaliveSec)
 	}

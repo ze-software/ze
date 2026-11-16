@@ -6,9 +6,9 @@
     "unit-sha": "76e6aa33273d4755",
     "claim-sha": "9f0f6aee4e4dfe1c",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/session_handlers.go::handleOpen",
-    "producer-sha": "f1586750267dd51d",
-    "break": "line 92: \"state == fsm.StateEstablished\" -\u003e \"state == fsm.StateOpenSent\""
+    "producer": "internal/component/bgp/reactor/session_handlers.go::checkOpenState",
+    "producer-sha": "1184a0880ac7af79",
+    "break": "line 121: \"state == fsm.StateEstablished\" -\u003e \"state == fsm.StateOpenSent\""
   },
   {
     "rid": "RFC6608-4-1",

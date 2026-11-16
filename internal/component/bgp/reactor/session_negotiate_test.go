@@ -20,7 +20,8 @@ import (
 // VALIDATES: Capability negotiation (hold time, extended message, family intersection).
 // PREVENTS: Hold time negotiation bugs, missing buffer resize for extended messages.
 
-// newNegotiateSession creates a minimal Session with localOpen and peerOpen set for negotiation tests.
+// newNegotiateSession creates a minimal Session with a local OPEN proposal and
+// peerOpen set for negotiation tests.
 func newNegotiateSession(localHold, peerHold time.Duration) *Session {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.ReceiveHoldTime = localHold
@@ -28,10 +29,10 @@ func newNegotiateSession(localHold, peerHold time.Duration) *Session {
 	session := NewSession(settings)
 
 	// Set local and peer OPENs so negotiateWith doesn't return early.
-	session.localOpen = &message.Open{
+	session.proposal = preparedOpenForTest(session, &message.Open{
 		Version: 4, MyAS: 65001, HoldTime: uint16(localHold / time.Second),
 		BGPIdentifier: 0x01020301,
-	}
+	})
 	session.peerOpen = &message.Open{
 		Version: 4, MyAS: 65002, HoldTime: uint16(peerHold / time.Second),
 		BGPIdentifier: 0x01020302, ASN4: 65002,
@@ -135,7 +136,7 @@ func TestNegotiateWith_NilOpens(t *testing.T) {
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	session := NewSession(settings)
 
-	// Neither localOpen nor peerOpen set — should return without panicking.
+	// Neither the local OPEN proposal nor peerOpen is set — return without panicking.
 	session.negotiateWith(nil, nil)
 	assert.Nil(t, session.Negotiated())
 }
@@ -408,7 +409,7 @@ func TestSendOpenPathsLimitBoundary(t *testing.T) {
 			if count == 52 {
 				require.ErrorIs(t, err, capability.ErrInvalidLength)
 				assert.Empty(t, conn.written())
-				assert.Nil(t, s.localOpen)
+				assert.Nil(t, s.proposal)
 				return
 			}
 			require.NoError(t, err)
@@ -443,7 +444,7 @@ func TestSendOpenRejectsMalformedPluginPathsLimit(t *testing.T) {
 			conn := &recordingConn{}
 			require.ErrorIs(t, s.sendOpen(conn), capability.ErrInvalidLength)
 			assert.Empty(t, conn.written())
-			assert.Nil(t, s.localOpen)
+			assert.Nil(t, s.proposal)
 		})
 	}
 }

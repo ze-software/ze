@@ -51,11 +51,8 @@ func negotiationSettings(caps ...capability.Capability) *PeerSettings {
 func establishNegotiatedSession(t *testing.T, p *Peer, peerCaps ...capability.Capability) *Session {
 	t.Helper()
 
-	s := NewSession(p.settings)
-	s.setConfigCapabilityGetter(p.configuredCapabilities)
-	open, err := s.buildOpen(p.settings, p.settings.Capabilities)
-	require.NoError(t, err)
-	s.localOpen = open
+	s := p.newSession()
+	require.NoError(t, s.prepareOpen())
 	peerParams, peerExtended := packPeerOptionalParams(t, peerCaps)
 	s.peerOpen = &message.Open{
 		Version:        4,
@@ -67,7 +64,7 @@ func establishNegotiatedSession(t *testing.T, p *Peer, peerCaps ...capability.Ca
 		ExtendedParams: peerExtended,
 	}
 
-	localCaps, err := capability.ParseFromOptionalParams(s.localOpen.OptionalParams, s.localOpen.ExtendedParams)
+	localCaps, err := capability.ParseFromOptionalParams(s.proposal.message.OptionalParams, s.proposal.message.ExtendedParams)
 	require.NoError(t, err)
 	s.negotiateWith(localCaps, peerCaps)
 	require.NotNil(t, s.negotiated, "the fixture must reach a negotiated session")
@@ -294,11 +291,8 @@ func TestNegotiationProbeFailsClosed(t *testing.T) {
 
 	t.Run("session with our OPEN but not the peer's", func(t *testing.T) {
 		_, peer := newSwapTestReactor(t, current, next)
-		s := NewSession(peer.settings)
-		s.setConfigCapabilityGetter(peer.configuredCapabilities)
-		open, err := s.buildOpen(peer.settings, peer.settings.Capabilities)
-		require.NoError(t, err)
-		s.localOpen = open
+		s := peer.newSession()
+		require.NoError(t, s.prepareOpen())
 		_, reason := peerSettingsSwapPlan(current, next, s)
 		assert.Equal(t, "Capabilities", reason, "half an OPEN exchange proves nothing")
 	})

@@ -48,7 +48,7 @@ the socket in Active, with ConnectRetryTimer stopped and no OPEN written.
 | `EventTCPConnectionConfirmed` | `Session.connectionEstablished` after `Accept` | stop ConnectRetryTimer; start DelayOpenTimer when enabled | no OPEN while delayed; otherwise immediate OPEN | `Active` when delayed, otherwise `OpenSent` |
 | `EventDelayOpenTimerExpires` | `Session.delayOpenExpired` | clear retry and delay timers; start OPEN-wait HoldTimer | OPEN | `OpenSent` |
 | `EventBGPOpenWithDelayOpenTimer` | either OPEN rail via `advanceAfterOpen` | clear delay/retry; nonwaiting path starts negotiated timers; strict wait starts HoldTimer or zero-hold BfdHoldTimer | OPEN; KEEPALIVE only when not waiting for BFD | `Active` with `ActiveDelayOpenBfdUpPending` when waiting, otherwise `OpenConfirm` |
-| `EventTCPConnectionFails` | held-socket read failure while DelayOpen runs | restart ConnectRetryTimer, clear DelayOpenTimer, release connection resources, **increment ConnectRetryCounter** | none | `Idle` |
+| `EventTCPConnectionFails` | read failure in Active, including strict BFD pending after DelayOpen cleared | restart ConnectRetryTimer, clear DelayOpenTimer, release connection resources, **increment ConnectRetryCounter** | none | `Idle` |
 | `EventConnectRetryTimerExpires` | not generated in production | passive check: if not passive, go to Connect | none | `Connect` or `Active` |
 | `EventNotifMsgVerErr` | received version-error NOTIFICATION | clear timers; **no increment** with DelayOpen running, increment otherwise | none | `Idle` |
 | `EventBGPHeaderErr` / `EventBGPOpenMsgErr` / `EventNotifMsg` | message decode paths | clear timers; **increment ConnectRetryCounter** | NOTIFICATION where applicable | `Idle` |
@@ -65,7 +65,7 @@ the socket in Active, with ConnectRetryTimer stopped and no OPEN written.
 
 | Timer | Status | Notes |
 |-------|--------|-------|
-| ConnectRetryTimer | stopped on TCP success; restarted by Event 18 | The Peer owns reconnect scheduling; old-session cleanup stops the timer after the transition. |
+| ConnectRetryTimer | stopped on TCP success; restarted by Event 18 | Every Active TCP failure transfers the actual restarted deadline with its owning clock before retiring the old timer set, including after strict Event 20 cleared DelayOpen. The Peer reads that clock's remaining budget at its wait, rather than using ordinary backoff. |
 | DelayOpenTimer | running while the accepted socket has sent no OPEN | `timer delay-open` is 0..240 seconds; zero disables it. |
 | HoldTimer | off before peer OPEN; running during a nonzero-hold strict wait | Event 10 bounds that wait and increments the counter on exit. |
 | KeepaliveTimer | off during DelayOpen and strict pending | Starts on nonwaiting Event 20 or BFD release, unless hold is zero. |
@@ -91,11 +91,11 @@ the socket in Active, with ConnectRetryTimer stopped and no OPEN written.
 
 ## `acceptWithOpen` variant
 
-When inbound collision resolution has already read the peer's OPEN from
-a competing socket, the reactor retains the socket, parsed OPEN, and original
-wire bytes for a fresh peer-owned Session after the losing cycle is cleaned up.
-The run loop calls `acceptWithOpen(conn, peerOpen, wire)` on that Session.
-This path:
+The compatibility entry accepts a socket whose OPEN was buffered by its caller.
+The run loop calls `acceptWithOpen(conn, peerOpen, wire)` on a fresh Session
+after the previous cycle is cleaned up. Listener collision handling instead
+retains and adopts the incoming connection's original Session, reader and timers.
+The compatibility path:
 
 1. Calls `connectionEstablished`, which refuses a sealed Session and otherwise
    publishes the socket and fires Event 17. DelayOpen holds the local OPEN.
@@ -117,10 +117,15 @@ or zero-hold BfdHoldTimer bounds the wait.
 
 <!-- source: internal/component/bgp/reactor/session_connection.go — acceptWithOpen -->
 <!-- source: internal/component/bgp/reactor/session_connection.go — processOpen -->
-<!-- source: internal/component/bgp/reactor/peer_connection.go — resolvePendingCollision -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- resolveIncoming, adoptIncoming -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — runOnce -->
 
-The `plugin.PeerInfo` that `runOnce` builds for the session's wire observers carries the peer's AS as `rpc.RemoteAS`: a dynamic peer's settings hold 0 until its OPEN is negotiated, and `rpc.RemoteASOf` turns that 0 into the not-yet-known state, so an observer of the OPEN exchange sees `remote as unknown` (text) or no `remote.as` (JSON), never AS 0. See [peer lifecycle](peer-lifecycle.md).
+The Session factory installs wire observers before TCP. Their `plugin.PeerInfo`
+carries the peer's AS as `rpc.RemoteAS`. When a dynamic peer's AS has not yet
+been learned, `rpc.RemoteASOf` represents that absence as `remote as unknown`
+(text) or no `remote.as` (JSON), never AS 0. See
+[peer lifecycle](peer-lifecycle.md).
+<!-- source: internal/component/bgp/reactor/peer_session_factory.go -- newSessionWithEpoch -->
 
 ## Code map
 

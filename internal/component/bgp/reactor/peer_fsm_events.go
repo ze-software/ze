@@ -10,21 +10,43 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
-// emitFSMEvents tells the subscribed processes about one FSM state change:
-// the `fsm` event for every transition, and before it the `connected` event
-// when the transition is the one a successful TCP connection drives.
-//
-// RFC 4271 Section 8.2.2 (Connect and Active states): "If the TCP connection
-// succeeds (Event 16 or Event 17), the local system checks the DelayOpen
-// attribute prior to processing. ... If the DelayOpen attribute is set to
-// FALSE, the local system: ... sends an OPEN message to its peer, ... and
-// changes its state to OpenSent." Ze runs no DelayOpen, so Event 17 into
-// OpenSent is the one transition that says the connection is up and no OPEN
-// has been read on it.
-//
-// It runs on the FSM callback (fsm.FSM.SetCallback), without the FSM lock and
-// without p.mu held, once per transition and in transition order.
-func (p *Peer) emitFSMEvents(from, to fsm.State, event fsm.Event) {
+// emitConnected reports TCP success from this exact Session before either
+// OPEN rail runs. A pending candidate MUST name its own socket, rather than
+// borrowing the incumbent's endpoint or a previously negotiated dynamic AS.
+func (p *Peer) emitConnected(session *Session) {
+	p.mu.RLock()
+	reactor := p.reactor
+	p.mu.RUnlock()
+	if reactor == nil {
+		return
+	}
+	if reactor.eventDispatcher == nil {
+		return
+	}
+	settings := session.openSettingsSnapshot()
+	info := plugin.PeerInfo{
+		Address: settings.Address, AddressStr: p.addrString,
+		LocalAddress: settings.LocalAddress, LocalAddressStr: p.localAddrString,
+		Name: settings.Name, GroupName: settings.GroupName,
+		LocalAS: settings.LocalAS, RouterID: settings.RouterID,
+		State: p.State().PluginState(),
+	}
+	if !settings.IsDynamic {
+		info.PeerAS = rpc.RemoteASOf(settings.PeerAS)
+	}
+	if transport := session.transport.Load(); transport != nil {
+		if transport.local.IsValid() {
+			info.LocalAddress = transport.local
+			info.LocalAddressStr = transport.localString
+		}
+	}
+	reactor.eventDispatcher.OnPeerConnected(&info)
+}
+
+// emitFSMEvents reports only an FSM transition. TCP success has its own
+// Session callback because DelayOpen may keep the FSM in Connect or Active.
+// It runs without the FSM lock or p.mu held, in transition order.
+func (p *Peer) emitFSMEvents(from, to fsm.State) {
 	p.mu.RLock()
 	reactor := p.reactor
 	p.mu.RUnlock()
@@ -36,9 +58,6 @@ func (p *Peer) emitFSMEvents(from, to fsm.State, event fsm.Event) {
 		return
 	}
 	peerInfo := fsmEventPeerInfo(p)
-	if to == fsm.StateOpenSent && event == fsm.EventTCPConnectionConfirmed {
-		dispatcher.OnPeerConnected(&peerInfo)
-	}
 	dispatcher.OnPeerFSMChange(&peerInfo, from, to)
 }
 

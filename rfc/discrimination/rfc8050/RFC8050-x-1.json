@@ -3,23 +3,23 @@
     "rid": "RFC8050-x-1",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN",
-    "unit-sha": "e118c0e8e689999d",
+    "unit-sha": "ee4046dac24ed74d",
     "claim-sha": "855a1a5b16f19a44",
     "route": "revert",
     "producer": "internal/plugins/mrt/dump.go::updateAddPath",
     "producer-sha": "1b4e8976a3b4fed1",
-    "break": "body of updateAddPath replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of updateAddPath replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8050-x-1",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN",
-    "unit-sha": "e118c0e8e689999d",
+    "unit-sha": "ee4046dac24ed74d",
     "claim-sha": "026ce51ae6946543",
     "route": "revert",
     "producer": "internal/plugins/mrt/dump.go::bgp4mpTypeSubtype",
     "producer-sha": "54961866cf24192a",
-    "break": "body of bgp4mpTypeSubtype replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of bgp4mpTypeSubtype replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8050-x-1",

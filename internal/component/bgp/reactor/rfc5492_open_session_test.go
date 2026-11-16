@@ -15,14 +15,18 @@ import (
 
 // newCapabilityOpenSession returns a passive OpenSent session advertising
 // caps and requiring required, with the recording connection and the octet
-// count its own OPEN took.
-func newCapabilityOpenSession(t *testing.T, caps []capability.Capability, required []capability.Code) (*Session, *recordingConn, int) {
+// count its own OPEN took. Configure admission before Accept prepares the
+// immutable local OPEN proposal.
+func newCapabilityOpenSession(t *testing.T, caps []capability.Capability, required []capability.Code, configure ...func(*PeerSettings)) (*Session, *recordingConn, int) {
 	t.Helper()
 	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 65002, 0x01020301)
 	settings.Connection = ConnectionPassive
 	settings.ReceiveHoldTime = 90 * time.Second
 	settings.Capabilities = caps
 	settings.RequiredCapabilities = required
+	for _, apply := range configure {
+		apply(settings)
+	}
 	session := NewSession(settings)
 	require.NoError(t, session.Start())
 	conn := &recordingConn{}
@@ -283,8 +287,9 @@ func TestUnsupportedCapabilityNotificationPreservesOpenTuples(t *testing.T) {
 			t.Run(rail+"/"+tc.name, func(t *testing.T) {
 				caps, err := capability.Parse(tc.local)
 				require.NoError(t, err)
-				s, conn, sent := newCapabilityOpenSession(t, append([]capability.Capability{capIPv4()}, caps...), tc.required)
-				s.settings.RefusedCapabilities = tc.refused
+				s, conn, sent := newCapabilityOpenSession(t, append([]capability.Capability{capIPv4()}, caps...), tc.required, func(settings *PeerSettings) {
+					settings.RefusedCapabilities = tc.refused
+				})
 				body := validOpenBody()
 				if len(tc.peer) > 0 {
 					body = openBodyWithParameters(tc.peer)
@@ -324,15 +329,18 @@ func TestUnsupportedAddPathNotificationPreservesFamilyTuples(t *testing.T) {
 			t.Run(rail+"/"+name, func(t *testing.T) {
 				caps, err := capability.Parse([]byte{69, 8, 0, 1, 1, 2, 0, 2, 1, 3})
 				require.NoError(t, err)
-				s, conn, sent := newCapabilityOpenSession(t, append([]capability.Capability{capIPv4(), capIPv6()}, caps...), nil)
+				s, conn, sent := newCapabilityOpenSession(t, append([]capability.Capability{capIPv4(), capIPv6()}, caps...), nil, func(settings *PeerSettings) {
+					if refused {
+						settings.RefusedAddPathFamilies = []capability.Family{familyIPv4Unicast}
+					} else {
+						settings.RequiredAddPathFamilies = []capability.Family{familyIPv4Unicast}
+					}
+				})
 				body := openBodyWithParameters([]byte{1, 4, 0, 1, 0, 1, 1, 4, 0, 2, 0, 1})
 				want := []byte{69, 4, 0, 1, 1, 2}
 				if refused {
-					s.settings.RefusedAddPathFamilies = []capability.Family{familyIPv4Unicast}
 					body = openBodyWithParameters([]byte{1, 4, 0, 1, 0, 1, 1, 4, 0, 2, 0, 1, 69, 8, 0, 1, 1, 1, 0, 2, 1, 3})
 					want = []byte{69, 4, 0, 1, 1, 1}
-				} else {
-					s.settings.RequiredAddPathFamilies = []capability.Family{familyIPv4Unicast}
 				}
 				if rail == "handleOpen" {
 					err = s.handleOpen(body)
@@ -383,12 +391,13 @@ func TestUnsupportedAddPathNotificationPreservesFamilyTuples(t *testing.T) {
 				} else {
 					local = append(local, caps...)
 				}
-				s, conn, sent := newCapabilityOpenSession(t, local, nil)
-				if refused {
-					s.settings.RefusedAddPathFamilies = []capability.Family{familyIPv4Unicast}
-				} else {
-					s.settings.RequiredAddPathFamilies = []capability.Family{familyIPv4Unicast}
-				}
+				s, conn, sent := newCapabilityOpenSession(t, local, nil, func(settings *PeerSettings) {
+					if refused {
+						settings.RefusedAddPathFamilies = []capability.Family{familyIPv4Unicast}
+					} else {
+						settings.RequiredAddPathFamilies = []capability.Family{familyIPv4Unicast}
+					}
+				})
 				wire := message.PackTo(peer, nil)
 				require.LessOrEqual(t, len(wire), 4096, "legal OPEN, no Extended Message negotiation")
 				require.NotPanics(t, func() {

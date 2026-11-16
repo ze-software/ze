@@ -6,12 +6,9 @@ package reactor
 
 import (
 	"errors"
-	"io"
 	"net"
 	"net/netip"
-	"time"
 
-	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/clock"
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
@@ -25,10 +22,11 @@ import (
 //
 //	handleConnection()
 //	├── OpenSent/OpenConfirm/Established → setPendingConnection() + go handlePendingCollision()
-//	│                  └── Read OPEN → resolvePendingCollision()
-//	│                       ├── Local wins → rejectConnectionCollision()
-//	│                       └── Remote wins → queue original OPEN + socket
-//	│                                        + CloseWithNotification() existing
+//	│                  └── independent Session/FSM reads OPEN → resolveIncoming()
+//	│                       ├── Local wins → retain closing admission through refusal/retirement
+//	│                       ├── Remote wins → transfer same Session/socket/OPEN receipt
+//	│                       │                + retire incumbent before selected adoption
+//	│                       └── OpenSent without known remote ID → continue both handshakes
 //	└── Other states → normal acceptConnection()
 func (r *Reactor) handleConnection(conn net.Conn) {
 	remoteAddr, ok := conn.RemoteAddr().(*net.TCPAddr)
@@ -242,6 +240,14 @@ func (r *Reactor) acceptOrReject(conn net.Conn, peer *Peer, cb connectionCallbac
 	}
 	if held || state == fsm.StateOpenSent || state == fsm.StateOpenConfirm || state == fsm.StateEstablished {
 		if err := peer.setPendingConnection(conn); err != nil {
+			if errors.Is(err, errCollisionHandoff) {
+				closeConnQuietly(conn)
+				return
+			}
+			if errors.Is(err, ErrSessionTearingDown) {
+				closeConnQuietly(conn)
+				return
+			}
 			r.rejectConnectionCollisionWithSettings(conn, settings)
 			return
 		}
@@ -305,98 +311,6 @@ func rejectPendingConnection(conn net.Conn, clk clock.Clock, code message.Notify
 	data := message.PackTo(notif, nil)
 	if _, err := conn.Write(data); err != nil {
 		reportPendingRefusalFailure(conn, "write NOTIFICATION", err)
-	}
-}
-
-// handlePendingCollision reads OPEN from a pending connection and resolves collision.
-// RFC 4271 §6.8: Upon receipt of OPEN, compare BGP IDs and close the loser.
-func (r *Reactor) handlePendingCollision(peer *Peer, conn net.Conn) {
-	buf := make([]byte, message.MaxMsgLen)
-	if tcp, ok := conn.(*net.TCPConn); ok {
-		if err := tuneTCPConnectionForSettings(tcp, peer.Settings()); err != nil {
-			peer.clearPendingConnection()
-			_ = conn.Close()
-			return
-		}
-	}
-
-	// Set read deadline - use hold time or 90s default
-	holdTime := peer.Settings().ReceiveHoldTime
-	if holdTime == 0 {
-		holdTime = 90 * time.Second
-	}
-	_ = conn.SetReadDeadline(r.clock.Now().Add(holdTime))
-
-	// Read BGP header
-	_, err := io.ReadFull(conn, buf[:message.HeaderLen])
-	if err != nil {
-		peer.clearPendingConnection()
-		_ = conn.Close()
-		return
-	}
-
-	hdr, err := message.ParseHeader(buf[:message.HeaderLen])
-	if err != nil {
-		peer.clearPendingConnection()
-		rejectConnectionCollision(conn, r.clock)
-		return
-	}
-
-	// Must be OPEN message
-	if hdr.Type != msgtype.TypeOPEN {
-		peer.clearPendingConnection()
-		rejectConnectionCollision(conn, r.clock)
-		return
-	}
-
-	// RFC 4271 Section 6.1 / RFC 8654 Section 4: an OPEN is never an extended
-	// message, so its Length MUST be <= 4096. ParseHeader deliberately enforces
-	// only the LOWER bound (header.go: "For upper bound validation, use
-	// ValidateLengthWithMax"), so without this the wire's 16-bit Length -- up to
-	// 65535 -- indexes the 4096-byte buf below and panics the reactor with
-	// "slice bounds out of range ... with capacity 4096". Reachable from any host
-	// that can open a colliding TCP connection to a configured peer address,
-	// before any capability negotiation. The two sibling read paths already guard
-	// exactly this way (session_read.go, session_coalesce.go); this one did not.
-	if err := hdr.ValidateLengthWithMax(false); err != nil {
-		peer.clearPendingConnection()
-		rejectConnectionCollision(conn, r.clock)
-		return
-	}
-
-	// Read OPEN body
-	_, err = io.ReadFull(conn, buf[message.HeaderLen:hdr.Length])
-	if err != nil {
-		peer.clearPendingConnection()
-		_ = conn.Close()
-		return
-	}
-
-	// Parse OPEN
-	open, err := message.UnpackOpen(buf[message.HeaderLen:hdr.Length])
-	if err != nil {
-		peer.clearPendingConnection()
-		// RFC 4271 Section 6.2: "All errors detected while processing the
-		// OPEN message MUST be indicated by sending the NOTIFICATION message
-		// with the Error Code OPEN Message Error." No valid OPEN has reached
-		// collision resolution yet, so Cease would report the wrong cause.
-		rejectPendingConnection(conn, r.clock, message.NotifyOpenMessage, 0)
-		return
-	}
-	// The pending deadline bounds only the first OPEN. The winning Session
-	// owns its own timers; retaining this deadline would later drop a healthy
-	// connection, including one whose negotiated HoldTime is zero.
-	if err := conn.SetReadDeadline(time.Time{}); err != nil {
-		peer.clearPendingConnection()
-		closeConnQuietly(conn)
-		return
-	}
-
-	// Resolution consumes the original OPEN buffer when the remote wins.
-	// The Peer run loop owns acceptance after the losing epoch is cleaned up.
-	accepted, rejected := peer.resolvePendingCollision(open, buf[:hdr.Length])
-	if !accepted && rejected != nil {
-		rejectConnectionCollision(rejected, r.clock)
 	}
 }
 

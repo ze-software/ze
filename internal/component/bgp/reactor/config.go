@@ -205,7 +205,7 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 		return nil, fmt.Errorf("peer %s: %w", name, err)
 	}
 
-	// Timer container (receive-hold-time, send-hold-time, connect-retry).
+	// Timer container (receive-hold-time, send-hold-time, connect-retry, delay-open).
 	timerMap, _ := mapMap(tree, "timer")
 	if timerMap != nil {
 		if v, ok := mapUint32(timerMap, "receive-hold-time"); ok {

@@ -2,8 +2,8 @@
   "note": "RFC 7606 (Updates: 4271) revises this: the error is handled by treat-as-withdraw, so no NOTIFICATION, subcode or Data field is sent. unknown segment type, zero segment count, segment overrun and trailing octet each withdraw the prefix exactly (7.2); a well-framed AS_SEQUENCE announces",
   "requirement_sha": "8ffb5ddf64762dd2",
   "tests": {
-    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
-    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "f1eef5c477ba7bae",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "f1eef5c477ba7bae"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "d80d6195ec19508d",

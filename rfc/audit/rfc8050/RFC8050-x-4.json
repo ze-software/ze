@@ -1,5 +1,14 @@
 {
-  "note": "Re-judged 2026-10-24 (independent auditor, authored none of the change). RFC 8050 Section 2: \"MRT parsers are usually stateless. In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized.\" 238bdb62e9 (spec-refuse-instead-of-defaulting) changed PeerInfo/StructuredEvent PeerAS from uint32 to rpc.RemoteAS; the unit now writes rpc.RemoteASOf(N) where it wrote N, the same known peer AS, and no assertion, input byte or expected value changed (TestMRTEmptyMPFamilyRequiresContext, TestMRTMigrationEpochUsesActualLocalOPEN, TestRFC8050MessageCallbackPreservesEncodingAndFraming). Verdict unchanged: enforced. Earlier judgement follows. Re-judged 2026-10-14 (independent auditor). Only TestMRTMigrationEpochUsesActualLocalOPEN changed, by one line: the remote OPEN's Optional Parameters are packed with packPeerOptionalParams (capability.PackOptionalParams) instead of the removed buildOptionalParams. The capabilities it packs, the fallback-OPEN local ASN assertions and the MRT read-back of both directions' withdrawals with their Path Identifiers are unchanged. Every other cover is byte-identical to the previous enforced judgement.",
+  "code": {
+    "internal/component/bgp/reactor/incoming_candidate.go::adoptIncoming": "9b1744dece5c5e13",
+    "internal/component/bgp/reactor/session_wire.go::observe": "7b8f9528b190e189",
+    "internal/component/bgp/reactor/session_wire.go::observeReceivedWire": "664fc83cf230ac41",
+    "internal/mrt/context.go::AddPathFor": "2b0d4d1e43d28ab8",
+    "internal/mrt/context.go::ObserveMessage": "5d3fc30ce3f70e9a",
+    "internal/mrt/context.go::updateContext": "ae3ed0dac2e4260d",
+    "internal/plugins/mrt/component.go::OnBGPMessage": "5814172043744a6f"
+  },
+  "note": "Independent rejudgment against RFC 8050 Section 2: \"In order to parse BGP messages that contain data structures that depend on the capabilities negotiated during the BGP session setup, the MRT subtypes are utilized.\" Read all current tagged units and their assertion-producing helpers. Subtype-only controls decode all four ADD-PATH and four ordinary BGP4MP forms under both timestamp types without OPENs, preserving exact prefixes, identifiers including zero, and complete bytes. Mixed-family/direction controls require actual matching directional OPENs and refuse missing, stale, repeated, unrelated, identity-mismatched or independently opened context rather than guessing a mode. Real command handlers preserve that refusal and decode the exact mixed route counts with valid context. The changed live collision carrier preserves its original winner socket and OPEN occurrences at both handoff barriers. BGP4MP has no TCP ports: the full overlapping stream must report context unavailable; a separate known-winner decoder is explicitly seeded only from that TCP connection's two captured OPEN occurrences and excludes the observed old-socket Cease. It still asserts exact directional mixed prefixes and Path Identifiers, isolated subtype controls and record counts. Adoption retains the original Session rather than taking the old acceptWithOpen path. The migration carrier also pins the actual fallback OPEN identity and retained writer epoch. These are data/connection evidence assertions, not a claim that ambiguous overlapping TCP epochs can be inferred from one MRT endpoint tuple.",
   "requirement_sha": "3dcf23f1c1c7357c",
   "tests": {
     "internal/analyze/rfc8050_boundary_test.go::TestMRTEmptyMPFamilyRequiresContext": "13e8f010a28bc208",
@@ -7,8 +16,8 @@
     "internal/analyze/rfc8050_commands_test.go::TestRFC8050CommandsReadSubtypeContext": "082c4c511e3c2765",
     "internal/analyze/rfc8050_session_commands_test.go::TestRFC8050CommandsRequireMixedContext": "0d12b415c89583c0",
     "internal/analyze/rfc8050_session_commands_test.go::TestRFC8050CommandsRequireMixedContext#2": "0d12b415c89583c0",
-    "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTCollisionWinnerReservation": "b78dd442ad4de6ed",
-    "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN": "b78dd442ad4de6ed",
+    "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTCollisionWinnerReservation": "9c6ff8be7ec28503",
+    "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN": "9c6ff8be7ec28503",
     "internal/component/bgp/reactor/rfc8050_migration_epoch_test.go::TestMRTMigrationEpochUsesActualLocalOPEN": "2736088310777bbb",
     "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming": "b2739c74df09981c",
     "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming#2": "b2739c74df09981c",
@@ -30,8 +39,8 @@
     "internal/analyze/rfc8050_commands_test.go::TestRFC8050CommandsReadSubtypeContext": "3f15dfb0fe9310d6",
     "internal/analyze/rfc8050_session_commands_test.go::TestRFC8050CommandsRequireMixedContext": "ec5a9d57c24b7c78",
     "internal/analyze/rfc8050_session_commands_test.go::TestRFC8050CommandsRequireMixedContext#2": "ec5a9d57c24b7c78",
-    "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTCollisionWinnerReservation": "b89b5ae29e4cd670",
-    "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN": "9c3342b5698a2d9d",
+    "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTCollisionWinnerReservation": "736cdc7597ca0539",
+    "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN": "617b5d1858063999",
     "internal/component/bgp/reactor/rfc8050_migration_epoch_test.go::TestMRTMigrationEpochUsesActualLocalOPEN": "af357f7582e3efb6",
     "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming": "c5a93e9bb834e0a1",
     "internal/component/bgp/reactor/rfc8050_mrt_observer_test.go::TestRFC8050MessageCallbackPreservesEncodingAndFraming#2": "c5a93e9bb834e0a1",

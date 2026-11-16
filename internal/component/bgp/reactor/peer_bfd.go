@@ -656,13 +656,36 @@ func bfdEventFor(state api.State) (fsm.Event, bool) {
 func (p *Peer) deliverBFDEvent(event fsm.Event) {
 	p.mu.RLock()
 	session := p.session
-	p.mu.RUnlock()
-	if session == nil {
-		return
+	var pendingSession *Session
+	if candidate, ok := p.pending.(*incomingCandidate); ok {
+		pendingSession = candidate.session
 	}
+	if candidate := inboundCandidate(p.inbound); candidate != nil {
+		pendingSession = candidate.session
+	}
+	p.mu.RUnlock()
+	if pendingSession != nil {
+		if pendingSession != session {
+			deliverSessionBFDEvent(pendingSession, event)
+		}
+	}
+	if session != nil {
+		deliverSessionBFDEvent(session, event)
+	}
+}
+
+// deliverSessionBFDEvent gives failed BFD release work to this connection's
+// failure owner. A write failure already records and closes its socket through
+// retireWrite (including a doctor event for write-budget expiry); a connection
+// retired concurrently can instead return ErrNotConnected. Neither outcome
+// leaves a useful KEEPALIVE to retry on this socket. Closing and delivering
+// Event 18 wakes its reader/bridge and completes the ordinary down, whose
+// close reason remains this error. The peer's next Session is unaffected.
+func deliverSessionBFDEvent(session *Session, event fsm.Event) {
 	if err := session.handleBFDEvent(event); err != nil {
-		peerLogger().Debug("bfd-driven FSM event failed",
-			"peer", p.settings.Address, "event", event.String(), "err", err)
+		session.setCloseReason(err)
+		session.closeConn()
+		session.handleConnectionClose()
 	}
 }
 
@@ -744,16 +767,6 @@ func (p *Peer) awaitBFDRelease(release bfdRelease) {
 		<-release.done
 	}
 	peerLogger().Info("bfd session closed for peer", "peer", p.settings.Address)
-}
-
-// newSession builds the session for one connection of this peer, reading
-// the BFD opt-in through the peer's locked accessor (Session.bfdOptIn).
-// Every session a peer runs MUST be built here.
-func (p *Peer) newSession() *Session {
-	session := NewSession(p.settings)
-	session.bfdOptIn = p.bfdSettings
-	session.typedNLRIHeld = &p.typedNLRIHeld
-	return session
 }
 
 // bfdOptInChange is what a reload's swap did to a running peer's BFD opt-in:

@@ -223,10 +223,10 @@ type MessageCallback func(peerAddr netip.Addr, msgType msgtype.MessageType, rawB
 // or s.sendHoldMu (see session_flow.go).
 //
 // One lock OUTSIDE this Session is ordered against it: Peer.mu comes BEFORE s.mu.
-// Peer.resolvePendingCollision (peer_connection.go) holds p.mu.Lock() across
-// detectCollision, which reads peerOpen under s.mu (see collisionPeerAS). The
-// reverse must never appear: no Session code may acquire p.mu, and no callback a
-// Peer installs on a Session may be invoked with s.mu held.
+// Peer.resolveIncoming (incoming_candidate.go) holds p.mu.Lock() across
+// detectCollision, which reads the proposal and peerOpen together under s.mu.
+// Session callbacks that take Peer.mu MUST run without s.mu held, preserving
+// that order for settings snapshots, OPEN validation and notifications too.
 //
 // Atomics (no lock interaction needed):
 //
@@ -276,6 +276,11 @@ type Session struct {
 	// transportFailed is guarded by openMu. A failed delayed OPEN write and
 	// the reader it wakes share one non-idempotent Event 18 delivery.
 	transportFailed bool
+
+	// retryBudget preserves the FSM's actual Event 18 retry across retirement.
+	// nil means this cycle owes ordinary Peer backoff. Written under openMu;
+	// runOnce MUST read it only after stopSessionTimers joined the failure owner.
+	retryBudget fsm.ConnectRetryBudget
 
 	// closeOwed and retireOwed carry the read loop's end-of-session work when
 	// another goroutine held openMu: the Event 18 delivery and the timer
@@ -346,8 +351,16 @@ type Session struct {
 	// reverse the lock order.
 	negotiatedPeerAS atomic.Uint32
 
-	// localOpen stores our OPEN for reference during negotiation.
-	localOpen *message.Open
+	// proposal pairs the exact local OPEN with its immutable admission inputs.
+	// prepareOpen MUST publish it before either received-OPEN rail runs; readers
+	// MUST retain the proposal rather than reread live PeerSettings. Guarded by mu.
+	proposal *preparedOpen
+
+	// proposalMu owns input capture through publication in prepareOpen.
+	// Acquire after openMu, before the input getters acquire Peer.mu, and
+	// never while mu is held. Reload probes only TryLock it and MUST enter
+	// without Peer.mu. Its release runs no protocol callbacks or owed work.
+	proposalMu sync.Mutex
 
 	// peerOpen stores the peer's OPEN for reference.
 	peerOpen *message.Open
@@ -378,6 +391,11 @@ type Session struct {
 	// sendInitialRoutes, plugin RPC handlers) — this mutex prevents races on the
 	// shared buffer. Lock ordering: s.mu before s.writeMu (never reverse).
 	writeMu sessionWriteMutex
+
+	// onTCPConnected observes this connection's published socket before its
+	// FSM event and local OPEN lifecycle. The factory MUST install it before
+	// Accept or Connect; callbacks MUST use this Session's own transport.
+	onTCPConnected func()
 
 	// Write buffer for zero-allocation message building.
 	// Allocated at 4096 bytes initially, resized to 65535 if the peer advertises it.
@@ -676,15 +694,10 @@ type Session struct {
 	// capabilities from one injector read. Set by Peer before the session runs.
 	pluginCapabilityGetter func() pluginCapabilitySnapshot
 
-	// sentPluginDecls is the raw declaration from the snapshot localOpen was
-	// built from, indexed by code (pluginDeclarationIndex). Guarded by mu.
-	sentPluginDecls map[uint8][]string
-
-	// configCapGetter reads the CONFIGURED capabilities under the Peer's lock, so
-	// buildOpen never reads s.settings.Capabilities off the shared pointer a
-	// reload swap writes. Set by Peer; see SetConfigCapabilityGetter
-	// (peer_settings_negotiation.go).
-	configCapGetter func() []capability.Capability
+	// settingsSnapshot reads OPEN inputs under the owning Peer's lock. It is
+	// installed before TCP starts; prepareOpen retains that immutable result.
+	// A standalone Session has no getter and no concurrent settings writer.
+	settingsSnapshot func() *PeerSettings
 
 	// asMigrationFallback points at the owning Peer's RFC 7705 Section 4.2 fallback flag,
 	// which outlives this Session because it decides what the NEXT connection opens with
@@ -754,7 +767,10 @@ type Session struct {
 	// (nlritype.JudgesBody), so the treat-as-withdraw of a later malformed NLRI is
 	// relayed by bytes a receiver can decode (session_validation_nlritype_held.go).
 	// Set by Peer.newSession; a Session built without a Peer makes its own.
-	typedNLRIHeld *typedNLRIHeldRoutes
+	typedNLRIHeld         *typedNLRIHeldRoutes
+	negotiationEpoch      negotiationEpoch
+	beforeNotification    func()
+	onNotificationFailure func(error) bool
 	// typedNLRIWalk is the reusable state of the hold's section walks. Only the
 	// receive goroutine reads it; nil until the first walk.
 	typedNLRIWalk *typedNLRIWalk
@@ -837,11 +853,14 @@ type Session struct {
 	// read goroutine (no lock).
 	readBufferStarved bool
 
-	// captureWriter is the peer's protocol event capture, nil unless the
-	// operator enabled it on this peer. Set by Peer in runOnce() before the
-	// read loop starts, and read only from the session read goroutine, so the
-	// tee is a plain nil check with no synchronization (capture_replay.go).
-	captureWriter *sessionCapture
+	// captureWriter is the immutable input installed before TCP, nil when
+	// capture is disabled. A candidate records into a bounded pending input;
+	// selection activates its file without replacing the reader's sink.
+	captureWriter protocolCapture
+	// captureProposal publishes the exact prepared identity to a factory input.
+	// Installed before TCP; nil means no deferred capture header is owned by
+	// this Session. prepareOpen MUST publish once before any OPEN reaches wire.
+	captureProposal *captureProposalPublisher
 }
 
 // NewSession creates a new BGP session for a peer.
@@ -863,19 +882,20 @@ func NewSession(settings *PeerSettings) *Session {
 	}
 
 	s := &Session{
-		settings:        settings,
-		bfdOptIn:        func() *BFDSettings { return settings.BFD },
-		fsm:             fsm.New(),
-		timers:          fsm.NewTimers(),
-		clock:           clock.RealClock{},
-		dialer:          dialer,
-		writeBuf:        wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
-		errChan:         make(chan error, 2),          // Buffer 2: normal error + teardown
-		done:            make(chan struct{}),
-		initialSyncDone: make(chan struct{}),
-		prefixCounts:    newPrefixCounts(settings),
-		coalesceEnabled: coalesceEnabled(),
-		addrLabel:       settings.Address.String(),
+		negotiationEpoch: localNegotiationEpoch{},
+		settings:         settings,
+		bfdOptIn:         func() *BFDSettings { return settings.BFD },
+		fsm:              fsm.New(),
+		timers:           fsm.NewTimers(),
+		clock:            clock.RealClock{},
+		dialer:           dialer,
+		writeBuf:         wire.NewSessionBuffer(false), // Start with 4096, resize if Extended Message
+		errChan:          make(chan error, 2),          // Buffer 2: normal error + teardown
+		done:             make(chan struct{}),
+		initialSyncDone:  make(chan struct{}),
+		prefixCounts:     newPrefixCounts(settings),
+		coalesceEnabled:  coalesceEnabled(),
+		addrLabel:        settings.Address.String(),
 	}
 	s.initialReplay.Store(nextMsgID())
 
@@ -903,113 +923,9 @@ func NewSession(settings *PeerSettings) *Session {
 		// a release must not send KEEPALIVE after this timer committed Idle.
 		s.openMu.Lock()
 		defer s.unlockOpen()
-		// RFC 4271 Section 8.2.2, HoldTimer_Expires (Event 10), bounds
-		// OpenSent, OpenConfirm and Established. Negotiated nonzero HoldTime
-		// also bounds the strict DelayOpen Connect/Active substates; those
-		// parents apply Event 10's catchall counter/Idle action. Session.Run
-		// retires the socket and timers on the signaled error in every state.
-		//
-		//   "sends a NOTIFICATION message with the error code Hold Timer
-		//   Expired"    -> sendNotificationWithin below (RFC4271-8.2.2-1)
-		//   "sets the ConnectRetryTimer to zero"
-		//               -> Timers.StopAll (RFC4271-8.2.2-2)
-		//   "releases all BGP resources"
-		//               -> the same StopAll, plus the route withdrawal the
-		//                  Established->Idle transition drives (RFC4271-8.2.2-3)
-		//   "drops the TCP connection"
-		//               -> closeConn (RFC4271-8.2.2-4)
-		//   "changes its state to Idle"
-		//               -> logFSMEvent below (RFC4271-8.2.2-5)
-		//
-		// The last four each have TWO producers on this path, which is why a
-		// mutation has to remove both to turn their tests red. This callback
-		// only signals errChan; the cancel goroutine then closes the connection,
-		// which unblocks the read loop, and handleConnectionClose (session_read.go)
-		// does StopAll + FSM event + closeConn. Run's own exit defers repeat all
-		// three, so an exit that never reaches handleConnectionClose is covered
-		// too. Every one of them is idempotent.
-		//
-		// There is NO reprieve. Ze used to grant one bounded grace window when
-		// the read loop had seen traffic since the timer was armed (a BIRD
-		// technique for CPU congestion), tearing down only on the next expiry.
-		// That deviated from this action list and doubled worst-case dead-peer
-		// detection, and Thomas ruled it removed on 2026-08-03 in favor of full
-		// conformance, accepting that a congested daemon now drops sessions it
-		// used to keep.
-		//
-		// The peer is silent, not necessarily gone: an operator on the far side
-		// reads code 4 and knows its keepalives stopped arriving, where a bare
-		// FIN says nothing.
-		//
-		// It has to happen HERE, on the timer goroutine, because the teardown
-		// itself is asynchronous: this branch only signals errChan, and the
-		// cancel goroutine (below) closes the connection. Leaving the send to
-		// that goroutine would mean writing to a socket it is about to close.
-		// Same shape as the RFC 9687 Send Hold Timer path
-		// (session_write.go, sendHoldTimerExpired): read conn under s.mu, drop
-		// the lock, then send -- logNotifyErr takes s.writeMu, which the lock
-		// hierarchy above orders AFTER s.mu.
-		//
-		// Subcode 0: RFC 4271 Section 6 -- "If no Error Subcode is specified,
-		// then a zero MUST be used". Hold Timer Expired defines none.
-		// The expiry caused this teardown. A failed NOTIFICATION retires the
-		// writer immediately, so record the cause before that I/O can fail.
-		//
-		// openMu is held across the send, so the send waits for the write path
-		// no longer than holdExpiryNotifyDeadline. When another writer kept the
-		// path that long, nothing is sent and the sender leaves its mark: the
-		// cancel goroutine's close then fails that writer's socket write and
-		// closes the socket without waiting for the path again, which is how
-		// the connection is dropped behind a peer that reads nothing
-		// (closeConnWithin, RFC 4271 Section 8.2.2).
-		s.setCloseReason(ErrHoldTimerExpired)
-		s.mu.RLock()
-		conn := s.conn
-		s.mu.RUnlock()
-		if conn != nil {
-			if err := s.sendNotificationWithin(conn, message.NotifyHoldTimerExpired, 0, nil,
-				holdExpiryNotifyDeadline); err != nil {
-				sessionLogger().Debug("hold timer expired: notification send failed",
-					"peer", s.settings.Address, "error", err,
-				)
-			}
-		}
-
-		// draft-ietf-idr-bgp-bfd-strict-mode Section 10: "A BGP speaker SHOULD
-		// log a message if it closes its session due to hold timer expiration
-		// while waiting for the BFD hold-down interval." This is that close, and
-		// it is also the close that ends a strict-mode wait for a BFD session
-		// that never came up: the sub-state says which, and without this line an
-		// operator reads code 4 and learns only that the peer went quiet.
-		// The hold-down case is tested FIRST. A session serving the interval
-		// from the OpenSentConfirmedBfdUpPending branch still carries that
-		// sub-state, so a sub-state-first order sent every hold-down expiry
-		// down the wrong arm and the wording Section 10 asks for was
-		// unreachable. IsBfdHoldDownTimerRunning is the fact that separates
-		// them, and it is true for both hold-down rails and neither wait rail.
-		switch {
-		case s.timers.IsBfdHoldDownTimerRunning() || s.bfdHoldDownKeepalive.Load():
-			sessionLogger().Warn("bfd strict-mode: the BGP hold timer expired while observing the BFD hold-down interval",
-				"peer", s.settings.Address,
-				"hold-down", s.timers.BfdHoldDown(),
-				"hold-time", s.timers.HoldTime())
-		case s.fsm.BfdSubState() != fsm.SubStateNone:
-			sessionLogger().Warn("bfd strict-mode: the BGP hold timer expired while waiting for BFD",
-				"peer", s.settings.Address,
-				"bfd-sub-state", s.fsm.BfdSubState().String(),
-				"hold-time", s.timers.HoldTime())
-		}
-
-		// FSM.Event owns transition locking; callbacks may inspect s.Conn.
-		// MUST fire without s.mu held.
-		s.logFSMEvent(fsm.EventHoldTimerExpires)
-		// The NOTIFICATION attempt and terminal FSM event are complete. Wake
-		// standalone admission readers too; cause publication alone is too early.
-		s.stopAdmission()
-		select {
-		case s.errChan <- ErrHoldTimerExpired:
-		default: // errChan full -- cancel goroutine already has a signal
-		}
+		// RFC 4271 Section 8.2.2: Event10 has one action owner, including
+		// admission that observes its expired deadline before this callback.
+		s.holdTimerExpiredLocked()
 	})
 
 	s.timers.OnKeepaliveTimerExpires(func() {
@@ -1192,8 +1108,8 @@ func (s *Session) setSendCtxID(ctxID bgpctx.ContextID) {
 	}
 }
 
-// SetMessageCallback installs the per-message delivery callback. Peer assigns
-// the same field directly in runOnce; this is the exported seam for a harness
+// SetMessageCallback installs the per-message delivery callback. Peer's shared
+// Session factory assigns the same field; this is the exported seam for a harness
 // that drives a session without a Peer, which is what `le test replay` does
 // (internal/test/cli/cmd_replay.go). Set it before the read loop starts.
 func (s *Session) SetMessageCallback(cb MessageCallback) {
@@ -1261,7 +1177,14 @@ func (s *Session) detectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 	case fsm.StateOpenConfirm:
 		// RFC 4271 §6.8: "Upon receipt of an OPEN message, the local system
 		// MUST examine all of its connections that are in the OpenConfirm state"
-		localID := s.settings.RouterID
+		s.mu.RLock()
+		proposal := s.proposal
+		peerOpen := s.peerOpen
+		s.mu.RUnlock()
+		if proposal == nil {
+			return false, false
+		}
+		localID := proposal.message.BGPIdentifier
 
 		// RFC 4271 §6.8: "Comparing BGP Identifiers is done by converting them
 		// to host byte order and treating them as 4-octet unsigned integers"
@@ -1282,23 +1205,14 @@ func (s *Session) detectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 			// on our listener); the existing session is the one we initiated. So
 			// the remote's connection is preserved exactly when its AS is larger.
 			//
-			// Do NOT assume an internal peer cannot reach this branch. An earlier
-			// version of this comment claimed §2.2 (validateOpenIdentifier) had
-			// already rejected one, and that equal AS numbers were therefore
-			// impossible here. The ORDER is the other way round: detectCollision
-			// is called from resolvePendingCollision (peer_connection.go) on the
-			// pending OPEN, and §2.2 runs later, only on the connection that WINS
-			// (session_connection.go). An internal peer's colliding connection
-			// does arrive here with PeerAS == LocalAS.
-			//
-			// The outcome is still correct, which is why this was a wrong
-			// justification rather than a wrong result: PeerAS > LocalAS is false
-			// for equal AS numbers, so we keep the existing connection and reject
-			// the pending one, and the §2.2 check still rejects the internal
-			// peer's identifier afterwards on the winning connection. Keep that
-			// reasoning intact if you touch this: it is the comparison, not an
-			// upstream guarantee, that makes the equal-AS case safe.
-			preserveRemote := s.collisionPeerAS() > s.settings.LocalAS
+			// The incoming Session validates its OPEN before arbitration, so
+			// validateOpenIdentifier already rejects an internal peer that
+			// presents this speaker's identifier. The comparison remains
+			// defined for equal AS numbers: it preserves the existing connection.
+			// The prepared owner supplies both AS inputs. A dynamic peer still
+			// has configured AS zero here; judgedPeerAS uses this connection's
+			// received OPEN under the same ASN4 offer admission already judged.
+			preserveRemote := proposal.judgedPeerAS(peerOpen) > proposal.settings.LocalAS
 			return preserveRemote, preserveRemote
 		}
 		// RFC 4271 §6.8: "Otherwise, the local system closes the newly created
@@ -1319,57 +1233,13 @@ func (s *Session) detectCollision(remoteBGPID uint32) (shouldAccept, shouldClose
 	}
 }
 
-// collisionPeerAS returns the peer's AS number for the RFC 6286 Section 2.3
-// equal-identifier tie-break, falling back to the AS the peer ADVERTISES when no
-// AS is configured.
-//
-// A DYNAMIC peer carries PeerAS 0: buildDynamicPeerSettings sets it to 0
-// (reactor_dynamic.go) and resolveDynamicPeerSettings only fills it on the
-// Established transition (peer_run.go), which is strictly AFTER the OpenConfirm
-// state this branch runs in. Reading that 0 raw makes `PeerAS > LocalAS` false
-// against any real LocalAS, so the tie-break silently always preserved the local
-// connection -- the zero value selecting a valid-looking answer
-// (ai/rules/evidence.md).
-//
-// This is the same fallback validateOpenIdentifier applies one function away
-// (session_open_validation.go); that call site was fixed and this sibling was
-// missed (ai/rules/architecture.md, Sibling Call-Site Audit).
-//
-// Both colliding connections belong to the SAME peer, so the OPEN already
-// received on this connection carries the AS that the pending connection would
-// advertise too. judgedPeerAS (session_open_as.go) reads it the way
-// validateOpenPeerAS judged it: through the AS4 capability when this session
-// advertises the capability, so a 4-byte-AS peer is judged on its real ASN and
-// not on AS_TRANS, and through My AS on a session configured `asn4 disable`
-// (RFC 6793 Section 4.1). peerOpen is guarded by s.mu (see the lock hierarchy
-// above).
-//
-// LOCK ORDER: this takes s.mu while the caller holds p.mu -- the sole production
-// caller is Peer.resolvePendingCollision (peer_connection.go), which holds
-// p.mu.Lock() across detectCollision. That p.mu -> s.mu edge is outside the
-// hierarchy documented above, which orders only the Session's own three locks, so
-// it is recorded here (and in that block) rather than left to be re-derived.
-//
-// It cannot deadlock, because the reverse edge does not exist: no file under
-// session*.go acquires p.mu, and the two callbacks a Peer installs on a Session
-// (onMessageReceived, egressRouteFilter) are invoked from the write path inside
-// writeMu and from the read goroutine, never with s.mu held. A future edit that
-// takes p.mu from Session code -- or fires a peer callback under s.mu -- closes
-// the cycle and deadlocks connection collision resolution.
-func (s *Session) collisionPeerAS() uint32 {
-	s.mu.RLock()
-	open := s.peerOpen
-	s.mu.RUnlock()
-
-	return s.judgedPeerAS(open)
-}
-
 // Start triggers the ManualStart event to begin the connection process.
 //
 // RFC 4271 Section 8.2.2, Idle + Event 1: this also sets the
 // ConnectRetryCounter to zero. Only the operator's start belongs here; the
-// peer reconnect loop uses startDamped for every later cycle, so a retry does
-// not erase the retry history (peer_run.go, runOnce).
+// peer reconnect loop uses startAutomatic after a cycle reached Established
+// and startDamped after a failed attempt, preserving its retry history
+// (peer_run.go, runOnce).
 func (s *Session) Start() error {
 	return s.fsm.Event(fsm.EventManualStart)
 }
@@ -1446,6 +1316,11 @@ func (s *Session) logNotifyErrWithin(conn net.Conn, code message.NotifyErrorCode
 // once.
 // Every caller closes the connection after the send.
 func (s *Session) logNotifyOutcome(code message.NotifyErrorCode, subcode uint8, err error) {
+	if err != nil && s.onNotificationFailure != nil {
+		if s.onNotificationFailure(err) {
+			return
+		}
+	}
 	if errors.Is(err, errWritePathBusy) {
 		return
 	}

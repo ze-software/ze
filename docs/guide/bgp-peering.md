@@ -348,7 +348,8 @@ While the wait runs, peer detail reports Connect or Active, not OpenSent. A
 second connection waits for its OPEN before collision arbitration; it cannot
 displace the held connection merely by connecting.
 <!-- source: internal/component/bgp/yang/ze-bgp-conf.yang -- leaf delay-open -->
-<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision -->
 
 With `connection { bfd { enabled true; strict true; } }` and strict mode
 negotiated by both peers, an early OPEN sends Ze's OPEN but withholds KEEPALIVE

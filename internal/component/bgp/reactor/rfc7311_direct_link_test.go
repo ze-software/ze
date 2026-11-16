@@ -74,7 +74,7 @@ func aigpForwardToWire(t *testing.T, original, transformed []byte, synthesized b
 	peer, conn := newAnnouncePeer(t, "192.0.2.2")
 	source, _ := newAnnouncePeer(t, "192.0.2.1")
 	for _, established := range []*Peer{source, peer} {
-		established.session.localOpen = &message.Open{MyAS: 65000, HoldTime: 90}
+		established.session.proposal = preparedOpenForTest(established.session, &message.Open{MyAS: 65000, HoldTime: 90})
 		established.session.peerOpen = &message.Open{MyAS: 65001, HoldTime: 90}
 		established.session.negotiateWith(nil, nil)
 		established.setEncodingContexts(established.session.negotiated)

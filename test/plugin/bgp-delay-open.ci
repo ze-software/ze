@@ -1,0 +1,53 @@
+# Test: does configured DelayOpen establish both remote-OPEN and timer-expiry cycles?
+# A unit test cannot prove configuration, plugin startup, and the daemon listener
+# reach the existing observer's wire and public-state assertions in sequence.
+# This is a newly authored carrier for the existing plugin/bgp-delay-open fixture.
+# It does not recover the absent historical carrier or clear its TIME30 result.
+stdin=ze-bgp:terminator=EOF_CONF
+plugin {
+    external delay-watch {
+        run "le test fixture plugin/bgp-delay-open 127.0.0.1:$PORT"
+        encoder json
+    }
+}
+bgp {
+    filter {
+        import { final accept; }
+        export { final accept; }
+    }
+    timer {
+        delay-open 5
+    }
+    peer delay {
+        timer {
+            connect-retry 1
+        }
+        connection {
+            local {
+                ip 127.0.0.1
+                port $PORT
+            }
+            remote {
+                ip 127.0.0.1
+                connect false
+            }
+        }
+        session {
+            asn {
+                local 65000
+                remote 65001
+            }
+            router-id 1.1.1.1
+            family {
+                ipv4/unicast { prefix { maximum 10000; } }
+            }
+        }
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: DelayOpen held OPEN, remote OPEN and timer expiry both established
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic

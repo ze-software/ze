@@ -11,14 +11,9 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 )
 
-// inboundConnection transfers one accepted socket to the next session epoch.
-// A collision winner owns its parsed OPEN and complete original wire buffer;
-// the producer MUST stop using both after handing them to the Peer.
-type inboundConnection struct {
-	conn net.Conn
-	open *message.Open
-	wire []byte
-}
+// errCollisionHandoff means the single selected inbound reservation is
+// occupied. No independent Session or OPEN exists for a later arrival.
+var errCollisionHandoff = errors.New("collision winner already waiting for the next session")
 
 // acceptConnection accepts an incoming TCP connection for this peer.
 // Used by the reactor to hand incoming connections to passive peers.
@@ -26,7 +21,7 @@ func (p *Peer) acceptConnection(conn net.Conn) error {
 	p.mu.RLock()
 	if p.collisionHandoff {
 		p.mu.RUnlock()
-		return ErrAlreadyConnected
+		return errCollisionHandoff
 	}
 	session := p.session
 	p.mu.RUnlock()
@@ -70,13 +65,16 @@ func (p *Peer) setPendingConnection(conn net.Conn) error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if p.pendingConn != nil {
+	if p.incomingClosed {
+		return ErrSessionTearingDown
+	}
+	if p.pending != nil {
 		return errors.New("pending connection already exists")
 	}
 	if p.collisionHandoff {
-		return errors.New("collision winner already waiting for the next session")
+		return errCollisionHandoff
 	}
-	p.pendingConn = conn
+	p.pending = &pendingSocket{conn: conn}
 	return nil
 }
 
@@ -84,7 +82,7 @@ func (p *Peer) setPendingConnection(conn net.Conn) error {
 func (p *Peer) clearPendingConnection() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.pendingConn = nil
+	p.pending = nil
 }
 
 // setInboundConnection stores a connection that arrived between sessions.
@@ -96,17 +94,17 @@ func (p *Peer) setInboundConnection(conn net.Conn) {
 		closeConnQuietly(conn)
 		return
 	}
-	old := p.storeInboundLocked(inboundConnection{conn: conn})
+	old := p.storeInboundLocked(&incomingSocket{conn: conn})
 	p.mu.Unlock()
 	if old != nil {
-		closeConnQuietly(old)
+		discardInbound(old)
 	}
 }
 
 // storeInboundLocked transfers ownership into the single inbound slot.
 // Caller MUST hold p.mu and close the returned displaced socket after unlocking.
-func (p *Peer) storeInboundLocked(inbound inboundConnection) net.Conn {
-	old := p.inbound.conn
+func (p *Peer) storeInboundLocked(inbound inboundConnection) inboundConnection {
+	old := p.inbound
 	p.inbound = inbound
 	select {
 	case p.inboundNotify <- struct{}{}:
@@ -117,68 +115,27 @@ func (p *Peer) storeInboundLocked(inbound inboundConnection) net.Conn {
 
 // takeInboundConnection transfers and clears the slot atomically, but MUST NOT
 // release the collision reservation. The caller MUST accept or close its socket
-// and clear collisionHandoff under p.mu only after acceptWithOpen returns.
+// and clear collisionHandoff under p.mu only after receipt installation finishes.
 func (p *Peer) takeInboundConnection() inboundConnection {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	inbound := p.inbound
-	p.inbound = inboundConnection{}
+	p.inbound = nil
 	return inbound
 }
 
-// hasPendingConnection returns true if there's a pending incoming connection.
+// hasPendingConnection reports an undecided incoming exchange. A decided
+// loser retains the admission gate through its refusal and joined retirement.
 func (p *Peer) hasPendingConnection() bool {
 	p.mu.RLock()
 	defer p.mu.RUnlock()
-	return p.pendingConn != nil
-}
-
-// resolvePendingCollision transfers a winning socket and its original OPEN to
-// the next Peer-owned session before closing the losing session (RFC 4271 §6.8).
-// On acceptance the caller MUST release ownership of wire and pendingOpen.
-// On refusal the caller MUST close the returned socket, if any.
-func (p *Peer) resolvePendingCollision(pendingOpen *message.Open, wire []byte) (bool, net.Conn) {
-	p.mu.Lock()
-	conn := p.pendingConn
-	p.pendingConn = nil
-	session := p.session
-	if conn == nil {
-		p.mu.Unlock()
-		return false, nil
+	switch p.pending.(type) {
+	case *pendingSocket, *incomingCandidate:
+		return true
+	case nil, *closingIncoming:
+		return false
 	}
-	if session == nil {
-		p.mu.Unlock()
-		return false, conn
-	}
-	if p.stopping.Load() {
-		p.mu.Unlock()
-		return false, conn
-	}
-	if p.ctx != nil && p.ctx.Err() != nil {
-		p.mu.Unlock()
-		return false, conn
-	}
-	shouldAccept, shouldCloseExisting := session.detectCollision(pendingOpen.BGPIdentifier)
-	if !shouldAccept {
-		p.mu.Unlock()
-		return false, conn
-	}
-	if !shouldCloseExisting {
-		p.mu.Unlock()
-		return false, conn
-	}
-
-	// Publishing before CloseWithNotification prevents runOnce from passing
-	// its inbound check without the winner. Its ordinary backoff wakeup then
-	// starts the fresh epoch only after all old-session cleanup has finished.
-	old := p.storeInboundLocked(inboundConnection{conn: conn, open: pendingOpen, wire: wire})
-	p.collisionHandoff = true
-	p.mu.Unlock()
-	if old != nil {
-		closeConnQuietly(old)
-	}
-	go p.finishCollisionHandoff(session, conn, pendingOpen.BGPIdentifier)
-	return true, nil
+	return false
 }
 
 // finishCollisionHandoff runs outside p.mu because closing can invoke a Peer
@@ -198,12 +155,13 @@ func (p *Peer) finishCollisionHandoff(session *Session, conn net.Conn, remoteID 
 		return
 	}
 	p.mu.Lock()
-	if p.inbound.conn != conn {
+	if inboundConn(p.inbound) != conn {
 		// runOnce already owns it; only that owner may close it now.
 		p.mu.Unlock()
 		return
 	}
-	p.inbound = inboundConnection{}
+	arrival := p.inbound
+	p.inbound = nil
 	p.collisionHandoff = false
 	select {
 	case <-p.inboundNotify:
@@ -212,5 +170,10 @@ func (p *Peer) finishCollisionHandoff(session *Session, conn net.Conn, remoteID 
 	p.mu.Unlock()
 	// Unlike the OPEN-less held loser, this connection already sent OPEN.
 	// RFC 4271 Section 6.8 requires Cease; no Peer lock is held while writing.
-	rejectConnectionCollision(conn, p.clock)
+	if candidate := inboundCandidate(arrival); candidate != nil {
+		_ = candidate.session.CloseWithNotification(message.NotifyCease, message.NotifyCeaseConnectionCollision)
+		candidate.retire()
+	} else {
+		rejectConnectionCollision(conn, p.clock)
+	}
 }

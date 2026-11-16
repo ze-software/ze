@@ -62,17 +62,25 @@ func (s *Session) ReadAndProcess() error {
 // write. Reading s.bufReader directly here would be a data race with the
 // locked write in session_connection.go.
 func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) error {
+	frame, err := s.readFrame(conn, bufReader)
+	if err != nil {
+		return err
+	}
+	return s.dispatchFrame(frame)
+}
+
+func (s *Session) readFrame(conn net.Conn, bufReader *bufio.Reader) (*receivedFrame, error) {
 	// Get buffer from multiplexer.
 	buf := s.getReadBuffer()
 	if buf.Buf == nil {
-		return errReadBufferExhaustedPoolAtMaximum
+		return nil, errReadBufferExhaustedPoolAtMaximum
 	}
 
-	// Defer ensures buffer is returned even if processMessage panics.
-	// Set to true when callback takes ownership (cache keeps the buffer).
-	kept := false
+	// The constructor owns its handle until it transfers a complete frame.
+	// Validation failure or panic returns it here.
+	transferred := false
 	defer func() {
-		if !kept {
+		if !transferred {
 			s.returnReadBuffer(buf)
 		}
 	}()
@@ -84,13 +92,13 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 		// Clean close does not increment wireReadErrors (not an error).
 		if errors.Is(err, io.EOF) || isConnectionReset(err) {
 			s.handleConnectionClose()
-			return ErrConnectionClosed
+			return nil, ErrConnectionClosed
 		}
 		// Actual read error (timeout, network failure): count it.
 		if s.prefixMetrics != nil {
 			s.prefixMetrics.wireReadErrors.With(s.addrLabel).Inc()
 		}
-		return err
+		return nil, err
 	}
 
 	if s.onRead != nil {
@@ -103,7 +111,7 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 		s.notifyHeaderErr(conn, buf.Buf[:message.HeaderLen], err)
 		s.logFSMEvent(fsm.EventBGPHeaderErr)
 		s.closeConn()
-		return fmt.Errorf("parse header: %w", err)
+		return nil, fmt.Errorf("parse header: %w", err)
 	}
 
 	// RFC 8654 Section 6: "For all messages except for OPEN and KEEPALIVE
@@ -120,7 +128,7 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 		)
 		s.logFSMEvent(fsm.EventBGPHeaderErr)
 		s.closeConn()
-		return fmt.Errorf("message length %d exceeds max for %s: %w", hdr.Length, hdr.Type, err)
+		return nil, fmt.Errorf("message length %d exceeds max for %s: %w", hdr.Length, hdr.Type, err)
 	}
 
 	// Read body
@@ -128,31 +136,55 @@ func (s *Session) readAndProcessMessage(conn net.Conn, bufReader *bufio.Reader) 
 	if bodyLen > 0 {
 		_, err = io.ReadFull(bufReader, buf.Buf[message.HeaderLen:hdr.Length])
 		if err != nil {
-			return fmt.Errorf("read body: %w", err)
+			return nil, fmt.Errorf("read body: %w", err)
 		}
 	}
 
-	// Both capture consumers observe the original complete packet before semantic
-	// validation, synthesis or coalescing. Neither semantic callback is a wire tee.
-	s.teeCapture(uint8(hdr.Type), buf.Buf[:hdr.Length])
-	s.observeReceivedWire(buf.Buf[:hdr.Length])
+	s.observeReceivedFrame(hdr.Type, buf.Buf[:hdr.Length])
 
-	// Track wire bytes received.
-	if s.prefixMetrics != nil {
-		s.prefixMetrics.wireBytesRecv.With(s.addrLabel).Add(float64(hdr.Length))
+	transferred = true
+	return &receivedFrame{header: hdr, buffer: buf}, nil
+}
+
+// observeReceivedFrame tees only complete original frames. Pre-read buffered
+// receipts call it once on installation; candidate tokens already observed by
+// readFrame MUST NOT call it again when selected.
+func (s *Session) observeReceivedFrame(kind msgtype.MessageType, wire []byte) {
+	if len(wire) == 0 {
+		return
 	}
+	s.teeCapture(uint8(kind), wire)
+	s.observeReceivedWire(wire)
+	if s.prefixMetrics != nil {
+		s.prefixMetrics.wireBytesRecv.With(s.addrLabel).Add(float64(len(wire)))
+	}
+}
 
-	// A pending pause owns no reader bytes: this stack retains the complete
-	// packet until admission reopens. Partial ReadFull state is never interrupted.
+// receivedFrame owns one complete original packet. The caller MUST dispatch
+// it or return its handle. Only readFrame constructs one; all TCP ingress uses
+// its header validation, capture tee and original-wire observation.
+type receivedFrame struct {
+	header message.Header
+	buffer BufHandle
+}
+
+func (f *receivedFrame) body() []byte { return f.buffer.Buf[message.HeaderLen:f.header.Length] }
+func (f *receivedFrame) wire() []byte { return f.buffer.Buf[:f.header.Length] }
+
+func (s *Session) dispatchFrame(frame *receivedFrame) error {
+	kept := false
+	defer func() {
+		if !kept {
+			s.returnReadBuffer(frame.buffer)
+		}
+	}()
 	if err := s.beginAdmission(); err != nil {
 		return err
 	}
 	defer s.endAdmission()
-	// Process message - callback returns kept=true if it took buffer ownership
-	var processErr error
-	processErr, kept = s.processMessage(&hdr, buf.Buf[message.HeaderLen:hdr.Length], buf)
-
-	return processErr
+	err, owned := s.processMessage(&frame.header, frame.body(), frame.buffer)
+	kept = owned
+	return err
 }
 
 // readBufferRecheck bounds one wait of awaitReadBuffer. A Return to the
@@ -575,28 +607,11 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 	// Received UPDATE ownership may leave here, and the cache may recycle buf
 	// before the callback returns. Never read that UPDATE's bytes afterward.
 	// Control-message buffers remain borrowed through their handlers below.
-	var kept bool
-	if s.onMessageReceived != nil {
-		kept = s.onMessageReceived(s.settings.Address, hdr.Type, body, wireUpdate, ctxID, rpc.DirectionReceived, buf, nil, "", 0)
+	err, kept := s.deliverReceivedMessage(hdr.Type, body, wireUpdate, ctxID, buf)
+	if err != nil {
+		return err, kept
 	}
 
-	// A policy filter on the import chain (e.g. filter_family tear-down) may have
-	// requested a session teardown during the callback. Honor it here, on the
-	// session read goroutine, before the normal UPDATE FSM event — mirroring the
-	// family-not-negotiated teardown above (RFC 4760 §7). The accepted-message
-	// event must not advance the FSM for a session being closed.
-	if req := s.takePolicyTeardown(); req != nil {
-		s.setCloseReason(ErrPolicyTeardown)
-		s.mu.RLock()
-		conn := s.conn
-		s.mu.RUnlock()
-		s.logNotifyErr(conn, req.code, req.subcode, nil)
-		s.logFSMEvent(fsm.EventUpdateMsgErr)
-		s.closeConn()
-		return ErrPolicyTeardown, kept
-	}
-
-	var err error
 	switch hdr.Type {
 	case msgtype.TypeUPDATE:
 		// All payload checks ran before publication. Only the FSM event remains:
@@ -615,6 +630,33 @@ func (s *Session) processValidatedMessage(hdr *message.Header, body []byte, buf 
 		err = s.handleUnknownType(hdr.Type)
 	}
 	return err, kept
+}
+
+// deliverReceivedMessage is shared by ordinary dispatch and a first OPEN
+// admitted before collision. Control bytes stay borrowed through validation.
+func (s *Session) deliverReceivedMessage(kind msgtype.MessageType, body []byte, wireUpdate *wireu.WireUpdate, ctxID bgpctx.ContextID, buf BufHandle) (error, bool) {
+	var kept bool
+	if s.onMessageReceived != nil {
+		kept = s.onMessageReceived(s.settings.Address, kind, body, wireUpdate, ctxID, rpc.DirectionReceived, buf, nil, "", 0)
+	}
+
+	// A policy filter on the import chain (e.g. filter_family tear-down) may have
+	// requested a session teardown during the callback. Honor it here, on the
+	// session read goroutine, before the normal UPDATE FSM event — mirroring the
+	// family-not-negotiated teardown above (RFC 4760 §7). The accepted-message
+	// event must not advance the FSM for a session being closed.
+	if req := s.takePolicyTeardown(); req != nil {
+		s.setCloseReason(ErrPolicyTeardown)
+		s.mu.RLock()
+		conn := s.conn
+		s.mu.RUnlock()
+		s.logNotifyErr(conn, req.code, req.subcode, nil)
+		s.logFSMEvent(fsm.EventUpdateMsgErr)
+		s.closeConn()
+		return ErrPolicyTeardown, kept
+	}
+
+	return nil, kept
 }
 
 // collapseASPathFamily reconciles the AS-path family of a received UPDATE to
@@ -780,12 +822,21 @@ func (s *Session) handleConnectionCloseLocked() {
 		return
 	}
 	s.transportFailed = true
-	// RFC 4271 Section 8.2.2: "If the TCP connection fails (Event 18), the local system checks the DelayOpenTimer."
+	// RFC 4271 Section 8.2.2 (Connect): "If the TCP connection fails (Event 18), the local system checks the DelayOpenTimer."
 	// Deliver the event before teardown clears that timer. When a teardown
 	// began on this session, the connection went because of it (the peer
 	// closes on the NOTIFICATION while the teardown is still in its close), so
 	// the FSM is told that teardown's stop event and not Event 18 (endEvent).
-	s.logFSMEvent(s.endEvent())
+	event := s.endEvent()
+	s.logFSMEvent(event)
+	if event == fsm.EventTCPConnectionFails {
+		// RFC 4271 Section 8.2.2: Active Event 18 restarts retry even
+		// after strict Event 20 consumed DelayOpen. The FSM owns whether
+		// this failure arms retry: held Connect and every Active failure
+		// do; OpenSent does not, so its absent budget keeps ordinary backoff.
+		// Snapshot the actual arm before StopAll cancels it.
+		s.retryBudget = s.timers.ConnectRetryBudget()
+	}
 	s.timers.StopAll()
 	s.closeConn()
 }

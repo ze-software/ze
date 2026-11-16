@@ -1,12 +1,12 @@
 {
-  "note": "{single-polarity: positive} valid: lowercase should, the duplicate is the operator's allow-shared-router-id opt-out. Both halves of 'unique within an AS' now covered: remote peers by TestRouterIDClaimConcurrentOnlyOneWins (accepted == 1, routerIDConflictError); this speaker's own identifier by TestRFC6286LocalIdentifierUniqueWithinItsAS, which presents the local identifier 0x01020301 from an internal peer (AS 65001 both sides) on handleOpen and requires ErrBadBGPIdentifier, NOTIFICATION 2/3 on the wire and no OpenConfirm. Producer read: Open.ValidateBGPIdentifier (internal && id == localID). Judge break (overlay, open.go: the self check gated on !internal) turned the new unit red, the remote-peer unit green. Revert record on ValidateBGPIdentifier for the new unit; the HEAD unit still carries no record (proof by reading: the exact accepted == 1 assertion).",
+  "note": "RFC 6286 Section 2.1 says: The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The single-positive annotation remains valid for this uniqueness SHOULD: intentional shared identifiers use the documented operator opt-out, while Section 2.2's zero and internal-self rejection remains mandatory. TestRouterIDClaimConcurrentOnlyOneWins now prepares one actual Session per Peer before all sixteen validators start together. It retains exactly-one acceptance, routerIDConflictError for every loser, a recorded holder, and no neighboring-key claim. Peer.validateOpen reads the prepared AS identity and routerIDClaims.claim serializes the check and insertion under one leaf mutex. Session-owned claim bookkeeping preserves, rather than relaxes, cross-Peer uniqueness. TestRFC6286LocalIdentifierUniqueWithinItsAS separately sends the local identifier from an internal peer and requires ErrBadBGPIdentifier, exact NOTIFICATION 2/3 and no OpenConfirm. Open.ValidateBGPIdentifier still tests internal plus equal local identifier. These assertions cover the remote-peer and local-speaker uniqueness cases; permitting every duplicate or accepting the internal self identifier violates an exact assertion. No broader startup or per-peer identifier-configuration conformance is credited by this row.",
   "requirement_sha": "e566efc1c1dda428",
   "tests": {
-    "internal/component/bgp/reactor/rfc6286_routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "f1451286f1a50d18",
+    "internal/component/bgp/reactor/rfc6286_routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "6ed31e1eb16125d2",
     "internal/component/bgp/reactor/rfc6286_unique_within_as_test.go::TestRFC6286LocalIdentifierUniqueWithinItsAS": "a1fc7aaeb89a3796"
   },
   "units": {
-    "internal/component/bgp/reactor/rfc6286_routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "89120e6676ad8fd9",
+    "internal/component/bgp/reactor/rfc6286_routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins": "6cc7ff01100954e4",
     "internal/component/bgp/reactor/rfc6286_unique_within_as_test.go::TestRFC6286LocalIdentifierUniqueWithinItsAS": "0bb5bef2a07737c8"
   },
   "verdict": "enforced"

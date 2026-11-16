@@ -21,6 +21,10 @@ import (
 // exited. One record per runOnce: a session's FSM leaves Established at most
 // once.
 type sessionLeave struct {
+	// selected marks installation of this epoch's FSM callback. An incoming
+	// candidate may privately establish and expire before that publication.
+	// Only runOnce writes it, before its down defer can run.
+	selected     bool
 	signal       chan struct{}
 	event        fsm.Event
 	notified     bool
@@ -191,7 +195,7 @@ func (p *Peer) leaveSession(session *Session, leave *sessionLeave, from, to fsm.
 // So a plugin hears every UPDATE of a session before its down, and the down
 // follows PeerStateConnecting.
 func (p *Peer) sessionDown(session *Session, publication *receivePublication, deliverChan chan deliveryItem, deliveryDone <-chan struct{}, leave *sessionLeave) {
-	if session.fsm.State() == fsm.StateEstablished {
+	if leave.selected && session.fsm.State() == fsm.StateEstablished {
 		p.sessionEndHooks.Load().runBeforeLeaveFire()
 		// Without this event the leave arm, and so the down, would never
 		// run. A local teardown that moved the FSM to Idle after the read
@@ -208,6 +212,9 @@ func (p *Peer) sessionDown(session *Session, publication *receivePublication, de
 	p.deliverChan = nil
 	p.sessionEndHooks.Load().runDrained()
 
+	if !leave.selected {
+		return
+	}
 	if !session.fsm.EnteredEstablished() {
 		return
 	}

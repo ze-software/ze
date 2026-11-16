@@ -2,8 +2,8 @@
   "note": "(a) with identical identifiers, preserving the connection of the smaller AS; (b) TestDetectCollisionEqualIdentifierPrefersLargerAS asserts accept/close for peer AS > local AS and peer AS < local AS with equal identifiers; negative rows show unequal identifiers ignore the AS.",
   "requirement_sha": "c8f7ef370693f7ea",
   "tests": {
-    "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS": "5c70309331197119",
-    "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS#2": "5c70309331197119"
+    "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS": "9d7bb76c2a674fc7",
+    "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS#2": "9d7bb76c2a674fc7"
   },
   "units": {
     "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS": "62e9bf2df59ce7ab",

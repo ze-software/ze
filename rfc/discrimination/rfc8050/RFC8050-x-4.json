@@ -58,23 +58,23 @@
     "rid": "RFC8050-x-4",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTCollisionWinnerReservation",
-    "unit-sha": "ed969ebe4d11b72a",
+    "unit-sha": "dd4907abcdc9379f",
     "claim-sha": "3028973f8619c3e8",
-    "route": "revert",
+    "route": "mutant",
     "producer": "internal/component/bgp/reactor/peer_connection.go::takeInboundConnection",
-    "producer-sha": "b637784b52f995a0",
-    "break": "body of takeInboundConnection replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer-sha": "6ff6ed5b92e2e3e2",
+    "break": "line 124: \"return inbound\" -\u003e \"if inbound != nil { return nil }; return inbound // MUTATION-APPLIED: drop only a nonempty inbound receipt\""
   },
   {
     "rid": "RFC8050-x-4",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc8050_collision_epoch_test.go::TestMRTWinningCollisionPreservesOPEN",
-    "unit-sha": "e118c0e8e689999d",
+    "unit-sha": "ee4046dac24ed74d",
     "claim-sha": "f7c5bc15d7cc62b3",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/session_connection.go::acceptWithOpen",
-    "producer-sha": "70c0dcdd3bd34737",
-    "break": "body of acceptWithOpen replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/incoming_candidate.go::adoptIncoming",
+    "producer-sha": "1b26d23f32c3eca3",
+    "break": "body of adoptIncoming replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC8050-x-4",

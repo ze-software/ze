@@ -421,12 +421,12 @@ type Reactor struct {
 	capture    *bGPCaptureRing
 	rawCapture atomic.Pointer[BGPRawCaptureRing]
 
-	// sessionCaptures tracks the per-peer JSONL protocol event captures that
-	// are open right now (capture_replay.go). A config operation is recorded
+	// sessionCaptures tracks configured input registrations and exclusive
+	// file-owner receipts (capture_replay.go). A config operation is recorded
 	// into every one of them: the operation is peer-scoped, but its effect on
 	// the reactor is global, so a replay of any captured session needs it.
 	sessionCapturesMu sync.Mutex
-	sessionCaptures   map[*sessionCapture]struct{}
+	sessionCaptures   map[protocolCapture]captureRegistration
 
 	// running is true from the end of StartWithContext until stop (from the
 	// barrier on the standalone path). It opens listeners for groups added at
@@ -2218,7 +2218,7 @@ func (r *Reactor) cleanup() {
 		// its terminating event must not depend on how long a session takes to
 		// unwind, nor on the shutdown completing at all: an init system that
 		// SIGKILLs after its own grace would otherwise hand the operator a file
-		// with no capture-stop and no drop tally. doRemovePeer already closes
+		// with no capture-stop and no drop tally. removalLocked also closes
 		// captures this way for the same reason, and closeCapturesForPeer
 		// documents the double close as safe, because the session's deferred
 		// stopCapture still runs and Close is idempotent.

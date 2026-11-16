@@ -1,5 +1,6 @@
 // Design: docs/architecture/behavior/fsm-open-sent.md — OPEN acceptance
-// Overview: session_open_as.go — validateOpenPeerAS and judgedPeerAS, under test here, over capability.OpenPeerAS
+// Overview: session_open_as.go — validateOpenPeerAS over capability.OpenPeerAS
+// Related: session_open_proposal.go — preparedOpen.judgedPeerAS retains the Session's advertisement
 // Related: reactor_dynamic.go — resolveDynamicPeerSettings, the dynamic peer's AS at establishment
 // Related: config.go — parsePeerSettings, which refuses an asn4-disabled four-octet remote
 // RFC: rfc/short/rfc6793.md — the Four-octet AS capability replaces My AS only between NEW speakers
@@ -69,10 +70,10 @@ func TestOpenAdvertisedASFollowsLocalASN4(t *testing.T) {
 // AS through its own caller, on a session with no configured remote AS (the dynamic
 // peer's state before establishment), once with asn4 disabled and once enabled.
 //
-// VALIDATES: the collision tie-break (collisionPeerAS), the RFC 6286 identifier scope
+// VALIDATES: the collision tie-break (detectCollision), the RFC 6286 identifier scope
 // (validateOpenIdentifier), the negotiated identity (negotiateWith), the reload
 // comparison's identity (judgedPeerAS, which negotiationOutcomeUnchanged calls) and the
-// peer's identifier claim (claimPeerAS) all read My AS on the two-octet session and the
+// peer's identifier claim (validateOpen) all read My AS on the two-octet session and the
 // capability on the four-octet one.
 // PREVENTS: any one caller stating the local advertisement as a constant: with true at
 // that caller the disabled arm reads 4200000000 and fails.
@@ -94,11 +95,10 @@ func TestASN4DisabledSessionReadersJudgeMyAS(t *testing.T) {
 			session.peerOpen = open
 			session.mu.Unlock()
 
-			assert.Equal(t, tt.want, session.judgedPeerAS(open), "judgedPeerAS")
-			assert.Equal(t, tt.want, session.collisionPeerAS(), "collisionPeerAS")
+			assert.Equal(t, tt.want, session.proposal.judgedPeerAS(open), "judgedPeerAS")
 
 			session.mu.RLock()
-			localOpen := session.localOpen
+			localOpen := session.proposal.message
 			session.mu.RUnlock()
 			require.NotNil(t, localOpen, "Accept sent ze's OPEN")
 			localCaps, err := capability.ParseFromOptionalParams(localOpen.OptionalParams, localOpen.ExtendedParams)
@@ -109,8 +109,21 @@ func TestASN4DisabledSessionReadersJudgeMyAS(t *testing.T) {
 			require.NotNil(t, session.negotiated)
 			assert.Equal(t, tt.want, session.negotiated.PeerASN, "negotiateWith identity")
 
+			// AS_TRANS is below local AS 65001; the four-octet AS is above it.
+			// Equal identifiers therefore require opposite collision winners.
+			require.NoError(t, session.fsm.Event(fsm.EventBGPOpen))
+			require.Equal(t, fsm.StateOpenConfirm, session.State())
+			accept, closeExisting := session.detectCollision(localOpen.BGPIdentifier)
+			assert.Equal(t, tt.advertise, accept, "collision winner follows the negotiated ASN4 offer")
+			assert.Equal(t, tt.advertise, closeExisting, "only the losing incumbent closes")
+
 			peer := NewPeer(session.settings)
-			assert.Equal(t, tt.want, peer.claimPeerAS(open), "claimPeerAS")
+			r := newClaimReactor(t, false)
+			peer.SetReactor(r)
+			require.NoError(t, peer.validateOpen(session, session.settings.Address.String(), open))
+			holder, held := r.routerIDs.holder(tt.want, open.BGPIdentifier)
+			assert.True(t, held, "the registry retains the AS judged by this Session")
+			assert.Same(t, peer, holder, "the actual validation consumer claims the judged AS and Identifier")
 		})
 	}
 }
@@ -128,9 +141,7 @@ func TestValidateOpenIdentifierScopesByJudgedAS(t *testing.T) {
 	const peerIdentifier uint32 = 0x0A000001 // openBodyWithASN4Capability's identifier
 
 	for _, advertise := range []bool{false, true} {
-		session, _ := openSentSessionASN4(t, 0, advertise)
-		session.settings.LocalAS = asn4TestPeerAS
-		session.settings.RouterID = peerIdentifier
+		session, _ := openSentSessionASN4WithIdentity(t, 0, advertise, asn4TestPeerAS, peerIdentifier)
 
 		err := session.validateOpenIdentifier(receivedASN4Open(t))
 
@@ -275,8 +286,15 @@ func TestCheckASN4DisabledReachableFollowsPeerASAccepted(t *testing.T) {
 // sends carries no code-65 capability and ze is an OLD speaker toward this peer.
 func openSentSessionASN4(t *testing.T, peerAS uint32, advertise bool) (*Session, chan []byte) {
 	t.Helper()
+	return openSentSessionASN4WithIdentity(t, peerAS, advertise, 65001, 0x0A000002)
+}
 
-	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, peerAS, 0x0A000002)
+// openSentSessionASN4WithIdentity configures the local identity before the
+// actual OPEN is constructed, so wire and validation inputs describe one speaker.
+func openSentSessionASN4WithIdentity(t *testing.T, peerAS uint32, advertise bool, localAS, identifier uint32) (*Session, chan []byte) {
+	t.Helper()
+
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), localAS, peerAS, identifier)
 	settings.Connection = ConnectionPassive
 	settings.ReceiveHoldTime = 90 * time.Second
 	settings.DisableASN4 = !advertise

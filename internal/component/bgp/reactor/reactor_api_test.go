@@ -166,8 +166,10 @@ func TestReconcilePeersReleasesRouterIDClaimSynchronously(t *testing.T) {
 	peerA := NewPeer(outgoing)
 	peerA.SetReactor(r)
 	r.peers[outgoing.PeerKey()] = peerA
+	claimSession := peerA.newSession()
+	t.Cleanup(claimSession.stopSessionTimers)
 
-	_, granted := r.routerIDs.claim(peerA, outgoing.Address, peerAS, sharedBGPID)
+	_, granted := r.routerIDs.claim(peerA, claimSession, outgoing.Address, peerAS, sharedBGPID)
 	require.True(t, granted, "peer A should hold the identifier before the reload")
 	holder, held := r.routerIDs.holder(peerAS, sharedBGPID)
 	require.True(t, held)

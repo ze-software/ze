@@ -60,6 +60,13 @@ func TestHandlePendingCollisionOversizedLength(t *testing.T) {
 
 	var wg sync.WaitGroup
 	wg.Go(func() {
+		localOpen, err := core4271ReadMessage(client)
+		if !assert.NoError(t, err, "the incoming connection sends its own OPEN before remote input") {
+			return
+		}
+		if !assert.Equal(t, byte(msgtype.TypeOPEN), localOpen[18], "the first reply is the candidate's local OPEN") {
+			return
+		}
 		if _, err := client.Write(hdr[:]); err != nil {
 			return
 		}

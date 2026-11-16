@@ -21,7 +21,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/bgp/fsm"
 	"github.com/ze-software/ze/internal/component/bgp/message"
-	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/bgp/msgtype"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/env"
 	"github.com/ze-software/ze/internal/core/network"
@@ -141,7 +141,7 @@ func (s *Session) acceptWithOpen(conn net.Conn, peerOpen *message.Open, wire []b
 	if err := s.connectionEstablished(conn); err != nil {
 		return err
 	}
-	s.observeReceivedWire(wire)
+	s.observeReceivedFrame(msgtype.TypeOPEN, wire)
 
 	// Process the pre-received OPEN
 	return s.processOpen(peerOpen)
@@ -150,120 +150,11 @@ func (s *Session) acceptWithOpen(conn net.Conn, peerOpen *message.Open, wire []b
 // processOpen handles a pre-parsed OPEN message.
 // Used by acceptWithOpen for collision resolution.
 func (s *Session) processOpen(open *message.Open) error {
-	s.openMu.Lock()
-	defer s.unlockOpen()
-	if s.onOpenRecv != nil {
-		s.onOpenRecv()
-	}
-	// Validate version
-	if open.Version != 4 {
-		s.mu.RLock()
-		conn := s.conn
-		s.mu.RUnlock()
-
-		s.logNotifyErr(conn,
-			message.NotifyOpenMessage,
-			message.NotifyOpenUnsupportedVersion,
-			[]byte{4},
-		)
-		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
-		s.closeConn()
-		return ErrUnsupportedVersion
-	}
-
-	// Validate hold time
-	if err := open.ValidateHoldTime(); err != nil {
-		s.mu.RLock()
-		conn := s.conn
-		s.mu.RUnlock()
-
-		if notif, ok := errors.AsType[*message.Notification](err); ok {
-			s.logNotifyErr(conn, notif.ErrorCode, notif.ErrorSubcode, notif.Data)
-		}
-		s.logFSMEvent(fsm.EventBGPOpenMsgErr)
-		s.closeConn()
-		return fmt.Errorf("invalid hold time %d: %w", open.HoldTime, err)
-	}
-
-	// RFC 7607 Section 2: the collision-winner rail refuses AS 0 exactly as the handleOpen
-	// rail does -- a reserved AS is reserved whichever connection survived.
-	peerCaps, err := s.validateOpenPeerAS(open)
+	admitted, err := s.admitParsedOpen(open)
 	if err != nil {
 		return err
 	}
-
-	// RFC 6286 Section 2.2: the collision-winner rail validates the identifier exactly as the
-	// handleOpen rail does -- an invalid identifier is invalid whichever connection survived.
-	if err := s.validateOpenIdentifier(open); err != nil {
-		return err
-	}
-
-	s.mu.Lock()
-	s.peerOpen = open
-	localOpen := s.localOpen
-	s.mu.Unlock()
-
-	// Run the peer OPEN validator (plugins such as RFC 9234 Role, plus the RFC 6286 Section 2.1
-	// AS-wide identifier claim). This rail used to skip it entirely, so a peer could bypass any
-	// per-peer OPEN policy by winning connection collision resolution.
-	if err := s.runOpenValidator(open); err != nil {
-		return err
-	}
-
-	// Peer capabilities were validated before checking AS identity.
-	var localCaps []capability.Capability
-	if localOpen != nil {
-		localCaps, err = capability.ParseFromOptionalParams(localOpen.OptionalParams, localOpen.ExtendedParams)
-		if err != nil {
-			return fmt.Errorf("parse local OPEN capabilities: %w", err)
-		}
-	}
-
-	// Negotiate capabilities.
-	s.negotiateWith(localCaps, peerCaps)
-	// draft-ietf-idr-bgp-bfd-strict-mode Section 6: the BfdStrictNegotiated
-	// attribute is settled by this exchange, and every clause below reads it.
-	s.applyBFDStrictNegotiation()
-
-	// Validate required families and capabilities.
-	s.mu.RLock()
-	conn := s.conn
-	neg := s.negotiated
-	requiredFamilies := s.settings.RequiredFamilies
-	requiredCaps := s.settings.RequiredCapabilities
-	refusedCaps := s.settings.RefusedCapabilities
-	s.mu.RUnlock()
-
-	if len(requiredFamilies) > 0 && neg != nil {
-		if missing := neg.CheckRequired(requiredFamilies); len(missing) > 0 {
-			capData := buildUnsupportedCapabilityData(missing)
-			s.logNotifyErr(conn,
-				message.NotifyOpenMessage,
-				message.NotifyOpenUnsupportedCapability,
-				capData,
-			)
-			s.logFSMEvent(fsm.EventBGPOpenMsgErr)
-			s.closeConn()
-			return fmt.Errorf("%w: required families not negotiated: %v", ErrInvalidState, missing)
-		}
-	}
-
-	// RFC 5492 Section 3: Validate required/refused capability codes.
-	if err := s.validateCapabilityModes(conn, neg, requiredCaps, refusedCaps, localCaps, peerCaps); err != nil {
-		return err
-	}
-
-	// Validate per-family ADD-PATH required/refused.
-	if err := s.validateAddPathFamilyModes(conn, neg, s.settings.RequiredAddPathFamilies, s.settings.RefusedAddPathFamilies, localCaps, peerCaps); err != nil {
-		return err
-	}
-
-	// Update the FSM, send the KEEPALIVE and reset the hold timer to the
-	// negotiated value -- unless draft-ietf-idr-bgp-bfd-strict-mode Section
-	// 8.5.5 says to withhold the KEEPALIVE and wait for BFD. This rail is the
-	// collision winner, and the draft draws no distinction between the two:
-	// the wait belongs to the connection that survived (session_bfd_strict.go).
-	return s.advanceAfterOpen(conn)
+	return admitted.advance()
 }
 
 func (s *Session) tuneTCPConnection(tcp *net.TCPConn) error {
@@ -416,6 +307,10 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 	s.writeMu.Unlock()
 	s.mu.Unlock()
 
+	if s.onTCPConnected != nil {
+		s.onTCPConnected()
+	}
+
 	// Prepare the local proposal without publishing bytes while DelayOpen
 	// holds. Both OPEN receive rails negotiate against this exact proposal.
 	if s.settings.DelayOpen != 0 {
@@ -463,6 +358,11 @@ func (s *Session) connectionEstablished(conn net.Conn) error {
 func (s *Session) CloseWithNotification(code message.NotifyErrorCode, subcode uint8) error {
 	s.openMu.Lock()
 	defer s.unlockOpen()
+	// A terminal OPEN error or original timer expiry may already have won
+	// while the collision owner waited. Its reason and event remain final.
+	if s.tearingDown.Load() {
+		return nil
+	}
 	s.closeCollision(code, subcode, true)
 	return nil
 }

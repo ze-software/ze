@@ -1,7 +1,8 @@
 // Design: docs/architecture/behavior/peer-lifecycle.md — incoming connection ownership.
 // Related: delay_open_test.go — protocol timer clock and wire helpers.
 // RFC: rfc/short/rfc4271.md — Sections 8.2.1 and 8.2.2.
-// RFC naming: untagged -- listener-level incoming FSM defect probes and DelayOpen controls await baseline and discrimination proof.
+// The admitted incoming OPEN exchange is tagged below; the other listener
+// cases remain untagged DelayOpen controls.
 
 package reactor
 
@@ -20,7 +21,7 @@ import (
 // incomingListenerPeer starts the Reactor's real listener and peer lifecycle.
 // The outbound variant holds its dial until the session's timer clock is set.
 // Only protocol timers use fake time; socket deadlines and shutdown stay real.
-func incomingListenerPeer(t *testing.T, outbound bool, delay time.Duration) (*Reactor, *Peer, *Session, net.Conn, *sim.FakeClock) {
+func incomingListenerPeer(t *testing.T, outbound bool, delay time.Duration, configure ...func(*Peer)) (*Reactor, *Peer, *Session, net.Conn, *sim.FakeClock) {
 	t.Helper()
 	settings := NewPeerSettings(netip.MustParseAddr("127.0.0.1"), 65000, 65001, 0x01010101)
 	settings.Connection = ConnectionPassive
@@ -55,6 +56,9 @@ func incomingListenerPeer(t *testing.T, outbound bool, delay time.Duration) (*Re
 		t.Fatal(err)
 	}
 	peer := r.Peers()[0]
+	for _, apply := range configure {
+		apply(peer)
+	}
 	peer.setReconnectDelay(time.Hour, time.Hour)
 	if dialer != nil {
 		peer.SetDialer(dialer)
@@ -126,6 +130,7 @@ func TestRFC4271ListenerIncomingDefaultOpen(t *testing.T) {
 // until it receives Ze's, so a pending reader cannot impersonate its FSM.
 // RFC 4271 Section 8.2.1: "For each incoming connection, a state machine MUST
 // be instantiated." Section 8.2.1.2: "There is one FSM per BGP connection."
+// RFC requirement: RFC4271-8.2.1-3 positive -- with the outgoing Session in OpenSent, an admitted second TCP connection on the actual listener receives an OPEN before sending its remote OPEN, then completes OPEN and KEEPALIVE exchange and publishes Established. This tests only the admitted-connection scope of the partial row.
 func TestRFC4271ListenerIncomingDuringOutgoingOpenSentSendsOpen(t *testing.T) {
 	r, peer, session, outgoing, _ := incomingListenerPeer(t, true, 0)
 	delayOpenReadType(t, outgoing, 1)

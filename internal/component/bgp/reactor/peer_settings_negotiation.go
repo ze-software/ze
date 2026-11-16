@@ -14,11 +14,11 @@ import (
 	"github.com/ze-software/ze/internal/core/bgp/capability"
 )
 
-// setConfigCapabilityGetter sets the callback buildOpen uses to read the
-// configured capabilities under the Peer's lock. Called by Peer at session
-// creation (peer_run.go). See the configCapGetter field on Session.
-func (s *Session) setConfigCapabilityGetter(getter func() []capability.Capability) {
-	s.configCapGetter = getter
+// setSettingsSnapshotGetter installs the owning Peer's locked OPEN-input
+// snapshot. The factory MUST call it before either TCP rail starts; prepareOpen
+// MUST retain the returned snapshot with the message it produces.
+func (s *Session) setSettingsSnapshotGetter(getter func() *PeerSettings) {
+	s.settingsSnapshot = getter
 }
 
 // negotiationOutcomeUnchanged reports whether the capability set in next would
@@ -35,7 +35,7 @@ func (s *Session) setConfigCapabilityGetter(getter func() []capability.Capabilit
 // change" but "would the negotiation come out the same", so it is answered by
 // running the negotiation, not by classifying fields:
 //
-//  1. The BASELINE is the OPEN ze really sent, s.localOpen, not an OPEN rebuilt
+//  1. The BASELINE is the OPEN ze really sent, s.proposal.message, not an OPEN rebuilt
 //     from the settings ze believes it sent. What the peer negotiated against is
 //     a fact on the wire; a rebuild is a claim about it.
 //  2. The CANDIDATE is buildOpen under next, the same producer sendOpen uses, so
@@ -62,17 +62,23 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 	}
 
 	s.mu.RLock()
-	localOpen := s.localOpen
+	proposal := s.proposal
 	peerOpen := s.peerOpen
 	negotiated := s.negotiated
-	sentDecls := s.sentPluginDecls
 	s.mu.RUnlock()
 
 	// No OPEN pair means no negotiation to preserve. A peer that is idle,
 	// connecting or still in OpenSent restarts for free, so restart.
-	if localOpen == nil || peerOpen == nil || negotiated == nil {
+	if proposal == nil {
 		return false
 	}
+	if peerOpen == nil {
+		return false
+	}
+	if negotiated == nil {
+		return false
+	}
+	localOpen := proposal.message
 
 	baseCaps, err := capability.ParseFromOptionalParams(localOpen.OptionalParams, localOpen.ExtendedParams)
 	if err != nil {
@@ -84,7 +90,7 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 	}
 
 	plugins := s.pluginCapabilitySnapshot()
-	if !pluginDeclarationsKept(sentDecls, plugins.declarations, peerCaps) {
+	if !pluginDeclarationsKept(proposal.pluginDeclarations, plugins.declarations, peerCaps) {
 		return false
 	}
 
@@ -103,12 +109,12 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 
 	// One identity for both sides: a reload changes the capabilities ze offers, never who
 	// the two speakers are, so the identity is a constant of this comparison rather than
-	// something either negotiation derives (judgedPeerAS, session_open_as.go).
-	peerAS := s.judgedPeerAS(peerOpen)
+	// something either negotiation derives (preparedOpen.judgedPeerAS).
+	peerAS := proposal.judgedPeerAS(peerOpen)
 	identity := capability.PeerIdentity{
-		LocalASN: s.settings.LocalAS,
+		LocalASN: proposal.settings.LocalAS,
 		PeerASN:  peerAS,
-		Internal: s.settings.isIBGPWith(peerAS),
+		Internal: proposal.settings.isIBGPWith(peerAS),
 	}
 
 	base := capability.Negotiate(baseCaps, peerCaps, identity)
@@ -123,24 +129,40 @@ func (s *Session) negotiationOutcomeUnchanged(next *PeerSettings) bool {
 // injector store and nowhere in PeerSettings. Without it the reconcile loop
 // skipped such a peer as unchanged and the session ran on under the old value.
 //
-// No OPEN sent means nothing is in use: the next OPEN reads the store. An OPEN
-// sent and none received yet means the peer may still accept what was sent, so
-// any difference restarts, and so does a peer OPEN that does not parse
-// (fail-closed, as negotiationOutcomeUnchanged).
+// Before preparation there is no frozen offer: prepareOpen reads the current
+// store. Once prepared, the proposal is immutable even before transmission.
+// Without a peer OPEN any difference restarts, because the peer may still
+// accept that offer; a peer OPEN that does not parse uses the same comparison.
+// A busy proposal constructor with no published result cannot prove it has not
+// already captured the previous store, so that session restarts instead of guessing.
 func (s *Session) pluginCapabilitiesKept() bool {
 	if s == nil {
 		return true
 	}
 
 	s.mu.RLock()
-	localOpen := s.localOpen
+	proposal := s.proposal
 	peerOpen := s.peerOpen
-	sentDecls := s.sentPluginDecls
 	s.mu.RUnlock()
 
-	if localOpen == nil {
-		return true
+	if proposal == nil {
+		// Construction may already have captured the old store. Only the
+		// dedicated proposal lock can exclude that without running the OPEN
+		// owner's owed-work callbacks under a reload caller's locks.
+		if !s.proposalMu.TryLock() {
+			return false
+		}
+		s.mu.RLock()
+		proposal = s.proposal
+		peerOpen = s.peerOpen
+		s.mu.RUnlock()
+		s.proposalMu.Unlock()
+		// refuse-by-default: guards prepareOpen -- no proposal or active preparation; prepareOpen will read the current store.
+		if proposal == nil {
+			return true
+		}
 	}
+	sentDecls := proposal.pluginDeclarations
 	nextDecls := s.pluginDeclarations()
 	if peerOpen == nil {
 		return maps.EqualFunc(sentDecls, nextDecls, slices.Equal[[]string])

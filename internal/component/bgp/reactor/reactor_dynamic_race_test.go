@@ -8,6 +8,7 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/ze-software/ze/internal/component/bgp/message"
@@ -18,12 +19,13 @@ import (
 // settings (reactor_dynamic.go resolveDynamicPeerSettings) racing a cross-goroutine
 // reader. On establishment the peer writes settings.PeerAS and the ImportPolicy/
 // ExportPolicy values with no lock, while the OPEN-validation goroutine reads
-// settings.PeerAS to scope the RFC 6286 Section 2.1 identifier claim (peer.go claimPeerAS).
+// the prepared Session's AS to scope the RFC 6286 Section 2.1 identifier claim.
 // Under -race this is a data race on settings.PeerAS; the slice-header writes can tear a
 // multi-word read.
 //
 // After the fix the establishment write holds p.mu and every cross-goroutine reader goes
-// through the p.mu-guarded PeerAS()/ImportPolicy()/ExportPolicy() accessors.
+// through the guarded settings snapshot or PeerAS()/ImportPolicy()/ExportPolicy()
+// accessors; OPEN validation retains its immutable prepared Session identity.
 //
 // VALIDATES: AC-3 — no torn/stale PeerAS read; the conflict check sees old or new, never
 // a mix.
@@ -75,11 +77,18 @@ func TestDynamicPeerSettingsRace(t *testing.T) {
 	})
 
 	// Reader: OPEN validation scopes the RFC 6286 Section 2.1 identifier claim to the peer's
-	// AS, reading PeerAS through the p.mu-guarded accessor (peer.go claimPeerAS) while the
-	// writer above republishes it.
+	// AS. Prepare each factory-created Session while the writer republishes the
+	// settings; the actual OPEN proposal freezes the identity this reader uses.
 	remoteOpen := &message.Open{MyAS: 65001, BGPIdentifier: 0x0a0b0c0d}
 	for range 4000 {
-		peer.claimPeerAS(remoteOpen)
+		sample := peer.newSession()
+		sample.openMu.Lock()
+		err := sample.prepareOpen()
+		sample.unlockOpen()
+		if assert.NoError(t, err, "prepare the factory Session's OPEN identity") {
+			assert.Equal(t, uint32(65001), sample.proposal.judgedPeerAS(remoteOpen), "the prepared Session keeps the resolved peer AS")
+		}
+		sample.stopSessionTimers()
 	}
 
 	close(stop)

@@ -6,8 +6,8 @@
     "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer#2": "f2b979b76233652e",
     "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst": "7c393f540d8a8390",
     "internal/component/bgp/reactor/rfc4271_recognized_attribute_errors_test.go::TestRFC4271RecognizedAttributeErrorsBeyondTheFirst#2": "7c393f540d8a8390",
-    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "fdc816af536ef714",
-    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "fdc816af536ef714"
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors": "f1eef5c477ba7bae",
+    "internal/component/bgp/reactor/rfc4271_session_core4271_test.go::TestSessionRFC4271RevisedAttributeErrors#2": "f1eef5c477ba7bae"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_reactor_a_local_pref_length_test.go::TestRFC4271LocalPrefLengthFromInternalPeer": "3e727a80b7b28f0b",

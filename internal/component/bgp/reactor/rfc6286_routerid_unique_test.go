@@ -68,8 +68,8 @@ func claimPeer(t *testing.T, r *Reactor, addr string, peerAS, bgpID uint32) (*Pe
 	r.mu.Lock()
 	r.peers[settings.PeerKey()] = peer
 	r.mu.Unlock()
+	session := claimPeerSession(t, peer)
 
-	localOpen := &message.Open{Version: 4, MyAS: uint16(localAS), HoldTime: 90, BGPIdentifier: localRID}
 	remoteOpen := &message.Open{
 		Version:       4,
 		MyAS:          uint16(peerAS), //nolint:gosec // Test uses AS numbers < 65536
@@ -77,8 +77,25 @@ func claimPeer(t *testing.T, r *Reactor, addr string, peerAS, bgpID uint32) (*Pe
 		BGPIdentifier: bgpID,
 	}
 
-	err := peer.validateOpen(addr, localOpen, remoteOpen)
+	err := peer.validateOpen(session, addr, remoteOpen)
 	return peer, err
+}
+
+// claimPeerSession prepares and publishes one real Session for a direct
+// validation fixture. Revalidation MUST reuse this Session, and cleanup MUST
+// retire its timers even though the fixture starts no read or Peer run worker.
+func claimPeerSession(t *testing.T, peer *Peer) *Session {
+	t.Helper()
+	session := peer.newSession()
+	t.Cleanup(session.stopSessionTimers)
+	session.openMu.Lock()
+	err := session.prepareOpen()
+	session.unlockOpen()
+	require.NoError(t, err)
+	peer.mu.Lock()
+	peer.session = session
+	peer.mu.Unlock()
+	return session
 }
 
 // TestValidateOpenAllowSharedRouterID verifies the bgp/session/allow-shared-router-id
@@ -97,7 +114,6 @@ func TestValidateOpenAllowSharedRouterID(t *testing.T) {
 
 	// The validating peer presents the SAME AS and SAME BGP Identifier from a
 	// DIFFERENT address -- the exact shape RFC 6286 permits and 345 exercises.
-	localOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020301}
 	remoteOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020304}
 
 	cases := []struct {
@@ -117,14 +133,15 @@ func TestValidateOpenAllowSharedRouterID(t *testing.T) {
 			r.mu.Unlock()
 			// The holder claims its identifier the same way production does: through its
 			// own OPEN validation.
-			require.NoError(t, dup.validateOpen("192.0.2.1", localOpen, remoteOpen),
+			require.NoError(t, dup.validateOpen(dup.currentSession(), "192.0.2.1", remoteOpen),
 				"the first peer to present the identifier must be accepted")
 
 			settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), 65001, 65001, 0x01020301)
 			p := NewPeer(settings)
 			p.SetReactor(r)
+			session := claimPeerSession(t, p)
 
-			err := p.validateOpen("192.0.2.2", localOpen, remoteOpen)
+			err := p.validateOpen(session, "192.0.2.2", remoteOpen)
 			var conflictErr *routerIDConflictError
 			if c.wantConflict {
 				require.ErrorAs(t, err, &conflictErr, "duplicate router-id must be rejected by default")
@@ -361,9 +378,8 @@ func TestRouterIDConflictNotEstablished(t *testing.T) {
 	r.peers[peerA.settings.PeerKey()] = peerA
 	r.mu.Unlock()
 
-	localOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020301}
 	remoteOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020304}
-	require.NoError(t, peerA.validateOpen("192.0.2.1", localOpen, remoteOpen),
+	require.NoError(t, peerA.validateOpen(peerA.currentSession(), "192.0.2.1", remoteOpen),
 		"the OPENCONFIRM peer claims the identifier at OPEN validation")
 	require.NotEqual(t, fsm.StateEstablished, peerA.SessionState(),
 		"the holder is deliberately NOT established")
@@ -387,11 +403,10 @@ func TestRouterIDConflictSelfExcluded(t *testing.T) {
 	peerA, err := claimPeer(t, r, "192.0.2.1", 65001, 0x01020304)
 	require.NoError(t, err, "first claim granted")
 
-	localOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020301}
 	remoteOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020304}
 
 	// Re-validating the SAME peer must not conflict with its own claim.
-	err = peerA.validateOpen("192.0.2.1", localOpen, remoteOpen)
+	err = peerA.validateOpen(peerA.currentSession(), "192.0.2.1", remoteOpen)
 	assert.NoError(t, err, "peer should not conflict with itself")
 }
 
@@ -471,9 +486,9 @@ func TestRouterIDClaimConcurrentOnlyOneWins(t *testing.T) {
 		settings := NewPeerSettings(netip.AddrFrom4([4]byte{192, 0, 2, byte(10 + i)}), 65001, peerAS, 0x01020301)
 		peers[i] = NewPeer(settings)
 		peers[i].SetReactor(r)
+		claimPeerSession(t, peers[i])
 	}
 
-	localOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x01020301}
 	remoteOpen := &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: sharedID}
 
 	start := make(chan struct{})
@@ -482,7 +497,7 @@ func TestRouterIDClaimConcurrentOnlyOneWins(t *testing.T) {
 	for i, p := range peers {
 		wg.Go(func() {
 			<-start
-			results[i] = p.validateOpen(p.settings.Address.String(), localOpen, remoteOpen)
+			results[i] = p.validateOpen(p.currentSession(), p.settings.Address.String(), remoteOpen)
 		})
 	}
 	close(start)
@@ -643,6 +658,8 @@ func TestRouterIDClaimConcurrentWithRelease(t *testing.T) {
 		settings := NewPeerSettings(netip.MustParseAddr("192.0.2.2"), peerAS, peerAS, 0x01020301)
 		challenger := NewPeer(settings)
 		challenger.SetReactor(r)
+		challengerSession := challenger.newSession()
+		t.Cleanup(challengerSession.stopSessionTimers)
 
 		var wg sync.WaitGroup
 		wg.Add(2)
@@ -655,7 +672,7 @@ func TestRouterIDClaimConcurrentWithRelease(t *testing.T) {
 			// Ignore the result: whether the challenger wins depends on the
 			// interleaving, and both outcomes are legal. What must hold is the
 			// invariant checked below.
-			_, _ = r.routerIDs.claim(challenger, settings.Address, peerAS, bgpID)
+			_, _ = r.routerIDs.claim(challenger, challengerSession, settings.Address, peerAS, bgpID)
 		}()
 		wg.Wait()
 

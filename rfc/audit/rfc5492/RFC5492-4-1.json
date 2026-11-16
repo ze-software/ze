@@ -2,7 +2,7 @@
   "note": "Row single-polarity positive. TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession sends Route Refresh x3 and each MP TLV twice through handleOpen -> OpenConfirm, one KEEPALIVE, all negotiated; closes the session-level gap. Parser-level tag kept as supplementary.",
   "requirement_sha": "2ad7c926df955bc6",
   "tests": {
-    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession": "38d39a330e488737",
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492RepeatedCapabilityInstancesAcceptedAtTheSession": "b83e41aef3680a38",
     "internal/core/bgp/capability/capability_test.go::TestParseAcceptsMultipleIdenticalCapabilityInstances": "a659594f16fb390a"
   },
   "units": {

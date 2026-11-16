@@ -1,0 +1,16 @@
+{
+  "code": {
+    "internal/component/bgp/reactor/peer_connection.go::setPendingConnection": "83c8e2354fc63f6c"
+  },
+  "note": "Tested \"a state machine MUST be instantiated\" is limited by the annotation's reason to admitted incoming connections. The positive listener unit observes the admitted second TCP connection's local OPEN before remote OPEN and completes its useful handshake while the original outgoing Session had been OpenSent. The negative unit observes the admitted candidate's own Active DelayOpen state, its EOF and exactly one retry increment, and preservation and useful establishment of the original held Session on its original TCP connection. Peer.newIncomingSession constructs a fresh Session whose constructor allocates fsm.New before candidate Accept or input processing. Both current native records replace this constructor result with the incumbent; each named unit goes red, respectively losing the second connection's OPEN and the candidate's held state. These are separate success and failure-isolation witnesses, not proof for every simultaneous arrival. Gap \"For each incoming connection\" remains at internal/component/bgp/reactor/peer_connection.go::setPendingConnection: one pending exchange, closing receipt or reserved handoff prevents additional incoming connections from reaching Session construction. RFC 4271 Section 8.2.1 says, \"For each incoming connection, a state machine MUST be instantiated.\" Section 8.2.1.2 says, \"There is one FSM per BGP connection.\" The universal obligation remains unmet and earns no whole-requirement credit.",
+  "requirement_sha": "b3e811e64fe3920d",
+  "tests": {
+    "internal/component/bgp/reactor/rfc4271_incoming_candidate_lifecycle_test.go::TestIncomingCandidateFailureKeepsPeerRetryHistory": "29cb0e5bc2b9f054",
+    "internal/component/bgp/reactor/rfc4271_incoming_listener_test.go::TestRFC4271ListenerIncomingDuringOutgoingOpenSentSendsOpen": "0b33096803d0b29b"
+  },
+  "units": {
+    "internal/component/bgp/reactor/rfc4271_incoming_candidate_lifecycle_test.go::TestIncomingCandidateFailureKeepsPeerRetryHistory": "bed8f4ec48d4a121",
+    "internal/component/bgp/reactor/rfc4271_incoming_listener_test.go::TestRFC4271ListenerIncomingDuringOutgoingOpenSentSendsOpen": "80d4fc63524f3bd9"
+  },
+  "verdict": "partial"
+}

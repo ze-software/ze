@@ -84,6 +84,7 @@ func (s *Session) sendNotification(conn net.Conn, code message.NotifyErrorCode, 
 // close that follows takes (notifyMetBusyPath), so that close does not wait
 // for the same writer a second time.
 func (s *Session) sendNotificationWithin(conn net.Conn, code message.NotifyErrorCode, subcode uint8, data []byte, deadline time.Duration) error {
+	s.beginNotification()
 	notif := &message.Notification{
 		ErrorCode:    code,
 		ErrorSubcode: subcode,
@@ -101,6 +102,7 @@ func (s *Session) sendNotificationWithin(conn net.Conn, code message.NotifyError
 // nothing. The panic guard of Session.Run is its caller, because the write path
 // may belong to a writer that is itself stuck (ceaseAfterPanic).
 func (s *Session) tryNotificationWithin(conn net.Conn, code message.NotifyErrorCode, subcode uint8, deadline time.Duration) error {
+	s.beginNotification()
 	notif := &message.Notification{ErrorCode: code, ErrorSubcode: subcode}
 	err := s.writeMessageWithin(conn, notif, deadline)
 	if errors.Is(err, errWritePathBusy) {
@@ -111,6 +113,18 @@ func (s *Session) tryNotificationWithin(conn net.Conn, code message.NotifyErrorC
 		return err
 	}
 	return s.notificationWritten(code, subcode, err)
+}
+
+// beginNotification retires every timer and seals ordinary writers before
+// acquiring the terminal writer. An already queued DelayOpen callback cannot
+// append OPEN after refusal, even while the NOTIFICATION write is blocked.
+func (s *Session) beginNotification() {
+	s.seal()
+	s.timers.Retire()
+	s.retireSendHoldTimer()
+	if s.beforeNotification != nil {
+		s.beforeNotification()
+	}
 }
 
 // notificationWritten logs and reports the outcome err of one NOTIFICATION
@@ -191,6 +205,9 @@ var errWritePathBusy = errors.New("another writer held the session's write path 
 // writeMessageHeld is the body of writeMessageWithin. The caller MUST hold
 // the write path through the acquisition, which armed the write budget.
 func (s *Session) writeMessageHeld(msg message.Message) error {
+	if s.tearingDown.Load() && msg.Type() != msgtype.TypeNOTIFICATION {
+		return ErrNotConnected
+	}
 	if s.writeFailed != nil {
 		return s.writeFailed
 	}

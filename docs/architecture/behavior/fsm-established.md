@@ -264,12 +264,14 @@ changes neither that action nor the existing message-driven restart rule.
   write still retires the transport; its delivery error must not replace the
   already-recorded expiry reason. The session Run loop observes that reason
   and exits. An earlier recorded close reason remains authoritative.
-  <!-- source: internal/component/bgp/reactor/session.go — OnHoldTimerExpires signals errChan -->
-- **On a second TCP connection:** retain it until its OPEN arrives, then
-  reject it with Cease / Connection Collision. The pending reader bounds the
-  OPEN length before reading its body. The established connection remains
-  usable throughout; no replacement Session is installed for a rejected socket.
-  <!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
+  <!-- source: internal/component/bgp/reactor/session_hold_expiry.go -- holdTimerExpiredLocked -->
+- **On an admitted second TCP connection:** its independent Session reads and
+  validates OPEN before collision arbitration, then rejects it with Cease /
+  Connection Collision. The shared frame reader bounds the OPEN before reading
+  its body. The established connection remains usable; the rejected candidate
+  retires its own Session without replacing the selected one.
+  <!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject -->
+  <!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision, resolveIncoming, beginIncomingRetirement -->
 
 ## Code map
 

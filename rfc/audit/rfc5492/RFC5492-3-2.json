@@ -2,8 +2,8 @@
   "note": "Session level via handleOpen. Positive: unrecognized codes 253/254 interleaved with MP IPv4 and required Route Refresh -> OpenConfirm, one KEEPALIVE, known capabilities negotiated. Negative (R1(b)): code 254 carrying the MP IPv6 value -> accepted but IPv6 not negotiated. Judge breaks: unrecognized 4-octet value parsed as Multiprotocol turned the negative red; unrecognized capability refused turned the positive red. HEAD negative TestParseRejectsMalformedKnownCapabilityLength concerns known capabilities and is supplementary.",
   "requirement_sha": "a4756f2db7068a2d",
   "tests": {
-    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession": "38d39a330e488737",
-    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilityNeverReadAsKnown": "38d39a330e488737",
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilitiesIgnoredAtTheSession": "b83e41aef3680a38",
+    "internal/component/bgp/reactor/rfc5492_open_session_test.go::TestRFC5492UnrecognizedCapabilityNeverReadAsKnown": "b83e41aef3680a38",
     "internal/core/bgp/capability/capability_test.go::TestParseRejectsMalformedKnownCapabilityLength": "a659594f16fb390a",
     "internal/core/bgp/capability/capability_test.go::TestParseUnknownCapability": "a659594f16fb390a"
   },

@@ -33,7 +33,7 @@ func queuedWithdrawalPeer(t *testing.T, addr string) (*Peer, *recordingConn) {
 	ap := &capability.AddPath{Families: []capability.AddPathFamily{{AFI: fam.AFI, SAFI: fam.SAFI, Mode: capability.AddPathBoth}}}
 	local := []capability.Capability{&capability.ASN4{ASN: 65000}, mp, ap}
 	remote := []capability.Capability{&capability.ASN4{ASN: 65001}, mp, ap}
-	session.localOpen = &message.Open{HoldTime: 90}
+	session.proposal = preparedOpenForTest(session, &message.Open{HoldTime: 90})
 	session.peerOpen = &message.Open{ASN4: 65001, HoldTime: 90}
 	session.negotiateWith(local, remote)
 

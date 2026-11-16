@@ -5,26 +5,21 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 // dynamicOpenConfirmSession returns a session in the state a DYNAMIC peer is in when
 // collision resolution runs: no configured peer AS, but the peer's OPEN already received
 // and stored, carrying the AS it advertises.
 //
-// It reaches OpenConfirm through the normal OPEN exchange with advertisedAS configured,
-// then clears PeerAS. That reproduces the production state exactly --
-// buildDynamicPeerSettings sets PeerAS to 0 and resolveDynamicPeerSettings only fills it
-// on the Established transition, which is strictly after OpenConfirm -- without
-// duplicating the pipe plumbing. The OPEN path itself is unaffected: with the AS
-// configured to the same value it advertises, validateOpenIdentifier reads the identical
-// number either way.
+// Its normal OPEN exchange starts with PeerAS zero, like buildDynamicPeerSettings,
+// so both the prepared proposal and live settings describe the unresolved peer.
 func dynamicOpenConfirmSession(t *testing.T, localAS, advertisedAS, localID uint32) *Session {
 	t.Helper()
 
-	session := openConfirmSessionWithAS(t, localAS, advertisedAS, localID)
-	session.settings.PeerAS = 0
-	session.settings.IsDynamic = true
-	return session
+	settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), localAS, 0, localID)
+	settings.IsDynamic = true
+	return openConfirmSessionWithSettings(t, settings, advertisedAS)
 }
 
 // TestDetectCollisionEqualIdentifierDynamicPeerUsesAdvertisedAS verifies that the
@@ -84,24 +79,27 @@ func TestDetectCollisionEqualIdentifierDynamicPeerUsesAdvertisedAS(t *testing.T)
 	}
 }
 
-// TestCollisionPeerASResolutionOrder verifies collisionPeerAS resolution order.
+// TestCollisionPeerASResolutionOrder verifies the prepared proposal's AS ownership.
 //
 // VALIDATES: a configured PeerAS is used verbatim and the OPEN is not consulted.
-// VALIDATES: with no configured AS and no OPEN yet, the result is 0 rather than a guess.
+// VALIDATES: a session without a prepared OPEN refuses to supply an AS owner.
 // PREVENTS: the advertised AS overriding an operator-configured peer AS.
 func TestCollisionPeerASResolutionOrder(t *testing.T) {
 	t.Run("configured AS wins over advertised", func(t *testing.T) {
 		session := openConfirmSessionWithAS(t, 65001, 65002, 0x01020304)
 
-		assert.Equal(t, uint32(65002), session.collisionPeerAS(),
+		proposal, err := session.openProposal()
+		require.NoError(t, err)
+		assert.Equal(t, uint32(65002), proposal.judgedPeerAS(session.peerOpen),
 			"a configured PeerAS must be used as-is")
 	})
 
-	t.Run("no configured AS and no OPEN yields zero", func(t *testing.T) {
+	t.Run("no prepared OPEN refuses an AS owner", func(t *testing.T) {
 		settings := NewPeerSettings(netip.MustParseAddr("192.0.2.1"), 65001, 0, 0x01020304)
 		session := NewSession(settings)
 
-		assert.Equal(t, uint32(0), session.collisionPeerAS(),
-			"with nothing to read, the answer is unknown, not invented")
+		proposal, err := session.openProposal()
+		assert.ErrorIs(t, err, ErrInvalidState)
+		assert.Nil(t, proposal, "an unprepared session cannot supply a collision AS")
 	})
 }

@@ -184,7 +184,7 @@ func TestPolicyTeardownExitsRun(t *testing.T) {
 }
 
 // establishedOpenSent puts a session on a pipe through the REAL accept path, so
-// s.localOpen is populated and the FSM is past Idle -- both preconditions for
+// its local OPEN proposal is prepared and the FSM is past Idle -- preconditions for
 // the OPEN-handling paths the AC-7 cases below drive.
 func establishedOpenSent(t *testing.T) (*Session, net.Conn, <-chan []byte, <-chan error) {
 	t.Helper()
@@ -279,8 +279,8 @@ func TestRunClosesConnectionOnEveryExit(t *testing.T) {
 				// return is real and it closed nothing; the exit discipline has
 				// to cover it precisely because nobody predicted reaching it.
 				s.mu.Lock()
-				if s.localOpen != nil {
-					s.localOpen.OptionalParams = []byte{0x02, 0x06, 0x41}
+				if s.proposal != nil {
+					s.proposal.message.OptionalParams = []byte{0x02, 0x06, 0x41}
 				}
 				s.mu.Unlock()
 				return peerOpenBytes()

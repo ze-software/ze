@@ -25,7 +25,7 @@ func newOpenedSession(t *testing.T) *Session {
 		Address:         netip.MustParseAddr("203.0.113.73"),
 		ReceiveHoldTime: 90 * time.Second,
 	})
-	s.localOpen = &message.Open{Version: 4, MyAS: 65000, HoldTime: 90, BGPIdentifier: 0x01020304}
+	s.proposal = preparedOpenForTest(s, &message.Open{Version: 4, MyAS: 65000, HoldTime: 90, BGPIdentifier: 0x01020304})
 	s.peerOpen = &message.Open{Version: 4, MyAS: 65001, HoldTime: 90, BGPIdentifier: 0x05060708}
 	return s
 }

@@ -2,6 +2,17 @@
   {
     "rid": "RFC6286-2.1-2",
     "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc6286_routerid_unique_test.go::TestRouterIDClaimConcurrentOnlyOneWins",
+    "unit-sha": "73002bf73b9774ba",
+    "claim-sha": "83a9f87c5655aed6",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/routerid_unique.go::claim",
+    "producer-sha": "6d92285a784abe04",
+    "break": "line 104: \"if holder, taken := c.byID[key]; taken \u0026\u0026 holder.peer != p {\" -\u003e \"if holder, taken := c.byID[key]; false \u0026\u0026 taken \u0026\u0026 holder.peer != p { // MUTATION-APPLIED: accept every duplicate owner\""
+  },
+  {
+    "rid": "RFC6286-2.1-2",
+    "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc6286_unique_within_as_test.go::TestRFC6286LocalIdentifierUniqueWithinItsAS",
     "unit-sha": "ea20ac5aa32bce25",
     "claim-sha": "c8bdd87e42d15a7b",

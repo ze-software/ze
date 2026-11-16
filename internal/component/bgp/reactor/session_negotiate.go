@@ -50,16 +50,9 @@ func (s *Session) advertisedLLGR() bool {
 	return s.localLLGR.Load()
 }
 
-// negotiateWith performs capability negotiation using pre-parsed capabilities.
-func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-
-	if s.localOpen == nil || s.peerOpen == nil {
-		return
-	}
-
-	// Negotiate. The peer's AS is resolved ONCE (judgedPeerAS, session_open_as.go) and the
+// prepareNegotiation computes capabilities with this immutable proposal identity.
+func (proposal *preparedOpen) prepareNegotiation(open *message.Open, localCaps, peerCaps []capability.Capability) *capability.Negotiated {
+	// Negotiate. The peer's AS is resolved ONCE (preparedOpen.judgedPeerAS, session_open_proposal.go) and the
 	// internal verdict comes from the one rule that owns it (isIBGPWith,
 	// session_as_migration.go), because negotiation itself can read neither off the wire.
 	//
@@ -77,12 +70,32 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 	// that field, so the identity carried PeerASN 0 on every established session, and every
 	// reader of the encoding context's IsIBGP -- the commit rail's LOCAL_PREF and AS_PATH
 	// decisions among them (rib/commit.go) -- took the eBGP arm for a genuine iBGP peer.
-	peerAS := s.judgedPeerAS(s.peerOpen)
-	negotiated := capability.Negotiate(localCaps, peerCaps, capability.PeerIdentity{
-		LocalASN: s.settings.LocalAS,
+	peerAS := proposal.judgedPeerAS(open)
+	return capability.Negotiate(localCaps, peerCaps, capability.PeerIdentity{
+		LocalASN: proposal.settings.LocalAS,
 		PeerASN:  peerAS,
-		Internal: s.settings.isIBGPWith(peerAS),
+		Internal: proposal.settings.isIBGPWith(peerAS),
 	})
+}
+
+// negotiateWith publishes an already prepared OPEN pair. It shares the pure
+// calculation and publication with ordinary and candidate OPEN admissions.
+func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
+	s.mu.RLock()
+	open, proposal := s.peerOpen, s.proposal
+	s.mu.RUnlock()
+	if proposal == nil {
+		return
+	}
+	if open == nil {
+		return
+	}
+	s.publishNegotiation(proposal, open, localCaps, proposal.prepareNegotiation(open, localCaps, peerCaps))
+}
+
+func (s *Session) publishNegotiation(proposal *preparedOpen, open *message.Open, localCaps []capability.Capability, negotiated *capability.Negotiated) {
+	s.mu.Lock()
+	s.peerOpen = open
 	// Writers read ASN4 while holding writeMu, so publish the negotiated
 	// pointer under that lock as well as mu. No writer needs mu in reverse.
 	s.writeMu.Lock()
@@ -122,14 +135,14 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 
 	// RFC 4724 Section 4.2: a session without Graceful Restart removes the
 	// stale routes at once, so the held generations that mirror them go too.
-	s.heldTypedNLRI().beginSession(s.negotiated.GracefulRestart != nil)
+	s.negotiationEpoch.begin(s, s.negotiated.GracefulRestart != nil)
 
 	// RFC 4271 Section 4.2: "A BGP speaker MUST calculate the value of the
 	// Hold Timer by using the smaller of its configured Hold Time and the
 	// Hold Time received in the OPEN message. The Hold Time MUST be either
 	// zero or at least three seconds."
-	localHold := s.settings.ReceiveHoldTime
-	peerHold := time.Duration(s.peerOpen.HoldTime) * time.Second
+	localHold := time.Duration(proposal.message.HoldTime) * time.Second
+	peerHold := time.Duration(open.HoldTime) * time.Second
 
 	var negotiatedHold time.Duration
 	if localHold == 0 || peerHold == 0 {
@@ -148,14 +161,16 @@ func (s *Session) negotiateWith(localCaps, peerCaps []capability.Capability) {
 	// RFC 4271 Section 10: clamp keepalive when negotiated hold-time shrinks.
 	// A configured keepalive >= negotiated hold-time would cause session flap.
 	// The effective keepalive is: configured value if valid, otherwise hold/3.
-	effectiveKeepalive := s.settings.KeepaliveTime
+	effectiveKeepalive := proposal.settings.KeepaliveTime
 	if effectiveKeepalive == 0 || (negotiatedHold > 0 && effectiveKeepalive >= negotiatedHold) {
 		effectiveKeepalive = negotiatedHold / 3
 	}
-	if ka := s.settings.KeepaliveTime; ka > 0 && negotiatedHold > 0 && ka >= negotiatedHold {
+	if ka := proposal.settings.KeepaliveTime; ka > 0 && negotiatedHold > 0 && ka >= negotiatedHold {
 		s.timers.SetKeepaliveTime(effectiveKeepalive)
 	}
 
+	s.mu.Unlock()
+	// Peer callbacks can take Peer.mu. Never retain Session.mu across one.
 	if s.onNegotiated != nil {
 		s.onNegotiated(uint32(negotiatedHold/time.Second), uint32(effectiveKeepalive/time.Second))
 	}
@@ -178,18 +193,18 @@ func (s *Session) sendOpen(conn net.Conn) error {
 	}
 
 	s.mu.RLock()
-	open := s.localOpen
+	proposal := s.proposal
 	s.mu.RUnlock()
-	if open == nil {
+	if proposal == nil {
 		if err := s.prepareOpen(); err != nil {
 			return err
 		}
 		s.mu.RLock()
-		open = s.localOpen
+		proposal = s.proposal
 		s.mu.RUnlock()
 	}
 
-	err := s.writeMessage(conn, open)
+	err := s.writeMessage(conn, proposal.message)
 	if err == nil && s.onOpenSent != nil {
 		s.onOpenSent()
 	}
@@ -199,33 +214,43 @@ func (s *Session) sendOpen(conn net.Conn) error {
 // prepareOpen builds the proposal once, before negotiation or transmission.
 // The caller MUST serialize initial OPEN work with openMu.
 func (s *Session) prepareOpen() error {
+	s.proposalMu.Lock()
+	defer s.proposalMu.Unlock()
+	s.mu.RLock()
+	prepared := s.proposal != nil
+	s.mu.RUnlock()
+	if prepared {
+		return nil
+	}
+	settings := s.openSettingsSnapshot()
 	plugins := s.pluginCapabilitySnapshot()
 	// RFC 5492 Section 1
-	open, err := s.buildOpenFromSnapshot(s.settings, s.configCapabilities(), plugins)
+	open, err := s.buildOpenFromSnapshot(settings, settings.Capabilities, plugins)
 	if err != nil {
 		return err
 	}
 	s.mu.Lock()
-	s.localOpen = open
-	s.sentPluginDecls = plugins.declarations
+	proposal := &preparedOpen{message: open, settings: settings, pluginDeclarations: plugins.declarations}
+	s.proposal = proposal
 	if transport := s.transport.Load(); transport != nil {
 		transport.localAS.Store(open.ASN4)
 	}
 	s.mu.Unlock()
+	if s.captureProposal != nil {
+		s.captureProposal.publish(proposal)
+	}
 	return nil
 }
 
-// configCapabilities returns the configured capability list, read under the
-// Peer's lock when a Peer owns this session. A reload swap can replace the slice
-// on the shared PeerSettings (hotSwappableSettings, peer_settings_apply.go).
-//
-// The direct read is the fallback for a Session a test built with NewSession: no
-// Peer owns it, so nothing writes the field and the read cannot race.
-func (s *Session) configCapabilities() []capability.Capability {
-	if s.configCapGetter != nil {
-		return s.configCapGetter()
+// openSettingsSnapshot captures OPEN inputs under the owning Peer's lock.
+// A standalone Session has no concurrent settings writer and copies directly.
+// The caller MUST retain this value with the OPEN it constructs.
+func (s *Session) openSettingsSnapshot() *PeerSettings {
+	if s.settingsSnapshot != nil {
+		return s.settingsSnapshot()
 	}
-	return s.settings.Capabilities
+	snapshot := *s.settings
+	return &snapshot
 }
 
 // buildOpenFromSnapshot builds the OPEN message from the given settings,
@@ -236,9 +261,9 @@ func (s *Session) configCapabilities() []capability.Capability {
 // to answer "would the OPEN come out the same?" (peer_settings_negotiation.go).
 // A second builder would let the decision be taken against an OPEN ze never sends.
 //
-// configCaps is passed rather than read off settings.Capabilities because the two
-// have different lock rules: every other field this reads is set at construction
-// and never mutated, while Capabilities is replaced by a reload swap.
+// settings and configCaps MUST come from one immutable settings snapshot. The
+// reload probe supplies its proposed settings; prepareOpen takes the owning
+// Peer's locked snapshot, including dynamically resolved AS and capabilities.
 // RFC 5492 Section 1: "When a BGP speaker [RFC4271] that supports capabilities
 // advertisement sends an OPEN message to its BGP peer, the message MAY include
 // an Optional Parameter, called Capabilities."

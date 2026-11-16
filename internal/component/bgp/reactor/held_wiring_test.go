@@ -22,7 +22,7 @@ import (
 func heldWiringSession(t *testing.T, p *Peer, gracefulRestart bool) *Session {
 	t.Helper()
 	s := p.newSession()
-	s.localOpen = &message.Open{HoldTime: 90}
+	s.proposal = preparedOpenForTest(s, &message.Open{HoldTime: 90})
 	s.peerOpen = &message.Open{ASN4: 65002, HoldTime: 90}
 	var caps []capability.Capability
 	if gracefulRestart {

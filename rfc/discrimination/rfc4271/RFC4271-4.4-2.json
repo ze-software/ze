@@ -6,9 +6,9 @@
     "unit-sha": "6a96829addb5c839",
     "claim-sha": "7df8fbe9376aa8b9",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/session_negotiate.go::negotiateWith",
-    "producer-sha": "3e62f0bf41985500",
-    "break": "body of negotiateWith replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::publishNegotiation",
+    "producer-sha": "7352831e1ec1c9b2",
+    "break": "body of publishNegotiation replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-4.4-2",

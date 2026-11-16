@@ -3,8 +3,8 @@
   "requirement_sha": "4588b88a813d3568",
   "tests": {
     "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimitSingleInstance": "78b7b7581ae45d1c",
-    "internal/component/bgp/reactor/session_negotiate_test.go::TestBuildOpenCoalescesPathsLimit": "5e06b3254d47b99a",
-    "internal/component/bgp/reactor/session_negotiate_test.go::TestBuildOpenCoalescesPathsLimit#2": "5e06b3254d47b99a"
+    "internal/component/bgp/reactor/session_negotiate_test.go::TestBuildOpenCoalescesPathsLimit": "e83928b537cc0db1",
+    "internal/component/bgp/reactor/session_negotiate_test.go::TestBuildOpenCoalescesPathsLimit#2": "e83928b537cc0db1"
   },
   "units": {
     "internal/component/bgp/reactor/config_test.go::TestParsePeerCapabilityPathsLimitSingleInstance": "5dab49ef7624dab4",

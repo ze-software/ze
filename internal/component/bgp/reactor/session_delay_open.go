@@ -78,8 +78,14 @@ func (s *Session) retireSessionTimers() {
 // retireTimers stops every session timer, the RFC 9687 Send Hold Timer
 // included, and seals them all: no arm path starts one afterwards. The caller
 // MUST hold openMu, so the retire lands after any in-flight OPEN-path action
-// list that could arm a timer.
+// list that could arm a timer. The read loop stores closeOwed before it owes
+// retirement or returns, so a retirement that observes either must drain the
+// preceding failure even when its holder's earlier closeOwed check missed it.
 func (s *Session) retireTimers() {
+	if s.closeOwed.Swap(false) {
+		// RFC 4271 Section 8.2.2: deliver Event 18 before clearing DelayOpen.
+		s.handleConnectionCloseLocked()
+	}
 	s.timers.Retire()
 	s.retireSendHoldTimer()
 }

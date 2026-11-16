@@ -67,6 +67,11 @@ func (rm peerRemoval) run() {
 // wrote: each carries an older generation.
 func (r *Reactor) removalLocked(peer *Peer, stop peerStop) peerRemoval {
 	settings := peer.Settings()
+	// The caller already deleted this exact Peer under r.mu. Factory capture
+	// registration MUST hold r.mu for reading and recheck that membership;
+	// this close therefore joins every old input and no late one can appear.
+	// Every removal path MUST finish this release before publishing an add.
+	r.closeCapturesForPeer(settings.Address)
 	peer.advanceForwardGeneration()
 	removal := peerRemoval{stop: stop, removed: &plugin.PeerInfo{
 		Address:           settings.Address,

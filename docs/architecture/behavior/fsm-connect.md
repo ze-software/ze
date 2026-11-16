@@ -40,7 +40,7 @@ this Session, the retry timer is stopped, and no OPEN is written yet.
 | `EventManualStart` / `EventAutomaticStart` / `EventAutomaticStartWithDampPeerOscillations` | duplicate `Session.Start()` / `startAutomatic()` / `startDamped()` call | ignored (RFC 4271) | none | `Connect` |
 | `EventManualStop` | `Session.Stop` / `Session.Teardown` | cleanup in caller; **sets ConnectRetryCounter to zero** | Cease NOTIFICATION from `Session.Teardown` when a conn exists; `Session.Stop` sends nothing | `Idle` |
 | `EventAutomaticStop` / `EventOpenCollisionDump` | `Session.teardownAutomatic` / collision retirement | clear timers; **increments ConnectRetryCounter** | no OPEN after canceled dial; an OPEN-less collision loser closes without NOTIFICATION | `Idle` |
-| `EventConnectRetryTimerExpires` | not generated in production | clear DelayOpenTimer (Peer owns reconnect scheduling) | none | `Connect` |
+| `EventConnectRetryTimerExpires` | the timer's expiry callback is not wired to this FSM event | clear DelayOpenTimer (Peer owns reconnect scheduling) | none | `Connect` |
 | `EventTCPConnectionConfirmed` | `Session.connectionEstablished` | stop ConnectRetryTimer; start DelayOpenTimer when configured | no OPEN while delayed; otherwise immediate OPEN | `Connect` when delayed, otherwise `OpenSent` |
 | `EventDelayOpenTimerExpires` | `Session.delayOpenExpired` | clear DelayOpenTimer and ConnectRetryTimer; arm OPEN-wait HoldTimer | OPEN | `OpenSent` |
 | `EventBGPOpenWithDelayOpenTimer` | `Session.advanceAfterOpen`, including `acceptWithOpen` | clear delay/retry; nonwaiting path starts negotiated hold/keepalive; strict wait starts HoldTimer or zero-hold BfdHoldTimer | OPEN; KEEPALIVE only when not waiting for BFD | `Connect` with `ConnectDelayOpenBfdUpPending` when waiting, otherwise `OpenConfirm` |
@@ -61,7 +61,7 @@ this Session, the retry timer is stopped, and no OPEN is written yet.
 
 | Timer | Status | Notes |
 |-------|--------|-------|
-| ConnectRetryTimer | stopped on TCP success; restarted on held-socket failure | The outer Peer still owns reconnect scheduling and destroys the old session's timer on exit. |
+| ConnectRetryTimer | stopped on TCP success; restarted on held-socket failure | The Peer retains the restarted timer's sampled deadline before destroying the old timer set, then waits only the remaining interval. |
 | DelayOpenTimer | running only while the connected socket has sent no OPEN | `timer delay-open` is 0..240 seconds; zero disables it. |
 | HoldTimer | off before peer OPEN; running during a nonzero-hold strict wait | Event 10 bounds that wait and increments the counter on exit. |
 | KeepaliveTimer | off during DelayOpen and strict pending | Starts on nonwaiting Event 20 or BFD release, unless hold is zero. |
@@ -82,7 +82,10 @@ this Session, the retry timer is stopped, and no OPEN is written yet.
   <!-- source: internal/component/bgp/reactor/session_delay_open.go — delayOpenExpired -->
 - **On `EventTCPConnectionFails`:** no NOTIFICATION is sent. A dial error
   returns to the peer run loop. A held-socket read failure first applies Event
-  18 while DelayOpen is still running, then closes the socket and stops timers.
+  18 while DelayOpen is still running, transfers the restarted retry deadline
+  and its owning clock to the Peer, then closes the socket and stops timers.
+  The Peer reads the remaining budget from that clock at its wait, so cleanup
+  consumes time rather than granting another full interval after resource release.
   <!-- source: internal/component/bgp/reactor/session_connection.go — Connect dial failure path -->
   <!-- source: internal/component/bgp/reactor/session_read.go — handleConnectionClose -->
 - **On stop or error:** timer cleanup includes DelayOpen. An inbound OPEN that
@@ -108,12 +111,12 @@ this Session, the retry timer is stopped, and no OPEN is written yet.
 
 ## RFC deviations
 
-- **`EventConnectRetryTimerExpires` never fires in production.** The RFC
-  specifies a fixed 120-second ConnectRetryTimer that is started when the
-  FSM enters Connect and restarted on failure. Ze replaces this with
-  exponential backoff at the peer level (outside the FSM), which is more
-  sophisticated than the RFC design. The FSM's Event 9 handler remains
-  correct and tested, but it is architecturally unreachable.
+- **The Peer owns reconnect scheduling.** A held DelayOpen socket's failure
+  preserves the restarted FSM timer's initial-value deadline; ordinary failures
+  use exponential backoff. The timer may expire while the old Session is being
+  cleaned up, in which case its transferable budget is already due. Its expiry
+  callback is not wired to FSM Event 9. The Peer starts the next connection
+  cycle after joining and retiring the old Session's timer work.
   <!-- source: internal/component/bgp/fsm/fsm.go — ARCHITECTURAL NOTES -->
 - **Connect can hold a live connection.** DelayOpen is an actual waiting state,
   bounded by its own timer. After a held-socket failure the FSM reports Active;
@@ -124,8 +127,10 @@ this Session, the retry timer is stopped, and no OPEN is written yet.
 
 - **Reconnect is at the peer level, not the FSM level.** After any exit
   from Connect back to Idle, the outer peer run loop in `peer_run.go`
-  recreates the session, applies exponential backoff, and calls
-  `Session.Start()` again. The FSM has no memory of the previous attempt.
+  recreates the session after its retry wait. A held DelayOpen failure uses
+  the transferred initial-value deadline; ordinary failures use exponential
+  backoff. The next start selects Event 3 or Event 6 from the previous cycle's
+  Established flag, and the peer-owned retry counter survives the Session.
 - **Socket tuning happens in `connectionEstablished`**, not in the FSM or
   timer layer. This keeps the FSM free of any OS-level concerns.
 

@@ -89,7 +89,7 @@ func rfc9687ForwardItem(t *testing.T, session *Session) fwdItem {
 	t.Cleanup(peer.clearEncodingContexts)
 
 	source, _ := newAnnouncePeer(t, "192.0.2.3")
-	source.session.localOpen = &message.Open{MyAS: 65000, HoldTime: 90}
+	source.session.proposal = preparedOpenForTest(source.session, &message.Open{MyAS: 65000, HoldTime: 90})
 	source.session.peerOpen = &message.Open{MyAS: 65001, HoldTime: 90}
 	source.session.negotiateWith(nil, nil)
 	source.setEncodingContexts(source.session.Negotiated())

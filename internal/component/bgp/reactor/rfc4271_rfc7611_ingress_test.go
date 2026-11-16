@@ -86,19 +86,28 @@ func TestRFC4271CollisionClosesExactlyOneConnection(t *testing.T) {
 
 			peer := NewPeer(settings)
 			peer.session = session
+			cleanupPendingFixturePeer(t, peer)
 			// RFC 4271 Section 6.8: enter the consumer with a pending socket and its OPEN.
 			require.NoError(t, peer.setPendingConnection(pending))
+			r := &Reactor{clock: clock.RealClock{}}
+			finished := make(chan struct{})
+			go func() {
+				defer close(finished)
+				r.handlePendingCollision(peer, pending)
+			}()
+			localOpen, openErr := core4271ReadMessage(incoming)
+			require.NoError(t, openErr)
+			require.Equal(t, byte(1), localOpen[18], "the incoming connection sends its own OPEN before remote input")
 			_, err = incoming.Write(open)
 			require.NoError(t, err)
-			r := &Reactor{clock: clock.RealClock{}}
-			r.handlePendingCollision(peer, pending)
+			<-finished
 			require.False(t, peer.hasPendingConnection())
 
 			loser, survivor, survivorLocal := incoming, existing, current
 			if tc.wantCloseCurrent {
 				loser, survivor, survivorLocal = existing, incoming, pending
 				peer.mu.RLock()
-				retained := peer.inbound.conn
+				retained := inboundConn(peer.inbound)
 				peer.mu.RUnlock()
 				require.Same(t, pending, retained, "the incoming winner is retained for the next session")
 			} else {

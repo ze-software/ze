@@ -1,0 +1,35 @@
+[
+  {
+    "rid": "RFC4271-8.2.2-13",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_delay_open_retry_test.go::TestRFC4271ActiveDelayOpenFailureRetriesAtInitialValue",
+    "unit-sha": "231db63658ef28d9",
+    "claim-sha": "c9fd828bf0165dd6",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_read.go::handleConnectionCloseLocked",
+    "producer-sha": "aeb867c66477de1a",
+    "break": "line 838: \"s.retryBudget = s.timers.ConnectRetryBudget()\" -\u003e \"s.retryBudget = nil // MUTATION-APPLIED: lose the Event 18 retry during cleanup\""
+  },
+  {
+    "rid": "RFC4271-8.2.2-13",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_delay_open_retry_test.go::TestRFC4271OpenSentFailureKeepsOrdinaryBackoff",
+    "unit-sha": "81a1989769c1cece",
+    "claim-sha": "0fe15539a963dd16",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/peer_run.go::run",
+    "producer-sha": "c8151502c1a35b31",
+    "break": "line 179: \"wait = fsm.Jitter(delay)\" -\u003e \"wait = fsm.Jitter(fsm.DefaultConnectRetryTime) // MUTATION-APPLIED: overwrite ordinary backoff\""
+  },
+  {
+    "rid": "RFC4271-8.2.2-13",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_delay_open_strict_retry_test.go::TestRFC4271ActiveStrictPendingFailureRetriesAtInitialValue",
+    "unit-sha": "b019b2e3a61e5039",
+    "claim-sha": "343db967313844af",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_read.go::handleConnectionCloseLocked",
+    "producer-sha": "aeb867c66477de1a",
+    "break": "line 838: \"s.retryBudget = s.timers.ConnectRetryBudget()\" -\u003e \"s.retryBudget = nil // MUTATION-APPLIED: lose the Event 18 retry during cleanup\""
+  }
+]

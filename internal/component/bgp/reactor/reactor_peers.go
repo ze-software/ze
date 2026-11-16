@@ -328,14 +328,6 @@ func (r *Reactor) doRemovePeer(addr netip.Addr, subcode uint8) (peerRemoval, err
 	// new holder's entry (routerIDClaims.release checks holder.peer == p).
 	peer.releaseRouterIDClaim()
 
-	// End this peer's protocol event capture synchronously, for the same reason
-	// and the same race as the claim release above: the capture file is named
-	// for the peer address (capture_replay.go), so a RemovePeer+AddPeer pair
-	// would otherwise open a second capture on a path the outgoing one still
-	// holds, and the two would rotate each other's live file into the single
-	// `.1` slot.
-	r.closeCapturesForPeer(addr)
-
 	// Clear any prefix-stale warning for this peer from the report bus.
 	// Threshold warnings are cleared by Session.ClearReportedWarnings
 	// during the session teardown defer in peer_run.go.

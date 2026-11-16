@@ -127,15 +127,22 @@ When both peers initiate a connection simultaneously (RFC 4271 Section 6.8):
 2. Higher ID keeps its outgoing connection
 3. Lower ID's connection is dropped
 
-Ze reads and length-checks the pending OPEN before collision resolution.
-If it wins, the peer retains the socket and original OPEN bytes, closes the
-losing Session, and accepts the winner in a fresh Session after cleanup.
-An existing Established session instead retains its connection.
-<!-- source: internal/component/bgp/reactor/reactor_connection.go -- handlePendingCollision, acceptOrReject -->
-<!-- source: internal/component/bgp/reactor/peer_connection.go -- resolvePendingCollision -->
+Each admitted incoming connection has its own Session before OPEN. Its shared
+frame reader bounds and validates OPEN before collision resolution. A winning
+candidate retains that same Session, socket, reader and timer deadlines after
+the losing Session is cleaned up. An existing Established session retains its
+connection and the candidate retires independently. Admission remains bounded
+to one pending candidate.
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision, resolveIncoming, adoptIncoming -->
 <!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
 
-The `plugin.PeerInfo` that `runOnce` builds for the session's wire observers carries the peer's AS as `rpc.RemoteAS`: a dynamic peer's settings hold 0 until its OPEN is negotiated, and `rpc.RemoteASOf` turns that 0 into the not-yet-known state, so an observer of the OPEN exchange sees `remote as unknown` (text) or no `remote.as` (JSON), never AS 0. See [peer lifecycle](architecture/behavior/peer-lifecycle.md).
+The Session factory installs wire observers before TCP. Their `plugin.PeerInfo`
+carries the peer's AS as `rpc.RemoteAS`. When a dynamic peer's AS has not yet
+been learned, `rpc.RemoteASOf` represents that absence as `remote as unknown`
+(text) or no `remote.as` (JSON), never AS 0. See
+[peer lifecycle](architecture/behavior/peer-lifecycle.md).
+<!-- source: internal/component/bgp/reactor/peer_session_factory.go -- newSessionWithEpoch -->
 
 ## Connection Modes
 

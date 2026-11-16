@@ -2362,10 +2362,17 @@ Each peer has a `connection` setting controlling TCP establishment:
 |------|----------|
 | `active` | Dial out only. Does not accept inbound connections. |
 | `passive` | Accept inbound only. Does not dial out. RFC 4271 S8.1.1 PassiveTcpEstablishment. |
-| `both` (default) | Both dial out and accept inbound. The reactor starts a per-peer listener bound to the peer's local address on port 179, then also dials out to the peer's remote address. Whichever connection succeeds first is used; collision detection (RFC 4271 S6.8) resolves races. |
+| `both` (default) | Dial out and accept inbound on the peer's local listener. Each admitted connection exchanges OPEN through its own Session. Collision detection (RFC 4271 S6.8) selects the connection. |
 
-Connection collision detection follows RFC 4271 S6.8: when both sides connect simultaneously, the peer with the higher BGP ID keeps its outgoing connection. If the session is already in OpenConfirm state when a new connection arrives, the OPEN is read from the pending connection to compare BGP IDs before deciding which connection to close.
-<!-- source: internal/component/bgp/reactor/reactor_connection.go -- handlePendingCollision, acceptOrReject -->
+Connection collision detection follows RFC 4271 S6.8: when both sides connect
+simultaneously, the peer with the higher BGP ID keeps its outgoing connection.
+An admitted incoming Session validates OPEN before it can displace an incumbent.
+If that incumbent is in OpenConfirm, its known BGP Identifier decides the
+comparison. A winning candidate retains its original Session through adoption.
+An Established incumbent keeps its connection. Admission remains bounded to one
+pending candidate.
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision, resolveIncoming -->
 
 ---
 
@@ -3671,21 +3678,25 @@ and a plain prefix. `Peer.staticMu` serializes the initial send against the relo
 delta, so the two writers of one peer's route set never interleave and a
 withdrawal cannot precede the announcement it takes back.
 
-The capability set is the one conditional member. `negotiationOutcomeUnchanged`
-(`peer_settings_negotiation.go`) re-runs the negotiation: it builds the candidate
-OPEN from the new settings with `buildOpenFromSnapshot`, negotiates it against the capabilities
-the peer really advertised, and compares the result with the running session's. Both
-runs take ONE identity, because a reload changes the capabilities ze offers and never
-who the two speakers are: the peer AS comes from `sessionPeerAS` (`peer.go`) and the
-internal verdict from `PeerSettings.isIBGPWith`, and neither negotiation derives them.
-An identical outcome means the session is already what the new config asks for, so the
-set is delivered and the session stays up. Anything the probe cannot prove
-identical restarts, an unparsable OPEN and a peer with no session included. RFC 5492
-Section 2 is why there is no third option: a peer's capabilities come from its OPEN
-alone, so a change applies at the next OPEN or not at all.
+Capability edits require `negotiationOutcomeUnchanged` (`peer_settings_negotiation.go`).
+The probe builds a candidate OPEN from the new settings and one plugin snapshot
+using `buildOpenFromSnapshot`. It negotiates both offers against the peer's
+advertised capabilities and compares their results. It also checks the OPEN
+header, since changing an AS or Identifier can affect the peer without changing
+Ze's negotiated capabilities.
+
+Both calculations use the identity retained with the original OPEN in
+`preparedOpen`. `preparedOpen.judgedPeerAS` resolves the peer AS, and
+`PeerSettings.isIBGPWith` supplies the iBGP verdict. Neither calculation infers a
+different identity from the proposed capabilities.
+
+An identical outcome and header let the session continue under the new
+configuration. Missing or unparsable OPEN inputs force a restart. RFC 5492
+Section 2 obtains the peer's capabilities from its OPEN, so a changed capability
+takes effect through another OPEN.
 
 <!-- source: internal/component/bgp/reactor/peer_settings_negotiation.go -- negotiationOutcomeUnchanged, openHeaderEqual -->
-<!-- source: internal/component/bgp/reactor/peer.go -- sessionPeerAS, the one answer to a session's peer AS -->
+<!-- source: internal/component/bgp/reactor/session_open_proposal.go -- judgedPeerAS -->
 
 The swap writes onto the struct the peer points at, under `p.mu`, rather than
 replacing the pointer: `Session` holds its own copy of the same pointer, so
@@ -3694,6 +3705,14 @@ readers of the swappable fields go through the `p.mu`-guarded accessors
 `Peer.ImportPolicy`, `Peer.OldestPrefixUpdated` (`peer.go`) and
 `Peer.bfdSettings` (`peer_bfd.go`), and the egress
 snapshot and the prefix-stale alarm are rebuilt after the lock is released.
+
+OPEN identity has a separate lifetime. `prepareOpen` captures a locked settings
+snapshot with its exact message and plugin declarations, and admission and
+negotiation use that immutable proposal. A dynamic incumbent's later AS publication
+cannot change a pending candidate's already-prepared identity. This snapshot does
+not replace the Session's shared settings pointer or freeze live policies.
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- prepareOpen, openSettingsSnapshot -->
+<!-- source: internal/component/bgp/reactor/session_open_proposal.go -- preparedOpen -->
 
 An import-policy change applies to routes received AFTER the swap; it does not
 re-run policy over already-imported routes. An export-final transition also

@@ -54,7 +54,7 @@ func (c *rawOwnershipConn) Close() error {
 func rawOwnershipPeer(t *testing.T) (*Peer, *rawOwnershipConn) {
 	t.Helper()
 	peer, _ := newAttachedPeer(t, railDest, sendRawOnly(railGranted))
-	peer.session.localOpen = &message.Open{MyAS: 65000, HoldTime: 90}
+	peer.session.proposal = preparedOpenForTest(peer.session, &message.Open{MyAS: 65000, HoldTime: 90})
 	peer.session.peerOpen = &message.Open{MyAS: 65001, HoldTime: 90}
 	peer.session.negotiateWith(nil, nil)
 	peer.setEncodingContexts(peer.session.Negotiated())

@@ -803,7 +803,7 @@ func TestRetainedOpenFailureEndsNegotiatedCache(t *testing.T) {
 		OptionalParams: []byte{2, 6, 65, 4, 0, 0, 0xfd, 0xea}}
 	conn := &failAfterConn{writesLeft: 1}
 	p.mu.Lock()
-	p.inbound = inboundConnection{conn: conn, open: open, wire: message.PackTo(open, nil)}
+	p.inbound = &bufferedIncoming{conn: conn, open: open, wire: message.PackTo(open, nil)}
 	p.collisionHandoff = true
 	p.mu.Unlock()
 	if err := p.runOnce(); err == nil {

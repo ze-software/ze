@@ -45,12 +45,49 @@ One file per peer, named `bgp-<peer-address>.jsonl`. A new session moves the
 previous session's file to `<file>.1` rather than truncating it: the session
 that failed is the one an operator wants, and a peer reconnects within seconds.
 
+An independent incoming candidate records into the same bounded input queue
+before it can be selected. It owns no file while the incumbent is still
+capturing. If selected, it waits for the incumbent's capture to drain and close,
+then opens the next file and writes its original header, message timestamps and
+configuration history. Its reader keeps the same capture input through this
+handoff. A candidate that is refused before selection discards its unpublished
+input without opening or rotating a file; this trace follows the connection
+selected for the peer. The separate wire observer still sees every connection.
+
+The pending queue has the same 1024-event bound and drop counter as an active
+capture. If it overflows before selection, the selected file reports that gap;
+delayed file activation never presents dropped input as a complete trace. No
+extra files or additional rotated generations are created.
+
+A runtime capture also waits for its Session's successful local OPEN proposal.
+Its replay AS and router identifier come from that exact immutable proposal,
+rather than the earlier factory settings or a later dynamic-AS publication.
+This wait retains the original start time and queued event timestamps. Closing
+a selected Session before it prepares an OPEN joins the worker without opening
+or rotating a file with an unprepared replay identity.
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- prepareOpen -->
+
+Capture registration shares the reactor's Peer-membership lock. Every peer
+removal deletes its exact Peer and joins all its registered capture inputs
+before a replacement can be added. An old Session factory that was still
+constructing an input at that cut cannot register it afterward. Removing a
+peer therefore cannot leave a late old file owner that discards the
+replacement's configured trace. Reactor shutdown seals this admission too.
+<!-- source: internal/component/bgp/reactor/capture_pending.go -- prepareSessionCapture -->
+<!-- source: internal/component/bgp/reactor/peer_removal.go -- removalLocked -->
+<!-- source: internal/component/bgp/reactor/capture_pending.go -- captureInput, pendingSessionCapture, selectForPublication -->
+<!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
+
 ## Where the tee sits, and why it sits there
 
 `Session.teeCapture` is called from BOTH read paths, on the complete wire
 message, after the body read and before anything consumes the buffer:
 `readAndProcessMessage` (`session_read.go`) and `readAndProcessCoalesced`
 (`session_coalesce.go`).
+
+The first frame of an independent incoming candidate uses this same input
+boundary, including its original OPEN; selection never reconstructs or
+replays bytes into the capture.
 
 That placement is the whole design.
 

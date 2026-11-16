@@ -5,8 +5,10 @@
 The FSM runbooks cover what happens *inside* a session. This page covers
 what happens *around* it: the outer per-peer run loop that creates
 sessions, retries with exponential backoff, resolves inbound connection
-races, recovers from panics, and ultimately replaces RFC 4271's
-`ConnectRetryTimer` (Event 9) with a peer-level strategy.
+races, recovers from panics, and schedules connection retries. A held
+DelayOpen connection in Connect, or any Active connection, preserves the
+restarted FSM timer's deadline on transport failure; ordinary failures use
+peer-level exponential backoff.
 
 If you are trying to answer "why does ze reconnect when a session
 drops?", "where does backoff come from?", "where does the FSM state
@@ -73,10 +75,11 @@ The peer state transitions are driven from `peer_run.go`:
 | `Peer.Teardown(subcode, msg)` | Send Cease NOTIFICATION to the current session. If `sendInitialRoutes` is in flight, queues the teardown via `opQueue` so routes and EoR are flushed first. Returns `ErrOpQueueFull` if the queue is saturated. This is a peer-level teardown. A reload's binding restart uses `teardownOf` with the session it decided on instead: it does nothing once the peer has left that session, and the drain drops it if still queued when a later session holds the peer. |
 | `Peer.acceptConnection(conn)` | Hand an incoming TCP connection to the current session via `session.Accept`. Used by the reactor's inbound dispatch for passive peers that already have a live session. |
 | `Peer.setInboundConnection(conn)` | Store an inbound connection while the peer has no session. Wakes the run loop via a buffered `inboundNotify` channel so backoff can be cut short. |
-| `Peer.setPendingConnection(conn)` / `resolvePendingCollision(open, wire)` / `clearPendingConnection()` | Collision resolution per RFC 4271 §6.8; a winner transfers to the next session's inbound slot. See below. |
+| `Peer.setPendingConnection(conn)` / `Reactor.handlePendingCollision` / `Peer.resolveIncoming` | Reserve one independent incoming Session, examine its actual OPEN per RFC 4271 §6.8, and transfer the same winning Session through the inbound slot. A decided loser retains admission through joined retirement. See below. |
 
 <!-- source: internal/component/bgp/reactor/peer.go — Start, StartWithContext, Stop, Teardown -->
-<!-- source: internal/component/bgp/reactor/peer_connection.go — acceptConnection, setInboundConnection, takeInboundConnection, setPendingConnection, resolvePendingCollision, clearPendingConnection, hasPendingConnection -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go — acceptConnection, setInboundConnection, takeInboundConnection, setPendingConnection, hasPendingConnection -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision, resolveIncoming, beginIncomingRetirement -->
 
 ## The run loop
 
@@ -91,7 +94,7 @@ steps in order:
 | 3 | Stable session | When `err` is not nil and `cycleStayedEstablished` holds (the cycle reached Established and stayed there at least `reconnectMax`), `delay` is reset to `reconnectMin` and `prefixTeardownCount` to 0 |
 | 4 | Local teardown | `ErrTeardown`: `delay` is reset to `reconnectMin` and the loop redials at once, with no wait |
 | 5 | Prefix teardown | The mode of the family that overflowed decides. `never` (the default) holds the peer down until it stops. `timer` increments `prefixTeardownCount` and waits `idle-timeout * 2^(count-1)`, capped at one hour. `backoff` goes on to step 6 |
-| 6 | Any other error | Wait `fsm.Jitter(delay)`. The administrative wake and an inbound connection end the wait early and reset `delay` to `reconnectMin`. A wait that ran to its end doubles `delay`, capped at `reconnectMax` |
+| 6 | Any other error | A transport failure in Active, or in Connect while DelayOpen holds its socket, waits only the remainder of its actual restarted FSM retry deadline. Other errors wait `fsm.Jitter(delay)` and double `delay` after a full wait, capped at `reconnectMax`. Administrative wake or inbound connection ends either wait early and resets `delay` to `reconnectMin` |
 | 7 | No error | `runOnce` returns nil only when the peer is stopping or held administratively down when it would publish the session. `delay` is reset to `reconnectMin` and `prefixTeardownCount` to 0, and step 1 ends or parks the loop |
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — run, cycleStayedEstablished -->
@@ -148,10 +151,16 @@ stuck writer's socket write and closes the socket, so that writer releases the
 path. Every close of a session connection runs that routine: see
 [core design](../core-design.md#graceful-tcp-close-half-close).
 
-No lock is held across a call that can panic in the read path: a reactor-wide
-lock left held by the panicking frame would stall every other peer
-(`plan/learned/044-panic-boundaries.md`, "What outlives the spec").
+A panicking incoming reader must release its locks before retirement and
+containment can finish. A reactor-wide lock left held by the panicking frame
+would stall every other peer (`plan/learned/044-panic-boundaries.md`, "What outlives
+the spec"). Incoming collision arbitration holds `Peer.mu` only for its
+decision and atomic receipt publication, releasing it even if a decision
+panics. Discarding an older inbound receipt, joining candidate retirement and
+starting the incumbent handoff happen outside that hold, so the incoming
+reader's cleanup can reclaim the same peer owner before containment returns.
 
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- resolveIncoming, handlePendingCollision -->
 <!-- source: internal/component/bgp/reactor/panic_guard.go — bgpPanicTasks, bgpPanics -->
 <!-- source: internal/component/bgp/reactor/session.go — Session.Run, describeRead -->
 <!-- source: internal/component/bgp/reactor/session_connection.go — ceaseAfterPanic, beginTeardown, endTeardown, closeConnWithin, dropConn -->
@@ -160,90 +169,90 @@ lock left held by the panicking frame would stall every other peer
 
 ## `runOnce`: one session lifecycle
 
-`runOnce` is where one `Session` is created, wired, driven, and torn
-down. Step-by-step:
+`runOnce` publishes, drives and retires one selected `Session`. Step-by-step:
 
-1. **Reset `notificationExchanged` flag.** Used later to decide whether
-   to raise `session-dropped` on the report bus.
-2. **Create and wire the session.** `NewSession` + `SetClock`,
-   `SetDialer`, metric hookups, `onMessageReceived`, `onNotifSent`,
-   `onNotifRecv`, `SetSourceID`, `setPluginCapabilitySnapshotGetter`,
-   `setPluginFamiliesGetter`, `setOpenValidator`.
-3. **Publish the session on `p.session` under lock** so other API
-   callers (`Teardown`, `acceptConnection`, metrics) can see it.
-4. **Deferred cleanup:** clear negotiated capabilities, join the
-   session's initial sync (`Session.endInitialSync`), clear encoding
-   contexts, clear prefix-threshold warnings, clear
-   `p.establishedSession`, reset the End-of-RIB claims, and null out
-   `p.session`. The initial-sync gate and owed marker are fields of the
-   session, so nothing resets them for the next one.
-5. **Set initial peer state** to `PeerStateConnecting` or
-   `PeerStateActive` based on connection mode.
-5a. **Open the BFD session, for a strict peer only.** `startBFDClient`
-   runs one statement before the start event, because
-   draft-ietf-idr-bgp-bfd-strict-mode Section 7 asks for the BFD session
-   to exist before the BGP FSM starts. It is idempotent, and only
-   `Peer.cleanup` releases it, so the session survives every retry. A
-   peer with BFD but no `strict` keeps the old lifetime: opened by the
-   state-change callback on Established, released on the way out of it.
-6. **Start the FSM** with one RFC 4271 start event, chosen per cycle:
-   - the operator's first cycle after `StartWithContext`: `session.Start()`
-     fires `EventManualStart` (Event 1), which zeroes the ConnectRetryCounter;
-   - a cycle whose previous cycle reached Established:
-     `session.startAutomatic()` fires `EventAutomaticStart` (Event 3), which
-     zeroes the counter as well;
-   - any other cycle, a retry after a failed attempt:
-     `session.startDamped()` fires
-     `EventAutomaticStartWithDampPeerOscillations` (Event 6), which keeps it.
-
-   The second case reads `Peer.cycleReachedEstablished`, set by the FSM
-   state callback when the session publishes `PeerStateEstablished` and
-   swapped back to false by the next cycle before its start event, so the
-   answer holds whatever error ended the previous cycle. The backoff delay
-   is not that answer: an inbound connection resets the delay without any
-   session having run.
-7. **Take a buffered inbound connection if passive is enabled.**
-   `takeInboundConnection()` transfers the socket and any already-received
-   OPEN to this session. Ordinary arrivals use `session.Accept(conn)`;
-   collision winners use `session.acceptWithOpen(conn, open, wire)`.
-8. **Dial if active and still unconnected:** `session.Connect(p.ctx)` is
-   blocking. A buffered winner is accepted before this step, including in
-   `both` mode, so it cannot be replaced by an unnecessary outgoing dial.
-9. **Register the FSM state-change callback** via `session.fsm.SetCallback`.
-10. **Create the per-peer delivery channel** and launch the delivery
-    goroutine (see "Delivery channel" section below).
-11. **Run the session:** `session.Run(p.ctx)` blocks until the session
-    exits.
-12. **Drain the delivery channel:** close, wait for worker goroutine.
-13. **Return the session error** to `run()` which decides backoff vs
-    immediate retry.
+1. **Get the Session.** A selected candidate joins its private reader, handoff
+   and cancellation bridge, then retains its original Session. Otherwise,
+   `Peer.newSession` constructs one with immutable callbacks,
+   capability inputs and capture input before TCP starts.
+2. **Publish the Session under `Peer.mu`.** Recheck stop and administrative
+   admission in the same hold. A selected receipt publishes its validated remote
+   Identifier after incumbent cleanup. A refused Session retires without dialing.
+3. **Install cleanup and negotiated-session finalizers.** Every published Session
+   owns connection closure, timer retirement, capture join and its identifier
+   claim. Selection permits its existing capture input to open a file.
+4. **Choose the ordinary start event.** The first cycle takes Event 1. A cycle
+   after Established takes Event 3. Other cycles take Event 6. A retained candidate
+   keeps its existing FSM. Strict BFD starts before an ordinary FSM start and
+   survives retries until Peer cleanup.
+5. **Install the ordinary FSM publication callback before TCP.** A private
+   candidate keeps its own callback until adoption. The callback publishes
+   negotiated state, Established and leave events for the selected Session.
+6. **Consume the inbound slot before dialing.** Ordinary sockets use `Accept`.
+   Compatibility buffered input uses `acceptWithOpen`. A candidate receipt retains
+   its Session, socket, reader, validated OPEN and timer deadlines.
+7. **Dial when needed.** An active peer dials only when no selected candidate or
+   accepted connection already owns the Session.
+8. **Start delivery and install its down finalizer.** The delivery worker exists
+   before a retained candidate can publish negotiation or Established.
+9. **Adopt a retained candidate.** `adoptIncoming` installs selected publication
+   under the Session OPEN lock. An unadvanced OPEN receipt then advances once.
+   Adoption preserves the original OPEN and KEEPALIVE writes.
+10. **Run and retire the Session.** `Session.Run` drives the selected connection.
+    Exits after delivery starts drain it, announce down and join Session resources
+    before the next cycle. A transport retry budget reaches `Peer.run` only after
+    its failure owner and timers retire.
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — runOnce -->
 
-### One plugin snapshot for each OPEN proposal
+### One immutable proposal for each OPEN
 
-`Peer.runOnce` installs one plugin snapshot getter on the session. The getter
-reads the injector once and derives both the raw declaration index and the
-capabilities encoded in OPEN from that read. It records raw values before
-applying the runtime GR restart bits, so expiration of the restart window does
-not look like a configuration change.
-<!-- source: internal/component/bgp/reactor/peer.go -- pluginCapabilitySnapshot -->
-<!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
+`Peer.newSession` installs the settings and plugin snapshot getters before either
+TCP rail starts, including for a pending incoming candidate. The settings getter
+copies the shared settings under the Peer lock. The plugin getter reads the
+injector once and derives both the declaration index and the capabilities encoded
+in OPEN from that read. It records raw declarations before applying the runtime
+GR restart bits, so expiration of the restart window does not look like a
+configuration change.
+<!-- source: internal/component/bgp/reactor/peer_session_factory.go -- newSession -->
+<!-- source: internal/component/bgp/reactor/peer.go -- settingsSnapshot, pluginCapabilitySnapshot -->
 
-`prepareOpen` builds `localOpen` from that snapshot and retains its declaration
-index beside the message. The reload probe captures one candidate snapshot for
-both its declaration comparison and candidate OPEN construction. Publication
-and rollback between independent store reads therefore cannot pair the record
-of one generation with wire capabilities from another. A snapshot remains
-immutable after publication to the session.
-<!-- source: internal/component/bgp/reactor/session_negotiate.go -- prepareOpen, buildOpenFromSnapshot -->
+`prepareOpen` constructs one immutable `preparedOpen`: the exact message, its
+settings input and the plugin declaration index. Repeated preparation reuses it.
+OPEN admission, AS and identifier checks, collision comparison, negotiation and
+the reload baseline all use this same proposal. An incumbent publishing a dynamic
+peer's learned AS cannot change a candidate that already prepared its OPEN; a
+candidate prepared afterwards captures the published AS. The Session retains the
+shared settings pointer separately so policy reloads still reach live traffic.
+<!-- source: internal/component/bgp/reactor/session_open_proposal.go -- preparedOpen, openProposal -->
+<!-- source: internal/component/bgp/reactor/session_negotiate.go -- prepareOpen, openSettingsSnapshot, buildOpenFromSnapshot -->
+
+Proposal construction has its own mutex, `proposalMu`, separate from the OPEN
+action owner. `prepareOpen` holds it from before either input getter through
+publication. A reload probing an unprepared session only tries this lock: a busy
+capture forces a restart because it may already hold the old injector snapshot.
+On success the probe rereads publication under `Session.mu`, then releases
+`proposalMu` before reading any injector or returning its decision. This unlock
+runs no protocol callback or owed work. Dynamic reconciliation holds the reactor
+lock, so releasing the OPEN action owner there could deliver an owed TCP failure
+whose peer callback reacquires that same reactor lock.
+<!-- source: internal/component/bgp/reactor/session.go -- Session -->
+<!-- source: internal/component/bgp/reactor/peer_settings_negotiation.go -- pluginCapabilitiesKept -->
+<!-- source: internal/component/bgp/reactor/reactor_dynamic.go -- reconcileDynamicGroupsJournaled, planDynamicGroupsLocked -->
+<!-- source: internal/component/bgp/reactor/peer_derived_bindings.go -- markSessionUp -->
+
+The reload probe captures one candidate plugin snapshot for both its declaration
+comparison and candidate OPEN construction. Publication and rollback between
+independent store reads therefore cannot pair declarations from one generation
+with wire capabilities from another. Each published snapshot remains immutable.
 <!-- source: internal/component/bgp/reactor/peer_settings_negotiation.go -- negotiationOutcomeUnchanged, pluginCapabilitiesKept -->
 <!-- source: internal/component/bgp/reactor/session_plugin_capabilities.go -- pluginCapabilitySnapshot -->
 
 ## FSM state callback
 
-Registered in `runOnce` via `session.fsm.SetCallback`. This is where the
-peer-level reactions to FSM state changes happen. The callback is called
+Ordinary Sessions install their publication callback in `runOnce` before TCP.
+A private candidate keeps its own callback until `adoptIncoming` installs publication.
+The publication callback applies the peer-level reactions below. It is called
 from `fsm.change()` with the mutex *temporarily released*, so it may
 take additional locks safely.
 
@@ -521,6 +530,7 @@ receiver sends Cease / Out of Resources.
 | Scenario | Delay |
 |----------|-------|
 | Normal session error | Exponential base, starting at `reconnectMin` (default 5s), doubling each attempt, capped at `reconnectMax` (default 60s). Each wait samples uniform jitter from 0.75 to 1.0 of that base. |
+| TCP fails in Active, or in Connect while DelayOpen holds its socket | The actual restarted FSM ConnectRetryTimer supplies an immutable budget holding its sampled deadline and owning clock. This includes Active strict BFD pending after DelayOpen was cleared. `runOnce` carries it in `connectionRetryFailure`; the Peer reads its remaining duration at the wait, so cleanup time is deducted and an already due retry waits zero. The Peer clock supplies the wait channel. This wait does not grow the ordinary backoff. |
 | Session error after a stable session | The cycle reached Established and stayed there at least `reconnectMax`, measured from `EstablishedAt()` on the peer clock: `delay` restarts at `reconnectMin` and `prefixTeardownCount` at 0, then the error takes its own row. A cycle that never reached Established restarts nothing, however long it lasted, and a session shorter than `reconnectMax` keeps the doubling. |
 | `ErrTeardown` (API-initiated stop) | Reset `delay` to `reconnectMin`, continue loop immediately. No wait. `prefixTeardownCount` is kept, unless the torn-down session was stable (row above). |
 | Cycle returns nil (err == nil) | Reset `delay` to `reconnectMin` and `prefixTeardownCount` to 0. This arm runs only when `runOnce` published no session (the peer is stopping or administratively down). |
@@ -608,22 +618,44 @@ only the peer's own run loop takes it.
 
 ## Collision resolution (RFC 4271 §6.8)
 
-When both peers initiate simultaneously, the system may have a live
-session and a second incoming connection for the same peer. The
-reactor stashes the second connection as a "pending" connection on the
-peer via `setPendingConnection(conn)`. After the pending side sends its
-OPEN, the reactor calls `resolvePendingCollision(pendingOpen, originalWire)`.
+An admitted incoming connection has its own Session and FSM, even while the peer already
+has an outgoing connection. `setPendingConnection` reserves one pending slot;
+`handlePendingCollision` constructs that connection through `Peer.newIncomingSession`
+and starts its local OPEN lifecycle. With DelayOpen zero it sends its own OPEN
+before waiting for the remote OPEN. With DelayOpen enabled it owns an independent
+timer and proposal. A remote OPEN or that timer's expiry releases its local OPEN.
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision -->
+<!-- source: internal/component/bgp/reactor/peer_session_factory.go -- newIncomingSession -->
 
-This also applies in Established: the new connection is retained until the
-complete OPEN arrives, then receives Cease / Connection Collision. The existing
-session is not replaced. OpenSent and OpenConfirm use the same pending reader,
-which waits for OPEN before comparing identifiers.
+Admission is bounded to one pending incoming exchange per peer. Additional
+arrivals during that exchange, its joined refusal or a reserved handoff are
+refused before a Session is constructed. The admitted-connection controls do
+not prove RFC 4271 Section 8.2.1's full incoming-connection scope; its requirement
+row remains partial.
+<!-- source: internal/component/bgp/reactor/peer_connection.go -- setPendingConnection -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject -->
+
+The incoming candidate does not publish a second peer-up event. If the existing
+session is OpenConfirm, collision resolution compares identifiers under Section
+6.8. If it is Established, the completed incoming OPEN causes rejection with
+Cease / Connection Collision, and the established session remains in place.
+An incomplete or failed incoming OPEN cannot retire that established session.
+
+An OpenSent incumbent whose remote identifier is unknown outside the protocol
+is retained while the independent incoming handshake progresses. The incoming
+connection can reach Established without receiving an OPEN on the outgoing
+connection. Its selection then retires an incumbent still in OpenSent with
+Cease / Connection Collision. If the incumbent progressed meanwhile, the
+handoff rechecks the OpenConfirm or Established rule. This follows BIRD's
+`bgp_rx_open` handling of another OpenSent connection; it does not add FRR's
+earlier identifier comparison to that state.
 
 A pending OPEN whose outer parameter framing cannot be decoded receives OPEN
 Message Error (2/0), and only that pending connection closes. A correctly
 decoded OPEN that loses collision resolution retains Cease / Connection
 Collision (6/7).
-<!-- source: internal/component/bgp/reactor/reactor_connection.go -- handlePendingCollision, rejectPendingConnection -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision, resolveIncoming -->
+<!-- source: internal/component/bgp/reactor/reactor_connection.go -- rejectPendingConnection -->
 
 If the rejection's write deadline cannot be set or the rejection write fails,
 Ze still closes only the pending connection. One warning and a
@@ -634,59 +666,83 @@ raises no delivery-failure event.
 <!-- source: internal/component/bgp/reactor/pending_refusal_diagnostic.go -- reportPendingRefusalFailure -->
 <!-- source: internal/component/bgp/reactor/register_diagnostic.go -- init -->
 
-Connect and Active use that same single pending slot while DelayOpen holds an
-OPEN-less existing connection. The pending reader has a ReceiveHoldTime
-deadline (90 seconds if configured hold is zero); expiry closes only the
-pending socket. Once its OPEN has been read, that read deadline is cleared
-before transferring the socket to the winning Session.
+Connect and Active use the same bounded slot while DelayOpen holds an OPEN-less
+incumbent. An incoming OPEN that wins there closes the held loser immediately,
+with Event 23 and no NOTIFICATION. The incoming candidate retains its own local
+OPEN state; it is not installed in a second fresh Session. The first-OPEN reader
+has a ReceiveHoldTime deadline (90 seconds if configured hold is zero). Expiry
+closes only that candidate. Its read deadline is cleared after a complete OPEN;
+the candidate's original protocol timers continue to bound the handshake.
 
-<!-- source: internal/component/bgp/reactor/reactor_connection.go -- acceptOrReject, handlePendingCollision -->
+Selection stores a typed inbound receipt and signals `inboundNotify` before
+closing the incumbent. The Peer loop first completes incumbent cleanup, then
+joins the candidate's previous reader and cancellation bridge and adopts that
+same Session. Its buffered reader, original proposal, FSM and timer ownership
+survive the transfer. A buffered OPEN is processed once; an already processed
+handshake publishes its negotiated and established effects once. Adoption sends
+no duplicate OPEN or KEEPALIVE. Wire observers retain the actual original bytes.
 
-`resolvePendingCollision`:
+After incumbent cleanup, publishing the selected Session also publishes its
+validated remote Identifier from either candidate receipt. This includes a
+candidate whose OPEN still needs advancement: it keeps the original validated
+receipt rather than validating again.
+<!-- source: internal/component/bgp/reactor/peer_run.go -- runOnce -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- candidateOpen, candidateReady -->
 
-1. Reads `session.detectCollision(pendingOpen.BGPIdentifier)` to decide
-   who wins. Higher BGP router-id wins per RFC 4271 §6.8.
-2. If the remote wins (pending connection is accepted):
-   - Transfers the socket, parsed OPEN and complete original OPEN bytes into
-     the Peer's single inbound slot under its lock. The reactor relinquishes
-     that buffer; it does not copy or reconstruct the message.
-   - Signals `inboundNotify`, then launches `finishCollisionHandoff`.
-     An OPEN-less held loser gets Event 23 and closes without NOTIFICATION.
-     If its OPEN or DelayOpen expiry won first, the helper rechecks Section 6.8.
-     A close-existing answer sends Cease / Connection Collision. A keep-existing
-     answer takes back the inbound slot and reservation under the Peer lock,
-     non-blockingly drains its wakeup, then sends Cease / Connection Collision
-     outside the Peer lock and closes the rejected socket. That write is bounded
-     by the normal control-write maximum. A slot already taken by `runOnce` is
-     left to that owner.
-   - Returns ownership to the Peer loop, not to a waiter looking up
-     `p.session` after `Session.Done`. That pointer may still identify the
-     finished session or may already be nil.
-3. If the local side wins:
-   - Rejects the pending connection.
-   - Keeps the existing session running.
+The shared Session factory installs all writer and timer callbacks and route
+inputs. Each connection owner installs its optional capture input before TCP.
+These inputs stay
+unchanged through adoption, so periodic KEEPALIVE and SendHold actions cannot
+race a replacement callback. Selection-sensitive notification hooks preserve the incumbent's facts, and
+timer-display hooks publish for the selected connection; OPEN wire counters
+include admitted candidates too. Adoption changes only the FSM publication callback,
+under a short, scoped `openMu` hold after delivery and its down finalizer exist.
+It replays publication effects without replaying FSM events or resetting timers.
+An incoming FSM that expired before adoption is retired instead of restarted;
+its private establishment does not announce a peer-up or await an unpublished
+down. Its failed attempt still updates the peer-owned ConnectRetryCounter.
 
-The Peer loop completes old-session cleanup, wakes from backoff through the
-existing inbound signal and creates a fresh session. It consumes the retained
-winner with `acceptWithOpen` (`connectionEstablished` + `processOpen`) before
-any outgoing dial. The same winning socket therefore completes OPEN and
-KEEPALIVE exchange; the MRT raw observer sees the actual original OPEN, not
-an encoding of configured or negotiated capabilities.
+Protocol capture records a candidate's original input before selection, using
+the existing bounded queue and configuration-event registration. Its worker
+waits without owning a file. After incumbent cleanup has joined the old capture,
+selection permits the same worker to open the next file and drain that input,
+retaining the original header and timestamps. Closing a selected input drains
+it even if its worker has not yet processed the selection; closing an
+unpublished input discards it without touching the incumbent's file. The
+capture sink is never replaced, and the single-file and one-backup disk budget
+is unchanged. The initial candidate OPEN crosses the normal Session tee once.
 
-The inbound slot holds at most one socket and one OPEN buffer of at most 4096
-octets. A separate `collisionHandoff` reservation, guarded by the same Peer
-mutex, covers the whole interval from winner selection through
-`acceptWithOpen` completion. It reserves the newly published session even
-before its FSM starts. Direct ordinary acceptance, buffering and pending
-collision acceptance all respect it.
+Capture admission is also scoped to this exact Peer's reactor membership.
+The shared removal operation deletes the Peer and joins its registered
+capture workers under the same lock that admits factory registration. A
+factory that started earlier cannot register after that cut. API removal,
+reload, dynamic removal and rollback therefore release the capture namespace
+before any replacement Peer at the address can publish its own input.
+<!-- source: internal/component/bgp/reactor/peer_removal.go -- removalLocked -->
+<!-- source: internal/component/bgp/reactor/capture_pending.go -- protocolCapture, pendingSessionCapture, captureSelection, prepareSessionCapture -->
+<!-- source: internal/component/bgp/reactor/capture_replay.go -- sessionCapture -->
 
-Taking the slot clears its three fields together but does not release that
-reservation: otherwise a third connection could occupy the fresh session
-before the selected winner installs its socket. The accepting run loop
-releases the reservation after `acceptWithOpen` returns. Peer shutdown clears
-both the slot and reservation, closes a retained socket and releases its OPEN.
+The inbound variants distinguish an ordinary socket, an externally buffered
+OPEN, a candidate with an unprocessed OPEN and a candidate whose handshake has
+progressed. Their common socket accessor never reconstructs a connection. The
+single pending slot and single inbound slot each own at most one socket and an
+OPEN buffer of at most 4096 octets. A rejected candidate changes to a closing
+receipt before its NOTIFICATION is written. It no longer reports an active
+pending exchange, but the same admission remains occupied until its socket,
+bridge, timers, identifier claim and capture have been retired. A blocked
+refusal cannot admit further candidate Sessions. Only then is the gate released
+for the next arrival. `collisionHandoff`, guarded by the Peer
+mutex, reserves the selected Session from selection through installation.
+Taking the slot does not release that reservation. A third arrival closes
+silently before OPEN and cannot occupy it, including while the selected
+candidate is already OpenSent. A handoff whose recheck rejects the candidate
+takes back only its own still-owned receipt. Shutdown seals incoming admission, closes owned
+sockets and joins the incoming reader, cancellation bridge and handoff workers
+before clearing peer statistics or releasing remaining identifier claims.
 
-<!-- source: internal/component/bgp/reactor/peer_connection.go — inboundConnection, setPendingConnection, resolvePendingCollision, storeInboundLocked, takeInboundConnection -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- inboundConnection, incomingCandidate, handlePendingCollision, resolveIncoming, finishIncomingHandoff -->
+<!-- source: internal/component/bgp/reactor/peer_session_factory.go -- newSession -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go — setPendingConnection, storeInboundLocked, takeInboundConnection -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — runOnce, cleanup -->
 <!-- source: internal/component/bgp/reactor/session_delay_open.go -- closeHeldForCollision -->
 <!-- source: internal/component/bgp/reactor/peer_connection.go -- finishCollisionHandoff -->
@@ -915,15 +971,19 @@ retained, as for a peer that is not Established.
 
 Runs when the peer goroutine exits (context cancelled or run loop
 returned). Invoked via `defer p.cleanup()` in `run()`.
+The selected session's run loop and `runOnce` cleanup have already joined;
+`p.session` is nil here.
 
 Steps:
 
-1. Clear negotiated capabilities and encoding contexts.
-2. Clear stats via `ClearStats()`.
-3. The session's own run loop and `runOnce` cleanup have already completed;
-   `p.session` is nil here.
-4. Close any stored inbound socket quietly and release its retained OPEN.
-5. Clear `cancel` and the inbound slot.
+1. Clear negotiated capabilities, the prefix-hold warning and encoding contexts,
+   then stop the BFD client.
+2. Under `p.mu`, seal incoming admission with `incomingClosed`, take and clear
+   pending and inbound ownership, and clear the collision reservation and `cancel`.
+3. Close the pending socket and discard the inbound receipt, releasing its
+   retained connection and OPEN resources.
+4. Join incoming work with `incomingWG.Wait()`.
+5. Release all router-ID claims owned by the peer, then clear stats via `ClearStats()`.
 6. `setState(PeerStateStopped)`.
 
 <!-- source: internal/component/bgp/reactor/peer_run.go — cleanup -->
@@ -969,20 +1029,36 @@ RFC expects the FSM to sit in `Connect` or `Active` state waiting for
 both TCP completion and the retry timer to fire, retrying the dial on
 timer expiry.
 
-**Ze does not implement this.** Instead:
+Ze schedules reconnects at the Peer level, with two policies:
 
 - Outgoing dials use a blocking `DialContext`, so the FSM never sits in
-  `Connect` waiting for asynchronous TCP events. The dial either
-  succeeds (transition to OpenSent) or fails (transition to Idle).
+  `Connect` waiting for asynchronous TCP events. After TCP success a configured
+  DelayOpen holds the socket in Connect; without it the Session enters OpenSent.
 - Reconnect delay lives at the **peer level** in `Peer.run()` with
-  **exponential backoff** (min 5s, max 60s), which is more robust than
-  the RFC's fixed 120s constant.
-- The `EventConnectRetryTimerExpires` FSM event is defined and its
-  handler arms in `handleConnect` and `handleActive` are correct and
-  tested, but the event is **never fired in production**.
+  **exponential backoff** (min 5s, max 60s) for ordinary failures.
+- A transport failure in Active, or while DelayOpen holds a socket in Connect,
+  restarts the FSM's ConnectRetryTimer with its initial value. Active's restart
+  is unconditional, including its strict BFD pending sub-state after Event 20
+  cleared DelayOpen. Before cleanup,
+  `handleConnectionCloseLocked` snapshots the sampled deadline and its owning
+  clock through `Timers.ConnectRetryBudget`. Every timer retirement drains an
+  owed transport failure before clearing DelayOpen. `runOnce` joins all old
+  timer work, retires that set, and returns the original error with a
+  `connectionRetryFailure` budget. `Peer.run` reads the remaining duration from
+  the original timer clock at its wait, then uses its own clock's wait channel,
+  without another jitter sample or another full interval after cleanup. No
+  destination-clock sample can add time to the original deadline. A canceled
+  timer has no transferable budget; an expired but uncanceled arm transfers a
+  due retry. Inbound connections and
+  administrative wake retain their existing early-interruption behavior.
+- The `EventConnectRetryTimerExpires` FSM handlers in `handleConnect` and
+  `handleActive` are tested, but the timer's expiry callback is not wired to
+  that event in a production Session. Its arm can expire during cleanup; the
+  saved budget then reports a due retry. The Peer owns the next connection
+  cycle after the old Session and its timer callbacks have been retired.
 
-This is a deliberate architectural choice documented in the
-`fsm.go` file header under "ARCHITECTURAL NOTES".
+The separation of session timer ownership from live Peer scheduling is recorded
+in the `fsm.go` file header under "ARCHITECTURAL NOTES".
 
 <!-- source: internal/component/bgp/fsm/fsm.go — ARCHITECTURAL NOTES -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — run function doc comment -->
@@ -1089,11 +1165,12 @@ route is still queued.
 | Initial route synchronization and panic unwind | `internal/component/bgp/reactor/peer_initial_sync.go` | `spawnInitialSync`, `runInitialSync`, `sendInitialRoutes`, `drainAndCloseQueueGate`, `endSessionAfterSyncPanic` |
 | Cleanup on peer stop | `internal/component/bgp/reactor/peer_run.go` | `cleanup` |
 | Inbound connection buffering | `internal/component/bgp/reactor/peer_connection.go` | `setInboundConnection`, `takeInboundConnection` |
-| RFC 6.8 collision resolution | `internal/component/bgp/reactor/peer_connection.go` | `setPendingConnection`, `resolvePendingCollision`, `storeInboundLocked` |
+| RFC 6.8 collision resolution | `internal/component/bgp/reactor/incoming_candidate.go` | `handlePendingCollision`, `resolveIncoming`, `finishIncomingHandoff` |
 
 <!-- source: internal/component/bgp/reactor/peer.go — Peer, NewPeer, PeerState, Start, Stop, Teardown, setReconnectDelay, DefaultReconnectMin, DefaultReconnectMax -->
 <!-- source: internal/component/bgp/reactor/peer_run.go — run, safeRunOnce, runOnce, cleanup -->
-<!-- source: internal/component/bgp/reactor/peer_connection.go — setInboundConnection, takeInboundConnection, setPendingConnection, resolvePendingCollision, storeInboundLocked -->
+<!-- source: internal/component/bgp/reactor/peer_connection.go — setInboundConnection, takeInboundConnection, setPendingConnection, storeInboundLocked -->
+<!-- source: internal/component/bgp/reactor/incoming_candidate.go -- handlePendingCollision, resolveIncoming, finishIncomingHandoff -->
 
 ## Tests exercising this layer
 
@@ -1116,3 +1193,26 @@ route is still queued.
   replacement epoch at publication and after taking the winner. A third TCP
   connection must be refused before OPEN; releasing the barrier then completes
   the original winning connection and all exact MRT byte/prefix/ID assertions.
+
+Incoming candidates use the ordinary Session frame reader, including header
+errors, NOTIFICATION events and the original-wire capture tee. A first OPEN
+passes the same version, Hold Time, AS, Identifier, plugin and capability checks
+before it can retire an incumbent. Its validated receipt owns the original
+wire and the negotiated result; promotion advances it without validating or
+negotiating twice. A collision loser sends no KEEPALIVE.
+
+A private candidate negotiates its own wire capabilities and timers. It begins
+no Peer-held route generation until selection, after the old Session cleanup
+and capture have joined. Negotiation callbacks run outside the Session mutex.
+A terminal refusal seals the candidate and retires its timers before acquiring
+the NOTIFICATION writer, so a queued DelayOpen callback cannot send OPEN after
+refusal.
+
+An OPEN validator that finishes after the candidate's original HoldTimer
+deadline cannot win collision arbitration. Admission, the actual Peer-lock
+publication commit, OPEN advancement and adoption all retain that deadline;
+the Session OPEN owner delivers the ordinary Hold Timer Expired action even
+when the scheduled callback has not acquired that owner yet. Plugin-coded
+OPEN refusal delivers Event22 and closes its own socket before retirement,
+so it increments retry history once and receives no TCP-failure retry budget.
+<!-- source: internal/component/bgp/reactor/session_hold_expiry.go -- rejectExpiredHold, holdTimerExpiredLocked -->
