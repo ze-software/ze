@@ -26,9 +26,9 @@ var ErrBackslashInInvocation = errors.New("backslash is not allowed in commands"
 func ScanInvocation(input string) (tokens []string, pipeAt int, quoteOpen bool, err error) {
 	trimmed := strings.TrimLeftFunc(input, unicode.IsSpace)
 	lead := len(input) - len(trimmed)
-	trimmed = strings.TrimRightFunc(trimmed, unicode.IsSpace)
 	pipeAt = -1
 	var current textbuf.Buffer
+	wordStarted := false
 	for i := 0; i < len(trimmed); i++ {
 		c := trimmed[i]
 		if c == '\\' {
@@ -51,6 +51,7 @@ func ScanInvocation(input string) (tokens []string, pipeAt int, quoteOpen bool, 
 			continue
 		}
 		if c == '"' {
+			wordStarted = true
 			quoteOpen = !quoteOpen
 			continue
 		}
@@ -58,14 +59,16 @@ func ScanInvocation(input string) (tokens []string, pipeAt int, quoteOpen bool, 
 			pipeAt = lead + i
 		}
 		if (c == ' ' || c == '\t') && !quoteOpen {
-			if current.Len() > 0 {
+			if wordStarted {
 				tokens = append(tokens, current.String())
+				wordStarted = false
 			}
 			continue
 		}
 		current.Byte(c)
+		wordStarted = true
 	}
-	if current.Len() > 0 {
+	if wordStarted {
 		tokens = append(tokens, current.String())
 	}
 	return tokens, pipeAt, quoteOpen, nil

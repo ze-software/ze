@@ -92,6 +92,10 @@ func WriteInvocation(tb *textbuf.Buffer, path []string, defs []InvocationArg, va
 // it: bare, or double-quoted when a byte would change its token or pipe boundary.
 // Escapes inside quotes preserve quotes, backslashes and line/control spacing.
 func WriteInvocationValue(tb *textbuf.Buffer, value string) {
+	if value == "" {
+		tb.Str(`""`)
+		return
+	}
 	if !strings.ContainsAny(value, " \t\r\n|\"'\\") && strings.TrimSpace(value) == value {
 		tb.Str(value)
 		return

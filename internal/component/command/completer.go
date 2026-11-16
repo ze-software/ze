@@ -24,6 +24,9 @@ const (
 	SuggestionPipe     = "pipe"
 	SuggestionValue    = "value"
 	SuggestionSelector = "selector"
+	// SuggestionError is an explicit unavailable result for legacy callers that
+	// cannot return an error separately. It MUST NOT be inserted as a command.
+	SuggestionError = "error"
 )
 
 // TreeCompleter provides completions for operational commands from a Node tree.
@@ -205,13 +208,9 @@ func pipeSuggestionExists(items []Suggestion, text string) bool {
 //
 // Complete and Explain both read this one walk. The path a candidate is offered
 // for and the path an explanation is answered for cannot drift apart.
-func (c *TreeCompleter) resolve(words []string) *Node {
+func (c *TreeCompleter) resolve(words []string) (*Node, []string) {
 	current := c.root
-	for _, word := range words {
-		if current.Children == nil {
-			return nil
-		}
-
+	for i, word := range words {
 		child, ok := current.Children[word]
 		if !ok {
 			// Word is not a static child. If parent has DynamicChildren,
@@ -220,42 +219,107 @@ func (c *TreeCompleter) resolve(words []string) *Node {
 			if current.DynamicChildren != nil {
 				continue
 			}
-			return nil
+			if current.acceptsArgumentTail() {
+				return current, words[i:]
+			}
+			return nil, nil
 		}
 		current = child
 	}
-	return current
+	return current, nil
+}
+
+func (n *Node) acceptsArgumentTail() bool {
+	if n.WireMethod != "" {
+		return true
+	}
+	if n.completionCommand {
+		return true
+	}
+	if len(n.ArgDefs) > 0 {
+		if len(n.Children) == 0 {
+			return true
+		}
+	}
+	if n.ArgumentHints != nil {
+		return true
+	}
+	return n.ValueHints != nil
 }
 
 // Complete returns completions for the given input.
 func (c *TreeCompleter) Complete(input string) []Suggestion {
+	suggestions, err := c.CompleteChecked(input)
+	if err != nil {
+		return []Suggestion{{Text: err.Error(), Type: SuggestionError}}
+	}
+	return suggestions
+}
+
+// CompleteChecked preserves runtime-query failures for transports that can
+// refuse a request or display a completion error separately from candidates.
+func (c *TreeCompleter) CompleteChecked(input string) ([]Suggestion, error) {
 	// After a pipe character, complete pipe operators.
-	if pipeIdx := strings.LastIndex(input, "|"); pipeIdx >= 0 {
-		base, _, _ := strings.Cut(input, "|")
-		return completePipeForCommand(base, input[pipeIdx+1:])
+	words, pipeAt, quoteOpen, err := ScanInvocation(input)
+	if pipeAt >= 0 {
+		pipeIdx := strings.LastIndex(input[pipeAt:], "|") + pipeAt
+		return completePipeForCommand(input[:pipeAt], input[pipeIdx+1:]), nil
+	}
+	if err != nil {
+		return nil, err
 	}
 
 	if c.root == nil || c.root.Children == nil {
-		return nil
+		return nil, nil
 	}
 
 	input = strings.TrimLeft(input, " ")
-	words := strings.Fields(input)
 
 	// A last word with no space after it is what the operator still types. It
 	// is the prefix to match rather than a step on the path.
 	var partial string
-	if len(words) > 0 && !strings.HasSuffix(input, " ") {
-		partial = words[len(words)-1]
-		words = words[:len(words)-1]
+	lastIsPartial := !strings.HasSuffix(input, " ")
+	if quoteOpen {
+		lastIsPartial = true
+	}
+	if len(words) > 0 {
+		if lastIsPartial {
+			partial = words[len(words)-1]
+			words = words[:len(words)-1]
+		}
 	}
 
-	current := c.resolve(words)
+	current, arguments := c.resolve(words)
 	if current == nil {
-		return nil
+		return nil, nil
 	}
-
-	return c.matchChildren(current, partial)
+	var suggestions []Suggestion
+	if len(arguments) == 0 {
+		suggestions = c.matchChildren(current, partial)
+	}
+	if current.ArgumentHints == nil {
+		return suggestions, nil
+	}
+	live, err := current.ArgumentHints(arguments, partial)
+	if err != nil {
+		return nil, err
+	}
+	for _, candidate := range live {
+		if !strings.HasPrefix(candidate.Text, partial) {
+			continue
+		}
+		found := false
+		for _, prior := range suggestions {
+			if prior.Text == candidate.Text {
+				found = true
+				break
+			}
+		}
+		if !found {
+			suggestions = append(suggestions, candidate)
+		}
+	}
+	return suggestions, nil
 }
 
 // Explain returns the long explanation the command the input names declares. It
@@ -265,9 +329,9 @@ func (c *TreeCompleter) Complete(input string) []Suggestion {
 // The caller MUST NOT invent text for a false answer. An empty explanation reads
 // on screen as a command whose author wrote nothing, which is a different claim.
 //
-// Every typed word is a step on the path. That holds for the last word, with or
-// without a space after it. Complete treats the last word as a prefix, because
-// it offers what comes next. Explain answers about the command in hand.
+// Static children and dynamic selectors resolve the path. After a declared
+// command, ordinary terminal arguments retain that command's explanation.
+// Complete treats the last word as a prefix; Explain reads it as completed.
 func (c *TreeCompleter) Explain(input string) (string, bool) {
 	if c.root == nil {
 		return "", false
@@ -275,13 +339,21 @@ func (c *TreeCompleter) Explain(input string) (string, bool) {
 
 	// A pipe operator explains nothing about the command, so read the part
 	// before the first one, as Complete does.
-	base, _, _ := strings.Cut(input, "|")
-	words := strings.Fields(base)
+	words, pipeAt, open, err := ScanInvocation(input)
+	if pipeAt >= 0 {
+		words, _, open, err = ScanInvocation(input[:pipeAt])
+	}
+	if err != nil {
+		return "", false
+	}
+	if open {
+		return "", false
+	}
 	if len(words) == 0 {
 		return "", false
 	}
 
-	node := c.resolve(words)
+	node, _ := c.resolve(words)
 	if node == nil {
 		return "", false
 	}
@@ -293,7 +365,13 @@ func (c *TreeCompleter) Explain(input string) (string, bool) {
 
 // GhostText returns the best single completion for inline display.
 func (c *TreeCompleter) GhostText(input string) string {
-	if input == "" || c.root == nil {
+	return GhostTextFrom(input, c.Complete(input))
+}
+
+// GhostTextFrom derives the suffix from candidates already queried, so an
+// interactive update does not perform a second runtime completion RPC.
+func GhostTextFrom(input string, completions []Suggestion) string {
+	if input == "" {
 		return ""
 	}
 
@@ -301,7 +379,6 @@ func (c *TreeCompleter) GhostText(input string) string {
 		return ""
 	}
 
-	completions := c.Complete(input)
 	if len(completions) == 0 {
 		return ""
 	}
@@ -309,13 +386,17 @@ func (c *TreeCompleter) GhostText(input string) string {
 	// For pipe completions, extract the last word after the pipe.
 	// When pipe has sub-args (e.g., "| json c"), lastWord should be "c".
 	var lastWord string
-	if _, afterPipe, found := strings.CutLast(input, "|"); found {
+	words, pipeAt, _, err := ScanInvocation(input)
+	if err != nil {
+		return ""
+	}
+	if pipeAt >= 0 {
+		afterPipe := input[strings.LastIndex(input[pipeAt:], "|")+pipeAt+1:]
 		fields := strings.Fields(strings.TrimSpace(afterPipe))
 		if len(fields) > 0 {
 			lastWord = fields[len(fields)-1]
 		}
 	} else {
-		words := strings.Fields(input)
 		if len(words) == 0 {
 			return ""
 		}
@@ -328,6 +409,9 @@ func (c *TreeCompleter) GhostText(input string) string {
 
 	var matches []Suggestion
 	for _, comp := range completions {
+		if comp.Type == SuggestionError {
+			return ""
+		}
 		if strings.HasPrefix(comp.Text, lastWord) {
 			matches = append(matches, comp)
 		}

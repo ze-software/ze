@@ -152,6 +152,15 @@ type Node struct {
 	// argument and do not lead to further subcommands. Examples: address
 	// families ("ipv4/unicast"), log levels ("debug", "warn").
 	ValueHints func() []Suggestion
+
+	// ArgumentHints completes the terminal argument tail, preserving completed
+	// values and the current partial. It may perform caller-bound I/O and MUST
+	// return its failure. Static ValueHints win duplicate names on the first
+	// argument; later arguments use ArgumentHints alone.
+	ArgumentHints func(completed []string, partial string) ([]Suggestion, error)
+	// completionCommand marks a registered completion-only command. Such a node
+	// has no WireMethod, but its argument tail still belongs to that command.
+	completionCommand bool
 }
 
 // RPCInfo holds the fields needed to build a command tree from RPC registrations.
@@ -188,6 +197,7 @@ func BuildTree(rpcs []RPCInfo, readOnly bool) *Node {
 			}
 			current = child
 		}
+		current.completionCommand = true
 	}
 
 	return root
@@ -241,6 +251,7 @@ func MergeCommandPaths(root *Node, entries []CommandEntry) {
 				current.Children[part] = child
 			}
 			if i == len(parts)-1 {
+				child.completionCommand = true
 				if child.ShortHelp == "" {
 					child.ShortHelp = e.ShortHelp
 				}
@@ -281,6 +292,7 @@ func OverlayCommandPaths(base *Node, entries []CommandEntry) *Node {
 			}
 			current.Children[part] = child
 			if i == len(parts)-1 {
+				child.completionCommand = true
 				if child.ShortHelp == "" {
 					child.ShortHelp = e.ShortHelp
 				}
