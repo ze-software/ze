@@ -2,14 +2,14 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Priority | P3 |
 | Release reason | Compile external plugins own YANG at startup: a new supported plugin-config surface, not a current compiled-in schema defect. |
 | Scope | plugin |
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-11-15 |
+| Updated | 2026-11-16 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -237,6 +237,8 @@ The declaration, its `schema` object, the query-mode line and the Stage 2 sectio
 | # | Question | Recommendation |
 |---|----------|----------------|
 Answered on 2026-11-15, recorded in the Task section: the load order (the design page's, plugin declarations read before any protocol, from the config or the command line), and that a plugin changes only when `ze` restarts.
+
+Design approved by the owner on 2026-11-16, with the order to implement it now ("Look is good to me, you can implement that"). That answers D-4 for the config half: it is built now. D-3 stays open and blocks no phase below.
 
 | # | Question | Recommendation |
 |---|----------|----------------|
