@@ -51,8 +51,18 @@ appliance has for its own system.
 | Third-party runtime | `runc` is a Go module dependency. Ze writes the glue that dependency lacks. This spec reads that ruling with cgo staying off, as every Ze build has it: the glue is what `runc` implements in C. |
 | Operator model | The configuration tree and the commands follow the container model operators already know from an established router operating system: a named container with its image, networks, published ports, volumes, environment, resource limits and restart policy, and image management as operational commands. No Ze page, spec or commit names or quotes that system. |
 | Implementation model | Implementation agents for this work run on the strongest tier. |
+| Design | Approved on 2026-11-16: the upstream library used whole behind a small build-time diff, with cgo off, and the child-spec split. |
+| Release timing (O-3) | After the first release. |
+| External-program authorisation (O-4) | Authorised on 2026-11-16, scoped to the container init role executing a container's entrypoint. The row in `ai/allowed-system-commands.md` lands in the commit that adds the code it names, citing this ruling. |
+| Feature gate default (O-5) | On in every daemon build, like every other gate. |
+| Image store (O-6) | Images are stored unpacked, one folder per image digest. |
+| Networks and ports (O-7) | Container networks and published ports are nodes of the container config, realised through Ze's interface and firewall mechanisms in state Ze owns and shows. |
+| Shell (O-8) | A shell inside a running container is in scope now, as a child spec of this work, not a later one. |
+| Writable layer (O-2) | A container's filesystem persists until its image is updated: the writable layer is on disk, keyed by container name and image digest. |
 
 ### Open decisions (owner)
+
+All of these were resolved on 2026-11-16 as the Owner decisions table above states. The table below is kept as the record of what each answer changed; no row is still open.
 
 | # | Question | Recommendation | What each answer changes |
 |---|----------|----------------|--------------------------|
