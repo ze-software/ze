@@ -4,8 +4,13 @@
 #            NOT be advertised to a peer using an address of that peer as
 #            NEXT_HOP."
 #
-# RFC requirement: RFC4271-5.1.3-1 positive -- the announced route whose next hop
-# is the peer's own address never reaches that peer's wire.
+# QUESTION: Does the actual text-update command withhold the peer-own next hop
+# while useful announcements retain their chosen next hop on the same socket?
+# A unit test cannot decide external-plugin dispatch and independent peer receipt.
+#
+# RFC requirement: RFC4271-5.1.3-1 positive -- an announcement of the route whose
+# next hop is the peer's own address never reaches that peer's wire. A withdrawal
+# of that prefix remains permitted.
 #
 # RFC requirement: RFC4271-5.1.3-1 negative -- the announced routes whose next hop
 # names another router reach it unchanged, so the refusal is about WHOSE address
@@ -16,13 +21,13 @@
 # answers for a route another speaker sent. Nothing answered for the rails an
 # operator's own configuration reaches: static routes and default-originate
 # (peer_initial_sync.go), the RIB op-queue drain (peer_rib_routes.go), the announce
-# batch and the RFC 9494 stale re-advertise (reactor_api_batch.go). All five reach
-# the wire through Session.SendUpdate, where originatedNextHopIsPeerOwn is now
-# asked once.
+# batch and the RFC 9494 stale re-advertise (reactor_api_batch.go). This text
+# command reaches writeUpdateGated through announceBatchToPeers and the session
+# split writer, which checks the final next hop against the destination.
 #
 # NON-VACUITY (ai/rules/interop-and-goal-validation.md). A reject rule passes on a
-# session that received nothing at all, so the two expect rules are what make it an
-# assertion: they are the routes announced BEFORE and AFTER the withheld one, on
+# session that received nothing at all, so the useful routes make this an
+# assertion: they are announced BEFORE and AFTER the withheld one, on
 # the same session, in the same run, through the same rail. A build whose announce
 # rail is broken fails them. A build without the guard fails the reject.
 #
@@ -36,12 +41,13 @@ option=tcp_connections:value=1
 option=timeout:value=30s
 option=linger:value=true
 # BEFORE. 180A0000 is 10.0.0.0/24, next hop 203.0.113.1.
-expect=bgp:conn=1:seq=1:contains=180A0000
+expect=bgp:conn=1:seq=1:announced=180A0000:attribute=3,CB007101
 # AFTER. 180A0200 is 10.2.0.0/24, next hop 203.0.113.1.
-expect=bgp:conn=1:seq=1:contains=180A0200
+expect=bgp:conn=1:seq=1:announced=180A0200:attribute=3,CB007101
 # THE SUBJECT. 180A0100 is 10.1.0.0/24, announced with THIS peer's own address as
-# NEXT_HOP. It must not appear anywhere on this session.
-reject=bgp:conn=1:pattern=180A0100
+# NEXT_HOP. It must not appear in advertised NLRI on this session. A withdrawal
+# of that prefix remains permitted.
+reject=bgp:conn=1:scope=announced:pattern=180A0100
 EOF_PEER
 
 # Native observer announces the three routes in order and holds shutdown until
