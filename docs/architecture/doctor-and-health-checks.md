@@ -95,6 +95,21 @@ sweep behind `doctor-fib-vpp-stale-route` is in
 <!-- source: internal/plugins/fib/vpp/doctor_label.go -- labelEntriesCheckDecl -->
 <!-- source: internal/plugins/fib/vpp/doctor_route.go -- staleRoutesCheckDecl -->
 
+The `container` plugin, in a build with `ze_container`, declares four runtime
+checks the same way. Each reads the problems its supervisor recorded for a
+container, and its finding names the container and the command that fixes it:
+
+| Check | Reports | Code |
+|-------|---------|------|
+| `container-out-of-memory` | a container the kernel killed for memory | `doctor-container-out-of-memory` |
+| `container-process-limit` | a container that reached its process limit | `doctor-container-process-limit` |
+| `container-stop-killed` | a container that outlived its stop timeout and was killed | `doctor-container-stop-killed` |
+| `container-cleanup-incomplete` | a container that left processes, a control group or a mount behind | `doctor-container-cleanup-incomplete` |
+
+No code writes such a record yet, so the four answer no finding today
+(`docs/architecture/container/runtime.md`, "Runtime checks").
+<!-- source: internal/plugins/container/doctor.go -- runtimeDoctorChecks, supervisor.answerDoctorCheck -->
+
 There is one phase set and one registry. A second registry of daemon-only
 checks would let a check pick the one the local route happens to run, so the
 phase is the only place that says when a check runs.
@@ -305,6 +320,15 @@ loads on demand:
 | `pppoe` | `CONFIG_PPPOE` | `pppoe { enabled true }` | the same socket with `PX_PROTO_OE` |
 | `wireguard` | `CONFIG_WIREGUARD` | a `wireguard` interface under the netlink backend | generic netlink family `wireguard` |
 | `xfrm-interface` | `CONFIG_XFRM_INTERFACE` | an `xfrm` interface under the netlink backend | `RTM_NEWLINK` with `NLM_F_CREATE` for kind `xfrm` and interface id 0, inside a throwaway network namespace: `EINVAL` is `xfrmi_newlink` refusing id 0 after the kind resolved, `EOPNOTSUPP` is "Unknown device type" |
+
+The `container` plugin enrols `container-cpu-limit`
+(`CONFIG_CFS_BANDWIDTH`), in use when the configuration holds a container
+instance whose `enabled` is not false. Its probe reads whether
+`/proc/sys/kernel/sched_cfs_bandwidth_slice_us` exists. Its two codes register
+from the plugin's package, never from the always-on code table, because a
+build can leave the plugin out
+(`docs/architecture/container/runtime.md`, "The kernel requirement").
+<!-- source: internal/plugins/container/kernelcap_linux.go -- containerKernelCapabilities, containerInUse, cpuLimitProbe -->
 
 None of these needs a privilege except the xfrm interface probe. rtnetlink
 answers `ENODEV` to a request without `NLM_F_CREATE` before it looks at the

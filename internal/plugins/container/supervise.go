@@ -9,7 +9,7 @@ import (
 	"context"
 	"errors"
 	"log/slog"
-	"sort"
+	"slices"
 	"sync"
 
 	"github.com/ze-software/ze/internal/core/opererr"
@@ -59,12 +59,11 @@ func (s State) String() string {
 }
 
 // startRequest is what the supervisor hands the runtime library to create
-// one container: its config, the store's answer and the file mounts the
-// participants contributed.
+// one container. It holds the container's config today. The store's answer
+// and the file mounts the participants contributed join it with the start
+// sequence that fills them, which is why the library takes it by pointer.
 type startRequest struct {
 	instance instanceConfig
-	image    Ready
-	mounts   []FileMount
 }
 
 // runtimeLibrary is the supervisor's view of the patched runtime library.
@@ -72,9 +71,10 @@ type startRequest struct {
 // test proves that order with a library that creates nothing.
 type runtimeLibrary interface {
 	// create builds the container and starts its init, which blocks before
-	// the entrypoint. The caller MUST call destroy on the result, also when
-	// a later step of the start fails.
-	create(ctx context.Context, request startRequest) (createdContainer, error)
+	// the entrypoint. It MUST NOT keep request after it returns. The caller
+	// MUST call destroy on the result, also when a later step of the start
+	// fails.
+	create(ctx context.Context, request *startRequest) (createdContainer, error)
 }
 
 // createdContainer is one container the library created and has not
@@ -110,6 +110,17 @@ type supervisor struct {
 	// states holds the state of each container that has one. An enabled
 	// container no start was made for has no entry.
 	states map[string]State
+	// problems holds what went wrong with a configured container and its
+	// state does not show, one entry for each container and kind. It is what
+	// the runtime doctor checks read (doctor.go). It is bounded by the
+	// number of configured containers times the number of kinds.
+	problems map[problemRecord]struct{}
+}
+
+// problemRecord is one problem of one container.
+type problemRecord struct {
+	name string
+	kind problemKind
 }
 
 // newSupervisor returns a supervisor with no container. library is nil until
@@ -123,6 +134,7 @@ func newSupervisor(log *slog.Logger, library runtimeLibrary, buildStore StoreFac
 		participants: participants,
 		desired:      map[string]instanceConfig{},
 		states:       map[string]State{},
+		problems:     map[problemRecord]struct{}{},
 	}
 	if buildStore != nil {
 		s.store = buildStore(s)
@@ -132,7 +144,8 @@ func newSupervisor(log *slog.Logger, library runtimeLibrary, buildStore StoreFac
 
 // install makes cfg the desired set. It records what the config asks for and
 // returns before any container starts or stops. A container the config no
-// longer holds leaves the set, and a config with no container empties it.
+// longer holds leaves the set with its recorded problems, and a config with
+// no container empties it.
 func (s *supervisor) install(cfg containerConfig) error {
 	desired := make(map[string]instanceConfig, len(cfg.instances))
 	states := make(map[string]State, len(cfg.instances))
@@ -155,6 +168,11 @@ func (s *supervisor) install(cfg containerConfig) error {
 			continue
 		}
 		states[instance.name] = previous
+	}
+	for record := range s.problems {
+		if _, configured := desired[record.name]; !configured {
+			delete(s.problems, record)
+		}
 	}
 	s.desired, s.states = desired, states
 	s.log.Debug("container: desired set installed", "containers", len(desired))
@@ -190,7 +208,36 @@ func (s *supervisor) namesIn(state State) []string {
 			names = append(names, name)
 		}
 	}
-	sort.Strings(names)
+	slices.Sort(names)
+	return names
+}
+
+// recordProblem notes that the named container had a problem of kind, for
+// the runtime doctor check of that kind to report. Recording the same
+// problem again changes nothing. A container the config does not hold is
+// refused: its record would outlive every config change that could remove it.
+func (s *supervisor) recordProblem(name string, kind problemKind) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, configured := s.desired[name]; !configured {
+		return unknownInstance(name)
+	}
+	s.problems[problemRecord{name: name, kind: kind}] = struct{}{}
+	return nil
+}
+
+// namesWith answers the names of the containers that hold a recorded problem
+// of kind, sorted.
+func (s *supervisor) namesWith(kind problemKind) []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	var names []string
+	for record := range s.problems {
+		if record.kind == kind {
+			names = append(names, record.name)
+		}
+	}
+	slices.Sort(names)
 	return names
 }
 
@@ -276,12 +323,16 @@ func (s *supervisor) StopThenStart(ctx context.Context, name string) error {
 	return err
 }
 
+// runningConfigCommand prints the configuration the daemon runs, where the
+// configured containers are read.
+const runningConfigCommand = "ze show config running"
+
 // unknownInstance refuses a command that names a container the config does
 // not hold.
 func unknownInstance(name string) error {
 	return opererr.New(
 		"no container named "+name+" is configured",
 		"the command acts on configured containers only",
-		"ze show config",
+		runningConfigCommand,
 	)
 }

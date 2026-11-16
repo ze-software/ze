@@ -99,18 +99,30 @@ func runContainerEngine(conn net.Conn) int {
 		return handleCommand(ctx, sup, command, args)
 	})
 
-	if err := p.Run(ctx, &sdk.Registration{
-		WantsConfig:   []string{configRoot},
-		Commands:      commandDecls(),
-		DrainBudget:   drainBudgetSeconds,
-		FailurePolicy: rpc.FailureRestart,
-	}); err != nil {
+	// The supervisor's records live in this process, internal and forked
+	// alike, so show doctor asks it for the runtime checks declared below.
+	p.OnDoctorCheck(sup.answerDoctorCheck)
+
+	if err := p.Run(ctx, engineRegistration()); err != nil {
 		// The engine reports a plugin that is not running under this code,
 		// so the line and the doctor row name the same problem.
 		log.Error("container: plugin failed", "error", err, "code", diagnostic.CodeDoctorPluginStopped)
 		return 1
 	}
 	return 0
+}
+
+// engineRegistration is the Stage 1 declaration the engine entry sends: the
+// config root, the commands, the drain budget, the failure policy and the
+// runtime doctor checks. It is a pure value.
+func engineRegistration() *sdk.Registration {
+	return &sdk.Registration{
+		WantsConfig:   []string{configRoot},
+		Commands:      commandDecls(),
+		DrainBudget:   drainBudgetSeconds,
+		FailurePolicy: rpc.FailureRestart,
+		DoctorChecks:  runtimeDoctorCheckDecls(),
+	}
 }
 
 // commandDecls are the commands this plugin answers (SDK Stage 1). The

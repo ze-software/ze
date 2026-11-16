@@ -5037,6 +5037,39 @@ not start. It does not tell you what else is wrong with the machine, so run
 <!-- source: cmd/ze/hub/main_reload.go -- runReload keeps the running config on a load error -->
 <!-- source: internal/component/doctor/doctor.go -- runChecks reports a load failure as doctor-config-parse and returns -->
 
+## Containers
+
+A build with the `ze_container` tag has a `container` root. One `instance`
+entry is one container that Ze itself runs from an OCI image:
+
+```
+container {
+    instance web {
+        enabled false
+    }
+}
+```
+
+| Statement | Meaning |
+|-----------|---------|
+| `instance <name>` | One container. The name is 1 to 63 lowercase letters, digits and hyphens, and it neither starts nor ends with a hyphen |
+| `enabled` | Whether the container runs. The default is `true`. `false` keeps the container's statements and keeps it stopped |
+
+The container runtime is not complete: no build starts a container today. A
+configuration that holds an enabled container is refused by `ze config
+validate`, at start and at reload, and the refusal names the statement that
+disables it, `set container instance <name> enabled false`. A disabled
+container is accepted. The image, the limits, the networks and every other
+statement of a container are not in the schema yet.
+
+When the configuration holds a container to run, the kernel must be built with
+`CONFIG_CFS_BANDWIDTH`, which a container's hard CPU limit needs. On a kernel
+without it the configuration is refused the same way, and `ze doctor` reports
+`doctor-container-kernel-cpu-limit-unavailable`.
+<!-- source: internal/plugins/container/yang/ze-container-conf.yang -- YANG schema -->
+<!-- source: internal/plugins/container/config.go -- parseContainerSections, refuseUnbuiltRuntime, checkInstanceName -->
+<!-- source: internal/plugins/container/kernelcap_linux.go -- containerKernelCapabilities, containerInUse -->
+
 ## Healthcheck
 
 Service healthcheck probes monitor availability and control BGP route announcement via watchdog groups:

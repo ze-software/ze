@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/internal/core/slogutil"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
 // TestContainerDiagnosticCodesRegisterFromThePlugin proves every code of the
@@ -28,6 +30,8 @@ func TestContainerDiagnosticCodesRegisterFromThePlugin(t *testing.T) {
 		codeProcessLimit,
 		codeStopKilled,
 		codeCleanupIncomplete,
+		codeKernelCPULimitUnavailable,
+		codeKernelCPULimitUnknown,
 	}
 	if len(containerDiagnosticCodes) != len(owned) {
 		t.Fatalf("the code table holds %d codes, want the %d of the problem-class table", len(containerDiagnosticCodes), len(owned))
@@ -46,6 +50,132 @@ func TestContainerDiagnosticCodesRegisterFromThePlugin(t *testing.T) {
 		}
 		if meta.Description == "" {
 			t.Errorf("code %s has no explanation", code)
+		}
+	}
+}
+
+// TestContainerDoctorChecksAnswerThroughTheCallback proves the wiring of the
+// runtime doctor checks: each is declared in the Stage 1 registration the
+// engine entry sends, at the runtime phase, under one registered code, and
+// the function the doctor callback is bound to answers it from the
+// supervisor's records with a finding that names the container and its fix.
+//
+// Method: engineRegistration, the value runContainerEngine passes to p.Run,
+// and supervisor.answerDoctorCheck, the function it hands p.OnDoctorCheck.
+// One problem of each kind is recorded for one of two containers.
+//
+// MUTATION: drop DoctorChecks from engineRegistration and no check is
+// declared; make answerDoctorCheck answer nil findings and no recorded
+// problem is reported.
+func TestContainerDoctorChecksAnswerThroughTheCallback(t *testing.T) {
+	declared := map[string]rpc.DoctorCheckDecl{}
+	for _, decl := range engineRegistration().DoctorChecks {
+		declared[decl.Name] = decl
+	}
+	if len(declared) != len(runtimeDoctorChecks) {
+		t.Fatalf("the Stage 1 registration declares %d doctor checks, want the %d runtime checks", len(declared), len(runtimeDoctorChecks))
+	}
+
+	sup := newSupervisor(slogutil.DiscardLogger(), nil, nil, nil)
+	both := configOf(instanceConfig{name: "db", enabled: true}, instanceConfig{name: "web", enabled: true})
+	if err := sup.install(both); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+
+	wantFix := map[problemKind]string{
+		problemOutOfMemory:       "set container instance web memory MEBIBYTES",
+		problemProcessLimit:      "set container instance web process-limit COUNT",
+		problemStopKilled:        "set container instance web stop-timeout SECONDS",
+		problemCleanupIncomplete: "ze request container restart name web",
+	}
+	if len(wantFix) != len(runtimeDoctorChecks) {
+		t.Fatalf("the test names %d fixes for %d runtime checks", len(wantFix), len(runtimeDoctorChecks))
+	}
+
+	for i := range runtimeDoctorChecks {
+		check := runtimeDoctorChecks[i]
+		name := check.decl.Name
+
+		decl, isDeclared := declared[name]
+		if !isDeclared {
+			t.Fatalf("check %s is not declared in the Stage 1 registration", name)
+		}
+		if decl.Phase != rpc.DoctorPhaseRuntime {
+			t.Errorf("check %s is declared at phase %s, want %s", name, decl.Phase, rpc.DoctorPhaseRuntime)
+		}
+		if len(decl.Codes) != 1 {
+			t.Fatalf("check %s declares codes %v, want one", name, decl.Codes)
+		}
+		code := decl.Codes[0]
+		if diagnostic.Lookup(code) == nil {
+			t.Errorf("check %s declares code %s, which is not in the code registry", name, code)
+		}
+
+		healthy, err := sup.answerDoctorCheck(name)
+		if err != nil {
+			t.Fatalf("check %s refused with no problem recorded: %v", name, err)
+		}
+		if len(healthy) != 0 {
+			t.Fatalf("check %s answered %v with no problem recorded, want no finding", name, healthy)
+		}
+
+		if err := sup.recordProblem("web", check.kind); err != nil {
+			t.Fatalf("recording a problem for a configured container failed: %v", err)
+		}
+		findings, err := sup.answerDoctorCheck(name)
+		if err != nil {
+			t.Fatalf("check %s refused: %v", name, err)
+		}
+		if len(findings) != 1 {
+			t.Fatalf("check %s answered %d findings for one recorded problem: %v", name, len(findings), findings)
+		}
+		finding := findings[0]
+		if finding.Code != code {
+			t.Errorf("check %s answered code %s, want %s", name, finding.Code, code)
+		}
+		if finding.Severity != severityWarning {
+			t.Errorf("check %s answered severity %q, want %q", name, finding.Severity, severityWarning)
+		}
+		if !strings.HasPrefix(finding.Message, "container web ") {
+			t.Errorf("check %s answered message %q, which does not open with the container's name", name, finding.Message)
+		}
+		if finding.Fix != wantFix[check.kind] {
+			t.Errorf("check %s answered fix %q, want %q", name, finding.Fix, wantFix[check.kind])
+		}
+	}
+
+	// Each check reports its own kind only: every kind is recorded for web
+	// now, and each check still answers one finding.
+	for i := range runtimeDoctorChecks {
+		name := runtimeDoctorChecks[i].decl.Name
+		findings, err := sup.answerDoctorCheck(name)
+		if err != nil {
+			t.Fatalf("check %s refused: %v", name, err)
+		}
+		if len(findings) != 1 {
+			t.Errorf("check %s answered %d findings with one problem of each kind recorded, want 1", name, len(findings))
+		}
+	}
+
+	if _, err := sup.answerDoctorCheck("container-undeclared"); err == nil {
+		t.Error("a check name the plugin did not declare was answered, want a refusal")
+	}
+	if err := sup.recordProblem("absent", problemOutOfMemory); err == nil {
+		t.Error("a problem was recorded for a container the config does not hold, want a refusal")
+	}
+
+	// A container that leaves the config takes its records with it.
+	if err := sup.install(configOf(instanceConfig{name: "db", enabled: true})); err != nil {
+		t.Fatalf("install failed: %v", err)
+	}
+	for i := range runtimeDoctorChecks {
+		name := runtimeDoctorChecks[i].decl.Name
+		findings, err := sup.answerDoctorCheck(name)
+		if err != nil {
+			t.Fatalf("check %s refused: %v", name, err)
+		}
+		if len(findings) != 0 {
+			t.Errorf("check %s still answers %v after its container left the config", name, findings)
 		}
 	}
 }

@@ -1,14 +1,22 @@
-// Design: docs/architecture/container/runtime.md -- the doctor codes the container plugin owns
-// Related: register.go -- registerContainerDiagnosticCodes, which publishes this table
+// Design: docs/architecture/container/runtime.md -- the doctor codes the container plugin owns and its runtime checks
+// Related: register.go -- registerContainerDiagnosticCodes, which publishes the code table
+// Related: container.go -- the engine entry, which declares the runtime checks and answers them
+// Related: supervise.go -- the problem records the runtime checks read
+// Related: kernelcap_linux.go -- the kernel enrolments, each with its pair of codes
 
 package container
 
-import "github.com/ze-software/ze/internal/core/diagnostic"
+import (
+	"errors"
+	"strconv"
+
+	"github.com/ze-software/ze/internal/core/diagnostic"
+	"github.com/ze-software/ze/pkg/plugin/rpc"
+)
 
 // The doctor codes this plugin owns, one per problem class. Every container
 // code starts with doctor-container-. The codes that follow a container's
-// state are the operator surface package's, and each kernel capability brings
-// a pair of its own with its enrolment.
+// state are the operator surface package's.
 const (
 	codeNotPrivileged     = "doctor-container-not-privileged"
 	codeCgroupUnavailable = "doctor-container-cgroup-unavailable"
@@ -18,6 +26,127 @@ const (
 	codeStopKilled        = "doctor-container-stop-killed"
 	codeCleanupIncomplete = "doctor-container-cleanup-incomplete"
 )
+
+// The pair of codes of each kernel capability this plugin enrolls
+// (kernelcap_linux.go). A capability is named container-NAME, and its codes
+// are doctor-container-kernel-NAME-unavailable and
+// doctor-container-kernel-NAME-unknown. They are declared here, on every
+// platform, so the code table is the same wherever the plugin is built.
+const (
+	codeKernelCPULimitUnavailable = "doctor-container-kernel-cpu-limit-unavailable"
+	codeKernelCPULimitUnknown     = "doctor-container-kernel-cpu-limit-unknown"
+)
+
+// problemKind names one problem of a container that its state does not show
+// and that a runtime doctor check reports. Zero is reserved and names no
+// kind, so a record nobody filled never reads as a problem.
+type problemKind uint8
+
+const (
+	// problemOutOfMemory: the kernel killed inside the container for memory.
+	problemOutOfMemory problemKind = iota + 1
+	// problemProcessLimit: the kernel refused a fork past the process limit.
+	problemProcessLimit
+	// problemStopKilled: the container outlived its stop timeout and was
+	// killed through its control group.
+	problemStopKilled
+	// problemCleanupIncomplete: processes, a control group or a mount of the
+	// container were left behind.
+	problemCleanupIncomplete
+)
+
+// severityWarning is the severity of every runtime finding of this plugin:
+// each reports something that happened to one container while the daemon and
+// the other containers kept running.
+const severityWarning = "warning"
+
+// runtimeDoctorCheck is one runtime doctor check the plugin answers from its
+// own process, where the supervisor's records live, internal and forked alike.
+type runtimeDoctorCheck struct {
+	// decl is what the Stage 1 registration declares. It names one code.
+	decl rpc.DoctorCheckDecl
+	// kind is the recorded problem the check reports.
+	kind problemKind
+	// problem is the finding's text after "container NAME ": what happened
+	// and why it matters.
+	problem string
+	// fix answers the command that fixes the problem for the named container.
+	fix func(name string) string
+}
+
+// runtimeDoctorChecks holds every runtime check the plugin declares at Stage
+// 1. Each is declared once, here: the registration's DoctorChecks
+// (runtimeDoctorCheckDecls) and the doctor callback (answerDoctorCheck) both
+// read this list, so a check that is declared is a check that is answered.
+var runtimeDoctorChecks = []runtimeDoctorCheck{
+	{
+		decl:    rpc.DoctorCheckDecl{Name: "container-out-of-memory", Phase: rpc.DoctorPhaseRuntime, Order: 791, Codes: []string{codeOutOfMemory}},
+		kind:    problemOutOfMemory,
+		problem: "was killed by the kernel for memory: it allocated past its memory limit, and its restart policy applied",
+		fix:     func(name string) string { return setInstanceStatement(name, "memory", "MEBIBYTES") },
+	},
+	{
+		decl:    rpc.DoctorCheckDecl{Name: "container-process-limit", Phase: rpc.DoctorPhaseRuntime, Order: 792, Codes: []string{codeProcessLimit}},
+		kind:    problemProcessLimit,
+		problem: "reached its process limit: the kernel refused the processes above it, and the container keeps running with the ones it has",
+		fix:     func(name string) string { return setInstanceStatement(name, "process-limit", "COUNT") },
+	},
+	{
+		decl:    rpc.DoctorCheckDecl{Name: "container-stop-killed", Phase: rpc.DoctorPhaseRuntime, Order: 793, Codes: []string{codeStopKilled}},
+		kind:    problemStopKilled,
+		problem: "ignored its stop signal and was killed when its stop timeout ended: work it had not saved is lost",
+		fix:     func(name string) string { return setInstanceStatement(name, "stop-timeout", "SECONDS") },
+	},
+	{
+		decl:    rpc.DoctorCheckDecl{Name: "container-cleanup-incomplete", Phase: rpc.DoctorPhaseRuntime, Order: 794, Codes: []string{codeCleanupIncomplete}},
+		kind:    problemCleanupIncomplete,
+		problem: "left processes, a control group or a mount behind: they hold memory and names its next start needs",
+		fix:     func(name string) string { return "ze " + cmdRequestRestart + " " + selectorKeyword + " " + name },
+	},
+}
+
+// setInstanceStatement answers the config statement that sets leaf of the
+// named container. value is the upper-case word that stands for the larger
+// value the operator chooses.
+func setInstanceStatement(name, leaf, value string) string {
+	return "set " + configRoot + " " + listInstance + " " + name + " " + leaf + " " + value
+}
+
+// runtimeDoctorCheckDecls answers the declarations the plugin sends at Stage 1.
+func runtimeDoctorCheckDecls() []rpc.DoctorCheckDecl {
+	decls := make([]rpc.DoctorCheckDecl, 0, len(runtimeDoctorChecks))
+	for i := range runtimeDoctorChecks {
+		decls = append(decls, runtimeDoctorChecks[i].decl)
+	}
+	return decls
+}
+
+// answerDoctorCheck answers show doctor's request for the check named name:
+// one finding, with its fix, for each container that holds a recorded problem
+// of the check's kind. It only reads. A name the plugin did not declare is
+// refused: the daemon asks only for declared checks, so only a Ze defect
+// reaches that branch, and an empty answer would read as a healthy box.
+func (s *supervisor) answerDoctorCheck(name string) ([]rpc.DoctorCheckDiagnostic, error) {
+	for i := range runtimeDoctorChecks {
+		check := &runtimeDoctorChecks[i]
+		if check.decl.Name != name {
+			continue
+		}
+		names := s.namesWith(check.kind)
+		findings := make([]rpc.DoctorCheckDiagnostic, 0, len(names))
+		for _, container := range names {
+			findings = append(findings, rpc.DoctorCheckDiagnostic{
+				Code:     check.decl.Codes[0],
+				Severity: severityWarning,
+				Message:  "container " + container + " " + check.problem,
+				Fix:      check.fix(container),
+			})
+		}
+		return findings, nil
+	}
+	return nil, errors.New("container: the plugin declares no doctor check named " + strconv.Quote(name) +
+		", so it cannot answer it; this is a Ze defect")
+}
 
 // exampleShowDoctor is the daemon's doctor answer, where a finding under one
 // of these codes is read.
@@ -70,5 +199,19 @@ var containerDiagnosticCodes = []diagnostic.CodeMeta{
 		Title:       "A container left processes, a control group or a mount behind",
 		Description: "A previous run of the daemon left a container's processes, control group or root mount in place, or the cleanup of a container could not finish. Ze removes what it finds before it starts a container again, and reports what the kernel refused to remove. The finding names the container. Restart the container, or reboot when the kernel refuses the removal.",
 		Examples:    []string{exampleShowDoctor, "ze show diagnostic " + codeCleanupIncomplete},
+	},
+	{
+		Code:         codeKernelCPULimitUnavailable,
+		Title:        "The kernel cannot limit a container's CPU time",
+		Description:  "The configuration holds a container to run, and the kernel was built without CPU bandwidth control (CONFIG_CFS_BANDWIDTH). Every container has a hard CPU limit, which Ze writes to the cpu.max file of the container's control group, and that file exists only with this option. This is an error: the daemon refuses to start, a reload is refused and ze config validate fails. Run a kernel built with CONFIG_CFS_BANDWIDTH, such as Ze's own runtime kernel, or disable the container.",
+		Examples:     []string{exampleShowDoctor, "ze show diagnostic " + codeKernelCPULimitUnavailable},
+		RelatedCodes: []string{codeKernelCPULimitUnknown},
+	},
+	{
+		Code:         codeKernelCPULimitUnknown,
+		Title:        "Cannot determine whether the kernel can limit a container's CPU time",
+		Description:  "The configuration holds a container to run, and Ze could not read the kernel setting that shows CPU bandwidth control (CONFIG_CFS_BANDWIDTH): /proc/sys/kernel could not be read. This is a warning: the daemon starts, and a container fails to start if the kernel has no hard CPU limit. Make /proc readable to the process that judged the configuration, then read the doctor answer again.",
+		Examples:     []string{exampleShowDoctor, "ze show diagnostic " + codeKernelCPULimitUnknown},
+		RelatedCodes: []string{codeKernelCPULimitUnavailable},
 	},
 }

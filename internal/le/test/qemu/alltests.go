@@ -285,10 +285,18 @@ var vmSuites = []vmSuite{
 
 // excludedSuites names any declared suite the VM must NOT run, and why.
 //
-// It is EMPTY by design. A suite left out of the run needs a reason that a
-// reader can check, not an omission. `web` is not here. It is listed above and
-// held by the default skip list. An operator who empties that list gets it.
-var excludedSuites = map[string]string{}
+// A suite left out of the run needs a reason that a reader can check, not an
+// omission. `web` is not here. It is listed above and held by the default skip
+// list. An operator who empties that list gets it.
+//
+// `container` is the one entry. The suite is declared and test/container holds
+// no test yet, and the runner refuses a suite with no test, so a row in
+// vmSuites would fail every whole run. Its row joins vmSuites with the suite's
+// first test, and TestEveryDeclaredSuiteIsEitherRunOrExcluded then refuses
+// this entry until it is deleted.
+var excludedSuites = map[string]string{
+	"container": "the suite holds no test yet, and the runner refuses a suite with no test",
+}
 
 // integrationPackages are the linux-only test packages, the same set
 // `./le test qemu all` names.

@@ -400,6 +400,7 @@ are kebab-case. Address families are `"afi/safi"` strings (`"ipv4/unicast"`,
 | `anomaly-observe` | Behavioral anomaly incident lifecycle store: start and end time per incident, viewed with `show anomaly observe` |
 | `anomaly-shape` | Shadow-first anomaly responder: per-source firewall rate-limit with arm/auto-revert/kill-switch |
 | `copp` | Control-plane policing: rate-limit new TCP connections to the BGP listen port |
+| `container` | OCI containers run by Ze itself, behind the `ze_container` build gate: the configuration root, the restart request and the doctor codes exist; no container starts yet |
 | `ddos-detect` | Automatic DDoS attack detector with two-stage detection |
 | `ddos-flowspec` | DDoS FlowSpec/RTBH responder: upstream mitigation with leak-probe clear |
 | `ddos-flowtriq` | DDoS incident reporter for the Flowtriq cloud API |

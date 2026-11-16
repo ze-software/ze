@@ -800,6 +800,33 @@ your own shell.
 <!-- source: internal/component/plugin/conformance/register.go -- dataConformance, refuseRemoteCaller, init -->
 <!-- source: internal/component/plugin/conformance/conformance.go -- Run, Row, ExitConforms, ExitViolation, ExitNoRun -->
 
+### request container restart
+
+Stops the named container, then starts it again. The command exists in a build
+with the `ze_container` tag and runs in the daemon, in the `container` plugin.
+
+```
+ze request container restart name <name>     # <name> is the container's configured name
+```
+
+There is no start command and no stop command: the `enabled` statement of a
+container says whether it runs.
+
+The container runtime is not complete, so no build starts a container today
+and the command answers one of these refusals:
+
+| Refusal | When | Fix the refusal names |
+|---------|------|-----------------------|
+| `request container restart needs the name of a container` | the command reached the plugin with no name. The command's schema makes the name mandatory, so the daemon can refuse the line before the plugin runs | `ze request container restart name NAME` |
+| `no container named <name> is configured` | the configuration holds no container of that name | `ze show config running` |
+| `container <name> is disabled in the configuration` | its `enabled` statement is false: a restart would start what the configuration keeps stopped | `set container instance <name> enabled true` |
+| `container <name> cannot run: this build of ze does not start containers yet` | the container is enabled | `set container instance <name> enabled false` |
+
+<!-- source: internal/plugins/container/container.go -- handleCommand, commandDecls -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.restart, unknownInstance -->
+<!-- source: internal/plugins/container/config.go -- runtimeNotBuilt -->
+<!-- source: internal/plugins/container/yang/ze-container-cmd.yang -- YANG schema -->
+
 ### request plugin restart
 
 Restarts a configured plugin without restarting ze, whether it runs or not.

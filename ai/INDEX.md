@@ -556,6 +556,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | Keywords | Docs |
 |----------|------|
 | pcap, packet capture, capture-raw, LINKTYPE_RAW, TCP reassembly, decode a capture, tcpdump, Wireshark | `docs/architecture/diagnostics/packet-capture.md` |
+| container, OCI image, container runtime, libcontainer, runc patch series, container init role, early role, cgroup, namespace, seccomp filter seam, ze_container, container doctor codes, container-cpu-limit, CONFIG_CFS_BANDWIDTH | `docs/architecture/container/runtime.md`, `internal/plugins/container/` (plugin), `internal/core/earlyrole/`, `ze-container-conf.yang`, `features/containers.md` |
 | repository size history, codebase growth, lines per section per day, repo-history.json, ./le site history, section table, gained and lost lines | `docs/architecture/site-facts.md` (Size history), `internal/le/site/history/` |
 | crash capture, kernel panic, pstore, ramoops, reserve_mem, kdump, crash-dump, show crashes, configured versus armed, harvest a crash record, execve past the stderr flush, crashlog.Exec | `docs/architecture/diagnostics/crash-capture.md`, `docs/guide/appliance.md`, `docs/guide/configuration.md` |
 | buffer, iterator, parse, wire | `core-design.md`, `buffer-architecture.md`, `ai/rules/performance.md` |

@@ -69,7 +69,7 @@ type fakeLibrary struct {
 	networkNamespace string
 }
 
-func (f *fakeLibrary) create(_ context.Context, request startRequest) (createdContainer, error) {
+func (f *fakeLibrary) create(_ context.Context, request *startRequest) (createdContainer, error) {
 	f.events.add("create " + request.instance.name)
 	return &fakeCreated{library: f, name: request.instance.name}, nil
 }

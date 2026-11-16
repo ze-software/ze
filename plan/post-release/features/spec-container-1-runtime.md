@@ -8,7 +8,7 @@
 | Release reason | A post-release feature by owner ruling (O-3 of `spec-container-0-umbrella.md`): Ze runs OCI container images itself. No shipped behavior is wrong without it. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 0/9 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
@@ -237,6 +237,8 @@ The operator-surface child owns that test: the published Redis image runs as a c
   → Constraint: a kernel enrolment that cannot be determined never refuses a start
 - [ ] `ai/rules/platform-linux.md`, `docs/architecture/testing/qemu-integration.md` - the proof route
   → Decision: a `.ci` marked `option=needs-linux` runs in Ze's own-system guest through `./le test qemu ci test <path>`. The daemon binary there sits on a memory filesystem, so a claim about the squashfs root needs a booted appliance image
+- [ ] `docs/architecture/testing/ci-format.md` "Options", "Choosing between `needs-linux`, `caps=`, and `skip-os`" - the marks a functional test of the `container` suite carries
+  → Constraint: `option=needs-linux` sends a test to the guest, and `caps=` gates it on named capabilities. An unknown `caps=` token is refused on every host, so a test declares only tokens the page's table holds
 - [ ] `ai/rules/go-standards.md`, `ai/allowed-system-commands.md` - external programs
   → Constraint: the entrypoint is a program Ze does not carry. Its register row lands in the commit that adds the init role (O-4, authorised 2026-11-16)
 
@@ -400,7 +402,7 @@ The operator-surface child owns that test: the published Redis image runs as a c
 | A-10 | The default filter profile can be derived from the Moby project's published default profile under its license | Named in the research. The file was not fetched | The profile is written from the library's test profiles and the kernel's system-call list | Reading the file and its license before phase 4, and recording both in the notice file | unvalidated |
 | A-11 | Pointing the global `logrus` logger at Ze's logger disturbs no other user | The census found no other user of the global logger | The library's log lines are bridged another way | The census search, repeated at implementation | unvalidated |
 | A-12 | The user-account module that arrives with the runtime resolves a name from files opened under a root descriptor | That module is in the upstream runtime's requirements at v1.5.3. Its functions were not read | The resolution is a small parser of the two account files in the plugin | Reading the module after the dependency commit, and `TestImageUserNameIsResolvedInsideTheRoot` | unvalidated |
-| A-13 | A new functional suite needs only a directory, one row in the suite table of `le` and one in the guest's suite list | The le tooling door and the QEMU page describe suites that way. The two tables were not read | The registration is larger, and its files are named at the wiring phase | Reading both tables at the wiring phase | unvalidated |
+| A-13 | A new functional suite needs only a directory, one row in the suite table of `le` and one in the guest's suite list | The le tooling door and the QEMU page describe suites that way. The two tables were not read | The registration is larger, and its files are named at the wiring phase | Reading both tables at the wiring phase | broken at the wiring phase: a suite has four registration sites, not two. They are the `le` command package of the suite (`internal/le/test/container/register.go`), its blank import in `internal/le/register.go`, the suite row in `internal/le/test/functional/suites.go`, and the guest's suite list in `internal/le/test/qemu/alltests.go`. The first three are written. The guest row lands with the first test of the suite, because the runner refuses a suite that holds no test |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
@@ -597,12 +599,12 @@ Not applicable: Scope is plugin and no wire protocol changes.
 ## Files to Modify
 - `go.mod`, `go.sum`, `vendor/` - the runtime module and what it requires, in the dependency commit and nothing else
 - `cmd/ze/dispatch.go` - one early-role call at the top of `dispatchMain`
-- `feature-gates.txt` - the gate `ze_container`, declared here, and the lines of the packages this child creates: the plugin, its `seccomp` package and its `yang` package. Each sibling adds the line of each package it creates, under the same tag
+- `feature-gates.txt` - the gate `ze_container`, declared here, and the lines of the packages this child creates: the plugin and its `seccomp` package. The plugin's `yang` package takes no line: the generator gates a `yang` package with the package that holds it. Each sibling adds the line of each package it creates, under the same tag
 - `pkg/zefs/keys.go` - the per-container state key template
 - `internal/component/kernelcap/kernelcap.go` - correct the comment on `Capability.CodeAbsent`: a code registers from the package that owns it, and only an always-on owner's codes are in `internal/core/diagnostic/codes.go`. No behavior changes
 - `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` - add `CONFIG_CFS_BANDWIDTH`; pin `CONFIG_FAIR_GROUP_SCHED`, `CONFIG_TMPFS` and `CONFIG_MEMFD_CREATE`, which are on today only by default
 - `ai/allowed-system-commands.md` - the entrypoint row, citing the ruling of 2026-11-16
-- The functional suite table of `le` and the guest's suite list - the `container` suite
+- The functional suite table of `le` (`internal/le/test/functional/suites.go`), the blank import of the suite's command package in `internal/le/register.go`, and the guest's suite list (`internal/le/test/qemu/alltests.go`) - the `container` suite. Until the suite holds its first test, the guest list names it in `excludedSuites` with that reason, because a declared suite the guest neither runs nor excuses refuses every whole guest run
 - The integration package list and the action table of the QEMU test area of `le` - the plugin's package and the `container-boot` action
 - The two hand-kept plugin name lists `ai/doors/hub-engine.md` names (`TestAvailablePlugins`, `TestAllPluginsRegistered`) and their snapshots - the new plugin name
 - `docs/contributing/patching-the-standard-library.md` - the new named guard test
@@ -620,7 +622,9 @@ Not applicable: Scope is plugin and no wire protocol changes.
 - `internal/core/earlyrole/earlyrole.go`, `internal/core/earlyrole/earlyrole_test.go` - the always-on leaf: register a role by environment key, dispatch before startup
 - `cmd/ze/early_role_test.go` - the dispatch order test
 - `cmd/ze/hub/build_tag_container_present_test.go`, `cmd/ze/hub/build_tag_container_absent_test.go` - the gate's test pair, which the siblings extend
-- `internal/plugins/container/register.go` - the registration, its config root and verifier entry point, the early role, the state key grant, and the registration of every diagnostic code this child owns, by the shape of `registerVRRPDiagnosticCodes`
+- `internal/le/test/container/register.go` - the `le` command package of the `container` suite
+- `internal/plugins/container/register.go` - the registration, its config root and verifier entry point, the state key grant, and the registration of every diagnostic code this child owns, by the shape of `registerVRRPDiagnosticCodes`
+- `internal/plugins/container/initrole_linux.go`, `internal/plugins/container/register_initrole_linux.go` - the call into the library's init, and the registration of the early role
 - `internal/plugins/container/container.go` - the engine entry, the logger, the config callbacks, the drain handler, the restart command
 - `internal/plugins/container/config.go`, `internal/plugins/container/config_test.go` - the parser and the one rule set, which the siblings add rules to
 - `internal/plugins/container/describe_linux.go`, `internal/plugins/container/describe_test.go` - the library description and the merge with the image's configuration
@@ -639,6 +643,7 @@ Not applicable: Scope is plugin and no wire protocol changes.
 - `internal/plugins/container/seccomp/filter.go`, `internal/plugins/container/seccomp/filter_test.go`, `internal/plugins/container/seccomp/seam_test.go` - the filter builder
 - `internal/plugins/container/seccomp/tables_amd64.go`, `internal/plugins/container/seccomp/tables_arm64.go`, `internal/plugins/container/seccomp/tables_test.go` - the system-call tables
 - `internal/plugins/container/seccomp/profile.go`, `internal/plugins/container/seccomp/profile_test.go`, `internal/plugins/container/seccomp/load_linux.go` - the default profile and the load
+- `internal/plugins/container/seccomp/doc.go`, `internal/plugins/container/seccomp/register_linux.go` - the package's description, and the registration of the loader in the library's stub
 - `internal/test/containerprobe/main.go` - the static fixture program the fixture image holds
 - `internal/le/test/qemu/containerboot.go` - the appliance boot proof
 - `docs/architecture/container/runtime.md` - the design page the plugin's files name

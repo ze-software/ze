@@ -149,6 +149,17 @@ CONFIG_CRYPTO_SHA1
 CONFIG_CRYPTO_SHA256
 CONFIG_CRYPTO_SHA512
 
+# Containers Ze runs itself (internal/plugins/container). CFS_BANDWIDTH is the
+# enrolled capability container-cpu-limit, the hard CPU limit, and
+# FAIR_GROUP_SCHED is what it depends on. TMPFS backs a container's
+# memory-backed mounts and MEMFD_CREATE the sealed copy of its init binary:
+# both were set only because nothing turned them off, and a line here fails
+# the kernel build if a defconfig ever does.
+CONFIG_FAIR_GROUP_SCHED
+CONFIG_CFS_BANDWIDTH
+CONFIG_TMPFS
+CONFIG_MEMFD_CREATE
+
 # Docker (D-5): moby contrib/check-config.sh at commit
 # 9fabd6dfbb926381278c436a866bc8d6ac222274, "Generally Necessary" for a 5.3+
 # kernel plus OVERLAY_FS, USER_NS and CGROUP_PIDS from "Optional Features".

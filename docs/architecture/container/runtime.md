@@ -8,7 +8,8 @@ the one `ze` binary.
 **Status: wiring.** The patch series and its guard test, the init role, the
 `container` plugin with its config root, its static verifier and its restart
 command, the seams toward the image store, the participants and the filter,
-and the build gate exist. The start sequence is not built: no `ze` build
+its doctor codes, its runtime doctor checks, one kernel requirement and the
+build gate exist. The start sequence is not built: no `ze` build
 starts a container today, and a config that enables one is refused. This page
 states what exists and grows with the work.
 
@@ -134,6 +135,87 @@ accepted and held in the `disabled` state.
 <!-- source: internal/plugins/container/config.go -- parseContainerSections, checkConfigRules, refuseUnbuiltRuntime -->
 <!-- source: internal/plugins/container/container.go -- runContainerEngine, handleCommand -->
 <!-- source: internal/plugins/container/supervise.go -- supervisor.install, supervisor.restart, supervisor.drain -->
+
+## Doctor codes, runtime checks and the kernel requirement
+
+The plugin registers every code it owns from its own package
+(`registerContainerDiagnosticCodes`), never from the always-on code table, so
+a build without `ze_container` holds none of them. `ze show diagnostic <code>`
+explains each one.
+
+| Code | Problem | Reported by |
+|------|---------|-------------|
+| `doctor-container-not-privileged` | The process that judged a container config does not run as root | No check yet |
+| `doctor-container-cgroup-unavailable` | The cgroup v2 hierarchy is not at `/sys/fs/cgroup`, or a controller cannot be enabled | No check yet |
+| `doctor-container-seal-copies-binary` | The init binary can only be sealed by copying it into memory | No check yet |
+| `doctor-container-out-of-memory` | A container was killed for memory | Runtime check `container-out-of-memory` |
+| `doctor-container-process-limit` | A container reached its process limit | Runtime check `container-process-limit` |
+| `doctor-container-stop-killed` | A container ignored its stop signal and was killed | Runtime check `container-stop-killed` |
+| `doctor-container-cleanup-incomplete` | A container left processes, a control group or a mount behind | Runtime check `container-cleanup-incomplete` |
+| `doctor-container-kernel-cpu-limit-unavailable`, `doctor-container-kernel-cpu-limit-unknown` | The kernel has no hard CPU limit, or Ze could not tell | The kernel enrolment `container-cpu-limit` |
+
+The first three codes are registered and explained. No doctor check reports
+them today: their checks arrive with the code that reads the host.
+
+### Runtime checks
+
+The four runtime checks are declared in the plugin's Stage 1 registration
+(`engineRegistration`) at the `runtime` phase and answered by its doctor
+callback (`supervisor.answerDoctorCheck`), because the records they read live
+in the plugin's process, internal and forked alike
+(`docs/architecture/doctor-and-health-checks.md`, "The runtime phase"). One
+table, `runtimeDoctorChecks`, holds each check's declaration, the problem it
+reports and its fix, so a declared check is an answered check. A name the
+plugin did not declare is refused, never answered as healthy.
+
+Each finding names the container and carries the command that fixes it: the
+`set container instance NAME` statement of the limit or the stop timeout to
+raise, or `ze request container restart name NAME` for a cleanup that did not
+finish.
+
+The supervisor holds the records: one entry for each container and kind of
+problem (`supervisor.recordProblem`, `supervisor.namesWith`). A record is
+refused for a container the configuration does not hold, and a container that
+leaves the configuration takes its records with it. Nothing writes a record
+today: the code that ends a container, reads its control group's events and
+sweeps leftovers does not exist yet, so every runtime check answers no
+finding. The statements the fixes name (`memory`, `process-limit`,
+`stop-timeout`) are not in the schema yet either; each arrives with the code
+that writes its record.
+
+<!-- source: internal/plugins/container/doctor.go -- containerDiagnosticCodes, runtimeDoctorChecks, runtimeDoctorCheckDecls, supervisor.answerDoctorCheck -->
+<!-- source: internal/plugins/container/register.go -- registerContainerDiagnosticCodes -->
+<!-- source: internal/plugins/container/container.go -- engineRegistration -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.recordProblem, supervisor.namesWith -->
+<!-- test: internal/plugins/container/doctor_test.go TestContainerDoctorChecksAnswerThroughTheCallback, TestContainerDiagnosticCodesRegisterFromThePlugin -->
+
+### The kernel requirement
+
+A container's hard CPU limit needs CPU bandwidth control
+(`CONFIG_CFS_BANDWIDTH`): without it a control group has no `cpu.max` file.
+The plugin enrols it as the kernel capability `container-cpu-limit`
+(`docs/architecture/doctor-and-health-checks.md`, "Kernel capabilities: one
+enrolment, three callers"), so `ze config validate`, the start and a reload
+refuse a configuration that holds a container to run on a kernel without it,
+and doctor names it. A configuration whose containers are all disabled is not
+judged: nothing runs.
+
+A capability of this plugin is named `container-NAME`, and its two codes are
+`doctor-container-kernel-NAME-unavailable` and
+`doctor-container-kernel-NAME-unknown`. The probe reads whether
+`/proc/sys/kernel/sched_cfs_bandwidth_slice_us` exists, a setting the
+scheduler registers only under that option. It answers unknown, never absent,
+when `/proc/sys/kernel` cannot be read, and unknown refuses nothing.
+
+`gokrazy/kernel/runtime.config` requests `CONFIG_CFS_BANDWIDTH` and
+`CONFIG_FAIR_GROUP_SCHED`, which it depends on. `gokrazy/kernel/runtime.require`
+declares both, with `CONFIG_TMPFS` and `CONFIG_MEMFD_CREATE`, so a kernel
+build that loses one fails. A runtime kernel built before this change holds
+no `CONFIG_CFS_BANDWIDTH`.
+
+<!-- source: internal/plugins/container/kernelcap_linux.go -- containerKernelCapabilities, containerInUse, cpuLimitProbe, sysctlPresence -->
+<!-- source: internal/plugins/container/register_kernelcap_linux.go -- init -->
+<!-- test: internal/plugins/container/kernelcap_linux_test.go TestContainerKernelCapabilitiesAreEnrolled, TestSysctlPresenceTellsAbsentFromUnknown -->
 
 ## The seams inside the plugin
 
