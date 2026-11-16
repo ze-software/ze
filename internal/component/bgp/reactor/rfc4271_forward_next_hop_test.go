@@ -13,6 +13,7 @@ import (
 	"github.com/ze-software/ze/internal/component/bgp/message"
 	bgptypes "github.com/ze-software/ze/internal/component/bgp/types"
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
+	"github.com/ze-software/ze/internal/core/family"
 )
 
 // The RFC 4271 Section 5.1.3 egress gate on both forward rails. The peers, the
@@ -36,6 +37,23 @@ var nhAnnouncedPrefix = []byte{24, 10, 0, 0}
 
 // nhPayload builds an announcement of 10.0.0.0/24 with the given NEXT_HOP.
 func nhPayload(nextHop string) []byte {
+	addr := netip.MustParseAddr(nextHop).As4()
+	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN igp
+	aspValue := []byte{0x02, 0x01, 0x00, 0x00}
+	binary.BigEndian.PutUint16(aspValue[2:], 65001)
+	attrs = append(attrs, 0x40, 0x02, byte(len(aspValue)))
+	attrs = append(attrs, aspValue...)
+	attrs = append(attrs, 0x40, 0x03, 0x04)
+	attrs = append(attrs, addr[:]...)
+	return buildUpdatePayload(attrs, nhAnnouncedPrefix)
+}
+
+// nhRawPayload retains the original ASN2 body for raw predicate tests.
+// It does not model the canonical forwarding-cache boundary.
+// RFC 6793 Section 3: "The AS_PATH attribute and the AGGREGATOR attribute
+// carried between a NEW BGP speaker and an OLD BGP speaker will continue to
+// contain two-octet AS numbers."
+func nhRawPayload(nextHop string) []byte {
 	addr := netip.MustParseAddr(nextHop).As4()
 	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN igp
 	aspValue := []byte{0x02, 0x01, 0x00, 0x00}
@@ -338,7 +356,7 @@ func TestEgressNextHopIsPeerOwnReadsTheRewrittenAddress(t *testing.T) {
 // the address, and the RFC 2545 form carries a second address after it.
 func TestPayloadNextHop(t *testing.T) {
 	t.Run("legacy-attribute", func(t *testing.T) {
-		got := payloadNextHop(nhPayload("192.0.2.10"))
+		got := payloadNextHop(nhRawPayload("192.0.2.10"))
 		assert.Equal(t, netip.MustParseAddr("192.0.2.10"), got.legacy)
 		assert.True(t, got.has(netip.MustParseAddr("192.0.2.10")))
 		assert.False(t, got.has(netip.MustParseAddr("192.0.2.11")))
@@ -385,16 +403,31 @@ func TestPayloadNextHop(t *testing.T) {
 		// defines the field by its AFI/SAFI, so a length nobody defined names no
 		// address, and inventing one from a truncated field is how a guard starts
 		// comparing against bytes that are not an address.
-		for _, n := range []int{0, 3, 5, 11, 13, 15, 17, 23, 25, 31, 33, 47, 49} {
-			a, ll := nextHopAddr(make([]byte, n))
-			assert.False(t, a.IsValid(), "length %d names no next hop", n)
-			assert.False(t, ll.IsValid(), "length %d names no link-local next hop", n)
+		for _, fam := range []family.Family{
+			family.IPv4Unicast,
+			{AFI: family.AFIIPv4, SAFI: family.SAFIVPN},
+		} {
+			for _, n := range []int{0, 3, 5, 11, 13, 15, 17, 23, 25, 31, 33, 47, 49} {
+				a, ll, _ := nextHopAddr(make([]byte, n), fam)
+				assert.False(t, a.IsValid(), "family %s length %d names no next hop", fam, n)
+				assert.False(t, ll.IsValid(), "family %s length %d names no link-local next hop", fam, n)
+			}
 		}
-		// The documented lengths all do name one, so the assertion above is about
-		// the boundary rather than about nextHopAddr never answering.
-		for _, n := range []int{4, 12, 16, 24, 32, 48} {
-			a, _ := nextHopAddr(make([]byte, n))
-			assert.True(t, a.IsValid(), "length %d is a documented next-hop field", n)
+		// Each documented length is read in its actual plain or RD-framed
+		// family. These remain decoder controls, separate from role admission.
+		for _, tc := range []struct {
+			fam    family.Family
+			octets int
+		}{
+			{family.IPv4Unicast, 4},
+			{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}, 12},
+			{family.IPv4Unicast, 16},
+			{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}, 24},
+			{family.IPv4Unicast, 32},
+			{family.Family{AFI: family.AFIIPv4, SAFI: family.SAFIVPN}, 48},
+		} {
+			a, _, _ := nextHopAddr(make([]byte, tc.octets), tc.fam)
+			assert.True(t, a.IsValid(), "family %s length %d is a documented next-hop field", tc.fam, tc.octets)
 		}
 	})
 

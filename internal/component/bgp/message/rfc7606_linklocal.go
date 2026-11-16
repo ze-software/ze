@@ -4,14 +4,17 @@
 
 package message
 
-import "net/netip"
+import (
+	"encoding/binary"
+	"net/netip"
 
-// linkLocalPairOctets is the Next Hop Length of the two-address field, a Global (or
-// Link-Local) IPv6 address followed by a Link-Local one (RFC 2545 Section 3).
-const linkLocalPairOctets = 32
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
+)
 
-// validateLinkLocalNextHopPair judges the addresses inside a 32-octet MP_REACH_NLRI
-// Next Hop field, on a session that negotiated the Link-Local Next Hop capability.
+// validateLinkLocalNextHopPair judges a complete IPv6 pair through its family
+// profile, on a session that negotiated the Link-Local Next Hop capability.
+// RD-framed profiles with IPv6 roles use the same address slots. VPN128 retains
+// its separate RFC 4659 contract.
 //
 // draft-ietf-idr-linklocal-capability Section 6: "These procedures apply only when
 // the Link-Local Next Hop Capability has been negotiated for a BGP session." The
@@ -28,7 +31,7 @@ const linkLocalPairOctets = 32
 //   - two Link-Locals: "Receivers SHOULD use the second Link-Local IPv6 address for
 //     forwarding", a form the draft says "has been observed in deployment".
 //
-// Every other 32-octet field is malformed. A second half that is not Link-Local
+// Every other IPv6 pair is malformed. A second half that is not Link-Local
 // (fe80::/10, RFC 4291 Section 2.5.6) leaves no Link-Local next hop to forward on,
 // and a first half that is neither Global unicast, ::, nor Link-Local (multicast,
 // loopback, an IPv4-mapped address) is not "a Global IPv6". Global is read as
@@ -38,29 +41,49 @@ const linkLocalPairOctets = 32
 // The length is not judged here. A wrong Next Hop Length is an RFC 7606 Section
 // 7.11 session reset that validateMPReachNextHop has already returned, and a field
 // that overruns the attribute is one validateMPNLRIField has already returned, so
-// data holds the whole field whenever its length octet reads 32.
+// data holds the complete field before profile decoding.
 func validateLinkLocalNextHopPair(data []byte) *RFC7606ValidationResult {
 	if len(data) < 4 {
 		return nil
 	}
-	if int(data[3]) != linkLocalPairOctets {
+	nhLen := int(data[3])
+	if len(data) < 4+nhLen {
 		return nil
 	}
-	if len(data) < 4+linkLocalPairOctets {
+	afi := attribute.AFI(binary.BigEndian.Uint16(data[:2]))
+	profile := attribute.MPNextHopProfile(afi, attribute.SAFI(data[2]))
+	if profile.RDPerAddress {
+		if !profile.IPv6Roles {
+			return nil
+		}
+	}
+	hops, err := profile.DecodeNextHops(afi, data[4:4+nhLen])
+	if err != nil {
+		// An unmodeled field has no decoded IPv6 pair. Known width and
+		// envelope errors already have their RFC7606 verdict.
 		return nil
 	}
-	first := netip.AddrFrom16([16]byte(data[4:20]))
-	second := netip.AddrFrom16([16]byte(data[20:36]))
+	if hops.Len() != 2 {
+		return nil
+	}
+	first, second := hops.Slice()[0], hops.Slice()[1]
+	if !first.Is6() {
+		return nil
+	}
 	if linkLocalNextHopPairWellFormed(first, second) {
 		return nil
 	}
 	// draft-ietf-idr-linklocal-capability Section 6: "If the Next Hop field is
 	// malformed, the implementation MUST handle the malformed UPDATE message using
 	// the approach of "treat-as- withdraw", as described in section 7.3 of [RFC7606]."
+	description := "draft-ietf-idr-linklocal-capability Section 6: 32-octet Next Hop is not a Global followed by a Link-Local"
+	if profile.RDPerAddress {
+		description = "draft-ietf-idr-linklocal-capability Section 6: RD-framed Next Hop is not a Global followed by a Link-Local"
+	}
 	return &RFC7606ValidationResult{
 		Action:      RFC7606ActionTreatAsWithdraw,
 		AttrCode:    attrCodeMPReachNLRI,
-		Description: "draft-ietf-idr-linklocal-capability Section 6: 32-octet Next Hop is not a Global followed by a Link-Local",
+		Description: description,
 	}
 }
 

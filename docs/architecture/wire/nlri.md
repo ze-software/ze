@@ -743,6 +743,19 @@ prefix. A membership naming one of the two fields is refused rather than
 written with a zero.
 <!-- source: internal/component/bgp/plugins/nlri/rtc/encode.go -- EncodeNLRIHex, parseMembership -->
 
+### MP next-hop address readers
+
+`MPReachWire.NextHop` and the full-UPDATE CLI decoder read the first address
+through `attribute.MPNextHopProfile` with the field's actual AFI and SAFI. The
+LS plugin declares plain LS71 and per-address RD-framed LS72 separately, so an
+RD is skipped rather than read as part of the address. Received RD values are
+not normalized. The wire view's `NextHopBytes` and `NLRIBytes` remain borrowed,
+complete fields; reading an address neither copies nor rewrites those bytes.
+Undecodable next-hop fields yield an invalid address from the wire accessor and
+raw hex in the CLI, while an empty CLI field reads `no-nexthop`.
+<!-- source: internal/component/bgp/wireu/mpwire.go -- MPReachWire.NextHop, MPReachWire.NextHopBytes, MPReachWire.NLRIBytes -->
+<!-- source: internal/component/bgp/cli/decode_mp.go -- buildMPReachZe, parseNextHop -->
+
 ### ADD-PATH Decoding for Plugin Families (RFC 7911)
 
 A family with no dedicated in-process parser (mpls-vpn, evpn, flowspec, mup,

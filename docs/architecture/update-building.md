@@ -181,8 +181,27 @@ loopback address as an advertised global next hop.
 <!-- test: internal/component/bgp/reactor/rfc2545_peer_send_test.go TestSendAnnounceAppendsLinkLocalWhenSection3Holds -->
 <!-- test: internal/component/bgp/reactor/peer_initial_sync_test.go TestDefaultOriginateAppendsLinkLocalWhenSection3Holds -->
 
-The shared `attribute.MPNextHopProfile` declares field widths, plain IPv6 address
-roles, mapped-address exceptions and RFC 8950 capability scope in one place.
+The shared `attribute.MPNextHopProfile` declares field widths, IPv6 address
+roles, RD framing, mapped-address exceptions and RFC 8950 capability scope.
+The LS plugin registers its own plain and VPN profiles from `init()`.
+The engine has no LS-specific framing branch.
+<!-- source: internal/core/bgp/attribute/mpnlri.go -- MPNextHopProfile -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- init -->
+
+`BuildPlugin` selects the actual address once. It uses the profile's default
+conversion and the caller's `MapV4NextHop` request with `IsIPv6`.
+It validates that selected value and passes it unchanged to the shared buffer
+writer.
+<!-- source: internal/core/bgp/attribute/mpnexthop.go -- NextHopProfile.SelectAddress -->
+<!-- source: internal/component/bgp/message/update_build_plugin.go -- BuildPlugin, buildMPReachPlugin -->
+
+MUP retains its explicit mapped request even where no profile is registered.
+SR Policy retains native IPv4. The typed attribute and VPN builder use the same
+framing operations.
+<!-- source: internal/component/bgp/message/update_build_plugin.go -- BuildPlugin -->
+<!-- source: internal/core/bgp/attribute/mpnexthop.go -- NextHopProfile.WriteNextHops -->
+<!-- source: internal/component/bgp/message/update_build_vpn.go -- buildMPReachVPN -->
+
 `ValidNextHopLens` derives its answer from that declaration. Native IPv6
 unicast, multicast and labeled fields use 16/32 octets. Their plain IPv4
 counterparts also admit four octets, and IPv6 fields require the exact negotiated
@@ -291,7 +310,12 @@ their second IPv6 link-local unicast. An invalid slot causes a native withdrawal
 not an announcement with the malformed pair retained or silently trimmed.
 The existing RFC 4659 48-octet VPN exception still permits its canonical
 unspecified first address with a valid link-local second address on qualifying
-peering. Capability 77's negotiated single-address form remains separate.
+peering. Capability 77's negotiated single-address form remains separate and
+always uses the plain 16-octet field. The common validator refuses an RD-framed
+standalone IPv6 Link-Local even when capability 77 is negotiated, before the
+plugin builder or final session writer can emit it. This wire-form check
+precedes the profile's separate address-role rules, so VPN128 retains its native
+and mapped IPv4 forms and qualified unspecified-Global pair.
 Validation judges effective policy output, not an obsolete received pair, and
 preserves a valid legacy sibling in mixed input. These checks validate address
 roles and wire forms, not next-hop-entity adjacency.
@@ -339,22 +363,32 @@ one. A route the
 session writes through its egress gate, the API batch announce among them,
 reaches the same decision there (`normalizeVPNNextHop`), which asks
 `applyEgressNextHopScope` rather than decide again.
-An IPv4 next hop of a VPN-IPv6 route is written as 24 octets, zero RD and the
-IPv4-mapped IPv6 address (RFC 4659 Section 3.2.1.2), by the configured builder
-(`vpnNextHopOctets`) and by the attribute encoder the API batch announce uses
-(`MPReachNLRI.wireNextHop`); the 12-octet form is VPN-IPv4's alone.
-Under `next-hop self` or an explicit next hop, the forwarding rails write the
-SAFI 128 form of the configured address, never the plain one: 24 octets (zero
-RD, global), or 48 when the VPN-IPv6 link-local decision holds, which the
+An IPv4 next hop of a VPN-IPv6 route occupies 24 octets. The field contains a
+zero RD and the IPv4-mapped IPv6 address (RFC 4659 Section 3.2.1.2).
+The configured VPN builder and typed attribute encoder use the same profile
+default for this conversion. Profiles admitting RD plus native IPv4 use 12
+octets. VPN-IPv4 and LS-VPN have such profiles.
+<!-- source: internal/component/bgp/message/update_build_vpn.go -- buildMPReachVPN -->
+<!-- source: internal/core/bgp/attribute/mpnlri.go -- MPReachNLRI.WriteTo, MPNextHopProfile -->
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- init -->
+
+Under `next-hop self` or an explicit next hop, the forwarding rails select RD
+framing from the family's profile. SAFI 128 uses 24 octets (zero RD, global),
+or 48 when the VPN-IPv6 link-local decision holds, which the
 facts snapshot records apart from the RFC 2545 one (`nhVPNLinkLocal`); 12 octets (zero RD,
 IPv4) for VPN-IPv4 and 24 (zero RD, IPv4-mapped IPv6, RFC 4659 Section 3.2.1.2)
-for VPN-IPv6 under an IPv4 next hop. The forms are built once per forwarding
-facts snapshot. The MP_REACH materializer keeps the received next hop rather
+for VPN-IPv6 under an IPv4 next hop. LS-VPN uses the same 12/24/48 layouts,
+but selects its second address only under RFC 2545's joint-subnet condition.
+The shared profile writer builds the RD forms once per forwarding facts
+snapshot. The MP_REACH materializer keeps the received next hop rather
 than write a length outside the family's own table.
+This decision applies to the last nonempty Set, even when an earlier Set has a
+valid width. The final address classifier makes the same selection and retains
+the received field when that last Set cannot be written.
 A configured IPv6 labeled-unicast route (SAFI 4) carries the same decided
 link-local in `LabeledUnicastParams.LinkLocalNextHop`, and
 `buildMPReachLabeledUnicast` writes the 32-octet RFC 2545 Section 3 field.
-<!-- source: internal/component/bgp/message/update_build_vpn.go -- buildMPReachVPN, vpnNextHopOctets -->
+<!-- source: internal/component/bgp/message/update_build_vpn.go -- buildMPReachVPN, vpnLinkLocalNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- applyEgressNextHopScope, egressLinkLocal -->
 <!-- source: internal/component/bgp/reactor/link_scope.go -- linkScope.linkLocalNextHop, linkScope.thirdPartyLinkLocal -->
 <!-- source: internal/component/bgp/reactor/link_scope_neighbors.go -- warnNeighborTableUnread, NeighborTableFix -->

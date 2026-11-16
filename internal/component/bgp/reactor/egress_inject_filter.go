@@ -233,7 +233,8 @@ func (r *Reactor) normalizeOrdinaryNextHop(peer *Peer, facts *peerForwardFacts, 
 		return nil, modifyFailureNone
 	}
 	field := value[4 : 4+octets]
-	global, suppliedLL := nextHopAddr(field)
+	fam := family.Family{AFI: family.AFI(binary.BigEndian.Uint16(value)), SAFI: family.SAFI(value[2])}
+	global, suppliedLL, _ := nextHopAddr(field, fam)
 	// RFC 2545 Section 3; RFC 8950 Section 3; RFC 9830 Section 2.1:
 	// validate both original slots before trimming could conceal an invalid one.
 	if message.ValidateMPNextHop(profile, octets, global, suppliedLL) != nil {

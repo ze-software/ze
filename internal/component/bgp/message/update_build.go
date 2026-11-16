@@ -406,40 +406,71 @@ func unicastLinkLocalNextHop(p *UnicastParams) netip.Addr {
 	return netip.Addr{}
 }
 
-// ValidateFamilyNextHop checks the plain field a builder will serialize.
+// ValidateFamilyNextHop checks the selected addresses a builder will serialize,
+// including their profile's per-address framing. Callers MUST select address
+// form before admission and separately establish negotiated permission.
 // RFC 8950 Section 3: "The BGP speaker receiving the advertisement MUST use the
 // Length of Next Hop Address field to determine which network-layer protocol
-// the next-hop address belongs to." BitLen counts exactly the address octets.
-// Callers MUST separately establish negotiated permission before sending.
+// the next-hop address belongs to."
 func ValidateFamilyNextHop(fam family.Family, nextHop, linkLocal netip.Addr) error {
 	profile := attribute.MPNextHopProfile(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI))
 	// RFC 2545 Section 3; RFC 9830 Section 2.1.
-	return ValidateMPNextHop(profile, nextHop.BitLen()/8+linkLocal.BitLen()/8, nextHop, linkLocal)
+	return ValidateMPNextHop(profile, profile.NextHopLen(nextHop, linkLocal), nextHop, linkLocal)
 }
 
-// ValidateMPNextHop admits the actual plain IPv6-role field, before any address
-// normalization could hide its width. VPN and independent plugin contracts are
-// not plain fields and retain their own admission.
+// ValidateMPNextHop refuses RD-framed standalone IPv6 Link-Local fields, then
+// admits the actual field of an IPv6-role profile, including RD framing.
+// Profiles without these roles retain their separate admission for other forms.
 // RFC 9830 Section 2.1: "The Length field of the next-hop address specifies the
-// next-hop address family." The field is IPv4(4), IPv6(16), or IPv6+LL(32).
+// next-hop address family."
 // Callers MUST obtain profile from attribute.MPNextHopProfile and separately
-// check capability 5 and standalone link-local permission.
+// check capability 5 and standalone link-local permission. This function never
+// selects or converts an address.
 func ValidateMPNextHop(profile attribute.NextHopProfile, octets int, nextHop, linkLocal netip.Addr) error {
+	// draft-ietf-idr-linklocal-capability Section 3: "If an implementation
+	// intends to send a single IPv6 Link-Local forwarding address in the Next
+	// Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop
+	// field to 16 and include only the IPv6 Link-Local address in the Next Hop
+	// field."
+	// Framing constrains this form even when a VPN profile owns other address
+	// roles separately. Native and mapped IPv4 Link-Local addresses are not
+	// IPv6 Link-Local; a qualified unspecified-Global pair has a second address.
+	if profile.RDPerAddress {
+		if !linkLocal.IsValid() {
+			if nextHop.IsLinkLocalUnicast() {
+				if nextHop.Unmap().Is6() {
+					return ErrUnicastNextHopUnusable
+				}
+			}
+		}
+	}
 	if !profile.IPv6Roles {
 		return nil
 	}
 	if !slices.Contains(profile.Lengths, octets) {
 		return ErrUnicastNextHopUnusable
 	}
-	if octets == 4 {
-		if nextHop.Is4() && !linkLocal.IsValid() {
-			return nil
+	// The address types provide widths without conversion. The profile adds
+	// their framing, so native IPv4 is 4 octets in plain fields and 12 in RD
+	// fields, and a mapped single occupies the framed IPv6 width.
+	if octets == profile.NextHopOctets(netip.IPv4Unspecified()) {
+		if !nextHop.Is4() {
+			return ErrUnicastNextHopUnusable
 		}
-		return ErrUnicastNextHopUnusable
-	}
-	if profile.MappedIPv4 && octets == 16 && !linkLocal.IsValid() && nextHop.Unmap().Is4() {
-		// RFC 8950 Section 1 recognizes this IPv4 next-hop representation.
+		if linkLocal.IsValid() {
+			return ErrUnicastNextHopUnusable
+		}
 		return nil
+	}
+	if profile.MappedIPv4 {
+		if octets == profile.NextHopOctets(netip.IPv6Unspecified()) {
+			if !linkLocal.IsValid() {
+				if nextHop.Unmap().Is4() {
+					// RFC 8950 Section 1 recognizes this representation.
+					return nil
+				}
+			}
+		}
 	}
 	// RFC 2545 Section 3: global first, optional link-local second.
 	return ValidateIPv6NextHop(nextHop, linkLocal)

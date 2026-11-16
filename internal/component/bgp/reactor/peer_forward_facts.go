@@ -123,8 +123,8 @@ type peerForwardFacts struct {
 	nhMapped   [16]byte
 	nhGlobal   [16]byte
 	nhGlobalLL [32]byte
-	// The SAFI 128 forms of the same addresses, each preceded by a zero RD
-	// (precomputeVPNNextHop). applyFactsNextHop slices them by family and mode.
+	// The RD-framed forms of the same addresses (precomputeVPNNextHop).
+	// applyFactsNextHop selects framing from the profile, independently of scope.
 	nhVPNv4     [12]byte                   // RD + IPv4
 	nhVPNMapped [24]byte                   // RD + IPv4-mapped IPv6
 	nhVPNPair   [vpnNextHopPairOctets]byte // RD + global, RD + link-local
@@ -782,68 +782,68 @@ func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, mpFa
 		return
 	case nhModeSelf4, nhModeExplicit4:
 		mods.Op(3, filterapi.AttrModSet, f.nhLegacy[:])
-		if mpFamily.SAFI == family.SAFIVPN {
-			// RFC 4364 Section 4.3.2: the next hop of a VPN-IPv4 route is a
-			// VPN-IPv4 address whose RD is zero. RFC 4659 Section 3.2.1.2: for
-			// VPN-IPv6 over IPv4 transport the field is "a VPN-IPv6 address:
-			// whose 8-octet RD is set to zero, and whose 16-octet IPv6 address
-			// is encoded as an IPv4-mapped IPv6 address [V6ADDR] containing the
-			// IPv4 address of the advertising BGP speaker."
-			if mpFamily.AFI == family.AFIIPv6 {
-				mods.Op(14, filterapi.AttrModSet, f.nhVPNMapped[:])
+		profile := attribute.MPNextHopProfile(attribute.AFI(mpFamily.AFI), attribute.SAFI(mpFamily.SAFI))
+		// This value witnesses the address form only; its bytes never leave.
+		// The actual address already has immutable native and mapped buffers.
+		// Native width includes the profile's RD, so LS-VPN selects twelve
+		// octets instead of requesting mapping because four is absent.
+		native := netip.IPv4Unspecified()
+		mapV4 := false
+		if len(profile.Lengths) != 0 {
+			mapV4 = !slices.Contains(profile.Lengths, profile.NextHopOctets(native))
+		}
+		// RFC 4659 Section 3.2.1.2: the VPN-IPv6 profile requests mapped
+		// encoding by default. Other profiles retain their own declared form.
+		selected := profile.SelectAddress(native, mapV4)
+		if profile.RDPerAddress {
+			if selected.Is4() {
+				mods.Op(14, filterapi.AttrModSet, f.nhVPNv4[:])
 				return
 			}
-			mods.Op(14, filterapi.AttrModSet, f.nhVPNv4[:])
+			mods.Op(14, filterapi.AttrModSet, f.nhVPNMapped[:])
 			return
 		}
-		// Choose the bytes before admission and materialization read the
-		// operation. An empty length table adds no family restriction, as in
-		// familyAdmitsNextHopOctets and the typed MP writer's wireNextHop.
-		// Preserve native IPv4 in that case instead of inventing a mapped
-		// IPv6 field. Known profiles that exclude four octets retain their
-		// mapped form; IPv6 unicast uses it under RFC 8950 Section 1.
-		lengths := attribute.ValidNextHopLens(attribute.AFI(mpFamily.AFI), attribute.SAFI(mpFamily.SAFI))
-		if len(lengths) == 0 {
-			mods.Op(14, filterapi.AttrModSet, f.nhLegacy[:])
-			return
-		}
-		if slices.Contains(lengths, 4) {
+		if selected.Is4() {
 			mods.Op(14, filterapi.AttrModSet, f.nhLegacy[:])
 			return
 		}
 		mods.Op(14, filterapi.AttrModSet, f.nhMapped[:])
-	case nhModeSelfV6, nhModeExplicitV6:
-		if mpFamily.SAFI == family.SAFIVPN {
-			mods.Op(14, filterapi.AttrModSet, f.vpnIPv6NextHop())
+	case nhModeSelfV6, nhModeSelfV6LL, nhModeExplicitV6:
+		profile := attribute.MPNextHopProfile(attribute.AFI(mpFamily.AFI), attribute.SAFI(mpFamily.SAFI))
+		if profile.RDPerAddress {
+			mods.Op(14, filterapi.AttrModSet, f.rdIPv6NextHop(mpFamily))
+			return
+		}
+		if f.nhMode == nhModeSelfV6LL {
+			mods.Op(14, filterapi.AttrModSet, f.nhGlobalLL[:])
 			return
 		}
 		mods.Op(14, filterapi.AttrModSet, f.nhGlobal[:])
-	case nhModeSelfV6LL:
-		if mpFamily.SAFI == family.SAFIVPN {
-			mods.Op(14, filterapi.AttrModSet, f.vpnIPv6NextHop())
-			return
-		}
-		mods.Op(14, filterapi.AttrModSet, f.nhGlobalLL[:])
 	}
 }
 
-// vpnIPv6NextHop returns the VPN-IPv6 Next Hop field for an IPv6 next hop.
+// rdIPv6NextHop selects an RD-framed field without changing its scope condition.
+// LS-VPN uses the joint-subnet decision already recorded by nhModeSelfV6LL.
 //
 // RFC 4659 Section 3.2.1.1: "The value of the Length of the Next Hop Network
 // Address field in the MP_REACH_NLRI attribute shall be set to 24 when only a
 // global address is present, and to 48 if a link-local address is also
-// included in the Next Hop field." applyLinkLocalNextHop decided the inclusion
-// on that section's own condition, independently of nhMode's RFC 2545 one.
-func (f *peerForwardFacts) vpnIPv6NextHop() []byte {
-	if f.nhVPNLinkLocal {
+// included in the Next Hop field." Only that family's peer-only condition uses
+// nhVPNLinkLocal; RD framing alone does not confer its exception on LS-VPN.
+func (f *peerForwardFacts) rdIPv6NextHop(fam family.Family) []byte {
+	includeLinkLocal := f.nhMode == nhModeSelfV6LL
+	if linkLocalConditionFor(fam) == linkLocalConditionPeer {
+		includeLinkLocal = f.nhVPNLinkLocal
+	}
+	if includeLinkLocal {
 		return f.nhVPNPair[:]
 	}
 	return f.nhVPNPair[:24]
 }
 
-// precomputeVPNNextHop writes the SAFI 128 forms of the configured next hop,
-// once per facts snapshot, so the forward rails slice them and copy nothing.
-// The link-local half of nhVPNPair is written by applyLinkLocalNextHop.
+// precomputeVPNNextHop writes the reusable RD-framed forms once per facts
+// snapshot, so the forward rails slice them and copy nothing. The existing VPN
+// profiles supply the shared layout; the emitting family's profile admits it.
 //
 // RFC 4659 Section 3.2.1.1: each VPN-IPv6 address of the Next Hop field has
 // its "8-octet RD is set to zero"; the RD slots keep the zero value.
@@ -852,9 +852,22 @@ func (f *peerForwardFacts) vpnIPv6NextHop() []byte {
 //	nhVPNMapped: +0 RD=0 +8 ::ffff:IPv4 +24
 //	nhVPNPair:   +0 RD=0 +8 Global +24 RD=0 +32 Link-Local +48
 func precomputeVPNNextHop(f *peerForwardFacts) {
-	copy(f.nhVPNv4[8:], f.nhLegacy[:])
-	copy(f.nhVPNMapped[8:], f.nhMapped[:])
-	copy(f.nhVPNPair[8:24], f.nhGlobal[:])
+	v4Profile := attribute.MPNextHopProfile(attribute.AFIIPv4, attribute.SAFIVPN)
+	v6Profile := attribute.MPNextHopProfile(attribute.AFIIPv6, attribute.SAFIVPN)
+	// RFC 4364 Section 4.3.4 and RFC 4659 Section 3.2.1.2: each address has
+	// a zero RD, including the already-selected mapped IPv4 form.
+	v4Profile.WriteNextHops(f.nhVPNv4[:], 0, netip.AddrFrom4(f.nhLegacy), netip.Addr{})
+	v6Profile.WriteNextHops(f.nhVPNMapped[:], 0, netip.AddrFrom16(f.nhMapped), netip.Addr{})
+	var linkLocal netip.Addr
+	if f.nhMode == nhModeSelfV6LL {
+		// The joint condition may select another router's neighbor-table
+		// address, which the VPN peer-only decision deliberately does not.
+		linkLocal = netip.AddrFrom16([16]byte(f.nhGlobalLL[16:]))
+	} else if f.nhVPNLinkLocal {
+		linkLocal = netip.AddrFrom16([16]byte(f.nhVPNPair[32:]))
+	}
+	// RFC 4659 Section 3.2.1.1: the second address gets its own zero RD.
+	v6Profile.WriteNextHops(f.nhVPNPair[:], 0, netip.AddrFrom16(f.nhGlobal), linkLocal)
 }
 
 func applyFactsSendCommunity(f *peerForwardFacts, mods *filterapi.ModAccumulator) {

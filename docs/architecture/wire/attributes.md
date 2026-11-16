@@ -491,7 +491,42 @@ RFC 4760 - Multiprotocol reachable NLRI.
 | IPv6 Unicast | 32 | IPv6 + link-local IPv6 |
 | VPNv4 | 12 | RD (8) + IPv4 (4) |
 | VPNv6 | 24 | RD (8) + IPv6 (16) |
+| VPN IPv6 pair | 48 | RD (8) + IPv6 (16), repeated for link-local |
+| BGP-LS (16388/71) | 4, 16, 32 | IPv4, IPv6, or IPv6 plus link-local |
+| BGP-LS VPN (16388/72) | 12, 24, 48 | An eight-octet zero RD before each address |
+`attribute.MPNextHopProfile` supplies lengths, address roles and per-address RD
+framing. Linked family plugins register their contract with
+`RegisterMPNextHopProfile` from their `init()`. This is a compile-time codec
+declaration, without a new external-plugin RPC. Registration
+rejects duplicate or built-in keys and copies the input lengths once.
+Lookups return shared read-only lengths.
+<!-- source: internal/core/bgp/attribute/mpnexthop.go -- RegisterMPNextHopProfile -->
+<!-- source: internal/core/bgp/attribute/mpnlri.go -- MPNextHopProfile -->
+
+The typed codec, generic plugin builder and VPN builder share address selection,
+sizing and buffer writing. Selection converts native IPv4 only on an explicit
+caller request or the VPN-IPv6 profile's default. Permission to admit mapped
+input alone does not request conversion. Received fields retain their native
+or mapped form.
+<!-- source: internal/core/bgp/attribute/mpnexthop.go -- NextHopProfile.SelectAddress, NextHopProfile.WriteNextHops -->
+<!-- source: internal/component/bgp/message/update_build_plugin.go -- BuildPlugin -->
+<!-- source: internal/component/bgp/message/update_build_vpn.go -- buildMPReachVPN -->
+
+VPN128's codec retains its legacy unprefixed IPv6 decode independently of strict
+session lengths. The decoder skips received RDs without requiring them to be
+zero. The writer emits zero RDs.
+<!-- source: internal/core/bgp/attribute/mpnexthop.go -- NextHopProfile.DecodeNextHops, NextHopProfile.WriteNextHops -->
 <!-- source: internal/core/bgp/attribute/attribute.go -- AttrMPReachNLRI -->
+<!-- source: internal/core/bgp/attribute/mpnexthop.go -- RegisterMPNextHopProfile, NextHopProfile.SelectAddress, NextHopProfile.DecodeNextHops -->
+
+Complete-field classification uses `NextHopProfile.DecodeNextHopField`.
+Known profiles select their declared RD framing and legacy unprefixed decode.
+For unknown profiles, complete fields retain the 4/12/16/24/32/48-octet layouts
+independently of the NLRI AFI. The typed codec, wire accessor and CLI keep
+`DecodeNextHops`, whose generic IPv4 address-list interpretation is distinct.
+Both contracts share one RD layout decoder and inline address storage.
+Decoding does not grant family or session admission.
+<!-- source: internal/core/bgp/attribute/mpnexthop.go -- NextHopProfile.DecodeNextHopField, NextHopProfile.DecodeNextHops, decodeMPNextHopRD -->
 
 ---
 

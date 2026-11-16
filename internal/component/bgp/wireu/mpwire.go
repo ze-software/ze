@@ -10,6 +10,7 @@ import (
 	"fmt"
 	"net/netip"
 
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/nlri"
 	"github.com/ze-software/ze/internal/core/bgp/nlri/nlrisplit"
 	"github.com/ze-software/ze/internal/core/family"
@@ -95,8 +96,8 @@ func (m MPReachWire) Family() family.Family {
 // RFC 4760 Section 3: the field's width is the octet that precedes it.
 //
 // The WHOLE field, never a decoded address. RFC 2545 Section 3 lets an IPv6 next
-// hop carry a global address followed by a link-local one. NextHop below keeps
-// only the first 16 octets of that pair.
+// hop carry a global address followed by a link-local one. NextHop below returns
+// only the first address of that pair.
 //
 // A caller that STORES a route for later re-advertisement MUST use this instead.
 // The global half alone cannot rebuild the form the source sent (RFC2545-3-1,
@@ -116,58 +117,23 @@ func (m MPReachWire) NextHopBytes() []byte {
 
 // NextHop returns the first next-hop address from the attribute.
 // RFC 4760 Section 3: Next Hop Network Address field.
-// Returns invalid Addr if data is malformed, too short, or the AFI is not
-// IPv4/IPv6 (VPN/EVPN next-hops are family-specific and not decoded here).
+// The family's shared profile determines address widths and RD framing.
+// Returns invalid Addr if the field cannot be decoded or carries no address.
 // Callers MUST check IsValid() before use.
 //
-// A 32-octet RFC 2545 field yields the GLOBAL address alone. Use NextHopBytes
-// when the link-local half matters, which it does for anything that will put
-// these bytes back on the wire.
+// A paired field yields the first address alone. Use NextHopBytes when the
+// second address or received RD matters, including for re-advertisement.
 func (m MPReachWire) NextHop() netip.Addr {
-	nhBytes := m.NextHopBytes()
-	nhLen := len(nhBytes)
-	if nhLen == 0 {
+	afi := attribute.AFI(m.AFI())
+	profile := attribute.MPNextHopProfile(afi, attribute.SAFI(m.SAFI()))
+	hops, err := profile.DecodeNextHops(afi, m.NextHopBytes())
+	if err != nil {
 		return netip.Addr{}
 	}
-
-	// The LENGTH decides the address family of the next hop, not the AFI of the
-	// NLRI it carries. RFC 8950 Section 3 (which obsoletes RFC 5549) advertises
-	// IPv4 NLRI with an IPv6 next hop and states the field for it: "Length of
-	// Next Hop Address = 16 or 32". So an AFI of 1 says nothing about how wide
-	// this field is.
-	//
-	// Reading AFI alone truncated such a next hop to its first four octets and
-	// answered a VALID IPv4 address for them, which is the silently-wrong value
-	// ai/rules/principles.md bans: 0x0BADCAFE... came back as 11.173.202.254,
-	// and a caller could not tell it from a real next hop. Measured against
-	// test/exabgp-compat/encoding/extended-nexthop, whose own expectation states
-	// bad:cafe:bad:cafe:bad:cafe:bad:cafe.
-	//
-	// 32 and 48 are the RFC 2545 Section 3 pair, a global address followed by a
-	// link-local one; the global half alone is what this answers, as the
-	// contract above says. 24 and 48 are the VPN-IPv6 forms, whose 8-octet RD
-	// prefix is not an address, so they stay undecoded here.
-	// The AFI is not consulted at all. It says what the NLRI is, and this field
-	// is described by its own length: RFC 8950 Section 3 carries IPv4 NLRI
-	// behind an IPv6 next hop, and RFC 4761 VPLS (AFI 25) carries an ordinary
-	// one, so a switch on AFI answered nothing for every family but two.
-	//
-	// RFC 4364 Section 4.3.2 prefixes a VPN next hop with an 8-octet Route
-	// Distinguisher set to zero. The RD is not part of the address, so it is
-	// stepped over rather than decoded: 12 is RD+IPv4 and 24 is RD+IPv6, and
-	// RFC 8950 Section 3 states 48 for the RD+IPv6 pair.
-	switch nhLen {
-	case 4:
-		return netip.AddrFrom4([4]byte(nhBytes[:4]))
-	case 16, 32:
-		return netip.AddrFrom16([16]byte(nhBytes[:16]))
-	case 12:
-		return netip.AddrFrom4([4]byte(nhBytes[8:12]))
-	case 24, 48:
-		return netip.AddrFrom16([16]byte(nhBytes[8:24]))
-	default:
+	if hops.Len() == 0 {
 		return netip.Addr{}
 	}
+	return hops.Slice()[0]
 }
 
 // Prefixes parses and returns all NLRI prefixes from the attribute.

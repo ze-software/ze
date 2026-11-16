@@ -444,7 +444,7 @@ func (r *Reactor) replayAIGP(ad *aigpAdvertisement, revision uint64) {
 	metric, present := aigpMetricValue(payloadAIGP(ad.route.wire.Payload()))
 	// A family can arrive in either legacy or MP framing. The retained route
 	// records the next hop from the field that carried this particular NLRI.
-	nextHop, _ := nextHopAddr(ad.route.nextHop)
+	nextHop, _, _ := nextHopAddr(ad.route.nextHop, ad.route.key.nlri.family)
 	distance := aigpIncrement(nextHop, src.addr, r.sourceAIGPLinkMetric(src.addr))
 	costWithheld := present && !distance.Resolved && !distance.MissingAIGP
 	present = present && distance.Resolved && !distance.MissingAIGP

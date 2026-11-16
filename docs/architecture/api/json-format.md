@@ -418,6 +418,15 @@ Each address family has an array of operations under `nlri`:
   <!-- source: internal/component/bgp/format/text_json.go -- appendNLRIJSONValue, appendUndecodedNLRIJSON -->
   <!-- source: internal/exabgp/bridge/bridge_event.go -- undecodedNLRI -->
 
+The MP next-hop address reader uses the actual AFI/SAFI's shared profile.
+Plain BGP-LS (16388/71) and RD-framed BGP-LS VPN (16388/72) therefore display
+their first address in the same form; the latter skips the RD before each
+address. Reading leaves the complete stored next-hop field and NLRI unchanged,
+including nonzero received RDs. The offline CLI retains raw lowercase hex when
+it cannot decode a next-hop field, and `no-nexthop` for an empty field.
+<!-- source: internal/component/bgp/wireu/mpwire.go -- MPReachWire.NextHop -->
+<!-- source: internal/component/bgp/cli/decode_mp.go -- buildMPReachZe, parseNextHop -->
+
 Two producers write this member, and both write it the same way. The parsed
 JSON event with no attribute or NLRI filter is written straight from the wire
 (`appendParsedUpdateJSONDirect`); it covers the body NLRI and Withdrawn

@@ -8,6 +8,25 @@
 
 ---
 
+## MP_REACH next hop
+
+The LS plugin registers both next-hop profiles when it is linked. SAFI 71
+carries native IPv4 (4 octets), IPv6 (16), or IPv6 followed by link-local (32).
+SAFI 72 prefixes **each** address with an eight-octet zero RD, giving 12, 24,
+or 48 octets. Its pair is `[RD8][IPv6][RD8][link-local IPv6]`. There is no
+40-octet form. The next-hop RDs are independent of the VPN NLRI's RD.
+The 48-octet layout follows Wireshark v4.4.0's LS-VPN decoder; acceptance of
+that pair by another routing daemon has not been verified.
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- init -->
+<!-- test: internal/component/bgp/plugins/nlri/ls/next_hop_wire_test.go TestLSVPNNextHopTypedWire, TestLSVPNPluginBuilderNextHopWire -->
+
+Both profiles use IPv6 address-role admission without IPv4-mapped conversion
+or RFC 8950 negotiation. RD framing does not import VPN128's RFC 4659 scope
+or unspecified-global exception. LS link-local inclusion still follows the
+RFC 2545 joint-subnet condition.
+<!-- source: internal/component/bgp/plugins/nlri/ls/register.go -- init -->
+<!-- test: internal/component/bgp/plugins/nlri/ls/next_hop_wire_test.go TestLSVPNNextHopTypedWire, TestLSVPNPluginBuilderNextHopWire -->
+
 ## Wire Format Overview
 
 ### Without VPN (SAFI 71)

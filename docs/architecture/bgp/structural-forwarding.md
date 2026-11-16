@@ -809,20 +809,57 @@ cannot create its NLRI from a next-hop operation alone. Configured IPv4 modes
 record both legacy and MP operations, but the unused MP operation does not
 impose IPv6 admission rules on a legacy-only route.
 
-For a configured IPv4 self or explicit rewrite, `applyFactsNextHop` selects the
-native four-octet MP form when that AFI/SAFI's length table permits it or the
-table is empty. An empty table supplies no family-specific width restriction,
-as in the delta writer's `familyAdmitsNextHopOctets`; it does not require a
-mapped IPv6 replacement. This keeps a native IPv4 next hop for BGP-LS under
-Auto, Self and explicit address modes. Known non-VPN profiles that exclude
-four octets retain the mapped IPv6 form, and SAFI 128 retains its separate
-RD-framed forms. Admission and the delta writer consume the selected operation.
+Every final next-hop gate merges replacements by field: a legacy rewrite
+retains an untouched MP next hop, and an MP rewrite retains an untouched legacy
+next hop. An MP operation without a source MP_REACH cannot identify an emitted
+address; a legacy attribute without classic NLRI likewise governs no announced
+route. Before scope normalization trims a selected pair, either slot naming
+the recipient keeps the complete pair for the peer-own withdrawal gate;
+transport zones do not change wire-address identity. A usable configured
+replacement supersedes recipient-owned received bytes before this decision.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- effectiveNextHop, applyEgressNextHopScope -->
+<!-- test: internal/component/bgp/reactor/next_hop_effective_fields_test.go TestEffectiveNextHopFields, TestEffectiveNextHopScopePeerOwn -->
+
+The classifier reads complete fields through the actual family's shared profile.
+It records IPv6 wire identity before unmapping addresses for comparison.
+For forwarding families, the last nonempty MP Set is selected before width
+admission. If that Set has an unsupported width, the materializer and final
+gate retain the received field, rather than an earlier decodable replacement.
+An empty Set leaves the preceding selection intact.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- nextHopAddr, modsNextHop, effectiveNextHop -->
+<!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- mpReachNextHopHandler -->
+<!-- test: internal/component/bgp/reactor/next_hop_last_set_materializer_test.go TestEffectiveNextHopLastSetMatchesMaterializer -->
+
+Classic NLRI presence is retained separately from the received NEXT_HOP
+attribute. A raw export-policy result can carry classic NLRI without that
+attribute, and a configured IPv4 rewrite can insert it. The final gate judges
+that replacement even when the same result carries a zero-next-hop FlowSpec
+sibling. An MP-only result still has no classic forwarding address when the
+materializer inserts an unused NEXT_HOP attribute.
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- payloadNextHop, effectiveNextHop -->
+<!-- test: internal/component/bgp/reactor/next_hop_classic_presence_test.go TestEffectiveNextHopClassicPresence -->
+
+For a configured IPv4 self or explicit rewrite, `applyFactsNextHop` obtains the
+native candidate's width from the family's profile: four octets for a plain
+field, twelve when each address has an RD. A known length table that excludes
+that width requests the mapped IPv6 form; an empty table adds no width
+restriction. The profile's default mapping rule also applies. Plain BGP-LS
+therefore keeps native IPv4, LS-VPN and VPN-IPv4 use RD plus native IPv4, and
+VPN-IPv6 uses RD plus mapped IPv4. Admission and the delta writer consume that
+same selected operation, borrowed from the immutable facts snapshot.
 IPv6 SR Policy permits native IPv4 independently of its NLRI AFI;
 IPv6-unicast NLRI retains its IPv6 encoding. Received or policy-written mapped
 fields keep their existing family admission checks.
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop -->
 <!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- familyAdmitsNextHopOctets -->
 <!-- test: internal/component/bgp/reactor/next_hop_auto_bgpls_test.go TestNextHopAutoBGPLSNativeIPv4 -->
+
+RD framing comes from `NextHopProfile.RDPerAddress`, independently of the
+link-local scope condition. LS-VPN selects its cached 48-octet pair only when
+the RFC 2545 joint-subnet decision selected the second address. VPN-IPv6 keeps
+its separate RFC 4659 peer-only decision. Both reuse the shared profile writer
+at snapshot construction; the forwarding path only selects an existing view.
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop, rdIPv6NextHop, precomputeVPNNextHop -->
 
 The mixed AIGP socket regression uses a genuine IPv6 self address for MP and an
 export rewrite to a local IPv4 interface for legacy NLRI. Both remain local
@@ -845,7 +882,7 @@ Capability 77's Link-Local-only form is a separate case.
 <!-- test: internal/component/bgp/reactor/rfc2545_forward_subnet_test.go TestSRPolicyNextHopWireFamily -->
 <!-- test: internal/component/bgp/reactor/rfc4659_link_local_peering_test.go TestRFC4659LinkLocalPeeringPreservesUnspecifiedGlobalPair -->
 
-When the received next hop is Link-Local-only (16 octets, or 24 with the RD),
+When the received next hop is the plain 16-octet Link-Local-only form,
 there is no Global to keep. Towards a destination more than one hop away the
 route is withheld, under any next-hop mode that leaves the received next
 hop in place, and a warning names the peer: "withholding route: its next hop is
@@ -865,6 +902,17 @@ before the question is asked. The resulting address must still pass the
 destination's next-hop checks.
 <!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- precomputeNextHop -->
 <!-- source: internal/component/bgp/reactor/forward_next_hop.go -- egressNextHopLinkLocalOnlyOffLink -->
+
+Capability 77 does not permit a standalone Link-Local in a 24-octet
+RD-framed field. That field has no usable Global address and is refused even
+on a directly attached, capability-enabled session. The shared field
+validator enforces this before a checked plugin builder or ordinary session
+writer emits it; both forwarding rails classify the complete wire form before
+granting the plain 16-octet exception. VPN128 retains its separately declared
+native and mapped IPv4 forms and qualified unspecified-Global pair.
+<!-- source: internal/component/bgp/message/update_build.go -- ValidateMPNextHop -->
+<!-- source: internal/component/bgp/reactor/forward_next_hop.go -- nextHopValue.linkLocalOnly, egressNextHopWithheld -->
+<!-- test: internal/component/bgp/plugins/nlri/ls/next_hop_standalone_admission_test.go TestLSStandaloneLinkLocalFieldAdmission, TestLSStandaloneLinkLocalPluginBuilder -->
 
 ## Withheld routes are withdrawn
 

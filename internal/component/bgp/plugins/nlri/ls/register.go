@@ -1,3 +1,6 @@
+// Design: docs/architecture/wire/nlri-bgpls.md -- BGP-LS family and codec declarations
+// Related: docs/architecture/wire/attributes.md -- plugin-owned MP next-hop profiles
+
 package ls
 
 import (
@@ -23,6 +26,20 @@ var (
 )
 
 func init() {
+	// RFC 9552 Section 5.5: LS carries native transport addresses. The VPN
+	// form adds a zero RD before each address, independently of the NLRI RD.
+	if err := attribute.RegisterMPNextHopProfile(attribute.AFI(BGPLSFamily.AFI),
+		attribute.SAFI(BGPLSFamily.SAFI), attribute.NextHopProfile{
+			Lengths: []int{4, 16, 32}, IPv6Roles: true,
+		}); err != nil {
+		panic(fmt.Sprintf("BUG: invalid BGP-LS next-hop profile: %v", err))
+	}
+	if err := attribute.RegisterMPNextHopProfile(attribute.AFI(BGPLSVPNFamily.AFI),
+		attribute.SAFI(BGPLSVPNFamily.SAFI), attribute.NextHopProfile{
+			Lengths: []int{12, 24, 48}, IPv6Roles: true, RDPerAddress: true,
+		}); err != nil {
+		panic(fmt.Sprintf("BUG: invalid BGP-LS VPN next-hop profile: %v", err))
+	}
 	// RFC 9552 Section 5.3: "The BGP-LS Attribute (assigned value 29 by IANA) is an
 	// optional, non-transitive BGP Attribute that is used to carry link, node, and prefix
 	// parameters and attributes." That sentence fixes both bits, so it travels with the

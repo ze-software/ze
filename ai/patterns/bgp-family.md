@@ -40,7 +40,10 @@ but read every section before deciding to skip it.
       Family(), Bytes(), Len(), String(), PathID(), WriteTo(), SupportsAddPath()
 [ ] Parse function: (AFI, []byte) -> (NLRI, error)
 [ ] Splitter in nlrisplit/ + registration for each family
-[ ] ValidNextHopLens() case in attribute/mpnlri.go
+[ ] RegisterMPNextHopProfile() in the owning plugin's register.go init()
+      for a known next-hop contract: widths, per-address RD framing and roles.
+      ValidNextHopLens() derives its answer from that declaration; do not add
+      plugin-family facts to the core switch.
       (and check ALL exhaustive switches on SAFI -- see section 6)
 ```
 
@@ -133,7 +136,7 @@ grep -rn 'switch.*safi' internal/ --include="*.go" | grep -v _test.go
 ```
 
 Known locations that need a case for every SAFI:
-- `attribute/mpnlri.go` ValidNextHopLens (L2VPN AFI switch)
+- `attribute/mpnlri.go` built-in profiles (plugin-owned families register instead)
 - Any switch on SAFI in reactor, rib, or forward path
 
 For capabilities: grep for `switch.*cap` or `case.*Capability`.

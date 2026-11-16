@@ -168,7 +168,7 @@ func applyFactsAIGP(f *peerForwardFacts, received []byte, before nextHopValue, b
 		return false
 	}
 	after := aigpNextHop(base)
-	if edited, set := modsNextHop(mods); set {
+	if edited, set := modsNextHop(mods, after.mpFamily); set {
 		if before.legacy.IsValid() && edited.legacy.IsValid() {
 			after.legacy = edited.legacy
 		}

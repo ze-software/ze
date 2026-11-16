@@ -33,13 +33,18 @@ type nextHopValue struct {
 	mp     netip.Addr // MP_REACH_NLRI global next hop, code 14
 	mpLL   netip.Addr // MP_REACH_NLRI link-local next hop, RFC 2545 Section 3
 
+	// classicPresence records parsed classic NLRI independently of code 3.
+	// A configured Set can insert code 3 when classic NLRI has no address yet.
+	// Unspecified preserves callers that model a classifier without a payload.
+	classicPresence nextHopClassicPresence
+
 	// mpFamily is the AFI/SAFI of the MP_REACH_NLRI that carries mp: the pair
 	// RFC 8950 Section 4 licenses an IPv6 next hop for. Zero when the UPDATE
 	// carries no MP_REACH_NLRI. A next-hop rewrite never changes it.
 	mpFamily family.Family
 
 	// mpIPv6 records the wire address family before nextHopAddr unmaps it.
-	// The 16/24/32/48-octet forms are IPv6; 4/12 are IPv4. The NLRI AFI
+	// The actual profile decodes the received address form. The NLRI AFI
 	// cannot supply this fact (RFC 9830 Section 2.1), and every MP rewrite
 	// replaces it. False with no MP address means no wire family was read.
 	mpIPv6 bool
@@ -81,12 +86,22 @@ type nextHopValue struct {
 	mpRedirectRefused bool
 }
 
+// nextHopClassicPresence distinguishes a parsed section from a direct address
+// classifier. Its zero value has no parsed NLRI presence to assert.
+type nextHopClassicPresence uint8
+
+const (
+	nextHopClassicUnspecified nextHopClassicPresence = iota
+	nextHopClassicPresent
+	nextHopClassicAbsent
+)
+
 // has reports whether any address this UPDATE offers is addr.
 func (n nextHopValue) has(addr netip.Addr) bool {
 	if !addr.IsValid() {
 		return false
 	}
-	addr = addr.Unmap()
+	addr = addr.Unmap().WithZone("")
 	return n.legacy == addr || n.mp == addr || n.mpLL == addr
 }
 
@@ -95,30 +110,25 @@ func (n nextHopValue) valid() bool {
 	return n.legacy.IsValid() || n.mp.IsValid() || n.mpLL.IsValid()
 }
 
-// nextHopAddr turns a wire next-hop field of any documented length into an
-// address pair. The second address is the RFC 2545 Section 3 link-local half and
-// is invalid for every other length.
-//
-// The VPN forms (RFC 4364 Section 4.3.2) prefix the address with an 8-octet
-// Route Distinguisher that is always zero on a next hop, so the address sits at
-// offset 8 and the length is 8 longer. Reading the RD as the address is how a
-// VPN next hop would silently compare against nothing.
-func nextHopAddr(nh []byte) (netip.Addr, netip.Addr) {
-	switch len(nh) {
-	case 4:
-		return netip.AddrFrom4([4]byte(nh)), netip.Addr{}
-	case 16:
-		return netip.AddrFrom16([16]byte(nh)).Unmap(), netip.Addr{}
-	case 32:
-		return netip.AddrFrom16([16]byte(nh[:16])).Unmap(), netip.AddrFrom16([16]byte(nh[16:])).Unmap()
-	case 12: // RD + IPv4
-		return netip.AddrFrom4([4]byte(nh[8:])), netip.Addr{}
-	case 24: // RD + IPv6
-		return netip.AddrFrom16([16]byte(nh[8:])).Unmap(), netip.Addr{}
-	case 48: // RD + IPv6 global, RD + IPv6 link-local
-		return netip.AddrFrom16([16]byte(nh[8:24])).Unmap(), netip.AddrFrom16([16]byte(nh[32:])).Unmap()
+// nextHopAddr reads a complete field through its actual family's profile.
+// Address identity is unmapped, but wire IPv6 identity is captured first.
+// Undecodable fields name no address; the final admission gate owns refusal.
+func nextHopAddr(nh []byte, fam family.Family) (netip.Addr, netip.Addr, bool) {
+	profile := attribute.MPNextHopProfile(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI))
+	hops, err := profile.DecodeNextHopField(attribute.AFI(fam.AFI), nh)
+	if err != nil {
+		return netip.Addr{}, netip.Addr{}, false
 	}
-	return netip.Addr{}, netip.Addr{}
+	addresses := hops.Slice()
+	if len(addresses) == 0 {
+		return netip.Addr{}, netip.Addr{}, false
+	}
+	wireIPv6 := addresses[0].Is6()
+	var second netip.Addr
+	if len(addresses) == 2 {
+		second = addresses[1].Unmap()
+	}
+	return addresses[0].Unmap(), second, wireIPv6
 }
 
 // payloadNextHop reports every NEXT_HOP an UPDATE payload advertises.
@@ -137,6 +147,10 @@ func payloadNextHop(payload []byte) nextHopValue {
 	if err != nil {
 		return out
 	}
+	out.classicPresence = nextHopClassicAbsent
+	if len(sections.NLRI(payload)) != 0 {
+		out.classicPresence = nextHopClassicPresent
+	}
 	attrs := sections.Attrs(payload)
 	if attrs == nil {
 		return out
@@ -152,14 +166,13 @@ func payloadNextHop(payload []byte) nextHopValue {
 			nhLen := int(value[3])
 			if 4+nhLen <= len(value) {
 				if out.mpFamily.NeedsNextHop() {
-					out.mp, out.mpLL = nextHopAddr(value[4 : 4+nhLen])
-					out.mpIPv6 = nhLen == 16 || nhLen == 24 || nhLen == 32 || nhLen == 48
+					out.mp, out.mpLL, out.mpIPv6 = nextHopAddr(value[4:4+nhLen], out.mpFamily)
 					out.mpVPNUnspecifiedPair = vpnUnspecifiedNextHopPair(value[4 : 4+nhLen])
 				} else {
 					out.mpIgnored = nhLen != 0
 					out.mpRedirect = flowSpecRedirectNextHop(attrs, nhLen)
 					if out.mpRedirect {
-						out.mpRedirectAddr, _ = nextHopAddr(value[4 : 4+nhLen])
+						out.mpRedirectAddr, _, _ = nextHopAddr(value[4:4+nhLen], out.mpFamily)
 					}
 				}
 			}
@@ -383,36 +396,91 @@ func setMPNextHop(mods *filterapi.ModAccumulator, hop []byte, add bool) {
 // applyFactsNextHop (peer_forward_facts.go) for a configured next-hop mode, and
 // an egress filter for a policy rewrite. Later Sets win, which is what
 // genericAttrSetHandler and mpReachNextHopHandler (filter_delta_handlers.go)
-// both do with the operation list, so a scan that keeps the LAST match answers
-// about the bytes the rebuild will emit.
+// both do with the operation list. MP selects the last nonempty Set before
+// checking its width. An unsupported final Set keeps the received field, not
+// an earlier valid replacement. Empty Sets are ignored for forwarding families.
 //
 // Codes 3 and 14 are collected independently because one destination can carry
 // both: applyFactsNextHop records the legacy address and the family-permitted
 // MP_REACH form together for an IPv4 next-hop mode.
-func modsNextHop(mods *filterapi.ModAccumulator) (nextHopValue, bool) {
+func modsNextHop(mods *filterapi.ModAccumulator, fam family.Family) (nextHopValue, bool) {
 	var out nextHopValue
 	set := false
+	var selected []byte
 	for _, op := range mods.Ops() {
 		if op.Action != filterapi.AttrModSet {
 			continue
 		}
 		switch op.Code {
 		case uint8(attribute.AttrNextHop):
-			if a, _ := nextHopAddr(op.Buf); a.IsValid() {
-				out.legacy = a
+			if len(op.Buf) == 4 {
+				out.legacy = netip.AddrFrom4([4]byte(op.Buf))
 				set = true
 			}
 		case uint8(attribute.AttrMPReachNLRI):
-			if a, ll := nextHopAddr(op.Buf); a.IsValid() {
-				out.mp, out.mpLL = a, ll
-				out.mpWireLen = uint8(len(op.Buf)) // nextHopAddr accepts at most 48 octets.
-				out.mpIPv6 = len(op.Buf) == 16 || len(op.Buf) == 24 || len(op.Buf) == 32 || len(op.Buf) == 48
-				out.mpVPNUnspecifiedPair = vpnUnspecifiedNextHopPair(op.Buf)
-				set = true
+			if len(op.Buf) == 0 {
+				if fam.NeedsNextHop() {
+					continue
+				}
 			}
+			selected = op.Buf
 		}
 	}
-	return out, set
+	profile := attribute.MPNextHopProfile(attribute.AFI(fam.AFI), attribute.SAFI(fam.SAFI))
+	if !profile.AdmitsNextHopOctets(len(selected)) {
+		return out, set
+	}
+	out.mp, out.mpLL, out.mpIPv6 = nextHopAddr(selected, fam)
+	out.mpWireLen = uint8(len(selected)) // AdmitsNextHopOctets bounds this at 48.
+	out.mpVPNUnspecifiedPair = vpnUnspecifiedNextHopPair(selected)
+	return out, true
+}
+
+// effectiveNextHop merges replacements into the fields this destination's
+// section carries. An MP operation cannot create MP_REACH_NLRI without its
+// source NLRI (mpReachNextHopHandler), and a native-only section has no legacy
+// route to govern. Parsed classic NLRI can acquire code 3 through a Set even
+// when the source had no code 3. An unparsed classifier with no MP family can
+// inspect a configured Set before its source has been modeled.
+// Replacing either field MUST retain the untouched sibling's identity.
+func effectiveNextHop(mods *filterapi.ModAccumulator, base nextHopValue) nextHopValue {
+	var legacyActive bool
+	switch base.classicPresence {
+	case nextHopClassicUnspecified:
+		legacyActive = base.legacy.IsValid()
+		if base.mpFamily == (family.Family{}) {
+			legacyActive = true
+		}
+	case nextHopClassicPresent:
+		legacyActive = true
+	case nextHopClassicAbsent:
+		base.legacy = netip.Addr{}
+	}
+	written, set := modsNextHop(mods, base.mpFamily)
+	if !set {
+		return base
+	}
+	if legacyActive {
+		if written.legacy.IsValid() {
+			base.legacy = written.legacy
+		}
+	}
+	if base.mpFamily == (family.Family{}) {
+		return base
+	}
+	if written.mpWireLen == 0 {
+		return base
+	}
+	if !base.mpFamily.NeedsNextHop() {
+		// FlowSpec's address is a redirect target, not a forwarding next hop.
+		// redirectNextHopIsPeerOwn judges its selected value separately.
+		return base
+	}
+	base.mp, base.mpLL = written.mp, written.mpLL
+	base.mpWireLen = written.mpWireLen
+	base.mpIPv6 = written.mpIPv6
+	base.mpVPNUnspecifiedPair = written.mpVPNUnspecifiedPair
+	return base
 }
 
 // egressNextHopIsPeerOwn answers, for ONE destination, whether the NEXT_HOP it
@@ -438,7 +506,7 @@ func modsNextHop(mods *filterapi.ModAccumulator) (nextHopValue, bool) {
 //     third-party next hop to the client that OWNS that address is the everyday
 //     way this arises, and it is why the check is on both rails.
 //
-// mods is read first because a Set replaces the payload's address. base is the
+// A Set replaces its own field, leaving the sibling intact. base is the
 // payload the rebuild runs over, read once per UPDATE by the caller and re-read
 // only for a destination whose base differs (the shape applyFactsMED uses).
 //
@@ -447,28 +515,40 @@ func egressNextHopIsPeerOwn(f *peerForwardFacts, mods *filterapi.ModAccumulator,
 	if !f.addr.IsValid() {
 		return false
 	}
-	if nh, set := modsNextHop(mods); set {
-		return nh.has(f.addr)
+	if effectiveNextHop(mods, base).has(f.addr) {
+		return true
 	}
-	return base.has(f.addr)
+	if base.mpRedirect {
+		return redirectNextHopIsPeerOwn(f, mods, base)
+	}
+	return false
 }
 
 // redirectNextHopIsPeerOwn is egressNextHopIsPeerOwn for a FlowSpec
-// redirect-to-IP route that leaves with its received address: no MP_REACH_NLRI
-// Set records a replacement, so base.mpRedirectAddr is what the destination is
-// sent. draft-simpson-idr-flowspec-redirect-02 Section 3 sends matching
+// redirect-to-IP route. Its last MP_REACH_NLRI Set selects the target, or the
+// received base.mpRedirectAddr remains. An empty Set strips it.
+// draft-simpson-idr-flowspec-redirect-02 Section 3 sends matching
 // packets "towards" that address, and one that is the destination's own sends
 // them back into it.
 func redirectNextHopIsPeerOwn(f *peerForwardFacts, mods *filterapi.ModAccumulator, base nextHopValue) bool {
 	if !f.addr.IsValid() {
 		return false
 	}
+	address := base.mpRedirectAddr
 	for _, op := range mods.Ops() {
 		if op.Code == uint8(attribute.AttrMPReachNLRI) && op.Action == filterapi.AttrModSet {
-			return false
+			// The materializer strips every other redirect-field width.
+			address = netip.Addr{}
+			switch len(op.Buf) {
+			case 4, 16:
+				address, _, _ = nextHopAddr(op.Buf, base.mpFamily)
+			}
 		}
 	}
-	return base.mpRedirectAddr == f.addr.Unmap()
+	if !address.IsValid() {
+		return false
+	}
+	return address == f.addr.Unmap().WithZone("")
 }
 
 // originatedNextHopIsPeerOwn asks the SAME question of a route Ze ORIGINATES,
@@ -519,12 +599,17 @@ func originatedNextHopIsPeerOwn(body []byte, peer netip.Addr) bool {
 // Link-Local-only Next Hop, the 16-octet form of
 // draft-ietf-idr-linklocal-capability Section 3.
 //
-// The length half of the classification is already settled by the time the pair
-// is built: nextHopAddr fills mpLL for the 32-octet and 48-octet forms only, so
-// an invalid mpLL beside a link-local mp is the 16-octet field. The address half
-// is attribute.IsLinkLocalOnlyNextHop's own test, over the address rather than
-// over the bytes it came from.
+// The complete field width distinguishes the plain single address from an
+// RD-framed single. An absent second address alone cannot distinguish them.
 func (n nextHopValue) linkLocalOnly() bool {
+	// draft-ietf-idr-linklocal-capability Section 3: "If an implementation
+	// intends to send a single IPv6 Link-Local forwarding address in the Next
+	// Hop field of the MP_REACH_NLRI, it MUST set the length of the Next Hop
+	// field to 16 and include only the IPv6 Link-Local address in the Next Hop
+	// field."
+	if n.mpWireLen != 16 {
+		return false
+	}
 	if n.mpLL.IsValid() {
 		return false
 	}
@@ -542,10 +627,7 @@ func (n nextHopValue) linkLocalOnly() bool {
 // carries ze's own address here and is no longer link-local-only, which is the
 // rewrite Section 4 offers as the first of its two answers.
 func egressNextHopIsLinkLocalOnly(mods *filterapi.ModAccumulator, base nextHopValue) bool {
-	if nh, set := modsNextHop(mods); set {
-		return nh.linkLocalOnly()
-	}
-	return base.linkLocalOnly()
+	return effectiveNextHop(mods, base).linkLocalOnly()
 }
 
 // egressNextHopLinkLocalOnlyRefused answers, for ONE destination, whether the
@@ -577,10 +659,7 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 	if base.mpFamily == (family.Family{}) {
 		return false
 	}
-	emitted := base
-	if written, set := modsNextHop(mods); set {
-		emitted = written
-	}
+	emitted := effectiveNextHop(mods, base)
 	// A valid second address is the 32-octet RFC 2545 Section 3 pair, whose
 	// first address is the Global one: never the Link-Local-only form.
 	if !emitted.linkLocalOnly() {
@@ -618,6 +697,8 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 // A pair with an invalid address in either slot MUST remain intact here:
 // trimming it would hide the pair's invalid form from egressNextHopWithheld,
 // which MUST refuse it through the existing per-section withdrawal path.
+// A selected pair naming the recipient in either slot MUST also remain intact
+// for that gate; only a legitimate replacement can supersede its identity.
 //
 // Plain IPv6 next-hop bytes (RFC 2545 Section 3; MP_REACH value offset +4):
 //
@@ -636,6 +717,9 @@ func egressNextHopLinkLocalOnlyRefused(dest *Peer, mods *filterapi.ModAccumulato
 // A trimmed field aliases its original operation or payload. A newly constructed
 // pair is copied into mods' owned storage; no stack-backed slice is retained.
 func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterapi.ModAccumulator, basePayload []byte, baseFamily family.Family) {
+	if baseFamily == (family.Family{}) {
+		return
+	}
 	field := payloadMPNextHopField(basePayload)
 	for _, op := range mods.Ops() {
 		if op.Code != uint8(attribute.AttrMPReachNLRI) {
@@ -707,6 +791,9 @@ func applyEgressNextHopScope(dest *Peer, facts *peerForwardFacts, mods *filterap
 		return
 	}
 	global := netip.AddrFrom16([16]byte(field[globalOctets-16 : globalOctets])).Unmap()
+	if (nextHopValue{mp: global, mpLL: second}).has(facts.addr) {
+		return
+	}
 	vpnPair := false
 	if !global.Is6() || !global.IsGlobalUnicast() {
 		vpnPair = vpnUnspecifiedNextHopPair(field)
@@ -832,8 +919,9 @@ func destOnLink(dest *Peer) bool {
 //
 // applyEgressNextHopScope removes the Link-Local half of a pair, which leaves a
 // Global. This is the case with no Global to leave: a received 16-octet
-// Link-Local-only field (or the 24-octet RD plus Link-Local VPN form) relayed
-// under next hop unchanged or auto. The question is mode-independent, because
+// Link-Local-only field relayed under next hop unchanged or auto. RD-framed
+// standalone fields instead fail the usable-Global gate, even on-link.
+// The question is mode-independent, because
 // it is asked of the address about to be written: a next-hop rewrite recorded
 // in mods replaces the received one and this answers false. An on-link
 // destination keeps the received Link-Local ("the speaker can use the received
@@ -845,10 +933,7 @@ func egressNextHopLinkLocalOnlyOffLink(dest *Peer, mods *filterapi.ModAccumulato
 	if destOnLink(dest) {
 		return false
 	}
-	if nh, set := modsNextHop(mods); set {
-		return nh.linkLocalOnly()
-	}
-	return base.linkLocalOnly()
+	return effectiveNextHop(mods, base).linkLocalOnly()
 }
 
 // withholdGate names the egress next-hop gate that refused ONE destination the
@@ -897,10 +982,7 @@ var withholdGateText = [...]struct{ message, rfc string }{
 // (RFC 4271 Section 5.1.3).
 func (g withholdGate) warn(f *peerForwardFacts, advertiser netip.Addr, mods *filterapi.ModAccumulator, base nextHopValue) {
 	text := withholdGateText[g]
-	judged := base
-	if written, set := modsNextHop(mods); set {
-		judged = written
-	}
+	judged := effectiveNextHop(mods, base)
 	nextHop := judged.mp
 	fam := base.mpFamily
 	if fam == (family.Family{}) {
@@ -957,15 +1039,7 @@ func egressNextHopWithheld(dest *Peer, f *peerForwardFacts, mods *filterapi.ModA
 	// Section 3.2.1.1 permits the canonical absent-global VPN pair only for
 	// link-local peering. This is separate from capability 77's single-address
 	// form. Judge the field after every policy rewrite and trim.
-	emitted := base
-	// mpReachNextHopHandler cannot create MP_REACH without a source attribute.
-	// applyFactsNextHop records both legacy and MP rewrites for IPv4 modes;
-	// its unused MP operation must not impose IPv6 rules on a legacy route.
-	if base.mpFamily != (family.Family{}) {
-		if written, set := modsNextHop(mods); set && written.mpWireLen != 0 {
-			emitted = written
-		}
-	}
+	emitted := effectiveNextHop(mods, base)
 	// RFC 2545 Section 3; RFC 8950 Section 3; RFC 9830 Section 2.1.
 	// The effective replacement wins over obsolete input, before normalization.
 	profile := attribute.MPNextHopProfile(attribute.AFI(base.mpFamily.AFI), attribute.SAFI(base.mpFamily.SAFI))
@@ -979,9 +1053,8 @@ func egressNextHopWithheld(dest *Peer, f *peerForwardFacts, mods *filterapi.ModA
 	// applyNextHopFamily clears the latter's ignored MP rewrites.
 	if !emitted.valid() {
 		// RFC 4271 Section 5.1.3, the peer-own gate below, asked of the one
-		// address a FlowSpec route can carry: a redirect target kept from the
-		// received UPDATE. A rewritten one is in mods and reaches the gate
-		// below through modsNextHop.
+		// address a FlowSpec route can carry: the selected redirect target,
+		// whose empty replacement also removes its received identity.
 		if base.mpRedirect && redirectNextHopIsPeerOwn(f, mods, base) {
 			return withholdPeerOwn
 		}
@@ -1088,10 +1161,7 @@ func egressNextHopLacksExtendedNextHop(dest *Peer, mods *filterapi.ModAccumulato
 	if !rfc8950Family(base.mpFamily) {
 		return false
 	}
-	nextHop := base.mp
-	if rewritten, set := modsNextHop(mods); set && rewritten.mp.IsValid() {
-		nextHop = rewritten.mp
-	}
+	nextHop := effectiveNextHop(mods, base).mp
 	if !nextHop.Is6() {
 		return false
 	}

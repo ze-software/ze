@@ -139,7 +139,7 @@ func applyEgressPrefixSIDNextHop(f *peerForwardFacts, mods *filterapi.ModAccumul
 		return
 	}
 	previous, emitted := received.legacy, base.legacy
-	written, _ := modsNextHop(mods)
+	written, _ := modsNextHop(mods, base.mpFamily)
 	// The carrier can exist without a usable intermediate address: a raw
 	// policy field may be repaired by the configured rewrite before admission.
 	// Match egressNextHopWithheld's presence test, not base.mp.IsValid().

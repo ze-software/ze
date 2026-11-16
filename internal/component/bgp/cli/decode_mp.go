@@ -13,6 +13,7 @@ import (
 	"net/netip"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/family"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -32,7 +33,7 @@ func buildMPReachZe(plugins decodePlugins, mpReach []byte) (string, []map[string
 	}
 
 	nhData := mpReach[4 : 4+nhLen]
-	nextHop := parseNextHop(nhData, afi)
+	nextHop := parseNextHop(nhData, afi, safi)
 
 	nlriOffset := 4 + nhLen + 1
 	if nlriOffset >= len(mpReach) {
@@ -118,22 +119,30 @@ func parseIPv4Prefixes(data []byte) []string {
 	return prefixes
 }
 
-// parseNextHop parses the next-hop from MP_REACH_NLRI.
-func parseNextHop(data []byte, _ family.AFI) string {
-	switch {
-	case len(data) == 4:
-		return fmt.Sprintf("%d.%d.%d.%d", data[0], data[1], data[2], data[3])
-	case len(data) == 16:
-		addr := netip.AddrFrom16([16]byte(data))
-		return addr.String()
-	case len(data) == 32: // IPv6 with link-local
-		addr := netip.AddrFrom16([16]byte(data[:16]))
-		return addr.String()
-	case len(data) == 0:
+// parseNextHop displays the first address under the actual family's profile.
+// Empty or undecodable fields keep their existing diagnostic representation.
+func parseNextHop(data []byte, afi family.AFI, safi family.SAFI) string {
+	if len(data) == 0 {
 		return "no-nexthop"
-	default:
+	}
+	profile := attribute.MPNextHopProfile(attribute.AFI(afi), attribute.SAFI(safi))
+	if !profile.RDPerAddress {
+		// The generic IPv4 codec can retain several four-octet addresses.
+		// The CLI has always shown other plain widths as raw diagnostic hex.
+		switch len(data) {
+		case 4, 16, 32:
+		default:
+			return fmt.Sprintf("%x", data)
+		}
+	}
+	hops, err := profile.DecodeNextHops(attribute.AFI(afi), data)
+	if err != nil {
 		return fmt.Sprintf("%x", data)
 	}
+	if hops.Len() == 0 {
+		return "no-nexthop"
+	}
+	return hops.Slice()[0].String()
 }
 
 // formatFamily returns the family string for JSON output.

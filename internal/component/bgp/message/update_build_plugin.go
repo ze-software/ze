@@ -82,7 +82,7 @@ const (
 //
 // Wire order is fixed by OrderAttributes (the MP attribute first, per RFC 7606
 // Section 5.1, then regular attrs by code), so the order attributes are added here is irrelevant.
-// Returns nil when a plain next-hop profile refuses the field. Callers MUST
+// Returns nil when the next-hop profile refuses the field. Callers MUST
 // check for nil before packing, measuring or sending the result.
 func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 	afi := p.AFI
@@ -92,10 +92,12 @@ func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 			afi = 2
 		}
 	}
-	nextHop := p.NextHop
-	if p.MapV4NextHop && p.IsIPv6 && nextHop.Is4() {
-		nextHop = netip.AddrFrom16(nextHop.As16())
+	profile := attribute.MPNextHopProfile(attribute.AFI(afi), attribute.SAFI(p.SAFI))
+	mapV4 := false
+	if p.IsIPv6 {
+		mapV4 = p.MapV4NextHop
 	}
+	nextHop := profile.SelectAddress(p.NextHop, mapV4)
 	// RFC 9830 Section 2.1: judge the field the plugin will actually emit.
 	if err := ValidateFamilyNextHop(family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(p.SAFI)}, nextHop, netip.Addr{}); err != nil {
 		return nil
@@ -149,7 +151,7 @@ func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 		attrs = ub.appendAggregator(attrs, p.AggregatorASN, p.AggregatorIP)
 	}
 
-	attrs = append(attrs, ub.buildMPReachPlugin(p))
+	attrs = append(attrs, ub.buildMPReachPlugin(p, afi, profile, nextHop))
 
 	return &Update{
 		PathAttributes: ub.packAttributesOrderedInto(attrs, nil),
@@ -157,20 +159,11 @@ func (ub *UpdateBuilder) BuildPlugin(p PluginParams) *Update {
 }
 
 // buildMPReachPlugin constructs MP_REACH_NLRI for a plugin route.
-func (ub *UpdateBuilder) buildMPReachPlugin(p PluginParams) *rawAttribute {
+func (ub *UpdateBuilder) buildMPReachPlugin(p PluginParams, afi uint16, profile attribute.NextHopProfile, nextHop netip.Addr) *rawAttribute {
 	if len(p.NLRI) == 0 {
 		return &rawAttribute{
 			flags: attribute.FlagOptional,
 			code:  attribute.AttrMPReachNLRI,
-		}
-	}
-
-	afi := p.AFI
-	if afi == 0 {
-		// Backstop for callers that only set IsIPv6 (AFI 1/2 families).
-		afi = 1
-		if p.IsIPv6 {
-			afi = 2
 		}
 	}
 
@@ -187,17 +180,11 @@ func (ub *UpdateBuilder) buildMPReachPlugin(p PluginParams) *rawAttribute {
 	// next-hop an RFC 8955 speaker MUST NOT send. MPReachCarriesNextHop owns
 	// the one exception, the redirect-to-IP-next-hop action; a zero next hop
 	// still encodes as length 0 there, which its receiver ignores.
-	var nhBytes []byte
 	fam := family.Family{AFI: family.AFI(afi), SAFI: family.SAFI(p.SAFI)}
-	if MPReachCarriesNextHop(fam, pluginRedirectsToNextHop(p.RawAttrs)) {
-		if p.MapV4NextHop && p.IsIPv6 && p.NextHop.Is4() {
-			mapped := p.NextHop.As16()
-			nhBytes = mapped[:]
-		} else {
-			nhBytes = p.NextHop.AsSlice()
-		}
+	if !MPReachCarriesNextHop(fam, pluginRedirectsToNextHop(p.RawAttrs)) {
+		nextHop = netip.Addr{}
 	}
-	nhLen := len(nhBytes)
+	nhLen := profile.NextHopOctets(nextHop)
 
 	valueLen := 2 + 1 + 1 + nhLen + 1 + len(p.NLRI)
 	value := ub.alloc(valueLen)
@@ -205,7 +192,7 @@ func (ub *UpdateBuilder) buildMPReachPlugin(p PluginParams) *rawAttribute {
 	value[1] = byte(afi)
 	value[2] = p.SAFI
 	value[3] = byte(nhLen)
-	copy(value[4:4+nhLen], nhBytes)
+	profile.WriteNextHops(value, 4, nextHop, netip.Addr{})
 	value[4+nhLen] = 0
 	copy(value[5+nhLen:], p.NLRI)
 
