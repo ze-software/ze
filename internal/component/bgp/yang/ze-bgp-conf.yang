@@ -514,8 +514,9 @@ module ze-bgp-conf {
                         }
                     }
                     description "auto leaves the source address to the operating system. An address binds the outbound
-                        connection to it, which fixes the source address that a next-hop self rewrite uses. Ze
-                        refuses an IPv6 link-local address here.";
+                        connection to it. A scoped IPv6 link-local address retains its interface zone for TCP.
+                        Next-hop self uses the connected local endpoint. The route's next-hop encoding and negotiated
+                        capabilities decide whether that address can be advertised.";
                     ze:help "Local address for connection (use IP address or 'auto')";
                 }
                 leaf port {

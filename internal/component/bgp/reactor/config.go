@@ -330,8 +330,8 @@ func parsePeerSettings(name string, tree map[string]any, ip netip.Addr, peerAS, 
 		}
 	}
 
-	// The three leaves that decide the MP_REACH next-hop field are parsed together
-	// in config_nexthop_form.go, where RFC 2545 Section 3 governs all of them.
+	// Transport endpoints and next-hop settings are parsed in config_nexthop_form.go.
+	// Only an emitted next hop is subject to its family's wire-form rules.
 	if err := applyLocalAddress(ps, name, connMap); err != nil {
 		return nil, err
 	}

@@ -1,4 +1,4 @@
-// Design: docs/architecture/core-design.md — the config leaves that decide the MP_REACH next-hop field
+// Design: docs/architecture/config/syntax.md — peer transport and next-hop configuration
 // RFC: rfc/short/rfc2545.md — Section 3, the first address of the Next Hop field is the global one
 // Overview: config.go — parsePeerFromTree, the peer config tree parser
 // Related: link_scope.go — Section 3's inclusion condition, decided against the host interface table
@@ -39,10 +39,11 @@ func ValidatePeerGlobalNextHop(peer, leaf string, addr netip.Addr) error {
 // applyLocalAddress parses `connection > local > ip`, which is required and takes
 // either an address or "auto".
 //
-// The address is the session's local endpoint AND the value `next-hop self` and
-// the default-originate rail write into the global next-hop slot
-// (precomputeNextHop, peer_forward_facts.go; sendDefaultOriginateRoutes,
-// peer_initial_sync.go), so RFC 2545 Section 3 governs it.
+// This is a TCP endpoint, which can be IPv6 link-local (RFC 2545 Section 4).
+// Keep its zone for the socket. Next-hop self selects the connected endpoint,
+// and the route's final next-hop form and negotiated capabilities decide whether
+// that address can be advertised (resolveNextHop, peer.go; egressNextHopWithheld,
+// forward_next_hop.go).
 func applyLocalAddress(ps *PeerSettings, name string, connMap map[string]any) error {
 	var localAddrStr string
 	if connMap != nil {
@@ -59,9 +60,6 @@ func applyLocalAddress(ps *PeerSettings, name string, connMap map[string]any) er
 	la, err := netip.ParseAddr(localAddrStr)
 	if err != nil {
 		return fmt.Errorf("peer %s: invalid local ip: %w", name, err)
-	}
-	if err := ValidatePeerGlobalNextHop(name, "local ip", la); err != nil {
-		return err
 	}
 	ps.LocalAddress = la
 	return nil
@@ -89,8 +87,8 @@ func applyLinkLocal(ps *PeerSettings, name string, sessionMap map[string]any) er
 // applyNextHopMode parses `session > next-hop`: one of the three rewriting modes
 // of RFC 4271 Section 5.1.3, or an explicit address.
 //
-// An explicit address goes straight into the global next-hop slot, so RFC 2545
-// Section 3 governs it exactly as it governs the local address.
+// An explicit address supplies the global next-hop slot, so RFC 2545 Section 3
+// governs that address independently of the session's TCP endpoint.
 func applyNextHopMode(ps *PeerSettings, name string, sessionMap map[string]any) error {
 	if sessionMap == nil {
 		return nil

@@ -1120,6 +1120,19 @@ Peer configuration is organized into nested containers by concern.
 | `connection { md5 { password; ip; } }` | container | TCP MD5 authentication (RFC 2385) |
 | `connection { ttl { max; set; min; } }` | container | GTSM max (RFC 5082), outgoing TTL, minimum incoming TTL |
 
+A local TCP address can be IPv6 link-local. Include its interface zone when
+needed, for example `fe80::1%eth0`. Ze retains the configured zones of both TCP
+endpoints. The `auto` value lets the operating system select the local address.
+<!-- source: internal/component/bgp/reactor/config_nexthop_form.go -- applyLocalAddress -->
+<!-- source: internal/component/bgp/reactor/config.go -- parsePeerFromTree -->
+
+`next-hop self` uses the connected local endpoint. A link-local-only next hop
+still requires negotiated capability 77 and the route's permitted next-hop
+encoding. Configuring a link-local TCP endpoint does not change these rules or
+permit a link-local address as an explicit global next hop.
+<!-- source: internal/component/bgp/reactor/peer.go -- resolveNextHop, linkLocalOnlyNextHopRefused -->
+<!-- source: internal/component/bgp/reactor/config_nexthop_form.go -- applyNextHopMode -->
+
 ### session (BGP protocol)
 
 | Keyword | Type | Description |

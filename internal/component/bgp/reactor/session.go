@@ -867,7 +867,7 @@ type Session struct {
 func NewSession(settings *PeerSettings) *Session {
 	dialer := &network.RealDialer{}
 	if settings.LocalAddress.IsValid() {
-		dialer.LocalAddr = &net.TCPAddr{IP: settings.LocalAddress.AsSlice()}
+		dialer.LocalAddr = &net.TCPAddr{IP: settings.LocalAddress.AsSlice(), Zone: settings.LocalAddress.Zone()}
 	}
 	if settings.MD5Key != "" {
 		md5Addr := settings.Address
@@ -975,7 +975,7 @@ func (s *Session) SetDialer(d network.Dialer) {
 func (s *Session) mergedRealDialer(base *network.RealDialer) *network.RealDialer {
 	merged := *base
 	if s.settings.LocalAddress.IsValid() {
-		merged.LocalAddr = &net.TCPAddr{IP: s.settings.LocalAddress.AsSlice()}
+		merged.LocalAddr = &net.TCPAddr{IP: s.settings.LocalAddress.AsSlice(), Zone: s.settings.LocalAddress.Zone()}
 	}
 	if s.settings.MD5Key != "" {
 		md5Addr := s.settings.Address
