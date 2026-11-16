@@ -50,11 +50,11 @@ func checkWebCommitForce(t *testing.T, mgr *EditorManager, schema *config.Schema
 	require.NoError(t, mgr.SetValue("alice", []string{"bgp"}, "router-id", "10.0.0.9"))
 	require.NoError(t, mgr.SetValue("alice", []string{"bgp", "session", "asn"}, "local", "65000"))
 
-	_, output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbCommit, Args: []string{"now"}})
+	output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbCommit, Args: []string{"now"}})
 	assert.Contains(t, output, "commit conflicts", "commit now alone is refused")
 	assert.Contains(t, output, "bob", "the conflict names the other user")
 
-	_, output = executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbCommit, Args: []string{"now", "force"}})
+	output = executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbCommit, Args: []string{"now", "force"}})
 	require.Equal(t, terminalOutputCommitSuccessful, output)
 
 	committed, err := mgr.committedConfig()

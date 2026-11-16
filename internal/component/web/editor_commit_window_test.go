@@ -73,7 +73,7 @@ func newWindowEditorManagerRecorded(t *testing.T, record confirm.Recorder) (*Edi
 
 // webCommit types `commit <args>` into the web terminal as user.
 func webCommit(schema *config.Schema, mgr *EditorManager, user string, args ...string) string {
-	_, output := executeTerminalNav(schema, nil, mgr, user, nil, cliCommand{Verb: verbCommit, Args: args})
+	output := executeTerminalNav(schema, nil, mgr, user, nil, cliCommand{Verb: verbCommit, Args: args})
 	return output
 }
 

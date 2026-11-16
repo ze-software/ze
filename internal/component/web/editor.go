@@ -542,13 +542,13 @@ func (m *EditorManager) Diff(username string) string {
 
 // discardDiff includes this user's durable intent from earlier editing sessions.
 // Explicit discard-all removes the whole per-user file, so its audit must name
-// those changes without claiming another user's changes were discarded.
-func (m *EditorManager) discardDiff(username string) string {
-	m.mu.RLock()
-	us, ok := m.sessions[username]
-	m.mu.RUnlock()
-	if !ok {
-		return ""
+// those changes without claiming another user's changes were discarded. A cache
+// miss opens the owning editor; an opening failure MUST stop discard before it
+// removes durable intent or records an audit entry.
+func (m *EditorManager) discardDiff(username string) (string, error) {
+	us, err := m.GetOrCreate(username)
+	if err != nil {
+		return "", err
 	}
 	us.mu.Lock()
 	defer us.mu.Unlock()
@@ -559,7 +559,7 @@ func (m *EditorManager) discardDiff(username string) string {
 			own = append(own, change)
 		}
 	}
-	return m.diffChanges(own)
+	return m.diffChanges(own), nil
 }
 
 // diffChanges is the masked renderer shared by the session review and discard audit.

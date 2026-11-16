@@ -85,7 +85,11 @@ func HandleGraphicalAction(mgr *EditorManager, schema *config.Schema, renderer *
 			return
 		}
 		line := command.words.String()
-		action, detail := terminalAuditContext(mgr, username, command, line)
+		action, detail, err := terminalAuditContext(mgr, username, command, line)
+		if err != nil {
+			http.Error(w, editorSessionRefusal(err).Error(), http.StatusInternalServerError)
+			return
+		}
 		var result terminalCommandResult
 		var revisions []GraphicalRevision
 		switch command.Verb {

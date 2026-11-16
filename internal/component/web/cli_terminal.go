@@ -111,7 +111,11 @@ func HandleCLITerminalWithDispatchAuthorizerAndAudit(mgr *EditorManager, schema 
 				return
 			}
 		}
-		auditAction, auditDetail := terminalAuditContext(mgr, username, cmd, commandText)
+		auditAction, auditDetail, err := terminalAuditContext(mgr, username, cmd, commandText)
+		if err != nil {
+			http.Error(w, editorSessionRefusal(err).Error(), http.StatusInternalServerError)
+			return
+		}
 
 		// Keep the committed hub tree as the compare baseline. Display commands
 		// use the per-user working tree when one exists.
@@ -295,15 +299,7 @@ func executeTerminalConfigMode(ctx context.Context, schema *config.Schema, viewT
 		return result
 	}
 
-	newPath, output := executeTerminalNav(schema, viewTree, mgr, username, contextPath, cmd)
-	result.output = output
-	if newPath != nil {
-		result.path = append([]string{}, newPath...)
-		result.navigated = true
-		if cmd.Verb == verbEdit || cmd.Verb == verbUp || cmd.Verb == verbTop {
-			result.output = serializeTreeAtPath(displayTree(viewTree, mgr, username), schema, newPath)
-		}
-	}
+	result.output = executeTerminalNav(schema, viewTree, mgr, username, contextPath, cmd)
 	return result
 }
 
@@ -385,26 +381,29 @@ func terminalOperationalHelp() string {
   exit                 Stay on the web CLI page`
 }
 
-func terminalAuditContext(mgr *EditorManager, username string, cmd cliCommand, raw string) (string, string) {
+// terminalAuditContext prepares the audit detail before the command runs.
+// Callers MUST stop on a snapshot error before executing or recording the action.
+func terminalAuditContext(mgr *EditorManager, username string, cmd cliCommand, raw string) (string, string, error) {
 	if inner, underTop := commandBehindTop(cmd); underTop {
 		return terminalAuditContext(mgr, username, inner, raw)
 	}
+	// refuse-by-default: guards terminalAuditSucceeded -- commands outside commit, discard and rollback do not produce audit rows
 	switch cmd.Verb {
 	case verbCommit:
 		detail := mgr.Diff(username)
-		return audit.ActionConfigCommit, detail
+		return audit.ActionConfigCommit, detail, nil
 	case verbDiscard:
-		if len(cmd.Args) == 0 {
-			return audit.ActionConfigDiscard, mgr.discardDiff(username)
+		if len(cmd.Args) > 0 {
+			if cmd.Args[0] != discardAll {
+				return audit.ActionConfigDiscard, mgr.Diff(username), nil
+			}
 		}
-		if cmd.Args[0] == discardAll {
-			return audit.ActionConfigDiscard, mgr.discardDiff(username)
-		}
-		return audit.ActionConfigDiscard, mgr.Diff(username)
+		detail, err := mgr.discardDiff(username)
+		return audit.ActionConfigDiscard, detail, err
 	case verbRollback:
-		return audit.ActionConfigDiscard, raw
+		return audit.ActionConfigDiscard, raw, nil
 	}
-	return "", ""
+	return "", "", nil
 }
 
 // terminalAuditSucceeded reports whether the command terminalAuditContext
@@ -466,27 +465,27 @@ func terminalCommandFailed(output string) bool {
 	return false
 }
 
-// executeTerminalNav runs a CLI command and returns the new context path
-// (nil if unchanged) and text output. Navigation commands (edit, up, top)
-// return the updated path; other commands return nil.
+// executeTerminalNav returns command text for legacy direct callers and the
+// terminal fallback. executeTerminalConfigMode obtains navigation state from
+// executeTerminalEditorCommand before reaching this fallback.
 // Pipe filters (| format config, | match, | head, | tail) are handled
 // using the same cli.ApplyPipeFilter as the SSH CLI.
-func executeTerminalNav(_ *config.Schema, _ *config.Tree, mgr *EditorManager, username string, contextPath []string, cmd cliCommand) (newPath []string, output string) {
+func executeTerminalNav(_ *config.Schema, _ *config.Tree, mgr *EditorManager, username string, contextPath []string, cmd cliCommand) string {
 	if shared, handled := executeTerminalEditorCommand(mgr, username, contextPath, cmd); handled {
-		return nil, shared.output
+		return shared.output
 	}
 	if !knownCLIVerbs[cmd.Verb] && cmd.Verb != "" {
 		var tb textbuf.Buffer
-		return nil, tb.Str("unknown command: ").Str(cmd.Verb).String()
+		return tb.Str("unknown command: ").Str(cmd.Verb).String()
 	}
 
 	if cmd.words.FirstPipe() >= 0 {
-		return nil, "error: command '" + cmd.Verb + "' does not support piping"
+		return "error: command '" + cmd.Verb + "' does not support piping"
 	}
 
 	switch cmd.Verb {
 	case verbCommit:
-		return nil, executeTerminalCommit(mgr, username, cmd)
+		return executeTerminalCommit(mgr, username, cmd)
 
 	case verbHelp:
 		var output textbuf.Buffer
@@ -494,11 +493,11 @@ func executeTerminalNav(_ *config.Schema, _ *config.Tree, mgr *EditorManager, us
 		for _, entry := range cli.EditorHelpEntries() {
 			output.Str("  ").Str(entry.Name).Str("  ").Str(entry.Desc).Byte('\n')
 		}
-		return nil, output.String()
+		return output.String()
 	case "":
-		return nil, ""
+		return ""
 	}
-	return nil, "unknown command: " + cmd.Verb
+	return "unknown command: " + cmd.Verb
 }
 
 func parseConfigContent(content string, schema *config.Schema) (*config.Tree, error) {

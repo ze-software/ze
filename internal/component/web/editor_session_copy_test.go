@@ -81,7 +81,7 @@ func TestWebTerminalSetTakesATokenPath(t *testing.T) {
 		{"bgp", "peer", "wbsrc", "connection", "local", "ip", "auto"},
 		{"bgp", "peer", "wbsrc", "session", "asn", "remote", "65001"},
 	} {
-		_, output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbSet, Args: line})
+		output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbSet, Args: line})
 		require.NotContains(t, output, "error", "set %v", line)
 	}
 	bgp := mgr.Tree("alice").GetContainer("bgp")
@@ -90,10 +90,10 @@ func TestWebTerminalSetTakesATokenPath(t *testing.T) {
 	require.True(t, ok, "the leaf lands at its full path")
 	assert.Equal(t, "10.0.0.9", routerID)
 
-	_, output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbCommit, Args: []string{"now"}})
+	output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbCommit, Args: []string{"now"}})
 	require.Equal(t, terminalOutputCommitSuccessful, output)
 
-	_, output = executeTerminalNav(schema, nil, mgr, "alice", nil,
+	output = executeTerminalNav(schema, nil, mgr, "alice", nil,
 		cliCommand{Verb: verbCopy, Args: []string{"bgp", "peer", "wbsrc", "to", "wbdst"}})
 	assert.Equal(t, "Copied peer wbsrc to wbdst", output)
 }
@@ -178,11 +178,11 @@ func TestWebTerminalDeactivateLeafAndEntry(t *testing.T) {
 		{"bgp", "router-id", "10.0.0.9"},
 		{"bgp", "peer", "wbsrc", "connection", "remote", "ip", "10.0.0.1"},
 	} {
-		_, output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbSet, Args: line})
+		output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verbSet, Args: line})
 		require.NotContains(t, output, "error", "set %v", line)
 	}
 	run := func(verb string, args ...string) string {
-		_, output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verb, Args: args})
+		output := executeTerminalNav(schema, nil, mgr, "alice", nil, cliCommand{Verb: verb, Args: args})
 		return output
 	}
 

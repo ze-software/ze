@@ -185,7 +185,7 @@ func TestWebCLIBarDiscardPath(t *testing.T) {
 // PREVENTS: a fix line the web terminal does not print, or cannot follow.
 func TestWebTerminalMemberConflictFixLine(t *testing.T) {
 	mgr, schema := memberConflictManager(t)
-	_, output := executeTerminalNav(schema, nil, mgr, "testuser", nil, cliCommand{Verb: verbCommit, Args: []string{"now"}})
+	output := executeTerminalNav(schema, nil, mgr, "testuser", nil, cliCommand{Verb: verbCommit, Args: []string{"now"}})
 	require.Contains(t, output, memberConflictFix)
 
 	result := executeTerminalConfigMode(t.Context(), schema, nil, mgr, "testuser", "", nil,

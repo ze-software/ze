@@ -264,7 +264,11 @@ func HandleConfigDiscardWithAuthorizerAndAudit(mgr *EditorManager, authorizer aa
 			http.Error(w, refusal.Error(), http.StatusInternalServerError)
 			return
 		}
-		detail := mgr.discardDiff(username)
+		detail, err := mgr.discardDiff(username)
+		if err != nil {
+			http.Error(w, editorSessionRefusal(err).Error(), http.StatusInternalServerError)
+			return
+		}
 		if err := mgr.Discard(username); err != nil {
 			http.Error(w, fmt.Sprintf("discard: %v", err), http.StatusInternalServerError)
 			return

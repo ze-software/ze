@@ -15,6 +15,8 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
+const firewallTableField = "table"
+
 // --- Tables page ---
 
 // tableEntry holds display fields for one firewall table.
@@ -67,7 +69,7 @@ func buildFirewallTablesTableData(entries []tableEntry) WorkbenchTableData {
 			},
 			Actions: []WorkbenchRowAction{
 				{Label: "View Chains", URL: tb.Reset().Str("/show/firewall/chain/?table=").Str(url.QueryEscape(e.Name)).String()},
-				{Label: labelEdit, URL: tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, "table", e.Name})).Byte('/').String()},
+				{Label: labelEdit, URL: tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, firewallTableField, e.Name})).Byte('/').String()},
 			},
 		})
 	}
@@ -151,7 +153,7 @@ func collectChains(filterTable, filterHook, filterType string) []chainEntry {
 // buildFirewallChainsTableData constructs a WorkbenchTableData for the chains page.
 func buildFirewallChainsTableData(entries []chainEntry, filterTable string) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "table", Label: "Table", Sortable: true},
+		{Key: firewallTableField, Label: "Table", Sortable: true},
 		{Key: colName, Label: labelName, Sortable: true},
 		{Key: colType, Label: labelType, Sortable: true},
 		{Key: "hook", Label: "Hook", Sortable: true},
@@ -182,7 +184,7 @@ func buildFirewallChainsTableData(entries []chainEntry, filterTable string) Work
 			},
 			Actions: []WorkbenchRowAction{
 				{Label: "View Rules", URL: tb.Reset().Str("/show/firewall/rule/?table=").Str(url.QueryEscape(ce.Table)).Str("&chain=").Str(url.QueryEscape(ce.Name)).String()},
-				{Label: labelEdit, URL: tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, "table", ce.Table, segChain, ce.Name})).Byte('/').String()},
+				{Label: labelEdit, URL: tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, firewallTableField, ce.Table, segChain, ce.Name})).Byte('/').String()},
 			},
 		})
 	}
@@ -194,7 +196,7 @@ func buildFirewallChainsTableData(entries []chainEntry, filterTable string) Work
 
 	addURL := ""
 	if filterTable != "" {
-		addURL = tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, "table", filterTable, segChain})).Byte('/').String()
+		addURL = tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, firewallTableField, filterTable, segChain})).Byte('/').String()
 	}
 
 	return WorkbenchTableData{
@@ -210,7 +212,7 @@ func buildFirewallChainsTableData(entries []chainEntry, filterTable string) Work
 
 // handleFirewallChainsPage renders the firewall chains table within the workbench.
 func handleFirewallChainsPage(renderer *Renderer, r *http.Request) template.HTML {
-	filterTable := r.URL.Query().Get("table")
+	filterTable := r.URL.Query().Get(firewallTableField)
 	filterHook := r.URL.Query().Get("hook")
 	filterType := r.URL.Query().Get("type")
 	entries := collectChains(filterTable, filterHook, filterType)
@@ -495,7 +497,7 @@ func buildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain s
 		}
 
 		var tb textbuf.Buffer
-		ruleBase := tb.Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, "table", re.Table, segChain, re.Chain, segRule, re.Name})).String()
+		ruleBase := tb.Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, firewallTableField, re.Table, segChain, re.Chain, segRule, re.Name})).String()
 		rows = append(rows, WorkbenchTableRow{
 			Key:       tb.Reset().Str(re.Table).Byte('/').Str(re.Chain).Byte('/').Str(re.Name).String(),
 			Flags:     flagStr,
@@ -535,7 +537,7 @@ func buildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain s
 
 	addURL := ""
 	if filterTable != "" && filterChain != "" {
-		addURL = tb2.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, "table", filterTable, segChain, filterChain, "term"})).Byte('/').String()
+		addURL = tb2.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, firewallTableField, filterTable, segChain, filterChain, "term"})).Byte('/').String()
 	}
 
 	return WorkbenchTableData{
@@ -551,7 +553,7 @@ func buildFirewallRulesTableData(entries []ruleEntry, filterTable, filterChain s
 
 // handleFirewallRulesPage renders the firewall rules table within the workbench.
 func handleFirewallRulesPage(renderer *Renderer, r *http.Request) template.HTML {
-	filterTable := r.URL.Query().Get("table")
+	filterTable := r.URL.Query().Get(firewallTableField)
 	filterChain := r.URL.Query().Get("chain")
 	entries := collectRules(filterTable, filterChain)
 	tableData := buildFirewallRulesTableData(entries, filterTable, filterChain)
@@ -620,7 +622,7 @@ func setFlagsStr(f firewall.SetFlags) string {
 // buildFirewallSetsTableData constructs a WorkbenchTableData for the sets page.
 func buildFirewallSetsTableData(entries []setEntry) WorkbenchTableData {
 	columns := []WorkbenchTableColumn{
-		{Key: "table", Label: "Table", Sortable: true},
+		{Key: firewallTableField, Label: "Table", Sortable: true},
 		{Key: colName, Label: labelName, Sortable: true},
 		{Key: colType, Label: labelType, Sortable: true},
 		{Key: "flags", Label: "Flags"},
@@ -640,7 +642,7 @@ func buildFirewallSetsTableData(entries []setEntry) WorkbenchTableData {
 				strconv.Itoa(se.ElementCount),
 			},
 			Actions: []WorkbenchRowAction{
-				{Label: "View Elements", URL: tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, "table", se.Table, "set", se.Name})).Byte('/').String()},
+				{Label: "View Elements", URL: tb.Reset().Str(showPathPrefix).Str(encodeConfigPath([]string{segFirewall, firewallTableField, se.Table, "set", se.Name})).Byte('/').String()},
 			},
 		})
 	}
@@ -658,7 +660,7 @@ func buildFirewallSetsTableData(entries []setEntry) WorkbenchTableData {
 
 // handleFirewallSetsPage renders the firewall sets table within the workbench.
 func handleFirewallSetsPage(renderer *Renderer, r *http.Request) template.HTML {
-	filterTable := r.URL.Query().Get("table")
+	filterTable := r.URL.Query().Get(firewallTableField)
 	entries := collectSets(filterTable)
 	tableData := buildFirewallSetsTableData(entries)
 	return renderer.renderComponent("workbench_table", workbenchTable(tableData))

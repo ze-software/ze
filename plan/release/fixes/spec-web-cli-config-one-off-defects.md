@@ -7,7 +7,7 @@
 | Priority | P1 |
 | Release reason | Each row is incorrect operator-facing behaviour: a secret echoed, a commit not audited, a list shown as empty, a YANG statement ignored, markup that does not render |
 | Depends | - |
-| Phase | web amendment implemented; original journal obligations open |
+| Phase | web amendment CI follow-up: discard audit snapshots |
 | Handoff | verify |
 | Updated | 2026-11-16 |
 
@@ -41,6 +41,11 @@ claim that the unrelated journal obligations below have been implemented or
 closed. The existing schema, editor manager, command dispatcher and web mode
 selector remain the mechanisms; no parallel editor or command service is added.
 
+The CI follow-up owns the discard audit snapshot's cache-miss handling. A missing
+cached editor does not mean the user's durable intent is empty: the snapshot
+opens the existing editor and propagates an opening failure through every web
+discard transport before mutation or audit recording.
+
 Initial source audit (2026-11-15): `web.parseUIMode` selects Workbench for an empty value,
 although the environment registration and YANG leaf declare Finder as default.
 `web.buildFragmentData` leaves multi-valued and freeform schema nodes without
@@ -56,7 +61,7 @@ from the SSH editor require correction and targeted coverage.
 | AC-34 | Finder browser scenarios run by default, and Workbench scenarios select their mode explicitly. Existing edit, review, commit and navigation assertions continue to execute. | Scenarios requiring a separately unavailable service or an unfinished experimental Workbench workflow may keep an independently justified skip. The owner requested that unfinished Workbench remain the backup; mode selection alone is no longer a skip reason. |
 | AC-35 | A browser CLI streaming command displays successive daemon answers and provides the operator a working stop action, using the existing dispatcher and bounded output. | A finite command may use its existing single response; streaming must not be represented as a single completed answer. |
 | AC-36 | The Workbench firewall connections page displays actual connection rows when supplied by the running backend, and explicitly reports when connection state cannot be read. | An empty table is permitted only when a successful read found no connections; backend absence or a read failure is not reported as that result. |
-| AC-37 | The graphical editor provides the advanced configuration actions available through its shared editor: structural copy/rename/order, activation, review/validation and confirmed-commit controls, with the same candidate, authorization and publication semantics. | Workbench remains experimental; an action refused by the shared editor remains refused with its reason rather than being approximated by the graphical adapter. |
+| AC-37 | The graphical editor provides the advanced configuration actions available through its shared editor: structural copy/rename/order, activation, review/validation and confirmed-commit controls, with the same candidate, authorization and publication semantics. Web discard audit snapshots reopen an uncached user's durable intent; an opening failure stops the action before mutation or audit recording. | Workbench remains experimental; an action refused by the shared editor remains refused with its reason rather than being approximated by the graphical adapter. A successfully opened editor with no intent for its owner may produce an empty discard detail. |
 | AC-38 | A legal schema-backed list key remains addressable through graphical navigation, form actions and the browser CLI context, including keys containing spaces or slashes. URL and context-path encoding preserves the original key tokens before schema validation. | Invalid schema keys and malformed encodings remain refused. Escaping is a transport operation, not permission to bypass the shared schema or editor. |
 
 Implementation phases for this amendment:

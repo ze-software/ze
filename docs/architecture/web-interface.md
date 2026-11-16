@@ -136,6 +136,12 @@ Explicit discard-all also removes this user's persisted intent from an older
 browser session. Its audit detail selects the exact metadata owner and uses the
 same masked change renderer as the review; it does not infer ownership from a
 formatted session identifier or claim another user's changes were dropped.
+The discard snapshot opens the user's editor even when its cache entry was
+evicted. A failed open returns an error, rather than an empty detail, and every
+discard transport stops before mutation or audit recording. A successfully
+opened editor with no intent for that owner may return an empty detail.
+`GetOrCreate` refreshes activity under the manager lock; the snapshot then takes
+the user lock after the manager lock has been released.
 <!-- source: internal/component/web/editor.go -- discardDiff, diffChanges -->
 <!-- source: internal/component/web/handler_config_commit.go -- HandleConfigDiscardWithAuthorizerAndAudit -->
 <!-- source: internal/component/config/change_file.go -- PendingChangeFromSessionEntry, StructuralOp.PendingChange -->

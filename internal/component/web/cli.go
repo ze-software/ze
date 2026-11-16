@@ -362,7 +362,11 @@ func dispatchCLICommand(w http.ResponseWriter, r *http.Request, cmd cliCommand, 
 		return
 	}
 	line := cmd.words.String()
-	action, detail := terminalAuditContext(mgr, username, cmd, line)
+	action, detail, err := terminalAuditContext(mgr, username, cmd, line)
+	if err != nil {
+		http.Error(w, editorSessionRefusal(err).Error(), http.StatusInternalServerError)
+		return
+	}
 	result := executeTerminalCommand(r.Context(), schema, mgr.Tree(username), mgr, username, r.RemoteAddr, contextPath, terminalModeConfig, cmd, line, dispatch)
 	if result.completion != nil {
 		defer result.completion.TransportComplete()

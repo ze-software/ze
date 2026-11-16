@@ -36,7 +36,7 @@ func TestWebTerminalSetNeverEchoesASecret(t *testing.T) {
 
 	contextPath := []string{"system", "authentication", "user", "alice"}
 
-	_, output := executeTerminalNav(schema, nil, mgr, "alice", contextPath,
+	output := executeTerminalNav(schema, nil, mgr, "alice", contextPath,
 		cliCommand{Verb: verbSet, Args: []string{"plaintext-password", typedTerminalSecret}})
 
 	require.Contains(t, output, "plaintext-password",
@@ -57,7 +57,7 @@ func TestWebTerminalSetStillEchoesAValueTheSchemaDoesNotMark(t *testing.T) {
 	schema, err := config.YANGSchema()
 	require.NoError(t, err)
 
-	_, output := executeTerminalNav(schema, nil, mgr, "alice", []string{"bgp"},
+	output := executeTerminalNav(schema, nil, mgr, "alice", []string{"bgp"},
 		cliCommand{Verb: verbSet, Args: []string{"router-id", "10.9.8.7"}})
 
 	assert.Contains(t, output, "10.9.8.7",
