@@ -1,14 +1,13 @@
 {
-  "code": {},
-  "note": "RFC 4271 Section 9: \"Once the BGP speaker updates the Adj-RIB-In, the speaker SHALL run its Decision Process.\" Re-judged 2026-10-26 by an independent auditor: the rib_bestchange_test.go units lost their tags, leaving the two plugins/rib/rfc4271_receive_decision_test.go carriers, both byte-identical to the units previously judged. Both feed an UPDATE body to handleReceivedStructured, never calling checkBestPathChange. Positive: one received route reaches the Loc-RIB with next hop 10.0.0.1 and exactly one BestChangeAdd names 10.0.0.0/8. Negative: after peer A withdraws its selected route, the Loc-RIB holds peer B's 10.0.0.2 rather than A's stale route or none, so a skipped run on the withdrawal update fails. The pair is two triggers of one obligation (announce, withdraw) rather than a confining case; no conforming input exists where the process must not run, so this is the strongest available pair. Discrimination records verified: revert of rib_bestchange.go::checkRouteBestChange reddens both units.",
+  "note": "Section 9 requires the Decision Process after Adj-RIB-In updates. The receive positive drives only handleReceivedStructured and requires the announced 10/8 in Loc-RIB at 10.0.0.1 with exactly one BestChangeAdd. The negative withdraws the selected peer A route and requires peer B's remaining 10.0.0.2 route, excluding stale A or an empty Loc-RIB. Announcement and withdrawal are distinct triggers of the required run; neither tagged unit invokes selection directly. Independent rejudgment preserves the existing verdict, requirement quote, level and full tagged scope. Main receive baseline 4f70ab4b passed all 11 roots (12 leaf cases), race enabled, without skips; supplementary baseline d3723dd3 passed TestLocRIBMirror and TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute. Main native refresh 32c5b989 completed all 13 existing receive-cover records: each named clean baseline passed and its existing revert route disabled the named producer with an intentional panic, producing the recorded red. Those observations retain their original producer-disable route and provenance; they are not normal-return semantic-mutant proof and do not add credit to unrecorded supplementary carriers.",
   "requirement_sha": "e4253de42d023dd5",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "e914a6452ddec559",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "e914a6452ddec559"
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "7cc7f52355e6418d",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "7cc7f52355e6418d"
   },
   "units": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "448dc56158d37236",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "7e76ce2c3464e819"
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess": "b6d018cbdf48f347",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects": "a069f6d16c88199e"
   },
   "verdict": "enforced"
 }

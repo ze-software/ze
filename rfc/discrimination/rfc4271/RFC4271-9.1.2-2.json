@@ -3,22 +3,22 @@
     "rid": "RFC4271-9.1.2-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute",
-    "unit-sha": "3764a3074fa7e38a",
+    "unit-sha": "16f42575017eadfb",
     "claim-sha": "4d277bd41dbbdf76",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_remote.go::insertLocRIB",
     "producer-sha": "886c895c7cc400f9",
-    "break": "body of insertLocRIB replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of insertLocRIB replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-9.1.2-2",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute",
-    "unit-sha": "5ec0404983f65125",
+    "unit-sha": "9d3c99a61ae5217a",
     "claim-sha": "475b6234df695877",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_remote.go::insertLocRIB",
     "producer-sha": "886c895c7cc400f9",
-    "break": "body of insertLocRIB replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of insertLocRIB replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

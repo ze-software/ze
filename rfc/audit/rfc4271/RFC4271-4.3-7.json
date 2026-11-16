@@ -1,17 +1,17 @@
 {
-  "note": "HEAD positives (rfc4271_rib_mixed_update_test.go, three paths) prove the prefix named in both WITHDRAWN and NLRI stays installed with no withdrawal published. New negative TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals drives handleReceivedStructured and asserts the OTHER withdrawn prefix (11/8) still leaves Adj-RIB-In and Loc-RIB, so the treatment is scoped to the duplicated prefix. Judge mutants 2026-09-30 (go test -overlay, tree untouched): skipping the whole legacy WITHDRAWN field when the UPDATE carries NLRI reddens the negative alone; the positives stay green, so the two polarities catch opposite failures.",
+  "note": "Section 4.3 says a mixed UPDATE should be treated as though WITHDRAWN ROUTES did not contain the duplicated prefix. The three existing positives remain: structured receive, JSON/pool receive and injection keep that prefix in their Adj-RIB-In; the structured positive additionally requires the exact BestChangeAdd, no withdrawal, and the same outcome on a repeat UPDATE. Its setup-only repair adds a real connected 10.0.0.1/32 without changing either mixed wire message or assertions. The receive negative names 10/8 and 11/8 withdrawn but reannounces only 10/8, then requires 10/8 present and 11/8 absent from both views, excluding an implementation that ignores the entire withdrawal field. Independent rejudgment preserves the existing verdict, requirement quote, level and full tagged scope. Main receive baseline 4f70ab4b passed all 11 roots (12 leaf cases), race enabled, without skips; supplementary baseline d3723dd3 passed TestLocRIBMirror and TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute. Main native refresh 32c5b989 completed all 13 existing receive-cover records: each named clean baseline passed and its existing revert route disabled the named producer with an intentional panic, producing the recorded red. Those observations retain their original producer-disable route and provenance; they are not normal-return semantic-mutant proof and do not add credit to unrecorded supplementary carriers.",
   "requirement_sha": "8f0c5f0b9dc78a9c",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals": "e914a6452ddec559",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "dca611e0e7c71b9d",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "dca611e0e7c71b9d",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "dca611e0e7c71b9d"
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals": "7cc7f52355e6418d",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "1d18290590e8987c",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "1d18290590e8987c",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "1d18290590e8987c"
   },
   "units": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals": "6a9a8986dfb30a3d",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals": "78212df813b702e6",
     "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBInjectSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "acbdf7e3aea7bb84",
     "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBPoolPathSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "d5ef9914e9ee614c",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "fb119c704faad911"
+    "internal/component/bgp/plugins/rib/rfc4271_rib_mixed_update_test.go::TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute": "e15e6628cbfa673c"
   },
   "verdict": "enforced"
 }

@@ -1,16 +1,15 @@
 {
-  "code": {},
-  "note": "RFC 4271 Section 9.1.2: \"The local speaker SHALL then install that route in the Loc-RIB, replacing any route to the same destination that is currently being held in the Loc-RIB.\" Re-judged 2026-10-26 by an independent auditor: TestRIBBestChangeWithdraw lost its tag; the remaining carriers are TestRFC4271SelectedRouteReplacesTheLocRIBRoute and TestRFC4271LocRIBHoldsOnlyTheReplacingRoute (receive path through handleReceivedStructured, byte-identical to the units judged before) and TestLocRIBMirror (supplementary positive: checkBestPathChange installs the best in a locrib with eBGP admin distance and NEXT_HOP). Positive: peer B's better route replaces peer A's as the Loc-RIB best (10.0.0.1 -> 10.0.0.2). Negative: the destination's Loc-RIB group holds exactly one BGP path, peer B's, so install-beside fails. Both clauses (install, replacing) are asserted. Discrimination records verified: revert of rib_remote.go::insertLocRIB reddens both receive-path units.",
+  "note": "Section 9.1.2 requires installation of the selected route in Loc-RIB replacing the previous route to that destination. The receive positive moves the best from peer A/10.0.0.1 to better peer B/10.0.0.2; the negative inspects the destination group and requires exactly one BGP path, B's, rather than an additional retained A path. The supplementary TestLocRIBMirror retains its exact install, eBGP distance, next-hop and withdrawal checks and now uses a real connected /32 for its unchanged 192.168.1.1 next hop. Independent rejudgment preserves the existing verdict, requirement quote, level and full tagged scope. Main receive baseline 4f70ab4b passed all 11 roots (12 leaf cases), race enabled, without skips; supplementary baseline d3723dd3 passed TestLocRIBMirror and TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute. Main native refresh 32c5b989 completed all 13 existing receive-cover records: each named clean baseline passed and its existing revert route disabled the named producer with an intentional panic, producing the recorded red. Those observations retain their original producer-disable route and provenance; they are not normal-return semantic-mutant proof and do not add credit to unrecorded supplementary carriers.",
   "requirement_sha": "83f1b8937ef8d555",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "e914a6452ddec559",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "e914a6452ddec559",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "b0e5a077cb98aa2f"
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "7cc7f52355e6418d",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "7cc7f52355e6418d",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "80576c7dda74c536"
   },
   "units": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "98402ef77460d85f",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "4a1294ce00fd3415",
-    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "ed76a4e75e4c5e3a"
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271LocRIBHoldsOnlyTheReplacingRoute": "6cc64399990bed0a",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271SelectedRouteReplacesTheLocRIBRoute": "1c6a00a6474068fc",
+    "internal/component/bgp/plugins/rib/rfc4271_rib_bestchange_test.go::TestLocRIBMirror": "6d18b79225c57d67"
   },
   "verdict": "enforced"
 }

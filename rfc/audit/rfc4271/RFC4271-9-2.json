@@ -1,15 +1,15 @@
 {
-  "note": "Positive: a second received route with identical NLRI from the same peer leaves one Adj-RIB-In entry and the new next hop in service. Negative (inputs biased toward the violation): the newer route has a LONGER AS_PATH, so keep-both or keep-better would leave the older 10.0.0.1 selected; the test asserts one entry and 10.0.0.2 in service. Both run through handleReceivedStructured. The HEAD storage negative (removal keyed on NLRI) is a neighbouring rule kept as supplementary; the new pair carries the row.",
+  "note": "Section 9 requires a feasible identical-NLRI announcement to replace the older Adj-RIB-In route and implicitly withdraw it from service. The receive positive requires one entry and the newer next hop 10.0.0.2; the negative gives the newer route a longer AS_PATH, so retaining the older better route or accumulating both would fail the exact one-entry/new-next-hop assertions. The unchanged storage replacement unit checks newer attributes replace the old attributes; its unrelated-prefix removal negative is supplementary and does not replace the receive pair. Independent rejudgment preserves the existing verdict, requirement quote, level and full tagged scope. Main receive baseline 4f70ab4b passed all 11 roots (12 leaf cases), race enabled, without skips; supplementary baseline d3723dd3 passed TestLocRIBMirror and TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute. Main native refresh 32c5b989 completed all 13 existing receive-cover records: each named clean baseline passed and its existing revert route disabled the named producer with an intentional panic, producing the recorded red. Those observations retain their original producer-disable route and provenance; they are not normal-return semantic-mutant proof and do not add credit to unrecorded supplementary carriers.",
   "requirement_sha": "0ddd41b24ace783a",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder": "e914a6452ddec559",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter": "e914a6452ddec559",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder": "7cc7f52355e6418d",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter": "7cc7f52355e6418d",
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "ab16100811ce8d90",
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "ab16100811ce8d90"
   },
   "units": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder": "68cd482462e9f4f3",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter": "2736bb36fa7477ff",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder": "d890a6c7bdf27638",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter": "ba95658c9d74aa07",
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271SamePrefixReplacesRatherThanAccumulates": "fd852d268e8d082c",
     "internal/component/bgp/plugins/rib/storage/rfc4271_test.go::TestRFC4271WithdrawRemovesFromAdjRIBIn": "b31ce68fe4addcd8"
   },

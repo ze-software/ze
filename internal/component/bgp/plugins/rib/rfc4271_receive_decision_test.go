@@ -68,11 +68,10 @@ type rfc4271ReceiveHarness struct {
 	ctxID bgpctx.ContextID
 }
 
-func newRFC4271ReceiveHarness() *rfc4271ReceiveHarness {
+func newRFC4271ReceiveHarness(t testing.TB) *rfc4271ReceiveHarness {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"), netip.MustParseAddr("10.0.0.2"))
 	ctxID, _ := bgpctx.Registry.Register(bgpctx.EncodingContextForASN4(true))
 	return &rfc4271ReceiveHarness{bus: bus, r: r, loc: loc, ctxID: ctxID}
 }
@@ -100,7 +99,7 @@ func (h *rfc4271ReceiveHarness) bestNextHop(prefix string) (netip.Addr, bool) {
 // field removes the previously advertised route it names from the Adj-RIB-In: the peer's
 // Adj-RIB-In drops from two routes to one and 10.0.0.0/8 leaves the Loc-RIB.
 func TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn(t *testing.T) {
-	h := newRFC4271ReceiveHarness()
+	h := newRFC4271ReceiveHarness(t)
 	peer := netip.MustParseAddr("192.0.2.10")
 	nh := [4]byte{10, 0, 0, 1}
 
@@ -126,7 +125,7 @@ func TestRFC4271ReceivedWithdrawalRemovesTheRouteFromAdjRIBIn(t *testing.T) {
 // the WITHDRAWN ROUTES field stay in the Adj-RIB-In and in the Loc-RIB, and withdrawing an
 // unannounced prefix leaves the Adj-RIB-In unchanged.
 func TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes(t *testing.T) {
-	h := newRFC4271ReceiveHarness()
+	h := newRFC4271ReceiveHarness(t)
 	peer := netip.MustParseAddr("192.0.2.11")
 	nh := [4]byte{10, 0, 0, 1}
 
@@ -152,7 +151,7 @@ func TestRFC4271ReceivedWithdrawalRemovesOnlyTheNamedRoutes(t *testing.T) {
 // to the stored one replaces the older route in the Adj-RIB-In: one entry remains and the
 // route in service is the new one (next hop 10.0.0.2).
 func TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder(t *testing.T) {
-	h := newRFC4271ReceiveHarness()
+	h := newRFC4271ReceiveHarness(t)
 	peer := netip.MustParseAddr("192.0.2.12")
 
 	h.receive(peer, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
@@ -173,7 +172,7 @@ func TestRFC4271ReceivedRouteWithIdenticalNLRIReplacesTheOlder(t *testing.T) {
 // service: a newer route with a longer AS_PATH for the identical NLRI is the one the
 // Loc-RIB carries, which a keep-both or keep-better Adj-RIB-In would not produce.
 func TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter(t *testing.T) {
-	h := newRFC4271ReceiveHarness()
+	h := newRFC4271ReceiveHarness(t)
 	peer := netip.MustParseAddr("192.0.2.13")
 
 	h.receive(peer, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
@@ -194,7 +193,7 @@ func TestRFC4271ReplacementWithdrawsTheOlderRouteEvenWhenItWasBetter(t *testing.
 // RFC requirement: RFC4271-9-3 positive -- once the received route updates the Adj-RIB-In
 // the Decision Process runs: the Loc-RIB carries 10.0.0.0/8 and a BestChangeAdd names it.
 func TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess(t *testing.T) {
-	h := newRFC4271ReceiveHarness()
+	h := newRFC4271ReceiveHarness(t)
 	peer := netip.MustParseAddr("192.0.2.14")
 
 	h.receive(peer, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001}, [][]byte{rfc4271Prefix8(10)}))
@@ -215,7 +214,7 @@ func TestRFC4271AdjRIBInUpdateRunsTheDecisionProcess(t *testing.T) {
 // change displaces the current best: after peer A withdraws its better route, the Loc-RIB
 // carries peer B's route rather than A's stale one or none.
 func TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects(t *testing.T) {
-	h := newRFC4271ReceiveHarness()
+	h := newRFC4271ReceiveHarness(t)
 	peerA := netip.MustParseAddr("192.0.2.15")
 	peerB := netip.MustParseAddr("192.0.2.16")
 
@@ -240,7 +239,7 @@ func TestRFC4271AdjRIBInUpdateThatDisplacesTheBestReselects(t *testing.T) {
 // installed in the Loc-RIB, replacing peer A's route to the same destination: the best
 // next hop moves from 10.0.0.1 to 10.0.0.2.
 func TestRFC4271SelectedRouteReplacesTheLocRIBRoute(t *testing.T) {
-	h := newRFC4271ReceiveHarness()
+	h := newRFC4271ReceiveHarness(t)
 	peerA := netip.MustParseAddr("192.0.2.17")
 	peerB := netip.MustParseAddr("192.0.2.18")
 
@@ -264,7 +263,7 @@ func TestRFC4271SelectedRouteReplacesTheLocRIBRoute(t *testing.T) {
 // beside its replacement: the destination's Loc-RIB group holds exactly one BGP path, and
 // it is peer B's.
 func TestRFC4271LocRIBHoldsOnlyTheReplacingRoute(t *testing.T) {
-	h := newRFC4271ReceiveHarness()
+	h := newRFC4271ReceiveHarness(t)
 	peerA := netip.MustParseAddr("192.0.2.19")
 	peerB := netip.MustParseAddr("192.0.2.20")
 
@@ -294,7 +293,7 @@ func TestRFC4271LocRIBHoldsOnlyTheReplacingRoute(t *testing.T) {
 // RFC requirement: RFC4271-9.2-5 positive -- both the less and the more specific route,
 // sharing NEXT_HOP 10.0.0.1, are installed in the Loc-RIB.
 func TestRFC4271OverlappingReceivedRoutesAreBothInstalled(t *testing.T) {
-	h := newRFC4271ReceiveHarness()
+	h := newRFC4271ReceiveHarness(t)
 	peer := netip.MustParseAddr("192.0.2.21")
 
 	h.receive(peer, rfc4271Update(nil, [4]byte{10, 0, 0, 1}, []uint32{65001},
@@ -330,7 +329,7 @@ func TestRFC4271OverlappingRouteArrivalDisplacesNeither(t *testing.T) {
 	}
 	for _, tc := range cases {
 		t.Run(tc.name, func(t *testing.T) {
-			h := newRFC4271ReceiveHarness()
+			h := newRFC4271ReceiveHarness(t)
 			peer := netip.MustParseAddr("192.0.2.22")
 			nh := [4]byte{10, 0, 0, 1}
 
@@ -355,7 +354,7 @@ func TestRFC4271OverlappingRouteArrivalDisplacesNeither(t *testing.T) {
 // ROUTES does not contain the duplicated prefix only: the other withdrawn prefix
 // (11.0.0.0/8) is still removed from the Adj-RIB-In and the Loc-RIB.
 func TestRFC4271MixedUpdateStillAppliesItsOtherWithdrawals(t *testing.T) {
-	h := newRFC4271ReceiveHarness()
+	h := newRFC4271ReceiveHarness(t)
 	peer := netip.MustParseAddr("192.0.2.23")
 	nh := [4]byte{10, 0, 0, 1}
 

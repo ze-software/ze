@@ -1619,8 +1619,7 @@ func TestBestPathResolve(t *testing.T) {
 // from the Loc-RIB (internal/component/bgp/plugins/rib/rib_bestchange.go:766-782).
 func TestLocRIBMirror(t *testing.T) {
 	r := newTestRIBManager(t)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	peerAddr := netip.MustParseAddr("192.0.2.1")
 	r.peerMeta[peerAddr] = &peerMetadata{PeerASN: 65001, LocalASN: 65000}

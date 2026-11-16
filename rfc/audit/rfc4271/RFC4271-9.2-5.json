@@ -1,13 +1,13 @@
 {
-  "note": "Positive: a less and a more specific route with the same NEXT_HOP are both installed in the Loc-RIB (bestNextHop for /8 and /24). Negative: installing the second overlapping route, in either order, never uninstalls the first (no withdraw, first still in Loc-RIB, Adj-RIB-In holds 2), which a most-specific-wins or covering-wins process fails. Ze takes the 'install both' branch; aggregation is not used. Old storage NLRI-keying tags removed (D-15).",
+  "note": "Section 9.1.4 allows installing both overlapping accepted routes with the same NEXT_HOP or an aggregate. Ze uses the install-both branch. The receive positive checks the /8 and /24 both resolve to the unchanged 10.0.0.1 next hop and exactly two BestChangeAdd events. The negative checks both arrival orders, no withdrawal, the earlier prefix still present and two Adj-RIB-In entries. Neither covering-wins nor most-specific-wins can satisfy these exact assertions; aggregation is not claimed. Independent rejudgment preserves the existing verdict, requirement quote, level and full tagged scope. Main receive baseline 4f70ab4b passed all 11 roots (12 leaf cases), race enabled, without skips; supplementary baseline d3723dd3 passed TestLocRIBMirror and TestRIBSamePrefixInWithdrawnAndNLRIInstallsTheRoute. Main native refresh 32c5b989 completed all 13 existing receive-cover records: each named clean baseline passed and its existing revert route disabled the named producer with an intentional panic, producing the recorded red. Those observations retain their original producer-disable route and provenance; they are not normal-return semantic-mutant proof and do not add credit to unrecorded supplementary carriers.",
   "requirement_sha": "88e289aad8d82fbb",
   "tests": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "e914a6452ddec559",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "e914a6452ddec559"
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "7cc7f52355e6418d",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "7cc7f52355e6418d"
   },
   "units": {
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "eb45d769d02cad24",
-    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "369ff347b6413c88"
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled": "d2b9fed109ed1b88",
+    "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither": "548b78d011e1d069"
   },
   "verdict": "enforced"
 }

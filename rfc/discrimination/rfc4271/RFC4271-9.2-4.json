@@ -3,23 +3,23 @@
     "rid": "RFC4271-9.2-4",
     "polarity": "positive",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingReceivedRoutesAreBothInstalled",
-    "unit-sha": "20fc5d06b7413916",
+    "unit-sha": "9e0652bbe670dea2",
     "claim-sha": "102463e5427a435a",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
     "producer-sha": "3f5dec7a9b9128da",
-    "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-9.2-4",
     "polarity": "negative",
     "unit": "internal/component/bgp/plugins/rib/rfc4271_receive_decision_test.go::TestRFC4271OverlappingRouteArrivalDisplacesNeither",
-    "unit-sha": "6fecc40a68181ea3",
+    "unit-sha": "4c15d5437c7f1194",
     "claim-sha": "6f5a3b4534472341",
     "route": "revert",
     "producer": "internal/component/bgp/plugins/rib/rib_bestchange.go::checkRouteBestChange",
     "producer-sha": "3f5dec7a9b9128da",
-    "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc discriminate-record disabled this producer to observe the red\")"
+    "break": "body of checkRouteBestChange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-9.2-4",
@@ -29,7 +29,7 @@
     "claim-sha": "232c798089a555b4",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::Reactor.runIngressPolicyChainMeta",
-    "producer-sha": "94b327ece704681e",
+    "producer-sha": "1434aa47d5cd0c08",
     "break": "body of Reactor.runIngressPolicyChainMeta replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -40,7 +40,7 @@
     "claim-sha": "603abba3fd4b331d",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/reactor_notify.go::Reactor.notifyMessageReceiver",
-    "producer-sha": "5adb700c0b57a5ac",
+    "producer-sha": "e77b6eb3fba4d9d7",
     "break": "body of Reactor.notifyMessageReceiver replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]
