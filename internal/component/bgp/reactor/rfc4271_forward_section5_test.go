@@ -131,9 +131,7 @@ const s5SourceNextHop = "192.0.2.10"
 
 // s5Payload announces 10.0.0.0/24 with ORIGIN igp, an AS_PATH of one 4-octet
 // AS_SEQUENCE holding 65001, and the given NEXT_HOP. The source context is
-// ASN4, so the AS number is written on 4 octets: nhPayload writes 2, which the
-// prepend keeps as it found it and the assertion below would then read as a
-// malformed segment of the product's making.
+// ASN4, so the AS number is written on four octets.
 func s5Payload(nextHop string) []byte {
 	addr := netip.MustParseAddr(nextHop).As4()
 	attrs := []byte{0x40, 0x01, 0x01, 0x00} // ORIGIN igp
