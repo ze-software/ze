@@ -464,7 +464,6 @@ func resolveInstallerKernel(root, version, arch, profile, builder string, td ker
 	if err := copyToToolsPath(cached, toolsDst); err != nil {
 		fmt.Fprintf(os.Stdout, "warning: copy to %s: %v\n", toolsDst, err) //nolint:errcheck // CLI warning
 	}
-	evictKeepN(filepath.Join(resolveCacheDir(), kernelCacheDir), cached)
 	return cached, nil
 }
 
@@ -521,7 +520,6 @@ func resolveRuntimeKernel(root, version, arch, profile, builder string, td kerne
 	if err := copyTree(output, cachedDir); err != nil {
 		return "", fmt.Errorf("cache runtime kernel tree: %w", err)
 	}
-	evictKeepN(filepath.Join(resolveCacheDir(), runtimeKernelCacheDir), cachedDir)
 	return cachedDir, nil
 }
 

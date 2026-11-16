@@ -207,9 +207,11 @@ the same inputs always give the same key and a change to any gives a new one.
 `./le setup docker host build [arch <amd64|arm64>] [size <GiB>] [pins <file>]`
 writes the raw image to
 `~/.cache/ze/docker-host/<arch>/<key>/docker-host.img` and prints its path. A new
-image bounds its arch's directory the way a new kernel bounds its cache
-(`evictKeepN`): the two most recent entries stay, with the one just built and any
-entry younger than the eviction grace on top.
+image preserves older shared images, static binaries and staging directories.
+A new key does not establish that an older image is unused. A running VM or
+retained comparison can still need it.
+<!-- source: internal/le/setup/docker/host/build.go -- builder.build -->
+
 The key is `ImageKey` over the pins, the SHA-256 of the runtime kernel's
 `vmlinuz` (never the cache entry's name: kernel builds are not reproducible, so
 a rebuilt entry keeps its name and changes its bytes, and `docker-lab command`

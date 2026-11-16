@@ -2,8 +2,6 @@ package dockerhost
 
 import (
 	"context"
-	"errors"
-	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
@@ -98,12 +96,11 @@ func TestDockerHostBuildKeepsAnUnreadableKernel(t *testing.T) {
 	}
 }
 
-// VALIDATES: a new image bounds its arch's directory: the oldest entries go, and
-// the image just built and an entry inside the eviction grace stay.
-// PREVENTS: every kernel rebuild leaving a multi-gigabyte image behind for good.
+// VALIDATES: a new image leaves older shared images and the current/fresh image usable.
+// PREVENTS: a successful build deleting another run's image or useful comparison.
 // METHOD: age real entries with Chtimes, build once through the recording builder,
-// and read the directory.
-func TestDockerHostBuildEvictsOldImages(t *testing.T) {
+// and reopen every older image by path.
+func TestDockerHostBuildRetainsOldImages(t *testing.T) {
 	recorder := newRecordingBuilder(t)
 	req := buildRequest{repo: fakeRepo(t), arch: "arm64", pins: fullPins(t), sizeGiB: imageSizeGiBDefault}
 	images := filepath.Join(recorder.cacheDir, req.arch)
@@ -125,7 +122,7 @@ func TestDockerHostBuildEvictsOldImages(t *testing.T) {
 		t.Fatalf("build: %v", err)
 	}
 	if !built.Built {
-		t.Fatal("the build reused an image, so nothing asked for eviction")
+		t.Fatal("the build reused an image, so publication was not reached")
 	}
 	if _, err := os.Stat(built.Path); err != nil {
 		t.Errorf("the image just built is gone: %v", err)
@@ -133,10 +130,15 @@ func TestDockerHostBuildEvictsOldImages(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(fresh, imageFileName)); err != nil {
 		t.Errorf("an entry inside the eviction grace is gone: %v", err)
 	}
-	if _, err := os.Stat(filepath.Join(images, "old-a")); !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("the oldest image was kept: %v", err)
-	}
-	if _, err := os.Stat(filepath.Join(images, "old-d")); !errors.Is(err, fs.ErrNotExist) {
-		t.Errorf("an image past the bound and the grace was kept: %v", err)
+	for _, name := range names {
+		path := filepath.Join(images, name, imageFileName)
+		body, err := os.ReadFile(path)
+		if err != nil {
+			t.Errorf("older shared image %s cannot be reopened: %v", name, err)
+			continue
+		}
+		if string(body) != "image" {
+			t.Errorf("older shared image %s = %q, want image", name, body)
+		}
 	}
 }

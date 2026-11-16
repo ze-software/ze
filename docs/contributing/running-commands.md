@@ -1259,10 +1259,13 @@ and `~/.cache/ze/installer-kernel/`, are NOT a reclamation target, and no
 cleanup removes them: not `./le scratch clean`, not the store trim, and
 not a hand `rm` while recovering a full disk. A cold kernel build takes about
 thirty minutes, the arm64 kernel is built on the Mac and the amd64 kernel on the
-Linux host, and neither host can rebuild the other's. The only thing that
-removes an entry is the eviction after a newer build, which keeps the two newest
-entries of each architecture and never the entry the current tree resolves to
-(`evictKeepN`, `internal/appliance/cache.go`).
+Linux host, and neither host can rebuild the other's. Builds preserve older
+entries. The separate `ze appliance kernel --target <target> --evict-cache`
+action explicitly requests eviction. Its age and recency policy does not check
+ownership, active readers or retained comparisons. Confirm those entries are
+disposable before requesting it.
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel, resolveInstallerKernel, resolveRuntimeKernel -->
+
 The clean and the trim both take their targets from one list, and that list
 skips any target that lies within a kernel cache or holds one, whatever path it
 resolved to, so a `scratch clean` row for such a target reads as a skip that names

@@ -149,9 +149,6 @@ func (b *builder) build(ctx context.Context, req buildRequest) (builtImage, erro
 	if err := os.Rename(partial, image); err != nil {
 		return builtImage{}, fmt.Errorf("move the image into %s: %w", image, err)
 	}
-	// A kernel rebuild now adds an image under a new key, so the arch's directory
-	// needs the same bound as the kernels it boots.
-	appliance.EvictKeepN(filepath.Dir(dir), image)
 	return builtImage{Path: image, Key: key, Built: true}, nil
 }
 

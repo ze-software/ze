@@ -69,9 +69,9 @@ func TestCopyTreePreservesSymlinkAndFiles(t *testing.T) {
 }
 
 func TestEvictKeepN(t *testing.T) {
-	// VALIDATES AC-4 (a namespace is bounded to keep-N most-recent entries; older ones are
-	// reclaimed on a key change) and R-1/AC-8 (an entry touched within the grace window is
-	// never removed, so eviction cannot race a concurrent materialize/boot).
+	// VALIDATES: explicitly requested eviction retains the most recent entries
+	// and entries touched within the grace window. Age and recency alone do
+	// not establish that an older entry is unused.
 	ns := t.TempDir()
 	now := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
 
@@ -172,9 +172,9 @@ func TestCopyTreeLeavesNoStagingDirOnSuccess(t *testing.T) {
 }
 
 func TestEvictKeepNStagingDirs(t *testing.T) {
-	// A .copytree-* staging dir is never counted toward keep-N. A FRESH one
-	// (within grace: a live populate) survives; a STALE one (orphaned by a crash
-	// or a lost rename race) is reaped, so leaked staging cannot accumulate.
+	// Explicit eviction does not count .copytree-* staging toward keep-N.
+	// Recent staging survives; older staging is removed. Its age does not
+	// establish whether its publisher has stopped.
 	ns := t.TempDir()
 	now := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
 	mk := func(name string, ageMin int) {
@@ -222,7 +222,7 @@ func TestEvictKeepNStagingDirs(t *testing.T) {
 
 func TestEvictKeepNReapsStagingBelowKeepN(t *testing.T) {
 	// Even when real keys are within keep-N (so the keep-N loop would early-return),
-	// an orphaned staging dir is still reaped: the reap runs during the entry scan,
+	// an older staging dir is still reaped: the reap runs during the entry scan,
 	// before that early return.
 	ns := t.TempDir()
 	now := time.Date(2026, 7, 18, 12, 0, 0, 0, time.UTC)
@@ -255,8 +255,8 @@ func TestEvictKeepNReapsStagingBelowKeepN(t *testing.T) {
 }
 
 // VALIDATES: AC-15 of spec-appliance-ships-ze-kernel. Eviction keeps the newest
-// entries of EACH architecture, so arm64 rebuilds never evict the amd64 kernel
-// the Linux host built, and the entry the current tree resolves to survives
+// entries of EACH architecture under explicit eviction. The entry the current
+// tree resolves to survives
 // even when it is the oldest of its arch.
 // Method: one amd64 entry, the current arm64 entry (oldest), and three newer
 // arm64 entries, all past the grace window, then one eviction pass.

@@ -39,9 +39,8 @@ const (
 
 var httpGetFn = defaultHTTPGet
 
-// Eviction tunables (overridable in tests). evictGrace protects entries touched recently,
-// which a concurrent run may be materializing or booting (R-1/AC-8): leaving garbage is
-// preferred over deleting an in-use artifact.
+// Explicit eviction tunables (overridable in tests). The grace window retains
+// recent entries but does not establish whether older entries are in use.
 var (
 	evictGrace = 10 * time.Minute
 	evictNow   = time.Now
@@ -92,8 +91,8 @@ func resolveCacheDir() string {
 
 // KernelCacheNamespaces returns the cache directories that hold built kernels.
 // A cold kernel build takes about thirty minutes, and each arch is built on its
-// own host, so no cleanup or disk-full recovery may remove them; the only thing
-// that removes an entry is evictKeepN, after a newer build of the same arch.
+// own host, so automatic cleanup and disk-full recovery must preserve them.
+// Builds preserve older entries. The explicit --evict-cache action is separate.
 // cleanTargets in internal/le/scratch skips any clean or trim target that lies
 // within one of them or holds one, so the clean and the trim read this list.
 func KernelCacheNamespaces() []string {
@@ -526,8 +525,8 @@ func copyTree(src, dst string) error {
 	if err := os.MkdirAll(parent, cacheDirPerm); err != nil { //nolint:gosec // G301: public kernel trees use 0755 parent directories; only the owner can write.
 		return fmt.Errorf("create directory %s: %w", parent, err)
 	}
-	// Stage in a dot-prefixed sibling: on the same filesystem as dst (so the
-	// rename is atomic) and skipped by evictKeepN if a concurrent evict runs.
+	// Stage in a dot-prefixed sibling on the same filesystem as dst, so the
+	// rename is atomic.
 	staging, err := os.MkdirTemp(parent, ".copytree-*")
 	if err != nil {
 		return fmt.Errorf("create staging dir in %s: %w", parent, err)
@@ -601,19 +600,15 @@ func walkCopyInto(src, dst string) error {
 	})
 }
 
-// evictKeepN bounds a cache namespace directory to the evictKeepDefault most-recently-
-// modified entries FOR EACH ARCHITECTURE, removing older ones so a version/config bump
-// reclaims what it supersedes (AC-4). Entries are grouped by the arch field of their name
-// (cacheEntryArch), so rebuilding one arch never evicts the other: an amd64 kernel comes
-// from the Linux host and an arm64 one from the Mac, each a cold build of about thirty
-// minutes that the other host cannot redo. current is a path inside the namespace naming
-// the entry the running tree's variant resolves to; that entry is never removed, whatever
-// its age. Empty current protects nothing extra.
+// evictKeepN implements the explicitly requested --evict-cache action. It keeps
+// evictKeepDefault most-recently-modified entries for each architecture, grouped
+// by cacheEntryArch, plus recent entries and the entry containing current.
+// Empty current protects nothing extra. Builds never call this function.
 //
-// It is called ONLY after a new entry is populated (key-change-only, never on a
-// wall-clock timer), and it never removes an entry modified within evictGrace, since a
-// concurrent run may be materializing or booting it (R-1/AC-8). Errors are swallowed:
-// eviction is a best-effort space bound, never a correctness gate.
+// Age and rank do not establish ownership or non-use. The operator must confirm
+// entries are disposable before requesting eviction. This function does not
+// check active readers or retained comparisons. Errors are swallowed because
+// explicit eviction is a best-effort space bound, never a correctness gate.
 func evictKeepN(nsDir, current string) {
 	entries, err := os.ReadDir(nsDir)
 	if err != nil {
@@ -635,9 +630,9 @@ func evictKeepN(nsDir, current string) {
 			continue
 		}
 		if strings.HasPrefix(e.Name(), ".") {
-			// Never a cache entry. Reap a staging dir (.copytree-*) orphaned by a
-			// populate that was killed or lost a rename race, but only past the
-			// grace window so a live populate's staging is never removed.
+			// Staging directories do not count toward the entry limit. Explicit
+			// eviction also removes old staging trees, whose age does not prove
+			// that their publisher stopped.
 			if strings.HasPrefix(e.Name(), ".copytree-") && info.ModTime().Before(cutoff) {
 				_ = os.RemoveAll(filepath.Join(nsDir, e.Name())) //nolint:errcheck // best-effort
 			}
@@ -656,17 +651,11 @@ func evictKeepN(nsDir, current string) {
 				continue // the entry the current tree resolves to
 			}
 			if d.mtime.After(cutoff) {
-				continue // too fresh to be safe: leave garbage over racing a live run
+				continue // retained by explicit eviction's grace window
 			}
 			_ = os.RemoveAll(filepath.Join(nsDir, d.name)) //nolint:errcheck // best-effort
 		}
 	}
-}
-
-// EvictKeepN is evictKeepN for a namespace another package owns. An image cache
-// holds one directory per arch, so its names carry no arch field and share a group.
-func EvictKeepN(nsDir, current string) {
-	evictKeepN(nsDir, current)
 }
 
 // cacheEntryArch returns the architecture field of a kernel cache entry name,

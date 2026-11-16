@@ -113,6 +113,14 @@ validation or publication failure. A builder error does not prove every Docker
 writer stopped: the resolver retains that run's output and names its exact path.
 It does not remove it or repair permissions while teardown is unknown.
 
+A successful installer or runtime kernel build preserves older cache entries
+and staging directories owned by other runs. Active VMs and retained comparisons
+can still need those entries. The explicit `--evict-cache` action remains separate
+from publication. It selects entries by recency and age, without checking owners,
+active readers or retained comparisons. Confirm those entries are disposable
+before requesting it.
+<!-- source: internal/appliance/cmd_kernel.go -- runKernel, resolveInstallerKernel, resolveRuntimeKernel -->
+
 Only explicit `ze appliance kernel --target runtime` materializes the documented
 `tmp/kernel/build` stage after resolution. Cache-print and cache-eviction actions
 do not materialize it. There is no public output-path option. Existing cache
