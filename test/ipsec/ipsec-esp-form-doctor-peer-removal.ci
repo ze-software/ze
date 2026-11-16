@@ -1,0 +1,153 @@
+# Test: removing the last IPsec peer hides only its retained device finding.
+# Spec: plan/release/fixes/spec-ipsec-dual-form-receive-spd-bypass.md (AC-14)
+#
+# QUESTION: does a running daemon report its idle receiver's retained open
+# failure while a peer is configured, hide it after the last peer is removed,
+# and report it again after re-addition, while an independent counter-read
+# warning remains visible throughout? A direct apply/doctor unit does not prove
+# that the reload reaches the running engine and its doctor callback.
+#
+# The zetest-only backend keeps the same synthetic retained failure and read
+# warning. The responder peer receives no handshake, so no Child SA or packet
+# delivery is claimed. unmatched bypass and the observer stay in every config,
+# keeping the IKE root and observation path configured across both reloads.
+# The focused observer reuses live-stages' reload-generation fence, then
+# checks the device condition and positive counter warning in one doctor
+# answer. An unreachable or missing runtime callback cannot prove absence.
+#
+# The real apply-time TUN probe remains in use. needs-linux routes this case
+# into Ze's own-system guest; it does not claim the synthetic backend opened
+# a receiver, or require that the independent real probe succeed.
+#
+# DISCRIMINATION: remove only espFormDeviceFindings' tun == nil early return.
+# The no-peer stage then retains doctor-ipsec-esp-form-tun and must fail.
+
+option=needs-linux
+option=env:var=ze_test_ike_dataplane:value=recording-esp-form-retained
+option=env:var=ze_test_ike_port:value=$PORT2
+option=timeout:value=90s
+
+stdin=config:terminator=EOF_CONFIG
+plugin {
+	external ipsec-doctor-peer-removal-test {
+		run "le test fixture ipsec/doctor-peer-removal"
+		encoder json
+	}
+}
+vpn {
+	ipsec {
+		unmatched bypass
+		ike-group ike-test {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		esp-group esp-test {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer idle-peer {
+				connection-type respond
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				ike-group ike-test
+				esp-group esp-test
+				icmp-error-check false
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret functional-test-key
+				}
+			}
+		}
+	}
+}
+EOF_CONFIG
+
+tmpfs=no-peer.conf:terminator=EOF_NO_PEER
+plugin {
+	external ipsec-doctor-peer-removal-test {
+		run "le test fixture ipsec/doctor-peer-removal"
+		encoder json
+	}
+}
+vpn {
+	ipsec {
+		unmatched bypass
+		ike-group ike-test {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		esp-group esp-test {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+	}
+}
+EOF_NO_PEER
+
+tmpfs=with-peer.conf:terminator=EOF_WITH_PEER
+plugin {
+	external ipsec-doctor-peer-removal-test {
+		run "le test fixture ipsec/doctor-peer-removal"
+		encoder json
+	}
+}
+vpn {
+	ipsec {
+		unmatched bypass
+		ike-group ike-test {
+			key-exchange ikev2
+			lifetime 28800
+			proposal 1 {
+				dh-group 14
+				encryption aes256
+				hash sha256
+			}
+		}
+		esp-group esp-test {
+			lifetime 3600
+			proposal 1 {
+				encryption aes256
+				hash sha256
+			}
+		}
+		site-to-site {
+			peer idle-peer {
+				connection-type respond
+				local-address 127.0.0.1
+				remote-address 127.0.0.2
+				ike-group ike-test
+				esp-group esp-test
+				icmp-error-check false
+				authentication {
+					mode pre-shared-secret
+					pre-shared-secret functional-test-key
+				}
+			}
+		}
+	}
+}
+EOF_WITH_PEER
+
+cmd=foreground:seq=1:exec=ze -:stdin=config:timeout=85s
+expect=exit:code=0
+expect=stderr:contains=IPSEC_DOCTOR_PEER_REMOVAL_AND_READD_PASSED
+reject=stderr:pattern=ZE-OBSERVER-FAIL
+reject=stderr:pattern=panic recovered
+reject=stderr:pattern=fatal error

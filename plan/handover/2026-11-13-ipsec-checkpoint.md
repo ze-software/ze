@@ -70,7 +70,7 @@ Both specs remain open, including dual-form AC-4 and its broader RFC 4301 obliga
 | Correction | Producing code | State |
 |------------|----------------|-------|
 | Refill the complete-path token bucket at 5000 tokens per second. An empty bucket gets 5000 tokens after one second and 7500 after 1.5 seconds. | `dataplane/espform.go` `espFormLimiter.allow` | Committed |
-| Stop reporting a retained TUN-open failure after the last configured peer is removed. The receiver keeps its failure record. | `engine/doctor_esp_form_fast_path.go` `espFormDeviceFindings` | Committed. Unit proof and both initial Linux daemon cases passed. Both applicability-guard cuts produced the intended failures. The 80-run qualification and promotion remain owed |
+| Stop reporting a retained TUN-open failure after the last configured peer is removed. The receiver keeps its failure record. | `engine/doctor_esp_form_fast_path.go` `espFormDeviceFindings` | Product correction committed. Both applicability-guard cuts discriminated. Both 80-run qualifications passed and the CIs were promoted unchanged. The full 50-case Linux suite passed. Qualification support includes the test backend and observer |
 | Report a recorded reader failure once across replacement, preserve the replacement's backoff, and serialize failure publication with retirement. Intentional retirement stays silent. | `dataplane/espform_open_linux.go` `read`, `revive`; `dataplane/espform_linux.go` `retireLocked` | Committed. Controlled-schedule and final unmodified-source Linux tests passed. Isolated stale-backoff cut produced the intended test failure |
 | Start the registered external IKE engine through the shared plugin CLI and its authenticated TLS connection. | `engine/register.go` `init`; `plugin/cli/cli.go` `RunPlugin`, `connFromEnv` | Committed |
 | Let an attached childless SA reach its owner before an ESP-group-only reload requires a restart. Keep the existing two-second admission deadline. | `engine/reconcile.go` `retargetESPGroup`, `adoptESPGroup` | Committed |
@@ -95,6 +95,9 @@ The main thread observed these results in the main checkout:
 | `test/draft/ipsec/ipsec-esp-form-doctor-peer-removal.ci`, initial own-system run | PASS in 3.7 seconds. One selected case passed, one phase ran and none skipped. Ze kernel `7.3.0-ze`. Check, command and lab exits were zero, interrupted was false, and the VM stopped. |
 | `test/draft/ipsec/ipsec-esp-form-doctor-peer-removal-external.ci`, initial own-system run | PASS in 6.2 seconds. One selected case passed, one phase ran and none skipped. Same Ze kernel, zero check/command/lab exits, no interruption and a stopped VM. |
 | Paired peer-removal applicability-guard cuts | Both selected tests reached their own no-peer `ZE-OBSERVER-FAIL` with `device=true retained-cause=true counter-warning=true`. Internal: 46.8 seconds. External: 56.1 seconds. Each executed one case and one phase without skips on the same Ze kernel. Check/lab exits were zero, command exit was one, interrupted was false, and both VMs stopped. |
+| Native cached-pair boot after the carrier repair | The explicit `6727e257` kernel and `54adcae1c6c63cd2` image booted successfully. `uname -r` answered `7.3.0-ze`, with kernel SHA256 `3c13600db1d2c6fb8028e8fdd16420e5b376a8f9315d008313edd027ab43502e`. All exits were zero, interrupted was false and the VM stopped. |
+| Native peer-removal qualification, internal and external | Each completed and executed all 80 requested invocations, with no skipped phase. Each raw capture contains 80 own-test PASS rows, 80 zero-exit invocation headers and 320 passing VERIFY STEP rows. Both guests used the proven kernel, returned zero check/command/lab exits and stopped without interruption. |
+| Full affected Linux IPsec suite | All 50 live CI names passed exactly once, with 50 executed single-case selections and 50 zero-skip phase reports. No failure or skip markers occurred. This includes the 13 cases skipped on the earlier host run, same-SPI childless recovery and both promoted peer-removal cases. Same kernel SHA256 `3c13600db1d2c6fb8028e8fdd16420e5b376a8f9315d008313edd027ab43502e`, zero check/command/lab exits, no interruption and a stopped VM. |
 | Selected-CI output-capture attempt | The runner rejected `-save` before it executed a test. This supplies no product or fault-proof result. The CI tooling owner was informed. |
 | `./le --name session test stress-repro run suite "ipsec --draft -p 1" test ipsec-esp-form-fast-path-doctor any-failure iterations 80 parallel 2 burners 1` | All 80 invocations exited 0. The retained tails contain 240 passing VERIFY STEP rows for this test. The harness returned 1 to report that it reproduced no failure. |
 | The same stress command selecting `ipsec-esp-form-fast-path-doctor-external` | All 80 invocations exited 0, with 240 passing retained VERIFY STEP rows naming the external test. The harness returned 1 for no reproduced failure. This completed after the VPP owner restored a coherent source checkpoint. |
@@ -155,10 +158,13 @@ was one, interrupted was false, and the VM stopped.
 The current session state owns the raw logs, overlay paths and their cleanup
 conditions. Its root is `tmp/session/2026-11-15-130223/`. This durable receipt
 records the outcomes needed after those temporary files are removed.
-Keep the smallest raw proof logs and private comparisons until this receipt commits.
-The superseded `scratch/ipsec-reader-publication-red.test` and
-`scratch/ipsec-reader-publication-green.test` binaries are then obsolete.
-Main checks active processes and remaining references before it removes those binaries.
+The three daemon inputs in `scratch/doctor-current-guest-bin/` kept the tested
+bytes stable while other sessions refreshed shared staging paths. Their hashes
+are in the parent state. After this receipt commits, main checks active processes
+and references before removing those completed binary copies. The earlier
+standalone packet, negative-test and private cut-DUT binaries were already removed
+after their receipts committed. Keep the small qualification and fault logs through
+the spec's closure review. Their owning state records the removal conditions.
 
 ## Remaining work, in order
 
@@ -172,31 +178,47 @@ Main checks active processes and remaining references before it removes those bi
    that identity. Their native records remain owed. Regenerate changed mutation
    coordinates rather than accepting stale-hunk failures as red evidence.
 
-   Still owed on the final code for the spec's closure evidence: the `./le arch` gates compound-guard,
-   refuse-by-default, error-wrap, operator-error and doctor-coverage; the
-   scoped lint on `./internal/component/ike/...` and
-   `./internal/core/diagnostic/...`; gofmt on the edited files. A lint or gate
-   red is owed at release through CI and holds no commit.
-3. Qualify the separate last-peer removal/re-addition tests through `ze-test`:
+   Main ran the five changed-line architecture checks. Operator-error passed;
+   compound-guard, refuse-by-default, error-wrap and doctor-coverage reported
+   findings outside IKE, routed to their live owners. The parent state records
+   each receipt. These are not whole-gate green claims. Scoped IKE and diagnostic
+   lint findings remain to resolve; new source edits owe their scoped checks.
+   A lint or gate red is owed at release through CI and holds no commit.
+3. Qualification support at this checkpoint includes the last-peer removal/re-addition
+   carriers, their test-only backend and the same-answer doctor observer.
+   The carriers completed qualification at these draft paths:
    `test/draft/ipsec/ipsec-esp-form-doctor-peer-removal.ci` and
    `test/draft/ipsec/ipsec-esp-form-doctor-peer-removal-external.ci`.
-   Both initial Linux runs passed and both applicability-guard cuts exposed the
-   intended witness. The 80-run qualification for each and promotion remain owed.
-   The observer's summary exposes the same-answer device, retained-cause and
-   counter-warning booleans. Its predicate is unchanged and source review was CLEAN.
-   Each observation requires the retained-device
-   condition and an independent counter warning in one doctor answer.
-   A missing runtime callback therefore cannot prove that the finding disappeared.
-   These tests use a synthetic retained failure and claim no packet delivery.
+   Both initial cases, paired applicability cuts and 80-run qualifications are
+   observed. The CIs were promoted unchanged to
+   `test/ipsec/ipsec-esp-form-doctor-peer-removal.ci` and
+   `test/ipsec/ipsec-esp-form-doctor-peer-removal-external.ci`.
+   Their hashes remain `a5a9953b990d2cb5e2845409023949d3ec1ede874471b55962d05d1be96c7849`
+   and `e34c9c78169900ced34ed67e77e434b59600527490ae4c4ed62d2916efb32854`.
+   The affected 50-case Linux suite also passed. These synthetic retained-failure
+   tests claim no packet delivery. The separate
+   `internal/le/interoplab/ipsec/espform_change_snapshot_test.go` regression
+   belongs to the checker repair. Its empty and whitespace cases produced the
+   expected RED in `job-ipsec-form-change-missing-state-red-57ce2d65.log`.
 
-   The first 80-run attempt refused before any test or qualification VM started.
-   Runtime configuration commits `acdae9f4a3` and `fcaacff7c1` changed the native
-   cache key to uncached `e8763657`. The carrier resolves that current runtime
-   before it uses the explicit, previously proven `6727e257` kernel and
-   `54adcae1c6c63cd2` image. Its Docker kernel preflight requires 40.0G free,
-   while `/Users/thomas/.colima` has 11.8G. No kernel build or qualification
-   iteration started. The CI tooling owner and coordinator have this blocker.
-4. Run the remaining interop scenarios and their deliberate breaks:
+   The earlier current-runtime preflight refusal is resolved for an explicit
+   cached kernel/image pair, proven by the successful native boot and qualification.
+   Native RFC records still take only `kernel` and omit `image`. They do not
+   select that cached pair through this repair. H41 published the current `e8763657`
+   runtime kernel, SHA256
+   `c3583fe57d83e971a6c24c7d6e93d5b4e682a5797dbb0d15dad42d642f1c8798`.
+   The matching image is published at
+   `/Users/thomas/.cache/ze/docker-host/arm64/45cb736f9a13fd62/docker-host.img`.
+   H41 reported a native boot with dockerd ready. This session's native RFC
+   records and interop have not run on that pair.
+   No duplicate build or optional public image feature was added.
+4. Repair the interop checker before the remaining live scenarios.
+   `checkESPFormChange` in `internal/le/interoplab/ipsec/checkers.go` accepts
+   an empty Ze SA snapshot and lacks a mid-session form switch. It also assumes
+   three ESP directions and a rising mismatch counter. The new no-Docker
+   snapshot regression confirmed that the checker accepts empty and whitespace
+   state. Its source correction and passing rerun remain owed. Then run the scenarios
+   and their deliberate breaks:
    `mtu-nat-installed-endpoint`, `icmp-error-payload-check` with bare ESP and
    both redwalks, `esp-form-change`, `esp-form-firewall-drop` with its redwalk,
    and `ipsec-bgp-redistribute-frr`, each with

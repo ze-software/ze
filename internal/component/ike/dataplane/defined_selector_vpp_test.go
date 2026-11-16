@@ -87,7 +87,7 @@ func TestVPPInstallAllowsAnyDefinedSelectors(t *testing.T) {
 				t.Fatalf("protocol %d direction %d ANY refused: %v", proto, dir, err)
 			}
 			got := sentSPD(t, ch).Entry
-			if uint8(got.Protocol) != proto || got.IsOutbound != (dir == SADirOut) {
+			if got.Protocol != proto || got.IsOutbound != (dir == SADirOut) {
 				t.Errorf("protocol %d direction %d emitted %+v", proto, dir, got)
 			}
 			if got.LocalPortStart != 0 || got.LocalPortStop != 65535 || got.RemotePortStart != 0 || got.RemotePortStop != 65535 {

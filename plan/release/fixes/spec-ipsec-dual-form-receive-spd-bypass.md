@@ -50,8 +50,9 @@ The malformed request's failure establishes no kernel defect.
 
 AC-14's device-finding correction is committed in `2d25927741`. Both new
 peer-removal daemon cases passed their initial internal and external runs.
-Their fault-proof diagnostic correction, discrimination, 80-run qualification
-and promotion remain owed.
+Their paired applicability cuts and 80-run qualifications also completed,
+and both cases were promoted unchanged to `test/ipsec/`. The full affected
+50-case Linux population then passed without failures or skips.
 
 **The defect, confirmed by an A/B interop run on 2026-11-10.**
 
@@ -637,6 +638,33 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 | AC-21 | An ESP-group-only reload reaches an attached, established childless IKE SA before its owner is published | the existing channel handoff waits at most `espReloadWait` for the owner to take the request, and owner adoption keeps the session, both IKE SPIs and the responder's inactive creation schedule | a session with neither an owner nor an attached SA refuses immediately; an installed Child SA, pending responder handshake or own Child SA creation in flight still causes a restart |
 | AC-22 | The exact-state-scope probe sends a capability attribute to test the read-only receipt | the request serializes its fixed header before the capability attribute, and the kernel rejects that correctly formed write with `EINVAL`; every positive capability assertion stays unchanged | the preceding malformed request's result supports no kernel-behavior claim; passing independent packet and fragment probes retain their results |
 
+### AC-14 peer-removal proof
+
+The internal and external applicability-guard cuts each failed at their own
+no-peer observation. Both exposed `device=true retained-cause=true counter-warning=true`
+in one doctor answer, so the failure includes the independent runtime-callback
+witness. Both normal cases then completed all 80 requested stress invocations
+with no skips, failures or panics. Each retained capture contains 80 zero-exit
+invocations and 320 passing VERIFY STEP rows. The native receipts are
+`job-doctor-peer-removal-stress-internal-7f7378fa.log` and
+`job-doctor-peer-removal-stress-external-b1c4d427.log`. Both guests used the Ze
+kernel `7.3.0-ze`, SHA256
+`3c13600db1d2c6fb8028e8fdd16420e5b376a8f9315d008313edd027ab43502e`,
+and stopped with check, command and lab exits zero.
+
+Both unchanged cases are now live:
+`test/ipsec/ipsec-esp-form-doctor-peer-removal.ci` and
+`test/ipsec/ipsec-esp-form-doctor-peer-removal-external.ci`.
+The full affected live Linux population then passed in one guest
+(`job-ipsec-promoted-live-linux-suite-a630ddb5.log`). All 50 distinct live CI
+names passed, matching the 50 expected files with none missing or unexpected.
+Each selected case executed with one phase and zero skips. The guest stopped
+with check, command and lab exits zero and no interruption, on the same Ze
+kernel `7.3.0-ze` and SHA256 recorded above. This includes the 13 formerly
+Linux-skipped cases, the same-SPI childless recovery case and both promoted
+peer-removal cases. No separate 13-case rerun is owed. All other acceptance
+criteria, including AC-4's partial RFC status and interop proofs, remain unchanged.
+
 ### AC-22 capability-probe correction
 
 All five selected Linux engine probes executed in
@@ -838,6 +866,8 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
+| `ipsec-esp-form-doctor-peer-removal` | `test/ipsec/ipsec-esp-form-doctor-peer-removal.ci` | AC-14: configured peer, last-peer removal and re-addition preserve the retained failure while device findings follow applicability, with an independent callback witness in the same answer | initial PASS, intended guard-cut failure, all 80 stress invocations PASS, promoted unchanged; full 50-case affected Linux population PASS without skips |
+| `ipsec-esp-form-doctor-peer-removal-external` | `test/ipsec/ipsec-esp-form-doctor-peer-removal-external.ci` | AC-14: the same apply/doctor contract through the external IKE process | initial PASS, intended guard-cut failure, all 80 stress invocations PASS, promoted unchanged; full 50-case affected Linux population PASS without skips |
 | `TestRFC4301BareESPOnTemplatedSAIsPolicyChecked` | `internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go` (guest-root; engine package so the SA is built by `createFirstChildSA`) | AC-3 | |
 | `TestRFC7296BareESPOnTemplatedSAKeepsTheOuterCE` | same file (guest-root) | AC-11 | |
 | `TestRFC4301BareESPFirewallDropKeepsTheFastPathOff` | same file (guest-root; no RFC tag, because it proves a firewall interaction) | AC-13: an operator's `nft` drop rule on ESP keeps the fast path off and the rule drops the bare ESP; with the rule gone the fast path rewrites again | |
