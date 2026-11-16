@@ -16,6 +16,8 @@ import (
 	"github.com/ze-software/ze/pkg/ze"
 )
 
+const pluginName = "bgp-rib"
+
 func init() {
 	if err := diagnostic.Register(diagnostic.CodeMeta{
 		Code:        codeRemoteMetricFailure,
@@ -44,7 +46,7 @@ func init() {
 	)
 
 	reg := registry.Registration{
-		Name:        string(sourcePolicyOwner),
+		Name:        pluginName,
 		Description: "Route Information Base storage",
 		RFCs:        []string{"4271"},
 		Features:    "yang",

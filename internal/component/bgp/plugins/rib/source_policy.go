@@ -22,7 +22,7 @@ import (
 )
 
 // sourcePolicyOwner opens every refusal bgp-rib's ledger returns.
-const sourcePolicyOwner sourcepolicy.Owner = "bgp-rib"
+const sourcePolicyOwner sourcepolicy.Owner = pluginName
 
 // sourcePolicyPin names one stored path by the identity it had at prepare.
 // The path itself stays in its PeerRIB: a pin restores only while the store
