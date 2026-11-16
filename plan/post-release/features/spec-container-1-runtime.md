@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | ready |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P3 |
 | Release reason | A post-release feature by owner ruling (O-3 of `spec-container-0-umbrella.md`): Ze runs OCI container images itself. No shipped behavior is wrong without it. |

@@ -43,6 +43,69 @@ A session picking this up reads each spec's state file first, checks `git
 status` and `git log` for what the design session committed after this
 handover, and runs whatever owed commands are still unrun.
 
+## Where implementation stopped in the design session (2026-11-16)
+
+Both specs are claimed and in progress. Committed:
+
+| Commit | What |
+|--------|------|
+| `3fb832b762` | The upstream runtime module at v1.5.3, alone: `go.mod`, `go.sum`, `vendor/`. The vendored files are already patched |
+| `da9ac4a1b0` | The six vendor patches (one per hunk H-1 to H-6 of the runtime spec), their guard test, the importing file `internal/plugins/container/initrole_linux.go`, the page `docs/architecture/container/runtime.md` |
+| `2cc0bbf3c3` | Appliance spec phase 1: the three core leaves as stubs, the installer's growth seams, the `request system storage grow` command, the guest action |
+
+Proven by runs: the patched library compiles and vets with cgo off; the three
+patch guards pass; every patch stamp matches; the installer unit group and the
+packages the appliance wiring touched pass; lint is clean on the files changed.
+
+Next, runtime child: its wiring is one third done. The first agent finished
+edge (a), the dependency and the patch series. A continuation takes edge (b)
+(the gate lines, the early-role leaf and dispatch, the plugin skeleton with
+its registration, config root, verifier entry and schema nodes) and edge (c)
+(the seams, the suite registration, the wiring tests). `runLibraryInit` is
+unused until edge (b) registers it, which lint reports. That agent did not
+read the operator surface child's tables, the feature-gates page or the two
+pattern pages: the continuation must.
+
+Next, appliance spec: phase 1 owes two things, then phase 2 (kernel facts in
+the guest) starts.
+
+1. The doctor check for an ungrown partition. The spec named
+   `internal/component/host` for it, and that package cannot register a check:
+   `internal/core/diagnostic` imports it, so the import would be a cycle.
+   Ruling: register it in `internal/component/doctor`, beside the existing
+   storage check in `checks_storage.go`, reading the state from a function of
+   the host component, as the spec's own Existing Mechanisms row says. The
+   code `doctor-storage-not-grown` and its check do not exist yet, so
+   `./le arch doctor-coverage check` is red on the new log line in the
+   installer until they do. Correct the spec's file list in the same work.
+2. The functional wiring test is still a draft at
+   `test/draft/plugin/host-storage-grow-refused.ci`. Its first run failed for
+   the wrong reason: the test plugin never connected, most likely because the
+   harness runs the committed fixture and the fixture was uncommitted. It is
+   committed now: rerun `./le test bgp plugin --draft --pattern
+   host-storage-grow-refused` and expect the predicted red ("refusal does not
+   say this system is not a Ze appliance"), then promote the test.
+
+Not yet run for the appliance wiring: `./le arch tier check`, `./le arch
+operator-error check`, `./le arch error-wrap check`, `./le cli grammar`,
+`./le cli ownership`, `./le doc yang-contract command-contract`, `./le plugin
+boundary check`, `./le doc check all`.
+
+Findings that change later phases of the runtime child:
+
+- The device filter needs a patch on the cgroups module too. Its `devices`
+  package imports the systemd driver and its bus client, which the design
+  keeps out of the link, and without that package device rules are refused.
+  The devices phase carries that patch with a stamp of its own.
+- A start that fails midway leaves the container's cgroup behind until the
+  container is destroyed: the patched parent creates the cgroup before the
+  start. The supervision phase cleans it up.
+- The filter seam is in place but reports itself as not enabled until the
+  filter phase registers: a description that sets filter flags is refused
+  until then.
+- The two spec files' `Phase` cells still read `-`: the spec hook refused the
+  agents' one-cell edits for lack of reads in their context.
+
 ## Order of implementation
 
 1. The appliance spec and the runtime child, independent of each other.
