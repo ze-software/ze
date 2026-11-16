@@ -133,7 +133,7 @@ func TestWebStartupFailureRoutes(t *testing.T) {
 			return zeTestStartWebServer(context.Background(), missing, "127.0.0.1:1", true, nil, nil)
 		},
 		func() (*zeTestWebServer, error) {
-			return zeTestStartDaemonWebServer(context.Background(), missing, "127.0.0.1:1", nil, nil)
+			return zeTestStartDaemonWebServer(context.Background(), missing, "127.0.0.1:1", nil, nil, nil)
 		},
 	} {
 		srv, err := start()
@@ -149,7 +149,7 @@ func TestWebStartupFailureRoutes(t *testing.T) {
 	}
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
-	if _, err := zeTestStartDaemonWebServer(ctx, missing, "127.0.0.1:1", nil, nil); !errors.Is(err, context.Canceled) {
+	if _, err := zeTestStartDaemonWebServer(ctx, missing, "127.0.0.1:1", nil, nil, nil); !errors.Is(err, context.Canceled) {
 		t.Fatalf("daemon startup lost cancellation: %v", err)
 	}
 	if err := zeTestSeedWebUsers(ctx, t.TempDir(), true, nil); !errors.Is(err, context.Canceled) {

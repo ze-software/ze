@@ -34,6 +34,10 @@ const (
 	webConcurrency = 4
 	webPortBase    = 10200 // above .ci runner range (1790-based) to avoid collisions
 
+	webDaemonStartCommand = "start"
+	webAdminUsername      = "admin"
+	webAdminRole          = "admin"
+
 	// Only the web UI serves TLS. The looking glass and the chaos dashboard
 	// listen in plain HTTP under test, because these tests read CONTENT.
 	schemeHTTP  = "http://"
@@ -311,7 +315,7 @@ func zeTestRunWebTest(ctx context.Context, test *zeTestWebTest, bins zeTestWebBi
 		srv, err = zeTestStartWebServer(ctx, bins.ze, listenAddr, !tc.RequiresAuth(), tc.Auth, tc.Env)
 	case webtesting.WBServerDaemon:
 		scheme = schemeHTTPS
-		srv, err = zeTestStartDaemonWebServer(ctx, bins.ze, listenAddr, tc.Env, tc.Plugins)
+		srv, err = zeTestStartDaemonWebServer(ctx, bins.ze, listenAddr, tc.Env, tc.Plugins, tc.Auth)
 	default:
 		panic("BUG: unknown normalized web test server")
 	}
@@ -601,10 +605,15 @@ func zeTestReadyTimeout(ctx context.Context) time.Duration {
 }
 
 // zeTestStartDaemonWebServer starts the web UI on a running daemon: `ze start
-// <config> --web <port> --insecure-web`. Unlike --web-only, the daemon owns
-// the confirmed-commit window, so a web `commit confirmed` opens one.
-func zeTestStartDaemonWebServer(ctx context.Context, zeBin, listenAddr string, envVars []webtesting.WBEnvVar, plugins []string) (*zeTestWebServer, error) {
+// <config> --web <port>`. Auth declarations install real config users/profiles
+// and omit --insecure-web. Unlike --web-only, the daemon owns the confirmed-
+// commit window, so a web `commit confirmed` opens one.
+func zeTestStartDaemonWebServer(ctx context.Context, zeBin, listenAddr string, envVars []webtesting.WBEnvVar, plugins []string, authUsers []webtesting.WBAuthUser) (*zeTestWebServer, error) {
 	if err := context.Cause(ctx); err != nil {
+		return nil, err
+	}
+	configBody, err := labconfig.WebDaemonWithAuth(ctx, plugins, authUsers)
+	if err != nil {
 		return nil, err
 	}
 	_, portStr, _ := net.SplitHostPort(listenAddr)
@@ -612,14 +621,18 @@ func zeTestStartDaemonWebServer(ctx context.Context, zeBin, listenAddr string, e
 	if tempErr != nil {
 		return nil, fmt.Errorf("create temp config dir: %w", tempErr)
 	}
-	if err := zeTestSeedWebUsers(ctx, tempDir, true, nil); err != nil {
+	if err := zeTestSeedWebUsers(ctx, tempDir, len(authUsers) == 0, authUsers); err != nil {
 		return nil, errors.Join(fmt.Errorf("seed web users: %w", err), os.RemoveAll(tempDir))
 	}
 	configPath := filepath.Join(tempDir, "web-daemon.conf")
-	if err := os.WriteFile(configPath, labconfig.WebDaemon(plugins), 0o600); err != nil {
+	if err := os.WriteFile(configPath, configBody, 0o600); err != nil {
 		return nil, errors.Join(fmt.Errorf("write daemon config: %w", err), os.RemoveAll(tempDir))
 	}
-	cmd := exec.CommandContext(ctx, zeBin, "start", configPath, "--web", portStr, "--insecure-web") //nolint:gosec // test binary path
+	args := []string{webDaemonStartCommand, configPath, "--web", portStr}
+	if len(authUsers) == 0 {
+		args = append(args, "--insecure-web")
+	}
+	cmd := exec.CommandContext(ctx, zeBin, args...) //nolint:gosec // test binary path
 	var tb textbuf.Buffer
 	cmd.Env = zeTestEnv(envVars, tb.Str("ze.config.dir=").Str(tempDir).String())
 
@@ -639,6 +652,9 @@ func zeTestStartDaemonWebServer(ctx context.Context, zeBin, listenAddr string, e
 func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecure bool, authUsers []webtesting.WBAuthUser, envVars []webtesting.WBEnvVar) (*zeTestWebServer, error) {
 	if err := context.Cause(ctx); err != nil {
 		return nil, err
+	}
+	if labconfig.WebAuthNeedsDaemon(authUsers) {
+		return zeTestStartDaemonWebServer(ctx, zeBin, listenAddr, envVars, nil, authUsers)
 	}
 	_, portStr, _ := net.SplitHostPort(listenAddr)
 	tempDir, tempErr := os.MkdirTemp(sessionpath.DefaultScratchRoot(), "ze-web-test-*")
@@ -686,18 +702,17 @@ func zeTestStartWebServer(ctx context.Context, zeBin, listenAddr string, insecur
 // Under --insecure-web the hash is never used to log in; it only needs to be
 // non-empty for the power-user loader to surface the account
 // (cmd/ze/hub/main_servers.go usersFromZefsDB). For an auth test (insecure ==
-// false) the declared admin user is seeded with a real bcrypt hash so the login
-// flow authenticates. NOTE: zefs stores a single local admin, so a multi-user
-// test that also needs a distinct read-only login requires config-file authz
-// users; the admin credential seeded here covers admin-login and single-user
-// tests (see the AC-6/7 runbook in the spec).
+// false) a declared admin user is seeded with a real bcrypt hash. If every
+// declared identity is a reader, a separate synthetic power admin is seeded;
+// the daemon's config authenticates the readers with their declared profiles.
+// A reader is never promoted into the unconditional zefs power identity.
 // Cancellation checks surround synchronous bcrypt and store calls. They cannot
 // interrupt a blocked file operation or lock; this is not a hard elapsed bound.
 func zeTestSeedWebUsers(ctx context.Context, configDir string, insecure bool, authUsers []webtesting.WBAuthUser) error {
 	if err := context.Cause(ctx); err != nil {
 		return err
 	}
-	username := "admin"
+	username := webAdminUsername
 	passwordHash := "$2y$10$ze.web.test.placeholder.admin.hash.value.unused" //nolint:gosec // G101: placeholder test hash, replaced with a real bcrypt hash for auth tests
 	if !insecure && len(authUsers) > 0 {
 		admin := zeTestPickAdmin(authUsers)
@@ -728,15 +743,33 @@ func zeTestSeedWebUsers(ctx context.Context, configDir string, insecure bool, au
 	return errors.Join(store.Close(), context.Cause(ctx))
 }
 
-// zeTestPickAdmin returns the declared user that should back the seeded local
-// admin: the first with an admin (or unset) role, else the first declared user.
+// zeTestPickAdmin selects a declared admin or a distinct synthetic power user.
+// The synthetic name search is bounded by the number of authored identities:
+// at least one of len(users)+1 candidates cannot already be declared.
 func zeTestPickAdmin(users []webtesting.WBAuthUser) webtesting.WBAuthUser {
 	for _, u := range users {
-		if u.Role == "admin" || u.Role == "" {
+		if u.Role == webAdminRole {
+			return u
+		}
+		if u.Role == "" {
 			return u
 		}
 	}
-	return users[0]
+	for index := range len(users) + 1 {
+		var name textbuf.Buffer
+		candidate := name.Str("wb-seeded-admin-").Int(int64(index)).String()
+		used := false
+		for _, user := range users {
+			if user.Name == candidate {
+				used = true
+				break
+			}
+		}
+		if !used {
+			return webtesting.WBAuthUser{Name: candidate, Password: "ze-web-fixture-admin", Role: webAdminRole} //nolint:gosec // G101: synthetic credential for the runner-created test tree, never production credentials
+		}
+	}
+	panic("BUG: synthetic browser power-user name search exhausted")
 }
 
 func zeTestProbeReady(ctx context.Context, scheme, addr, path string, timeout time.Duration) error {

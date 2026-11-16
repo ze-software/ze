@@ -589,7 +589,7 @@ Unknown directives or kinds fail parsing immediately.
 | `option=skip:reason=<text>` | Skip the test; `reason` is surfaced in runner output |
 | `option=viewport:width=<n>:height=<n>` | Resize the viewport before the first navigation |
 | `option=locale:lang=<tag>` | Set `Accept-Language` for the session |
-| `option=auth:user=<u>:password=<p>:role=<r>` | Repeatable. Seeds the user and starts the server with authentication instead of `--insecure-web` |
+| `option=auth:user=<u>:password=<p>:role=<r>` | Repeatable. Starts with authentication instead of `--insecure-web`. Roles are `admin` (also the omitted role) and `read-only`. Daemon cases install real local credentials and authorization profiles; a standalone case requiring multiple users or a reader uses the daemon fixture |
 | `option=server:kind=web\|lg\|lg-no-engine\|chaos\|daemon` | Which server the harness starts. Default `web`. An unknown kind fails parsing, because starting the default one and asserting against it is a pass that proves nothing |
 | `option=env:var=<name>:value=<v>` | Repeatable. Sets one environment variable on the SERVER process |
 | `option=plugin:name=<internal plugin>` | Repeatable. Adds `plugin { internal <name> { use <name> } }` to the daemon kind's config, so a test drives a command only that plugin serves. Any other kind loads no config, so the harness refuses the test rather than run it without the plugin |
@@ -599,7 +599,20 @@ Unknown directives or kinds fail parsing immediately.
 <!-- source: internal/test/labconfig/web.go -- WebDaemon -->
 
 The daemon browser runner and repository config corpus use that same baseline
-producer, including each parsed plugin declaration. Its dummy peer explicitly
+producer, including each parsed plugin declaration. `WebDaemonWithAuth` extends
+it with the parsed synthetic identities, bcrypt password hashes and explicit
+admin/reader run/edit profiles. Both consumers share `WebAuthNeedsDaemon` when a
+default `web` case needs roles the standalone power-user login cannot represent.
+Unknown roles and duplicate identities refuse fixture setup. The zefs power
+administrator is a declared admin or a separate synthetic identity whose name
+does not collide with a reader; a reader is never seeded into the unconditional
+power-admin keys. Existing single-admin standalone login cases keep their tree
+store and web-only behavior.
+
+<!-- source: internal/test/labconfig/web_auth.go -- WebDaemonWithAuth, WebAuthNeedsDaemon -->
+<!-- source: internal/test/cli/cmd_web.go -- zeTestSeedWebUsers, zeTestPickAdmin -->
+
+The dummy peer explicitly
 rejects all imports and exports, retaining the closed routing behavior without
 leaving its policy unspecified. The corpus reads `.wb`
 actions through `ParseWBFile`, follows submitted editor commands and the selected
@@ -613,7 +626,11 @@ typed after `load file` is a label; the `upload` action names
 the physical source. Relative loads retain the replayed editor context, and
 replacement loads cannot borrow omitted mandatory settings from the baseline.
 An unsupported composition is a finding and leaves the physical file eligible
-for standalone validation. No fixture-specific validation exception is needed.
+for standalone validation. This includes a login before a load: the structural
+replay does not yet model authenticated editor ownership or user switching, and
+does not silently apply a reader's denied mutation. Authenticated permission
+journeys without loads need no replay exemption. No fixture-specific validation
+exception is needed.
 
 <!-- source: internal/component/config/cli/validate_corpus_browser_test.go -- sweepContext.browserSequences, browserCorpus.command, browserCorpus.apply -->
 <!-- source: internal/component/config/cli/validate_corpus_test.go -- loadCorpusStep, sweepContext.judgeSequence -->
@@ -633,7 +650,7 @@ of them has to start that one.
 | `lg` | `le test peer --mode sink`, then `ze -` with a looking-glass listener and one peer dialling that sink | `http` | 2 |
 | `lg-no-engine` | `le mock lg`, the real looking glass with a dispatcher that always fails | `http` | 1 |
 | `chaos` | `le chaos run --in-process --web :<port>` | `http` | 1 |
-| `daemon` | `ze start <config> --web <port> --insecure-web`, the web UI on a running daemon with one BGP peer that never connects | `https` | 1 |
+| `daemon` | `ze start <config> --web <port>`, adding `--insecure-web` only without auth declarations; one BGP peer never connects | `https` | 1 |
 
 The looking glass gets a peer because its pages read `show bgp`: without
 one, every assertion would run against an empty table. `le chaos run` is a second

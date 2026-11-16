@@ -7,19 +7,13 @@
 # PREVENTS: a read-only web user exfiltrating the raw config and its password
 #           hash through the download endpoint.
 #
-# SKIP RATIONALE: same limitation as web-rbac-readonly.wb -- the runner seeds a
-# single zefs local admin, so a *distinct* read-only web login needs config-file
-# authz users + profile assignments the --web-only appliance does not provision.
-# The gate itself is proven at the Go tier:
-#   internal/component/web/handler_config_transfer_test.go
-#     TestConfigDownloadRouteGatedByEditAuthz (read-only 403, edit 200 raw)
-#   internal/component/web/rbac_test.go
-#     TestRouteGateDeniesReadOnly / TestRouteGateAllowsAdmin
-
-option=skip:reason=needs a config-file read-only web user; zefs seeds only the single local admin (see web-rbac-readonly.wb). Gate proven at Go tier: TestConfigDownloadRouteGatedByEditAuthz
+option=server:kind=daemon
 option=timeout:value=30s
+option=auth:user=admin:password=ze-web-admin:role=admin
 option=auth:user=noc:password=ze-web-noc:role=read-only
 
 action=login:user=noc:password=ze-web-noc
+action=open:path=/show/bgp/router-id/
+expect=element:text=1.2.3.4
 action=open:path=/config/download
 expect=element:text=forbidden

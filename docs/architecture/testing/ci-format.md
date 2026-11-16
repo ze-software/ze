@@ -416,8 +416,12 @@ including when a narrowed exclusion test would not select that file.
 
 Its carrier population also includes browser `.wb` workflows. A browser-selected
 file is judged in the parsed workflow's load composition, using the browser
-daemon's own baseline and the shared editor's merge or replace operation. An
-accepted editor draft is counted separately; its submitted commit snapshot uses
+daemon's own baseline, including parsed authentication/profile declarations,
+and the shared editor's merge or replace operation. A default web case that
+needs multiple users or a reader shares the runner's daemon-selection rule.
+Login and authenticated editor-owner switching before a load remain explicit
+unsupported-composition findings, retaining standalone validation of that file.
+An accepted editor draft is counted separately; its submitted commit snapshot uses
 the full configuration validator. Standalone and applied config oracles remain
 unchanged. The fragment is
 not made standalone by adding settings that the running daemon already supplies.

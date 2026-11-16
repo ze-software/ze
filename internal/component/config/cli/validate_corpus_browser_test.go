@@ -5,6 +5,7 @@
 package cli
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -63,11 +64,20 @@ func (s *sweepContext) browserSequences(path string, loaded map[string]bool) []l
 		return nil
 	}
 	last = browserCommitBoundary(workflow.Actions, last)
-	if workflow.ServerKind() != webtesting.WBServerDaemon {
+	daemon := workflow.ServerKind() == webtesting.WBServerDaemon
+	if workflow.ServerKind() == webtesting.WBServerWeb {
+		daemon = labconfig.WebAuthNeedsDaemon(workflow.Auth)
+	}
+	if !daemon {
 		s.report.find(path + ": browser load composition requires the daemon baseline; the selected server has no declared configuration")
 		return nil
 	}
-	editor, err := editorcli.NewEditorFromContent(labconfig.WebDaemon(workflow.Plugins), path)
+	baseline, err := labconfig.WebDaemonWithAuth(context.Background(), workflow.Plugins, workflow.Auth)
+	if err != nil {
+		s.report.find(path + ": browser authentication baseline: " + err.Error())
+		return nil
+	}
+	editor, err := editorcli.NewEditorFromContent(baseline, path)
 	if err != nil {
 		s.report.find(path + ": open browser baseline: " + err.Error())
 		return nil

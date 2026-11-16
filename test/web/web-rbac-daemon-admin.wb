@@ -1,0 +1,17 @@
+# Test: a declared administrator can read and reach the daemon's admin console
+# VALIDATES: AC-43 -- the authenticated daemon fixture honors the admin profile
+#            while also declaring a distinct synthetic read-only identity
+# PREVENTS: all authenticated daemon users being refused, making reader denials
+#           pass without a usable administrator
+
+option=server:kind=daemon
+option=timeout:value=30s
+option=auth:user=admin:password=ze-web-admin:role=admin
+option=auth:user=noc:password=ze-web-noc:role=read-only
+
+action=login:user=admin:password=ze-web-admin
+action=open:path=/show/bgp/router-id/
+expect=element:text=1.2.3.4
+action=open:path=/admin/peer/
+expect=element:text=admin
+expect=html:not-contains=Forbidden
