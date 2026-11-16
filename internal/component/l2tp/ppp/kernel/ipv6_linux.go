@@ -47,17 +47,19 @@ func sessionIPv6Listen(ifname string) net.ListenConfig {
 	}}
 }
 
-func openRASocket(ctx context.Context, ifname string, device *net.Interface) (*ipv6.PacketConn, error) {
+func openRASocket(ctx context.Context, ifname string, device *net.Interface) (raSocket, error) {
 	config := sessionIPv6Listen(ifname)
 	conn, err := config.ListenPacket(ctx, "ip6:ipv6-icmp", "::")
 	if err != nil {
 		return nil, err
 	}
 	packet := ipv6.NewPacketConn(conn)
+	owner := &ownedIPv6RASocket{PacketConn: packet, cleanup: &nativeIPv6SocketCleanup{owner: conn}}
 	if err := configureRASocket(packet, device); err != nil {
-		return nil, errors.Join(err, packet.Close())
+		// acquireIPv6Carrier consumes this partial owner even on error.
+		return owner, err
 	}
-	return packet, nil
+	return owner, nil
 }
 
 func configureRASocket(packet *ipv6.PacketConn, device *net.Interface) error {
@@ -89,8 +91,20 @@ func openDHCPSocket(ctx context.Context, ifname string, device *net.Interface) (
 	}
 	packet := ipv6.NewPacketConn(conn)
 	group := &net.IPAddr{IP: net.ParseIP("ff02::1:2")}
+	owner := &ownedIPv6DHCPSocket{PacketConn: conn, cleanup: &nativeIPv6SocketCleanup{owner: conn}}
 	if err := packet.JoinGroup(device, group); err != nil {
-		return nil, errors.Join(err, conn.Close())
+		// The acquisition boundary owns cleanup of this partial socket.
+		return owner, err
 	}
-	return conn, nil
+	return owner, nil
+}
+
+type ownedIPv6RASocket struct {
+	*ipv6.PacketConn
+	cleanup *nativeIPv6SocketCleanup
+}
+
+func (s *ownedIPv6RASocket) Close() error { return s.cleanup.Close() }
+func (s *ownedIPv6RASocket) RetryIPv6SocketCleanup(ctx context.Context) error {
+	return s.cleanup.RetryIPv6SocketCleanup(ctx)
 }

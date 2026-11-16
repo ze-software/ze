@@ -830,6 +830,17 @@ endpoint must never close that endpoint or start a second reader of it.
 The kernel carrier owns dedicated ICMPv6 and UDPv6 sockets on the created
 interface; its cancellation changes only the read deadline.
 
+The kernel carrier's ordinary `Close` keeps its first result, including failures.
+`RetryIPv6CarrierCleanup(ctx)` reconciles only its original failed socket owners;
+it never closes a successful socket again or retries a numeric file descriptor.
+Concrete Linux socket owners can confirm that their original Go socket has
+closed. An opaque provider without an explicit recovery capability remains
+unconfirmed. If acquisition fails and socket cleanup also fails, the returned
+carrier owns cleanup only: its reads and writes refuse service. The caller must
+retain that owner alongside the acquisition error until cleanup is confirmed.
+<!-- source: internal/component/l2tp/ppp/kernel/ipv6_cleanup.go -- ipv6SocketCleanup, failedIPv6Acquisition -->
+<!-- source: internal/component/l2tp/ppp/kernel/ipv6_socket_cleanup.go -- nativeIPv6SocketCleanup -->
+
 Startup installs the negotiated link-local pair, reconciles forwarding through
 the existing session handle, then opens its carrier. The assignment has already
 been acknowledged; neither RA nor DHCPv6 workers start before this reconciliation.

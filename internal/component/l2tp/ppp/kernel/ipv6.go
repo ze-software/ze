@@ -35,32 +35,34 @@ type dhcpSocket interface {
 // before Close; independent read locks keep deadline cancellation scoped to the
 // worker that requested it. Close is safe for concurrent use and idempotent.
 type ipv6Carrier struct {
-	ra        raSocket
-	dhcp      dhcpSocket
-	ifname    string
-	ifindex   int
-	raRead    sync.Mutex
-	dhcpRead  sync.Mutex
-	closeOnce sync.Once
-	closeErr  error
+	ra       raSocket
+	dhcp     dhcpSocket
+	ifname   string
+	ifindex  int
+	raRead   sync.Mutex
+	dhcpRead sync.Mutex
+	cleanup  *ipv6SocketCleanup
 }
 
 var _ ppp.IPv6Carrier = (*ipv6Carrier)(nil)
 
 func newIPv6Carrier(ra raSocket, dhcp dhcpSocket, ifname string, ifindex int) *ipv6Carrier {
-	return &ipv6Carrier{ra: ra, dhcp: dhcp, ifname: ifname, ifindex: ifindex}
+	return &ipv6Carrier{ra: ra, dhcp: dhcp, ifname: ifname, ifindex: ifindex,
+		cleanup: &ipv6SocketCleanup{ra: ra, dhcp: ipv6DHCPCleanupOwner(dhcp)}}
 }
 
 // acquireIPv6Carrier owns partial socket acquisition: once RA opens, failure
 // to acquire DHCPv6 closes RA and preserves both the setup and close failures.
+// Failed cleanup returns a non-usable carrier with the error. The caller MUST
+// retain that owner until its exact cleanup is confirmed.
 func acquireIPv6Carrier(ctx context.Context, ifname string, ifindex int, openRA func(context.Context) (raSocket, error), openDHCP func(context.Context) (dhcpSocket, error)) (ppp.IPv6Carrier, error) {
 	ra, err := openRA(ctx)
 	if err != nil {
-		return nil, err
+		return failedIPv6Acquisition(ra, nil, err)
 	}
 	dhcp, err := openDHCP(ctx)
 	if err != nil {
-		return nil, errors.Join(err, ra.Close())
+		return failedIPv6Acquisition(ra, dhcp, err)
 	}
 	return newIPv6Carrier(ra, dhcp, ifname, ifindex), nil
 }
@@ -181,9 +183,10 @@ func (c *ipv6Carrier) WriteDHCPv6(payload []byte, peer netip.AddrPort) (int, err
 	return c.dhcp.WriteTo(payload, net.UDPAddrFromAddrPort(peer))
 }
 
+// Close preserves the first cleanup result. The caller MUST stop and join both
+// readers first, and MUST retain a failed owner for RetryIPv6CarrierCleanup.
 func (c *ipv6Carrier) Close() error {
-	c.closeOnce.Do(func() { c.closeErr = errors.Join(c.dhcp.Close(), c.ra.Close()) })
-	return c.closeErr
+	return c.cleanup.Close()
 }
 
 // carrierRead interrupts only a read deadline. It never closes the socket,
@@ -210,3 +213,8 @@ func carrierRead(ctx context.Context, setDeadline func(time.Time) error, read fu
 	}
 	return errors.Join(readErr, resetErr)
 }
+
+// RetryIPv6CarrierCleanup reconciles only failed captured socket owners. Normal
+// Close keeps its original cached result. Caller MUST first stop/join service
+// readers and call Close; retry never repeats joins/final RA or closes PPP I/O.
+func (c *ipv6Carrier) RetryIPv6CarrierCleanup(ctx context.Context) error { return c.cleanup.retry(ctx) }

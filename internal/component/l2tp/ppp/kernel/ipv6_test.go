@@ -318,8 +318,11 @@ func TestIPv6CarrierAcquisitionUnwindsPartialSockets(t *testing.T) {
 		carrier, err := acquireIPv6Carrier(t.Context(), "ppp7", 7,
 			func(context.Context) (raSocket, error) { return ra, nil },
 			func(context.Context) (dhcpSocket, error) { return nil, io.ErrClosedPipe })
-		if carrier != nil {
-			t.Fatal("failed acquisition returned carrier")
+		if carrier == nil {
+			t.Fatal("failed RA close lost its exact partial cleanup owner")
+		}
+		if err := carrier.ReadRS(t.Context()); err == nil {
+			t.Fatal("partial cleanup owner was usable as an acquired carrier")
 		}
 		if !errors.Is(err, io.ErrClosedPipe) {
 			t.Fatalf("lost setup error: %v", err)
