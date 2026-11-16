@@ -70,6 +70,118 @@ func TestScaleWindowWarmupCountsACKs(t *testing.T) {
 	}
 }
 
+// TestScaleWindowReorderedWarmup follows a window-opening piggyback ACK
+// whose fresh response reaches the relay before a previously queued send.
+// Genuine partial and cumulative ACKs must retire controls in sequence order.
+func TestScaleWindowReorderedWarmup(t *testing.T) {
+	window := newScaleWindow(0, 0)
+	now := time.Unix(100, 0)
+	scaleForward(t, window, scaleTestControl(1, 0, 0), directionLAC, now)
+	scaleForward(t, window, scaleTestControl(2, 0, 1), "ze", now)
+	scaleForward(t, window, scaleTestControl(3, 1, 1), directionLAC, now)
+	for _, ns := range []uint16{2, 1} {
+		packet := scaleTestControl(11, ns, 2)
+		if got := scaleForward(t, window, packet, "ze", now); !bytes.Equal(got, packet) {
+			t.Fatal("reordered warm-up control was changed")
+		}
+	}
+	scaleForward(t, window, scaleTestControl(10, 2, 2), directionLAC, now)
+	if window.count != 1 {
+		t.Fatalf("partial ACK retained %d controls, want only Ns=2", window.count)
+	}
+	if _, held := window.stage.(*scaleHold); held {
+		t.Fatal("two genuine acknowledgements armed the hold")
+	}
+	scaleForward(t, window, scaleTestControl(10, 3, 3), directionLAC, now)
+	if window.count != 0 {
+		t.Fatal("cumulative ACK did not retire the reordered successor")
+	}
+	scaleForward(t, window, scaleTestControl(11, 3, 4), "ze", now)
+	got := scaleForward(t, window, scaleTestControl(10, 4, 4), directionLAC, now)
+	if binary.BigEndian.Uint16(got[10:12]) != 3 {
+		t.Fatal("three genuine acknowledgements did not arm the hold after reordering")
+	}
+}
+
+// TestScaleWindowReorderedHold preserves four reordered controls across wrap.
+// Repeated Ns and ZLBs consume no slot, and a fifth distinct control fails.
+func TestScaleWindowReorderedHold(t *testing.T) {
+	for _, ze := range []uint16{0, 65532} {
+		window := newScaleWindow(ze, 0)
+		now := time.Unix(100, 0)
+		scaleWarmWindow(t, window, now, ze, 0)
+		baseline := ze + 3
+		for _, offset := range []uint16{1, 0, 3, 2} {
+			packet := scaleTestControl(11, baseline+offset, 5)
+			if got := scaleForward(t, window, packet, "ze", now); !bytes.Equal(got, packet) {
+				t.Fatal("reordered held control was changed")
+			}
+			scaleForward(t, window, packet, "ze", now)
+			scaleForward(t, window, scaleTestControl(0, baseline+offset+1, 5), "ze", now)
+		}
+		if window.count != 4 {
+			t.Fatalf("reordered controls occupy %d slots, want four", window.count)
+		}
+		if _, err := window.forwardControl(scaleTestControl(11, baseline+4, 5), "ze", now); err == nil {
+			t.Fatal("fifth reordered distinct control passed the four-message cap")
+		}
+		ack := scaleTestControl(10, 5, baseline+4)
+		got := scaleForward(t, window, ack, directionLAC, now)
+		if binary.BigEndian.Uint16(got[10:12]) != baseline {
+			t.Fatal("reordered cumulative ACK escaped the hold")
+		}
+		replay, present, err := window.release(now, true)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if !present {
+			t.Fatal("reordered cumulative ACK was not retained")
+		}
+		if !bytes.Equal(replay.packet, ack) {
+			t.Fatal("reordered cumulative ACK replay changed the genuine packet")
+		}
+		if window.count != 0 {
+			t.Fatal("released cumulative ACK left reordered controls outstanding")
+		}
+	}
+}
+
+// TestScaleWindowMissingPredecessor refuses an ACK across a capture hole.
+// Seeing a successor, retransmitting it, or observing a ZLB cannot fill it.
+func TestScaleWindowMissingPredecessor(t *testing.T) {
+	window := newScaleWindow(0, 0)
+	now := time.Unix(100, 0)
+	scaleWarmWindow(t, window, now, 0, 0)
+	packet := scaleTestControl(11, 4, 5)
+	scaleForward(t, window, packet, "ze", now)
+	scaleForward(t, window, packet, "ze", now)
+	scaleForward(t, window, scaleTestControl(0, 3, 5), "ze", now)
+	if window.count != 1 {
+		t.Fatal("a duplicate or ZLB filled the missing predecessor")
+	}
+	if _, err := window.forwardControl(scaleTestControl(0, 5, 5), directionLAC, now); err == nil {
+		t.Fatal("cumulative ACK crossed an uncaptured predecessor")
+	}
+	_, present, err := window.release(now, true)
+	if err == nil {
+		t.Fatal("capture hole supplied marker approval without an advancing genuine ACK")
+	}
+	if present {
+		t.Fatal("capture hole produced a replay")
+	}
+}
+
+// TestScaleWindowReorderBound refuses an observed successor outside the four
+// sequence positions available from the oldest unacknowledged control.
+func TestScaleWindowReorderBound(t *testing.T) {
+	window := newScaleWindow(0, 0)
+	now := time.Unix(100, 0)
+	scaleWarmWindow(t, window, now, 0, 0)
+	if _, err := window.forwardControl(scaleTestControl(11, 7, 5), "ze", now); err == nil {
+		t.Fatal("capture gap exceeded the bounded four-message sequence span")
+	}
+}
+
 // TestScaleWindowDuplicateAndZLB excludes retransmissions and pure ACKs
 // from the distinct outstanding count, but refuses a fifth unique control.
 func TestScaleWindowDuplicateAndZLB(t *testing.T) {

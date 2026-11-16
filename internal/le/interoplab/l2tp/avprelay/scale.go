@@ -102,8 +102,10 @@ func (reason scaleRelease) String() string {
 
 // scaleWindow is owned by one relay loop and is not safe for concurrent use.
 // Its fixed four slots bound distinct outstanding controls; a duplicate and a
-// ZLB cannot add a slot. Only the hold retains one genuine packet beyond the
-// common read buffer's lifetime, so that one copy has an independent owner.
+// ZLB cannot add a slot. Pending metadata is ordered by Ns, while zeNext marks
+// the first uncaptured predecessor; packet arrival order is never changed.
+// Only the hold retains one genuine packet beyond the common read buffer's
+// lifetime, so that one copy has an independent owner.
 type scaleWindow struct {
 	zeNext  uint16
 	lacNext uint16
@@ -192,35 +194,51 @@ func (window *scaleWindow) forwardControl(packet []byte, direction string, now t
 	}
 }
 
-// observeZe counts new messages and conservatively models warm-up loss.
+// observeZe counts distinct controls within four sequence positions from the
+// genuine peer ACK. Sorting metadata rather than packets permits legal UDP
+// reordering while the contiguous zeNext frontier still refuses ACKs over holes.
+// A repeated outstanding Ns conservatively models warm-up loss.
+// RFC 2661 Section 5.8: "Messages arriving out of order may be queued for in-order delivery when the missing messages are received, or they may be discarded requiring a retransmission by the peer."
 // RFC 2661 Section 5.8: "Thus, Ns is not incremented after a ZLB message is sent."
 func (window *scaleWindow) observeZe(control scaleControl) error {
 	if control.zlb {
 		return nil
 	}
-	if control.ns == window.zeNext {
-		if window.count == len(window.pending) {
-			return errors.New("fifth distinct Ze control exceeds the four-message window")
-		}
-		window.pending[window.count] = control.ns
-		window.count++
-		window.zeNext++
-		return nil
-	}
-	if !scaleBefore(control.ns, window.zeNext) {
-		return errors.New("gap in observed Ze control sequence")
-	}
-	if warmup, warming := window.stage.(*scaleWarmup); warming {
-		for index := range window.count {
-			if window.pending[index] == control.ns {
+	for index := range window.count {
+		if window.pending[index] == control.ns {
+			if warmup, warming := window.stage.(*scaleWarmup); warming {
 				// RFC 2661 Appendix A: "When congestion occurs (indicated by the triggering of a retransmission) one half of the CWND is saved in SSTHRESH, and CWND is set to one."
 				// A wire batch cannot identify Tick boundaries; resetting
 				// for each repeat can only underestimate warm-up, never arm
 				// early. The checker still requires actual live CWND four.
 				warmup.threshold = max(warmup.cwnd/2, 1)
 				warmup.cwnd, warmup.counter = 1, 0
-				break
 			}
+			return nil
+		}
+	}
+	if scaleBefore(control.ns, window.peerNr) {
+		return nil
+	}
+	if window.count == len(window.pending) {
+		return errors.New("fifth distinct Ze control exceeds the four-message window")
+	}
+	if control.ns-window.peerNr >= scaleWindowSize {
+		return errors.New("gap in observed Ze control sequence")
+	}
+	index := window.count
+	for index > 0 {
+		if !scaleBefore(control.ns, window.pending[index-1]) {
+			break
+		}
+		window.pending[index] = window.pending[index-1]
+		index--
+	}
+	window.pending[index] = control.ns
+	window.count++
+	for index := range window.count {
+		if window.pending[index] == window.zeNext {
+			window.zeNext++
 		}
 	}
 	return nil

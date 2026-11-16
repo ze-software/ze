@@ -119,7 +119,12 @@ response-producing ICRQs behind that hold, four distinct outstanding Ze
 controls, and one live reliable
 snapshot with `cwnd=4`, `peer-rws=4`, the held peer Nr and a receive Nr
 past the fifth request. Retransmissions and zero-length ACKs are not new
-outstanding controls. A checker marker releases a genuine held cumulative
+outstanding controls. The relay forwards legal out-of-order Ze controls
+unchanged and tracks only four sequence positions from the genuine cumulative
+ACK. An ACK across an uncaptured predecessor still fails.
+<!-- source: internal/le/interoplab/l2tp/avprelay/scale.go -- observeZe, forwardControl -->
+
+A checker marker releases a genuine held cumulative
 ACK; a deadline release cannot satisfy the assertion. The queued fifth
 response and subsequent session progress must then appear.
 <!-- source: internal/le/interoplab/l2tp/scale.go -- exerciseScaleWindow -->

@@ -219,6 +219,126 @@ func TestScaleWindowPrearmQueuedResponse(t *testing.T) {
 	}
 }
 
+// TestScaleWindowReorderedControls accepts a fresh ICRP ahead of a queued
+// predecessor, while the real ACKs and live fence still prove the entire hold.
+func TestScaleWindowReorderedControls(t *testing.T) {
+	events := scaleWindowTestReordered()
+	held, err := readScaleWindow(scaleWindowTestLog(t, events))
+	if err != nil {
+		t.Fatalf("ICRP Ns4 before queued Ns3 refused: %v", err)
+	}
+	if held.baseline != 3 {
+		t.Fatalf("held baseline %d, want 3", held.baseline)
+	}
+	if held.expectedNr != 15 {
+		t.Fatalf("processed-request fence %d, want 15", held.expectedNr)
+	}
+	raw := []byte(`{"tunnel-id":19,"ns":7,"nr":15,"peer-nr":3,"outstanding":4,"retransmit-count":0,"cwnd":4,"ssthresh":4,"peer-rws":4}`)
+	if err := requireScaleReliable(raw, held); err != nil {
+		t.Fatal(err)
+	}
+	replay := events[len(events)-1]
+	replay.Forwarded, replay.Release = replay.Original, "marker"
+	complete := append(cloneScaleWindowEvents(events), replay,
+		scaleWindowTestEventFor("ze", scaleWindowTestPacket(11, 29, 106, 7, 15, 14, 7)))
+	released, err := readScaleWindow(scaleWindowTestLog(t, complete))
+	if err != nil {
+		t.Fatalf("queued fifth response after authentic marker refused: %v", err)
+	}
+	if !released.released {
+		t.Fatal("queued fifth response did not prove release progress")
+	}
+}
+
+// TestScaleWindowReorderedRequests keeps the processing fence past every held
+// request when the last two distinct LAC requests arrive in reverse Ns order.
+func TestScaleWindowReorderedRequests(t *testing.T) {
+	events := scaleWindowTestReordered()
+	last := len(events) - 1
+	events[last-1], events[last] = events[last], events[last-1]
+	held, err := readScaleWindow(scaleWindowTestLog(t, events))
+	if err != nil {
+		t.Fatalf("reordered LAC ICRQs refused: %v", err)
+	}
+	if held.expectedNr != 15 {
+		t.Fatalf("reordered processing fence %d, want 15", held.expectedNr)
+	}
+	raw := []byte(`{"tunnel-id":19,"ns":7,"nr":14,"peer-nr":3,"outstanding":4,"retransmit-count":0,"cwnd":4,"ssthresh":4,"peer-rws":4}`)
+	if err := requireScaleReliable(raw, held); err == nil {
+		t.Fatal("live receive fence omitted the highest held request")
+	}
+}
+
+// TestScaleWindowReorderedIntegrity permits an identical retransmission, then
+// refuses permanent holes, ACKs over a hole, Ns reuse and a false wrap.
+func TestScaleWindowReorderedIntegrity(t *testing.T) {
+	events := scaleWindowTestReordered()
+	retransmit := scaleWindowTestEventFor("ze", scaleWindowTestPacket(11, 29, 103, 3, 15, 14, 3))
+	duplicate := append(cloneScaleWindowEvents(events), retransmit)
+	if _, err := readScaleWindow(scaleWindowTestLog(t, duplicate)); err != nil {
+		t.Fatalf("same ICRP with updated Nr counted as a new send: %v", err)
+	}
+	zeHole := append(cloneScaleWindowEvents(events[:14]), events[15:]...)
+	lacHole := append(cloneScaleWindowEvents(events[:20]), events[21:]...)
+	forged := cloneScaleWindowEvents(events)
+	zlb := scaleWindowTestPacket(0, 19, 0, 10, 5, 0, 0)[:12]
+	binary.BigEndian.PutUint16(zlb[2:4], 12)
+	forged = slices.Insert(forged, 14, scaleWindowTestEventFor("lac", zlb))
+	reused := append(cloneScaleWindowEvents(events),
+		scaleWindowTestEventFor("ze", scaleWindowTestPacket(11, 29, 109, 3, 15, 14, 3)))
+	wrapped := cloneScaleWindowEvents(events)
+	wrapped[13] = scaleWindowTestEventFor("ze", scaleWindowTestPacket(11, 29, 108, 65535, 10, 14, 4))
+	for _, tc := range []struct {
+		name   string
+		events []scaleWindowTestEvent
+	}{
+		{"permanent Ze hole", zeHole},
+		{"permanent LAC hole", lacHole},
+		{"ACK over uncaptured predecessor", forged},
+		{"conflicting Ns reuse", reused},
+		{"wrap without complete sequence", wrapped},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			if _, err := readScaleWindow(scaleWindowTestLog(t, tc.events)); err == nil {
+				t.Fatal("invalid reordered capture passed")
+			}
+		})
+	}
+}
+
+// TestScaleTraceReorderWindowBound distinguishes a complete four-control
+// inversion from a complete capture that jumps beyond the sender's window.
+func TestScaleTraceReorderWindowBound(t *testing.T) {
+	for _, tc := range []struct {
+		name string
+		last uint16
+		pass bool
+	}{
+		{"last allowed Ze control first", 4, true},
+		{"fifth Ze control first", 5, false},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			events := scaleWindowTestHeld()[:3]
+			events = append(events,
+				scaleWindowTestEventFor("ze", scaleWindowTestPacket(6, 29, 0, tc.last, 2, 0, 0)))
+			for ns := uint16(1); ns < tc.last; ns++ {
+				events = append(events,
+					scaleWindowTestEventFor("ze", scaleWindowTestPacket(6, 29, 0, ns, 2, 0, 0)))
+			}
+			_, err := readScaleTrace(scaleWindowTestLog(t, events))
+			if tc.pass {
+				if err != nil {
+					t.Fatalf("complete reorder within four-control window refused: %v", err)
+				}
+				return
+			}
+			if err == nil {
+				t.Fatal("complete sequence masked a jump beyond the four-control window")
+			}
+		})
+	}
+}
+
 // TestScaleReliableEvidence refuses a live first-RTO CWND1 and every missing
 // or mismatched statistic; a wire-only estimate cannot replace the live fence.
 func TestScaleReliableEvidence(t *testing.T) {
@@ -343,6 +463,38 @@ func scaleWindowTestRelease(held []scaleWindowTestEvent, reason string) []scaleW
 	replay := events[len(events)-1]
 	replay.Forwarded, replay.Release = replay.Original, reason
 	return append(events, replay, scaleWindowTestEventFor("ze", scaleWindowTestPacket(11, 29, 107, 7, 10, 14, 7)))
+}
+
+// scaleWindowTestReordered models Process returning the current ICRQ's ICRP4
+// before OnReceive's previously queued ICRP3. Each ACK covers observed controls.
+func scaleWindowTestReordered() []scaleWindowTestEvent {
+	events := scaleWindowTestHeld()[:3]
+	for ns := uint16(2); ns <= 8; ns++ {
+		events = append(events, scaleWindowTestEventFor("lac",
+			scaleWindowTestPacket(10, 19, 0, ns, 1, 14, 99+ns)))
+	}
+	events = append(events,
+		scaleWindowTestEventFor("ze", scaleWindowTestPacket(11, 29, 101, 1, 9, 14, 1)),
+		scaleWindowTestEventFor("ze", scaleWindowTestPacket(11, 29, 102, 2, 9, 14, 2)),
+		scaleWindowTestEventFor("lac", scaleWindowTestPacket(10, 19, 0, 9, 2, 14, 108)),
+		scaleWindowTestEventFor("ze", scaleWindowTestPacket(11, 29, 108, 4, 10, 14, 4)),
+		scaleWindowTestEventFor("ze", scaleWindowTestPacket(11, 29, 103, 3, 9, 14, 3)),
+		scaleWindowTestEventFor("lac", scaleWindowTestPacket(10, 19, 0, 10, 3, 14, 109)),
+		scaleWindowTestEventFor("ze", scaleWindowTestPacket(11, 29, 104, 5, 11, 14, 5)),
+	)
+	for ns := uint16(11); ns <= 14; ns++ {
+		nr := min(ns-5, uint16(7))
+		packet := scaleWindowTestPacket(10, 19, 0, ns, nr, 14, 99+ns)
+		event := scaleWindowTestEventFor("lac", packet)
+		binary.BigEndian.PutUint16(packet[10:12], 3)
+		event.Forwarded = hex.EncodeToString(packet)
+		events = append(events, event)
+		if ns == 11 {
+			events = append(events,
+				scaleWindowTestEventFor("ze", scaleWindowTestPacket(11, 29, 105, 6, 12, 14, 6)))
+		}
+	}
+	return events
 }
 
 func scaleWindowTestSessions() ([]scaleWindowTestEvent, scalePopulation) {
@@ -519,6 +671,32 @@ func TestScaleReliableRequiredFields(t *testing.T) {
 		}
 		if err := requireScaleReliable(raw, held); err == nil {
 			t.Fatalf("invalid %s=%v passed", tc.key, tc.value)
+		}
+	}
+}
+
+// TestScaleReliableBoundedProgress allows a live sample to advance after the
+// log snapshot, but refuses progress outside the complete-from-zero bound.
+func TestScaleReliableBoundedProgress(t *testing.T) {
+	held, err := readScaleWindow(scaleWindowTestLog(t, scaleWindowTestHeld()))
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, tc := range []struct {
+		nr     uint16
+		accept bool
+	}{
+		{11, true},
+		// This is the validator's theoretical bound, not the expected
+		// live frontier of the sixteen-session scenario.
+		{scaleWireControlsMax, true},
+		{scaleWireControlsMax + 1, false},
+		{32777, false},
+		{65535, false},
+	} {
+		raw := []byte(fmt.Sprintf(`{"tunnel-id":19,"ns":7,"nr":%d,"peer-nr":3,"outstanding":4,"retransmit-count":0,"cwnd":4,"ssthresh":4,"peer-rws":4}`, tc.nr))
+		if err := requireScaleReliable(raw, held); (err == nil) != tc.accept {
+			t.Fatalf("live Nr%d acceptance=%t, want %t: %v", tc.nr, err == nil, tc.accept, err)
 		}
 	}
 }

@@ -127,7 +127,9 @@ func readScaleWindow(log string) (scaleWindowEvidence, error) {
 				continue
 			}
 			requestCount++
-			if requestCount == scaleWindowWidth+1 {
+			if requestCount == 1 {
+				proof.expectedNr = event.packet.ns + 1
+			} else if scaleSequenceBefore(proof.expectedNr, event.packet.ns+1) {
 				proof.expectedNr = event.packet.ns + 1
 			}
 			continue
@@ -261,6 +263,12 @@ func requireScaleReliable(raw []byte, held scaleWindowEvidence) error {
 	}
 	if *state.Threshold == 0 {
 		return errors.New("reliable slow-start threshold is zero")
+	}
+	// The live sample follows the log snapshot and may have processed more
+	// controls, but this complete-from-zero experiment cannot wrap or exceed
+	// its bounded control population.
+	if *state.Nr > scaleWireControlsMax {
+		return errors.New("reliable nr exceeds the bounded control capture")
 	}
 	if *state.Nr != held.expectedNr {
 		if !scaleSequenceBefore(held.expectedNr, *state.Nr) {
@@ -595,8 +603,12 @@ func readScaleWireControl(packet []byte) (scaleWireControl, error) {
 	return control, nil
 }
 
-// readScaleTrace requires startup and every distinct Ns from zero. Retransmit
-// bodies must remain identical, while their cumulative Nr may advance.
+// readScaleTrace requires startup and every distinct Ns from zero. A bounded
+// arrival inversion may fill later, but no ACK can cross an uncaptured hole.
+// Retransmit bodies must remain identical, while their cumulative Nr may advance.
+// RFC 2661 Section 5.8: "Messages arriving out of order may be
+// queued for in-order delivery when the missing messages are received,
+// or they may be discarded requiring a retransmission by the peer."
 func readScaleTrace(log string) (scaleWireTrace, error) {
 	events, err := readScaleWire(log)
 	if err != nil {
@@ -605,6 +617,10 @@ func readScaleTrace(log string) (scaleWireTrace, error) {
 	trace := scaleWireTrace{events: events}
 	seen := [2]map[uint16][]byte{make(map[uint16][]byte), make(map[uint16][]byte)}
 	var next [2]uint16
+	var pending [2]int
+	// RFC 2661 Section 4.4.3: "If absent, the peer must assume a Window Size of 4 for its
+	// transmit window."
+	window := [2]uint16{scaleWindowWidth, scaleWindowWidth}
 	var startup int
 	for index := range trace.events {
 		event := &trace.events[index]
@@ -636,20 +652,29 @@ func readScaleTrace(log string) (scaleWireTrace, error) {
 			}
 			continue
 		}
-		if packet.ns == next[direction] {
-			event.fresh = true
-			seen[direction][packet.ns] = event.original
-			next[direction]++
-		} else {
-			previous, exists := seen[direction][packet.ns]
-			if !exists {
-				return scaleWireTrace{}, errors.New("scale capture has a missing or out-of-order distinct Ns")
-			}
+		previous, exists := seen[direction][packet.ns]
+		if exists {
 			if !bytes.Equal(previous[:10], event.original[:10]) {
 				return scaleWireTrace{}, errors.New("scale retransmit changed its control header")
 			}
 			if !bytes.Equal(previous[12:], event.original[12:]) {
 				return scaleWireTrace{}, errors.New("scale retransmit changed its AVPs")
+			}
+		} else {
+			if packet.ns-next[direction] >= window[direction] {
+				return scaleWireTrace{}, errors.New("scale distinct Ns exceeds the offered receive window")
+			}
+			event.fresh = true
+			seen[direction][packet.ns] = event.original
+			pending[direction]++
+			// Each advance consumes one of at most scaleWireControlsMax
+			// captured controls; a future sighting cannot advance this prefix.
+			for range scaleWireControlsMax {
+				if _, captured := seen[direction][next[direction]]; !captured {
+					break
+				}
+				next[direction]++
+				pending[direction]--
 			}
 		}
 		if !event.fresh {
@@ -658,6 +683,16 @@ func readScaleTrace(log string) (scaleWireTrace, error) {
 		if startup < 3 {
 			if err := trace.startup(packet, event.lac, startup); err != nil {
 				return scaleWireTrace{}, err
+			}
+			if startup == 1 {
+				if offered, present := packet.attributes[10]; present {
+					// RFC 2661 Section 5.8: "A value of 0 for the Receive Window Size AVP is
+					// invalid."
+					if offered == 0 {
+						return scaleWireTrace{}, errors.New("SCCRP offers a zero receive window")
+					}
+					window[1] = min(offered, uint16(scaleWireControlsMax))
+				}
 			}
 			startup++
 			continue
@@ -672,6 +707,11 @@ func readScaleTrace(log string) (scaleWireTrace, error) {
 	}
 	if startup != 3 {
 		return scaleWireTrace{}, errors.New("scale capture lacks the complete SCCRQ/SCCRP/SCCCN startup")
+	}
+	for _, missing := range pending {
+		if missing != 0 {
+			return scaleWireTrace{}, errors.New("scale capture ends with a missing distinct Ns predecessor")
+		}
 	}
 	return trace, nil
 }
