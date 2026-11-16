@@ -215,6 +215,9 @@ For internal plugins (running as goroutines inside the engine), startup uses a `
 ## Example Plugins
 
 - [Go Example](../../examples/plugin/go/) -- Complete Go plugin
+- [Python Example](../../examples/plugin/python/) -- A plugin with no Go SDK: a
+  one-file library over the wire protocol, and a plugin that declares its own
+  YANG config module and one command
 
 ## SDK Reference
 
