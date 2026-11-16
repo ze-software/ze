@@ -1,8 +1,13 @@
-# Test: ze install — help output with no args
-# spec-install-4 AC-9: ze install with no subcommand prints usage help.
+# QUESTION: Does explicit install help discover the default installation and
+# every existing installation target without running an installation?
+# The functional route checks the built binary's linked default and target
+# registrations together; a dispatcher unit cannot prove that composition.
+# Bare ze install intentionally installs the host (docs/guide/ze-install.md).
 
-cmd=foreground:seq=1:exec=ze install
-expect=exit:code=1
+cmd=foreground:seq=1:exec=ze install --help
+expect=exit:code=0
 expect=stderr:contains=local
 expect=stderr:contains=remote
 expect=stderr:contains=systemd
+expect=stderr:contains=(no target)
+expect=stderr:contains=ze install [target] [options]
