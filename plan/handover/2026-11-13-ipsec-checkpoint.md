@@ -249,9 +249,10 @@ remain through closure review.
    The matching image is published at
    `/Users/thomas/.cache/ze/docker-host/arm64/45cb736f9a13fd62/docker-host.img`.
    H41 reported a native boot with dockerd ready. This session's four fresh
-   native RFC records ran on that pair. Final interop remains owed.
+   native RFC records ran on that pair. All named namespace-phase final interop
+   runs have now completed, with their qualified receipts below.
    No duplicate build or optional public image feature was added.
-4. Finish the remaining live scenarios.
+4. Namespace-phase live validation is complete; remaining scope is unchanged.
    `checkESPFormChange` in `internal/le/interoplab/ipsec/checkers.go` now rejects
    empty and whitespace-only Ze SA snapshots. Both new missing-state cases
    first failed (`job-ipsec-form-change-missing-state-red-57ce2d65.log`, native
@@ -292,12 +293,34 @@ remain through closure review.
    The established-SA/finding-preserving cut delivers all three probes and
    fails the loss assertion before post-probe drop/mismatch reads, so those
    post-fault deltas are not claimed. All VMs stopped without interruption or
-   leftover resources. Retain the private cut until receipt commit and checked cleanup.
-   Run `ipsec-bgp-redistribute-frr` and post-fix clean `esp-form-change` and
-   `icmp-error-payload-check` lifecycle validation, each with
-   `IPSEC_INTEROP_SCENARIO=<name> ./le test integration interop-ipsec`, one at
-   a time. FRR is running under `ipsec-frr-redistribute-current`, with no result
-   yet. The post-fix clean runs do not repeat the unchanged seven-run ICMP cuts.
+   leftover resources. Receipt `eb52f67f57` landed; main confirmed no open/process
+   references and removed the accepted private firewall Go/JSON inputs.
+   FRR's own named scenario passed in 5s
+   (`job-ipsec-frr-redistribute-current-029e809f.log`), recording
+   `ipsec-bgp-redistribute-frr-7GW5D6CTZCNUGK4QGU4RVLZ3ZK.jsonl`. All exits were
+   zero, interrupted false, VM stopped and left-behind none on native image `45cb736f9a13fd62`.
+   Independent acceptance CLEAR for BGP learning/withdrawal: valid/best
+   `10.200.0.0/24` from `172.28.0.2`, AS path `65001`, next hop `172.28.0.2`;
+   strongSwan stop removes the prefix while BGP stays Established with one
+   connection, dropped zero and accepted zero. Actual JSON `fibInstalled: false`
+   supplies no FRR FIB-installation or payload-forwarding credit.
+   Post-fix clean `esp-form-change` passed its own named scenario in 8s
+   (`job-ipsec-form-switch-after-namespace-89683801.log`), recording
+   `esp-form-change-YMJRYRZ2L4LFC4DBJTXCVALXSL.jsonl`. All exits zero,
+   interrupted false, stopped VM, left-behind none, native image `45cb736f9a13fd62`. Independent
+   lifecycle review is CLEAR. All four directed counters advance 0→46→92→138
+   bytes with unchanged identities, bare 1 → UDP 2 → bare 3 wire phases and
+   zero mismatch/socket drops.
+   Final ICMP clean also passed in 10s
+   (`job-ipsec-icmp-after-namespace-98342191.log`), recording
+   `icmp-error-payload-check-3QRH2IBDU7IY5M23OU5CFPVIGM.jsonl`, independently CLEAR.
+   Consistent errors generate three, inbound ESP 0→336 and Time Exceeded 0→3;
+   inconsistent errors generate three more, inbound 336→672, Time Exceeded
+   stays three and no error is printed. The temporary peer policy is removed.
+   All exits zero, interrupted false, no leftovers, stopped VM, same image.
+   No live run remains owed for this namespace phase. Existing discrimination
+   for unchanged producers keeps its original credit; no new cut is claimed.
+   AC-4, the 79 renewals and the unselected release-route decision remain unchanged.
    AC-1 is now observed for the current IPv4 single-pair tunnel: clean PASS 10s,
    flag-cut consistent-error FAIL 8s, recovery clean PASS 10s, policy-only PASS 10s,
    state-only PASS 10s, combined-source inconsistent-error FAIL 8s, final clean

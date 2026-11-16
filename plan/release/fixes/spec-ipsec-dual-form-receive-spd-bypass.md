@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Remaining FRR and post-namespace-fix ESP-form/ICMP clean interop; unchanged AC-4 scope/kernel implementation and 79 RFC renewals |
+| Phase | Namespace-phase live validation complete; unchanged AC-4 scope/kernel work and 79 RFC renewals remain |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -699,7 +699,9 @@ post-fix clean `esp-form-change` and `icmp-error-payload-check` runs;
 the unchanged seven-run ICMP discrimination sequence keeps its existing credit.
 The namespace/permission source phase landed in `927f93fafe`. Rebuilt-current-source
 firewall clean/fault/clean is now observed and independently CLEAR, as recorded
-below. FRR and the two post-fix lifecycle clean runs remain owed.
+below. FRR passed its named scenario in 5s, post-fix form-switch clean in 8s,
+and post-fix ICMP clean in 10s. Final independent lifecycle acceptance is CLEAR
+for all three actual recordings. No live run remains owed for this namespace phase.
 
 `TestDoctorESPFormFirewallPermissionCauseRetainsUncertainty` produced its own
 RED in `job-ipsec-doctor-permission-cause-red-1535be55.log`, native
@@ -739,9 +741,24 @@ mismatch reads, so no post-fault drop/mismatch delta is claimed.
 
 All VMs stopped without interruption or leftover resources on native image
 `45cb736f9a13fd62`. Cleans had all zero exits; the fault had check/command exits
-zero and lab exit one. Keep the private cut until the accepted receipt commits
-and process/reference checks permit removal. Remaining live runs are FRR and
-post-fix clean ESP-form/ICMP, with no repetition of unchanged ICMP cuts.
+zero and lab exit one. The accepted receipt landed in `eb52f67f57`; main then
+confirmed no open/process references and removed the private firewall Go/JSON
+inputs. Small proof logs/recordings remain through closure.
+
+FRR's own `ipsec-bgp-redistribute-frr` scenario passed in 5s
+(`job-ipsec-frr-redistribute-current-029e809f.log`), recording
+`ipsec-bgp-redistribute-frr-7GW5D6CTZCNUGK4QGU4RVLZ3ZK.jsonl`. All exits were
+zero, interrupted false, VM stopped and left-behind none on native image
+`45cb736f9a13fd62`. Post-fix form-switch and ICMP clean also passed in 8s and
+10s, with final independent lifecycle acceptance CLEAR. Existing cuts retain
+their original producer identity and credit; no new cut is claimed.
+
+Independent FRR acceptance is CLEAR for BGP learning and withdrawal only.
+FRR learns `10.200.0.0/24` as valid/best from `172.28.0.2`, AS path `65001`
+and next hop `172.28.0.2`. Stopping strongSwan withdraws that prefix while BGP
+stays Established, with one connection, dropped zero and accepted zero at
+the final observation. The actual JSON has `fibInstalled: false`; this receipt
+gives no FRR FIB-installation or payload-forwarding credit.
 
 ### AC-1 native ICMP proof receipt
 
@@ -761,6 +778,16 @@ image `45cb736f9a13fd62`. Fault runs had check/command exits zero and lab exit
 one; passes had all zero exits. This observes AC-1 and its two required proofs.
 It gives no general per-SA, multiple-pair or protected inner-fragment credit,
 and leaves AC-4 unchanged.
+
+The final post-namespace-fix ICMP clean passed in 10s
+(`job-ipsec-icmp-after-namespace-98342191.log`), recording
+`icmp-error-payload-check-3QRH2IBDU7IY5M23OU5CFPVIGM.jsonl`, independently CLEAR.
+The consistent step generates three errors, advances inbound ESP 0→336 and
+Time Exceeded 0→3. The inconsistent step generates three more, advances inbound
+ESP 336→672, leaves Time Exceeded at three and prints no error. The temporary
+peer policy is removed. All exits are zero, interrupted false, no leftovers
+and VM stopped on native image `45cb736f9a13fd62`. This completes the namespace
+phase's live clean validation, with AC-4 and all scope limits unchanged.
 
 ### AC-2 native form-switch receipt
 
@@ -782,6 +809,16 @@ is unexecuted. The as-used trial validates the AC-2 goal. Its missing marker was
 procedural and is corrected for future inputs, with no freshness rerun. The current
 bytes do not inherit the as-used trial's identity. Other interop and RFC obligations
 remain open.
+
+The post-namespace-fix clean `esp-form-change` passed in 8s
+(`job-ipsec-form-switch-after-namespace-89683801.log`), recording
+`esp-form-change-YMJRYRZ2L4LFC4DBJTXCVALXSL.jsonl`. All exits were zero,
+interrupted false, VM stopped and left-behind none on native image
+`45cb736f9a13fd62`. Final independent lifecycle review is CLEAR. All four
+directed counters advance 0→46→92→138 bytes, identities remain unchanged and
+wire forms/sequences are bare 1 → UDP 2 → bare 3. Mismatch and socket drops
+stay zero. This adds a clean lifecycle receipt; original discrimination keeps
+its prior producer identity and no new cut is claimed.
 
 ### AC-23 missing-state checker correction
 
@@ -1373,7 +1410,7 @@ not claim that their final-code tests or mutation proofs have run.
 | Initial final-code main-thread `./le test unit pkg path ./internal/component/ike/dataplane/ path ./internal/component/ike/engine/ path ./internal/core/diagnostic/` | engine and diagnostic packages passed; three dataplane fixture/expectation failures were subsequently corrected and committed in `bd8e21b487`. The targeted package run `job-unit-pkg-58fce57a.log` and narrow race/count-20 scheduling run `job-ipsec-reopen-schedule-e00a01c8.log` passed. Final guest verification remains owed |
 | Receiver doctor and binding fixture units | the named tests passed under race/verbose execution in `job-ipsec-binding-doctor-units-419db7fc.log`; this includes the offload and complete-path doctor findings |
 | Host mutation walks 27, 31–33, 37, 39–49 | all sixteen returned the native red verdict, with clean own-test passes and broken own-test failures, in `job-ipsec-dualform-host-redwalks-aa95f75a.log`; guest mutant 20 remains owed |
-| Remaining closure evidence | Final Linux populations, doctor qualification/promotion, repaired helper/checker, AC-2's as-used clean → binding-cut → clean proof and AC-1's seven-run local IPv4 single-pair ICMP sequence are observed. Installed-endpoint MTU also passed its named scenario in 4s. Repaired-source firewall clean 17s → intended gate-open packet failure 14s → recovery clean 17s is observed and independently CLEAR. Remaining interop is FRR and post-fix ESP-form/ICMP clean validation; AC-4's scope/kernel implementation and broader RFC obligations stay open. All four fresh clause records and the four older same-row transport/tunnel dependency renewals are observed. Tunnel positive `job-ipsec-sad-tunnel-positive-record-8cbbeb8e.log` and negative `job-ipsec-sad-tunnel-negative-record-3ca64234.log` each passed clean in 3.80s and failed with producer halt in 0.01s. Independent canonical-RFC review cleared the partial audit after all nine covers across six functions, and main natively stamped `rfc/audit/rfc4301/RFC4301-5.2-2.json`. The current check `job-ipsec-rfc4301-partial-refresh-check-4fea72ad.log` reports 451 corpus findings but no audit/discrimination freshness finding for this exact ID, which appears only in the normal partial report. The 83-entry old-record manifest now records four observed renewals and 79 unobserved renewals, including separate claims on the same units. General per-SA scope/isolation, bits 0–3 admission and K3's unenrolled status are unchanged; AC-4 stays partial. These records do not reconstruct historical guest mutant 20 |
+| Remaining closure evidence | Final Linux populations, doctor qualification/promotion, repaired helper/checker, AC-2's as-used clean → binding-cut → clean proof and AC-1's seven-run local IPv4 single-pair ICMP sequence are observed. Installed-endpoint MTU also passed its named scenario in 4s. Repaired-source firewall clean 17s → intended gate-open packet failure 14s → recovery clean 17s is observed and independently CLEAR. FRR passed its own named scenario in 5s. Post-fix form-switch and ICMP clean passed in 8s and 10s, with final independent lifecycle acceptance CLEAR. No live run remains owed for the namespace phase; AC-4's scope/kernel implementation and broader RFC obligations stay open. All four fresh clause records and the four older same-row transport/tunnel dependency renewals are observed. Tunnel positive `job-ipsec-sad-tunnel-positive-record-8cbbeb8e.log` and negative `job-ipsec-sad-tunnel-negative-record-3ca64234.log` each passed clean in 3.80s and failed with producer halt in 0.01s. Independent canonical-RFC review cleared the partial audit after all nine covers across six functions, and main natively stamped `rfc/audit/rfc4301/RFC4301-5.2-2.json`. The current check `job-ipsec-rfc4301-partial-refresh-check-4fea72ad.log` reports 451 corpus findings but no audit/discrimination freshness finding for this exact ID, which appears only in the normal partial report. The 83-entry old-record manifest now records four observed renewals and 79 unobserved renewals, including separate claims on the same units. General per-SA scope/isolation, bits 0–3 admission and K3's unenrolled status are unchanged; AC-4 stays partial. These records do not reconstruct historical guest mutant 20 |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |
