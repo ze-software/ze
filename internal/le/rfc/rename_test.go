@@ -151,8 +151,8 @@ func renameOne() []renamePair {
 	return []renamePair{{Source: selftestTestPath, Target: renameTarget}}
 }
 
-// VALIDATES: AC-4 -- the target holds the source's exact bytes, the source is
-// gone, and the record's unit names the target.
+// VALIDATES: AC-4 -- the target holds the source's exact bytes, the source stays
+// for commit-owned removal, and the record's unit names the target.
 func TestRenameMovesFileAndRewritesDiscriminationUnits(t *testing.T) {
 	root := renameFixture(t)
 	original := readRel(t, root, selftestTestPath)
@@ -160,8 +160,8 @@ func TestRenameMovesFileAndRewritesDiscriminationUnits(t *testing.T) {
 	if _, err := renameFiles(root, renameOne()); err != nil {
 		t.Fatalf("rename: %v", err)
 	}
-	if existsRel(root, selftestTestPath) {
-		t.Error("the source is still there")
+	if got := readRel(t, root, selftestTestPath); got != original {
+		t.Error("the source changed before commit-owned removal")
 	}
 	if got := readRel(t, root, renameTarget); got != original {
 		t.Error("the target's bytes differ from the source's")
@@ -179,9 +179,11 @@ func TestRenameMovesFileAndRewritesDiscriminationUnits(t *testing.T) {
 // claim-sha do not depend on the path of a _test.go file.
 func TestRenameKeepsDiscriminationRecordsVerified(t *testing.T) {
 	root := renameFixture(t)
-	if _, err := renameFiles(root, renameOne()); err != nil {
+	report, err := renameFiles(root, renameOne())
+	if err != nil {
 		t.Fatalf("rename: %v", err)
 	}
+	publishRenameFixture(t, root, report)
 	records, err := loadDiscrimination(root)
 	if err != nil {
 		t.Fatalf("load the records: %v", err)
@@ -212,9 +214,11 @@ func TestRenameKeepsAuditVerdictsFresh(t *testing.T) {
 	if state := stampFreshness(t, root)[selftestRIDSend].State; state != FreshState {
 		t.Fatalf("the fixture verdict reads %s before the rename, want %s", state, FreshState)
 	}
-	if _, err := renameFiles(root, renameOne()); err != nil {
+	report, err := renameFiles(root, renameOne())
+	if err != nil {
 		t.Fatalf("rename: %v", err)
 	}
+	publishRenameFixture(t, root, report)
 	audit := readRel(t, root, renameAuditRel)
 	if strings.Contains(audit, `"`+selftestTestPath) {
 		t.Errorf("the audit still names the old path:\n%s", audit)
@@ -580,13 +584,17 @@ func TestRenameReportNamesIndexUpdate(t *testing.T) {
 		t.Fatalf("rename: %v", err)
 	}
 	text := report.Text()
-	for _, want := range []string{"moved " + selftestTestPath + " -> " + renameTarget,
+	for _, want := range []string{"prepared " + selftestTestPath + " -> " + renameTarget,
 		"rewrote " + selftestDiscriminationRel + ": 1 key(s)", "rewrote " + renameAuditRel,
 		"citation rewritten: " + renameDocRel + ":1", "plain mention left unchanged, read it: " + renameDocRel + ":2",
-		"next: ./le rfc update"} {
+		"next: ./le commit create", "file " + renameTarget, "remove " + selftestTestPath,
+		"after commit: git status --short"} {
 		if !strings.Contains(text, want) {
 			t.Errorf("the report omits %q:\n%s", want, text)
 		}
+	}
+	if strings.Contains(text, "./le rfc update") {
+		t.Error("the completed report advertises forbidden ledger regeneration")
 	}
 }
 
@@ -600,11 +608,18 @@ func TestRenameEndToEndCheckFindingsUnchanged(t *testing.T) {
 	before, beforeCode := Check(root, nil)
 
 	setRenameRoot(t, root)
-	if _, code := Answer([]string{"move", keyFrom, selftestTestPath, keyTo, renameTarget}); code != 0 {
+	answer, code := Answer([]string{"move", keyFrom, selftestTestPath, keyTo, renameTarget})
+	if code != 0 {
 		t.Fatalf("the rename answered %d", code)
 	}
+	report, ok := answer.(RenameReport)
+	if !ok {
+		t.Fatalf("the rename answered %T, want its publication report", answer)
+	}
+	publishRenameFixture(t, root, report)
+	// Refresh after publication while retaining the rename as HEAD, so its
+	// HEAD^ baseline still holds the old carrier and exercises byte-pure carry.
 	layFixture(t, root, nil)
-	commitFixture(t, root, "rename")
 	after, afterCode := Check(root, nil)
 
 	if afterCode != beforeCode {
@@ -661,6 +676,7 @@ func TestRenameReportsPartialWritesWhenItStops(t *testing.T) {
 		t.Skip("running as root, so a read-only directory proves nothing")
 	}
 	root := renameFixture(t)
+	original := readRel(t, root, selftestTestPath)
 	evidence := filepath.Join(root, filepath.FromSlash(discriminationRel), selftestStem)
 	if err := os.Chmod(evidence, 0o500); err != nil {
 		t.Fatalf("fixture: %v", err)
@@ -679,14 +695,28 @@ func TestRenameReportsPartialWritesWhenItStops(t *testing.T) {
 	// The audit file sorts before the discrimination file, so it was rewritten
 	// before the write that failed, and the report must say so.
 	want := []RenameRewrite{{File: renameAuditRel, Keys: 2}}
-	if report.Stopped == "" || !slices.Equal(report.Moves, renameOne()) || !slices.Equal(report.Evidence, want) {
-		t.Errorf("the partial report reads moves %v, evidence %v, stopped %q; want the move, %v, a reason",
-			report.Moves, report.Evidence, report.Stopped, want)
+	if report.Stopped == "" {
+		t.Error("the partial report omits why preparation stopped")
 	}
-	for _, want := range []string{"moved " + selftestTestPath, "stopped part-way"} {
+	if !slices.Equal(report.Prepared, renameOne()) {
+		t.Errorf("partial preparations = %v, want %v", report.Prepared, renameOne())
+	}
+	if !slices.Equal(report.Evidence, want) {
+		t.Errorf("partial evidence = %v, want %v", report.Evidence, want)
+	}
+	if got := readRel(t, root, selftestTestPath); got != original {
+		t.Error("the partial preparation changed or removed the tracked source")
+	}
+	for _, want := range []string{"prepared " + selftestTestPath, "stopped part-way", "next: git status --short"} {
 		if !strings.Contains(report.Text(), want) {
 			t.Errorf("the partial report omits %q:\n%s", want, report.Text())
 		}
+	}
+	if strings.Contains(report.Text(), "./le commit create") {
+		t.Error("an incomplete preparation advertises publication as ready")
+	}
+	if strings.Contains(report.Text(), "./le rfc update") {
+		t.Error("an incomplete preparation advertises ledger regeneration as ready")
 	}
 }
 

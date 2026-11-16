@@ -222,18 +222,27 @@ func TestRFCActionsCarryRenameVerb(t *testing.T) {
 }
 
 // VALIDATES: the wiring row -- `./le rfc move from <old> to <new>` reaches the
-// rename through Answer and moves the file in the checkout ZE_REPO_ROOT names.
+// rename through Answer and prepares the tracked file in the checkout
+// ZE_REPO_ROOT names; commit-owned fixture publication completes the move.
 func TestRFCActionsRenameThroughAnswer(t *testing.T) {
 	root := renameFixture(t)
+	original := readRel(t, root, selftestTestPath)
 	setRenameRoot(t, root)
 	answer, code := Answer([]string{"move", keyFrom, selftestTestPath, keyTo, renameTarget})
 	if code != 0 {
 		t.Fatalf("the rename answered %d", code)
 	}
 	report, isReport := answer.(RenameReport)
-	if !isReport || len(report.Moves) != 1 {
-		t.Fatalf("the answer is %#v, want a report of one move", answer)
+	if !isReport || len(report.Prepared) != 1 || len(report.Moves) != 0 {
+		t.Fatalf("the answer is %#v, want one prepared tracked relocation", answer)
 	}
+	if got := readRel(t, root, selftestTestPath); got != original {
+		t.Error("the retained source differs from the original bytes")
+	}
+	if got := readRel(t, root, renameTarget); got != original {
+		t.Error("the prepared target differs from the original bytes")
+	}
+	publishRenameFixture(t, root, report)
 	if existsRel(root, selftestTestPath) || !existsRel(root, renameTarget) {
 		t.Error("the file did not move")
 	}

@@ -2510,11 +2510,14 @@ file's path, and every KEY names the path. A move therefore breaks nothing but
 the keys, and `./le rfc move` rewrites the keys rather than re-stamping
 anything.
 
-The rename action removes its sources immediately; it does not prepare a
-commit. For tracked-file relocation, use the commit-owned `file`/`remove`
-workflow in [Committing](committing.md) instead. An untagged file with no
-evidence keys can be copied byte-for-byte to its destination while its source
-stays in place until the commit script removes it. Historical record citations
+For a tracked carrier, the action prepares an independent destination with the
+source's bytes and permissions and retains the source. It carries the evidence
+keys and citations without re-stamping them. Its report lists the prepared
+relocations and the files to publish through the commit-owned `file`/`remove`
+workflow in [Committing](committing.md). The commit script removes the unchanged
+source only after publication succeeds. Until that commit, both carriers exist,
+so do not run package tests or regenerate the ledgers in that interval. A new
+untracked tagged carrier still moves immediately. Historical record citations
 keep their original paths.
 <!-- source: internal/le/rfc/rename.go -- applyRename -->
 
@@ -2554,8 +2557,10 @@ citations go unlisted: one inside a moved file, because a moved file is never
 searched for them, and one whose braces span a directory segment, because the
 search looks for the old directory or the base name spelled out. A moved file
 is never edited. When a write fails part-way, the action answers 2 with the
-report of what it did write: the moves, the rewrites, and each target created
-whose source is still in place.
+report of what it did write: prepared tracked relocations, completed untracked
+moves, the rewrites, and each other target whose source is still in place. It
+retains completed destinations rather than deleting work during rollback, and
+asks for review of the incomplete preparation before publication.
 
 It refuses the whole batch, and writes nothing, for a target that exists,
 leaves its source's directory, changes the GOOS/GOARCH file-name suffix or is
@@ -2644,7 +2649,8 @@ every pair the rename would refuse, and a shared target, for the same reason.
 The finding, `propose` and `./le rfc move` judge a pair through one
 predicate, `pairRefusals`. It answers a path outside the checkout, a pair that
 leaves its package or names a file that is not a `_test.go` file, a source that
-is untracked or differs from HEAD, and, through `judgeRenameTarget`, a taken
+is neither tracked at HEAD nor a confirmed new untracked carrier, or differs
+from HEAD when tracked, and, through `judgeRenameTarget`, a taken
 name, a moved build suffix and a name the naming rule refuses for the source's
 tags and marker. A finding judges names, not the working tree, so it sets the
 source's state aside: a name and its tags disagree whoever is editing the file.

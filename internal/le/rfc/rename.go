@@ -24,6 +24,7 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/doc/citation"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
+	"github.com/ze-software/ze/internal/le/le/human"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 )
 
@@ -42,11 +43,13 @@ type RenameRewrite struct {
 
 // RenameReport is what `./le rfc move` answers after it wrote.
 //
-// Moves, Evidence and Citations name only what was written. When a write failed
-// part-way, Stopped carries the failure and Linked names each target created
-// whose source is still in place, so the operator sees the tree as it is.
+// Prepared retains tracked sources for commit-owned removal; Moves contains
+// completed untracked moves. Files, Evidence and Citations name actual writes.
+// Stopped and Linked preserve the state of incomplete preparations.
 type RenameReport struct {
 	Moves     []renamePair    `json:"moves"`
+	Prepared  []renamePair    `json:"prepared,omitempty"`
+	Files     []string        `json:"files,omitempty"`
 	Evidence  []RenameRewrite `json:"evidence"`
 	Citations []string        `json:"citations"`
 	Mentions  []string        `json:"mentions"`
@@ -55,14 +58,18 @@ type RenameReport struct {
 	Stopped   string          `json:"stopped,omitempty"`
 }
 
-// renameNextStep is the command the derived ledgers need after a rename.
-const renameNextStep = "./le rfc update"
+// renameNextStep reviews the retained paths after a rename.
+const renameNextStep = "git status --short"
 
 // Text renders one line per move, rewrite, citation and mention, then the next step.
 func (r RenameReport) Text() string {
 	var tb textbuf.Buffer
 	for _, move := range r.Moves {
 		tb.Str("moved ").Str(move.Source).Str(" -> ").Str(move.Target).Byte('\n')
+	}
+	for _, pair := range r.Prepared {
+		tb.Str("prepared ").Str(pair.Source).Str(" -> ").Str(pair.Target).
+			Str("; source retained for commit-owned removal\n")
 	}
 	for _, rewrite := range r.Evidence {
 		tb.Str("rewrote ").Str(rewrite.File).Str(": ").Int(int64(rewrite.Keys)).Str(" key(s)\n")
@@ -81,6 +88,20 @@ func (r RenameReport) Text() string {
 	}
 	if r.Stopped != "" {
 		tb.Str("stopped part-way, nothing above this line was undone: ").Str(r.Stopped).Byte('\n')
+		tb.Str("review the retained paths and resolve the failure before committing\nnext: git status --short")
+		human.AppendArguments(&tb, append([]string{"--"}, r.Files...))
+		return tb.Byte('\n').String()
+	}
+	if len(r.Prepared) > 0 {
+		tb.Str("review the listed file contents and their required dependencies before publication\nnext: ./le commit create")
+		human.AppendArguments(&tb, []string{"subject", "rfc: relocate tagged test files"})
+		for _, file := range r.Files {
+			human.AppendArguments(&tb, []string{"file", file})
+		}
+		for _, pair := range r.Prepared {
+			human.AppendArguments(&tb, []string{"remove", pair.Source})
+		}
+		return tb.Str("\nafter commit: ").Str(renameNextStep).Byte('\n').String()
 	}
 	return tb.Str("next: ").Str(renameNextStep).Byte('\n').String()
 }
@@ -97,7 +118,7 @@ type renameFile struct {
 // renamePlan is every write one rename makes, decided before any is made.
 type renamePlan struct {
 	Pairs     []renamePair
-	Sources   []renameFile
+	Sources   []renameSource
 	Evidence  []renameFile
 	Cited     []renameFile
 	Citations []string
@@ -148,11 +169,11 @@ func planRename(tree string, pairs []renamePair) (renamePlan, error) {
 	}
 	plan := renamePlan{Pairs: pairs}
 	for _, pair := range pairs {
-		original, err := os.ReadFile(treePath(tree, pair.Source)) // #nosec G304 -- a source the pair checks accepted
+		source, err := readRenameSource(tree, pair.Source)
 		if err != nil {
-			return renamePlan{}, errors.New(pair.Source + ": cannot read the source; nothing was written, run the rename again: " + err.Error())
+			return renamePlan{}, err
 		}
-		plan.Sources = append(plan.Sources, renameFile{Rel: pair.Source, Original: original})
+		plan.Sources = append(plan.Sources, source)
 	}
 	if plan.Evidence, err = planEvidence(tree, pairs); err != nil {
 		return renamePlan{}, err
@@ -789,13 +810,18 @@ func trackedFilesMentioning(tree string, pairs []renamePair) ([]string, error) {
 
 // applyRename re-reads every source and file the plan rewrites. It refuses the
 // whole batch, writing nothing, when one changed since the plan read it.
-// It then links every target, removes every source, and replaces each
-// rewritten file atomically.
+// It then creates every target, removes only untracked sources, and replaces
+// each rewritten file atomically.
 //
-// A target is created by link, never by rename, so an existing file is never
-// overwritten: a link onto an existing path fails.
+// Every target gets an independent inode claimed exclusively by link. Tracked
+// sources stay for the commit script; only unchanged untracked sources move.
 func applyRename(tree string, plan renamePlan) (RenameReport, error) {
-	for _, file := range slices.Concat(plan.Sources, plan.Evidence, plan.Cited) {
+	for _, source := range plan.Sources {
+		if err := renameSourceCurrent(tree, source); err != nil {
+			return RenameReport{}, err
+		}
+	}
+	for _, file := range slices.Concat(plan.Evidence, plan.Cited) {
 		current, err := os.ReadFile(treePath(tree, file.Rel)) // #nosec G304 -- a file this plan read
 		if err != nil {
 			var tb textbuf.Buffer
@@ -808,38 +834,49 @@ func applyRename(tree string, plan renamePlan) (RenameReport, error) {
 				Str(": changed since the rename read it; nothing was written, run the rename again").String())
 		}
 	}
-	var linked []string
-	for _, pair := range plan.Pairs {
-		if err := os.Link(treePath(tree, pair.Source), treePath(tree, pair.Target)); err != nil {
-			for _, rel := range linked {
-				_ = os.Remove(treePath(tree, rel)) //nolint:errcheck // undoing this run's own link
-			}
-			var tb textbuf.Buffer
-			return RenameReport{}, errors.New(tb.Str(pair.Target).Str(": cannot create: ").Err(err).
-				Str("; nothing was written").String())
-		}
-		linked = append(linked, pair.Target)
-	}
 	report := RenameReport{Mentions: plan.Mentions, Stale: plan.Stale}
-	for index, pair := range plan.Pairs {
+	for index, source := range plan.Sources {
+		pair := plan.Pairs[index]
+		if err := renameSourceCurrent(tree, source); err != nil {
+			return stopRename(report, err)
+		}
+		if err := copyRenameTarget(treePath(tree, pair.Target), source); err != nil {
+			var tb textbuf.Buffer
+			return stopRename(report, errors.New(tb.Str(pair.Target).Str(": cannot create: ").Err(err).String()))
+		}
+		report.Files = append(report.Files, pair.Target)
+		if source.tracked {
+			report.Prepared = append(report.Prepared, pair)
+			continue
+		}
+		report.Linked = append(report.Linked, pair)
+	}
+	for index, source := range plan.Sources {
+		if source.tracked {
+			continue
+		}
+		pair := plan.Pairs[index]
+		if err := renameSourceCurrent(tree, source); err != nil {
+			return stopRename(report, err)
+		}
 		if err := os.Remove(treePath(tree, pair.Source)); err != nil {
-			// Reachable only through a race: the link above needed write access to
-			// this directory, which a remove needs too, so no test drives this arm.
-			report.Linked = plan.Pairs[index:]
 			return stopRename(report, err)
 		}
 		report.Moves = append(report.Moves, pair)
+		report.Linked = report.Linked[1:]
 	}
 	for _, file := range plan.Evidence {
 		if err := replaceFileAtomically(treePath(tree, file.Rel), file.Updated); err != nil {
 			return stopRename(report, err)
 		}
 		report.Evidence = append(report.Evidence, RenameRewrite{File: file.Rel, Keys: file.Keys})
+		report.Files = append(report.Files, file.Rel)
 	}
 	for _, file := range plan.Cited {
 		if err := replaceFileAtomically(treePath(tree, file.Rel), file.Updated); err != nil {
 			return stopRename(report, err)
 		}
+		report.Files = append(report.Files, file.Rel)
 		prefix := file.Rel + ":"
 		for _, where := range plan.Citations {
 			if strings.HasPrefix(where, prefix) {

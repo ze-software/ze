@@ -47,7 +47,7 @@ var actions = leaction.New(area,
 			// by discriminateAnswer.
 			{Keyword: keyStem, Kind: leaction.KindLabel, Help: "the RFC or draft stem to report on", Value: keyStem, Requirement: leaction.Optional},
 			{Keyword: keyID, Kind: leaction.KindLabel, Help: "one requirement id to report on", Value: keyID, Requirement: leaction.Optional},
-			{Keyword: keyReport, Kind: leaction.KindPath, Help: "where the report is written", Value: keyPath, Requirement: leaction.Optional},
+			{Keyword: keyReport, Kind: leaction.KindPath, Help: "the existing gomu report to read for candidate breaks", Value: keyPath, Requirement: leaction.Optional},
 		},
 		AnswerArgs: discriminateAnswer},
 	leaction.Action{
@@ -175,12 +175,13 @@ var actions = leaction.New(area,
 		},
 		AnswerArgs: auditStampAnswer},
 	leaction.Action{Verb: "move", Summary: "move tagged test files with their evidence", Why: "move tagged unit test files and carry their evidence with them: from <old> to " +
-		"<new> moves one file, plan <file> moves every `<old> <new>` line of a file, and propose <file> " +
+		"<new> prepares one relocation, plan <file> prepares every `<old> <new>` line of a file, and propose <file> " +
 		"writes such a plan from the test file naming rule (under <dir> narrows it). The move is " +
-		"byte-pure, then every path key in rfc/discrimination/ and rfc/audit/ and every backtick or " +
+		"byte-pure: tracked sources stay until the printed commit-owned file/remove step; new untracked carriers move immediately. " +
+		"Then every path key in rfc/discrimination/ and rfc/audit/ and every backtick or " +
 		"link citation is rewritten, and every plain mention is listed. It refuses, writing nothing, " +
 		"a target that exists, leaves its directory or GOOS/GOARCH suffix, or fails the naming rule, " +
-		"a source that is untracked or differs from HEAD, and a plan with one refused pair",
+		"an edited tracked source, an untracked source that is not a confirmed tagged carrier, and a plan with one refused pair",
 		Writes: true,
 		Parameters: []leaction.Parameter{
 			{Keyword: keyFrom, Kind: leaction.KindPath, Help: "the test file to move", Value: keyPath, Requirement: leaction.Optional},
