@@ -21,7 +21,7 @@ func init() {
 		Code:        codeRemoteMetricFailure,
 		Title:       "BGP next-hop reachability lookup failed",
 		Description: "The BGP RIB could not read next-hop reachability from the engine. Affected received paths remain stored but cannot be selected until the connection recovers. A failed revision feed stops the plugin, preserving its mandatory dependency. Inspect ze show doctor for the plugin connection problem and restore that connection.",
-		Examples:    []string{"ze show doctor", "ze show diagnostic doctor-bgp-next-hop-metrics"},
+		Examples:    []string{remoteMetricFix, "ze show diagnostic doctor-bgp-next-hop-metrics"},
 	}); err != nil {
 		panic("BUG: bgp rib: next-hop metric diagnostic registration failed: " + err.Error())
 	}
@@ -44,7 +44,7 @@ func init() {
 	)
 
 	reg := registry.Registration{
-		Name:        "bgp-rib",
+		Name:        string(sourcePolicyOwner),
 		Description: "Route Information Base storage",
 		RFCs:        []string{"4271"},
 		Features:    "yang",

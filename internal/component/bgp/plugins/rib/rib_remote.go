@@ -66,6 +66,7 @@ func (r *RIBManager) igpDistance(addr netip.Addr) igpcost.Distance {
 	ctx, cancel := context.WithTimeout(context.Background(), nextHopMetricTimeout)
 	defer cancel()
 	out, err := remote.client.RouteMetrics(ctx, []string{addr.String()})
+	// refuse-by-default: guards candidateNextHopResolved -- Resolved=false excludes a non-CIDR candidate; the failed lookup is recorded, reported and not cached.
 	if err != nil {
 		remote.noteMetricFailure(true)
 		logger().Error(remoteMetricProblem, "code", codeRemoteMetricFailure, "next-hop", addr, "error", err)
@@ -141,6 +142,10 @@ const codeRemoteMetricFailure = "doctor-bgp-next-hop-metrics"
 
 const remoteMetricProblem = "The BGP RIB could not read next-hop reachability from the engine; affected paths cannot be selected. Inspect the plugin connection with ze show doctor."
 
+const remoteMetricFix = "ze show doctor"
+
+const remoteIssueSubject = string(sourcePolicyOwner)
+
 // noteMetricFailure coalesces failures into one bounded warning. The caller
 // MUST hold remote.mu; only the existing metric worker sends report RPCs.
 func (remote *remoteRIB) noteMetricFailure(failed bool) {
@@ -168,9 +173,9 @@ func (r *RIBManager) reportRemoteMetricIssue(ctx context.Context) {
 	var err error
 	if failed {
 		err = r.plugin.RaiseIssue(reportCtx, sdk.Issue{Severity: rpc.ReportWarning,
-			Code: codeRemoteMetricFailure, Subject: "bgp-rib", Message: remoteMetricProblem, Fix: "ze show doctor"})
+			Code: codeRemoteMetricFailure, Subject: remoteIssueSubject, Message: remoteMetricProblem, Fix: remoteMetricFix})
 	} else {
-		err = r.plugin.ClearIssue(reportCtx, codeRemoteMetricFailure, "bgp-rib")
+		err = r.plugin.ClearIssue(reportCtx, codeRemoteMetricFailure, remoteIssueSubject)
 	}
 	if err != nil {
 		logger().Error("The BGP RIB could not report its next-hop lookup problem; inspect the plugin connection with ze show doctor.",
@@ -186,7 +191,7 @@ func (r *RIBManager) reportRemoteMetricFailure(ctx context.Context) {
 	reportCtx, cancel := context.WithTimeout(ctx, nextHopMetricTimeout)
 	defer cancel()
 	if err := r.plugin.RaiseIssue(reportCtx, sdk.Issue{Severity: rpc.ReportError,
-		Code: codeRemoteMetricFailure, Subject: "bgp-rib", Message: remoteMetricProblem, Fix: "ze show doctor"}); err != nil {
+		Code: codeRemoteMetricFailure, Subject: remoteIssueSubject, Message: remoteMetricProblem, Fix: remoteMetricFix}); err != nil {
 		logger().Error("The BGP RIB could not report its failed metric feed; inspect the plugin connection with ze show doctor.",
 			"code", codeRemoteMetricFailure, "error", err)
 	}

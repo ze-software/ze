@@ -88,7 +88,7 @@ func TestRemoteMetricWorkerRaisesAndClearsBothTransports(t *testing.T) {
 							if engine.SendError(ctx, request.ID, err.Error()) != nil {
 								return
 							}
-						} else if engine.SendResult(ctx, request.ID, json.RawMessage(result)) != nil {
+						} else if engine.SendResult(ctx, request.ID, result) != nil {
 							return
 						}
 					}

@@ -124,6 +124,7 @@ func ipv4Prefix(prefLen byte, octets ...byte) []byte {
 func TestRIBBestChangePublish(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"))
 
 	// Set up peer metadata for eBGP.
 	peerAddr := netip.MustParseAddr("192.0.2.1")
@@ -179,6 +180,7 @@ func TestRIBBestChangePublish(t *testing.T) {
 func TestPurgeBestPrevForPeer(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.168.1.1"), netip.MustParseAddr("192.168.2.2"))
 
 	fam := family.Family{AFI: 1, SAFI: 1}
 	leavingPeer := netip.MustParseAddr("192.0.2.1")
