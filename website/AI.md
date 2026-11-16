@@ -651,6 +651,7 @@ website edit.
 
 | Ruling | Scope | Rule that applies it | Test that pins it |
 |--------|-------|----------------------|-------------------|
+| The approved Lust-inspired design applies across the site: navy foundations, blue primary actions, restrained green accents, neutral rounded panels, floating pill navigation, larger homepage type and ambient blue/green light. Preserve all content and functionality. Open in dark mode unless the reader saved a light preference; keep the theme toggle | All regular website pages; frozen talk decks retain their own design | Shared tokens, base, component and responsive CSS in `website/assets/css/`; `themeBootstrap` in `internal/le/site/shell.go`; theme controls in `website/assets/js/site.js` | `TestApprovedStyleIsTheSharedStylesheet`, `TestApprovedStyleStartsDarkAndKeepsTheSavedChoice` |
 | Links are never underlined, in any state. A text link stands out from the text around it by color and turns white on hover. Keyboard focus keeps its outline | Homepage hero | `.site-home .hero a` and `.site-home .hero :where(p, figcaption) a` in `website/assets/css/30-components.css` | `TestHeroLinksAreNeverUnderlined` |
 | The README plays a short dashboard animation inside GitHub. Website regeneration updates its SVG from the site's verified terminal recording | README demo and website build | `internal/le/site/readme_demo.go` registered producer and `buildProducers` integration | `TestReadmeDemoRegisteredForEveryBuild`, `TestReadmeDemoRefreshesDuringOtherProducerBuild` |
 | The front page says Ze is self-contained: "Self-contained" is the fourth hero key point, placed first in the row beside "Extend with plugins", "Appliance option" and "ExaBGP compatible". Thomas chose the wording on 2026-11-14, after rejecting "Fully integrated" as not the right expression. It means the shipped `ze` binary needs no other routing daemon or runtime library; Linux or VPP still forwards the packets, so it claims nothing about the forwarding plane | Homepage hero | The `hero-start-points` row in `homeTemplate`, `internal/le/site/homebody.go` | `TestHeroSaysZeIsSelfContained` |
@@ -661,6 +662,7 @@ website edit.
 <!-- source: internal/le/site/owner_rulings_test.go -- TestHeroLinksAreNeverUnderlined, TestHeroSaysZeIsSelfContained -->
 <!-- source: internal/le/site/home_approved_presentation_test.go -- TestHeroKeyPointsUseApprovedTicks, TestHomepageCapabilitiesRetainGeneratedDestinations, TestWhyZeCardsCarryApprovedArguments -->
 <!-- source: internal/le/site/contribution_policy_test.go -- TestContributionAIPolicyPreservesOwnerApproval, TestContributionPagesPointToCanonicalAIPolicy -->
+<!-- source: internal/le/site/approved_style_test.go -- TestApprovedStyleIsTheSharedStylesheet, TestApprovedStyleStartsDarkAndKeepsTheSavedChoice -->
 
 On 14 November 2026, Thomas changed the hero metric population:
 
@@ -740,23 +742,24 @@ matched without case. This assigns presentation roles only, not support or
 evidence claims. Typed dependency and vendor labels emit their roles directly;
 authored HTML uses explicit concept classes.
 
-Three section surfaces give the page color without recoloring individual cards.
-Blue identifies management and run choices through `--brand-section-gradient`.
-Teal identifies testing through `--evidence-section-gradient` on the homepage
-proof section and quality overview. Lavender identifies references and reading
-through `--reference-section-gradient` on the homepage documentation section,
-documentation route grid and article takeaways. Light pages use a neutral
-foundation and white cards; dark pages retain their navy foundations and cards.
-Supporting notes and navigation selection use `--brand-surface`. Key reading
-and action links use accessible `--blue`. Choose surfaces by their reader
-purpose, never alternating arbitrary sections. Preserve the hero gradient,
-neutral card borders, plain headings and terminal imagery. These colors retain
-the approved layout. Poppins headings
-and Lato body text share the same hierarchy across the homepage, guides,
-catalogs and articles. The root element's `data-theme` attribute and `ze-theme`
-storage key remain the theme contract; the prepaint bootstrap and the shared
-script must agree about both. A new design treatment needs owner approval,
-followed by the matching style-guide update.
+The approved design uses blue for primary actions and links, with restrained
+green accents. Ambient blue and green light belongs behind the page, with a
+faint grid; content panels and borders stay neutral. Sections are separated by
+space and thin rules rather than alternating colored fills. Dark pages use a
+near-black navy foundation and navy panels. Light pages use a pale foundation
+and white panels. Supporting notes and navigation selection use
+`--brand-surface`; action and reading links use accessible `--blue`.
+Poppins headings and Lato body text share the same hierarchy across the
+homepage, guides, catalogs and articles. The floating rounded header, pill
+controls and neutral rounded panels are shared components, not homepage-only
+styles. Preserve subject badges, status meanings, terminal imagery and all
+existing content and controls.
+
+The root element's `data-theme` attribute and `ze-theme` storage key remain the
+theme contract. The prepaint bootstrap and deferred script default to dark and
+honor a saved light or dark choice. If storage is unavailable, the reader can
+still change the theme for the current page. A new design treatment needs
+owner approval, followed by the matching style-guide update.
 
 Card producers use `cardCategory` in `internal/le/site/docpage.go` for optional
 categories. It shares `pageCategories` and `validateCategory` with page metadata,
@@ -776,15 +779,16 @@ shared configuration through SSH, CLI, web, MCP and APIs.
 "Try the BGP quickstart" is the first, primary action and links directly to
 `guides/quickstart/`; the demo gallery is secondary. The copy, actions and
 pre-release notice sit beside the genuine terminal recording on desktop.
-Keep these actions and the recording controls within the initial laptop
-viewport. On phones, compact the copy and place the recording before the
-interface selector so its preview and Play action are visible before scrolling.
+Keep these actions and the recording controls easy to find. On narrow screens,
+stack the introduction and genuine product preview without clipping the
+recording, its controls or the interface selector.
 The project metrics, release callout and product map follow the opening row.
 The primary introduction links the management surfaces and custom-plugin guide.
 The former secondary configuration paragraph is removed.
-The outer hero alone paints the shared navy gradient. Its inner panel and
-showcase chrome remain transparent in both themes, without an inner shadow
-that creates seams at the left and right edges.
+The homepage hero sits on the page's ambient background. Its inner panel stays
+transparent, while the genuine interface preview uses a neutral rounded frame.
+Keep the larger heading, blue emphasis, pill actions and blue capability ticks
+from the approved design; none of these changes the opening's content.
 <!-- source: internal/le/site/homebody.go -- homeTemplate -->
 
 The homepage's Getting started section presents the same two-peer lab as

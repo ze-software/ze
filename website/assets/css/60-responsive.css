@@ -86,24 +86,28 @@
     .doc-layout, .blog-reading-layout { grid-template-columns: 10rem minmax(0, 1fr); gap: 1.75rem; }
     .feature-catalog[data-enhanced="true"] { grid-template-columns: 11rem minmax(0, 1fr); gap: 1.5rem; }
     .feature-results .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-    .site-home .hero-start-intro.hero-grid { gap: 2rem; }
     .site-home .hero-release-callout { max-width: none; }
     .site-home .hero-primary-actions { flex-basis: 70%; }
-    .site-home .usp-grid, .site-home .capability-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-    .site-home .home-section-panel-map .capability-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .site-home .capability-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+@media (max-width: 1180px) {
+    .site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-areas: "copy" "preview"; gap: 2rem; }
+    .site-home .hero-copy { max-width: 52rem; }
+    .site-home .showcase { max-width: none; width: 100%; }
+    .site-home #hero-title { max-width: 25ch; }
+    .site-home .usp-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .site-home .hero-project-metrics { border-color: var(--line); }
 }
 @media (max-width: 1080px) {
-    main, main.site-main-wide, main.has-page-sidebar { width: min(var(--max), calc(100% - 3rem)); padding: 0 0 3rem; }
+    main, main.site-main-wide, main.has-page-sidebar { width: min(var(--max), calc(100% - 4rem)); padding: 0 0 3rem; }
     main.has-page-sidebar > .page-sidebar { width: 100%; max-height: none; margin: 1.5rem 0; }
     main.has-page-sidebar > .page-sidebar .page-sidebar-nav { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 1.5rem; }
-    .site-home .hero-start-intro.hero-grid { grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto; grid-template-areas: "copy" "preview"; gap: 1.5rem; padding-top: 1.5rem; }
-    .site-home .hero-copy { max-width: 46rem; }
+    .site-home .hero-start-intro.hero-grid { grid-template-rows: auto auto; }
     .site-home .hero-action-row { grid-template-columns: minmax(0, 1fr); }
     .site-home .hero-release-callout { width: 100%; }
-    .site-home .hero-project-metrics { border-top: 1px solid #2c4564; padding-top: 1rem; }
+    .site-home .hero-project-metrics { border-top: 1px solid var(--line); padding-top: 1rem; }
     .site-home .hero-project-metric:first-child { border-inline-start: 0; padding-inline-start: 0; }
-    .site-home #hero-title { font-size: clamp(2.25rem, 5vw, 3rem); }
-    .site-home .showcase { width: 100%; max-width: 46rem; justify-self: center; }
+    .site-home .showcase { justify-self: center; }
     .site-home .hero-outcome-links { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .site-home .proof-strip { grid-template-columns: repeat(3, minmax(0, 1fr)); }
     .site-home .proof { border-bottom: 1px solid var(--line); }
@@ -111,7 +115,12 @@
     .blog-article-shell, .blog-article-shell.has-visual { gap: 2rem; }
 }
 @media (max-width: 960px) {
-    .site-home .why-lead { grid-template-columns: minmax(0, 1fr); gap: 1.5rem; }
+    .site-header { border-radius: 20px; }
+    .site-header .nav { padding: 0.65rem 1rem; }
+    .nav-links { background: var(--panel); border-color: var(--line); }
+    .site-home .why-lead { grid-template-columns: minmax(0, 1fr); }
+    .site-home .terminal-panel { grid-template-columns: minmax(0, 1fr); }
+    .site-home .home-section-panel-map .capability-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 @media (max-width: 850px) {
     .docs-path-grid { grid-template-columns: minmax(0, 1fr); }
@@ -141,6 +150,27 @@
     .site-home .home-proof-actions { max-width: none; }
     .site-home .interop-strip { flex-wrap: wrap; }
 }
+@media (max-width: 640px) {
+    main, main.site-main-wide, main.has-page-sidebar { width: calc(100% - 2rem); }
+    .site-home .hero-start-intro.hero-grid { padding-top: 2.25rem; padding-bottom: 1.5rem; }
+    .site-home #hero-title { font-size: clamp(2.35rem, 9vw, 3.3rem); }
+    .site-home .hero-intro { font-size: 0.96rem; line-height: 1.8; }
+    .site-home .hero-start-points { font-size: 0.72rem; gap: 0.4rem 0.85rem; }
+    .site-home .hero-actions { align-items: stretch; }
+    .site-home .hero-actions .button { flex: 1 1 12rem; }
+    .site-home .showcase .screen-tabs { order: 0; }
+    .site-home .screen-tabs button { padding: 0.45rem 0.65rem; font-size: 0.68rem; }
+    .site-home .screen-description { padding: 1rem; }
+    .site-home .hero-outcome-links { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .site-home .hero-action-row { gap: 1rem; }
+    .site-home .hero-project-metric strong { font-size: 1.3rem; }
+    .site-home .section-head, .site-home .home-section-panel-map .section-head { grid-template-columns: minmax(0, 1fr); gap: 0.75rem; }
+    .site-home .usp-grid, .site-home .home-section-panel-map .reference-grid, .site-home .home-section-panel-map .capability-grid { grid-template-columns: minmax(0, 1fr); }
+    .site-home .terminal-body pre { font-size: 0.72rem; }
+    .site-home .why-lead { padding: 1.2rem; gap: 1.8rem; }
+    .site-home .interface-map > div:first-child { flex-wrap: wrap; }
+    .site-home .interface-map span { flex-basis: 5rem; }
+}
 @media (max-width: 560px) {
     main, main.site-main-wide, main.has-page-sidebar { width: calc(100% - 2rem); }
     .journey-hero { padding: 2rem 0; margin-bottom: 1.75rem; }
@@ -152,32 +182,18 @@
     .cli-toolbar { padding: 1rem; }
     .cli-toolbar > * { grid-column: 1; }
     .cli-reference-content .cli-group > table::before { content: "Scroll sideways to see all columns."; display: block; padding: 0.6rem 1rem; font: 0.75rem/1.5 Lato, sans-serif; color: var(--muted); background: var(--bg-soft); }
-    .site-home .hero-start-intro.hero-grid { padding: 0.75rem 0 1rem; gap: 0.5rem; }
-    .site-home .hero .eyebrow { margin-bottom: 0.5rem; }
-    .site-home #hero-title { font-size: clamp(1.7rem, 7vw, 2rem); margin-bottom: 0.5rem; }
-    .site-home #hero-title em { font-size: 0.78em; }
-    .site-home .hero-start-points { margin-bottom: 0.65rem; gap: 0.4rem 0.85rem; font-size: 0.73rem; }
-    .site-home .hero-intro { font-size: 0.98rem; line-height: 1.5; margin-bottom: 0.7rem; }
-    .site-home .hero-actions { margin-top: 0.5rem; gap: 0.5rem; }
-    .site-home .hero-actions .button { font-size: 0.75rem; flex: 1 1 auto; min-height: 2.6rem; padding: 0.65rem 0.6rem; gap: 0.4rem; }
-    .site-home .hero-status { margin-top: 0.6rem; font-size: 0.75rem; }
     .site-home .showcase { display: flex; flex-direction: column; }
     .site-home .showcase .product-panels { order: 1; }
-    .site-home .showcase .screen-tabs { order: 2; margin-bottom: 0; }
-    .site-home .screen-tabs button { font-size: 0.75rem; padding: 0.5rem 0.65rem; }
+    .site-home .showcase .screen-tabs { order: 0; }
     .site-home .screen-toolbar { gap: 0.5rem; font-size: 0.65rem; }
     .site-home .screen-description { padding: 1rem; }
     .site-home .hero-primary-actions { flex-basis: 100%; }
     .site-home .hero-outcome-links { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.65rem 1rem; }
-    .site-home .home-section-panel { padding: 1.5rem 0; }
-    .site-home .home-section-panel-run, .site-home .home-section-panel-map { padding-inline: 1rem; }
     .site-home .home-proof-block { padding-block: 2.25rem; }
-    .site-home :is(.section-head, .home-proof-head, .status-copy, .why-lead) h2 { font-size: 1.65rem; }
     .site-home .usp-grid, .site-home .capability-grid, .site-home .run-path-grid, .site-home .reference-grid, .site-home .home-usecase-grid, .site-home .proof-strip, .site-home .blog-list { grid-template-columns: minmax(0, 1fr); }
     .site-home .home-section-panel-map .capability-grid { grid-template-columns: minmax(0, 1fr); }
     .site-home .proof { border-right: 0; }
     .site-home .proof:last-child { border-bottom: 0; }
-    .site-home .why-lead { padding: 1.25rem; }
     .site-home .terminal-note { padding: 1.3rem; }
     .site-home .terminal-body { font-size: 0.75rem; }
     .site-home .interface-map > div:first-child { gap: 0.3rem; }

@@ -17,10 +17,10 @@ const (
 	fontStylesheet = "assets/vendor/fonts/fonts.css"
 )
 
-// themeBootstrap sets data-theme before the first paint, so a reader who chose
-// the dark theme never sees a light flash. It runs inline in the head for that
-// reason and must not move into the deferred script.
-const themeBootstrap = `        <script id="theme-bootstrap">(function(){var t="light";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}catch(e){t=window.matchMedia&&window.matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.setAttribute("data-theme",t)})();</script>`
+// themeBootstrap sets data-theme before the first paint. A saved choice wins;
+// without one, the approved design opens dark. It runs inline in the head to
+// avoid a flash and must agree with preferredTheme in the deferred script.
+const themeBootstrap = `        <script id="theme-bootstrap">(function(){var t="dark";try{var s=localStorage.getItem("ze-theme");t=s==="dark"||s==="light"?s:t}catch(e){}document.documentElement.setAttribute("data-theme",t)})();</script>`
 
 // structuredData is the schema.org graph every page carries.
 //

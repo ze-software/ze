@@ -21,6 +21,8 @@ body {
         sans-serif;
     color: var(--text);
     background: var(--body-background, var(--bg));
+    line-height: 1.65;
+    -webkit-font-smoothing: antialiased;
 }
 
 body::before {
@@ -33,11 +35,7 @@ body::before {
         linear-gradient(var(--grid-color) 1px, transparent 1px),
         linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
     background-size: 48px 48px;
-    mask-image: linear-gradient(
-        to bottom,
-        rgba(0, 0, 0, 0.72),
-        transparent 78%
-    );
+    mask-image: linear-gradient(#000, transparent 90%);
 }
 
 a {
@@ -88,17 +86,22 @@ main[tabindex="-1"]:focus {
 }
 
 .site-header {
+    --header-offset: 0.85rem;
     position: sticky;
-    top: 0;
+    top: var(--header-offset);
     z-index: 20;
-    border-bottom: 1px solid var(--header-border);
+    width: min(1360px, calc(100% - 2rem));
+    margin: 0.85rem auto 0;
+    border: 1px solid var(--header-border);
+    border-radius: 999px;
     background: var(--header-bg);
-    backdrop-filter: blur(18px);
+    box-shadow: 0 12px 36px var(--shadow);
+    backdrop-filter: blur(20px);
     transition: transform 220ms ease;
 }
 
 .site-header.hidden {
-    transform: translateY(-100%);
+    transform: translateY(calc(-100% - var(--header-offset)));
 }
 
 /* No-JavaScript fallback navigation, rendered only when site.js does not load
@@ -134,9 +137,10 @@ main[tabindex="-1"]:focus {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    width: min(var(--max), calc(100% - 2rem));
+    width: 100%;
+    min-height: 4rem;
     margin: 0 auto;
-    padding: 1rem 0;
+    padding: 0.65rem 1.35rem;
     gap: 1rem;
 }
 
@@ -234,7 +238,7 @@ main[tabindex="-1"]:focus {
     gap: 0.55rem;
     padding: 0.5rem 0.7rem;
     border: 1px solid var(--header-border);
-    border-radius: 0.7rem;
+    border-radius: 999px;
     background: var(--panel-strong);
     color: var(--text);
     font: inherit;
@@ -325,8 +329,8 @@ main[tabindex="-1"]:focus {
     padding: 1.1rem;
     transform: translateX(-50%);
     border: 1px solid var(--header-border);
-    border-radius: 0.75rem;
-    background: var(--panel-strong);
+    border-radius: 18px;
+    background: var(--panel);
     box-shadow:
         0 1px 2px rgba(40, 20, 55, 0.06),
         0 1.2rem 2.6rem var(--shadow);
@@ -506,7 +510,7 @@ main[tabindex="-1"]:focus {
 }
 
 main {
-    width: min(var(--max), calc(100% - 2rem));
+    width: min(var(--max), calc(100% - 4rem));
     margin: 0 auto;
     padding: 0 0 4rem;
     border-radius: 0;
@@ -1160,8 +1164,8 @@ a.hl:hover {
     justify-content: center;
     min-height: 3rem;
     padding: 0 1.3rem;
-    border: 2px solid var(--glass-border);
-    border-radius: 0.6rem;
+    border: 1px solid var(--line-strong);
+    border-radius: 999px;
     color: var(--text);
     background: var(--panel-strong);
     box-shadow: var(--clay);
@@ -1175,17 +1179,17 @@ a.hl:hover {
 }
 
 .button.primary {
-    border-color: var(--glass-border);
-    background: var(--hero-cta-gradient);
+    border-color: #4c9de4;
+    background: #1676ce;
     color: var(--hero-cta-foreground);
-    box-shadow: var(--clay), 0 0.6rem 1.4rem -0.4rem var(--grape-glow);
+    box-shadow: 0 8px 28px #1688ef26;
 }
 
 .button:hover {
-    border-color: var(--glass-border);
-    background: var(--hero-cta-gradient);
-    color: var(--hero-cta-foreground);
-    box-shadow: var(--clay);
+    border-color: var(--blue);
+    background: var(--brand-surface);
+    color: var(--text);
+    box-shadow: none;
 }
 
 .button:active {
@@ -1193,8 +1197,9 @@ a.hl:hover {
 }
 
 .button.primary:hover {
-    background: var(--hero-cta-gradient);
-    box-shadow: var(--clay), 0 0.6rem 1.4rem -0.4rem var(--grape-glow);
+    background: #1269b8;
+    color: #fff;
+    box-shadow: 0 10px 30px #1688ef3b;
 }
 
 .bird-card {
@@ -1393,9 +1398,9 @@ section[aria-labelledby="blog-teaser-title"] {
 .section-head {
     display: grid;
     grid-template-columns: auto minmax(0, 1fr);
-    gap: 2rem;
+    gap: 1rem 3rem;
     align-items: start;
-    margin-bottom: 0.9rem;
+    margin-bottom: 2rem;
 }
 
 .section-head :is(h1, h2) {
@@ -1417,12 +1422,13 @@ section[aria-labelledby="blog-teaser-title"] {
     overflow: visible;
     margin-bottom: 2.5rem;
     border: 0;
+    border-bottom: 1px solid var(--line);
     border-radius: 0;
     padding: 2.75rem 0;
-    background: var(--hero-bg);
-    box-shadow: 0 0 0 100vmax var(--hero-bg);
+    background: transparent;
+    box-shadow: none;
     color: var(--hero-text);
-    clip-path: inset(0 -100vmax);
+    clip-path: none;
 }
 
 .journey-hero::after {
@@ -1628,8 +1634,8 @@ section[aria-labelledby="blog-teaser-title"] {
     min-height: 12rem;
     padding: 1.4rem;
     border: 1px solid var(--line);
-    border-radius: 0.75rem;
-    background: var(--panel);
+    border-radius: var(--radius-lg);
+    background: var(--card-surface);
     box-shadow: var(--clay);
     transition: border-color 160ms ease, transform 160ms ease, box-shadow 160ms ease;
 }
@@ -1643,21 +1649,14 @@ section[aria-labelledby="blog-teaser-title"] {
     content: none;
 }
 
-/*
- * Hover affordance rule: a card lifts on hover ONLY if it links somewhere
- * (has an <a> -- a title/primary link that leads to a page). Purely
- * informational cards with no link get a neutral border cue and stay
- * put. Motion is reserved for "this tile leads somewhere", the same reason
- * the action buttons no longer lift. (Only the title is the click target
- * today; a stretched-link would make the whole tile clickable to match.)
- */
+/* Linked cards gain a soft shadow on hover. Informational cards retain only
+   the neutral border cue; neither changes position. */
 .card:hover {
     border-color: var(--line-strong);
 }
 
 .card:has(a):hover {
-    transform: translateY(-2px);
-    box-shadow: var(--shadow-lifted);
+    box-shadow: 0 12px 30px var(--shadow);
 }
 
 /*
