@@ -1,6 +1,6 @@
 // Design: docs/architecture/bgp/interface-event-reactions.md -- scoped peer subnet refresh
 // Related: link_scope.go -- immutable comparison snapshot, separate from transport
-// Related: ls71_pair_scope_test.go -- established session with scoped TCP endpoint
+// Related: link_scope_fixture_test.go -- established session with scoped TCP endpoint
 
 package reactor
 
