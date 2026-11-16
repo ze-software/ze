@@ -127,9 +127,8 @@ type rpkiConfig struct {
 	ASPAInvalidAction uint8  // action for ASPA Invalid routes (default: reject)
 	ASPAUnknownAction uint8  // action for ASPA Unknown routes (default: accept)
 	// OriginInvalidAction is the RFC 6811 Section 3 operator-configurable action for the Invalid
-	// origin-validation state (default: reject). It is what makes the exclusion of Invalid routes
-	// an explicitly configured policy choice (RFC 6811 Section 2) rather than an unconditional
-	// side effect: only OriginInvalidAction == ASPAPolicyReject excludes the route.
+	// origin-validation state (default: accept). Only an explicitly configured
+	// ASPAPolicyReject makes that state exclude the route (RFC 6811 Section 2).
 	OriginInvalidAction uint8
 	// OriginNotFoundAction is the action for the NotFound origin-validation state (default: accept).
 	OriginNotFoundAction uint8
@@ -152,10 +151,13 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 	}
 
 	cfg := &rpkiConfig{
-		ASPAValidation:       false,
-		ASPAInvalidAction:    ASPAPolicyReject,
-		ASPAUnknownAction:    ASPAPolicyAccept,
-		OriginInvalidAction:  ASPAPolicyReject, // RFC 6811: default reject Invalid (matches YANG default)
+		ASPAValidation:    false,
+		ASPAInvalidAction: ASPAPolicyReject,
+		ASPAUnknownAction: ASPAPolicyAccept,
+		// RFC 6811 Section 2: "An implementation MUST NOT exclude a route from the Adj-RIB-In or from
+		// consideration in the decision process as a side effect of its validation state, unless
+		// explicitly configured to do so."
+		OriginInvalidAction:  ASPAPolicyAccept, // Matches the YANG default; cache configuration alone excludes nothing.
 		OriginNotFoundAction: ASPAPolicyAccept, // default accept NotFound (matches YANG default)
 	}
 
@@ -182,7 +184,7 @@ func parseRPKIConfig(jsonStr string) (*rpkiConfig, error) {
 
 	// Parse origin-validation actions from rpki/action container. RFC 6811 Section 3: the action
 	// for each validation state is operator-configurable. The YANG defaults are
-	// action/invalid=reject and action/not-found=accept.
+	// action/invalid=accept and action/not-found=accept.
 	if actionMap, ok := rpkiMap["action"].(map[string]any); ok {
 		if action, set := parseActionLeaf(actionMap, "invalid"); set {
 			cfg.OriginInvalidAction = action

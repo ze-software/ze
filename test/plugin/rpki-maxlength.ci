@@ -1,3 +1,5 @@
+# QUESTION: Does explicit Invalid rejection make the received /25 ineligible when its covering VRP permits at most /24?
+# A unit cannot decide live configuration delivery, RTR synchronization and asynchronous validation across the daemon, cache and BGP peer processes.
 # Test: RPKI rejects route exceeding maxLength
 # VALIDATES: Route /25 rejected when VRP maxLength=24 (AC-10)
 # PREVENTS: RPKI plugin ignoring maxLength constraint
@@ -39,6 +41,9 @@ bgp {
 		cache-server 127.0.0.1 {
 			trusted-network true
 			port $PORT2
+		}
+		action {
+			invalid reject;
 		}
 	}
 	peer peer1 {

@@ -209,9 +209,10 @@ configurable by the operator.";
         ze:help "Global origin-validation actions.";
         leaf invalid {
           type validation-action;
-          default "reject";
-          description "The default is reject. The received route remains in Adj-RIB-In but is
-ineligible for the decision process until validation or configured policy admits it.";
+          default "accept";
+          description "The default is accept, so the Invalid state alone does not exclude a route
+from the decision process. Configure reject to retain the received route in Adj-RIB-In
+while making it ineligible for selection.";
           ze:help "Action Ze applies to a route in the Invalid validation state.";
         }
         leaf not-found {

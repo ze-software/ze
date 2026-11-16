@@ -1,3 +1,5 @@
+# QUESTION: Does batched validation keep the two Valid routes and NotFound route eligible while explicit Invalid rejection makes the wrong-origin route ineligible?
+# A unit cannot decide live configuration delivery, RTR synchronization and asynchronous validation across the daemon, cache and BGP peer processes.
 # Test: RPKI validation batches multiple routes with mixed outcomes
 # VALIDATES: Batch path dispatches mixed Valid/Invalid/NotFound decisions correctly
 # PREVENTS: Batching silently dropping or misclassifying decisions
@@ -48,6 +50,9 @@ bgp {
 		cache-server 127.0.0.1 {
 			trusted-network true
 			port $PORT2
+		}
+		action {
+			invalid reject;
 		}
 	}
 	peer peer1 {

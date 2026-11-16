@@ -91,9 +91,9 @@ func TestParseRPKIConfigDefaults(t *testing.T) {
 	assert.Equal(t, uint8(100), cs.Preference)        // YANG default
 	assert.Equal(t, uint16(0), cfg.ValidationTimeout) // not set
 
-	// RFC 6811 origin-validation policy defaults (the YANG leaf defaults): the exclusion of
-	// Invalid routes defaults to reject, NotFound defaults to accept.
-	assert.Equal(t, ASPAPolicyReject, cfg.OriginInvalidAction, "default invalid-action is reject")
+	// RFC 6811 Section 2 requires explicit configuration to exclude a route by its
+	// validation state. Both origin-validation YANG leaf defaults therefore accept.
+	assert.Equal(t, ASPAPolicyAccept, cfg.OriginInvalidAction, "default invalid-action is accept")
 	assert.Equal(t, ASPAPolicyAccept, cfg.OriginNotFoundAction, "default not-found-action is accept")
 }
 

@@ -1,7 +1,13 @@
 # RPKI Origin Validation
 
-Ze validates received BGP routes against RPKI ROA data. By default, Invalid routes remain in Adj-RIB-In with their received attributes but are ineligible for selection and export. The feature connects to RTR cache servers (RFC 8210), downloads Validated ROA Payloads (VRPs), and applies the RFC 6811 origin validation algorithm to each received prefix.
-<!-- source: internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration, RFCs 6811/8210 -->
+Ze validates received BGP routes against RPKI ROA data. By default, an Invalid
+origin-validation state does not exclude a route from selection or export.
+Configure `rpki { action { invalid reject; } }` to retain Invalid routes in
+Adj-RIB-In with their received attributes while making them ineligible. The
+feature connects to RTR cache servers (RFC 8210), downloads Validated ROA
+Payloads (VRPs), and applies the RFC 6811 origin validation algorithm to each
+received prefix.
+<!-- source: internal/component/bgp/plugins/rpki/rpki_config.go -- parseRPKIConfig; internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions; internal/component/bgp/plugins/rpki/register.go -- bgp-rpki registration -->
 
 An UPDATE must name the negotiated peer AS before RPKI validates its routes.
 The JSON handler refuses an unknown or malformed peer AS before it records
@@ -147,11 +153,12 @@ root keeps its committed value; an explicitly removed root does not.
 | `rpki / cache-server / tls / server-name` | string | cache DNS address | DNS reference identity; required for an IP cache address |
 | `rpki / cache-server / preference` | uint8 | 100 | Server preference (lower preferred) |
 | `rpki / validation-timeout` | 1..65535 | 30 | Seconds before fail-open on pending routes; a reload applies the new deadline |
-| `rpki / action / invalid` | enum | reject | Action for Invalid routes: reject, log-only, accept |
+| `rpki / action / invalid` | enum | accept | Action for Invalid routes: accept, reject, log-only; exclusion requires explicit reject |
 | `rpki / action / not-found` | enum | accept | Action for NotFound routes: accept, reject, log-only |
 | `rpki / aspa / validation` | boolean | false | Enable ASPA path verification using RTR v2 ASPA records |
 | `rpki / aspa / action / invalid` | enum | reject | Action for ASPA Invalid routes: reject, log-only, accept |
 | `rpki / aspa / action / unknown` | enum | accept | Action for ASPA Unknown routes: accept, reject, log-only |
+<!-- source: internal/component/bgp/plugins/rpki/yang/ze-rpki.yang -- global rpki leaves -->
 
 Multiple cache servers are supported for redundancy. Ze tries them in preference order (a lower value is preferred; equal values keep their configuration order) and uses the most preferred server that answers. Ze holds one server's data at a time, never the union of several. A completed full synchronization atomically replaces the previous server's data; partial transfers do not replace the working set. While the new server's load is still arriving, validation answers from the previous server's set, unchanged: nothing in that load, withdrawals included, reaches the working set before its End of Data, and an update the previous server sends afterwards no longer touches the data in use. "RTR Poll Timing" below covers Cache Reset and the return to a more-preferred server.
 <!-- source: internal/component/bgp/plugins/rpki/rtr_session.go -- RTRSession.handlePDU, RTRSession.startFullSync -->
@@ -285,8 +292,9 @@ Each received route gets one of three states (RFC 6811):
 | State | Meaning | Default Action |
 |-------|---------|----------------|
 | Valid | Origin AS and prefix length match a VRP | Accept |
-| Invalid | A VRP covers the prefix but origin AS or length doesn't match | Reject |
+| Invalid | A VRP covers the prefix but origin AS or length doesn't match | Accept |
 | NotFound | No VRP covers the prefix | Accept |
+<!-- source: internal/component/bgp/plugins/rpki/validate.go -- Validate; internal/component/bgp/plugins/rpki/rpki_config.go -- parseRPKIConfig -->
 
 A prefix ze cannot parse gets Invalid and a warning, never NotFound. NotFound
 states that the VRP set was consulted and covers nothing, and the default
@@ -334,9 +342,10 @@ RPKI decorator can correlate the complete verdict set with that UPDATE.
 
 This matters most when UPDATEs arrive before the first sync completes. Those
 routes validate NotFound against an empty VRP set, and the default
-`not-found accept` installs them. The re-validation after the sync is what turns
-an RPKI-Invalid one into a reject.
-<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation.go -- applyToInstalled -->
+`not-found accept` installs them. Re-validation after the sync applies the
+configured action to the new state. Origin validation makes an Invalid route
+ineligible only when its effective action is `reject`.
+<!-- source: internal/component/bgp/plugins/adj_rib_in/rib_validation.go -- applyToInstalled; internal/component/bgp/plugins/rpki/rpki.go -- buildDecisions -->
 
 ### RTR Poll Timing
 

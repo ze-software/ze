@@ -1,3 +1,5 @@
+# QUESTION: Does the daemon mark the received wrong-origin route Invalid and ineligible when Invalid rejection is explicitly configured?
+# A unit cannot decide live configuration delivery, RTR synchronization and asynchronous validation across the daemon, cache and BGP peer processes.
 # Test: RPKI validation rejects route with mismatched origin AS (Invalid)
 # VALIDATES: Route with origin AS not matching VRP is rejected (AC-3)
 # PREVENTS: RPKI plugin accepting routes with wrong origin AS
@@ -45,6 +47,9 @@ bgp {
 		cache-server 127.0.0.1 {
 			trusted-network true
 			port $PORT2
+		}
+		action {
+			invalid reject;
 		}
 	}
 	peer peer1 {

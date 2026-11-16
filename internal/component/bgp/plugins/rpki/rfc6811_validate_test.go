@@ -143,7 +143,7 @@ func TestValidateRefusesUnparseablePrefix(t *testing.T) {
 // TestUnparseablePrefixIsNotAcceptedByDefaultPolicy verifies the refusal survives the policy
 // step that turns a validation state into an accept/reject decision.
 //
-// VALIDATES: With the YANG defaults (invalid: reject, not-found: accept), buildDecisions drops
+// VALIDATES: With explicit invalid=reject and not-found=accept, buildDecisions drops
 // the route carrying the state Validate returned for a malformed prefix, and keeps the route
 // whose prefix parsed and genuinely has no covering VRP.
 // PREVENTS: The state changing while the decision does not, which is the whole defect: a state
@@ -153,7 +153,7 @@ func TestUnparseablePrefixIsNotAcceptedByDefaultPolicy(t *testing.T) {
 	c.Add(makeVRP("10.0.0.0/8", 24, 65001))
 
 	rp := &rPKIPlugin{}
-	rp.originInvalidAction.Store(uint32(ASPAPolicyReject)) // YANG default
+	rp.originInvalidAction.Store(uint32(ASPAPolicyReject)) // Explicit invalid-route rejection.
 	rp.originNotFoundAction.Store(uint32(ASPAPolicyAccept))
 
 	decisions := rp.buildDecisions([]validationRequest{
