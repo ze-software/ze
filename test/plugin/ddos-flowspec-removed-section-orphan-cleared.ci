@@ -29,7 +29,7 @@
 #   4. The daemon starts. No ddos-flowspec plugin runs, so nothing withdraws
 #      the rule or removes the record, and the running-owner guard of
 #      `delete data key` does not refuse.
-#   5. clear-orphan.sh takes the report from `ze doctor`, runs the withdrawal
+#   5. The native driver takes the report from `ze doctor`, runs the withdrawal
 #      its fix line prints, runs the removal the report names, and runs
 #      `ze doctor` again.
 #
@@ -40,7 +40,7 @@
 #
 # RED: with `ze data rm` refused beside the daemon (the busy-store route in
 #   internal/component/config/storage/cli/main.go removeKeysThroughDaemon
-#   absent), clear-orphan.sh exits 1 at REMOVE-FAILED.
+#   absent), the native driver refuses the failed removal.
 #
 # Run: ./le test bgp plugin --draft --pattern ddos-flowspec-removed-section-orphan-cleared
 option=storage:value=disk
@@ -103,60 +103,13 @@ bgp {
 }
 EOF_CONF
 
-tmpfs=clear-orphan.sh:terminator=EOF_SCRIPT
-#!/bin/sh
-set -eu
-code=doctor-ddos-flowspec-orphan-announcement
-removal='ze data rm meta/ddos-flowspec/announcement'
-# ze doctor exits 1 while it reports a warning; its text is what is judged.
-report=$(ze doctor 2>&1 || true)
-if printf '%s\n' "$report" | grep -qF doctor-runtime-not-checked; then
-	echo "NO-DAEMON: ze doctor was not answered by the daemon" >&2
-	printf '%s\n' "$report" >&2
-	exit 1
-fi
-if ! printf '%s\n' "$report" | grep -qF "[$code]"; then
-	echo "REPORT-MISSING: ze doctor did not report $code" >&2
-	printf '%s\n' "$report" >&2
-	exit 1
-fi
-if ! printf '%s\n' "$report" | grep -qF "$removal"; then
-	echo "REMOVAL-UNNAMED: the report does not name $removal" >&2
-	printf '%s\n' "$report" >&2
-	exit 1
-fi
-fix=$(printf '%s\n' "$report" | sed -n 's/^[[:space:]]*fix: //p' | grep -F 'send bgp' | head -n 1)
-if [ -z "$fix" ]; then
-	echo "FIX-MISSING: ze doctor printed no withdrawal fix" >&2
-	printf '%s\n' "$report" >&2
-	exit 1
-fi
-echo "FIX-RUN: $fix" >&2
-eval "$fix"
-if ! $removal; then
-	echo "REMOVE-FAILED: $removal was refused while the daemon runs" >&2
-	exit 1
-fi
-after=$(ze doctor 2>&1 || true)
-if printf '%s\n' "$after" | grep -qF doctor-runtime-not-checked; then
-	echo "NO-DAEMON: the second ze doctor was not answered by the daemon" >&2
-	printf '%s\n' "$after" >&2
-	exit 1
-fi
-if printf '%s\n' "$after" | grep -qF "[$code]"; then
-	echo "REPORT-STANDS: ze doctor still reports $code after the removal" >&2
-	printf '%s\n' "$after" >&2
-	exit 1
-fi
-echo "CLEARED: $code"
-EOF_SCRIPT
 
 cmd=background:seq=1:exec=ze start running.conf:name=first:ready=Ze running.
 cmd=stop:seq=2:name=first:signal=term
 cmd=foreground:seq=3:exec=ze data write meta/ddos-flowspec/announcement record.json:exit=0
 cmd=foreground:seq=4:exec=ze config import --yes --name ze.conf running.conf:exit=0
 cmd=background:seq=5:exec=ze start running.conf:name=daemon:ready=Ze running.
-cmd=foreground:seq=6:exec=sh clear-orphan.sh:exit=0
+cmd=foreground:seq=6:exec=le test fixture plugin/ddos-flowspec-clear-orphan:exit=0
 expect=stdout:contains=CLEARED: doctor-ddos-flowspec-orphan-announcement
 expect=stdout:contains=removed meta/ddos-flowspec/announcement
 expect=stdout:contains=1 entries removed from

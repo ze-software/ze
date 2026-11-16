@@ -4,9 +4,12 @@
 
 package fixture
 
-// The clearing barrier of the FlowSpec orphan test,
-// test/plugin/ddos-flowspec-orphan-doctor.ci, its only user. It only runs
-// `ze cli` commands, so it is registered on every host.
+// These foreground drivers own their commands and return only after their
+// assertions hold. None dispatches daemon shutdown, so none declares StopsDaemon.
 func init() {
 	Register("plugin/ddos-flowspec-orphan-cleared", ddosFlowspecOrphanCleared)
+	Register("plugin/ddos-flowspec-restore-cause", ddosFlowspecRestoreCause)
+	Register("plugin/ddos-flowspec-run-restart", ddosFlowspecRunRestart)
+	Register("plugin/ddos-flowspec-clear-orphan", ddosFlowspecClearOrphan)
+	Register("plugin/doctor-fatal-stop", doctorPluginFatalStop)
 }

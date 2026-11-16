@@ -44,12 +44,12 @@
 #      and the running responder announces nothing: the runtime check
 #      (doctor.go answerOrphanRuntimeCheck) reports it.
 #   4. The cause is corrected: the operator restores the attach block
-#      (fix-cause.sh copies running.conf over running2.conf and asks for a
+#      (the native driver copies running.conf over running2.conf and asks for a
 #      reload). A changed attach block travels through RemovePeer and AddPeer
 #      (reactor/delivery_graph.go), so the session to the peer restarts as
-#      connection 3, and the script waits until it is established: a
+#      connection 3, and the driver waits until it is established: a
 #      withdrawal sent before that reaches no peer and fails the same way.
-#   5. The fix doctor printed is run as printed (run-fix.sh). The restarted
+#   5. The fix doctor printed is run as printed (the native driver). The restarted
 #      plugin's start sends the withdrawal of the recorded rule through the
 #      restored attach, the engine accepts it, and the plugin removes the record
 #      (withdrawRecordedAnnouncement); doctor then reports nothing
@@ -319,34 +319,11 @@ bgp {
 }
 EOF_CONF2
 
-# Runs the fix exactly as `ze doctor` printed it. The text report's `fix:` line
-# is the raw command, quotes included (doctor-local-asks-daemon.ci asserts the
-# form), so eval runs what an operator would paste. The script's `ze` is this
-# run's binary (the runner's shim directory is first on every child's PATH).
-tmpfs=run-fix.sh:terminator=EOF_SCRIPT
-#!/bin/sh
-set -eu
-fix=$(ze doctor | sed -n 's/^[[:space:]]*fix: //p' | grep -F 'plugin restart ddos-flowspec' | head -n 1)
-if [ -z "$fix" ]; then
-	echo "FIX-MISSING: ze doctor printed no FlowSpec plugin restart fix" >&2
-	exit 1
-fi
-echo "FIX-RUN: $fix" >&2
-eval "$fix"
-EOF_SCRIPT
-
 # Corrects the cause of the failed withdrawal: the peer attaches ddos-flowspec
 # again. The daemon reads running2.conf, so the first daemon's file, which holds
 # the attach block, is copied over it and the daemon is asked to reload. The
-# attach change restarts the session, so the script returns only once the peer
+# attach change restarts the session, so the driver returns only once the peer
 # is established again (show bgp, peers-established).
-tmpfs=fix-cause.sh:terminator=EOF_CAUSE
-#!/bin/sh
-set -eu
-cp running.conf running2.conf
-ze request reload
-le test fixture daemon/await-answer '"peers-established": 1' 'show bgp | json'
-EOF_CAUSE
 
 cmd=foreground:seq=1:exec=le test fixture plugin/ddos-transit-forward-drop-setup
 cmd=background:seq=2:exec=le test peer --port $PORT:stdin=peer
@@ -369,9 +346,9 @@ expect=stdout:contains="code": "doctor-ddos-flowspec-orphan-announcement"
 expect=stdout:contains=ddos-flowspec holds the record of a FlowSpec rule it announced for 203.0.113.9/32, and no running responder holds that rule as its live announcement
 expect=stdout:contains="fix": "ze request plugin restart ddos-flowspec"
 
-cmd=foreground:seq=9:exec=sh fix-cause.sh:exit=0
+cmd=foreground:seq=9:exec=le test fixture plugin/ddos-flowspec-restore-cause:exit=0
 
-cmd=foreground:seq=10:exec=sh run-fix.sh:exit=0
+cmd=foreground:seq=10:exec=le test fixture plugin/ddos-flowspec-run-restart:exit=0
 expect=stderr:contains=FIX-RUN: ze request plugin restart ddos-flowspec
 reject=stderr:contains=FIX-MISSING
 

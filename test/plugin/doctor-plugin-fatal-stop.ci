@@ -46,7 +46,7 @@ plugin {
 }
 EOF_CONF
 
-# The daemon runs through a script so the runner waits for it to EXIT before
+# The native driver owns the daemon so the runner waits for it to EXIT before
 # the doctor starts. A cmd=foreground `ze start` is a daemon to the runner
 # (classifyStepArm, steparm.go: stepArmDaemon): it is started and not waited
 # for, the next step starts once daemon.ready appears or a 5 s wait (scaled by
@@ -56,22 +56,18 @@ EOF_CONF
 # while the daemon had written nothing and created no store.
 # A foreground program that is neither ze nor the test peer is a helper
 # (stepArmHelper), and runOrchestrated calls owned.Wait() on it before the next
-# step. `exec` makes the ze process the helper process itself, so the wait is
-# on ze's own exit, and exit=1 asserts its status: a stop a fatal plugin
-# caused is a failure, so ze exits 1 (StopFailure, runYANGConfig). The
-# stderr line below is printed only at the end of an orderly stop, so with it
-# exit=1 still refuses a forced exit or an early error. The script's `ze` is this
+# step. The driver waits on ze's own child exit, and refuses every result
+# except normal exit 1: a stop a fatal plugin caused is a failure, so ze exits
+# 1 (StopFailure, runYANGConfig). Driver exit 0 means this child assertion passed.
+# The stderr line below is printed only at the end of an orderly stop, so with
+# the exact child-exit assertion it still refuses a forced exit or early error.
+# The driver's `ze` is this
 # run's binary: the runner puts its shim directory first on every child's PATH
 # (setupBinShims, childPathEnv, runner.go), and every child gets the test's
 # store choice and option=env entries (dutEnv, record_dut_store.go).
 #
 # Process exit is the state the doctor needs: the record is written, the
 # store is closed (cmdStart's deferred store.Close), and no daemon listens.
-tmpfs=run-daemon.sh:terminator=EOF_SCRIPT
-#!/bin/sh
-exec ze start running.conf
-EOF_SCRIPT
-
 # An intermediate helper's stream span runs from its start to the end of the
 # run (ci-format.md, "Every stream assertion sits under a command"), so these
 # also see the doctor's output; the doctor writes its answer to stdout.
@@ -80,7 +76,7 @@ EOF_SCRIPT
 # `created memory store (test build)` instead). The stop log line is written
 # after recordStop (stopDaemonForPlugin, server/failure_policy.go), and the
 # reject proves the record write did not fail (recordLastStopLogged logs that).
-cmd=foreground:seq=1:exec=sh run-daemon.sh:exit=1
+cmd=foreground:seq=1:exec=le test fixture plugin/doctor-fatal-stop:exit=0
 expect=stderr:contains=error: ze stopped because plugin failure-fatal failed
 expect=stderr:contains=the plugin's failure policy says ze must not keep running without it, so ze exits 1: the plugin declares that its failure stops ze
 expect=stderr:contains=fix: ze doctor
