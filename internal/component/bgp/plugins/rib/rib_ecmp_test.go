@@ -23,8 +23,7 @@ import (
 // PREVENTS: BGP ECMP collapsing to a single kernel next-hop.
 func TestCheckBestPathChange_BGPMultipathECMP(t *testing.T) {
 	r := newTestRIBManager(t)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.11"), netip.MustParseAddr("10.0.0.12"))
 	r.maximumPaths.Store(4)
 
 	var last locrib.Change

@@ -14,7 +14,6 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -33,8 +32,7 @@ import (
 func TestValidationChangeArrivesAsEnvelopedText(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.9"))
 	t.Cleanup(func() { r.SetLocRIB(nil) })
 	// The engine's delivery to a subscriber with SetEnvelope: the batch, as
 	// JSON, inside its envelope, handed to the text event handler.

@@ -26,6 +26,7 @@ func TestRIBAsksForkedGateInBatches(t *testing.T) {
 	t.Cleanup(func() { ribevents.RegisterValidationLookup(nil, nil) })
 	ribevents.RegisterValidationLookup(nil, nil)
 	r := newTestRIBManagerWithBus(newTestEventBus())
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.9"))
 
 	eligiblePeer := netip.MustParseAddr("192.0.2.1")
 	eligiblePrefix := netip.MustParsePrefix("203.0.113.0/24")

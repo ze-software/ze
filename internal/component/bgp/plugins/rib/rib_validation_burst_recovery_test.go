@@ -18,7 +18,6 @@ import (
 	bgpctx "github.com/ze-software/ze/internal/core/bgp/context"
 	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 	"github.com/ze-software/ze/internal/core/family"
-	"github.com/ze-software/ze/internal/core/rib/locrib"
 	"github.com/ze-software/ze/pkg/plugin/rpc"
 )
 
@@ -32,8 +31,7 @@ func TestDisableValidationBurstRecoversActualSelection(t *testing.T) {
 	bus := newTestEventBus()
 	r := newTestRIBManagerWithBus(bus)
 	t.Cleanup(ribevents.ValidationChange.Subscribe(bus, r.validationChanged))
-	loc := locrib.NewRIB()
-	r.SetLocRIB(loc)
+	loc := electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.9"))
 	t.Cleanup(func() {
 		r.SetLocRIB(nil)
 		for _, routes := range r.bgpPeers {
