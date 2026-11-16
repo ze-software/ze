@@ -1125,12 +1125,21 @@ This handles wraparound correctly. The valid window is 32767 in each direction.
 
 ### 11.3 Sending
 
-1. Assign Ns = next_send_seq. Increment next_send_seq (mod 65536).
-2. Set Nr = next_recv_seq (the Ns we expect from the peer).
-3. If unacknowledged message count >= peer's Receive Window Size: queue
-   the message, do not send yet.
-4. Add message to retransmission queue (keyed by Ns).
-5. Start retransmission timer if not already running.
+1. If the send window is full, queue the message. Do not assign Ns yet.
+   The window is limited by both CWND and the peer's Receive Window Size.
+2. When the window permits transmission, assign Ns = next_send_seq.
+   Increment next_send_seq (mod 65536).
+3. Set Nr = next_recv_seq (the Ns expected from the peer).
+4. Add the encoded message to the retransmission queue, keyed by Ns.
+5. Set the retransmission deadline if no deadline is active.
+<!-- source: internal/component/l2tp/reliable.go -- Enqueue, send, drainSendQueue -->
+
+An incoming ACK can release queued messages and deliver a new request in the
+same `OnReceive` result. `L2TPTunnel.Process` appends those queued sends before
+responses from its handlers. The reactor sends the returned slice in order.
+<!-- source: internal/component/l2tp/reliable.go -- OnReceive -->
+<!-- source: internal/component/l2tp/tunnel_fsm.go -- Process -->
+<!-- source: internal/component/l2tp/reactor.go -- handle -->
 
 ### 11.4 Receiving
 

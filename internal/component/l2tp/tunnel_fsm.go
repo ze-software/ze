@@ -95,15 +95,17 @@ func (t *L2TPTunnel) Process(hdr MessageHeader, payload []byte, now time.Time, d
 		// lastLiveness, so handleTick does not falsely declare it dead.
 		t.lastLiveness = now
 	}
+	// RFC 2661 Section 5.8: "Each subsequent message is sent with the next increment of the sequence number."
+	// OnReceive assigned these packets' Ns before the handlers create replies.
+	for _, wire := range res.NewSends {
+		out = append(out, sendRequest{to: t.peerAddr, bytes: wire})
+	}
 	for _, d := range res.Delivered {
 		out = append(out, t.handleMessage(d, now, defaults, sccrq)...)
 		// Only the FIRST delivery can be the SCCRQ we validated at
 		// reactor level; subsequent deliveries (gap-fill) are a later
 		// phase's concern and should not consume the pre-parsed info.
 		sccrq = nil
-	}
-	for _, wire := range res.NewSends {
-		out = append(out, sendRequest{to: t.peerAddr, bytes: wire})
 	}
 	if t.engine.NeedsZLB() {
 		zlbBuf := GetBuf()

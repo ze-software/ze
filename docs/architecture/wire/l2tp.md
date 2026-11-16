@@ -173,7 +173,7 @@ avoidance).
 | Event | Engine action |
 |-------|---------------|
 | `NewReliableEngine(cfg)` | Allocates state. CWND=1, SSTHRESH=peerRWS, Ns=Nr=0, no deadlines. |
-| `Enqueue(sid, body, now, priority)` | Constructs header (Ns=nextSendSeq++, Nr=nextRecvSeq), appends to rtms_queue if window allows, else to send_queue (bounded by `MaxSendQueueDepth`). When `priority=true` (StopCCN, HELLO), the message is prepended so it transmits before queued session messages; priority messages are exempt from the depth cap. |
+| `Enqueue(sid, body, now, priority)` | Returns the encoded packet when the window permits transmission. Otherwise queues the body without Ns, bounded by `MaxSendQueueDepth`. `send` stamps Ns/Nr and records the packet for retransmission. `priority=true` prepends the message and bypasses the depth cap. |
 | `OnReceive(hdr, payload, now)` | Classifies (InOrder/Duplicate/ReorderQueued/Discarded/ZLB/DataMessage). Advances peer_Nr from hdr.Nr, clears acked entries, grows CWND, drains send_queue. |
 | `UpdatePeerRWS(size, now)` | Updates the peer's advertised window mid-tunnel. Drains send_queue if the cap grew. |
 | `Tick(now)` | If now >= deadline and rtms_queue non-empty: rewrites Nr in each entry's bytes at offset 10-11, halves SSTHRESH, resets CWND to 1, doubles rtimeout up to cap. Returns TeardownRequired on max_retransmit exceeded. |
@@ -226,11 +226,13 @@ congestion window reopens. Priority messages are also exempt from the
 `MaxSendQueueDepth` cap, ensuring that a StopCCN can always be enqueued
 even under heavy session churn.
 
-Ns (sequence number) is assigned at `send()` time, not at queue insertion,
-so prepending does not break wire ordering. The peer sees valid,
-monotonically increasing Ns values regardless of queue priority.
-
-<!-- source: internal/component/l2tp/reliable.go — Enqueue priority parameter -->
+`send()` assigns Ns only when a message leaves the send queue or is sent
+immediately. `L2TPTunnel.Process` emits queued messages released by an ACK before
+fresh responses from the same receive operation. The reactor transmits those
+datagrams in that order.
+<!-- source: internal/component/l2tp/reliable.go -- Enqueue, send, drainSendQueue -->
+<!-- source: internal/component/l2tp/tunnel_fsm.go -- Process -->
+<!-- source: internal/component/l2tp/reactor.go -- handle -->
 
 ## Data message P bit (RFC 2661 Section 3.1)
 
