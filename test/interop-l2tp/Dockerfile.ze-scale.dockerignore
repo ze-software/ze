@@ -1,0 +1,4 @@
+**
+!test/interop-l2tp/Dockerfile.ze-scale
+!test/interop-l2tp/Dockerfile.ze-scale.dockerignore
+!test/interop-l2tp/ze-scale-linux

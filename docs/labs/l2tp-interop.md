@@ -87,6 +87,13 @@ replacements, and never changes process-global `GOFLAGS`.
 <!-- source: internal/le/interoplab/l2tp/scale_overlay.go -- prepareScaleAllocatorOverlay, scaleAllocatorReplacement -->
 <!-- source: internal/le/interoplab/l2tp/register_scale.go -- init -->
 
+The scale, relay, xl2tpd and kl2tpd builds send only their Dockerfiles,
+image-specific ignore files, and any declared staged binaries to the builder.
+<!-- source: test/interop-l2tp/Dockerfile.ze-scale.dockerignore -- build context allowlist -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/Dockerfile.dockerignore -- build context allowlist -->
+<!-- source: test/interop-l2tp/Dockerfile.lac.dockerignore -- build context allowlist -->
+<!-- source: test/interop-l2tp/Dockerfile.kl2tpd.dockerignore -- build context allowlist -->
+
 ## Many sessions in each tunnel
 
 `l2tp-many-sessions-kl2tpd` runs three kl2tpd v0.1.8 containers using the

@@ -1,0 +1,4 @@
+**
+!internal/le/interoplab/l2tp/avprelay/Dockerfile
+!internal/le/interoplab/l2tp/avprelay/Dockerfile.dockerignore
+!test/interop-l2tp/avp-relay-linux
