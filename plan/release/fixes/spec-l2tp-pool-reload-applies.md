@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Shipped defect: a reload that edits `l2tp pool` reports success and changes nothing, and a RADIUS-assigned address inside a pool range can be handed to a second subscriber |
@@ -25,24 +25,16 @@ Review continuation authorization: the owner answered "ok run the six" and
 for this spec if needed; this grants no further rounds. The external-mode
 reproduction and source fix precede the next independent review.
 
-## Blocker
+## Resolved blocker
 
-Native closure preparation found one omitted code pin in the actual CLEAN
-117-file R6 artifact: `internal/component/l2tp/plugins/pool/dns_source.go`.
-The validation commit `ea14ad498d` changed only its stale parser-name comment.
-That file was omitted from the carried discovery inventory and therefore from
-the record. This is a NOTE correcting R6's pin population, not a product defect
-or a seventh review round. The source, DNS test and RFC 2548 records were read.
-
-The corrected terminal script preserves all 117 paths and 109 prior immutable
-hash/mode pairs, adding exact HEAD blob `c4fb6722c5cd168ae68ce342018b5e1bc38e011d`,
-mode `100644`. It now records 118 paths and visibly checks five code files.
-Native `ReviewArea` supports hash, record and check, with no append or inherited
-authorization route. Replacing a round-six record still requires Thomas's terminal.
-He reruns `bash tmp/session/2026-11-15-195627/scratch/pool-round6-record-terminal.sh`
-to record the already-authorized review with its complete scope. The existing
-117-file artifact was not edited. Main then checks the new artifact and resumes
-closure. The unpublished closure preparation never ran and was removed by main.
+Thomas issued the corrected native R6 CLEAN record at 2026-11-16T16:06:41Z.
+The artifact covers 118 paths, and all five subsequent code-file hash checks
+passed. The missing comment-only `pool/dns_source.go` pin is included.
+The complete native population census has zero missing and zero stale pins.
+This corrected the record's scope without a new product finding, review round,
+test, source change or proof renewal. Main reclaims the implemented spec without
+a cap override and completes the final two-commit closure after the shared
+publisher releases its temporary HEAD/index hold.
 
 ## Closure status
 
@@ -56,7 +48,7 @@ runtime guard are now implemented and their focused proof passed. Main observed
 both daemon mode cases pass, the full pool package pass under the race detector,
 and host/Linux scoped lint report no issues. Both cases also passed all 80 stress
 invocations before promotion. Independent review six found no new product defect.
-All required scoped runs and proof renewals have actual receipts. The native R6 CLEAN artifact and its four-file hash check passed, but closure exposed the one omitted historical code pin described above. Complete pin recording and the final two closure commits remain owed.
+All required scoped runs and proof renewals have actual receipts. The corrected native R6 CLEAN artifact covers 118 paths, and all five code-file hash checks passed. Main still owes the final two closure commits and claim release.
 
 ## Publication dependency
 
@@ -743,7 +735,7 @@ The separate successor-lifetime design remains outside this correction.
 | News fragment and four owned journal rows | Written | Canonical fragment stem. Each journal fix names its producer or discriminating test |
 
 ### Audit Summary
-Round six reviewed the R5 process-mode correction and startup siblings, then completed the unfinished acceptance and closure audit. No new product defect was found. Final main-thread receipts are recorded. Thomas issued a CLEAN 117-file artifact and its four-file check passed. The closure population then exposed one omitted historical comment-only file. Corrected 118-file recording remains pending. No new product finding or review round is required. Existing global check failures remain disclosed below.
+Round six reviewed the R5 process-mode correction and startup siblings, then completed the unfinished acceptance and closure audit. No new product defect was found. Final main-thread receipts are recorded. Thomas issued the corrected CLEAN 118-file artifact and all five code-file checks passed. The historical comment-only pin omission is resolved. No new product finding or review round was required. Final publication remains with main. Existing global check failures remain disclosed below.
 
 ## Goal Validation (BLOCKING)
 
@@ -758,15 +750,15 @@ Round six reviewed the R5 process-mode correction and startup siblings, then com
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| Complete R6 pin recording and closure | The current 117-file artifact omits one historical comment-only code path. The corrected 118-file terminal script is ready. Product implementation and all scoped proofs remain complete | plan/release/fixes/spec-l2tp-pool-reload-applies.md |
+| None | Agreed implementation, scoped proof and review requirements are complete. Unrelated global failures remain disclosed. Main completes final publication through the two-commit closure procedure | - |
 
 ## Review Gate
 
 | Field | Value |
 |-------|-------|
-| Artifact | Existing CLEAN round-six record: 117 files, issued by Thomas at 2026-11-16T15:48:47Z, `tmp/review/l2tp-pool-reload-applies-08d275e8-134a-40ab-b341-f380d8550d56.md`. Closure refuses its omitted `pool/dns_source.go` pin. Corrected 118-file recording pending |
-| `./le spec review check` | Existing four-file check PASS. Native closure comparison found exactly one missing pin and no stale required pin. Corrected script records 110 immutable historical blobs/modes plus eight snapshots, then checks five code files |
-| Rounds | 6 completed: four implementation passes, R5 closure finding and this independent R6 correction review. No new product finding requires R7. R6 source review is complete. Its one-pin population correction still needs terminal recording |
+| Artifact | CLEAN, round 6, 118 paths, issued by Thomas at 2026-11-16T16:06:41Z: `tmp/review/l2tp-pool-reload-applies-08d275e8-134a-40ab-b341-f380d8550d56.md` |
+| `./le spec review check` | PASS for all five code-file hashes after the actual corrected record. Scope: 110 immutable historical blobs/modes plus eight snapshots. Source-derived native required-population comparison: zero missing and zero stale pins |
+| Rounds | 6 completed: four implementation passes, R5 closure finding and this independent R6 correction review. No new product finding requires R7. R6 source review and its one-pin population correction are complete. No seventh round was needed |
 | Scope | All owned reviewable files in `scratch/pool-authored-source-paths.txt`, including already-landed validation and code carried by the shared producer; foreign feature hunks are context only. Current source and selected closure blobs must match the final pin. |
 | Reviewer lenses used | Logic and wiring; security and boundaries; concurrency, lifecycle, performance and manual Go style |
 
@@ -789,7 +781,7 @@ The pin-population correction used the actual `specWorkPopulation` algorithm:
 exact `Spec-work:` message lines, root-aware recursive no-rename path lists,
 and `reviewCodeSuffixes`. At HEAD `9093c445116f65823e0a13f6c45fddce1e89028e`,
 five attributed commits contain 22 paths, including nine reviewable code paths.
-The current artifact omits only `dns_source.go`. The corrected 118-path scope
+The initial artifact omitted only `dns_source.go`. The actual corrected 118-path record
 covers all nine with matching HEAD hashes and modes. It also preserves every
 other previously reviewed path carried by the shared foundation. The 111-path
 owned inventory now includes the comment-only source file. Existing RFC2548
