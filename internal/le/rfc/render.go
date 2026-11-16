@@ -471,18 +471,23 @@ func requirementRow(req Requirement, found []Tag, audited string, in RenderInput
 		marks = append(marks, tb.Str("} ").Str(req.Superseded.Reason).String())
 	}
 
-	positive := orDashes(tagSites(found, PolarityPositive, in, reader, index))
-	negative := orDashes(tagSites(found, PolarityNegative, in, reader, index))
+	positive := tagSites(found, PolarityPositive, in, reader, index)
+	negative := tagSites(found, PolarityNegative, in, reader, index)
 	if req.Annotation != nil && req.Annotation.Kind == AnnotationPartial {
-		positive = "scoped evidence: " + positive
-		negative = "scoped evidence: " + negative
+		// Scope qualifies a citation, never the marker for a missing one.
+		if positive != "" {
+			positive = "scoped evidence: " + positive
+		}
+		if negative != "" {
+			negative = "scoped evidence: " + negative
+		}
 	}
 	return RequirementRow{
 		RID:      req.RID,
 		Level:    req.Level,
 		Section:  req.Section,
-		Positive: positive,
-		Negative: negative,
+		Positive: orDashes(positive),
+		Negative: orDashes(negative),
 		Note:     strings.Join(marks, " "),
 	}
 }
