@@ -22,6 +22,18 @@ above the normal cap of 12; it does not change the standing cap.
 
 ## Blocker
 
+Independent closure round five found a plausible process-boundary defect in
+explicit external pool mode. `pool/register.go` `runPlugin` configures its
+process-local allocator, while `subscriber/handler_registry.go` `GetPoolHandler`
+returns the daemon's local callback. `server.go` `hasConfiguredPlugin` suppresses
+the internal autoload for `run ze plugin l2tp-pool`. The provider declares no
+in-process restriction and does not refuse external mode. See the Review Gate
+diagnosis. Main must reproduce this through the daemon, implement the chosen
+source fix, and obtain authorization for the next independent pass. Round six
+has not been authorized. No CLEAN artifact or closure commit is prepared.
+
+## Publication dependency
+
 The remaining implementation commit depends on the active PPP primitive work.
 `internal/component/l2tp/ppp/start_session.go` (`StartSession`) now transfers
 explicit frame and data-plane owners, and the migrated admission test uses
@@ -38,11 +50,13 @@ source, documentation and proof records stay in the shared checkout; the
 active PPP owners have agreed to assemble the coupled commit. No push is
 authorized.
 
-Resume when that exact commit scope is available and its producer checkpoint
-lands. Inspect what it carried, commit any remaining owned changes, then run
-the independent closure review and the two closure commits. The next review
-is round five; no sixth round has been authorized. Detailed evidence and
-scope provenance remain in the spec's current session state.
+The exact coupled commit scope is now available and its approval checks are
+complete. The independent closure review can read the stable, tested
+candidate while that commit is published. Closing commits still wait for the
+producer checkpoint: inspect what it carried and commit any remaining owned
+changes before removing this spec. The closure review is round five; no sixth
+round has been authorized. Detailed evidence and scope provenance remain in
+the spec's current session state.
 
 ## Task
 
@@ -596,3 +610,139 @@ configuration or handler contract.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove plan/release/fixes/spec-l2tp-pool-reload-applies.md` only, in the same `./le commit create` script
+
+---
+
+## Implementation Summary
+
+### What Was Implemented
+Immutable pool descriptions feed the SDK configuration transaction. Apply and
+rollback rebuild reservations from canonical subscriber ownership records.
+RADIUS assignments reserve current pools and remain exclusive outside them.
+Both transport drains release an undelivered answer by exact owner and token.
+
+### Bugs Found/Fixed
+The reload no-op, duplicate RADIUS assignments, undelivered-answer leaks,
+unbounded or malformed pool descriptions, named-only selection and shared
+transport identity are covered by the tests in the TDD plan.
+
+### Documentation Updates
+Documentation verification was not finished before the process-mode finding
+blocked closure. Its current check evidence remains in the session state.
+
+### Deviations from Plan
+Assumption A-3 was broken. Existing canonical subscriber identity replaces the
+transport-local numeric pair in shared ownership and authorization stores.
+The separate successor-lifetime design remains outside this correction.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| assumption | A-3 treated a numeric PPP pair as shared identity | Equal pairs can belong to L2TP and PPPoE concurrently | Canonical identity and equal-pair tests | Carry the admitted opaque subscriber ID through every shared store and cleanup consumer |
+
+## Implementation Audit
+
+### Requirements from Task
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+
+### Acceptance Criteria
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+
+### Tests from TDD Plan
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+
+### Files from Plan
+| File | Status | Notes |
+|------|--------|-------|
+
+### Audit Summary
+Independent closure round five is blocked on the process-mode finding.
+The audit tables remain unfinished; no acceptance criterion is reduced.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| External-mode reproduction, truthful refusal and regression tests | Round-five process-boundary finding; proposed source fix remains unapplied | plan/release/fixes/spec-l2tp-pool-reload-applies.md |
+| Final independent review and closure | Round six requires the owner decision; no CLEAN result exists | plan/release/fixes/spec-l2tp-pool-reload-applies.md |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | None; round five ended blocked |
+| `./le spec review check` | Not run |
+| Rounds | 5 total: four implementation passes and one closure review; no sixth round authorized |
+| Scope | All owned reviewable files in `scratch/pool-authored-source-paths.txt`, including already-landed validation and code carried by the shared producer; foreign feature hunks are context only. Current source and selected closure blobs must match the final pin. |
+| Reviewer lenses used | Logic and wiring; security and boundaries; concurrency, lifecycle, performance and manual Go style |
+
+### Round 5 findings
+
+1. **ISSUE, plausible: explicit external pool mode configures disconnected state.**
+   `pool/register.go` `init` does not declare `RunsInProcessOnly`, and
+   `runPlugin` does not refuse a forked process. `handler_registry.go`
+   `GetPoolHandler` returns a daemon-local callback. The external process's
+   configuration transaction installs its own `poolInstance`, not that callback's
+   state. `server/startup_autoload.go` `getConfigPathPlugins` omits the internal
+   provider when `server.go` `hasConfiguredPlugin` finds an explicit external
+   implementation. Main-thread runtime reproduction is pending. No product fix
+   or CLEAN artifact was written, and no sixth round is authorized.
+
+### Diagnosis
+
+| Part | Finding |
+|------|---------|
+| Symptom | An explicit external `l2tp-pool` can acknowledge configuration while the daemon's local allocator remains unconfigured. |
+| Root cause | `pool/register.go` `runPlugin` configures process-local `poolInstance`; the handler registry used by the NAS drain does not cross a process boundary. |
+| Owning layer | Pool provider declaration and process-mode admission. `Registration.RunsInProcessOnly` and `checkExternalInProcess` already declare and diagnose engine-local providers. |
+| [workaround] | Describe external pool mode as unsupported without changing its admission. This still lets an operator start a silent nonfunctional provider. |
+| [source] | Declare the provider's in-process requirement and refuse external mode before configuration, with a regression through the actual mode boundary. Main must reproduce and decide the source fix and next authorized review. |
+
+### Structural-check notes
+
+- `lookupSessionUsername` is display-only. `showPool` releases both allocation
+  locks before registry lookup, so teardown can remove the registry entry after
+  the allocation snapshot. An absent subscriber has no username to display.
+  The current display contract also permits an empty no-auth username.
+- `LoadSessionMetadata` returns no optional profile for an unstored valid ID.
+  An invalid ID is logged and raised by `RequireID`. Both NAS authorization
+  and allocation entry points refuse it before provider lookup or allocation.
+  Other production readers construct canonical IDs. The private `sessionMeta`
+  store writes only `*AuthMetadata`; a failed Go type assertion needs internal
+  corruption. These are source-backed NOTE classifications, not a globally
+  clean structural result. No Go annotation was added.
+
+### Findings fixed
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+| File | Exists | Evidence |
+|------|--------|----------|
+
+### AC Verified (grep/test)
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+
+### Wiring Verified (end-to-end)
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+
+### Assumptions Resolved
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+
+### Documentation Verified
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
