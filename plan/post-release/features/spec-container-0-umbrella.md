@@ -59,6 +59,15 @@ appliance has for its own system.
 | Networks and ports (O-7) | Container networks and published ports are nodes of the container config, realised through Ze's interface and firewall mechanisms in state Ze owns and shows. |
 | Shell (O-8) | A shell inside a running container is in scope now, as a child spec of this work, not a later one. |
 | Writable layer (O-2) | A container's filesystem persists until its image is updated: the writable layer is on disk, keyed by container name and image digest. |
+| Where containers run | On the appliance and under a daemon that runs as root, at first. A host where Ze runs as an unprivileged account, or whose data directory cannot enforce a size cap, refuses a container config and says why. |
+| Persistent partition | The appliance grows its persistent partition to the disk at install. This is appliance work of its own and comes before the image store (`spec-appliance-perm-grows-at-install.md`). |
+| Daemon restart | When Ze restarts, including for its own update, containers are stopped and started again. Re-adopting running containers is not part of this work. |
+| Shell design | Approved on 2026-11-16: entry by extending the build-time diff, refused for a container granted process tracing; one general interactive-command registration any plugin can use, with seven new plugin-protocol messages; a live terminal on SSH and gRPC, a bounded run on REST, web and MCP. A probe decides whether the fallback entry design is needed. |
+| Container names over DNS | Not at first. A container gets the router's resolver list. |
+| Published ports and the firewall | A published port must also be allowed by the operator's firewall policy. Doctor reports a published port that policy blocks. |
+| Stricter than the reference model | No `privileged` node. Volumes are stored by Ze and size-capped, with no host path. |
+| The list of containers | The list is named `instance`, because `name` is Ze's selector keyword. |
+| Accepted defaults | The fourteen capabilities published images expect; a bridge per network; outbound translation on, with a node to turn it off; a hard CPU limit, which adds one kernel option, and no I/O throttle; the reference model's words wherever a Ze rule does not forbid them, including the workload's `environment` and short image names resolved against a default registry with the resolved digest recorded; memory 512 MiB; restart on failure; rollback by command only; health checks as a later child. |
 
 ### Open decisions (owner)
 
@@ -75,6 +84,26 @@ All of these were resolved on 2026-11-16 as the Owner decisions table above stat
 | O-7 | Container networks and published ports: nodes of the container config that Ze realises through its interface and firewall mechanisms, or left to the operator as a bridge and firewall terms | Nodes of the container config | The first needs a declared way for the feature to contribute interface and firewall state without the engine naming it. The second needs no new mechanism and departs from the reference model |
 | O-8 | A shell inside a running container is part of the reference model. Ze has no command with an input stream, and every command must work on every surface | Leave it to a child spec of its own, after the rest works | It needs a design for a bidirectional command, and joining a running container's namespaces, which the upstream library does in C |
 
+### Corrections after the child specs were drafted (2026-11-16)
+
+The agents that drafted the children read the source further than this spec had, and where they disagree with a sentence elsewhere in this file, this table wins.
+
+| This spec said | The source says | Held in |
+|----------------|-----------------|---------|
+| The build-time diff is about 20 to 30 lines in two functions | 60 to 90 lines, six hunks, five upstream files. The cgroup must exist first and init must be started inside it in one step; otherwise the container's cgroup namespace is rooted at the daemon's own cgroup and the container sees the host's cgroup tree | Runtime |
+| The plugin supervisor's forking thread, pid-safe kill, stderr relay and stop grace are reused | None is reusable as code, and a group kill cannot reach a container in a session of its own. A container is killed through its cgroup | Runtime |
+| A container is killed after its stop timeout at daemon stop | A whole-daemon stop gives a plugin about three seconds. Containers are stopped in the stop-drain step, which caps a container's stop timeout at 30 seconds | Runtime |
+| Checkpoint support is excluded by its upstream build tag | No Ze build can carry a tag that is not a Ze gate. The diff removes it instead | Runtime |
+| The filter is one replaced file | The diff turns the stub into a registration seam, and the filter is Ze code in the plugin, where Ze's gates judge it | Runtime |
+| The cgroup mount locator moves to a core leaf | The upstream library accepts one mount point only. A host with cgroup v2 mounted elsewhere is refused with a doctor finding | Runtime |
+| A crashed daemon is not mentioned | With no parent death signal, a crashed daemon leaves containers running until the next start, which sweeps and restarts them | Runtime |
+| A firewall term that matches the host end of a container's link applies to its traffic | With a bridge per network, routed traffic enters by the bridge. A term matches the network's bridge, and one container is matched by its address | Network |
+| The firewall applies to container traffic by configuration only | Publishing a port needs a new general firewall match: the destination is one of this router's addresses. Without it a published port would capture transit traffic | Network |
+| The interface backend moves the peer end into the namespace on a locked thread | The netlink library creates the peer end directly inside the namespace and configures it through a socket bound there. No Ze thread enters the container's namespace | Network |
+| Published-port state is put in place in the created-but-not-running window | It follows config changes, not each container start | Network |
+| A quota on each writable layer, as if available | The persistent partition is formatted with no quota feature and the kernel files do not pin quota support. The cap is a project quota, which needs a format change at build and a kernel pin | Image store |
+| Whether the persistent partition grows at install is unvalidated (A-6) | It does not grow | Appliance spec |
+
 ### Child specs (proposed split, written after the design is approved)
 
 | Child | Holds | Depends on |
@@ -84,6 +113,9 @@ All of these were resolved on 2026-11-16 as the Owner decisions table above stat
 | Network | Moving a link into a container's namespace through the interface backend, container networks, published ports | Runtime |
 | Operator surface | The config schema, the commands, the doctor checks, the guide page. Each child above adds its own nodes and commands; this child holds what spans them | The three above |
 | Shell | A command with an input stream on every surface, and entering a running container | Operator surface |
+| Persistent partition growth (`spec-appliance-perm-grows-at-install.md`) | The appliance grows its persistent partition to the disk at install, and formats it so a size cap can be enforced | - |
+
+The files are `spec-container-1-runtime.md`, `spec-container-2-image-store.md`, `spec-container-3-network.md`, `spec-container-4-operator-surface.md` and `spec-container-5-shell.md`. The operator surface child holds the one table of config words and command words, so its design is settled before any sibling's wiring phase, and its own implementation phases come after theirs.
 
 ### Proposed shape (not approved)
 
@@ -301,11 +333,12 @@ commands); the split is decided at design.
 | AC-5 | The image a container names is updated to a new digest, then rolled back | After the update the container runs the new image from a fresh writable layer. After the rollback it runs the previous image with the writes it had before the update | Images and layers older than the one previous generation are removed, by the retention rule |
 | AC-6 | A container allocates memory past its limit, or forks past its process limit | The kernel kills or refuses inside the container, the container's state records why, and the restart policy applies | The routing daemon and the other containers keep running, which is the point of the limit |
 | AC-7 | A container runs with the default confinement | From inside, it sees only its own processes and mounts, holds only the default capability set, and a system call outside the default profile is refused with an error | A capability or host namespace the config grants explicitly is present, because the operator asked for it |
-| AC-8 | A container is attached to a container network | It reaches the network's gateway address. The host end of its link is listed as a Ze interface, and a firewall term that matches that interface applies to its traffic | Traffic the firewall config permits passes; nothing else creates packet-filter state: every table present is one Ze owns |
+| AC-8 | A container is attached to a container network | It reaches the network's gateway address. The network's bridge and the host end of the container's link are listed as Ze interfaces, and a firewall term that matches the bridge, or the container's address, applies to its traffic | Traffic the firewall config permits passes; nothing else creates packet-filter state: every table present is one Ze owns |
 | AC-9 | A container publishes a port | A connection to the published address and port reaches the container, and the translation is visible as state Ze owns and shows | A port no container publishes stays closed |
 | AC-10 | A container's entrypoint exits with a failure | The container is restarted under its restart policy with a growing delay, and the listing shows the restart count and the last exit status | A container whose policy is "no" stays stopped, as configured |
-| AC-11 | The daemon stops or reloads a config that removes a container | The container gets its stop signal, then is killed after its stop timeout, and no process, cgroup, mount or link of it remains | Its image and its writable layer remain on disk, so the next start finds them |
+| AC-11 | The daemon stops or reloads a config that removes a container | The container gets its stop signal, then is killed after its stop timeout, which is at most 30 seconds, and no process, cgroup, mount or link of it remains | Its image and its writable layer remain on disk, so the next start finds them |
 | AC-12 | A config uses a container on a kernel that lacks a required option | Validate, start and reload refuse, naming the option; doctor reports the same | A config with no container is accepted on that kernel, because nothing needs the option |
+| AC-14 | Owner's closing test: the operator fetches the published Redis image, configures a container for it with a published port, and commits | The Redis server runs in the container, and a client outside the container, connecting to the published address and port, gets the server's reply to a ping and reads back a value it stored. The value is still there after the container is restarted, because Redis wrote it to the container's persistent filesystem | A connection to a port the container does not publish is refused, because only the published port is opened |
 | AC-13 | `ze` is built without the container gate | A config with a container root is refused as unknown, the container commands do not exist, and the binary links no symbol of the feature or of the upstream runtime | Every other feature behaves as in a build with the gate |
 
 ## End-to-End User Stories
