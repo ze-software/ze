@@ -1,0 +1,15 @@
+noauth
+name scale-3-05
+password scale-fixture-password
+refuse-eap
+nodefaultroute
+ipcp-accept-local
+ipcp-accept-remote
+noipv6
+nopersist
+maxfail 1
+debug
+nodetach
+ifname sc3s05
+linkname scale-3-05
+logfile /run/scale-3-05.log

@@ -1,0 +1,144 @@
+# Synthetic fixture users, one identity per PPP session.
+scale-1-01 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-02 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-03 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-04 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-05 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-06 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-07 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-08 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-09 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-10 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-11 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-12 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-13 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-14 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-15 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-1-16 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-01 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-02 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-03 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-04 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-05 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-06 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-07 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-08 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-09 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-10 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-11 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-12 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-13 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-14 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-15 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-2-16 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-01 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-02 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-03 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-04 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-05 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-06 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-07 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-08 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-09 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-10 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-11 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-12 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-13 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-14 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-15 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP
+
+scale-3-16 Cleartext-Password := "scale-fixture-password"
+    Framed-Protocol = PPP

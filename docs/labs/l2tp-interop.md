@@ -33,7 +33,7 @@ test/interop-l2tp/
     l2tp-unknown-mandatory-avp-xl2tpd/   unknown AVP, M=0 then M=1, through the relay
     ppp-code-reject-xl2tpd/   unknown LCP and IPCP Codes injected through the relay
     lcp-restart-timer-pppd/   configured retry interval and request budget after live LCP restart
-    l2tp-many-sessions-kl2tpd/   registered scale topology; the session proof is under implementation
+    l2tp-many-sessions-kl2tpd/   three LACs, sixteen PPP sessions per tunnel
     l2tp-lns-mru-xl2tpd/   configured MRU, CHAP, live daemon output, and traffic
     l2tp-lns-omitted-mru-xl2tpd/   default peer MRU and Ze-side transmit cap
     l2tp-lns-negotiated-mru-xl2tpd/   unequal configured/negotiated session output
@@ -48,6 +48,10 @@ internal/le/interoplab/l2tp/
   ppp_code_reject.go   The ppp-code-reject-xl2tpd assertions
   lns_policy.go        MRU and CHAP-only typed assertions and daemon queries
   scale_overlay.go    guarded allocator candidate substitution for scale only
+  scale.go            ordered launch, full-population proof and exact teardown
+  scale_evidence.go   typed daemon, FRR and accounting evidence
+  scale_kernel.go     point-to-point interfaces, routes and IPCP evidence
+  scale_window.go     independent control trace and reliable-window proof
   avprelay/            UDP relay between the LAC and Ze, on 172.29.0.4
   radiusmock/          Independent Go RADIUS peer
 ```
@@ -57,10 +61,9 @@ selection in the owning L2TP lab. Discovery and the catalog read that same
 registry. Existing scenarios retain their established preparation; the scale
 scenario declares three kl2tpd LACs and three relays, plus Ze, FRR and
 FreeRADIUS. Its cleanup container list and failure diagnostics derive from
-those peer declarations. The scale checker currently returns an explicit
-failure until its session proof is implemented.
+those peer declarations.
 <!-- source: internal/le/interoplab/l2tp/scenarios.go -- registerScenario, scenarioCheckerMap, scenarioPlan, imageBuilds -->
-<!-- source: internal/le/interoplab/l2tp/register_scale.go -- init, checkScaleSessions -->
+<!-- source: internal/le/interoplab/l2tp/register_scale.go -- init -->
 <!-- source: internal/le/interoplab/l2tp/scale_plan.go -- scaleScenarioPlan, scalePeerTemplates -->
 
 The selected image declarations determine which host binaries are staged.
@@ -83,6 +86,60 @@ scale overlay with an inherited recorder overlay, refuses conflicting source
 replacements, and never changes process-global `GOFLAGS`.
 <!-- source: internal/le/interoplab/l2tp/scale_overlay.go -- prepareScaleAllocatorOverlay, scaleAllocatorReplacement -->
 <!-- source: internal/le/interoplab/l2tp/register_scale.go -- init -->
+
+## Many sessions in each tunnel
+
+`l2tp-many-sessions-kl2tpd` runs three kl2tpd v0.1.8 containers using the
+maintained pppd 2.5.5 image. Each has one tunnel and sixteen configured PPP
+sessions. Each session has its own username, pppd interface, link name, log
+and read-only argument-file mount. The containers initially wait under Suite
+ownership. The checker launches a configured LAC through detached exec only
+when it is ready to measure that tunnel's control window, then starts the
+next LAC after the first sixteen sessions have established.
+<!-- source: internal/le/interoplab/l2tp/scale_plan.go -- scalePeerTemplates -->
+<!-- source: internal/le/interoplab/l2tp/scale_inputs.go -- scaleUsername, scaleInterface, scaleUsers -->
+
+The independent control decoder requires the omitted Receive Window Size AVP
+in each SCCRQ. Three genuine cumulative ACK advances warm the window before
+the relay holds Nr alone. The assertion requires five distinct
+response-producing ICRQs behind that hold, four distinct outstanding Ze
+controls, and one live reliable
+snapshot with `cwnd=4`, `peer-rws=4`, the held peer Nr and a receive Nr
+past the fifth request. Retransmissions and zero-length ACKs are not new
+outstanding controls. A checker marker releases a genuine held cumulative
+ACK; a deadline release cannot satisfy the assertion. The queued fifth
+response and subsequent session progress must then appear.
+<!-- source: internal/le/interoplab/l2tp/scale.go -- exerciseScaleWindow -->
+<!-- source: internal/le/interoplab/l2tp/scale_window.go -- readScaleWindow, requireScaleReliable -->
+
+The baseline is exactly 48 established sessions with distinct addresses in
+the configured pool. Each must complete IPCP, retain its own Ze and LAC PPP
+interface and kernel route, and pass a ping bound to that interface in both
+directions. Captured ICRPs correlate all sixteen wire IDs per relay with
+daemon tuples. The
+registered FreeRADIUS server's Accounting-Starts join by full Acct-Session-Id,
+username and Framed-IP-Address. FRR must report each exact subscriber /32
+with a positive path count and a nonempty valid path received from Ze;
+presence of a JSON key or a direct kernel route does not prove redistribution.
+<!-- source: internal/le/interoplab/l2tp/scale.go -- checkScaleSessions -->
+<!-- source: internal/le/interoplab/l2tp/scale_observe.go -- requireScaleTopology, requireScaleFRR, requireScaleTraffic, waitScaleAccounting -->
+<!-- source: internal/le/interoplab/l2tp/scale_evidence.go -- readScaleSessions, readScaleRoute, readScaleAccounting -->
+<!-- source: internal/le/interoplab/l2tp/scale_kernel.go -- requireScaleKernel, requireScaleIPCP -->
+
+One exact accounting-ID Disconnect must receive an authenticated ACK and
+remove only its selected session, leaving 47 unchanged survivors. The checker
+then validates a different session's pppd PID file and interface before
+terminating that process. Its peer CDN must name the exact tunnel/session
+tuple, leaving 46 survivors. Each step requires matching Accounting-Stops,
+only the selected /32 withdrawals at FRR with BGP still established, and all
+remaining sessions' original tuples, addresses, interfaces, routes and traffic.
+Failures name the numbered assertion: 1 infrastructure and launch, 2 window,
+3 IPCP/kernel/traffic, 4 wire/accounting/FRR baseline, 5 Disconnect, 6 peer CDN.
+The known session-identity defect remains an expected dependency failure;
+an authentication, capture or prerequisite failure is reported as its actual
+failing assertion and supplies no identity proof.
+<!-- source: internal/le/interoplab/l2tp/scale.go -- scaleCollisionTargets, observeScaleRemoval, waitScaleCDN -->
+<!-- source: internal/le/interoplab/l2tp/scale_observe.go -- scaleDisconnect, scaleStopPeerPPP -->
 <!-- source: internal/le/interoplab/l2tp/register_images.go -- init -->
 <!-- source: internal/le/interoplab/l2tp/l2tp.go -- runAt, binariesForImages -->
 <!-- source: internal/le/interoplab/l2tp/avprelay/Dockerfile -->

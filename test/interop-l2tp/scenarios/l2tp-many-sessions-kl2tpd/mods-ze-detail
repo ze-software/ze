@@ -1,0 +1,6 @@
+detail ze_detail {
+    filename = ${logdir}/ze-detail
+    escape_filenames = no
+    permissions = 0644
+    header = "%t"
+}

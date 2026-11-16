@@ -1,0 +1,26 @@
+# Independent authentication and accounting, using the registered FreeRADIUS image.
+server default {
+    listen {
+        type = auth
+        ipaddr = *
+        port = 1812
+    }
+    listen {
+        type = acct
+        ipaddr = *
+        port = 1813
+    }
+    authorize {
+        preprocess
+        chap
+        files
+        pap
+    }
+    authenticate {
+        Auth-Type CHAP { chap }
+        Auth-Type PAP { pap }
+    }
+    preacct { preprocess }
+    accounting { ze_detail }
+    post-auth { }
+}

@@ -1,0 +1,91 @@
+# One real L2TPv2 tunnel carrying sixteen separately authenticated PPP sessions.
+[tunnel.lac1]
+local = "172.29.0.11:1702"
+peer = "172.29.0.21:1701"
+version = "l2tpv2"
+encap = "udp"
+tid = 1001
+window_size = 4
+hello_timeout = 5000
+host_name = "scale-lac-1"
+framing_caps = ["sync"]
+
+[tunnel.lac1.session.s01]
+sid = 1
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-01"
+
+[tunnel.lac1.session.s02]
+sid = 2
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-02"
+
+[tunnel.lac1.session.s03]
+sid = 3
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-03"
+
+[tunnel.lac1.session.s04]
+sid = 4
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-04"
+
+[tunnel.lac1.session.s05]
+sid = 5
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-05"
+
+[tunnel.lac1.session.s06]
+sid = 6
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-06"
+
+[tunnel.lac1.session.s07]
+sid = 7
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-07"
+
+[tunnel.lac1.session.s08]
+sid = 8
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-08"
+
+[tunnel.lac1.session.s09]
+sid = 9
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-09"
+
+[tunnel.lac1.session.s10]
+sid = 10
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-10"
+
+[tunnel.lac1.session.s11]
+sid = 11
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-11"
+
+[tunnel.lac1.session.s12]
+sid = 12
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-12"
+
+[tunnel.lac1.session.s13]
+sid = 13
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-13"
+
+[tunnel.lac1.session.s14]
+sid = 14
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-14"
+
+[tunnel.lac1.session.s15]
+sid = 15
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-15"
+
+[tunnel.lac1.session.s16]
+sid = 16
+pseudowire = "ppp"
+pppd_args = "/etc/ppp/scale/scale-1-16"

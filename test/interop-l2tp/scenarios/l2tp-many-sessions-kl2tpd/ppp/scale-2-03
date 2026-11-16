@@ -1,0 +1,15 @@
+noauth
+name scale-2-03
+password scale-fixture-password
+refuse-eap
+nodefaultroute
+ipcp-accept-local
+ipcp-accept-remote
+noipv6
+nopersist
+maxfail 1
+debug
+nodetach
+ifname sc2s03
+linkname scale-2-03
+logfile /run/scale-2-03.log

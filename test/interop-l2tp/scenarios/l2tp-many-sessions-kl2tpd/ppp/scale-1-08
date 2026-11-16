@@ -1,0 +1,15 @@
+noauth
+name scale-1-08
+password scale-fixture-password
+refuse-eap
+nodefaultroute
+ipcp-accept-local
+ipcp-accept-remote
+noipv6
+nopersist
+maxfail 1
+debug
+nodetach
+ifname sc1s08
+linkname scale-1-08
+logfile /run/scale-1-08.log

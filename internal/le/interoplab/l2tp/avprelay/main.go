@@ -10,7 +10,6 @@ package main
 
 import (
 	"encoding/binary"
-	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -32,8 +31,11 @@ func main() {
 }
 
 func run() error {
-	if len(os.Args) != 3 {
-		return errors.New("usage: avp-relay <ze-ip:port> <xl2tpd-ip:port>")
+	if len(os.Args) < 3 {
+		return errors.New("usage: avp-relay <ze-ip:port> <lac-ip:port> [mode]")
+	}
+	if len(os.Args) > 4 {
+		return errors.New("usage: avp-relay <ze-ip:port> <lac-ip:port> [mode]")
 	}
 	ze, err := netip.ParseAddrPort(os.Args[1])
 	if err != nil {
@@ -51,19 +53,45 @@ func run() error {
 
 	// One sequential relay owns the socket until Docker tears down the lab.
 	// The deadline and datagram cap also bound a failed or noisy scenario.
-	if err := conn.SetDeadline(time.Now().Add(5 * time.Minute)); err != nil {
+	deadline := time.Now().Add(5 * time.Minute)
+	if err := conn.SetDeadline(deadline); err != nil {
+		return err
+	}
+	var buffer [65536]byte
+	encoder := json.NewEncoder(os.Stdout)
+	transport := relayIO{conn, encoder, ze, lac, deadline}
+	name := ""
+	if len(os.Args) == 4 {
+		name = os.Args[3]
+	}
+	mode, err := selectRelayMode(name, &transport)
+	if err != nil {
 		return err
 	}
 	if err := os.WriteFile("/run/ready", []byte("ready\n"), 0o600); err != nil {
 		return err
 	}
-	var buffer [65536]byte
-	encoder := json.NewEncoder(os.Stdout)
 	controls := 0
-	var injected injection
 	for range 65536 {
+		if !time.Now().Before(deadline) {
+			return errors.New("relay deadline exceeded")
+		}
+		readDeadline, err := mode.beforeRead(time.Now())
+		if err != nil {
+			return err
+		}
+		if err := conn.SetReadDeadline(readDeadline); err != nil {
+			return err
+		}
+		// Every mode shares this fixed-capacity buffer. inject MUST receive
+		// six spare bytes, even when the selected mode never injects.
 		count, source, err := conn.ReadFromUDPAddrPort(buffer[:len(buffer)-6])
 		if err != nil {
+			if errors.Is(err, os.ErrDeadlineExceeded) {
+				if time.Now().Before(deadline) {
+					continue
+				}
+			}
 			return err
 		}
 		target := ze
@@ -78,31 +106,16 @@ func run() error {
 		packet := buffer[:count]
 		control := count >= 2 && packet[0]&0x80 != 0
 		if !control {
-			// A data message: the PPP path reads it, and only once its
-			// marker is set; the AVP path below reads control messages only.
-			if err := relayData(conn, encoder, packet, direction, target, &injected); err != nil {
+			if err := mode.data(packet, direction, target); err != nil {
 				return err
 			}
 			continue
 		}
 		controls++
-		if controls > 256 {
+		if controls > mode.controlLimit {
 			return errors.New("control datagram limit exceeded")
 		}
-		original := hex.EncodeToString(packet)
-		if source == lac {
-			mandatory, err := mandatoryArmed()
-			if err != nil {
-				return err
-			}
-			// inject MUST receive six spare bytes; ReadFromUDPAddrPort
-			// above reserves them in the fixed relay buffer.
-			packet = inject(packet, mandatory)
-		}
-		if _, err := conn.WriteToUDPAddrPort(packet, target); err != nil {
-			return err
-		}
-		if err := encodeWire(encoder, wireObservation{direction, original, hex.EncodeToString(packet)}, injected.restart); err != nil {
+		if err := mode.control(packet, direction, target); err != nil {
 			return err
 		}
 	}

@@ -13,8 +13,7 @@ import (
 )
 
 const (
-	scaleFileProbeCommand    = "test"
-	scaleProcessProbeCommand = "pidof"
+	scaleFileProbeCommand = "test"
 )
 
 func scaleScenarioPlan(root string, source interoplab.ScenarioSource, environment interoplab.Environment) interoplab.ScenarioPlan {
@@ -74,13 +73,21 @@ func scalePeerTemplates(root, directory, suffix string) []interoplab.PeerConfig 
 			Image: imageKL2TP, Host: uint8(11 + index),
 			Mounts: []interoplab.Mount{
 				{Source: filepath.Join(directory, "lac-"+number+".toml"), Target: "/etc/kl2tpd/kl2tpd.toml", ReadOnly: true},
-				{Source: filepath.Join(directory, "ppp"), Target: "/etc/ppp/scale", ReadOnly: true},
 			},
 			Capabilities: []string{netAdminCapability}, Arguments: interoplab.PPPDeviceArguments(),
-			Command: []string{"kl2tpd", "-config", "/etc/kl2tpd/kl2tpd.toml"},
+			// The checker MUST launch each configured LAC only when it can
+			// measure that tunnel's short real CWND4 hold. Suite cleanup MUST
+			// stop this container and its detached kl2tpd/pppd children.
+			Command: []string{"sleep", "infinity"},
 			Ready: &interoplab.ReadyProbe{
-				Command: []string{scaleProcessProbeCommand, "kl2tpd"}, Timeout: 15 * time.Second, Interval: time.Second,
+				Command: []string{scaleFileProbeCommand, "-r", "/etc/kl2tpd/kl2tpd.toml"}, Timeout: 15 * time.Second, Interval: time.Second,
 			},
+		}
+		for session := 1; session <= scaleSessionsPerLAC; session++ {
+			user := scaleUsername(index+1, session)
+			lac.Mounts = append(lac.Mounts, interoplab.Mount{
+				Source: filepath.Join(directory, "ppp", user), Target: "/etc/ppp/scale/" + user, ReadOnly: true,
+			})
 		}
 		peers = append(peers, relay, lac)
 	}

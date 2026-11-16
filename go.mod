@@ -40,6 +40,7 @@ require (
 	github.com/openconfig/gnmi v0.14.1
 	github.com/openconfig/goyang v1.6.4-0.20251113201521-a80f2799d7b9
 	github.com/packetcap/go-pcap v0.0.0-20260731105150-c86974bbfbcd
+	github.com/pelletier/go-toml/v2 v2.4.3
 	github.com/prometheus/client_golang v1.25.0
 	github.com/prometheus/client_model v0.6.3
 	github.com/prometheus/common v0.73.1
@@ -228,7 +229,6 @@ require (
 	github.com/nishanths/predeclared v0.3.1 // indirect
 	github.com/nunnatsa/ginkgolinter v0.24.0 // indirect
 	github.com/pandatix/go-abnf v0.5.4 // indirect
-	github.com/pelletier/go-toml/v2 v2.4.3 // indirect
 	github.com/pierrec/lz4/v4 v4.1.33 // indirect
 	github.com/pires/go-proxyproto v0.16.0 // indirect
 	github.com/quasilyte/go-ruleguard v0.4.5 // indirect

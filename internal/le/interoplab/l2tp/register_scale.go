@@ -3,13 +3,7 @@
 // Related: scale_plan.go -- topology and cleanup derived from the declared peers.
 package l2tp
 
-import (
-	"context"
-	"errors"
-	"time"
-
-	"github.com/ze-software/ze/internal/le/interoplab"
-)
+import "github.com/ze-software/ze/internal/le/interoplab"
 
 const (
 	scenarioScale = "l2tp-many-sessions-kl2tpd"
@@ -32,10 +26,4 @@ func init() {
 		name: scenarioScale, check: checkScaleSessions, failurePeers: peers,
 		needsKernel: true, plan: scaleScenarioPlan, images: scaleImageBuilds,
 	})
-}
-
-// checkScaleSessions is the wiring-stage failure. The AC-2 implementation
-// replaces this body after the registered plan has been exercised by its test.
-func checkScaleSessions(context.Context, labOperations, time.Duration) error {
-	return errors.New("scenario l2tp-many-sessions-kl2tpd assertion 1: scale session proof is not implemented")
 }
