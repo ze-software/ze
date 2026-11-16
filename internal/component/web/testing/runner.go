@@ -339,11 +339,12 @@ func (b *Browser) waitLogin() error {
 			return fmt.Errorf("read login completion: %w", err)
 		}
 		if strings.TrimSpace(out) != browserTrue {
-			return errors.New("login did not reach an authenticated page")
+			return fmt.Errorf("login completion returned %q", strings.TrimSpace(out))
 		}
 		return nil
 	})
 	if err != nil {
+		err = fmt.Errorf("login did not reach an authenticated page: %w", err)
 		snapshot, snapshotErr := b.fullSnapshot()
 		if snapshotErr != nil {
 			return fmt.Errorf("%w; snapshot: %w", err, snapshotErr)
@@ -502,16 +503,42 @@ func (b *Browser) clickID(id string) error {
 	// next step's click arrives inside that window: test/web/error-panel-toggle.wb
 	// line 65 clicked the tab, the drawer never opened, and line 66 failed.
 	stable := clickStableExpr(id)
+	var lastRefusal error
 	if err := b.retryCommand(func() error {
 		state, evalErr := b.runAgentOutput("eval", stable)
 		if evalErr != nil {
 			return fmt.Errorf("eval before click: %w", evalErr)
 		}
 		if strings.TrimSpace(state) == clickStateMoving {
-			return errClickTargetMoving
+			lastRefusal = errClickTargetMoving
+			return lastRefusal
 		}
-		return b.runAgent("click", sel)
+		if strings.TrimSpace(state) == clickStateHidden {
+			lastRefusal = errClickTargetHidden
+			return lastRefusal
+		}
+		// A partially visible box can have its center outside the viewport.
+		// Check visibility before scrolling: native auto-scroll can reveal
+		// closed disclosure content before its own actionability check.
+		if err := b.runAgent("scrollintoview", sel); err != nil {
+			if context.Cause(b.ctx) == nil {
+				lastRefusal = err
+			}
+			return err
+		}
+		err := b.runAgent("click", sel)
+		if context.Cause(b.ctx) == nil {
+			lastRefusal = err
+		}
+		return err
 	}); err != nil {
+		// A final visibility query can be killed at the shared deadline.
+		// Keep one last refusal, not a chain of errors from every attempt.
+		if lastRefusal != nil {
+			if !errors.Is(err, lastRefusal) {
+				err = errors.Join(lastRefusal, err)
+			}
+		}
 		return fmt.Errorf("click #%s: %w", id, err)
 	}
 	return b.waitLoad()
@@ -524,17 +551,25 @@ var errClickTargetMoving = errors.New("the element is still moving: a CSS transi
 	"runs on it or on an element that contains it, so a click would land where it no longer is; " +
 	"check the page's style.css for a transition that does not finish")
 
-// clickStateMoving is what clickStableExpr answers while a finite animation
-// runs on the element or an ancestor. Every other answer lets the click go:
-// a missing element is reported by agent-browser's own click error, which
-// retryCommand already waits on.
-const clickStateMoving = "1"
+// errClickTargetHidden prevents native scrolling from revealing content that
+// an operator must open through a visible control first.
+var errClickTargetHidden = errors.New("the element is hidden or inside a closed disclosure, " +
+	"so a pointer click cannot reach it; use the visible summary or page action to reveal it first")
+
+// clickStableExpr returns these refusals before any native preparation.
+// A missing element remains the native command's retryable error.
+const (
+	clickStateMoving = "1"
+	clickStateHidden = "3"
+)
 
 // clickStableExpr answers clickStateMoving while document.getAnimations()
 // holds a running, finite animation whose target is the element with this id
 // or contains it. CSS transitions are animations there, and asking forces the
 // style flush that starts a transition a class change just requested. An
 // infinite animation (a spinner) never settles, so it does not hold the click.
+// After that guard, it answers clickStateHidden for nonvisible content. The
+// first direct summary of each closed details ancestor remains accessible.
 func clickStableExpr(id string) string {
 	var tb textbuf.Buffer
 
@@ -542,7 +577,14 @@ func clickStableExpr(id string) string {
 		Str(`);if(!el)return 0;var moving=document.getAnimations().some(function(a){`).
 		Str(`if(a.playState!=='running')return false;var t=a.effect&&a.effect.target;`).
 		Str(`if(!t||!(t===el||t.contains(el)))return false;`).
-		Str(`return a.effect.getComputedTiming().endTime!==Infinity;});return moving?1:2;})()`).
+		Str(`return a.effect.getComputedTiming().endTime!==Infinity;});if(moving)return 1;`).
+		Str(`for(var p=el;p;p=p.parentElement){if(p.hasAttribute('hidden'))return 3;`).
+		Str(`if(p===el||p.tagName!=='DETAILS'||p.open)continue;`).
+		Str(`var summary=Array.from(p.children).find(function(c){return c.tagName==='SUMMARY';});`).
+		Str(`if(!summary||!summary.contains(el))return 3;}`).
+		Str(`if(!el.checkVisibility({visibilityProperty:true,opacityProperty:true}))return 3;`).
+		Str(`var rect=el.getBoundingClientRect();if(rect.width<=0||rect.height<=0)return 3;`).
+		Str(`return 2;})()`).
 		String()
 }
 
@@ -742,8 +784,15 @@ func (b *Browser) runAgentCore(globalArgs []string, args ...string) error {
 	cmd := exec.CommandContext(ctx, agentBrowserBin, args...) //nolint:gosec // args are test-controlled, not user input
 	cmd.WaitDelay = agentPipeWaitDelay
 	cmd.Env = b.agentEnv()
-	cmd.Stderr = os.Stderr
-	return errors.Join(cmd.Run(), context.Cause(ctx))
+	// Output retains a bounded stderr prefix and suffix in ExitError. Keep
+	// the native refusal in the returned error instead of only printing it.
+	_, err := cmd.Output()
+	if exitErr, ok := errors.AsType[*exec.ExitError](err); ok {
+		if message := strings.TrimSpace(string(exitErr.Stderr)); message != "" {
+			err = fmt.Errorf("%s: %w", message, err)
+		}
+	}
+	return errors.Join(err, context.Cause(ctx))
 }
 
 func (b *Browser) runAgentOutput(args ...string) (string, error) {

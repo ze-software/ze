@@ -678,7 +678,7 @@ against the peer address has two values to compare.
 | Action | Keys | Effect |
 |--------|------|--------|
 | `open` | `path` | Navigate to `baseURL + path` |
-| `click` | `id` or `text` | Click element by id or visible text. A click by `id` first waits, inside the same retry budget, until no finite CSS transition or animation runs on the element or an element containing it: `agent-browser` measures the box and then presses at that point, so a control still sliding (the error drawer's tab) took the click somewhere else and reported success. Still moving at the deadline, the click fails and says so |
+| `click` | `id` or `text` | Click element by id or visible text. A click by `id` waits, inside the same retry budget, for finite animations on the target or its ancestors to finish. It then reads visibility before any native scroll or click. Hidden content and content inside a closed disclosure are refused. The first direct summary remains clickable so the test can open the disclosure explicitly. Native `scrollintoview` centers a visible target before the unchanged pointer click, which still refuses disabled or covered controls. At the deadline, the error retains the last click refusal as well as the deadline cause |
 | `fill` | (`id` or `text`) + `value` | Clear and type `value` |
 | `select` | `id` + `value` | Select an option by value or visible label through the browser. An explicit empty `value=` selects an empty option. Selection does not submit the form. Follow it with the submit action and an assertion that proves the application consumed the value |
 | `upload` | `id` + `file` | Select a regular local file in a file input through the browser; the following assertion must prove the application consumed its contents |
@@ -719,6 +719,12 @@ step without naming a state it waited for. `wait-html` names the state the step 
 and polls the page in hand for it. `test/web/recorded-config-save.wb` uses it
 after Confirm Commit, where the commit answer's out-of-band `#commit-bar` must
 drop its `visible` class.
+
+`expect=html:id=<element-id>:contains=` and `not-contains=` read only that
+element's inner HTML, so text echoed elsewhere in the page cannot satisfy a
+result assertion. An absent target fails both forms; it does not prove absence.
+Omitting `id` reads the whole body as before.
+<!-- source: internal/component/web/testing/expect.go -- checkHTML -->
 
 Login waits for a complete authenticated document, not fetch/XHR idleness.
 The form submits a native POST, which those counters do not observe. An

@@ -199,13 +199,22 @@ func checkElement(b *Browser, e *WBExpectation) error {
 }
 
 func checkHTML(b *Browser, e *WBExpectation) error {
-	html, err := b.retryFetch(b.getHTML)
+	read := b.getHTML
+	if id, scoped := e.Values["id"]; scoped {
+		if id == "" {
+			return errors.New("html expectation id requires a nonempty value")
+		}
+		read = func() (string, error) {
+			return b.runAgentOutput("get", "html", "#"+id)
+		}
+	}
+	html, err := b.retryFetch(read)
 	if err != nil {
 		return fmt.Errorf("html: %w", err)
 	}
 	if sub, ok := e.Values["contains"]; ok {
 		if err := b.retryPositive(func() error {
-			current, htmlErr := b.getHTML()
+			current, htmlErr := read()
 			if htmlErr != nil {
 				return fmt.Errorf("html: %w", htmlErr)
 			}
