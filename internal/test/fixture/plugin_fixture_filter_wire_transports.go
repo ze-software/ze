@@ -71,7 +71,7 @@ func filterWireTransports(ctx context.Context, args []string) error {
 			if event.BGP.Peer.Name != filterWireTransportsSourcePeer {
 				return p.ReleaseCached(ctx, id)
 			}
-			if err := p.ForwardCached(ctx, id, []string{"127.0.0.2"}); err != nil {
+			if err := p.ForwardCached(ctx, id, []string{addrLoopbackSecond}); err != nil {
 				return err
 			}
 			forwarded.Add(1)
@@ -113,7 +113,7 @@ func filterWireTransports(ctx context.Context, args []string) error {
 		if err != nil {
 			return err
 		}
-		sentBefore, readable := p12PeerCounter(ctx, p, "127.0.0.2", "updates-sent")
+		sentBefore, readable := p12PeerCounter(ctx, p, addrLoopbackSecond, "updates-sent")
 		if !readable {
 			return errors.New("receiver's updates-sent baseline is unavailable")
 		}
@@ -149,7 +149,7 @@ func filterWireTransports(ctx context.Context, args []string) error {
 		}) {
 			return fmt.Errorf("input fence not reached: forwarded %d, want %d", forwarded.Load(), counts[0])
 		}
-		if !p12WaitPeerCounter(ctx, p, "127.0.0.2", "updates-sent", sentBefore+counts[0]) {
+		if !p12WaitPeerCounter(ctx, p, addrLoopbackSecond, "updates-sent", sentBefore+counts[0]) {
 			return errors.New("cached UPDATEs never reached the receiver's socket")
 		}
 		// The receiver sends each marker only after matching its exact UPDATEs.

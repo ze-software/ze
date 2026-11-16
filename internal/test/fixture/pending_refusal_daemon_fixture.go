@@ -22,7 +22,7 @@ import (
 
 const pendingRefusalCode = "doctor-bgp-pending-refusal-undelivered"
 const pendingRefusalPeer = "127.0.0.2"
-const pendingRefusalStateEstablished = "ESTABLISHED"
+const bgpStateEstablished = "ESTABLISHED"
 
 func init() {
 	Register("plugin/pending-refusal-write-failure", pendingRefusalDaemon, StopsDaemon)
@@ -281,7 +281,7 @@ func pendingRefusalEstablished(ctx context.Context, updates uint64) error {
 		if err != nil {
 			return false
 		}
-		if row.FSM != pendingRefusalStateEstablished {
+		if row.FSM != bgpStateEstablished {
 			return false
 		}
 		if row.Established != 1 {
@@ -377,7 +377,7 @@ func (row pendingRefusalReport) check(command, endpoint string) error {
 		}
 	}
 	if command == "show errors" {
-		if row.Source != "bgp" {
+		if row.Source != namespaceBGP {
 			return fmt.Errorf("show errors refusal has wrong source: %+v", row)
 		}
 		if row.Subject != endpoint {

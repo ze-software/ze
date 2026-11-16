@@ -190,7 +190,7 @@ func rfc4271NextHopConnect(ctx context.Context, plugin *sdk.Plugin, address, pee
 			return false
 		}
 		for _, row := range rows {
-			if row["fsm-state"] == "ESTABLISHED" {
+			if row["fsm-state"] == bgpStateEstablished {
 				return true
 			}
 		}

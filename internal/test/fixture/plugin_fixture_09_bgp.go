@@ -521,7 +521,7 @@ func accumulatorIsolation09(ctx context.Context, _ []string) error {
 		return err
 	}
 	defer plugin.Close() //nolint:errcheck // fixture teardown
-	clients := map[string]bool{addrLoopbackSecond: false, addrLoopbackThird: false, "127.0.0.4": false}
+	clients := map[string]bool{addrLoopbackSecond: false, addrLoopbackThird: false, addrLoopbackFourth: false}
 	var mu sync.Mutex
 	plugin.SetStartupSubscriptions([]string{eventUpdate}, nil, "parsed")
 	plugin.SetEncoding("json")

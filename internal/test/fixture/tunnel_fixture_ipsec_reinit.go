@@ -22,7 +22,7 @@ import (
 const reinitOldSPIsFile = "reinit-old-spis"
 
 // reinitEndpoints are the two daemons' addresses: only states between them count.
-var reinitEndpoints = map[string]bool{addrLoopback: true, "127.0.0.2": true}
+var reinitEndpoints = map[string]bool{addrLoopback: true, addrLoopbackSecond: true}
 
 // reinitNetworks are the traffic selector halves the policies carry.
 var reinitNetworks = []string{"192.0.2.0/25", "192.0.2.128/25"}

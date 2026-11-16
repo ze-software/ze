@@ -44,7 +44,7 @@ func p12FSMConnectedEvents(plugin *sdk.Plugin) p12Scenario {
 	return func(ctx context.Context, _ *sdk.Plugin) error {
 		timer := time.NewTimer(10 * time.Second)
 		defer timer.Stop()
-		want := []string{"connected", "OPENSENT", "OPENCONFIRM", "ESTABLISHED"}
+		want := []string{"connected", "OPENSENT", "OPENCONFIRM", bgpStateEstablished}
 		var got []string
 		for len(want) > 0 {
 			select {

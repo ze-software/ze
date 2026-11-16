@@ -215,7 +215,7 @@ func rfc8212ReloadSessions(ctx context.Context, p *sdk.Plugin, before map[string
 	}
 	for address, prior := range before {
 		current := after[address]
-		for _, field := range []string{"local-ip", "local-port", "remote-port", "connections-established", "connections-dropped"} {
+		for _, field := range []string{"local-ip", "local-port", "remote-port", fieldConnectionsEstablished, "connections-dropped"} {
 			if _, ok := prior[field]; !ok {
 				return fmt.Errorf("%s omitted session identity %s", address, field)
 			}

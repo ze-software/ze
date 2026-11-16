@@ -9,6 +9,8 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+const fieldConnectionsEstablished = "connections-established"
+
 func bgpGTSM03(ctx context.Context, p *sdk.Plugin) error {
 	if !waitPeersEOR03(ctx, p, 1) {
 		return fmt.Errorf("initial-sync EOR never reached the wire")
@@ -114,7 +116,7 @@ func bgpPeerDetailShow03(ctx context.Context, p *sdk.Plugin) error {
 			return fmt.Errorf("missing capabilities.%s", field)
 		}
 	}
-	for _, field := range []string{"connections-established", columnConnectionsDropped, "flap-count", "connect-retry-counter", "updates-received", "updates-sent", "keepalives-received", "keepalives-sent", "eor-received", "eor-sent"} {
+	for _, field := range []string{fieldConnectionsEstablished, columnConnectionsDropped, "flap-count", "connect-retry-counter", "updates-received", "updates-sent", "keepalives-received", "keepalives-sent", "eor-received", "eor-sent"} {
 		if _, exists := peer[field]; !exists {
 			return fmt.Errorf("missing peer detail field %s", field)
 		}
