@@ -67,9 +67,18 @@ type passReport struct {
 // own reason (an unknown symbol, a version mismatch, a refused signature).
 const fixKernelLog = "read the module's own reason in the kernel log: show system kernel-log level warning"
 
+// rebuildCommands are the two commands that replace the image on a device, as
+// an operator types them on the build machine (docs/guide/appliance.md). The
+// device's own ze does not carry `appliance`.
+const rebuildCommands = "./ze-host appliance build <name> then ./ze-host appliance push <name>"
+
 // fixRebuild is the fix an index fault names: the image's module tree is not
 // the one its kernel build wrote.
-const fixRebuild = "rebuild and push the appliance image so its /lib/modules tree is whole: ze appliance build"
+const fixRebuild = "on the build machine, rebuild the appliance image so its /lib/modules tree is whole and push it: " + rebuildCommands
+
+// fixUncompressed is the fix a compressed module names: finit_module is called
+// with no flags, so the kernel refuses a compressed file.
+const fixUncompressed = "on the build machine, build the kernel with CONFIG_MODULE_COMPRESS_NONE=y, then rebuild the appliance image and push it: " + rebuildCommands
 
 // coldplug runs one cold-plug pass over the devices under sysRoot and the
 // module index under modulesRoot (/sys and /lib/modules/<release> on a
@@ -215,7 +224,7 @@ func runPlan(p *planner, modulesRoot string, load loadFunc, log *slog.Logger) pa
 			report.failed = append(report.failed, module.name)
 			log.Warn("a kernel driver module is compressed, and Ze loads only uncompressed modules, so its device has no driver",
 				"code", diagnostic.CodeDoctorModuleMissing, "module", module.name, "file", module.file.path,
-				"device", module.device, "fix", "build the kernel with CONFIG_MODULE_COMPRESS_NONE=y, then rebuild the image: ze appliance build")
+				"device", module.device, "fix", fixUncompressed)
 			continue
 		}
 		err := load(filepath.Join(modulesRoot, module.file.path))

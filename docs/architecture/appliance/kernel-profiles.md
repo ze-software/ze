@@ -493,7 +493,7 @@ a warning about one module names it and the device alias that asked for it.
 | Case | What the pass does |
 |------|--------------------|
 | No `/lib/modules/<release>`, or no `modules.alias` or `modules.dep` in it | Nothing, logged at debug: a kernel with every driver built in looks like this |
-| An index file is present and cannot be read or parsed | Loads nothing, and warns with the file, the line and the fix (rebuild the image) |
+| An index file is present and cannot be read or parsed | Loads nothing, and warns with the file, the line and the fix (rebuild the image and push it, with the two `./ze-host appliance` commands) |
 | A module does not load | Warns with the file and the kernel's error, and names `show system kernel-log level warning` for the module's own reason. The pass goes on. A module that needs it is not tried, and is reported with the module that blocked it |
 | A device alias names a module the index does not hold | Warns, and goes on |
 | The index names a compressed module (`.ko.zst`, `.ko.xz`, `.ko.gz`) | Warns that Ze loads only uncompressed modules, and goes on |

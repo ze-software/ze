@@ -138,6 +138,79 @@ are not pinned in a manifest.
 <!-- source: gokrazy/kernel/kernel.require -- base requirements -->
 <!-- source: internal/appliance/kernelbuilder/worker.go -- enforceRequiredSymbols -->
 
+## Hardware drivers
+
+The appliance kernel holds some drivers in the kernel itself and loads the
+others from the image when the device is present.
+
+| Kind | Where the driver is | Examples |
+|------|---------------------|----------|
+| Virtual NICs and disks | In the kernel | virtio network and block devices, the Xen guest network and block devices |
+| Storage and boot devices | In the kernel | NVMe, SATA/AHCI, SCSI disks, USB storage, the console |
+| Every networking feature Ze configures | In the kernel | Routing, firewall, IPsec, WireGuard, MPLS, traffic control, PPP/L2TP, tunnels |
+| Physical hardware | Loaded when the device is present | Physical NICs and their PHYs, wireless, sound, Intel graphics, board sensors |
+
+A networking feature never waits for a driver to load. A virtual machine loads
+no driver for hardware it does not have.
+<!-- source: gokrazy/kernel/runtime.config -- CONFIG_VIRTIO_NET, CONFIG_BLK_DEV_NVME, CONFIG_E1000E, CONFIG_CFG80211, CONFIG_SND_HDA_INTEL, CONFIG_DRM_I915, CONFIG_SENSORS_K10TEMP -->
+
+**The load happens one time, when Ze starts.** Ze reads which devices are
+present, loads the driver of each one, and only then lists the interfaces. Ze
+does not watch for new devices after that:
+
+- A card added while the appliance runs has no driver and no interface. Its
+  driver loads the next time Ze starts.
+- A device that registers its interface late (a USB NIC, or a driver that waits
+  for firmware) can appear after Ze has listed the interfaces. Ze sees the new
+  interface, but applies the configuration you wrote for it only at the next
+  commit.
+<!-- source: internal/plugins/coldplug/coldplug.go -- coldplug -->
+<!-- source: internal/plugins/coldplug/register_linux.go -- coldplugOnAppliance -->
+<!-- source: cmd/ze/startprep/startprep.go -- Register, Run -->
+<!-- source: internal/component/iface/config_apply.go -- applyConfigPass, the skip of an absent ethernet entry -->
+
+**When a driver does not load, the appliance still starts.** Only the device
+that needs the driver is missing. Ze writes one warning in its log for each
+problem. Every warning has `code=doctor-module-missing`, a `fix` field with the
+next step, and, when it is about one driver, a `module` field with the driver
+name and a `device` field with the device that asked for it.
+
+| Log message | The `fix` it names |
+|-------------|--------------------|
+| `a kernel driver module did not load, so the device that needs it has no driver` | `read the module's own reason in the kernel log: show system kernel-log level warning` |
+| `a kernel driver module was not loaded because a module it needs did not load` | The same. The `needs` field names the module that failed first |
+| `a present device needs a kernel module the module index does not hold, so the device has no driver` | `on the build machine, rebuild the appliance image so its /lib/modules tree is whole and push it: ./ze-host appliance build <name> then ./ze-host appliance push <name>` |
+| `the kernel module index cannot be read, so no driver module is loaded for the devices present` | The same rebuild |
+| `a kernel driver module is compressed, and Ze loads only uncompressed modules, so its device has no driver` | `on the build machine, build the kernel with CONFIG_MODULE_COMPRESS_NONE=y, then rebuild the appliance image and push it: ./ze-host appliance build <name> then ./ze-host appliance push <name>` |
+
+For the first two, run this on the appliance. The kernel prints why it refused
+the module:
+
+```
+show system kernel-log level warning
+```
+
+For the others, rebuild the image on the build machine and push it:
+
+```bash
+./ze-host appliance build <name>
+./ze-host appliance push <name>
+```
+<!-- source: internal/plugins/coldplug/coldplug.go -- coldplug, planner.add, runPlan, fixKernelLog, fixRebuild, fixUncompressed -->
+<!-- source: internal/plugins/host-cmd/yang/ze-host-cmd.yang -- show system kernel-log, leaf level -->
+<!-- source: internal/appliance/register.go -- the appliance root command -->
+
+**A `ze` installed on a distribution Linux loads no driver.** Only the appliance
+image carries this step, and it runs only where the image sets
+`ze.gokrazy.enabled`. On a distribution, the distribution loads the drivers with
+its own tools, normally udev.
+<!-- source: cmd/ze/setup_features_appliance.go -- the coldplug blank import, under ze_appliance -->
+<!-- source: internal/plugins/coldplug/register_linux.go -- applianceKey, coldplugOnAppliance -->
+
+The design is in
+[Hardware kernel profiles](../architecture/appliance/kernel-profiles.md),
+"Built in or loadable" and "Loading driver modules on the device".
+
 ## VPN Kernel Proof
 
 `./le test qemu vpn-kernel` boots Ze's docker-host image with its own
