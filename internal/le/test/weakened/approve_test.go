@@ -176,7 +176,7 @@ func TestWeakenedApproveRefusesPackageClauseAlias(t *testing.T) {
 // the edit, which admits any change from the base it saw and none from a
 // moved base.
 //
-// MUTATION: make staleApproval answer "" (a row keyed by name alone) and the
+// MUTATION: make staleApprovalWith answer "" (a row keyed by name alone) and the
 // changed-again case stays live; make ApprovalContentAdmits ignore the base
 // and the moved-base case admits.
 func TestOrdinaryApprovalRefusesChangedUnitContent(t *testing.T) {

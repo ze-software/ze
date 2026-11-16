@@ -237,13 +237,51 @@ func BoundApprovalLanded(root, trailer, target, unit string) (carrier string, la
 }
 
 func approvalLanded(root, trailer, binding string) (carrier string, landed bool, problem string) {
+	carriers, first, problem := approvalQueriesLanded(root, []approvalHistoryQuery{newApprovalHistoryQuery(trailer, binding)})
+	if problem != "" {
+		return "", false, problem
+	}
+	if first < 0 {
+		return "", false, problem
+	}
+	return carriers[first], true, ""
+}
+
+// ApprovalHistoryRequest is one ordinary verdict or exact target/unit pair
+// from a validated approval ledger. Empty Target means an ordinary verdict.
+type ApprovalHistoryRequest struct {
+	Trailer string
+	Target  string
+	Unit    string
+}
+
+// ApprovalsLanded answers every request in order from one fully validated
+// history stream. Empty carrier strings mean the corresponding row is unspent.
+func ApprovalsLanded(root string, requests []ApprovalHistoryRequest) ([]string, string) {
+	queries := make([]approvalHistoryQuery, len(requests))
+	for index, request := range requests {
+		binding := ""
+		if request.Target != "" {
+			binding = ApprovalForTrailerLine(request.Target, request.Unit)
+		}
+		queries[index] = newApprovalHistoryQuery(request.Trailer, binding)
+	}
+	carriers, _, problem := approvalQueriesLanded(root, queries)
+	return carriers, problem
+}
+
+func approvalQueriesLanded(root string, queries []approvalHistoryQuery) ([]string, int, string) {
+	if len(queries) == 0 {
+		return nil, -1, ""
+	}
+	carriers := make([]string, len(queries))
 	// A tree no repository holds at all (an edit hook fixture tree) has no
 	// commit that could carry the trailer, so "not landed" is the answer
 	// rather than a default. It is decided on what the directory is, never on
 	// the wording of git's refusal, which a localized git translates.
 	// refuse-by-default: guards proposedApprovals -- no repository holds the root, so no commit spent the row
 	if !insideGitCheckout(root) {
-		return "", false, ""
+		return carriers, -1, ""
 	}
 	command := exec.CommandContext(context.Background(), "git", "log", "--no-show-signature", "--format=%H") // #nosec G204 -- Fixed metadata-only history query; message bytes never frame carrier IDs.
 	command.Dir = root
@@ -258,12 +296,11 @@ func approvalLanded(root, trailer, binding string) (carrier string, landed bool,
 		// so "not landed" is the answer rather than a default. Any other git
 		// failure leaves the question open, and the caller fails closed.
 		if _, ok := errors.AsType[*exec.ExitError](err); ok && strings.Contains(complaint.String(), "does not have any commits") {
-			return "", false, ""
+			return carriers, -1, ""
 		}
-		return "", false, "git log approval history failed: " + strings.TrimSpace(complaint.String())
+		return nil, -1, "git log approval history failed: " + strings.TrimSpace(complaint.String())
 	}
-	carrier, matched, problem := approvalHistoryLanded(root, stdout.String(), []approvalHistoryQuery{newApprovalHistoryQuery(trailer, binding)})
-	return carrier, matched >= 0, problem
+	return approvalHistoryAllLanded(root, stdout.String(), queries, true)
 }
 
 // rowNames compares the existing table's exact target/unit/file key.

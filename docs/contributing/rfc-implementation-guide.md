@@ -798,6 +798,17 @@ Normal Git object validation rejects an embedded NUL in a commit
 (`nulInCommit`); the raw reader's defensive framing is not a claim that native
 publication accepts such a body.
 
+One approval-table load shares its carrier inventory, source bytes and Go
+declaration summaries across rows. It captures one immutable HEAD for its base
+reads and checks every eligible carrier, including unselected and untracked
+files. Each history question retains its own newest matching commit from one
+fully validated stream. An empty table reads neither source nor history.
+A later load starts fresh, so edits, new duplicate carriers and changed history
+cannot reuse an earlier load's authority. Selected-content and publication-parent
+checks still run independently.
+<!-- source: internal/le/rfc/approvalunits.go -- ApprovalResolver, Resolve -->
+<!-- source: internal/le/rfc/approvalhistory.go -- readApprovalHistoryAll -->
+
 Ordinary RFC and weakening verdicts are captured with the prepared block and
 checked against each publication attempt's actual parent. Earlier blocks of
 the same appended script count as spent history too. Pruning the first block's

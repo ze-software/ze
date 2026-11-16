@@ -184,39 +184,88 @@ func ResolveApprovalUnitContent(root, target, unit string) (ApprovalUnitContent,
 // ResolveApprovalUnitContentIn resolves unit as ResolveApprovalUnitIn does and
 // answers the digests of its text on both sides of the change.
 func ResolveApprovalUnitContentIn(root, target, unit, carrierPath string) (ApprovalUnitContent, error) {
+	return NewApprovalResolver(root, target).Resolve(unit, carrierPath)
+}
+
+// ApprovalResolver retains one request's source inventories and carrier
+// summaries. It never survives a load or publication attempt. Its immutable
+// base is captured lazily, after the caller validates a unit and qualifier.
+type ApprovalResolver struct {
+	root     string
+	target   string
+	before   string
+	oldSet   map[string]bool
+	newSet   map[string]bool
+	packages map[string][]string
+	sides    map[approvalSideKey]*approvalSource
+	ready    bool
+	err      error
+}
+
+type approvalSideKey struct {
+	revision string
+	path     string
+}
+
+type approvalSource struct {
+	content    string
+	err        error
+	scoped     bool
+	fileScoped bool
+	parsed     bool
+	exact      bool
+	texts      map[string]string
+}
+
+// NewApprovalResolver creates an empty request without performing Git or
+// source reads. Resolve loads only the candidate packages it is asked about.
+func NewApprovalResolver(root, target string) *ApprovalResolver {
+	return &ApprovalResolver{root: root, target: target, sides: make(map[approvalSideKey]*approvalSource)}
+}
+
+// Resolve answers the same canonical content as ResolveApprovalUnitContentIn,
+// sharing membership, source bytes and declarations only within this request.
+func (r *ApprovalResolver) Resolve(unit, carrierPath string) (ApprovalUnitContent, error) {
 	if carrierPath != "" && !ValidApprovalCarrierPath(carrierPath) {
 		return ApprovalUnitContent{}, errors.New("approval file qualifier must be a clean repository-relative path, got " + carrierPath)
 	}
-	path, base, current, err := resolveApprovalSides(root, target, unit, carrierPath)
+	path, base, current, err := r.resolveSides(unit, carrierPath)
 	if err != nil {
 		return ApprovalUnitContent{}, err
 	}
 	return ApprovalUnitContent{Path: path, Base: approvalDigest(base), Current: approvalDigest(current)}, nil
 }
 
-func resolveApprovalSides(root, target, unit, carrierPath string) (string, []approvalCarrier, []approvalCarrier, error) {
-	if !ValidApprovalUnit(unit) {
-		return "", nil, nil, errors.New("approval unit must be <package>.<TestName>, got " + unit)
+func (r *ApprovalResolver) load() error {
+	if r.ready {
+		return r.err
 	}
+	r.ready = true
+	r.err = r.loadInventory()
+	return r.err
+}
+
+func (r *ApprovalResolver) loadInventory() error {
+	root, target := r.root, r.target
 	before := "HEAD"
 	if target != "" {
 		if !ValidApprovalTarget(target) {
-			return "", nil, nil, errors.New("approval target must be a canonical full commit SHA, got " + target)
+			return errors.New("approval target must be a canonical full commit SHA, got " + target)
 		}
 		resolved, err := approvalGit(root, "rev-parse", "--verify", target+"^{commit}")
 		if err != nil {
-			return "", nil, nil, err
+			return err
 		}
 		if strings.TrimSpace(resolved) != target {
-			return "", nil, nil, errors.New("approval target is not a canonical full commit SHA: " + target)
+			return errors.New("approval target is not a canonical full commit SHA: " + target)
 		}
 		parents, err := approvalGit(root, "rev-list", "--parents", "-n", "1", target)
 		if err != nil {
-			return "", nil, nil, err
+			return err
 		}
 		fields := strings.Fields(parents)
 		if len(fields) < 2 {
-			return "", nil, nil, errors.New("approval target has no readable parent: " + target)
+			return errors.New("approval target has no readable parent: " + target)
 		}
 		before = fields[1]
 	}
@@ -242,14 +291,24 @@ func resolveApprovalSides(root, target, unit, carrierPath string) (string, []app
 			return nil
 		})
 		if err != nil {
-			return "", nil, nil, err
+			return err
 		}
 		newPaths = currentPaths.String()
 	} else {
 		var err error
+		if target == "" {
+			resolved, resolveErr := approvalGit(root, "rev-parse", "--verify", "HEAD^{commit}")
+			if resolveErr != nil {
+				return resolveErr
+			}
+			before = strings.TrimSpace(resolved)
+			if !ValidApprovalTarget(before) {
+				return errors.New("approval HEAD is not a canonical full commit SHA: " + before)
+			}
+		}
 		oldPaths, err = approvalGit(root, "ls-tree", "-r", "--name-only", "-z", before)
 		if err != nil {
-			return "", nil, nil, err
+			return err
 		}
 		if target == "" {
 			newPaths, err = approvalGit(root, "ls-files", "--cached", "--others", "--exclude-standard", "-z")
@@ -257,39 +316,60 @@ func resolveApprovalSides(root, target, unit, carrierPath string) (string, []app
 			newPaths, err = approvalGit(root, "ls-tree", "-r", "--name-only", "-z", target)
 		}
 		if err != nil {
-			return "", nil, nil, err
+			return err
 		}
 	}
-	oldSet := approvalPathSet(oldPaths)
-	newSet := approvalPathSet(newPaths)
-	paths := approvalPathSet(oldPaths + newPaths)
+	r.before = before
+	r.oldSet, r.newSet = approvalPathSet(oldPaths), approvalPathSet(newPaths)
+	r.packages = make(map[string][]string)
+	for path := range approvalPathSet(oldPaths + newPaths) {
+		if IsTagCarrier(path) || strings.HasSuffix(path, ".py") {
+			key := filepath.Base(filepath.Dir(path))
+			r.packages[key] = append(r.packages[key], path)
+		}
+	}
+	return nil
+}
+
+func (r *ApprovalResolver) side(revision, path string, present bool) *approvalSource {
+	key := approvalSideKey{revision: revision, path: path}
+	if held, ok := r.sides[key]; ok {
+		return held
+	}
+	content, err := approvalSide(r.root, revision, path, present)
+	held := &approvalSource{content: content, err: err}
+	r.sides[key] = held
+	return held
+}
+
+func (r *ApprovalResolver) resolveSides(unit, carrierPath string) (string, []approvalCarrier, []approvalCarrier, error) {
+	if !ValidApprovalUnit(unit) {
+		return "", nil, nil, errors.New("approval unit must be <package>.<TestName>, got " + unit)
+	}
+	if err := r.load(); err != nil {
+		return "", nil, nil, err
+	}
 	packageName, name := SplitApprovalUnit(unit)
 	oldCarriers := make([]approvalCarrier, 0, 1)
 	newCarriers := make([]approvalCarrier, 0, 1)
 	unchanged := make(map[string]bool)
-	for path := range paths {
-		if !IsTagCarrier(path) && !strings.HasSuffix(path, ".py") {
-			continue
-		}
-		if filepath.Base(filepath.Dir(path)) != packageName {
-			continue
-		}
+	for _, path := range r.packages[packageName] {
 		if carrierPath != "" && path != carrierPath {
 			continue
 		}
-		oldText, err := approvalSide(root, before, path, oldSet[path])
+		oldSource := r.side(r.before, path, r.oldSet[path])
+		if oldSource.err != nil {
+			return "", nil, nil, oldSource.err
+		}
+		newSource := r.side(r.target, path, r.newSet[path])
+		if newSource.err != nil {
+			return "", nil, nil, newSource.err
+		}
+		oldUnits, err := oldSource.unitTexts(path, name)
 		if err != nil {
 			return "", nil, nil, err
 		}
-		newText, err := approvalSide(root, target, path, newSet[path])
-		if err != nil {
-			return "", nil, nil, err
-		}
-		oldUnits, err := approvalUnitTexts(path, oldText, name)
-		if err != nil {
-			return "", nil, nil, err
-		}
-		newUnits, err := approvalUnitTexts(path, newText, name)
+		newUnits, err := newSource.unitTexts(path, name)
 		if err != nil {
 			return "", nil, nil, err
 		}
@@ -315,15 +395,15 @@ func resolveApprovalSides(root, target, unit, carrierPath string) (string, []app
 		if carrierPath != "" {
 			return "", nil, nil, errors.New("approval unit " + unit + " has no current/parent carrier in " + carrierPath)
 		}
-		return "", nil, nil, noApprovalCarrier(root, target, unit, newPaths)
+		return "", nil, nil, r.noApprovalCarrier(unit)
 	}
-	if target != "" {
+	if r.target != "" {
 		changed := len(oldCarriers) != len(newCarriers)
 		if len(oldCarriers) == 1 && len(newCarriers) == 1 {
 			changed = oldCarriers[0].text != newCarriers[0].text
 		}
 		if !changed {
-			return "", nil, nil, errors.New("approval target " + target + " does not change " + unit)
+			return "", nil, nil, errors.New("approval target " + r.target + " does not change " + unit)
 		}
 	}
 	if len(newCarriers) == 1 {
@@ -404,25 +484,25 @@ func ambiguousApprovalCarrier(unit string, carriers []approvalCarrier) error {
 // would ever match. When a Go package clause equal to the given package
 // carries the test, the refusal names the directory key to record instead.
 // listed is the current (or target) side's path listing the resolver read.
-func noApprovalCarrier(root, target, unit, listed string) error {
+func (r *ApprovalResolver) noApprovalCarrier(unit string) error {
 	packageName, name := SplitApprovalUnit(unit)
 	refusal := "approval unit " + unit + " has no current/parent carrier"
 	keys := make([]string, 0, 1)
-	for path := range approvalPathSet(listed) {
+	for path := range r.newSet {
 		if !strings.HasSuffix(path, ".go") {
 			continue
 		}
 		if !IsTagCarrier(path) {
 			continue
 		}
-		text, readErr := approvalSide(root, target, path, true)
-		if readErr != nil {
+		source := r.side(r.target, path, true)
+		if source.err != nil {
 			continue
 		}
-		if strings.TrimSuffix(goPackageClause(text), "_test") != packageName {
+		if strings.TrimSuffix(goPackageClause(source.content), "_test") != packageName {
 			continue
 		}
-		units, unitErr := approvalUnitTexts(path, text, name)
+		units, unitErr := source.unitTexts(path, name)
 		if unitErr != nil {
 			continue
 		}
@@ -476,17 +556,20 @@ func approvalSide(root, revision, path string, present bool) (string, error) {
 	return string(content), err
 }
 
-func approvalUnitTexts(path, content, name string) ([]string, error) {
-	if content == "" {
+func (s *approvalSource) unitTexts(path, name string) ([]string, error) {
+	if s.content == "" {
 		return nil, nil
 	}
-	fileScoped := ScopeReader(path) == ScopeFile
-	if !fileScoped {
-		fileScoped = tagFallsOutsideFunction(path, content)
+	if !s.scoped {
+		s.scoped = true
+		s.fileScoped = ScopeReader(path) == ScopeFile
+		if !s.fileScoped {
+			s.fileScoped = tagFallsOutsideFunction(path, s.content)
+		}
 	}
-	if fileScoped {
+	if s.fileScoped {
 		if name == fileStem(path) {
-			return []string{content}, nil
+			return []string{s.content}, nil
 		}
 		return nil, nil
 	}
@@ -494,7 +577,7 @@ func approvalUnitTexts(path, content, name string) ([]string, error) {
 	// by the file stem (weakenedUnits, pkg.ignore_test), so a unit named for
 	// the stem is the whole file, as in a file-scoped carrier.
 	if name == fileStem(path) {
-		return []string{content}, nil
+		return []string{s.content}, nil
 	}
 	// Every declaration of name in one file is one unit, joined in file order
 	// by a newline: methods of one name on several receivers (the Inc of two
@@ -502,26 +585,27 @@ func approvalUnitTexts(path, content, name string) ([]string, error) {
 	// (weakened.unitsByName), so the approval resolves the same unit the gate
 	// flags. Split, the file would carry the unit twice and no approval of it
 	// could be recorded.
-	var text strings.Builder
-	found := false
-	units, exact := readFunctionUnits(content)
-	for _, unit := range units {
-		if unit.Name != name {
-			continue
+	if !s.parsed {
+		s.parsed = true
+		s.texts = make(map[string]string)
+		units, exact := readFunctionUnits(s.content)
+		s.exact = exact
+		for _, unit := range units {
+			text, found := s.texts[unit.Name]
+			if found {
+				text += "\n"
+			}
+			s.texts[unit.Name] = text + unit.Text
 		}
-		if !exact {
-			return nil, errors.New("approval unit " + name + " has no exact Go declaration boundary in " + path)
-		}
-		if found {
-			text.WriteByte('\n')
-		}
-		text.WriteString(unit.Text)
-		found = true
 	}
+	text, found := s.texts[name]
 	if !found {
 		return nil, nil
 	}
-	return []string{text.String()}, nil
+	if !s.exact {
+		return nil, errors.New("approval unit " + name + " has no exact Go declaration boundary in " + path)
+	}
+	return []string{text}, nil
 }
 
 // approvalGit preserves blob and NUL-delimited path bytes; gitAnswer trims them.

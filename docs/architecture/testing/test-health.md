@@ -195,7 +195,7 @@ different change of the same unit needs a verdict of its own. Re-recording
 replaces the row. A table without the `Content` column, or a row without a
 digest pair, is refused, because only the approve commands write rows.
 <!-- source: internal/le/rfc/approvalunits.go -- ApprovalContentCell, ApprovalContentAdmits -->
-<!-- source: internal/le/test/weakened/ledger.go -- parseLedger, staleApproval -->
+<!-- source: internal/le/test/weakened/ledger.go -- parseLedger, staleApprovalWith -->
 
 At the commit gate a stale row is not silent: a changed unit that no live row
 claims, while an unlanded row names it stale, refuses preparation with the

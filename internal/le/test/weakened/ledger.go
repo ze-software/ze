@@ -279,37 +279,34 @@ func LoadApprovals(root string, source ApprovalSource) ([]ApprovalRow, []string)
 	}
 	lines := strings.Split(string(content), "\n")
 	rows := make([]ApprovalRow, 0, len(valid))
-	for _, row := range valid {
+	queries := make([]rfc.ApprovalHistoryRequest, len(valid))
+	for index, row := range valid {
+		queries[index] = rfc.ApprovalHistoryRequest{Trailer: source.TrailerLine(row.Name, row.Reason), Target: row.Target, Unit: row.Name}
+	}
+	carriers, problem := rfc.ApprovalsLanded(root, queries)
+	if problem != "" {
+		return nil, []string{text.Reset().Str(cannotRunPrefix).Str(problem).String()}
+	}
+	resolver := rfc.NewApprovalResolver(root, "")
+	for index, row := range valid {
 		held := ApprovalRow{Row: row, Text: lines[row.Line-1], Trailer: source.TrailerLine(row.Name, row.Reason)}
-		var carrier, problem string
-		var landed bool
-		if row.Target == "" {
-			carrier, landed, problem = rfc.TrailerLanded(root, held.Trailer)
-		} else {
-			carrier, landed, problem = rfc.BoundApprovalLanded(root, held.Trailer, row.Target, row.Name)
-		}
-		if problem != "" {
-			return nil, []string{text.Reset().Str(cannotRunPrefix).Str(problem).String()}
-		}
-		if landed {
-			held.Carrier = carrier
-		}
-		if !landed && row.Target == "" {
-			held.Stale = staleApproval(root, row)
+		held.Carrier = carriers[index]
+		if held.Carrier == "" && row.Target == "" {
+			held.Stale = staleApprovalWith(resolver, row)
 		}
 		rows = append(rows, held)
 	}
 	return rows, problems
 }
 
-// staleApproval answers why an ordinary row's verdict no longer judges its
+// staleApprovalWith answers why an ordinary row's verdict no longer judges its
 // unit, or empty when it still does. The unit is read as it stands now, HEAD
 // before the change and the working tree after it, which is the content the
 // commit gate selects and the base the edit hook's change starts from. A unit
 // that no longer resolves to one carrier is stale too: the verdict judged a
 // carrier that is gone or no longer unique.
-func staleApproval(root string, row Row) string {
-	now, err := rfc.ResolveApprovalUnitContentIn(root, "", row.Name, row.File)
+func staleApprovalWith(resolver *rfc.ApprovalResolver, row Row) string {
+	now, err := resolver.Resolve(row.Name, row.File)
 	if err != nil {
 		return "its unit no longer resolves: " + err.Error()
 	}
