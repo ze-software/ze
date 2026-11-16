@@ -85,6 +85,13 @@ type EventLCPDown struct {
 
 func (EventLCPDown) isPPPEvent() {}
 
+// Acknowledged observes the original producer-owned acknowledgment channel.
+// It is immutable across event copies and grants no acknowledgment authority.
+// The zero event returns nil. This getter never locks or waits.
+func (e EventLCPDown) Acknowledged() <-chan struct{} {
+	return e.done
+}
+
 // Acknowledge releases the PPP session after its network lifetime is withdrawn.
 // The single transport consumer owns this acknowledgment.
 func (e EventLCPDown) Acknowledge() {
@@ -140,6 +147,13 @@ type EventSessionIPAssigned struct {
 }
 
 func (EventSessionIPAssigned) isPPPEvent() {}
+
+// Acknowledged observes the original producer-owned acknowledgment channel.
+// It is immutable across event copies and grants no acknowledgment authority.
+// The zero event returns nil. This getter never locks or waits.
+func (e EventSessionIPAssigned) Acknowledged() <-chan struct{} {
+	return e.done
+}
 
 // Acknowledge releases PPP after the assignment's synchronous publication.
 // The single transport consumer owns this acknowledgment.
