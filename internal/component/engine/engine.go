@@ -121,17 +121,20 @@ func (e *Engine) Stop(ctx context.Context) error {
 	return firstErr
 }
 
-// Reload re-reads config and notifies all subsystems.
+// Reload re-reads config and notifies all subsystems in registration order.
+// Every subsystem is visited even after a refusal, so rollback can reapply the
+// restored config everywhere. The returned error retains every failure.
 func (e *Engine) Reload(ctx context.Context) error {
 	e.mu.RLock()
 	defer e.mu.RUnlock()
 
+	var reloadErrs []error
 	for _, sub := range e.subsystems {
 		if err := sub.Reload(ctx, e.config); err != nil {
-			return fmt.Errorf("reload subsystem %q: %w", sub.Name(), err)
+			reloadErrs = append(reloadErrs, fmt.Errorf("reload subsystem %q: %w", sub.Name(), err))
 		}
 	}
-	return nil
+	return errors.Join(reloadErrs...)
 }
 
 // EventBus returns the namespaced event bus.

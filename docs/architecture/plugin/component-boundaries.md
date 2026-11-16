@@ -30,6 +30,15 @@ plugins depend on them.
 daemon is a subsystem: it owns TCP and the FSM. `bgp-rib`, `bgp-rs` and `bgp-gr`
 are plugins.
 
+`Engine.Reload` calls every registered subsystem once, in registration order,
+with the same context and config provider. A subsystem failure does not prevent
+later subsystems from reloading. The returned error retains each failure with
+its subsystem name and is nil only when every reload succeeds. The hub rejects
+a failed reload and calls the Engine again with the restored provider, so that
+rollback also reaches every registered subsystem.
+<!-- source: internal/component/engine/engine.go -- Reload -->
+<!-- source: cmd/ze/hub/main_reload.go -- doReload, rollbackReload -->
+
 ## The Bus was deleted, not kept beside the stream system
 
 The model started at five components. The fifth, a content-agnostic Bus with
