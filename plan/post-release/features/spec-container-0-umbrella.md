@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | plugin |
 | Priority | P3 |
 | Release reason | A new capability: Ze runs OCI container images itself. No shipped behavior is wrong without it, so it is a post-release feature until the owner brings it into the first release. |
@@ -54,7 +54,8 @@ appliance has for its own system.
 | Design | Approved on 2026-11-16: the upstream library used whole behind a small build-time diff, with cgo off, and the child-spec split. |
 | Release timing (O-3) | After the first release. |
 | External-program authorisation (O-4) | Authorised on 2026-11-16, scoped to the container init role executing a container's entrypoint. The row in `ai/allowed-system-commands.md` lands in the commit that adds the code it names, citing this ruling. |
-| Owner action still owed before code lands | One. The authorisation of O-4 covers a container's entrypoint only. A program an operator names for a shell is a second use of an external program, and it is put to the owner with the final review, before the shell child's code lands (`spec-container-5-shell.md`, R-9, holds the row). |
+| External-program authorisation, the shell | Authorised on 2026-11-16, scoped to a program an operator names for a shell inside a container. It is a second use of an external program, beside the entrypoint of O-4. The row in `ai/allowed-system-commands.md` lands in the commit that adds the code it names, citing this ruling (`spec-container-5-shell.md`, R-9, holds the row). |
+| Ready and implementation | Approved on 2026-11-16. The children are implemented in dependency order, implementation agents on the strongest tier. |
 | Feature gate default (O-5) | On in every daemon build, like every other gate. |
 | Image store (O-6) | Images are stored unpacked, one folder per image digest. |
 | Networks and ports (O-7) | Container networks and published ports are nodes of the container config, realised through Ze's interface and firewall mechanisms in state Ze owns and shows. |
@@ -231,7 +232,7 @@ specs of "Child specs" above.
 | Kernel requirement enrolment | `internal/component/kernelcap/kernelcap.go` `MustRegister`; `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require`; `internal/appliance/kernelreq.go` `enforceKernelRequirements` | A feature declares a kernel option once. The kernel build refuses without it, and `ze` refuses at start, reload and validate when a config uses the feature on a kernel that lacks it, and reports it in doctor | Extends: the container feature enrols each option it needs, including the ones that are on today only by upstream default and so are not protected |
 | cgroup v2 mount and its locator | gokrazy init mounts it at boot; `internal/component/ike/dataplane/override_guard_linux.go` `cgroup2Root` | The appliance mounts cgroup v2 and places no process in a child group. The only Ze code that uses a cgroup finds the mount from the mount table, because a distribution host may mount it elsewhere | Does not apply (Corrections): the upstream library accepts one mount point only, so a host with cgroup v2 mounted elsewhere is refused with a doctor finding, and nothing moves to a core leaf. Creating, limiting and removing a cgroup is new |
 | Overlay over the read-only root | `internal/appliance/dockerhost/boot.go` `writableOverlays` | In the lab Docker host image, mounts an overlay with the read-only system image below and a memory filesystem above | Model: the same mount shape is the container root. Not extended as code, because it lives in another program |
-| Register of external programs Ze may run | `ai/allowed-system-commands.md`; `ai/rules/go-standards.md` | Lists every program outside Ze that shipped code may execute. The default is no, and only the owner adds a row | Extends, by the owner: the row for a container's entrypoint was authorised on 2026-11-16 (O-4) and lands in the commit that adds the code it names. A program an operator names for a shell is a second use, still owed to the owner (Owner decisions) |
+| Register of external programs Ze may run | `ai/allowed-system-commands.md`; `ai/rules/go-standards.md` | Lists every program outside Ze that shipped code may execute. The default is no, and only the owner adds a row | Extends, by the owner: the row for a container's entrypoint was authorised on 2026-11-16 (O-4) and lands in the commit that adds the code it names. A program an operator names for a shell is a second use, authorised on 2026-11-16, and its row lands with the shell child's code (Owner decisions) |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
@@ -280,7 +281,7 @@ specs of "Child specs" above.
 - The kernel capability registry and the two kernel option files: each required option is enrolled.
 - The doctor registry: one check per dependency and problem class.
 - The state store: per-container metadata.
-- The allowed-external-programs register: one row for a container's entrypoint, authorised by the owner (O-4). A program named for a shell is a second use, put to the owner with the final review.
+- The allowed-external-programs register: one row for a container's entrypoint, authorised by the owner (O-4). A program named for a shell is a second use, authorised by the owner on 2026-11-16; its row lands with the shell child's code.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |

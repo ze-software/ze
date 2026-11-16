@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | plugin |
 | Priority | P3 |
 | Release reason | A post-release feature. The owner ruled on 2026-11-16 (umbrella O-8) that a shell inside a running container is in scope now, as a child spec of the container work. No shipped behavior is wrong without it. |
@@ -44,13 +44,13 @@ Three rulings of the umbrella bound the work further:
 
 ### Open decisions (owner)
 
-None on the design. Every row of "Owner decisions" below was decided on 2026-11-16. One owner action is still owed, and it is not a design choice:
+None. Every row of "Owner decisions" below was decided on 2026-11-16, and the one owner action this child needed, OA-1, was authorised on the same day:
 
-### Owner action owed before code lands
+### Owner authorisation for the shell's program (given 2026-11-16)
 
-| # | Action owed by the owner | What is authorised today | Why this is a second use | What waits for it |
-|---|--------------------------|--------------------------|--------------------------|-------------------|
-| OA-1 | Authorise Ze running a program an operator names for a shell in a container, and amend the row of `ai/allowed-system-commands.md` to say so, citing this spec | The umbrella's O-4: the container init role executing a container's entrypoint, and nothing more | The entrypoint is named by the container's config and image and started once with the container. A shell program is named by an operator on a command line (`command`, or `/bin/sh` when none is named) and started in a container that already runs. `ai/rules/go-standards.md` allows shipped code to run no external program without the owner's row | The code that runs the program: phase 6 of Implementation Steps, under A1 and under A3. The probes of the gate before phase 1 and phases 1 to 5 run no such program and do not wait |
+| # | What the owner authorised | What was authorised before | Why it is a second use | Where the register row lands |
+|---|---------------------------|----------------------------|------------------------|------------------------------|
+| OA-1 | Ze running a program an operator names for a shell in a container, scoped to the shell. Authorised by the owner on 2026-11-16 ("Approve and authorise.", in answer to the main thread's ask for this second kind of external program) | The umbrella's O-4: the container init role executing a container's entrypoint, and nothing more | The entrypoint is named by the container's config and image and started once with the container. A shell program is named by an operator on a command line (`command`, or `/bin/sh` when none is named) and started in a container that already runs. `ai/rules/go-standards.md` allows shipped code to run no external program without the owner's row | The row of `ai/allowed-system-commands.md` lands in the commit that adds the code it names, citing this ruling: phase 6 of Implementation Steps, under A1 and under A3. The probes of the gate before phase 1 and phases 1 to 5 run no such program |
 
 ### Owner decisions (decided 2026-11-16)
 
@@ -108,7 +108,7 @@ None on the design. Every row of "Owner decisions" below was decided on 2026-11-
   → Decision: starting a process changes the system and is none of create, delete or update, so the verb is `request`
   → Constraint: keywords before values, a typed selector (`name`, `id`), no `--flag`, and a set action never acts on all when the selector is omitted
 - [ ] `ai/rules/go-standards.md`, `ai/allowed-system-commands.md` - external programs
-  → Constraint: shipped code runs no external program without the owner's row. The umbrella's O-4 authorizes the init role executing a container's entrypoint. A program an operator names for a shell is a second use, and the row must say so (owner action OA-1 under Task, R-9)
+  → Constraint: shipped code runs no external program without the owner's row. The umbrella's O-4 authorizes the init role executing a container's entrypoint. A program an operator names for a shell is a second use, which the owner authorised on 2026-11-16 (OA-1 under Task), and the row must say so (R-9)
 - [ ] `ai/rules/goroutine-lifecycle.md` - workers
   → Constraint: a session's relay is a worker that lives exactly as long as the session and selects on its cancellation, the shape `sshclient.RunInteractive` already uses for resize
 
@@ -361,7 +361,7 @@ A3 becomes the design when the probe for A-8 fails, or when A-1, A-3 or A-5 brea
 | R-6 | One session floods the plugin's connection and starves its other calls, or a slow operator blocks the plugin | A command to the container plugin stalls during a large output | Each chunk is acknowledged before the next is sent, the chunk size is bounded, and the engine drops the session, not the connection, when the surface stops reading |
 | R-7 | A bounded run returns megabytes or never ends | An MCP call hangs or returns a huge result | The time bound and the size bound are mandatory and enforced by the engine; the answer says which one fired |
 | R-8 | An upstream release changes the second-process path the diff touches. That path carries most of the churn of its file | A shell fails after a version bump | The runtime child's review stamp refuses a bump until the patched functions are read again, and its bump gate gains `container-shell-ssh-terminal` and `container-shell-hostile-container`. H-3 (rewritten) and H-7 are small, and the join is Ze code behind a registered function, outside the patch |
-| R-9 | The owner's authorization for running an external program covers a container's entrypoint, and a program an operator names for a shell is a second use | A review reads the register row | The owner action OA-1, in the table "Owner action owed before code lands" under Task: the owner authorises the second use and amends the register row before phase 6 lands |
+| R-9 | The owner's authorization for running an external program covers a container's entrypoint, and a program an operator names for a shell is a second use | A review reads the register row | The owner authorised the second use on 2026-11-16: OA-1, in the table "Owner authorisation for the shell's program" under Task. The register row lands in the commit that adds the code of phase 6, citing that ruling |
 | R-10 | Three surfaces offer a live session and the web and REST forms differ from them, so an operator expects a terminal where there is none | An operator types the bare shell command in the web terminal | The refusal on a one-shot surface names the leaf to add and the surfaces that carry a terminal |
 | R-11 | `ze cli -c` cannot know that a command a plugin declared at run time is interactive, so it sends no terminal request and the operator gets a shell with no prompt | An external plugin's interactive command run with `ze cli -c` | The client reads the registry for commands the binary carries, as it reads the streaming registry today. For any other path the daemon answers an exec without a terminal by running the form without a terminal, which is correct for a script; the `ze cli` shell and `ssh -t` give the terminal. Recorded in Known Limitations |
 | R-12 | Each shell seals the `ze` binary again and costs its size in memory when the zero-copy sealing is unavailable | Memory rises by the binary's size at each shell | The umbrella's R-11 settles whether the zero-copy sealing works on the appliance; the session caps bound the worst case |
@@ -518,7 +518,7 @@ N-A: Scope is plugin. No protocol Ze implements changes. The SSH requests are th
 - The runtime child's `TestPatchedLibraryRefusesToEnterAContainer`, and the line of its Known Limitations about entering a container - under A1 the test is replaced by one that a second process starts, and the line is removed, because the refusal they describe is the hunk this child rewrites
 - The runtime child's early role registration and its drain handler in the plugin - the second-process role, and ending sessions before containers stop
 - The container plugin's `register.go` and command schema, created by `spec-container-1-runtime` and `spec-container-4-operator-surface` - the interactive registration and the three command nodes
-- `ai/allowed-system-commands.md` - the owner amends the row (owner action OA-1, R-9)
+- `ai/allowed-system-commands.md` - the row for a program an operator names for a shell, authorised by the owner on 2026-11-16 (OA-1, R-9), in the commit that adds the code it names
 - `docs/architecture/api/commands.md`, `docs/architecture/api/process-protocol.md`, `docs/plugin-development/protocol.md`, `docs/plugin-development/handlers.md`, `docs/architecture/api/architecture.md`, `docs/guide/api.md`, `docs/guide/audit.md`, `docs/guide/command-reference.md`, `ai/doors/commands-cli.md`, `ai/doors/plugin-infra.md` - the pages this work makes incomplete
 - `docs/architecture/api/ipc_protocol.md` (declared by `pkg/plugin/rpc/types.go`) - affected: "SSH exec channel" says every session gets the answer frame on its error stream. An interactive command's channel carries the program's bytes and no frame, and the section gains that row
 - `docs/architecture/system-architecture.md` (declared by `internal/component/ssh/ssh.go`) - affected: "How CLI Works" describes one command and one response over SSH, and gains one sentence for a command that holds a session
@@ -630,7 +630,7 @@ N-A: Scope is plugin. No protocol Ze implements changes. The SSH requests are th
 | Authorization | The route passes the read-only flag clear. A denial is accounted and audited. The bounded form and the live form authorize the same line |
 | Operator errors and doctor codes | Every refusal is an `opererr` error with its fix on the last line, every `Warn`/`Error` line and raise names the code the Integration Checklist's doctor row lists, and each doctor check carries `Fix` at the phase that holds its state (`ai/rules/user-facing-errors.md`) |
 | Rule: `ai/rules/goroutine-lifecycle.md` | One relay worker for each session, started at open and joined at end; nothing is started for each chunk |
-| Rule: `ai/rules/go-standards.md` | The owner's register row covers a program an operator names, before the code of phase 6 lands (owner action OA-1) |
+| Rule: `ai/rules/go-standards.md` | The register row covers a program an operator names, as the owner authorised on 2026-11-16 (OA-1), and lands in the commit that adds the code of phase 6 |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |

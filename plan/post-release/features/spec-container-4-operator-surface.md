@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | config |
 | Priority | P3 |
 | Release reason | Post-release feature, by owner ruling (umbrella O-3): Ze runs OCI images itself after the first release. This child is the operator's side of that feature. |

@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | design |
+| Status | ready |
 | Scope | cli |
 | Priority | P3 |
 | Release reason | It exists for the container work, which is a post-release feature. Owner ruling of 2026-11-16: "The appliance grows its persistent partition to the disk at install. This is appliance work of its own and comes before the image store." No shipped behavior is wrong without it. |
