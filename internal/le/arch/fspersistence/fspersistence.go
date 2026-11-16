@@ -89,7 +89,7 @@ var fileAllowlist = map[string]string{
 	"internal/plugins/iface/netlink/addr_primary.go":                 "/proc/sys/net/ipv4/conf promote_secondaries knob so deleting a primary IPv4 address does not flush its same-subnet secondaries; procfs scalar, no runtime state",
 	"internal/plugins/flowexport/conntrack_setup_appliance_linux.go": "procfs nf_conntrack_acct sysctl on the appliance (ze_appliance conntrack init)",
 	"internal/component/vpp/dpdk.go":                                 "sysfs PCI/VFIO/hugepage knobs",
-	"internal/component/l2tp/ppp/devppp_linux.go":                    "opens the /dev/ppp kernel device",
+	"internal/component/l2tp/ppp/kernel/devppp_linux.go":             "opens the /dev/ppp kernel device",
 	"internal/component/cli/client/main.go":                          "opens /dev/tty (operator terminal)",
 	"internal/component/cli/sshclient/terminal.go":                   "opens /dev/tty (operator terminal, moved from internal/core/ssh/client in the storage-1 cutover)",
 	"internal/component/command/pipe_save.go":                        "`| save <path>` writes ONE answer to a path the operator typed, in the operator's own process. It is not daemon state and it never goes through the storage layer: the point of the operator is to put a rendering where the operator asked for it. It is refused where the daemon expands the chain, so a remote caller cannot reach this write (see the file header)",
