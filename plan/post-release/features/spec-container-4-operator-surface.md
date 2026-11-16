@@ -1,0 +1,791 @@
+# Spec: container-4-operator-surface
+
+| Field | Value |
+|-------|-------|
+| Status | design |
+| Scope | config |
+| Priority | P3 |
+| Release reason | Post-release feature, by owner ruling (umbrella O-3): Ze runs OCI images itself after the first release. This child is the operator's side of that feature. |
+| RFC gaps | - |
+| Depends | spec-container-1-runtime, spec-container-2-image-store, spec-container-3-network |
+| Phase | - |
+| Handoff | - |
+| Design tier | development tier |
+| Implementation tier | strongest tier |
+| Updated | 2026-11-16 |
+
+Recovery after compaction: `.claude/rules/post-compaction.md`.
+
+## Task
+
+The umbrella (`plan/post-release/features/spec-container-0-umbrella.md`) decides how Ze runs a container. It does not yet say what an operator writes, types and reads. Without that, the three sibling children (runtime, image store, network) each invent words for their own nodes and commands, and the feature reaches the operator as three vocabularies.
+
+The owner ruled that the configuration tree and the commands follow the container model operators already know from an established router operating system: a named container with its image, networks, published ports, volumes, environment, resource limits and restart policy, and image management as operational commands. The operations and the tree are kept. The words follow Ze's grammar.
+
+This child is the one table of those words, and the code that spans the three siblings:
+
+- The complete schema of the `container` config root, node by node, with the sibling that realizes each node.
+- The complete command set, with typed arguments, structured answers, pipes and behavior on every surface.
+- Container state as the operator sees it, and what each listing shows.
+- What `ze config validate` refuses with no daemon, and what a build without the gate answers.
+- The doctor checks that span the siblings, every operator message with its fix, metrics, and the pages.
+
+The interactive shell inside a container is not here. It belongs to the shell child, `spec-container-5-shell`.
+
+### How the work divides between this child and its siblings
+
+| Part | Designed here | Lands with |
+|------|---------------|-----------|
+| A config node | Its name, type, constraints, default and help (tables S-1 to S-3) | The sibling named in the node's row, when it implements the behavior. This child adds the nodes marked "operator surface" and proves the whole module against the tables |
+| A command | Its path, leaves, answer shape and pipes (table C-1) | The sibling named in the command's row. This child lands the container listing, the detail, the log and its stream |
+| The config verifier | Which rule is judged offline (table V-1) | The runtime child lands the registration and its verifier entry point. Each child adds the rules in its rows |
+| State, doctor, metrics, pages | All of it | This child |
+
+## Required Reading
+
+### Architecture Docs
+- [ ] `plan/post-release/features/spec-container-0-umbrella.md` - the approved design and the owner's rulings
+  → Decision: limits are mandatory with defaults (R-2), so no node of this schema has a value that means "no limit"
+  → Decision: a missing image is a state, never a commit refusal, so no verify rule may ask whether an image is in the store
+  → Constraint: a container's link is an ordinary Ze interface and its translation is state Ze owns and shows, so the listings name Ze interfaces and never a second runtime's objects
+- [ ] `ai/doors/system.md` - what every change respects
+  → Constraint: every plugin also runs as a separate process, so a command that reads container state is answered inside the plugin's process, never by a daemon-side Go call into it
+  → Constraint: a compile tag is a boundary. No always-on list (a validator section list, a code table, a help string) may learn the word `container`
+- [ ] `ai/doors/config-yang.md`, `docs/architecture/config/yang-config-design.md` - schema and validation layers
+  → Constraint: `ze config validate` never calls a live `OnConfigVerify`, and the in-process verifier does not run at daemon start. A cross-leaf rule is therefore one judging function called from both the in-process verifier and the plugin's configure and verify callbacks
+  → Constraint: a `ze:validate` annotation runs only under a section named in the central `validatedSections` list. This schema uses native types, `leafref` and mandatory nodes only, so it needs no entry in that list
+  → Decision: the mandatory check and the reference check walk every top-level section present, so `mandatory true` and `leafref` work under a new root with no central edit
+  → Constraint: an on/off setting is a positive boolean. A flag with no value is a `presence` container or a boolean, never `type empty`, outside the two named exceptions
+  → Constraint: a dimensioned value is an unsigned integer with a `units` statement and a unit-free name
+- [ ] `ai/rules/config.md`, `ai/patterns/config-option.md` - node obligations
+  → Constraint: every node carries a `ze:help` of at most 96 characters and 25 words, and a different `description`
+  → Constraint: a leaf that names another config entry is a `leafref`, with no hand-written existence check
+- [ ] `ai/doors/commands-cli.md`, `ai/rules/cli.md`, `docs/architecture/cli/command-verbs.md`, `docs/architecture/cli/root-namespace-grammar.md` - command grammar
+  → Decision: the verb is chosen by the ordered test in "Choosing the verb", which asks `clear`, `create`, `update` and `delete` before `request`. An image fetch makes something exist, so it is `create`, and only the restart reaches `request`
+  → Constraint: a command addressing one member of a set types it with a closed keyword. A mandatory leaf is its guard, as `request plugin restart` has it
+  → Constraint: enumeration is spelled `list`, rendering and narrowing are pipes, and a set action has an explicit `all`
+  → Constraint: a handler answers data, never text, and every argument it reads is a declared leaf
+- [ ] `docs/architecture/api/commands.md` - sections "One-shot answer of a streaming command", "Which surfaces offer a command", "A plugin declares its own answer shape", "Per-command declarations", "MCP Task Methods" (the page is 3678 lines: these sections and lines 1 to 599 were read)
+  → Decision: the log stream registers with `RegisterPluginStreamingHandler` and declares `OneShotSample`, so the one-shot surfaces answer the recent lines instead of refusing
+  → Decision: each command declares its shape, its column order and its address fields, so the pipe layer knows each answer before the command runs
+  → Constraint: a streaming prefix is matched as literal leading words, so the words of a stream command up to its last fixed word hold no operator value
+- [ ] `docs/architecture/command-ownership.md`, `ai/doors/system-plugins.md`, `ai/rules/plugins.md` - ownership
+  → Constraint: the plugin folder owns its commands, schema and doctor checks. Removing it removes every one of them
+  → Constraint: a plugin's check over its live state runs in the `runtime` phase and is answered by its `OnDoctorCheck` handler
+- [ ] `docs/architecture/doctor-and-health-checks.md`, `ai/rules/user-facing-errors.md` - doctor and messages
+  → Constraint: every finding carries `fix`, the exact command alone. Every `Warn` or `Error` line names a doctor code a registered check declares
+  → Constraint: a refusal is an operator error: the problem, why it matters, and the fix on the last line
+- [ ] `docs/architecture/plugin/feature-gates.md` - section "Refusing a root whose plugin is compiled out"
+  → Decision: the refusal in a build without the gate is produced by `config.KeywordHint` from the generated root table. This child writes no code for it and proves its text
+- [ ] `ai/doors/api-surfaces.md`, `ai/doors/forwarding.md`, `ai/doors/plugin-infra.md`, `ai/doors/le-tooling.md`, `ai/doors/hub-engine.md`, `ai/doors/core.md`, `ai/doors/appliance.md` - surfaces, ownership of kernel state, the SDK, the gates, the boot promise, state and codes, the device
+  → Constraint: no surface adapter gains a command. REST, gRPC, MCP and the web derive from the registry and the schema
+  → Constraint: the report bus is process-local, so the plugin raises issues through the SDK's `RaiseIssue`
+  → Constraint: what `ze config validate` accepts is what boots. A rule judged at one door only breaks that promise
+- [ ] The operator-model research and the mechanisms research, in `tmp/session/2026-11-15-223847/scratch/` - the reference model's tree, semantics and commands, and its mapping onto Ze's rules
+  → Decision: the reference model's main trap is a container that silently does not run when its image is absent. Ze names the image in the state and gives the fetch command in doctor
+
+**Key insights:** (minimal context to resume after compaction)
+- One plugin owns the `container` root. The siblings are parts of that one plugin, so they share one schema module, one verifier and one command schema.
+- Every command is a YANG command node bound to a wire method that the plugin's package registers as a proxy to the plugin, as VRRP's commands are. The typed selector is the last words of the path (`name` then the value), the shape `show vrrp interface name` has. A stream's fixed prefix then holds no operator value.
+- The firmware commands answer a long operation once, at its end, under the request's context. The image fetch does the same, adds `ze:task-support required` for MCP, and shows an in-flight fetch in the image listing.
+- Cross-leaf rules live in one judging function with two callers: the in-process verifier (validate, editor commit, API commit) and the plugin's own configure and verify callbacks (start, reload).
+- No value means "no limit", no commit writes into the operator's config, and no keyword shares a slot with a number.
+- Existing leaf-lists and keyed lists in Ze's schema are named in the singular (`address`, `name-server`, `member`, `veth`, `table`). This schema follows the tree.
+
+## Current Behavior (MANDATORY)
+
+**Source files read:** (must read BEFORE you write this spec)
+- [ ] `internal/component/config/plugin_verify.go` - `VerifyPluginConfigMapTransition` calls each registration's `InProcessConfigVerifier` with the sections of the roots it owns, a deleted root as an empty object. Its comment states it calls no live `OnConfigVerify`
+- [ ] `internal/component/config/compiled_out_root.go` - `KeywordHint` answers, for a keyword a gated plugin's config root holds, that the plugin is compiled out, with the build tags and the fix line
+- [ ] `internal/component/plugin/server/handler.go` - `RegisterStreamingHandler` and `RegisterPluginStreamingHandler` store a handler under a literal prefix with its `OneShot` declaration. `matchStreamingCommand` matches the longest literal prefix, and `GetStreamingHandlerForCommand` judges the words after it against the model. `RPCRegistration.PluginCommand` makes a builtin a proxy to a plugin command
+- [ ] `internal/component/command/grammar/checker.go` - `selectorKinds` holds `name`, `id`, `index`, `address`, `type`, `key`. `CheckNode` flags a mandatory free-form value on a non-selector node that still has keyword children (R6), and `CheckName` refuses a first word that is not a verb
+- [ ] `internal/plugins/update-cmd/yang/ze-update-firmware-cmd.yang` - the firmware verbs sit under `update system firmware` as one command node each, with no argument leaf and no task annotation
+- [ ] `internal/plugins/update-cmd/cmd/firmware.go` - `handleFirmwareDownload` calls the backend under the request's context and answers one result map when the download ends. No progress is reported during it
+- [ ] `internal/plugins/vrrp/yang/ze-vrrp-cmd.yang` - `show vrrp interface name` is a command node named `name` that holds one leaf for the value. Its module description says its wire methods are registered as plugin proxies. `clear vrrp statistics` alone is refused, and `all` is its explicit form
+
+**Behavior to preserve:**
+- Every existing config root, command and doctor code. A config with no `container` root parses, validates and runs as today.
+- The streaming registry's literal prefix match, the verifier doors and the gated-root hint are used as they are.
+
+**Behavior to change:**
+- None in existing code. Everything here is new, behind the container gate the runtime child declares.
+
+## Existing Mechanisms (MANDATORY)
+
+| Mechanism | Where (file + symbol, or page + section) | What it does today | This spec (extends, replaces, or does not apply, with the reason) |
+|-----------|------------------------------------------|--------------------|-------------------------------------------------------------------|
+| In-process config verifier | `internal/component/config/plugin_verify.go` `VerifyPluginConfigMapTransition`; `yang-config-design.md` "Layer 3" | Runs each registration's `InProcessConfigVerifier` over its own roots at validate, editor commit and API commit. Not at daemon start | Extends: the container plugin's verifier calls the one judging function of table V-1. The same function is called from the plugin's configure and verify callbacks, which covers start and reload |
+| Mandatory and reference walks | `yang-config-design.md` "Where a validator actually runs" and "Layer 1" | Enforce `mandatory true` and `leafref` in every top-level section present, with the operator refusal built from the schema | Extends by declaration only: the schema states its required nodes and its one reference in YANG |
+| Central custom-validator walk | `yang-config-design.md` "Where a validator actually runs" (`validatedSections`) | Runs `ze:validate` annotations only under listed sections | Does not apply: a gated plugin's root must not be named in an always-on list, so this schema declares no `ze:validate`. The hardware address form is a native pattern here |
+| Compiled-out root hint | `internal/component/config/compiled_out_root.go` `KeywordHint`; `feature-gates.md` "Refusing a root whose plugin is compiled out" | Names the build tag when an unknown keyword is a gated plugin's root | Extends by registration only: the plugin's `ConfigRoots` entry puts `container` in the generated table. This spec proves the text |
+| Streaming registry and one-shot declaration | `internal/component/plugin/server/handler.go` `RegisterPluginStreamingHandler`, `OneShotSample` | Streams on the terminal surfaces, answers one sample on MCP, REST, gRPC and the web console, and names the plugin command the data comes from | Extends: the log stream registers the prefix `monitor container log` and forwards to `show container log` |
+| Builtin command as a proxy to a plugin | `internal/component/plugin/server/handler.go` `RPCRegistration.PluginCommand`; `internal/plugins/vrrp/yang/ze-vrrp-cmd.yang` module description | A YANG command node is bound to a wire method whose handler forwards to the plugin, so the answer is produced in the plugin's process | Extends: every command of table C-1 is bound this way |
+| Long operation answered once | `internal/plugins/update-cmd/cmd/firmware.go` `handleFirmwareDownload`, `reqCtx` | Runs the download under the request's context and answers one result at its end | Extends: the image fetch and the image update answer the same way. Added: the MCP task annotation, and an in-flight row in the image listing so any surface can read progress |
+| MCP task support | `docs/architecture/api/commands.md` "MCP Task Methods"; `ze:task-support` in the extension table of `yang-config-design.md` | A command annotated `required` returns a task at once on MCP, which the client polls | Extends: the fetch and the update carry the annotation |
+| Command with a trailing typed selector | `internal/plugins/vrrp/yang/ze-vrrp-cmd.yang`, the `name` node under `show vrrp interface` | A command whose last path word is `name`, holding one leaf for the value | Extends: every per-container command has this shape |
+| Selector guard by mandatory leaf, and the explicit `all` | `docs/architecture/cli/command-verbs.md` "Action verbs and their selector" and "Everything is a selector the operator types"; `ze-vrrp-cmd.yang` `clear vrrp statistics all` | A command addressing one member by a typed keyword is guarded by its mandatory leaf, and a bare prefix is refused naming the commands below it | Extends: no container command sets `RequiresSelector`. Its mandatory leaf and the `all` node are the guards |
+| Per-command answer declarations | `docs/architecture/api/commands.md` "Per-command declarations" | A command registers its shape, column order and address fields under its path | Extends: each command of table C-1 declares them |
+| Runtime doctor checks of a plugin | `docs/architecture/doctor-and-health-checks.md` "The runtime phase" and "Where each owner registers its check" | A plugin declares a `runtime` check at Stage 1 and answers it in its own process | Extends: the five checks of table D-1 |
+| Operator error and value refusal | `yang-config-design.md` "Value refusals"; `ai/rules/user-facing-errors.md` | A value outside a range, enum, length or pattern is refused with the problem, the accepted values and a fix line built from the schema | Extends by declaration: every "no unlimited value" refusal is a range refusal the schema produces |
+| Sensitive leaves | `yang-config-design.md` extension table, `ze:sensitive` | Masks a leaf on every display and keeps the stored text | Extends: the registry password and a variable's `secret` |
+| Interface and system leaf names | The interface config module (`leaf-list address`, `leaf hostname`, `leaf mtu`) and the system config module (`leaf-list name-server`, `leaf host`), read at those nodes by search | The spellings an operator already types for the same concepts | Extends: this schema uses `address`, `hostname`, `mtu` and `name-server` with the same meaning |
+| Plugin metrics hook | `ai/patterns/plugin.md` "Metrics Pattern", `Registration.ConfigureMetrics` | Hands a plugin the metrics registry | Extends: the state metrics of table M-1 |
+
+## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
+
+### Entry Point
+- Config: the `container` root, written in a file or through the editor on any surface, as set lines or blocks.
+- Commands: the paths of table C-1, typed at the CLI or sent by SSH, the web, REST, gRPC or MCP as a command line with its leaves.
+- Doctor: `ze doctor` and `show doctor`. Metrics: a scrape of the exporter.
+
+### Transformation Path
+1. The schema judges each value: type, range, pattern, enumeration, mandatory node, reference. A refusal here is built from the schema.
+2. The judging function of table V-1 reads the plugin's lowered root and refuses a combination no single node can express. It runs in the in-process verifier and in the plugin's configure and verify callbacks.
+3. The siblings apply the accepted config. Each keeps the facts it owns: the runtime child the process state of each container, the image store the digests and stored data, the network child the links and addresses.
+4. The state view joins those facts with the config into one record per container (table T-1). The listing, the detail, the doctor checks and the metrics all read that one record.
+5. A command handler in the plugin's process answers a structured payload under its declared shape. The dispatcher applies the pipes and each surface renders the result.
+6. The log stream forwards to the log command with a cursor and writes each new row.
+
+### Boundaries Crossed
+| Boundary | How | Verified |
+|----------|-----|----------|
+| Operator to schema | Config text through the parser and the editor | No |
+| Config component to plugin | The in-process verifier at validate and commit, the config transaction at start and reload | No |
+| Any surface to plugin | The dispatcher, the proxy wire method, then the plugin's command, internal and forked | No |
+| Daemon stream handler to plugin | A forward to `show container log`, declared with `RegisterPluginStreamingHandler` | No |
+| Doctor to plugin | The `OnDoctorCheck` callback | No |
+| Plugin to report bus | The SDK's `RaiseIssue` and `ClearIssue` | No |
+
+### Changed-Wire Census
+
+**Search evidence:** searched `internal`, `cmd`, `pkg` and `test` (Go, YANG and `.ci` files) for the wire-method prefix `ze-container:` and for a command subject `container` after each of the seven verbs used here, and every YANG file under `internal` for a top-level config container named `container`. No hit, other than two test messages about the `update` and `delete` verb containers. The positive control is `ze-vrrp:`, which the same search finds in `internal/plugins/vrrp/yang/ze-vrrp-cmd.yang`. The gate manifest holds no container line, the state key registry no container key, and the diagnostic code table one code with the word, `doctor-platform-container-ro`, which is about Ze running inside a container and is not changed. Every wire below is new.
+
+| Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
+|------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
+| Container config root | writer | The operator's config file, the editor on every surface, gNMI Set | No root of that name in any schema module | New. Nothing to migrate |
+| Container config root | reader | The container plugin's verifier and config callbacks, landed by the runtime child | No reader exists | New |
+| Container command paths | writer | An operator, a script running `ze cli -c`, REST, gRPC and MCP clients | No command with that subject exists | New. A path is a contract once shipped |
+| Container command paths | reader | The proxy wire methods and the plugin's command handlers | No handler exists | New |
+| Container answer payloads | writer | The plugin's command handlers | No producer exists | New. Keys are kebab-case and match the schema leaf names |
+| Container answer payloads | reader | API clients, the pipe layer, the web result card, the log stream handler (which reads `sequence`) | No consumer exists | New |
+| Container doctor codes | writer | The plugin's runtime doctor checks and its `Warn` lines | No code with the `doctor-container-` prefix exists | New |
+| Container doctor codes | reader | `ze doctor`, `show doctor`, an agent reading the JSON form | The doctor runner reads any registered code | New rows, existing reader unchanged |
+| Container metric names | writer | The plugin through the metrics registry | No `ze_container_` metric exists | New |
+| Container metric names | reader | A Prometheus scrape of the exporter, outside the repository | The exporter serves the registry as it is | New names, existing reader unchanged |
+
+### Integration Points
+- The `registry.Registration` of the container plugin (runtime child): `ConfigRoots`, `InProcessConfigVerifier`, `ConfigureMetrics`, and the command declarations.
+- `pluginserver.RegisterRPCs` with `PluginCommand`, and `pluginserver.RegisterPluginStreamingHandler`: the commands and the log stream.
+- The SDK's `DoctorChecks` and `OnDoctorCheck`: the runtime checks.
+- The state each sibling keeps inside the plugin: this child reads it through one function per sibling and owns no copy.
+
+### Architectural Verification
+| Check | Holds? | Evidence |
+|-------|--------|----------|
+| No bypassed layers (data flows through the intended path) | No | |
+| No unintended coupling (components stay isolated) | No | |
+| No duplicated functionality (extends existing, does not recreate) | No | |
+| Zero-copy preserved where applicable (refs, not copies) | No | |
+| Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
+| Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
+
+## The design
+
+### S-1. The `instance` list: one entry per container
+
+The root `container` holds three keyed lists: `instance`, `network` and `registry`. The list of containers is named `instance`, because a list named for its own key word says nothing about what it holds, and `name` is the selector keyword of the commands.
+
+The key of `instance` is `name`: a string of 1 to 63 characters, lowercase letters, digits and interior hyphens. Its help is "A container Ze runs from an image."
+
+"Reference" describes the node the reference model has, in plain words, and how its conflict with Ze's rules is resolved.
+
+| Node | Type and constraints | Default | Help | Reference, and the resolution | Lands with |
+|------|----------------------|---------|------|-------------------------------|-----------|
+| `image` | string, 1 to 255. Pattern: a registry host, an optional port, a repository path, then a tag or a `sha256` digest. Mandatory | none | Image reference: registry host, repository, and a tag or digest. | The image name. The reference model also accepts a bare name, searched in a registry list with two built-in members, and an implied tag. Ze has neither: a name is whole, so no default is silent | image store |
+| `enabled` | boolean | true | Run this container; false keeps its config and stops it. | A flag with no value that stops the container. Ze's form is the positive boolean | runtime |
+| `description` | string, 1 to 255 | none | Free text shown in the container detail. | Same | operator surface |
+| `entrypoint` | leaf-list of strings, each 1 to 4096, ordered, duplicates kept | the image's | Words that replace the image entrypoint. | One string the runtime splits. Ze takes the words, so no hidden shell grammar | runtime |
+| `argument` | leaf-list of strings, each 0 to 4096, ordered, duplicates kept | the image's default command | Words passed to the entrypoint, replacing the image default. | Two nodes: a command string and an argument string that is ignored without the first. Folded into one node | runtime |
+| `variable` | list, key `name`: 1 to 255, a letter or underscore, then letters, digits and underscores. A mandatory choice of `value` (string, 0 to 4096) or `secret` (string, 1 to 4096, `ze:sensitive`) | none | An environment variable of the workload. | A keyed list with the same word as Ze's own `environment` root, which holds Ze's settings and owes an env registration per leaf. A different concept takes a different word | runtime |
+| `hostname` | string, 1 to 253, a DNS host name | the instance name | Host name inside the container. | The same node. Ze spells it as the interface DHCP client leaf does. System `host` is the router's own name | runtime |
+| `restart` | enumeration: `never`, `on-failure`, `always` | `on-failure` | When Ze starts the container again after it exits. | Three values, the first a bare negative word. Ze names it `never` | runtime |
+| `stop-timeout` | uint16, 1 to 60, units seconds | 10 | Time between the stop signal and the kill. | Same | runtime |
+| `memory` | uint32, 4 to 1048576, units mebibytes | 512 | Memory limit; the kernel kills inside the container past it. | An integer where zero means no limit. Zero is outside the range | runtime |
+| `shared-memory` | uint32, 1 to 1048576, units mebibytes | 64 | Size of the shared-memory mount, counted in the memory limit. | An integer where zero means no limit. Zero is outside the range | runtime |
+| `cpu` | uint32, 1 to 102400, units percent | 100 | CPU limit in percent of one core; 150 is one and a half cores. | A decimal string of cores, checked by a regular expression, where zero means no limit. Ze's form is an integer with a unit. The kernel side is the runtime child's (A-4) | runtime |
+| `process-limit` | uint32, 1 to 32768 | 256 | Most processes and threads the container holds at once. | No node. Added because the umbrella limits processes (AC-6) | runtime |
+| `storage` | uint32, 1 to 1048576, units mebibytes | 256 | Size cap of the container's own writable layer. | No node. Added because the umbrella caps the writable layer (O-2) | image store |
+| `capability` | leaf-list, enumeration: `chown`, `mknod`, `net-admin`, `net-bind-service`, `net-raw`, `setpcap`, `sys-admin`, `sys-nice`, `sys-rawio`, `sys-time` | none | Linux capability added to the default set. | The same multi-valued node. The value that loads kernel modules is left out (table S-4) | runtime |
+| `host-namespace` | leaf-list, enumeration: `network`, `pid`, `cgroup` | none | Host namespace the container shares in place of its own. | Three flags with no value. One multi-valued node of closed keywords | runtime |
+| `user` | uint32, 0 to 65535 | the image's | Numeric user the entrypoint runs as. | Same. The rule that a group needs a user is dropped: each is independent | runtime |
+| `group` | uint32, 0 to 65535 | the image's | Numeric group the entrypoint runs as. | Same | runtime |
+| `name-server` | leaf-list of `zt:ip-address` | set by the network child | Resolver written to the container's resolver file. | A node refused unless a negative flag is set on the network. The flag does not exist in Ze, so the rule is gone | network |
+| `log` | enumeration: `buffer`, `system`, `none` | `buffer` | Where the container's output goes. | Three values that name another runtime's log backends. Ze's values name Ze's own: a bounded buffer the log commands read, that buffer and Ze's log, or nothing | runtime |
+| `sysctl` | list, key `name`: 1 to 255, a dotted kernel setting name. Leaf `value`: string, 1 to 255, mandatory | none | Kernel setting inside the container's own namespaces. | The same list behind one more fixed word, which is dropped | runtime |
+| `device` | list, key `name`. `host-path`: string that starts with the device directory, mandatory. `container-path`: absolute path | `container-path`: the host path | Host device node the container opens. | Two paths named for a direction. Named here for the side they are on | runtime |
+| `tmpfs` | list, key `name`. `destination`: absolute path, mandatory. `size`: uint32, 1 to 1048576, units mebibytes, mandatory | none | Memory-backed mount inside the container. | The same list. Its size rule compares with half of the host's memory; here the size counts in `memory` (V-3). The ownership flag is left out | runtime |
+| `volume` | list, key `name`. `destination`: absolute path, mandatory. `size`: uint32, 1 to 1048576, units mebibytes. `read-only`: boolean | `size` 64, `read-only` false | Storage that survives image updates. | A host path bound into the container, with a mode word and a mount-propagation word. Ze stores a volume in its own data area with a size cap, so the host path and the propagation are left out, and the mode is a boolean | image store |
+| `port` | list, key `name`. `protocol`: enumeration `tcp`, `udp`. `listen-address`: leaf-list of `zt:ip-address`. `listen-port`: one port or a first-last range, mandatory. `container-port`: the same type, mandatory | `protocol` `tcp`; no `listen-address` means every address of the router | Port of the router that reaches a port of the container. | The same list, its two ports named for a packet direction. Named here for where each port is | network |
+| `network` | list, key `name`: a `leafref` to the `network` list. `address`: leaf-list of `zt:ip-address`. `mac-address`: string with the six-octet colon pattern | none | Attachment to a container network. | The same list. A keyword in the hardware-address slot makes the system derive an address and write it into the operator's config at commit. In Ze an absent leaf means derived: the address is stable, shown in the interface listing, and never written to the config | network |
+
+### S-2. The `network` list: one entry per container network
+
+The key is `name`, 1 to 63 characters, the same form as an instance name. Help: "A network that containers attach to."
+
+| Node | Type and constraints | Default | Help | Reference, and the resolution | Lands with |
+|------|----------------------|---------|------|-------------------------------|-----------|
+| `prefix` | leaf-list of `zt:ip-prefix`, at least one | none | Address range of the network, one per address family. | Same | network |
+| `gateway` | leaf-list of `zt:ip-address` | the first host address of each prefix | Address of the router on the network. | Same. The derived value is shown in the listing and never written | network |
+| `mtu` | uint16, 68 to 16000 | 1500 | Largest packet the network carries. | Same range as an interface | network |
+| `masquerade` | boolean | false | Translate outbound traffic to the router's address. | No node: translation is always on. In Ze nothing is translated unless the config says so | network |
+| `description` | string, 1 to 255 | none | Free text shown in the network listing. | Same | operator surface |
+
+### S-3. The `registry` list: one entry per registry that needs settings
+
+The key is `name`: the registry host, with its port when it has one, exactly as image references write it. A registry with no entry is reached over HTTPS with no credentials. Help: "Settings for one image registry."
+
+| Node | Type and constraints | Default | Help | Reference, and the resolution | Lands with |
+|------|----------------------|---------|------|-------------------------------|-----------|
+| `authentication` | presence container. `username`: string, 1 to 255, mandatory. `password`: string, 1 to 4096, mandatory, `ze:sensitive` | none | Credentials Ze presents to the registry. | Two leaves with a both-or-neither rule. The presence container with two mandatory leaves states the rule in the schema | image store |
+| `transport` | enumeration: `https`, `http` | `https` | Protocol Ze speaks to the registry. | One negative flag that means either plain HTTP or unverified TLS. Ze names the protocol. Unverified TLS is left out | image store |
+| `mirror` | presence container. `address`: an IP address or a host name, mandatory. `port`: `zt:port`. `path`: string that starts with a slash | `port` 443, `path` a single slash | Server Ze fetches from in place of the registry. | An address leaf and a host-name leaf that exclude each other, a port and a path. One `address` leaf takes either form, as Ze's endpoint rule states | image store |
+| `description` | string, 1 to 255 | none | Free text shown with the registry. | Not in the reference. Added for parity with the other two lists | operator surface |
+
+### S-4. Reference nodes left out
+
+| Reference node, in plain words | Why it is left out |
+|--------------------------------|--------------------|
+| The list of registries searched for a bare image name, its two built-in members, and the flag that removes a registry from the search | Ze requires a whole image name, so there is no search. A search list lets a name resolve to another publisher's image |
+| Labels on a container | Nothing in Ze reads a label, so the value would reach no consumer |
+| The flag that grants every privilege | It removes the confinement the umbrella requires. Each grant is named: a capability, a host namespace, a device |
+| The capability that loads kernel modules | A container that changes the router's kernel ends the property that the running system is the installed image |
+| The health check (a command, an interval that is a number or a keyword, a timeout, a retry count) | It runs a program inside a running container, which is the mechanism of the shell child. The form Ze would give it is decided here so that child can take it: a presence container with an integer interval. Its absence is the "off" the keyword spelled, so no slot holds a keyword and a number |
+| The flag on a network that turns its name service off, and the rule tying a container's resolvers to it | Ze runs no per-network name service, so there is nothing to turn off. A negative boolean is not declared for an absent feature |
+| The VRF leaf of a network | Ze refuses a VRF everywhere today. The VRF work adds the leaf to this list when it ships. Until then the keyword is unknown here, which is the refusal the umbrella states |
+| The network type node and its second kind, a network placed directly on a parent interface | Ze's interface model has no such interface kind. With one kind left, a type node states nothing |
+| The host path, the mount-propagation word and the mode word of a volume | Table S-1, `volume` |
+| The ownership flag of a memory-backed mount | The mount is world-writable with the sticky bit, as a temporary directory is, which is what the flag is used for |
+| The image build command | The umbrella fetches images by digest and builds none |
+| The rule that a container has a network or shares the host's | A container with neither has only its loopback interface. That is the most confined form, so Ze accepts it |
+
+### V-1. What `ze config validate` refuses with no daemon
+
+Every row is judged by the one function. A row marked "host" reads the host it runs on, so its verdict is about that host, as a kernel capability verdict is.
+
+| Rule | Refused when | Lands with |
+|------|--------------|-----------|
+| V-1 | `host-namespace` holds `network` and the instance has a `network` entry, a `port` entry, or a `sysctl` whose name starts with the network prefix | network |
+| V-2 | A `sysctl` name is outside the kernel settings that exist per namespace | runtime |
+| V-3 | `shared-memory` plus the `size` of every `tmpfs` exceeds `memory` | runtime |
+| V-4 | An attachment `address` is outside every prefix of its network, is a second address of one family, equals the network's gateway, or is held by another instance | network |
+| V-5 | A network holds two prefixes of one family, a gateway outside its prefixes, or a prefix that overlaps another container network's | network |
+| V-6 | The `listen-port` and `container-port` ranges of a `port` differ in length, a range runs backward, or two entries publish one protocol and port on addresses that overlap | network |
+| V-7 | Two of `volume`, `tmpfs` and `device` in one instance name the same path inside the container, or a path holds a parent-directory segment | runtime |
+| V-8 | `cpu` exceeds 100 times the processors of the host (host) | runtime |
+| V-9 | A published port is one a configured Ze listener binds on an overlapping address | network |
+
+Not judged at verify, by the umbrella's design: whether an image is in the store, whether a registry answers, and whether a `device` host path exists. Each is a state the listing and doctor report.
+
+Required nodes, ranges, enumerations, patterns and the attachment's reference need no rule: the schema refuses them, and its refusal names the accepted values and the fix line.
+
+### V-2. A build without the container gate
+
+| Input | Answer | Produced by |
+|-------|--------|-------------|
+| A config with a `container` block | Refused at parse as an unknown top-level keyword. The second line says the keyword is configured by a plugin this build was compiled without, and the fix line says to rebuild with the container build tag or remove the block | `config.KeywordHint`, from the generated root table |
+| Any command of table C-1 | Refused as an unknown command, with the closest command as the hint | The dispatcher, which holds no such command |
+| `ze doctor` | No container check and no container code | The checks are registered by the absent plugin |
+
+### C-1. The command set
+
+Every command is a YANG command node in the plugin's command module, bound to a wire method that the plugin's package registers as a proxy to the plugin. A per-container command ends in the node `name`, whose mandatory leaf holds the container name, completed from the configured instances.
+
+| Path | Leaves | Why this verb | Answer: shape, then fields | Lands with |
+|------|--------|---------------|----------------------------|-----------|
+| `show container list` | none | Reports only | rows: `name`, `state`, `reason`, `image`, `digest`, `restart-count`, `last-exit-status`, `since` | operator surface |
+| `show container detail name` | `value` | Reports only | document: the list fields, then `process-id`, `previous-digest`, the limits in force, `storage-used`, and three row sets: attachments, published ports, volumes | operator surface |
+| `show container log name` | `value`; `lines` (uint16, 1 to 10000, default 100); `after` (a sequence number) | Reports only | rows: `sequence`, `time`, `stream`, `line` | operator surface |
+| `monitor container log name` | `value` | The same read, streamed | the rows of the log command, as they arrive. One-shot: the newest 100 rows | operator surface |
+| `show container image list` | none | Reports only | rows: `reference`, `digest`, `size`, `fetched`, `state` (`present`, `fetching`, `previous`), `received`, `used-by` | image store |
+| `show container volume list` | none | Reports only | rows: `instance`, `name`, `size`, `used`, `state` (`in-use`, `orphan`) | image store |
+| `show container network list` | none | Reports only | rows: `name`, `prefix`, `gateway`, `interface`, `mtu`, `masquerade`, `attached` | network |
+| `show container interface list` | none | Reports only | rows: `instance`, `network`, `interface`, `address`, `mac-address`, `state` | network |
+| `create container image reference` | `value`: an image reference, the type of the `image` node | An image that was not in the store is in it after the command | document: `reference`, `digest`, `size`, `created` (false when the digest was already stored), `started` (the containers that were waiting for it) | image store |
+| `update container image name` | `value` | The digest held for a container that exists is rewritten | document: `name`, `previous-digest`, `digest`, `changed`, `restarted` | image store |
+| `update container image rollback name` | `value` | The same data is rewritten, to the previous digest | document: `name`, `previous-digest`, `digest`, `restarted` | image store |
+| `delete container image digest` | `value`: a digest, or a prefix of at least 12 hexadecimal digits that names one image | A stored image stops existing | document: `deleted` (rows of `digest` and `size`), `kept` (rows of `digest` and `reason`) | image store |
+| `delete container image all` | none | The explicit everything form. It removes every image no configured container holds | the same document | image store |
+| `delete container volume name` | `value`: the volume; `instance`: the instance, mandatory | Stored data stops existing | document: `instance`, `name`, `size` | image store |
+| `clear container layer name` | `value` | Accumulated runtime data returns to empty | document: `name`, `cleared`, `restarted` | image store |
+| `request container restart name` | `value` | The system changes, and no narrower verb describes it | document: `name`, `state`, `process-id` | runtime |
+
+What each action does, where the words alone do not say it:
+
+| Command | Behavior |
+|---------|----------|
+| `create container image reference` | Fetches and verifies the image. It runs under the request's context and answers once, at the end. A caller that goes away stops it, and verified data stays for the next attempt. While it runs, the image listing shows the row as `fetching` with `received`. Every container waiting for that reference then starts, with no further command |
+| `update container image name` | Fetches the reference the container's config names. When the digest differs, the container moves to it with an empty writable layer and restarts, and the previous digest stays for rollback. When it is the same, nothing changes and `changed` is false |
+| `delete container image digest`, `all` | An image a configured container holds as its current or previous digest is kept, and the answer says which container holds it |
+| `delete container volume name` | Refused while the config still declares that volume. The refusal names the config statement to remove |
+| `clear container layer name` | Empties the writable layer. A running container is stopped first and started again on the empty layer. It also accepts the name of a container no longer configured, and then removes the stored layer |
+| `request container restart name` | Stops a running container and starts it. Starts a container in the `stopped` or `failed` state. Refused for a `disabled` container, with the config statement that enables it, and for one in `waiting-image`, with the fetch command |
+
+Start and stop: Ze has neither command, as the reference model has neither. Whether a container runs is stated once, by `enabled` in the config. A stop command would create a second statement the config does not hold: a container stopped by hand comes back at the next reboot, and doctor would have to report a class of "stopped by an operator" that no file records. The transient action an operator needs is the restart, which also starts a stopped or failed container.
+
+Pipes: every command answers data and declares its shape and column order, so the global operators apply to all of them. The row operators (`match`, `count`, `first`, `last`, the field display) apply to the commands whose shape holds rows and are refused by name on a document. `show container interface list` and `show container detail name` declare `address` as an address field. The stream takes the operators the catalog marks for streaming. No command owns a pushed-down filter: no listing is large enough to need one.
+
+Authorization: the `show` and `monitor` commands are reads. Every other command lands in the edit section through its verb.
+
+### C-2. Behavior on each surface
+
+| Surface | Listings, detail, log | Actions | `create` and `update container image` | `monitor container log name` |
+|---------|-----------------------|---------|----------------------------------------|------------------------------|
+| `ze` at a shell, `ze cli -c` | The daemon's answer, rendered by the pipes | The daemon's answer | The call returns when the fetch ends | Streams until interrupted |
+| SSH exec and interactive, the `ze cli` shell | The same | The same | The same | Streams until interrupted |
+| Web terminal | The same, in the result area | The same | The call returns when the fetch ends | The one-shot sample |
+| Web admin | A form with no field or one field per leaf, and the result card | The same | The same. The image listing shows the progress meanwhile | The one-shot sample |
+| REST | The JSON envelope with the declared keys | The same | The request stays open until the fetch ends. A client that closes it stops the fetch | The one-shot sample |
+| gRPC | The same payload | The same | The same | The one-shot sample |
+| MCP | A tool per command with its leaves as parameters | The same | A task is returned at once and polled, by the task annotation | The one-shot sample |
+
+No surface package is edited. Each row follows from the registration and the schema.
+
+### T-1. Container state
+
+One record per configured container, built from the config and the three siblings' facts.
+
+| State | Meaning | Fields that carry the detail | Doctor |
+|-------|---------|------------------------------|--------|
+| `running` | The entrypoint runs | `digest`, `process-id`, `since`, `restart-count` | none |
+| `waiting-image` | The image the config names is not in the store | `reason` names the image reference | D-1 row 1 |
+| `restarting` | The entrypoint exited and Ze waits to start it again | `restart-count`, `last-exit-status`, `reason` gives the time of the next start | D-1 row 2 |
+| `stopped` | The entrypoint exited and the restart policy keeps it stopped | `last-exit-status`, `reason` names the policy | D-1 row 3, for a non-zero exit only |
+| `disabled` | `enabled` is false | none | none |
+| `failed` | Ze cannot start the container, or stopped trying | `reason` in plain words: the restart bound reached, an entrypoint that does not exist, a device that is absent, a limit the kernel refused | D-1 row 4 |
+
+`reason` is one sentence in the operator's terms. `last-exit-status` is the exit code, or the name of the signal that ended the process. The runtime child adds a state only by adding a row here.
+
+A variable's value never appears in a listing, the detail, a log line Ze writes, or a doctor finding. The detail names the variables and nothing more.
+
+### D-1. Doctor checks that span the siblings
+
+Each is a `runtime` check, declared at Stage 1 and answered in the plugin's process. The same code is on the `Warn` line and the report-bus issue raised when the condition starts, and the issue is cleared when it ends.
+
+| # | Code | Severity | Reported when | Message | Fix |
+|---|------|----------|---------------|---------|-----|
+| 1 | `doctor-container-image-absent` | warning | A container is in `waiting-image` | container NAME is not running: its image REFERENCE is not in the image store, and Ze fetches an image only on request | `ze create container image reference REFERENCE` |
+| 2 | `doctor-container-restarting` | warning | A container restarted three or more times since it last ran for a minute | container NAME keeps exiting: N restarts, last exit status S | `ze show container log name NAME` |
+| 3 | `doctor-container-stopped` | warning | A container is `stopped` after a non-zero exit | container NAME exited with status S and its restart policy keeps it stopped | `ze request container restart name NAME` |
+| 4 | `doctor-container-failed` | error | A container is `failed` | container NAME cannot run: REASON | The command for the reason: the restart, the log, or the config statement to change |
+| 5 | `doctor-container-store-orphan` | warning | The store holds a writable layer or a volume of a container or volume the config no longer declares | the image store holds SIZE for NAME, which the configuration no longer declares | `ze clear container layer name NAME`, or `ze delete container volume name VOLUME instance NAME` |
+
+Checks owned by one sibling stay with it: the kernel capabilities and the cgroup mount (runtime), free space and registry reachability (image store), the link and the translation state (network).
+
+### E-1. Operator messages of this child
+
+Every refusal is an operator error: the problem, why it matters, the fix alone on the last line.
+
+| Trigger | Problem line | Why | Fix |
+|---------|--------------|-----|-----|
+| V-1 | container NAME shares the host's network and also has a network, a published port or a network setting | a container in the host's network namespace has no link, address or port of its own | the `delete` line for the statement that conflicts |
+| V-3 | container NAME: its memory-backed mounts need M mebibytes and its memory limit is L | those mounts are counted in the memory limit, so the container would be killed when they fill | `set container instance NAME memory M` |
+| V-4 | container NAME: address A is not inside network NET (PREFIX) | Ze refuses an address the network cannot route | `set container instance NAME network NET address` with an address of the prefix |
+| V-4, held | container NAME: address A is already held by container OTHER | two containers with one address both lose traffic | the `delete` line for one of the two |
+| V-6 | container NAME port P: N ports are published to M ports | each published port needs one port of the container | the `set` line with a range of equal length |
+| V-9 | container NAME port P: port N is the port Ze's SERVICE listens on | publishing it would take that service's connections | the `set` line with another port |
+| A value that means no limit | Built by the schema: the value is outside the accepted range, with the range and the `set` line | The schema's own why line | The schema's own fix line |
+| `show container log name` with `log none` | container NAME keeps no output: its `log` setting is `none` | nothing was kept to show | `set container instance NAME log buffer` |
+| `request container restart name` on a disabled container | container NAME is disabled in the configuration | a restart would start what the configuration says to keep stopped | `set container instance NAME enabled true` |
+| An unknown container name in a command | no container named NAME is configured, with the closest name | the command acts on configured containers only | `ze show container list` |
+
+An image that `delete container image` keeps is not an error: the `kept` row of the answer names the container that holds the digest.
+
+### M-1. Metrics
+
+| Metric | Kind | Labels | Value |
+|--------|------|--------|-------|
+| `ze_container_instances` | gauge | `state` | Containers in each state of table T-1 |
+| `ze_container_instance_running` | gauge | `name` | 1 while the container runs, else 0 |
+| `ze_container_instance_restarts_total` | counter | `name` | Starts after the first |
+| `ze_container_instance_last_exit_status` | gauge | `name` | The last exit code, 128 plus the signal number for a signal |
+
+Resource use (memory, processes, storage) is the sibling's that reads it. The `name` label is bounded by the config.
+
+### W-1. The web UI
+
+| What appears | From | Extra work |
+|--------------|------|-----------|
+| The `container` root in the config editor, its three lists, each leaf with its help, its enumeration choices, its default and its range refusal | The schema | None |
+| The attachment's network offered from the configured networks | The `leafref` | None |
+| The password and a variable's `secret` masked | `ze:sensitive` | None |
+| Each command in the admin tree, with a form field per leaf | The command schema | None |
+| The log stream | Its one-shot declaration: the newest rows | None |
+
+No container page, template or route is written. The proof is a browser test (AC-13).
+
+## Risks & Assumptions
+
+### Assumptions
+| ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
+|----|-----------|--------------------------------|----------|--------------|--------|
+| A-1 | The runtime child lands one plugin named `container` under `internal/plugins/`, with the config root `container`, one build tag, and a verifier entry point the other children add rules to | The umbrella's placement decision and its child table. The sibling specs are drafted in parallel and were not read | Paths in Files change. A different root word changes every table | Reading the runtime child's spec when it exists | unvalidated |
+| A-2 | A command may end in a `name` node that holds the selector leaf and further leaves (`lines`, `after`, `instance`), and its proxy reaches the plugin when the plugin runs forked | `ze-vrrp-cmd.yang`, the `name` node under `show vrrp interface`, which holds one leaf | The log and volume commands need another leaf placement | The wiring test of Phase 1, run with the plugin internal and forked | unvalidated |
+| A-3 | A list key may be a `leafref`, so the attachment's key is checked and completed from the network list | `yang-config-design.md` states leafref support for a leaf. A key was not read | The key is a string with `ze:reference` and a source the plugin registers | A parse test with an unknown network name | unvalidated |
+| A-4 | The runtime child pins the kernel option for a hard CPU limit, so the `cpu` default can be enforced | The umbrella's R-2. A search of the two runtime kernel files finds no bandwidth option today | The `cpu` default cannot be applied exactly, and every container config would be refused. The node then has no default and is refused when set on a kernel without the option | The runtime child's spec | unvalidated |
+| A-5 | The web admin tree and its forms are derived from the command schema | `ai/doors/commands-cli.md`, trap "A handler that reads arguments the model never declares". The producing function was not found under the name the web digest gives | W-1 owes web work | The browser test of AC-13 | unvalidated |
+| A-6 | A plugin registers its doctor codes from its own package | The mechanisms research names plugin packages that do. Not re-read | The codes need a home that a build without the gate also compiles | Reading the diagnostic code registry at implementation | unvalidated |
+| A-7 | The stream handler can poll `show container log name` with `after` and receive only newer rows, internal and forked | `handler.go` `RegisterPluginStreamingHandler` and the page's description of `monitor interface rate` | The stream needs a subscription from the plugin | The stream functional test | unvalidated |
+| A-8 | The network child names the kernel devices of any network and instance name of up to 63 characters | Not read: the network child's spec is drafted in parallel | The name pattern here gets the shorter bound that child states | Reading that spec | unvalidated |
+| A-9 | Each sibling exposes its facts inside the plugin through one read function | A-1: one plugin, one process | The state view cannot be built without a copy | Phase 4 | unvalidated |
+
+### Risks
+| ID | Risk | Early signal | Mitigation / fallback |
+|----|------|--------------|----------------------|
+| R-1 | The siblings, drafted in parallel, use other words for a node or a command | A sibling spec names a node absent from tables S-1 to S-3 or a path absent from C-1 | This spec is the one table. The main thread reconciles each sibling against it before any is approved. `TestContainerCmdSchemaOwnsItsCommands` holds the paths |
+| R-2 | A rule is judged at validate and not at start, or the reverse | A config `ze config validate` accepts is refused at boot | One judging function, two callers, and a functional test that runs both doors on the same files |
+| R-3 | A secret reaches a listing, a log line or a finding | A variable's value in the JSON of the detail | The detail carries names only. A unit test fails on any value |
+| R-4 | The word `container` already means "Ze runs inside a container" in one platform code and its guide page (`docs/guide/docker.md`) | An operator reads a container finding as a platform finding | Codes take the `doctor-container-` prefix, and the new guide page links the other in its first paragraph |
+| R-5 | A state read races a transition, so a test sees the state before the one it waits for | A flaky functional test | Tests wait on the state with the runner's wait step, never on time |
+| R-6 | The `cpu` default refuses every config on a kernel without the option (A-4) | The first functional test fails at commit | Settle A-4 before Phase 1 |
+| R-7 | A long fetch on REST or the web outlives the client's timeout and is stopped half way | A fetch that never ends on a slow link | Verified data stays for the next attempt, the image listing shows progress, and MCP uses a task |
+| R-8 | The log buffer grows without bound | Memory use rises with a chatty container | The buffer is bounded by the runtime child. `lines` is capped at 10000 |
+
+## Blast Radius
+
+| Question | Answer |
+|----------|--------|
+| What breaks if this is wrong? | Nothing outside the feature: a config with no `container` root is untouched. Inside it, a wrong word is a contract in the field once shipped: a renamed leaf breaks every saved config, and a renamed command every script |
+| How is it reverted? | Before release, by changing the tables and the schema together. After release, a rename needs a conversion of saved configs |
+| Who else touches this path? | The three sibling children add nodes and commands to the same schema modules. The shell child adds one command and, if wanted, the health check |
+
+## Wiring Test (MANDATORY -- NOT deferrable)
+
+| Entry Point | → | Feature Code | Test |
+|-------------|---|--------------|------|
+| A `container` block in a config file given to `ze config validate` | → | The schema module and the judging function, through the in-process verifier | `container-refuses-cross-leaf` |
+| The same file at daemon start | → | The same judging function, through the plugin's configure callback | `container-validate-agrees-with-boot` |
+| `show container list` over SSH | → | The state view and the list handler in the plugin's process | `container-list-running` |
+| `show container list` with the plugin forked | → | The same handler over the plugin protocol | `TestContainerListAnswersWhenForked` |
+| `monitor container log name` over SSH exec | → | The stream handler and the log handler | `container-log` |
+| `ze doctor` with a container waiting for its image | → | The runtime check and its `OnDoctorCheck` answer | `container-waiting-image` |
+| A scrape of the exporter | → | The state metrics | `container-metrics` |
+| Every command on REST, gRPC, MCP and the web | → | The registrations of table C-1 | `TestEveryCommandOnEverySurface` |
+| A `container` block in a build without the gate | → | `config.KeywordHint` | `TestContainerRootRefusedWithoutTheGate` |
+
+## Acceptance Criteria
+
+| AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
+|-------|-------------------|-------------------|-----------------------------|
+| AC-1 | A config names a container whose image is in the store, and is committed (umbrella AC-1, operator half) | `show container list` holds a row for it with `state` `running`, the digest of its image and `restart-count` 0. `show container detail name` adds its process id, the limits in force and its addresses | A container with `enabled false` shows `disabled`, and one whose image is absent shows `waiting-image`, because each is what the operator configured or has not fetched yet |
+| AC-2 | A config names a container whose image is not in the store (umbrella AC-2, operator half) | The row shows `waiting-image` and `reason` names the image reference. `show doctor` holds `doctor-container-image-absent` with the fetch command as its fix. After that command the row shows `running` with no further command, and the finding is gone | Other containers of the same commit show their own states, because one missing image does not hold the rest |
+| AC-3 | A container's entrypoint exits with a failure (umbrella AC-10, operator half) | Under `on-failure` the row shows `restarting`, then `running`, with `restart-count` raised and `last-exit-status` holding the exit code. After three such exits `show doctor` holds `doctor-container-restarting` with the log command as its fix. Under `never` the row shows `stopped` and doctor holds `doctor-container-stopped` | A container that exits with status 0 under `on-failure` shows `stopped` and raises no finding, because a clean exit is not a failure |
+| AC-4 | A container that cannot start, and one with `enabled false` | The first shows `failed` with a `reason` sentence that names the cause, and doctor holds `doctor-container-failed` as an error. The second shows `disabled`. `request container restart name` on the second is refused with the config statement that enables it | A `failed` container starts after `request container restart name` once its cause is gone, because the command is the stated way out |
+| AC-5 | Config files that break each rule of table V-1, given to `ze config validate` with no daemon, then to a daemon at start | Both refuse each file, with the message of table E-1 naming the container, the setting and the fix line. A file that breaks no rule is accepted by both | A container with no network and no host namespace is accepted, because an isolated container is the most confined form |
+| AC-6 | A config sets `memory`, `shared-memory`, `cpu` or `process-limit` to 0, and another sets only `image` | The first is refused by the schema with the accepted range and the `set` line. The second is accepted, and the detail shows a memory limit of 512 mebibytes and the `on-failure` policy | Any value inside a range is accepted, including the largest, because the bound on the host is the runtime child's rule |
+| AC-7 | `ze` built without the container gate reads a config with a `container` block, and is sent `show container list` (umbrella AC-13, schema half) | The config is refused as an unknown keyword, with the line naming the missing plugin and the fix line naming the build tag. The command is refused as unknown | Every other root and command answers as in a build with the gate, because nothing else depends on the plugin |
+| AC-8 | The command set of table C-1 in a build with the gate | Every path is in the command catalog with its leaves, its shape and its column order. REST, gRPC, MCP and the web list each one, and the stream is listed with its one-shot sample | A path a sibling has not landed yet is absent until that sibling lands, and its test row stays red until then, because this child does not fake a handler |
+| AC-9 | `delete container image` and `request container restart` typed with nothing after them | Each is refused, and the refusal lists the complete forms: `delete container image all`, `delete container image digest`, `request container restart name` | `delete container image all` acts on every unused image, because the operator typed the word |
+| AC-10 | `show container log name` and `monitor container log name` for a running container that writes output | The first answers rows with a sequence, a time, the stream and the line, newest last, and `lines 5` answers five. The second writes each new row as it arrives over SSH, and answers the newest rows once on REST and MCP | A container with `log none` is refused with the config statement that keeps output, because nothing was kept |
+| AC-11 | A config with a `variable` given as `secret` and a registry `password` | `show config` masks both. The container detail lists the variable's name. A search of the detail, the list, the doctor answer and the log rows Ze writes finds the names and the masked form only | A `variable` given as `value` is shown in the config, because the operator chose the plain form. It is still absent from the detail |
+| AC-12 | A scrape of the exporter with one running and one waiting container | `ze_container_instances` holds 1 for `running` and 1 for `waiting-image`, and `ze_container_instance_running` holds 1 and 0 for the two names | The other states hold 0, because no container is in them |
+| AC-13 | A browser opens the config editor and the admin tree | The editor shows the `container` root with its three lists, the `restart` choices, the `memory` default and a refusal for `memory 0`. The admin tree holds `show container list` and a form with one field for `request container restart name` | The log stream shows one sample and no live view, because the web console runs a command once |
+| AC-14 | `./le cli grammar`, `./le cli ownership`, `./le doc yang-contract command-contract` and `help-shape` over the tree | Each passes with the container commands and nodes in its population | Nodes a sibling has not landed are not in the population yet, because they are not in the tree |
+
+## End-to-End User Stories
+
+| # | User does | Path through system | Test proving it works |
+|---|-----------|--------------------|-----------------------|
+| 1 | Writes a container in the config, commits, and reads the listing | editor -> schema -> verifier -> plugin apply -> state view -> `show container list` | `container-list-running` |
+| 2 | Commits a container before fetching its image, asks doctor, runs the command doctor gives | commit -> state `waiting-image` -> runtime check -> `create container image reference` -> state `running` | `container-waiting-image` |
+| 3 | Validates a config on a laptop before sending it to the router | `ze config validate` -> schema -> in-process verifier | `container-refuses-cross-leaf` |
+| 4 | Follows a container's output while it restarts | `monitor container log name` -> stream handler -> log handler -> buffer | `container-log` |
+| 5 | Asks why a container is not running, from an AI agent over MCP | MCP tool -> dispatcher -> `show container detail name`, then `show doctor` | `TestEveryCommandOnEverySurface`, `container-restart-state` |
+| 6 | Edits a container in the web UI | web editor -> schema -> commit | `container-editor` |
+
+## 🧪 TDD Test Plan
+
+Every unit test file below is new, under the plugin folder of A-1, and is listed in Files to Create.
+
+### Unit Tests
+| Test | File | Validates | Status |
+|------|------|-----------|--------|
+| `TestVerifyRefusesHostNetworkWithAttachment` | `verify_test.go` | V-1 and its message | |
+| `TestVerifyRefusesMemoryMountsAboveMemory` | `verify_test.go` | V-3 | |
+| `TestVerifyRefusesAddressOutsidePrefix` | `verify_test.go` | V-4, prefix | |
+| `TestVerifyRefusesAddressHeldTwice` | `verify_test.go` | V-4, held | |
+| `TestVerifyRefusesOverlappingNetworks` | `verify_test.go` | V-5 | |
+| `TestVerifyRefusesUnequalPortRanges` | `verify_test.go` | V-6 | |
+| `TestVerifyRefusesOnePathTwice` | `verify_test.go` | V-7 | |
+| `TestVerifyAcceptsIsolatedContainer` | `verify_test.go` | The permitted survivor of AC-5 | |
+| `TestVerifierAndConfigureCallOneJudge` | `verify_test.go` | The two doors reach the same function with the same payload | |
+| `TestStateViewNamesTheWaitingImage` | `state_view_test.go` | T-1, `waiting-image` | |
+| `TestStateViewRestartingCarriesCountAndExit` | `state_view_test.go` | T-1, `restarting` | |
+| `TestStateViewStoppedByPolicy` | `state_view_test.go` | T-1, `stopped`, and no finding for exit 0 | |
+| `TestDetailCarriesNoVariableValue` | `command_detail_test.go` | R-3 | |
+| `TestLogAfterAnswersOnlyNewerRows` | `command_log_test.go` | The cursor of the stream | |
+| `TestDoctorImageAbsentNamesTheFetchCommand` | `doctor_test.go` | D-1 row 1 and its fix | |
+| `TestDoctorChecksAreRuntimePhase` | `doctor_test.go` | The phase and the registered codes | |
+| `TestMetricsFollowState` | `metrics_test.go` | M-1 | |
+| `TestContainerListAnswersWhenForked` | `command_list_test.go` | The list over the plugin protocol | |
+| `TestContainerCmdSchemaOwnsItsCommands` | `self_containment_test.go`, in the plugin's schema package | The paths of C-1 are declared by the owner | |
+| `TestContainerSchemaHasNoUnlimitedValue` | `schema_test.go`, in the plugin's schema package | Every limit's range starts above zero | |
+| `TestContainerRootRefusedWithoutTheGate` | The container absent-gate test file of the hub package | V-2, the hint text and the unknown command | |
+
+### Boundary Tests (numeric inputs)
+| Field | Range | Last Valid | Invalid Below | Invalid Above |
+|-------|-------|------------|---------------|---------------|
+| `memory` | 4-1048576 | 1048576 | 3 | 1048577 |
+| `shared-memory` | 1-1048576 | 1048576 | 0 | 1048577 |
+| `cpu` | 1-102400 | 102400 | 0 | 102401 |
+| `process-limit` | 1-32768 | 32768 | 0 | 32769 |
+| `storage` | 1-1048576 | 1048576 | 0 | 1048577 |
+| `stop-timeout` | 1-60 | 60 | 0 | 61 |
+| `user`, `group` | 0-65535 | 65535 | N/A | 65536 |
+| `tmpfs size`, `volume size` | 1-1048576 | 1048576 | 0 | 1048577 |
+| `mtu` | 68-16000 | 16000 | 67 | 16001 |
+| `listen-port`, `container-port`, `mirror port` | 1-65535 | 65535 | 0 | 65536 |
+| `lines` | 1-10000 | 10000 | 0 | 10001 |
+
+### Functional Tests
+| Test | Location | End-User Scenario | Status |
+|------|----------|-------------------|--------|
+| `container-schema-accepts` | the parse suite | A config using every node validates | |
+| `container-refuses-unlimited` | the parse suite | A limit of 0 is refused with the range and the fix line | |
+| `container-refuses-cross-leaf` | the parse suite | Each rule of V-1 refuses its file with its message | |
+| `container-validate-agrees-with-boot` | the plugin suite | The same files get the same verdict at start | |
+| `container-list-running` | the plugin suite | A committed container is listed as running with its digest | |
+| `container-waiting-image` | the plugin suite | A missing image is named in the list and in doctor, and the fetch starts the container | |
+| `container-restart-state` | the plugin suite | A failing entrypoint shows its count and exit status, and the policy `never` shows `stopped` | |
+| `container-failed-disabled` | the plugin suite | The `failed` and `disabled` states, and the refused restart | |
+| `container-log` | the plugin suite | The log rows, `lines`, the stream over SSH and the one-shot sample | |
+| `container-secrets` | the plugin suite | A secret is masked in the config and absent from every answer | |
+| `container-metrics` | the plugin suite | The state metrics follow two containers | |
+| `container-commands` | the ui suite | Completion offers the paths and the container names, and a bare set action is refused with its forms | |
+| `container-editor` | the web suite | The web editor and the admin tree show the root and the commands | |
+
+Each test is drafted in the draft tree of its suite and promoted. The tests that start a container carry `option=needs-linux` and run in the QEMU guest, on the fixture image the runtime child provides.
+
+## Files to Modify
+- `docs/guide/command-reference.md` - the commands of C-1
+- `docs/guide/configuration.md` - the `container` root
+- `docs/guide/monitoring.md` - the metrics of M-1
+- `docs/guide/docker.md` - one line that points to the new guide page for the other meaning of the word
+- `docs/architecture/doctor-and-health-checks.md` - the plugin runtime checks of D-1
+- `ai/INDEX.md` - the keyword row for containers Ze runs
+
+No existing feature file is modified: every feature file of this child is new with the plugin, and is listed below. The schema module, the verifier and the registration are created by the runtime child when it lands first, and this child then edits them.
+
+## Files to Create
+- `internal/plugins/container/yang/ze-container-conf.yang` - the nodes of tables S-1 to S-3. Created by the first child to land. This child adds the nodes marked "operator surface" and corrects any node that differs from the tables
+- `internal/plugins/container/yang/ze-container-cmd.yang` - the command nodes of C-1, with their leaves and both help texts
+- `internal/plugins/container/verify.go` - the judging function, its rules owned here, and its two callers
+- `internal/plugins/container/register.go` - the registration, with the command declarations of this child, the doctor checks and the metrics hook
+- `internal/plugins/container/register_stream.go` - the log stream registration
+- `internal/plugins/container/state_view.go` - the one record per container of T-1
+- `internal/plugins/container/command_list.go`, `internal/plugins/container/command_detail.go`, `internal/plugins/container/command_log.go` - the handlers owned here
+- `internal/plugins/container/doctor.go` - the checks of D-1
+- `internal/plugins/container/metrics.go` - the metrics of M-1
+- `internal/plugins/container/verify_test.go`, `internal/plugins/container/state_view_test.go`, `internal/plugins/container/command_list_test.go`, `internal/plugins/container/command_detail_test.go`, `internal/plugins/container/command_log_test.go`, `internal/plugins/container/doctor_test.go`, `internal/plugins/container/metrics_test.go` - the unit tests
+- `internal/plugins/container/yang/self_containment_test.go`, `internal/plugins/container/yang/schema_test.go` - the schema tests
+- `cmd/ze/hub/build_tag_container_absent_test.go` - the absent-gate test. Created by the runtime child when it lands first, and this child then adds its test
+- `test/parse/container-schema-accepts.ci`, `test/parse/container-refuses-unlimited.ci`, `test/parse/container-refuses-cross-leaf.ci` - the parse tests
+- `test/plugin/container-validate-agrees-with-boot.ci`, `test/plugin/container-list-running.ci`, `test/plugin/container-waiting-image.ci`, `test/plugin/container-restart-state.ci`, `test/plugin/container-failed-disabled.ci`, `test/plugin/container-log.ci`, `test/plugin/container-secrets.ci`, `test/plugin/container-metrics.ci` - the daemon tests
+- `test/ui/container-commands.ci` - completion and refusals
+- `test/web/container-editor.wb` - the browser test
+- `docs/guide/containers.md` - the guide: the model, a first container, the image commands, the states, the mapping from the model operators know to Ze's words
+- `docs/architecture/container/operator-surface.md` - the design page: tables S-1 to S-4, C-1, T-1 and the decisions of this spec
+- `features/containers.md` - the feature declaration
+
+### Integration Checklist
+| Integration Point | Applies? | File / reason |
+|-------------------|----------|---------------|
+| YANG schema (new RPCs/config) | Yes | The two schema modules in Files to Create |
+| YANG validation constraints | Yes | Every leaf of S-1 to S-3 carries a range, length, pattern, enumeration or `zt` type |
+| YANG custom validators | No | By design: a `ze:validate` under a gated root needs an always-on list to name the root. Cross-leaf rules are in the verifier |
+| CLI commands/flags | Yes | Command nodes in the plugin's command module, with proxy registrations in the plugin's package. No flag |
+| CLI grammar (keyword before value) | Yes | Table C-1, proven by `./le cli grammar` |
+| Editor autocomplete | Yes | Automatic for enumerations and the reference. Container names in commands complete from the config |
+| Functional test for new RPC/API | Yes | The daemon tests in Files to Create |
+| Pipe completeness | Yes | Every answer is data with a declared shape and columns |
+| Env var registration | N-A | No leaf under Ze's `environment` root. The workload's variables are the `variable` list |
+| Doctor check for runtime dependencies | N-A | This child adds no file path, socket or kernel dependency. Those belong to the siblings |
+| Doctor code per problem class | Yes | Table D-1, in the plugin's doctor file |
+| Prometheus counters/metrics | Yes | Table M-1 |
+| BGP family surface (new SAFI / capability / attribute) | N-A | No BGP surface |
+
+### Documentation Update Checklist (BLOCKING)
+| # | Question | Applies? | File to update |
+|---|----------|----------|---------------|
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/containers.md` |
+| 2 | Config syntax changed? | Yes | `docs/guide/configuration.md`: the `container` root. The syntax page: No, the grammar is unchanged |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md` |
+| 4 | API/RPC added/changed? | No | `docs/architecture/api/commands.md` describes mechanisms, and none changes |
+| 5 | Plugin added/changed? | No | The plugin is added by the runtime child, which owns that row |
+| 6 | Has a user guide page? | Yes | `docs/guide/containers.md` |
+| 7 | Wire format changed? | No | No wire encoding |
+| 8 | Plugin SDK/protocol changed? | No | The SDK is used as it is |
+| 9 | RFC behavior implemented, changed, or newly proven? | No | No RFC |
+| 10 | Test infrastructure changed? | No | The tests use the existing suites |
+| 11 | Affects daemon comparison? | Yes | The comparison page: the row for running workloads |
+| 12 | Internal architecture changed? | Yes | `docs/architecture/container/operator-surface.md` |
+| 13 | Route metadata keys added/changed? | No | None |
+| 14 | Prometheus counters added/changed? | Yes | `docs/guide/monitoring.md` |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | The status guide and the generated inventories, for the commands |
+| 16 | Any changed source file referenced by existing doc source anchors? | No | Every source file this child changes is new with the feature. Re-derived with `./le spec citation anchors` at implementation |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | `docs/guide/docker.md` is about Ze inside a container: one line points to the new page |
+
+## Implementation Steps
+
+1. **Phase: Wiring (MANDATORY FIRST)** -- declare the command nodes, their proxies and the stream, with handlers that answer an empty payload
+   - Tests: the Wiring Test table
+   - Files: the command module, the registration, the stream registration, the list handler
+   - Verify: each path is reachable on every surface, internal and forked. The wiring tests fail because the answers are empty. A-2 and A-7 are settled here
+2. **Phase: Schema audit** -- compare the module the siblings landed with tables S-1 to S-3, add the nodes owned here, and prove the ranges and help texts
+   - Tests: `container-schema-accepts`, `container-refuses-unlimited`, `TestContainerSchemaHasNoUnlimitedValue`, the boundary table
+   - Files: the config module
+   - Verify: tests fail, then pass. `./le doc yang-contract help-shape` is owed
+3. **Phase: Offline verification** -- the rules of V-1 owned here and the two callers
+   - Tests: the `TestVerify*` tests, `container-refuses-cross-leaf`, `container-validate-agrees-with-boot`
+   - Files: the verifier
+   - Verify: validate and boot agree on every file
+4. **Phase: State view and listings** -- the record of T-1, the list and the detail
+   - Tests: the `TestStateView*` tests, `TestDetailCarriesNoVariableValue`, `container-list-running`, `container-restart-state`, `container-failed-disabled`, `container-secrets`
+   - Files: the state view, the list and detail handlers
+   - Verify: each state is reached and shown
+5. **Phase: Log and stream**
+   - Tests: `TestLogAfterAnswersOnlyNewerRows`, `container-log`
+   - Files: the log handler, the stream registration
+   - Verify: the stream writes new rows, and the one-shot surfaces answer the sample
+6. **Phase: Doctor and metrics**
+   - Tests: the `TestDoctor*` tests, `TestMetricsFollowState`, `container-waiting-image`, `container-metrics`
+   - Files: the doctor and metrics files
+   - Verify: each finding appears with its fix and clears, and `./le arch doctor-coverage check` is owed
+7. **Phase: Absent gate, surfaces and web**
+   - Tests: `TestContainerRootRefusedWithoutTheGate`, `TestEveryCommandOnEverySurface`, `container-commands`, `container-editor`
+   - Files: the absent test
+   - Verify: A-5 is settled by the browser test
+8. **Phase: Pages** -- the guide, the feature declaration, the command reference, the config guide, the design page
+   - Files: the documentation rows above
+   - Verify: `./le doc check all` is owed
+
+### Critical Review Checklist
+
+| Check | What to verify for this spec |
+|-------|------------------------------|
+| Completeness | Every AC-N has an implementation at file:line |
+| Feature completeness | Every user story has a working path, no broken links |
+| Correctness | Every node of the landed module equals its row in S-1 to S-3: name, type, range, default. Every path equals C-1 |
+| Naming | JSON keys are kebab-case and equal the leaf names. No node, help text, page or message names the reference system |
+| Data flow | One judging function behind both doors. One state record behind the list, the detail, doctor and metrics |
+| Operator errors and doctor codes | Every refusal is an `opererr` error with its fix on the last line, every `Warn`/`Error` line and raise names the code the Integration Checklist's doctor row lists, and each doctor check carries `Fix` at the phase that holds its state (`ai/rules/user-facing-errors.md`) |
+| Rule: process boundary | No handler, check or metric reads plugin state from the daemon's process. Each test of a command runs forked too |
+| Rule: compile tag | No always-on file holds the word `container` for this feature: not the validator section list, not the code table, not a help string |
+| Rule: no silent limit | No range admits 0 for a limit, and no default depends on a kernel option the runtime kernel lacks |
+
+### Deliverables Checklist
+
+| Deliverable | Verification method |
+|-------------|---------------------|
+| The schema matches tables S-1 to S-3 | `./le test unit pkg path` over the plugin's schema package |
+| The command set matches C-1 | `./le cli grammar`, then `./le doc yang-contract command-contract` |
+| Validate and boot agree | `./le test functional plugin`, the case `container-validate-agrees-with-boot` |
+| Every command on every surface | `./le test unit pkg path ./cmd/ze/hub/ run TestEveryCommandOnEverySurface` |
+| The absent build refuses the root | The absent test, run without the container tag |
+| The pages exist and their anchors hold | `./le doc check all` |
+
+### Security Review Checklist
+
+| Check | What to look for |
+|-------|-----------------|
+| Input validation | Paths inside the container are absolute with no parent-directory segment. A device path starts with the device directory. An image reference, a registry key and a container name each match a pattern before any code uses them in a path or a URL |
+| Secrets | The registry password and a variable's `secret` are `ze:sensitive`. No answer, finding, metric label or Ze log line carries a variable's value or a credential |
+| Authorization | Every command that changes the system is under an action verb, so the read-only profile refuses it. The log may hold a workload's secrets: it is a read, and the guide says so |
+| Grants | `capability`, `host-namespace` and `device` are the only nodes that widen confinement. Each value is a closed keyword with a help line that says what it grants. No node grants everything |
+| Resource exhaustion | `lines` is capped. The listing sizes are bounded by the config. A fetch stops with its caller |
+| Error leakage | A registry's error text is shown after the plain sentence, never in place of it, and with credentials removed |
+| Set actions | `delete container image all` is the only everything form, and it never removes an image a configured container holds |
+
+### Failure Routing
+
+| Failure | Route To |
+|---------|----------|
+| Compilation error | Fix in the phase that introduced it |
+| Test fails for the wrong reason | Fix the test assertion or setup |
+| Test fails on behavior mismatch | Re-read the source in Current Behavior. If misunderstood → RESEARCH |
+| Lint failure | Fix inline. If architectural → DESIGN |
+| Functional test fails | Check the AC: wrong AC → DESIGN, correct AC → IMPLEMENT |
+| Audit finds a missing AC | Back to the relevant phase and implement |
+| 3 fix attempts failed | STOP. Report all 3 approaches. Ask the user |
+
+## Design Insights
+
+- The reference model's commit-time rewrite and its "zero means unlimited" values share one cause: a slot that holds a keyword or a sentinel beside a real value. Removing the sentinel and letting absence mean "derived" resolves each case with no new node.
+- A gated plugin cannot use `ze:validate`, because the walk that runs it reads an always-on list of section names. Native types, references and the plugin's own verifier are the routes that need no central edit.
+
+## Owned journal rows
+| Class file | Date | Surface (short) |
+|------------|------|-----------------|
+
+## Key Design Decisions
+| Decision | Alternatives Considered | Rationale |
+|----------|------------------------|-----------|
+| The list of containers is named `instance` | Keeping the list named for its key word; `workload` | A list named for its key says nothing about what it holds, and the key word is the commands' selector keyword. `instance` is what an entry is: one running instance of an image |
+| The workload's variables are the `variable` list | Keeping the word of Ze's `environment` root | Ze's `environment` holds Ze's own settings, each owing an env registration. One word for two concepts makes every rule about that root ambiguous |
+| A whole image name with a tag or digest is required | A registry search list with built-in members and an implied tag | A silent default resolves to an image the operator did not name. The registry list then holds settings only |
+| Every command ends in its typed selector (`name`, `digest`, `reference`) | The selector kind before the action word | The streaming registry matches a literal prefix, and the command precedent read has the selector last. One shape serves reads, the stream and actions. The mandatory leaf is the guard, as the verbs page states for `request plugin restart` |
+| The verbs are `create`, `update`, `delete`, `clear` and `request` | `request` for every operation | The verbs page asks the narrower verbs first, and lists commands that took `request` too early as defects |
+| No start and no stop command | A start and a stop under `request` | The config states whether a container runs. A second statement outside it would not survive a reboot |
+| No limit has an "unlimited" value | Keeping zero as the sentinel | The umbrella makes limits mandatory. A range that starts above zero lets the schema produce the refusal and its fix |
+| An absent hardware address means derived, and nothing is written to the config | A keyword in the slot, and a rewrite at commit | Ze changes the operator's config only through the operator's own edits. The derived value is shown in the listing |
+| Volumes are stored by Ze with a size cap | Binding a host path | A host path gives a container the router's own files, and has no cap. The umbrella sizes and stores volumes |
+| Outbound translation is a node, off by default | Always on, as in the reference model | A router routes. A translation nobody configured hides container addresses from the operator's own firewall design |
+| Cross-leaf rules are in one function with two callers | `ze:validate` annotations; rules in the verify callback only | The first needs an always-on list to name a gated root. The second passes offline and fails at start |
+| Leaf-lists and keyed lists are named in the singular | The plural the config-option pattern asks for | Every leaf-list and keyed list of the interface, system and firewall schema is singular, and an operator types those daily |
+
+## Known Limitations
+- A volume belongs to one instance. Two containers cannot share one.
+- The log is a bounded buffer in memory. It does not survive a daemon restart.
+- The health check is not part of this cut. Its Ze form is decided in table S-4, and it needs the mechanism of the shell child.
+- The web UI has no container page beyond the editor and the admin tree.
+
+## Checklist
+
+### Pre-Spec Verification (before the design is presented)
+- [ ] Metadata table present, with a valid Status, Depends, Phase and Updated
+- [ ] `ai/INDEX.md` keyword table checked
+- [ ] An `rfc/short/` summary exists for every RFC referenced
+- [ ] Template format followed: the 🧪 emoji, tables rather than prose, `[ ]` never `[x]`
+- [ ] No code snippets
+- [ ] Files to Modify names feature code, not only tests
+- [ ] Current Behavior and Data Flow sections completed
+- [ ] AC-N rows carry testable assertions
+- [ ] Every assumption has a Basis and a validation method; every failure mode is a risk row
+- [ ] Required Reading carries `→ Decision:` / `→ Constraint:` checkpoints
+- [ ] Integration Checklist marks "CLI grammar" when a command is added, "Doctor check" when a runtime dependency is
+
+### Goal Gates (MUST pass)
+- [ ] AC-1..AC-N all demonstrated
+- [ ] Every user story has a working path and a passing test (N-A when Scope is tooling or docs, which delete that section)
+- [ ] Wiring Test table complete: every row a concrete test name, none deferred
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, the component groups and functional suites `./le repo changed scope print both` reaches. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit, and the full verification is Thomas's release check. A red CI reports gets a fix commit
+- [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
+- [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
+- [ ] Architectural Verification table filled, including registration over hardcoding
+- [ ] Critical Review passes, and `ai/rules/quality.md` is satisfied: lint fixed rather than disabled, the focused check for the changed behavior run once with its OUTPUT PASTED, and any red named with the one-line reason it is scaffolding
+- [ ] Every A-N confirmed or broken, none `unvalidated`
+- [ ] Every item this spec did not do is a spec of its own, named here, in its own bucket
+
+### TDD
+- [ ] Tests written
+- [ ] Tests FAIL (paste output)
+- [ ] Tests PASS (paste output)
+- [ ] Boundary tests for all numeric inputs (or N-A when the feature takes none)
+- [ ] Functional `.ci` tests for end-to-end behavior
+- [ ] Interop tests for protocol features (or N-A with a reason)
+
+### Closure
+- [ ] Append `plan/templates/TEMPLATE-CLOSURE.md` and complete every section in it
+- [ ] `/ze-review` gate clean, recorded via `internal/le/spec/review.go`
+- [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
+- [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
+- [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
