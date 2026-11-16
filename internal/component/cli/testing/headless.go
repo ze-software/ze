@@ -32,23 +32,42 @@ var errCommandTreeIsEmpty = errors.New(
 // same tree `ze cli` builds, so a test asserts on the commands an operator
 // really types.
 //
-// It is built once for the package: BuildCommandTree parses every registered
-// module, and one .et file creates a model for each session it opens.
+// It is built once for each module set yang.DefaultLoader answers
+// (headlessTreeMemo): BuildCommandTree parses every registered module, and one
+// .et file creates a model for each session it opens. It is not built once for
+// the process, because a session can open before the config that declares an
+// external plugin is loaded, and the publish of that plugin's module
+// (yang.PublishExternalModules) changes the set.
 //
 // The tree carries no value hints and no plugin commands. A hint provider reads
 // the live RIB, and a plugin command comes from the live dispatcher. A headless
 // test has neither, so a completion over a value stays empty here.
-var headlessCommandTree = sync.OnceValues(func() (*command.Node, error) {
+func headlessCommandTree() (*command.Node, error) {
 	schema, err := yang.DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("loading the YANG modules for the command tree: %w", err)
 	}
-	tree := yang.BuildCommandTree(schema)
-	if len(tree.Children) == 0 {
+	headlessTreeMemo.mu.Lock()
+	defer headlessTreeMemo.mu.Unlock()
+	if headlessTreeMemo.set != schema {
+		headlessTreeMemo.tree = yang.BuildCommandTree(schema)
+		headlessTreeMemo.set = schema
+	}
+	if len(headlessTreeMemo.tree.Children) == 0 {
 		return nil, errCommandTreeIsEmpty
 	}
-	return tree, nil
-})
+	return headlessTreeMemo.tree, nil
+}
+
+// headlessTreeMemo holds the command tree of one module set: the one
+// yang.DefaultLoader answered when the tree was built. set is nil until the
+// first build, and DefaultLoader never answers a nil set with no error, so the
+// first call always builds. It holds one entry.
+var headlessTreeMemo struct {
+	mu   sync.Mutex
+	set  *yang.Resolved
+	tree *command.Node
+}
 
 // headlessModel wraps the editor Model for headless testing.
 // It provides direct access to model state without TTY rendering.

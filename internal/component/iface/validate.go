@@ -86,6 +86,10 @@ func validateUnitName(name string) error {
 	return naming.ValidateNodeName("unit", name, 64)
 }
 
+// reservedIfaceNamesKeeper names the reserved set in the refusal of a publish
+// that comes too late (yang.PublishExternalModules).
+const reservedIfaceNamesKeeper = "the reserved interface names"
+
 // ValidateIfaceName checks that name is a valid interface name for
 // every platform ze targets. The Linux kernel forbids '/' and NUL in
 // interface names (IFNAMSIZ); we also reject whitespace, "?", ".."
@@ -116,6 +120,12 @@ func ValidateIfaceName(name string) error {
 	if strings.Contains(name, "..") {
 		return fmt.Errorf("iface: name %q contains path traversal sequence", name)
 	}
+	// The reserved set is built once for the life of the process, from the
+	// command tree of the module set. That is correct when the process
+	// published the modules of its external plugins before it validated its
+	// first interface name; recording the set here, on every use, makes a
+	// publish that comes after a use a refusal rather than a stale set.
+	yang.KeepsModuleSet(reservedIfaceNamesKeeper)
 	reservedIfaceNamesOnce.Do(loadReservedIfaceNames)
 	if reservedIfaceNamesErr != nil {
 		return reservedIfaceNamesErr

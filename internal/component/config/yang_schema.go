@@ -132,10 +132,12 @@ func PluginOnlySchema() (*Schema, error) {
 }
 
 // YANGSchema returns the schema built from the embedded modules and the
-// modules every init() registered (LoadRegistered). That input set is fixed
-// once the process has started, and no product code writes to the schema
-// after it is built (ExtendCapability has only a test caller), so the build
-// runs once per module set (yangSchemaCache) and every later call shares it.
+// modules every init() registered (LoadRegistered), joined to the modules of
+// external plugins once the process published them (PublishExternalModules).
+// That input set changes at most once after the process has started, at the
+// publish, and no product code writes to the schema after it is built
+// (ExtendCapability has only a test caller), so the build runs once per module
+// set (yangSchemaCache) and every later call shares it.
 //
 // It was rebuilt on every call until 2026-09-17, and a build resolves every
 // YANG module: about 200 ms. One config commit called it fifteen times, three
@@ -157,8 +159,10 @@ var yangSchemaCache resolvedCache[*Schema]
 // resolvedCache memoizes one value built from yang.DefaultLoader's module set,
 // keyed by the *yang.Resolved it was built from. DefaultLoader answers the
 // same Resolved for as long as the registered set is unchanged and a new one
-// when a test registers a module (yang.RegisterModuleForTest) or restores the
-// set, so the schema, the validator and the completer all see one module set.
+// when the process publishes the modules of its external plugins
+// (PublishExternalModules), or when a test registers a module
+// (yang.RegisterModuleForTest) or restores the set, so the schema, the
+// validator and the completer all see one module set.
 // A plain sync.Once froze whichever set the first caller saw. The key keeps
 // the Resolved it names reachable, so a later Resolved never reuses its
 // address. Safe for concurrent use; concurrent callers wait for one build.
@@ -235,8 +239,15 @@ func loadYANGModules(moduleTexts map[string]string) (*yang.Resolved, error) {
 
 // JoinExternalModules answers the compiled-in module set joined to the modules
 // external plugins declared, or the operator error that names the plugin and
-// the module the join refuses (yang.Join states each refusal). It is the one
-// entry through which a module that no init() registered reaches a schema.
+// the module the join refuses (yang.Join states each refusal). yang.Join is
+// the one producer of a set that holds a module no init() registered. This
+// entry answers that set to its caller alone and changes nothing for any other
+// reader; PublishExternalModules makes it the set of the whole process.
+//
+// The set joined to is the one DefaultLoader answers. After a publish that is
+// the published set, so a module the process already published is refused
+// here as a held name: a caller that holds the declarations of the process's
+// own plugins publishes them, and does not join them a second time.
 //
 // With no external module it answers the Resolved DefaultLoader shares, and
 // resolves nothing: YANGSchema and YANGValidator are cached against that same
@@ -251,6 +262,28 @@ func JoinExternalModules(externals []yang.ExternalModule) (*yang.Resolved, error
 		return nil, fmt.Errorf("resolve YANG modules: %w", err)
 	}
 	return yang.Join(compiled, externals, newValidatorRegistry())
+}
+
+// PublishExternalModules makes the compiled-in module set joined to externals
+// the set every schema reader of this process is answered from, for the rest
+// of the process: yang.DefaultLoader, and with it YANGSchema and YANGValidator,
+// which are cached against the Resolved DefaultLoader answers and so build
+// once more for the joined set. externals is the module each external plugin
+// declared, in config order.
+//
+// It is yang.PublishExternalModules with the validator registry the daemon
+// holds, and that function states the contract: a refusal of the join
+// publishes nothing and comes back unchanged; the set is published at most
+// once per process, a second call with the same modules does nothing and a
+// second call with other modules is refused, naming the restart; with no
+// external module nothing is joined or resolved.
+//
+// The caller MUST publish before the full config is parsed and before the
+// process builds anything it keeps from the schema for its whole life (the
+// plugin server, the gNMI server): a publish that comes after one of those is
+// refused. Safe for concurrent use.
+func PublishExternalModules(externals []yang.ExternalModule) error {
+	return yang.PublishExternalModules(externals, newValidatorRegistry())
 }
 
 // newValidatorRegistry answers the registry of every custom validator the

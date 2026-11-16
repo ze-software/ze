@@ -82,6 +82,12 @@ type commandUIResource struct {
 // the result always reflects current registrations. When yang.DefaultLoader
 // refuses the schema, every call returns that error: metadata built from no
 // schema would publish each command with no parameters and no task support.
+//
+// The YANG-derived metadata is built once and never again. It is built from a
+// plugin server, and pluginserver.NewServer records itself as a keeper of the
+// module set (yang.KeepsModuleSet), so the modules of external plugins can only
+// have been published before the server, and so before this metadata, exists:
+// a publish after NewServer is refused.
 func commandMetaSource(s *pluginserver.Server) func() ([]commandMeta, error) {
 	loadMeta := sync.OnceValues(func() (*yangCommandMeta, error) {
 		schema, err := yangloader.DefaultLoader()

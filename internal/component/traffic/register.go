@@ -17,6 +17,7 @@ import (
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/component/config"
+	"github.com/ze-software/ze/internal/component/config/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	trafficyang "github.com/ze-software/ze/internal/component/traffic/yang"
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -57,16 +58,27 @@ const (
 // Built lazily on first commit/verify to avoid paying YANG load cost at
 // daemon startup. Schema is immutable after build -- safe for concurrent
 // reads from any goroutine.
+//
+// It is built once for the life of the process. That is correct because the
+// gate runs at a commit or a verify, after the process published the modules
+// of its external plugins. validateBackendGate records the schema with
+// yang.KeepsModuleSet on every use, so a publish that came after a use is
+// refused and the schema cannot answer from the set before the publish.
 var (
 	backendGateSchemaOnce sync.Once
 	backendGateSchema     *config.Schema
 	backendGateSchemaErr  error
 )
 
+// backendGateSchemaKeeper names backendGateSchema in the refusal of a publish
+// that comes too late (yang.PublishExternalModules).
+const backendGateSchemaKeeper = "the traffic backend gate schema"
+
 // validateBackendGate runs the ze:backend commit-time feature check for the
 // traffic-control section. Mirrors the iface plugin's gate so daemon commit
 // and offline `ze config validate` emit the same diagnostics.
 func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) error {
+	yang.KeepsModuleSet(backendGateSchemaKeeper)
 	backendGateSchemaOnce.Do(func() {
 		backendGateSchema, backendGateSchemaErr = config.YANGSchema()
 	})

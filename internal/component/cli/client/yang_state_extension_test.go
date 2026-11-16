@@ -3,7 +3,6 @@ package client
 import (
 	"errors"
 	"strings"
-	"sync"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/config/yang"
@@ -25,7 +24,9 @@ const probeHeplModule = `module ze-probe {
 // resetYANGStateForTest drops the cached YANG state, so the next accessor
 // builds it again over the modules registered at that moment.
 func resetYANGStateForTest() {
-	loadYANGState = sync.OnceValues(buildYANGState)
+	yangStateMemo.mu.Lock()
+	defer yangStateMemo.mu.Unlock()
+	yangStateMemo.set, yangStateMemo.state = nil, nil
 }
 
 // TestYANGStateSurfacesLoaderError: when yang.DefaultLoader refuses the module

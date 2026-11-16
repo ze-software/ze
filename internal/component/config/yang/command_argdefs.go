@@ -16,6 +16,14 @@ import (
 // module for its own duration (RegisterModuleForTest) must not leave every
 // later caller in the process refused. sync.OnceValues would keep that
 // failure forever.
+//
+// The definitions can be built before the process publishes the modules of
+// its external plugins: the first route that judges a command's arguments
+// (command.ValidateModelArgs) builds them, and nothing orders that use after
+// the publish. They are therefore not left to the order of the start: a publish
+// that changes the module set builds them again from the joined set
+// (PublishExternalModules, rebuildCommandArgDefs), and when none were built
+// the first use reads the set DefaultLoader answers then.
 var (
 	modelArgDefsMu sync.Mutex
 	modelArgDefs   map[string][]command.ArgDef
@@ -25,6 +33,9 @@ var (
 // dispatch route judges a command against (command.ValidateModelArgs). defs
 // MUST be PathToArgDefs over the schema DefaultLoader answered, which is the
 // model commandArgDefs would otherwise build the definitions from on first use.
+// A caller that seeds from a Resolved it keeps for its own life (the plugin
+// server) MUST record itself with KeepsModuleSet before it asks DefaultLoader,
+// so a publish cannot run between its read and its seed.
 //
 // The daemon seeds it at startup because building them on first use is not
 // free: before DefaultLoader shared one resolution per process, the model was

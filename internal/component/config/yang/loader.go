@@ -37,6 +37,11 @@ import (
 // module set cannot fail differently on a retry. The cache holds one entry,
 // the set of the latest generation asked for.
 //
+// Once the process published the modules its external plugins declared
+// (PublishExternalModules), the answer is the compiled-in set joined to them,
+// for the rest of the process. A caller that took the Resolved before the
+// publish keeps the set it took.
+//
 // The shared Resolved is read-only: the Loader that produced it is
 // unreachable, so no module can be added to it (ErrLoaderResolved guards the
 // loader itself), and Resolve converted every module and submodule to its
@@ -46,26 +51,69 @@ import (
 func DefaultLoader() (*Resolved, error) {
 	defaultSchema.mu.Lock()
 	defer defaultSchema.mu.Unlock()
-	if defaultSchema.resolved && defaultSchema.generation == modulesGeneration {
-		return defaultSchema.schema, defaultSchema.err
+	return moduleSetLocked()
+}
+
+// moduleSetLocked answers the process's module set for the registry's
+// generation, resolving it when the cached entry is of another generation or
+// holds nothing. The caller MUST hold defaultSchema.mu.
+func moduleSetLocked() (*Resolved, error) {
+	entry := &defaultSchema.entry
+	if entry.answers(modulesGeneration) {
+		return entry.schema, entry.err
 	}
-	schema, err := resolveDefault()
-	defaultSchema.generation = modulesGeneration
-	defaultSchema.schema, defaultSchema.err = schema, err
-	defaultSchema.resolved = true
+	schema, err := resolveProcessSet()
+	*entry = moduleSetEntry{resolved: true, generation: modulesGeneration, schema: schema, err: err}
 	return schema, err
 }
 
-// defaultSchema is DefaultLoader's one-entry cache: the answer for the module
-// set of registry generation `generation`. resolved names whether the entry
-// holds an answer at all, because generation 0 is a real generation (a binary
-// that registers no module) and so cannot mean "empty".
+// defaultSchema is DefaultLoader's state: a one-entry cache and the external
+// layer of the process's module set.
 var defaultSchema struct {
-	mu         sync.Mutex
+	mu sync.Mutex
+	// entry is the answer for the module set of one registry generation.
+	entry moduleSetEntry
+	// external is the modules external plugins declared, nil until
+	// PublishExternalModules published them. It is written once per process,
+	// under mu, and a test's ResetPublishedModulesForTest alone clears it.
+	external *publishedModules
+}
+
+// moduleSetEntry is DefaultLoader's cached answer for the module set of
+// registry generation `generation`. resolved names whether the entry holds an
+// answer at all, because generation 0 is a real generation (a binary that
+// registers no module) and so cannot mean "empty". After a publish, schema is
+// the joined set.
+type moduleSetEntry struct {
 	resolved   bool
 	generation uint64
 	schema     *Resolved
 	err        error
+}
+
+// answers reports whether the entry holds the answer for generation.
+func (e *moduleSetEntry) answers(generation uint64) bool {
+	if !e.resolved {
+		return false
+	}
+	return e.generation == generation
+}
+
+// resolveProcessSet resolves the compiled-in modules and joins the published
+// external modules to them. A publish swaps the joined set into the cached
+// entry itself, so this join runs only when the registry's generation changed
+// after a publish, which a test alone does (RegisterModuleForTest). The caller
+// MUST hold defaultSchema.mu.
+func resolveProcessSet() (*Resolved, error) {
+	compiled, err := resolveDefault()
+	if err != nil {
+		return nil, err
+	}
+	published := defaultSchema.external
+	if published == nil {
+		return compiled, nil
+	}
+	return Join(compiled, published.modules, published.validators)
 }
 
 // resolveDefault runs the work DefaultLoader caches: every embedded and

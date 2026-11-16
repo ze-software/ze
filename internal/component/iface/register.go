@@ -18,6 +18,7 @@ import (
 
 	"github.com/ze-software/ze/internal/component/config"
 	"github.com/ze-software/ze/internal/component/config/system"
+	"github.com/ze-software/ze/internal/component/config/yang"
 	ifaceyang "github.com/ze-software/ze/internal/component/iface/yang"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	sysctlevents "github.com/ze-software/ze/internal/component/sysctl/events"
@@ -88,11 +89,21 @@ const vppPlugin = "vpp"
 // Built lazily on first commit/verify to avoid paying YANG load cost at
 // daemon startup. Schema is immutable after build -- safe for concurrent
 // reads from any goroutine.
+//
+// It is built once for the life of the process. That is correct because the
+// gate runs at a commit or a verify, after the process published the modules
+// of its external plugins. validateBackendGate records the schema with
+// yang.KeepsModuleSet on every use, so a publish that came after a use is
+// refused and the schema cannot answer from the set before the publish.
 var (
 	backendGateSchemaOnce sync.Once
 	backendGateSchema     *config.Schema
 	backendGateSchemaErr  error
 )
+
+// backendGateSchemaKeeper names backendGateSchema in the refusal of a publish
+// that comes too late (yang.PublishExternalModules).
+const backendGateSchemaKeeper = "the interface backend gate schema"
 
 // validateBackendGate runs the ze:backend commit-time feature check.
 // sections holds the raw config sections delivered by the SDK; activeBackend
@@ -103,6 +114,7 @@ var (
 // Runs cheaply on the happy path (no annotations trigger -> nil). The
 // schema is built once per daemon lifetime.
 func validateBackendGate(sections []sdk.ConfigSection, activeBackend string) error {
+	yang.KeepsModuleSet(backendGateSchemaKeeper)
 	backendGateSchemaOnce.Do(func() {
 		backendGateSchema, backendGateSchemaErr = config.YANGSchema()
 	})

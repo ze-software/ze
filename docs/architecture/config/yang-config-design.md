@@ -373,7 +373,9 @@ schema at construction, and each used to resolve every module again. The
 cache holds one entry, keyed by the registry generation that `RegisterModule`
 and `RegisterModuleForTest` advance and the latter's restore puts back, so a
 test that registers a module for its own duration is answered over that module
-set. The shared `Resolved` is read-only. Its `Loader` is unreachable and its
+set. Once the process published the modules of its external plugins, the entry
+holds the compiled-in set joined to them ("Publishing the joined set to the
+whole process", below). The shared `Resolved` is read-only. Its `Loader` is unreachable and its
 module set refuses every load (`ErrLoaderResolved`). `Resolve` has already
 converted every module and submodule to its entry tree, so `GetEntry` reads
 goyang's lock-guarded entry cache and concurrent readers are safe. A caller
@@ -398,13 +400,13 @@ operator error that names the plugin and the module. `config.JoinExternalModules
 is its entry: it passes the set `DefaultLoader` shares and the registry
 `RegisterValidators` fills.
 
-The join exists and is tested alone. Nothing in the daemon's start path calls
-it with a plugin's declaration yet, so config under an external plugin's own
-root is still refused at load (`docs/plugin-development/schema.md`, "What works
-today"). Its callers today are `YANGSchemaWithPlugins` and
-`YANGValidatorWithPlugins`, which pass module texts a Go caller holds
-(`loadYANGModules`, with `yang.ExternalModuleFromText` reading each text's name
-and namespace).
+The join and the publish below exist and are tested alone. Nothing in the
+daemon's start path, and no command, calls either with a plugin's declaration
+yet, so config under an external plugin's own root is still refused at load
+(`docs/plugin-development/schema.md`, "What works today"). The join's callers
+today are `YANGSchemaWithPlugins` and `YANGValidatorWithPlugins`, which pass
+module texts a Go caller holds (`loadYANGModules`, with
+`yang.ExternalModuleFromText` reading each text's name and namespace).
 
 That text road has one rule of its own. A text whose module the compiled-in
 set already holds with the same content, byte for byte, is that module: it
@@ -462,6 +464,66 @@ refuses a value as a compiled-in one does.
 <!-- source: internal/component/config/yang/join_test.go -- TestJoinWithNoExternalModuleAnswersTheCompiledSet, TestJoinRefusesModuleNameClash, TestJoinRefusesTopLevelRedefinition -->
 <!-- source: internal/component/config/yang/join.go -- Resolved.HoldsModuleText -->
 <!-- source: internal/component/config/join_schema_test.go -- TestJoinedModuleRangeRefusesOutOfRangeValue, TestModuleTextRoadRefusesRegisteredModule, TestModuleTextRoadLeavesOutIdenticalRegisteredModule, TestJoinExternalModulesRefusesIdenticalCompiledInModule -->
+
+### Publishing the joined set to the whole process
+
+The join answers a set to its caller. `yang.PublishExternalModules` makes that
+set the one `DefaultLoader` answers for the rest of the process, so every
+reader of the schema sees the modules of external plugins: it takes what the
+join takes, calls the join, and swaps the joined `Resolved` into
+`DefaultLoader`'s cached entry. `config.PublishExternalModules` is its entry,
+with the validator registry the daemon holds.
+
+| Call | What happens |
+|------|--------------|
+| The join refuses a module | Nothing is published. The join's error comes back unchanged, `DefaultLoader` keeps answering the compiled-in set, and a later publish is still possible |
+| No external module | Nothing is joined or resolved, and `DefaultLoader` answers the `Resolved` it answered before. The process's set is recorded as holding no external module |
+| A second call with the same modules, in any order | Nothing changes |
+| A second call with other modules | Refused with an operator error whose fix is the restart of `ze`, naming each plugin whose declaration differs |
+
+The set is published at most once per process because a plugin, and so its
+module, changes only when `ze` restarts. `yang.PublishedExternalModules`
+answers the published modules and whether a publish happened, and
+`yang.PublishedModule` compares one declaration (plugin, module name,
+namespace and text) with the published set: not yet published, published,
+changed, or no module of that plugin.
+
+A `Resolved` is immutable, so a reader that already holds one keeps the set it
+took, and a reader that asks after the publish gets the joined set. The swap
+runs under the lock `DefaultLoader` reads under: a concurrent caller gets the
+set before the publish or the set after it. `config.YANGSchema` and
+`config.YANGValidator` are keyed on the `Resolved` (`resolvedCache`), so they
+build once more for the joined set and follow the publish by themselves. With
+no external module they build nothing twice.
+
+A value built from the module set and kept longer than one call follows the
+publish in one of the ways below, and none can answer from the earlier set in
+silence:
+
+| Value | How it follows the publish |
+|-------|----------------------------|
+| `config.YANGSchema`, `config.YANGValidator` | Keyed on the `Resolved` `DefaultLoader` answers |
+| The `cli/client` YANG state (`loadYANGState`) and the headless harness's command tree (`headlessCommandTree`) | Keyed on the `Resolved`: `ze` builds the first one to route its own command line, before the daemon publishes |
+| The command argument definitions (`SeedCommandArgDefs`, `commandArgDefs`) | Built again by the publish, because any route that judges arguments may have built them first |
+| The completer's value schema (`Completer.valueSchema`) | Built from the `Resolved` the completer took at `NewCompleter`, so a completer always judges with the set it completes from |
+| The plugin server's command maps (`pluginserver.NewServer`), the gNMI server's config schema and model list (`gnmi.NewServer`), the three backend gate schemas (`validateBackendGate` in `iface`, `firewall` and `traffic`), the reserved interface names (`iface.ValidateIfaceName`) | Built once for the life of the process, after the publish. Each records itself with `yang.KeepsModuleSet` before it reads the set, and a publish that would change the set after one of them is refused, naming it |
+| The hub's command metadata (`commandMetaSource`) | Built once, from a plugin server, so it exists only after `NewServer` |
+
+The process therefore publishes before it parses the full config and before it
+builds its plugin server. A publish that comes after a recorded value is a Ze
+defect in the order of the start, and the refusal says so.
+<!-- source: internal/component/config/yang/publish.go -- PublishExternalModules, swapModuleSet, PublishedExternalModules, PublishedModule, ModulePublication, KeepsModuleSet, refuseKeptModuleSet, republishRefusal, rebuildCommandArgDefs, ResetPublishedModulesForTest -->
+<!-- source: internal/component/config/yang/loader.go -- DefaultLoader, moduleSetLocked, resolveProcessSet -->
+<!-- source: internal/component/config/yang_schema.go -- PublishExternalModules, JoinExternalModules, resolvedCache -->
+<!-- source: internal/component/config/yang/publish_test.go -- TestPublishMakesDefaultLoaderAnswerTheJoinedSet, TestPublishSameModulesTwiceChangesNothing, TestPublishOtherModulesIsRefusedNamingTheRestart, TestPublishRefusedModulePublishesNothing, TestPublishNoModuleResolvesNothing, TestPublishRefusesAfterAKeeperReadTheSet, TestPublishRebuildsCommandArgDefs -->
+<!-- source: internal/component/config/publish_schema_test.go -- TestPublishedSetReachesSchemaCaches, TestPublishWithNoExternalModuleKeepsTheSharedSet -->
+<!-- source: internal/component/cli/client/main.go -- loadYANGState, yangStateMemo -->
+<!-- source: internal/component/cli/testing/headless.go -- headlessCommandTree, headlessTreeMemo -->
+<!-- source: internal/component/cli/completer_validate.go -- Completer.valueSchema -->
+<!-- source: internal/component/plugin/server/server.go -- NewServer, moduleSetKeeperName -->
+<!-- source: internal/component/gnmi/server.go -- NewServer, moduleSetKeeperName -->
+<!-- source: internal/component/iface/validate.go -- ValidateIfaceName, reservedIfaceNamesKeeper -->
+<!-- source: cmd/ze/hub/command_meta.go -- commandMetaSource -->
 
 ### Registration Pattern
 

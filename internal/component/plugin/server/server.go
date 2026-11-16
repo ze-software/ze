@@ -265,7 +265,15 @@ func (s *Server) wrapHandler(handler Handler, cliCommand string, readOnly bool) 
 	}
 }
 
+// moduleSetKeeperName names, in the refusal of a publish that comes too late
+// (yang.PublishExternalModules), what a Server keeps from the module set.
+const moduleSetKeeperName = "the plugin server's command maps"
+
 // NewServer creates a new API server.
+//
+// It reads the YANG module set once and keeps what it derives from it. In a
+// process that publishes the modules of external plugins
+// (yang.PublishExternalModules), it MUST be called after that publish.
 func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, error) {
 	s := &Server{
 		config:            config,
@@ -311,7 +319,12 @@ func NewServer(config *ServerConfig, reactor plugin.ReactorLifecycle) (*Server, 
 	plugin.RegisterPluginEventTypes()
 	plugin.RegisterPluginSendTypes()
 
-	// Build WireMethod -> CLI path mapping from shared YANG loader.
+	// Build WireMethod -> CLI path mapping from shared YANG loader. The maps
+	// built here, and the argument definitions seeded below, are kept for the
+	// server's life, so the server MUST be built after the process published
+	// the modules of its external plugins: KeepsModuleSet makes a publish that
+	// comes after this point a refusal, where it would leave these maps stale.
+	yang.KeepsModuleSet(moduleSetKeeperName)
 	schema, err := yang.DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("YANG command tree: %w", err)

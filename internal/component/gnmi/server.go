@@ -100,6 +100,12 @@ type Server struct {
 
 // configSchema returns the config schema the path translation reads, built
 // once from the registered YANG. Safe for concurrent use.
+//
+// Built once for the server's life, as the model list is (modelsOnce): both
+// are correct because the daemon builds its gNMI server after it published
+// the modules of its external plugins. NewServer records the server with
+// yang.KeepsModuleSet, so a publish after it is refused and neither can
+// answer from the set before the publish.
 func (s *Server) configSchema() (*zeconfig.Schema, error) {
 	s.schemaOnce.Do(func() {
 		s.schema, s.schemaErr = zeconfig.YANGSchema()
@@ -133,8 +139,17 @@ func (s *Server) Status() ServerStatus {
 	return st
 }
 
+// moduleSetKeeperName names, in the refusal of a publish that comes too late
+// (yang.PublishExternalModules), what a Server keeps from the module set.
+const moduleSetKeeperName = "the gNMI server's config schema and model list"
+
 // NewServer creates a gNMI server.
+//
+// The server builds its config schema and its model list once, on first use,
+// and keeps them. In a process that publishes the modules of external plugins
+// (yang.PublishExternalModules), it MUST be called after that publish.
 func NewServer(cfg Config, tree func() *zeconfig.Tree, sessions *api.ConfigSessionManager, loader func() (*yangloader.Resolved, error), notifier *ChangeNotifier) *Server {
+	yangloader.KeepsModuleSet(moduleSetKeeperName)
 	return &Server{
 		config:   cfg,
 		tree:     tree,

@@ -62,7 +62,11 @@ type Completer struct {
 
 	// values is the config schema over schema, the nodes the value and key
 	// checks judge with (valueSchema), built once on first use so a completer
-	// over its own module set judges with that set's nodes.
+	// over its own module set judges with that set's nodes. Built from
+	// schema, the set this completer took, and never from the set
+	// DefaultLoader answers later: a completer built before the process
+	// published the modules of its external plugins keeps one coherent set,
+	// and a completer built after the publish holds the published one.
 	values     *config.Schema
 	valuesErr  error
 	valuesOnce sync.Once

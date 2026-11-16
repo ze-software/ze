@@ -638,7 +638,7 @@ func allCLIRPCs() []pluginserver.RPCRegistration {
 }
 
 // yangState is everything this package derives from the YANG command schema.
-// It is built once, on first use, by loadYANGState.
+// It is built on first use, once for each module set, by loadYANGState.
 type yangState struct {
 	// wireToPath maps a WireMethod to its shortest CLI dispatch path.
 	wireToPath map[string]string
@@ -657,8 +657,9 @@ type yangState struct {
 	declared map[string]struct{}
 }
 
-// loadYANGState builds the YANG state on first use and caches it with its
-// error. Safe for concurrent use.
+// loadYANGState answers the YANG state of the module set yang.DefaultLoader
+// answers, building it the first time that set is asked for. Safe for
+// concurrent use.
 //
 // It is built on first use, never at package init, for two reasons. A schema
 // yang.DefaultLoader refuses (an extension typo) answers a nil loader plus an
@@ -668,18 +669,44 @@ type yangState struct {
 // order across the binary is undefined, while no dispatch runs before init()
 // completes, so first use is always after the last registration.
 //
-// The error is cached with the state: every accessor returns it, so a caller
-// reports the refused schema rather than answering from an empty one. A test
-// that registers a refused module resets this variable.
-var loadYANGState = sync.OnceValues(buildYANGState)
-
-// buildYANGState loads the YANG schema and derives every map and tree this
-// package serves from it.
-func buildYANGState() (*yangState, error) {
+// A refused schema is an error on every call: yang.DefaultLoader keeps its
+// refusal for the module set it refused, and every accessor returns it, so a
+// caller reports the refused schema rather than answering from an empty one.
+//
+// The state is kept for the module set it was built from (yangStateMemo), not
+// for the life of the process. `ze` builds it to route its own command line
+// (yangVerbs, cmd/ze), which in the daemon is before the modules of external
+// plugins are published (yang.PublishExternalModules). A state built once
+// would then answer without those modules for as long as the daemon runs.
+func loadYANGState() (*yangState, error) {
 	resolved, err := yang.DefaultLoader()
 	if err != nil {
 		return nil, fmt.Errorf("cli: YANG command schema: %w", err)
 	}
+	yangStateMemo.mu.Lock()
+	defer yangStateMemo.mu.Unlock()
+	if yangStateMemo.set != resolved {
+		yangStateMemo.state = buildYANGState(resolved)
+		yangStateMemo.set = resolved
+	}
+	return yangStateMemo.state, nil
+}
+
+// yangStateMemo holds the YANG state of one module set: the one
+// yang.DefaultLoader answered when the state was built. set is nil until the
+// first build, and DefaultLoader never answers a nil set with no error, so the
+// first call always builds. It holds one entry, as DefaultLoader does. The key
+// keeps the Resolved it names reachable, so a later set never reuses its
+// address.
+var yangStateMemo struct {
+	mu    sync.Mutex
+	set   *yang.Resolved
+	state *yangState
+}
+
+// buildYANGState derives from one resolved module set every map and tree this
+// package serves.
+func buildYANGState(resolved *yang.Resolved) *yangState {
 	state := &yangState{
 		wireToPath:   yang.WireMethodToPath(resolved),
 		wireToPaths:  yang.WireMethodToPaths(resolved),
@@ -693,7 +720,7 @@ func buildYANGState() (*yangState, error) {
 			state.declared[cliPath] = struct{}{}
 		}
 	}
-	return state, nil
+	return state
 }
 
 // WireToPath returns the YANG-derived WireMethod to CLI dispatch path mapping.
