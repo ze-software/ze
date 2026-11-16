@@ -22,6 +22,8 @@ func TestEnforceRequire(t *testing.T) {
 		"CONFIG_EXT4_FS=y",
 		"CONFIG_BLK_DEV_INITRD=y",
 		"CONFIG_DEVTMPFS_MOUNT=y",
+		"CONFIG_QUOTA=y",
+		"CONFIG_QFMT_V2=y",
 		"CONFIG_VIRTIO_NET=y",
 		"CONFIG_VIRTIO_BLK=y",
 		"CONFIG_NOT_REQUIRED=m",
@@ -39,6 +41,8 @@ func TestEnforceRequire(t *testing.T) {
 		"CONFIG_EXT4_FS=y",
 		"CONFIG_BLK_DEV_INITRD=y",
 		"CONFIG_DEVTMPFS_MOUNT=y",
+		"CONFIG_QUOTA=y",
+		"CONFIG_QFMT_V2=y",
 		"CONFIG_VIRTIO_NET=m",
 		"# CONFIG_VIRTIO_BLK is not set",
 	}, "\n")+"\n"), 0o644); err != nil {
@@ -63,6 +67,8 @@ func TestEnforceUniversalFloor(t *testing.T) {
 		"CONFIG_EXT4_FS=y",
 		"CONFIG_BLK_DEV_INITRD=y",
 		"CONFIG_DEVTMPFS_MOUNT=y",
+		"CONFIG_QUOTA=y",
+		"CONFIG_QFMT_V2=y",
 		"CONFIG_VIRTIO_NET=y",
 	}, "\n")+"\n"), 0o644); err != nil {
 		t.Fatal(err)
@@ -394,6 +400,8 @@ func TestEnforceHardwareKMSFirmware(t *testing.T) {
 		"CONFIG_EXT4_FS=y",
 		"CONFIG_BLK_DEV_INITRD=y",
 		"CONFIG_DEVTMPFS_MOUNT=y",
+		"CONFIG_QUOTA=y",
+		"CONFIG_QFMT_V2=y",
 		"CONFIG_DRM_I915=y",
 	}, "\n") + "\n"
 	if err := os.WriteFile(config, []byte(base), 0o644); err != nil {

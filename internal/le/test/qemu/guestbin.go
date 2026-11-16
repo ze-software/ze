@@ -9,19 +9,26 @@
 // command carries. A caller that builds them by hand keeps a second list, and
 // the nightly's did: it built ze and ze-stripped only, so every needs-linux run
 // refused at `bin/ze-stripped-flow is missing or not executable` once
-// ze-stripped-flow joined the set.
+// ze-stripped-flow joined the set. It also makes the ext4 fixtures the
+// integration tests of the ext4 and project-quota leaves attach
+// (ext4fixture.Make), because the guest has no mkfs to make them.
 
 package testqemu
 
 import (
+	"context"
 	"errors"
 	"path/filepath"
 
+	"github.com/ze-software/ze/internal/appliance"
+	"github.com/ze-software/ze/internal/appliance/permformat"
+	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 	gotoolchain "github.com/ze-software/ze/internal/le/go/toolchain"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
+	"github.com/ze-software/ze/internal/test/ext4fixture"
 )
 
 // guestBinariesVerb is the host verb that cross-builds the guest daemons.
@@ -32,6 +39,13 @@ const guestBinariesVerb = "guest-binaries"
 // GuestWorkspace. It sits beside the guest le (GuestLeRel), under tmp/.
 func GuestBinariesRel(goarch string) string {
 	return filepath.Join("tmp", "qemu", "linux-"+goarch, "bin")
+}
+
+// GuestFixturesRel answers where `le test qemu guest-binaries` writes the
+// ext4 fixtures, relative to the checkout, beside the daemons. `test qemu all`
+// names the directory to its children in ext4fixture.DirEnv.
+func GuestFixturesRel(goarch string) string {
+	return filepath.Join("tmp", "qemu", "linux-"+goarch, "ext4-fixtures")
 }
 
 // GuestBinaryEnvironment answers the assignments that point `test qemu all`
@@ -48,15 +62,18 @@ func GuestBinaryEnvironment(binaries string) string {
 }
 
 // GuestBinariesReport is what `le test qemu guest-binaries` answers: the
-// directory it built into and the environment a guest command passes.
+// directory it built into, the environment a guest command passes, and the
+// directory of the ext4 fixtures.
 type GuestBinariesReport struct {
 	Arch        string `json:"arch"`
 	Directory   string `json:"directory"`
 	Environment string `json:"environment"`
+	Fixtures    string `json:"fixtures"`
 }
 
 // runGuestBinariesHere cross-builds the guest daemons for GuestArch into
-// GuestBinariesRel of this checkout.
+// GuestBinariesRel of this checkout, and makes the ext4 fixtures into
+// GuestFixturesRel with the host's e2fsprogs.
 func runGuestBinariesHere() (any, int) {
 	root, err := lepath.Root()
 	if err != nil {
@@ -76,5 +93,27 @@ func runGuestBinariesHere() (any, int) {
 			Str(" into ").Str(rel).Str(": ").Err(err).String()))
 		return nil, 1
 	}
-	return GuestBinariesReport{Arch: goarch, Directory: filepath.ToSlash(rel), Environment: GuestBinaryEnvironment(rel)}, 0
+	fixtures := GuestFixturesRel(goarch)
+	formatTool := appliance.ResolveE2FSTool(permformat.FormatTool)
+	quotaTool := appliance.ResolveE2FSTool(permformat.QuotaTool)
+	if err := ext4fixture.Make(context.Background(), filepath.Join(root, fixtures), formatTool, quotaTool); err != nil {
+		var tb textbuf.Buffer
+		problem := tb.Str("cannot make the ext4 fixtures into ").Str(fixtures).String()
+		if errors.Is(err, ext4fixture.ErrToolNotInstalled) {
+			leaction.ReportError(opererr.Wrap(err, problem,
+				"the fixtures are made on this host with its mke2fs and tune2fs, from the e2fsprogs package, and one of them was not found",
+				"./le setup install, then ./le test qemu guest-binaries"))
+			return nil, 1
+		}
+		leaction.ReportError(opererr.Wrap(err, problem,
+			"the fixtures are made on this host with its mke2fs and tune2fs, and one of their steps failed with the output shown",
+			"./le test qemu guest-binaries, once the cause in that output is fixed"))
+		return nil, 1
+	}
+	return GuestBinariesReport{
+		Arch:        goarch,
+		Directory:   filepath.ToSlash(rel),
+		Environment: GuestBinaryEnvironment(rel),
+		Fixtures:    filepath.ToSlash(fixtures),
+	}, 0
 }

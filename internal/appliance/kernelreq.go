@@ -12,12 +12,17 @@ import (
 
 // universalKernelRequirements is the installer floor: the busybox initrd has no
 // modules, so kernel-level DHCP autoconfig, ext4, and the initrd/devtmpfs mount
-// must be built in regardless of profile.
+// must be built in regardless of profile. The installer mounts the persistent
+// partition read-write, and that filesystem carries the ext4 quota feature
+// (internal/appliance/permformat), so quota support and the vfsv1 format of
+// its hidden quota inodes are built in too.
 var universalKernelRequirements = []string{
 	"CONFIG_IP_PNP_DHCP",
 	"CONFIG_EXT4_FS",
 	"CONFIG_BLK_DEV_INITRD",
 	"CONFIG_DEVTMPFS_MOUNT",
+	"CONFIG_QUOTA",
+	"CONFIG_QFMT_V2",
 }
 
 // runtimeKernelRequirements is the runtime floor, giving the runtime kernel the
@@ -57,7 +62,13 @@ var universalKernelRequirements = []string{
 //
 // gokrazy attempts to load pwm-fan before services can disable module loading.
 // Keep fan control built in rather than loading a module before that guard.
+//
+// gokrazy mounts the persistent partition read-write, and its filesystem
+// carries the ext4 quota feature, so the runtime kernel pins quota support and
+// the vfsv1 quota format the same way the installer floor does.
 var runtimeKernelRequirements = []string{
+	"CONFIG_QUOTA",
+	"CONFIG_QFMT_V2",
 	"CONFIG_MODULES",
 	"CONFIG_SENSORS_PWM_FAN",
 	"CONFIG_PPP",

@@ -91,3 +91,8 @@ CONFIG_NF_NAT_SNMP_BASIC
 #   CONFIG_NFT_OBJREF   no longer exist. Upstream folded them into nf_tables, so
 #                       they are absent from the resolved .config rather than
 #                       unset, and a pin on one could never be satisfied.
+
+# The quota support every kernel that mounts the persistent partition needs
+# (internal/appliance/permformat). A =m answer must fail the build.
+CONFIG_QUOTA
+CONFIG_QFMT_V2

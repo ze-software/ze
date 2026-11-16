@@ -1548,10 +1548,52 @@ Never require physical hardware. Use kernel virtual devices:
 | Network interface | dummy or veth | `ip link add ze0 type dummy` in a network namespace |
 | Firewall table | nftables in netns | `nft add table ip ze_test` in an isolated namespace |
 | Kernel routes | netlink in netns | `route.Add(...)` inside `netns.NewNamed(...)` |
-| Block device | loop device on a tmpfs file | `losetup` |
+| Block device | loop device on a tmpfs file | `ext4fixture.Mount` (Go ioctls; Ze's image has no `losetup`) |
 
 A focused VM run that needs an extra Alpine package, such as `strace` or
 `util-linux`, passes it after the `packages` keyword to `./le test qemu run`.
+
+### The ext4 fixtures
+
+The integration tests of `internal/core/ext4fs` and `internal/core/projquota`
+need ext4 filesystems they can enlarge and that differ in the quota feature
+and the stored mount option, and none of them may be the guest's own
+persistent partition. Ze's image carries no `mkfs.ext4` and no `tune2fs`, so
+`./le test qemu guest-binaries` makes them on the host, after the daemons,
+with the host's e2fsprogs and the persistent partition's format definition
+(`internal/appliance/permformat`), into `tmp/qemu/linux-<arch>/ext4-fixtures`.
+It refuses, naming the tool, when e2fsprogs is missing.
+
+| Fixture | Made by |
+|---------|---------|
+| `perm-format.img` | The format step, then the whole quota step: the quota feature with a project quota inode and the stored `prjquota` mount option |
+| `perm-format-no-mount-option.img` | The format step and the quota feature, without the stored option |
+| `perm-format-step-only.img` | The format step alone: the project feature, no quota feature |
+
+Each is 256 MiB, which holds the format's 64 MiB journal. `test qemu all`
+names the directory to every child in `ZE_EXT4_FIXTURES`. A test calls
+`ext4fixture.Mount`, which copies the fixture onto the guest's tmpfs skipping
+zero chunks, attaches the copy to a free loop device (`LOOP_CTL_GET_FREE`,
+`LOOP_CONFIGURE` with autoclear) and mounts it as ext4 with no option string,
+the way gokrazy mounts the persistent partition. With the variable unset the
+test skips, because only a guest run has the fixtures; with it set and the
+fixture missing, or without root, the test fails. `Grow` enlarges the copy and
+tells the loop device (`LOOP_SET_CAPACITY`), which is what a larger disk looks
+like to a filesystem.
+
+The tests write as root, and the quota code lets a writer holding
+`CAP_SYS_RESOURCE` past a hard limit, so the quota tests write from a
+goroutine locked to a thread that has dropped that capability.
+
+A focused run of only these tests needs no whole `test qemu all`: build the two
+test binaries on the host and run them as root through the command carrier,
+with `ZE_EXT4_FIXTURES` naming the fixture directory at its absolute host path.
+<!-- source: internal/test/ext4fixture/fixture.go -- Make, DirEnv, SizeBytes -->
+<!-- source: internal/test/ext4fixture/fixture_linux.go -- Mount, Grow, copySparse -->
+<!-- source: internal/le/test/qemu/guestbin.go -- runGuestBinariesHere, GuestFixturesRel -->
+<!-- source: internal/le/test/qemu/alltests.go -- allTestsRun.environment -->
+<!-- test: internal/core/ext4fs/resize_integration_linux_test.go -- TestOnlineResizeGrowsMountedFilesystem -->
+<!-- test: internal/core/projquota/quota_integration_linux_test.go -- TestProjectQuotaRefusesWritePastLimit, TestProjectQuotaEnableOnMountedFilesystem, TestProjectQuotaStateWithoutFeature, TestProjectQuotaStoredOptionEnforcesAtMount -->
 
 ### Failing ONE Socket Under a Daemon
 

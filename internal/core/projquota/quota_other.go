@@ -11,6 +11,11 @@ func Probe(_ string) Status {
 	return Status{State: StateUnknown, Reason: ErrUnsupported.Error()}
 }
 
+// Enable answers ErrUnsupported.
+func Enable(_ string) error {
+	return ErrUnsupported
+}
+
 // AssignProject answers ErrUnsupported.
 func AssignProject(_ string, _ uint32) error {
 	return ErrUnsupported

@@ -28,7 +28,7 @@ import (
 // fakeInstallerConfig covers every symbol in the test installer registry
 // manifests plus the universal floor, so a fake build's emitted config passes
 // enforcement for any installer profile.
-const fakeInstallerConfig = "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n" +
+const fakeInstallerConfig = "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\nCONFIG_QUOTA=y\nCONFIG_QFMT_V2=y\n" +
 	"CONFIG_VIRTIO_NET=y\nCONFIG_VIRTIO_BLK=y\n" +
 	"CONFIG_EFI=y\nCONFIG_EFI_STUB=y\nCONFIG_FB_EFI=y\nCONFIG_FRAMEBUFFER_CONSOLE=y\n" +
 	"CONFIG_E1000E=y\nCONFIG_IGB=y\nCONFIG_IGC=y\nCONFIG_R8169=y\nCONFIG_SATA_AHCI=y\n" +
@@ -90,7 +90,7 @@ func writeInstallerKernelRegistry(t *testing.T) {
 		}
 	}
 	files := map[string]string{
-		filepath.Join(configDir, "kernel.config"):    "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n",
+		filepath.Join(configDir, "kernel.config"):    "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\nCONFIG_QUOTA=y\nCONFIG_QFMT_V2=y\n",
 		filepath.Join(configDir, "kernel.require"):   "CONFIG_IP_PNP_DHCP\nCONFIG_EXT4_FS\nCONFIG_BLK_DEV_INITRD\nCONFIG_DEVTMPFS_MOUNT\n",
 		filepath.Join(configDir, "qemu.config"):      "CONFIG_VIRTIO_NET=y\nCONFIG_VIRTIO_BLK=y\n",
 		filepath.Join(configDir, "qemu.require"):     "CONFIG_VIRTIO_NET\nCONFIG_VIRTIO_BLK\n",
@@ -125,7 +125,7 @@ func writeRuntimeKernelRegistry(t *testing.T) {
 		}
 	}
 	files := map[string]string{
-		filepath.Join(dir, "kernel.config"):         "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\n",
+		filepath.Join(dir, "kernel.config"):         "CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\nCONFIG_QUOTA=y\nCONFIG_QFMT_V2=y\n",
 		filepath.Join(dir, "kernel.require"):        "CONFIG_IP_PNP_DHCP\nCONFIG_EXT4_FS\nCONFIG_BLK_DEV_INITRD\nCONFIG_DEVTMPFS_MOUNT\n",
 		filepath.Join(dir, "runtime.config"):        completeRuntimeConfig("CONFIG_VETH"),
 		filepath.Join(dir, "runtime.require"):       "CONFIG_MODULES\nCONFIG_VETH\n",
@@ -649,7 +649,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 	t.Setenv("XDG_CACHE_HOME", cacheDir)
 
 	configDir := filepath.Join(dir, kernelInstallerConfigDir)
-	if err := os.WriteFile(filepath.Join(configDir, "kernel.config"), []byte("CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\nCONFIG_IGC=y\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, "kernel.config"), []byte("CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\nCONFIG_QUOTA=y\nCONFIG_QFMT_V2=y\nCONFIG_IGC=y\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
@@ -670,7 +670,7 @@ func TestKernelConfigHashInvalidatesCache(t *testing.T) {
 		t.Fatalf("expected cache hit at %q, got %q", cached1, got)
 	}
 
-	if err := os.WriteFile(filepath.Join(configDir, "kernel.config"), []byte("CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\nCONFIG_IGC=y\nCONFIG_ICE=y\n"), 0o644); err != nil {
+	if err := os.WriteFile(filepath.Join(configDir, "kernel.config"), []byte("CONFIG_IP_PNP_DHCP=y\nCONFIG_EXT4_FS=y\nCONFIG_BLK_DEV_INITRD=y\nCONFIG_DEVTMPFS_MOUNT=y\nCONFIG_QUOTA=y\nCONFIG_QFMT_V2=y\nCONFIG_IGC=y\nCONFIG_ICE=y\n"), 0o644); err != nil {
 		t.Fatal(err)
 	}
 

@@ -122,13 +122,34 @@ reachable but unprovisioned state, gated on `ze.gokrazy.enabled`.
   mount in PXE mode, and in a mount of its own in ISO mode, which has no seed
   to write. A step that fails is logged as an error under the code
   `doctor-storage-not-grown` and the install completes, because the written
-  system is whole on its image-sized partition. The two steps call the
-  `gptdisk` and `ext4fs` leaves, which are not implemented yet: today every
-  install logs that error and the disk keeps the table of the image.
+  system is whole on its image-sized partition. Neither step does its work
+  yet: the `gptdisk` leaf is not implemented, and the installer does not yet
+  read the partition's size that `ext4fs.Resize` needs, so today every install
+  logs that error and the disk keeps the table of the image.
   <!-- source: internal/install/disk/run.go -- growInstalledTable, growInstalledFS, growISOPerm, reportStorageNotGrown -->
   <!-- source: internal/install/disk/grow_linux.go -- sysGrowPermTable, sysGrowPermFS -->
   <!-- source: internal/core/gptdisk/grow.go -- Grow -->
   <!-- source: internal/core/ext4fs/resize_linux.go -- Resize -->
+- Three pieces of the growth and of the size cap exist apart from the install.
+  `internal/appliance/permformat` declares the persistent partition's format
+  once: every filesystem property as `mkfs.ext4` arguments (the feature list
+  starts with `none`, so the build host's defaults never leak in), then a
+  `tune2fs` quota step that adds the quota feature with a project quota inode
+  and stores `prjquota` as the mount option, because gokrazy mounts the
+  partition with no option string. `internal/core/ext4fs` reads the block size
+  and count from a superblock and grows a mounted filesystem with
+  `EXT4_IOC_RESIZE_FS`. `internal/core/projquota` reads whether project quota
+  is enforced (`Q_XGETQSTATV`), turns enforcement on (`Q_QUOTAON`), gives an
+  empty folder a project id that new entries inherit (`FS_IOC_FSSETXATTR`), and
+  sets and reads a project's hard limit and usage (`Q_SETQUOTA`, `Q_GETQUOTA`),
+  each through `quotactl_fd` on a path, so no block device is looked up. A
+  writer holding `CAP_SYS_RESOURCE` is let past a hard limit, so a capped
+  workload runs without it. The kernel behaviour each relies on is proven in
+  the QEMU guest on Ze's runtime kernel, over fixtures of this format
+  (`docs/architecture/testing/qemu-integration.md`, "The ext4 fixtures").
+  <!-- source: internal/appliance/permformat/permformat.go -- FormatArgs, QuotaStepArgs -->
+  <!-- source: internal/core/ext4fs/superblock.go -- ReadSuperblock -->
+  <!-- source: internal/core/projquota/quota_linux.go -- Probe, Enable, AssignProject, SetLimit, ReadUsage -->
 
 ## Constraints the code does not state
 

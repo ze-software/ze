@@ -7,11 +7,16 @@
 package disk
 
 import (
+	"errors"
 	"fmt"
 
-	"github.com/ze-software/ze/internal/core/ext4fs"
 	"github.com/ze-software/ze/internal/core/gptdisk"
 )
+
+// errPermFSGrowthNotWired is what sysGrowPermFS answers until the installer
+// reads the partition's size: ext4fs.Resize needs the block count of the
+// partition, which the installer-growth phase computes.
+var errPermFSGrowthNotWired = errors.New("the installer does not read the partition size for ext4fs.Resize yet")
 
 func init() {
 	growPermTable = sysGrowPermTable
@@ -32,9 +37,9 @@ func sysGrowPermTable(disk string) error {
 // sysGrowPermFS grows the ext4 filesystem mounted on mountPoint to the size of
 // partition, through the ext4 leaf.
 //
-// It is a wiring stub: it makes no kernel call and answers the leaf's
-// not-implemented error. The installer-growth phase reads the partition's size
-// and calls ext4fs.Resize.
+// It is a wiring stub: it makes no kernel call and answers
+// errPermFSGrowthNotWired. The installer-growth phase reads the partition's
+// size and calls ext4fs.Resize.
 func sysGrowPermFS(mountPoint, partition string) error {
-	return fmt.Errorf("grow the filesystem of %s mounted on %s: %w", partition, mountPoint, ext4fs.ErrNotImplemented)
+	return fmt.Errorf("grow the filesystem of %s mounted on %s: %w", partition, mountPoint, errPermFSGrowthNotWired)
 }

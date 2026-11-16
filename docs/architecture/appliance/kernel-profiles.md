@@ -15,8 +15,20 @@ gives a single level of layering, and nesting is rejected.
 resolves the fragments, invokes Docker or QEMU with an explicit `--fragment`
 order, and reads the emitted configuration. The installer target checks the profile's
 manifest and the compiled floor of `IP_PNP_DHCP`, `EXT4_FS`, `BLK_DEV_INITRD`,
-and `DEVTMPFS_MOUNT`. The runtime target checks its runtime floor instead.
+`DEVTMPFS_MOUNT`, `QUOTA` and `QFMT_V2`. The runtime target checks its runtime
+floor instead, which also holds `QUOTA` and `QFMT_V2`.
 These checks verify the artifact's configuration after the build.
+
+Both quota options are built in for every kernel that mounts the persistent
+partition read-write, the installer's and the runtime's: the partition carries
+the ext4 quota feature with a project quota inode
+(`internal/appliance/permformat`), and ext4 is recalled to refuse a read-write
+mount of such a filesystem on a kernel without quota support. `QFMT_V2` is the
+vfsv1 format of ext4's hidden quota inodes, and a module of it would never load.
+`gokrazy/kernel/kernel.config` and `tools/installer-kernel/kernel.config`
+request both, and their two `kernel.require` manifests require them.
+<!-- source: gokrazy/kernel/kernel.config -- CONFIG_QUOTA, CONFIG_QFMT_V2 -->
+<!-- source: tools/installer-kernel/kernel.config -- CONFIG_QUOTA, CONFIG_QFMT_V2 -->
 <!-- source: internal/appliance/cmd_kernel.go -- kernelTargetFor, resolveInstallerKernel, resolveRuntimeKernel -->
 <!-- source: internal/appliance/kernelreq.go -- universalKernelRequirements, runtimeKernelRequirements -->
 

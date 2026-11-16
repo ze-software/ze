@@ -49,6 +49,7 @@ import (
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	testfunctional "github.com/ze-software/ze/internal/le/test/functional"
 	teststressrepro "github.com/ze-software/ze/internal/le/test/stressrepro"
+	"github.com/ze-software/ze/internal/test/ext4fixture"
 	"github.com/ze-software/ze/internal/test/runner"
 )
 
@@ -385,6 +386,12 @@ var integrationPackages = []string{
 	// proves the GTSM listen term in the kernel: a TTL 254 SYN to the protected
 	// port is dropped and a TTL 255 SYN is accepted.
 	"./internal/component/gtsm",
+	// Added 2026-11-16 with resize_integration_linux_test.go and
+	// quota_integration_linux_test.go, which grow a mounted ext4 filesystem
+	// and enforce a project quota on fixtures of the persistent partition's
+	// format, attached through a loop device (ext4fixture.DirEnv).
+	"./internal/core/ext4fs",
+	"./internal/core/projquota",
 }
 
 // excludedIntegrationPackages names a package that holds integration tests and
@@ -841,6 +848,10 @@ func (a *allTestsRun) environment() []string {
 	environ = setEnv(environ, inVMKey, "1")
 	environ = setEnv(environ, repoRootKey, a.Workspace)
 	environ = setEnv(environ, zeBinKey, filepath.Join(a.BinDir, zeName))
+	// The ext4 fixtures guest-binaries made beside the daemons. A test that
+	// finds the variable set and its fixture missing fails, so a run whose
+	// host did not make them is red rather than skipped.
+	environ = setEnv(environ, ext4fixture.DirEnv, filepath.Join(a.Workspace, GuestFixturesRel(GuestArch())))
 	// Every suite runs inside the slot the host's run holds (guestJobParent).
 	environ = setEnv(environ, job.ParentVariable, filepath.Join(a.BinDir, guestJobParentName))
 	if a.LinuxOnly {

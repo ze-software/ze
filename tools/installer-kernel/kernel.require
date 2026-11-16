@@ -2,3 +2,8 @@ CONFIG_IP_PNP_DHCP
 CONFIG_EXT4_FS
 CONFIG_BLK_DEV_INITRD
 CONFIG_DEVTMPFS_MOUNT
+
+# The quota support every kernel that mounts the persistent partition needs
+# (internal/appliance/permformat). A =m answer must fail the build.
+CONFIG_QUOTA
+CONFIG_QFMT_V2
