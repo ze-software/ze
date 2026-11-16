@@ -76,7 +76,6 @@ var unverifiedRuntimeSymbols = map[string]bool{
 	"CONFIG_SP5100_TCO":                     true,
 	"CONFIG_SQUASHFS_XZ":                    true,
 	"CONFIG_TCP_CONG_BBR":                   true,
-	"CONFIG_TMPFS":                          true,
 	"CONFIG_TUN":                            true,
 	"CONFIG_USB_EHCI_HCD":                   true,
 	"CONFIG_USB_STORAGE":                    true,
