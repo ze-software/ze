@@ -67,6 +67,50 @@
   },
   {
     "rid": "RFC4271-5.1.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathExportEdits",
+    "unit-sha": "64abf84c848c1653",
+    "claim-sha": "8bd8a4580583a82b",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+    "producer-sha": "70265ed10bb60ed7",
+    "break": "line 493: \"!facts.isEBGP\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4271-5.1.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathExportEdits",
+    "unit-sha": "64abf84c848c1653",
+    "claim-sha": "9842b5500589bf07",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+    "producer-sha": "70265ed10bb60ed7",
+    "break": "line 493: \"!facts.isEBGP\" -\u003e \"true\""
+  },
+  {
+    "rid": "RFC4271-5.1.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathProtocolEdits",
+    "unit-sha": "8db052bfc8ed269b",
+    "claim-sha": "c1749f12172378d1",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+    "producer-sha": "70265ed10bb60ed7",
+    "break": "line 621: \"facts.isEBGP \u0026\u0026 !mods.IsWithdraw()\" -\u003e \"!mods.IsWithdraw()\""
+  },
+  {
+    "rid": "RFC4271-5.1.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc4271_rs_aspath_export_test.go::TestRouteServerIBGPASPathProtocolEdits",
+    "unit-sha": "8db052bfc8ed269b",
+    "claim-sha": "f534a4971cfbc206",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+    "producer-sha": "70265ed10bb60ed7",
+    "break": "line 621: \"facts.isEBGP \u0026\u0026 !mods.IsWithdraw()\" -\u003e \"false\""
+  },
+  {
+    "rid": "RFC4271-5.1.2-2",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc4271_stale_aspath_export_test.go::TestRFC4271StaleReadvertiseASPathEditsSkipInternalPeers",
     "unit-sha": "276c88916e32ca2a",
