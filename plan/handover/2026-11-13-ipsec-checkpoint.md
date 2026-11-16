@@ -27,6 +27,7 @@ must lose `{partial}` only when the broader obligation is actually proven.
 | `5ab68bb5fa` | Keep an attached childless SA through the owner handoff during an ESP-group reload, with its regression and AC-21 |
 | `afd59c50b9` | Preserve reader failure events and replacement backoff through retirement, with the companion architecture paragraph |
 | `2d25927741` | Hide retained device failures after the final configured peer is removed, with unit coverage and companion documentation |
+| `f457c7c22d` | Land the qualified internal/external peer-removal daemon tests, their test backend and same-answer observer |
 | `671c5926e2` | Correct only the capability-rejection test request's encoding, with independent judgment. No kernel or vendor code changed |
 
 Go caller checkpoint `466ab09fd8` landed 55 files, including the callers,
@@ -212,12 +213,20 @@ the spec's closure review. Their owning state records the removal conditions.
    H41 reported a native boot with dockerd ready. This session's native RFC
    records and interop have not run on that pair.
    No duplicate build or optional public image feature was added.
-4. Repair the interop checker before the remaining live scenarios.
-   `checkESPFormChange` in `internal/le/interoplab/ipsec/checkers.go` accepts
-   an empty Ze SA snapshot and lacks a mid-session form switch. It also assumes
-   three ESP directions and a rising mismatch counter. The new no-Docker
-   snapshot regression confirmed that the checker accepts empty and whitespace
-   state. Its source correction and passing rerun remain owed. Then run the scenarios
+4. Finish the interop checker before the remaining live scenarios.
+   `checkESPFormChange` in `internal/le/interoplab/ipsec/checkers.go` now rejects
+   empty and whitespace-only Ze SA snapshots. Both new missing-state cases
+   first failed (`job-ipsec-form-change-missing-state-red-57ce2d65.log`, native
+   `job-unit-pkg-7f9efd7e.log`). After the one-branch correction, both new
+   top-level tests and their empty/whitespace subtests passed, together with
+   `TestESPFormChangeClaimsThreeDirections`
+   (`job-ipsec-form-change-missing-state-green-3e1c452a.log`). The full checker
+   package also passed, one package OK
+   (`job-ipsec-interop-checker-package-a60a1a60.log`). This small
+   fix is AC-23 of the existing dual-form spec and awaits its separate commit.
+   The checker still lacks a mid-session form switch and still assumes three
+   ESP directions and a rising mismatch counter. AC-2's form-switch and counter
+   repair remain owed. Then run the scenarios
    and their deliberate breaks:
    `mtu-nat-installed-endpoint`, `icmp-error-payload-check` with bare ESP and
    both redwalks, `esp-form-change`, `esp-form-firewall-drop` with its redwalk,

@@ -1496,7 +1496,7 @@ func checkESPFormChange(ctx context.Context, lab *scenarioLab) error {
 		return err
 	}
 	if strings.TrimSpace(zeState) == "" {
-		return nil
+		return fmt.Errorf("ze has no XFRM state to verify the ESP form disagreement")
 	}
 	if !strings.Contains(zeState, "encap type espinudp") {
 		return interoplab.WithSearchedOutput(fmt.Errorf("ze inbound state carries no ESP-in-UDP template; forms do not disagree"), zeState)

@@ -54,6 +54,12 @@ Their paired applicability cuts and 80-run qualifications also completed,
 and both cases were promoted unchanged to `test/ipsec/`. The full affected
 50-case Linux population then passed without failures or skips.
 
+The interop checker's audit also found a false acceptance (AC-23).
+`checkESPFormChange` accepted an empty or whitespace-only Ze XFRM snapshot,
+so it could report success without observing the state it must verify.
+The checker now rejects that missing evidence. This correction does not
+complete AC-2's mid-session form-switch or counter checks.
+
 **The defect, confirmed by an A/B interop run on 2026-11-10.**
 
 1. A Child SA whose IKE SA moved to UDP 4500 is installed with UDP encapsulation
@@ -637,6 +643,20 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 | AC-20 | An external IKE process starts through `ze plugin ike` and its loaded backend supplies the runtime doctor finding | the entrypoint reaches the registered engine over the plugin connection, and the daemon's doctor answer carries that process's cause, fix and severity; a metadata `--features` invocation also succeeds without a hub connection | declaration queries still return registration without starting an engine; the internal engine retains its runtime doctor path |
 | AC-21 | An ESP-group-only reload reaches an attached, established childless IKE SA before its owner is published | the existing channel handoff waits at most `espReloadWait` for the owner to take the request, and owner adoption keeps the session, both IKE SPIs and the responder's inactive creation schedule | a session with neither an owner nor an attached SA refuses immediately; an installed Child SA, pending responder handshake or own Child SA creation in flight still causes a restart |
 | AC-22 | The exact-state-scope probe sends a capability attribute to test the read-only receipt | the request serializes its fixed header before the capability attribute, and the kernel rejects that correctly formed write with `EINVAL`; every positive capability assertion stays unchanged | the preceding malformed request's result supports no kernel-behavior claim; passing independent packet and fragment probes retain their results |
+| AC-23 | The ESP-form interop checker receives missing, populated valid, or populated same-form Ze XFRM state evidence | empty or whitespace-only snapshots return a missing-state error; a populated valid-state control succeeds after the existing template, traffic, counter, direction and SPI checks; a populated same-form control reaches its distinct form-agreement diagnostic | a populated snapshot still proceeds through the existing template, traffic, direction and SPI checks; AC-2's full form-switch and counter repair remain owed |
+
+### AC-23 missing-state checker correction
+
+The new empty and whitespace regression cases both failed against the old
+acceptance branch (`job-ipsec-form-change-missing-state-red-57ce2d65.log`,
+native `job-unit-pkg-7f9efd7e.log`). The one-branch source correction now
+returns a missing-state error. The focused run then passed both new top-level
+tests and both missing-state subtests, plus the existing
+`TestESPFormChangeClaimsThreeDirections`
+(`job-ipsec-form-change-missing-state-green-3e1c452a.log`). The full checker
+package also passed, with one package OK
+(`job-ipsec-interop-checker-package-a60a1a60.log`). Live interop and AC-2's
+form-switch and counter repair remain separate obligations.
 
 ### AC-14 peer-removal proof
 
@@ -790,6 +810,7 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
+| `TestESPFormChangeRejectsMissingZeState`, `TestESPFormChangeAcceptsPresentZeState` | `internal/le/interoplab/ipsec/espform_change_snapshot_test.go` | AC-23: empty and whitespace-only snapshots refuse, while a populated state proceeds through the existing checker | actual missing-state RED followed by focused PASS with both subtests and the existing direction-claim control; full checker package PASS |
 | `TestRFC4301KernelAdvertisesExactStateScope` | `internal/component/ike/engine/rfc4301_state_scope_readback_integration_linux_test.go` | AC-22: correctly ordered fixed header and capability attribute test the existing read-only `EINVAL` rejection, retaining every positive receipt check | corrected probe PASS without skips on the same Ze kernel; independent judgment and native approval recorded |
 | `TestESPGroupReloadWaitsForChildlessOwnerHandoff` | `internal/component/ike/engine/reconcile_childless_handoff_test.go` | AC-21: attached childless SA reaches owner adoption before ownership publication and keeps both SPIs and the responder schedule | actual RED, then race-enabled PASS with four existing refusal/schedule tests and no skips; unchanged functional case PASS |
 | `TestESPFormRewriteProgram` | `espform_program_integration_linux_test.go` | AC-6, IPv4 and IPv6 program variants, through `BPF_PROG_TEST_RUN` (guest-root) | |
@@ -887,6 +908,7 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 From `git status --short` over the spec's paths on 2026-11-12, this spec's files only. **Shared** marks a file that also carries a hunk this spec cannot claim (another session's work, for example the RFC 4301 ICMP and implicit-discard work): commit this spec's hunks of it with `hunks <path> <patch-file>` after judging the rest against HEAD (`ai/rules/git-safety.md`).
 
 Feature code:
+- `internal/le/interoplab/ipsec/checkers.go` - `checkESPFormChange` rejects empty or whitespace-only Ze XFRM snapshots (AC-23).
 - `internal/component/ike/dataplane/espform_linux.go` - the TUN writer replaces the `IPPROTO_RAW` injector; the reader reads the IPv4 header (`ReadMsgIP`) for the TOS; the fast path lifecycle; Watch and Forget decide start and stop under one lock.
 - `internal/component/ike/dataplane/espform.go` - IPv4 header checksum, received TOS, `espFormBareIPv4`, registry comments.
 - `internal/component/ike/dataplane/xfrm_linux.go` (shared) - the IPv6 dual-form refusal as an operator error naming the gap.
@@ -943,6 +965,7 @@ Docs and records:
 - `plan/post-release/features/spec-ike-ipv6-transport.md` - receives AC-8.
 
 ## Files to Create
+- `internal/le/interoplab/ipsec/espform_change_snapshot_test.go` - missing-state regressions and populated-state control for the interop checker (AC-23).
 - `internal/component/ike/engine/reconcile_childless_handoff_test.go` - channel-ordered regression for attached childless SA reload before ownership publication (AC-21).
 - `internal/component/ike/dataplane/espform_program_linux.go` - the rewrite program in `asm.Instructions`.
 - `internal/component/ike/dataplane/espform_fastpath_linux.go` - load, maps, TCX attach per link, link subscription.
