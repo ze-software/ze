@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Remaining firewall and FRR interop; AC-4 scope/kernel implementation and outstanding RFC proofs |
+| Phase | Repair current-namespace nft/link handling and permission diagnostics, then firewall and FRR interop; unchanged AC-4 scope/kernel implementation and 79 RFC renewals |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -59,6 +59,18 @@ The interop checker's audit also found a false acceptance (AC-23).
 so it could report success without observing the state it must verify.
 The checker now rejects that missing evidence. This correction does not
 complete AC-2's mid-session form-switch or counter checks.
+
+The current firewall baseline exposed two more defects in this receive path
+(AC-24 and AC-25). The nft watch and link follower try to enter a namespace
+that is already current, so they fail under the exact daemon capability set,
+which deliberately excludes `CAP_SYS_ADMIN`. Keep namespace capture and socket
+creation pinned, serve a valid captured current namespace without that extra
+entry, and refuse an invalid or unauthorized different target without fallback.
+A valid descriptor zero must still name its explicit target. Preserve worker
+lifetime and teardown. The unreadable-firewall finding must also retain the
+actual permission cause without inferring that every permission error means
+`CAP_NET_ADMIN` is missing. Neither repair broadens the grant or relaxes the
+firewall checker.
 
 **The defect, confirmed by an A/B interop run on 2026-11-10.**
 
@@ -647,6 +659,66 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 | AC-21 | An ESP-group-only reload reaches an attached, established childless IKE SA before its owner is published | the existing channel handoff waits at most `espReloadWait` for the owner to take the request, and owner adoption keeps the session, both IKE SPIs and the responder's inactive creation schedule | a session with neither an owner nor an attached SA refuses immediately; an installed Child SA, pending responder handshake or own Child SA creation in flight still causes a restart |
 | AC-22 | The exact-state-scope probe sends a capability attribute to test the read-only receipt | the request serializes its fixed header before the capability attribute, and the kernel rejects that correctly formed write with `EINVAL`; every positive capability assertion stays unchanged | the preceding malformed request's result supports no kernel-behavior claim; passing independent packet and fragment probes retain their results |
 | AC-23 | The ESP-form interop checker receives missing, populated valid, or populated same-form Ze XFRM state evidence | empty or whitespace-only snapshots return a missing-state error; a populated valid-state control succeeds after the existing template, traffic, counter, direction and SPI checks; a populated same-form control reaches its distinct form-agreement diagnostic | a populated snapshot still proceeds through the existing template, traffic, direction and SPI checks; AC-2's full form-switch and counter repair remain owed |
+| AC-24 | A non-root process holds exactly `privilege.DaemonCapabilities` (`CAP_NET_ADMIN`, `CAP_NET_RAW`, `CAP_NET_BIND_SERVICE`, `CAP_BPF`, without `CAP_SYS_ADMIN`) and captures its current network namespace; additional cases use an unauthorized different target, valid descriptor zero, and invalid or closed handles | the actual nft reader and watch read/watch the captured current namespace, and the fast path starts, follows links and stops successfully. Namespace capture and socket creation stay pinned together. A valid descriptor zero keeps its explicit target meaning. A different target without entry authority and every invalid or closed handle refuse without opening a socket in a fallback namespace. Worker lifetime and teardown remain bounded and sound | the current namespace works without `CAP_SYS_ADMIN`; an authorized different target may be entered through the existing authority check, while a target that cannot be entered remains refused |
+| AC-25 | The unreadable-firewall finding receives a permission cause, including a refused `setns` operation despite an adequate daemon capability grant | the finding retains the original cause, `doctor-ipsec-esp-form-firewall` code, warning severity, restart command and log guidance, and directs the operator to the measured `daemon-capabilities` finding without declaring `CAP_NET_ADMIN` missing from the permission error alone | a measured missing capability may still be reported by its own check; a permission error remains visible with its actual cause and recovery guidance |
+
+### AC-24 and AC-25 current-namespace repair
+
+The clean firewall baseline failed after 1m35s while waiting for the doctor's
+table/term finding (`job-ipsec-firewall-clean-current-c729df7b.log`). Both the
+nft watch and link follower unnecessarily call `setns` for the already-current
+namespace. Independent source/fixture investigation confirmed that the actual
+grant and checker are correct. This failure gives no packet or fault-proof
+credit. The corrected namespace build passed in
+`job-ipsec-namespace-repair-linux-build-f27bbf5c.log`. All eight named parent
+tests then passed without skips in `job-ipsec-namespace-unit-caps-green-59710cd6.log`:
+actual current-namespace reader/watch, valid descriptor zero, different targets
+at ordinary/zero descriptors, closed-high/closed-low handles and real TCX link
+follow/delete/stop. Kernel `c3583fe5` and image `45cb736f9a13fd62`, all zero
+check/command/lab exits, no interruption and stopped VM. Independent namespace
+identity and lifecycle reviews both returned CLEAR; main's formatter passed.
+The existing affected guest population matching
+`^TestESPForm(FastPath|NFTWatch|Firewall|LinkSelection)` also passed without
+skips (`job-ipsec-namespace-fastpath-firewall-population-cedac728.log`), on the
+same kernel/image pair with all zero exits and stopped VM. Both full affected
+host packages passed in `job-ipsec-namespace-repair-packages-a5a9d6ed.log`,
+native `job-unit-pkg-f23601e1.log`: dataplane 2.350s, engine 114.757s.
+Scoped two-package lint is RED, exit 1
+(`job-ipsec-namespace-repair-scoped-lint-f39066c8.log`): Darwin has zero
+findings, Linux integration 11, capability 4 and compile-out 3. All findings
+are outside the current namespace/permission repair files. The known-red list
+below preserves them. The current doc check exited 1
+(`job-ipsec-namespace-repair-doc-check-f119ecea.log`) with 389 existing
+catalog/wiki/gh-pages drift issues. All source references are valid across
+5093 paths and 856 packages; all 3080 digest anchors across 23 digests resolve.
+The stale discovery-index warning was repaired by native index update
+`job-ipsec-namespace-doc-discovery-update-ae12aa2a.log`, which passed and changed
+ignored generated files only. Source checks are complete with these bounded
+known reds; no overall doc/lint-green claim. Lifecycle review still requires
+post-fix clean `esp-form-change` and `icmp-error-payload-check` runs;
+the unchanged seven-run ICMP discrimination sequence keeps its existing credit.
+Live firewall clean/fault/clean and FRR remain owed.
+
+`TestDoctorESPFormFirewallPermissionCauseRetainsUncertainty` produced its own
+RED in `job-ipsec-doctor-permission-cause-red-1535be55.log`, native
+`job-unit-pkg-0751f303.log`: the current message wrongly infers missing
+`CAP_NET_ADMIN` from refused `setns`. After the wording fix, that regression,
+`TestDoctorESPFormFirewallReading` and `TestDoctorESPFormFastPath` passed in
+`job-ipsec-doctor-permission-green-a5623ea2.log`, native
+`job-unit-pkg-f8eb268c.log` (engine 1.496s). These are repairs within this spec,
+with AC-4 and the 79 renewals unchanged; live firewall success is still owed.
+
+Known scoped lint reds outside this repair: dataplane
+`kernel_scope_params_linux_test.go` import grouping,
+`xfrm_forward_default_linux.go` ineffassign/ST1005 and `recording_zetest.go`
+modernize; engine `fragment_boundary_integration_linux_test.go` gocritic/noctx,
+`mh_selector_boundary_integration_linux_test.go`,
+`rfc4301_forward_icmp_integration_linux_test.go` and
+`rfc4301_icmp_return_integration_linux_test.go` gocritic,
+`doctor_forward_default_linux_test.go` modernize, and
+`rfc4301_espform_policy_integration_linux_test.go` unused. No current repair-file
+finding or overall lint-green result is claimed. These unrelated files stay
+with their existing owners.
 
 ### AC-1 native ICMP proof receipt
 
@@ -855,6 +927,9 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
+| Seven real nft namespace/capability cases | `espform_netns_integration_linux_test.go` | AC-24: reader/watch work under the exact unit grant, valid current fd zero works, different targets at ordinary/fd-zero descriptors and closed/closed-low handles refuse without fallback | all seven PASS without skips in `job-ipsec-namespace-unit-caps-green-59710cd6.log` after the corrected Linux build; two independent CLEAR reviews |
+| `TestESPFormFastPathFollowsLinksUnderTheUnitCapabilities` | `espform_fastpath_unit_caps_integration_linux_test.go` | AC-24: real start, initial links, link following and stop under the exact unit grant without `CAP_SYS_ADMIN` | actual TCX follow/delete/stop PASS without skips in the same eight-parent guest population, `job-ipsec-namespace-unit-caps-green-59710cd6.log` |
+| `TestDoctorESPFormFirewallPermissionCauseRetainsUncertainty` | `internal/component/ike/engine/doctor_esp_form_permission_test.go` | AC-25: permission cause remains uncertain while code, warning, restart and log guidance stay intact | own RED `job-ipsec-doctor-permission-cause-red-1535be55.log`, then regression plus two doctor companions PASS in `job-ipsec-doctor-permission-green-a5623ea2.log`; native engine package 1.496s |
 | `TestIPsecPeerFormWiring` | `internal/le/interoplab/ipsec/peerform_wiring_test.go` | AC-2 helper has one image owner, one suite staging entry and the executable COPY | named PASS and all four subtests PASS; five generic staging consumers also PASS in `job-ipsec-peerform-staging-named-green-0958ee3a.log` |
 | Command/action, migration, replay, frame/reply and Linux projection/link tests | `internal/le/interoplab/ipsec/peerform/` `action_test.go`, `migration_test.go`, `replay_test.go`, `frame_test.go`, `reply_test.go`, `projection_linux_test.go`, `link_linux_test.go` | AC-2 helper selects one exact outbound SA, preserves identity/replay state, observes the requested ESP form and matches its probe reply | portable helper package PASS 0.242s in `job-ipsec-peerform-checker-packages-green-2d1ebed9.log`; Linux cross-build PASS and native Linux helper tests PASS without skips in `job-ipsec-peerform-linux-units-dcd7f143.log`, including projection, link, GETSA and migration framing |
 | `TestESPFormSwitchKeepsOneSA`, `TestESPFormSwitchRequiresInitialDisagreement`, `TestESPFormSwitchRejectsAStalledDirection`, `TestESPFormSwitchRejectsInvalidProbeEvidence`, `TestESPFormSwitchRejectsInvalidMigrationEvidence`, `TestESPFormSwitchRejectsARefusedOperation`, `TestESPFormSwitchRejectsUnreadableProbeEvidence`, `TestESPFormSwitchRetainsSafetyChecks`, `TestESPFormSwitchRejectsOutboundOnlyZeTemplate` | `internal/le/interoplab/ipsec/espform_switch_test.go` | AC-2 bare/UDP/bare checker phases retain one SA, verify all four traffic directions and reject missing, outbound-only or inconsistent evidence | outbound-only template regression produced its own RED in `job-ipsec-outbound-template-regression-red-69e830c3.log`; directed-reader correction source review CLEAN, then full checker package PASS 10.829s in `job-ipsec-peerform-checker-packages-green-2d1ebed9.log`, including 12 direction/phase stalls and malformed receipts; old counter-fixture replacement was independently approved |
@@ -952,6 +1027,8 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 | `esp-form-firewall-drop` | `test/interop-ipsec/scenarios/esp-form-firewall-drop/` (`ze.conf`, `swanctl.conf`), checker `checkESPFormFirewallDrop` (`internal/le/interoplab/ipsec/espformfirewall.go`) | strongSwan | AC-13: strongSwan sends bare ESP on a 4500-without-NAT SA, Ze's `drop-esp` term drops it and counts it, the doctor names the blocking table and term; red when `writeGateLocked` writes the open value whatever it is given (`docs/architecture/testing/interop.md`) | |
 
 ## Files to Modify
+- `internal/component/ike/dataplane/espform_firewall_kernel_linux.go`, `espform_fastpath_linux.go` - use the shared current-namespace socket helper for the real nft reader/watch and link follower, with pinned capture/creation and unchanged worker ownership (AC-24).
+- `internal/component/ike/engine/doctor_esp_form_fast_path.go` - preserve the unreadable-firewall cause and recovery guidance without inferring a missing capability from every permission error (AC-25).
 
 From `git status --short` over the spec's paths on 2026-11-12, this spec's files only. **Shared** marks a file that also carries a hunk this spec cannot claim (another session's work, for example the RFC 4301 ICMP and implicit-discard work): commit this spec's hunks of it with `hunks <path> <patch-file>` after judging the rest against HEAD (`ai/rules/git-safety.md`).
 
@@ -992,6 +1069,8 @@ Feature code:
 Not this spec's, though `git status` lists them beside it: `internal/core/diagnostic/codes_plugin_infra.go` and `codes_test.go` (`doctor-config-reload-refused`), `internal/le/interoplab/bgp/check_special.go`, `check_ldp_backoff_clear.go` and `test/interop/scenarios/ldp-backoff-clear-frr/` (LDP), `test/parse/ipsec-icmp-type-selector-refused.ci` (the RFC 4301 ICMP work).
 
 Tests:
+- `internal/component/ike/dataplane/espform_netns_integration_linux_test.go`, `espform_fastpath_unit_caps_integration_linux_test.go` - actual nft and link lifecycle under exact daemon capabilities, explicit descriptor-zero and fail-closed target controls (AC-24).
+- `internal/component/ike/engine/doctor_esp_form_permission_test.go` - permission-diagnosis uncertainty with the existing finding contract intact (AC-25).
 - `internal/component/ike/engine/rfc4301_state_scope_readback_integration_linux_test.go` - serialize the negative capability-write request's fixed header before its attribute, preserving every assertion (AC-22).
 - `internal/component/ike/dataplane/espform_linux_test.go`, `espform_run_linux_test.go`, `espform_test.go`, `recording_shipped_test.go`.
 - `internal/component/ike/dataplane/encap_formchange_integration_linux_test.go`, `encap_dualform_integration_linux_test.go`, `encap_hybrid_integration_linux_test.go`, `xfrm_migrate_integration_linux_test.go`, `xfrm_migrate_linux_test.go`, `xfrm_teardown_integration_linux_test.go` - routed addresses instead of loopback, the IKE bypass, the TOS argument; with `xfrm_state_del_failure_linux_test.go`, the registry read by SPI and local address (review rounds 9 and 10).
@@ -1015,6 +1094,9 @@ Docs and records:
 - `plan/post-release/features/spec-ike-ipv6-transport.md` - receives AC-8.
 
 ## Files to Create
+- `internal/component/ike/dataplane/espform_netns_linux.go` - shared pinned namespace/socket handling; current-target recognition, explicit descriptor-zero identity and refusal without fallback (AC-24).
+- `internal/component/ike/dataplane/espform_netns_integration_linux_test.go`, `espform_fastpath_unit_caps_integration_linux_test.go` - seven actual nft target/capability cases and real start/follow/stop under the exact unit grant (AC-24).
+- `internal/component/ike/engine/doctor_esp_form_permission_test.go` - retain permission-cause uncertainty and the warning/restart/log contract (AC-25).
 - `internal/le/interoplab/ipsec/peerform/` `main.go`, `action.go`, `migration.go`, `replay.go`, `frame.go`, `socket_linux.go`, `socket_other.go`, `probe_linux.go` and their portable/Linux test files - peer-local AC-2 stimulus and independent wire/reply evidence.
 - `internal/le/interoplab/ipsec/peerform_wiring_test.go`, `espform_switch_test.go` - image ownership/staging proof and planned same-SA form-switch checker regressions (AC-2).
 - `internal/le/interoplab/ipsec/espform_change_snapshot_test.go` - missing-state regressions and populated-state control for the interop checker (AC-23).

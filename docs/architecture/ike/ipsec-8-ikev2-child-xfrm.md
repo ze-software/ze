@@ -1724,6 +1724,21 @@ path started in, and the watch joins the nftables multicast group there.
 <!-- source: internal/component/ike/dataplane/espform_firewall_linux.go -- espFormFirewallBlocks, errESPFormRulesetChanged, espFormFirewallWalk, espFormBaseChains, espFormBaseBlocks, espFormJudgeRule, espFormJudgeVerdict, espFormFirstLoad, espFormESPValue, espFormExcludesESP, espFormAcceptsESP, espFormHarmless, espFormLookup, espFormObjref, espFormUnsafe, espFormFirewallSite -->
 <!-- source: internal/component/ike/dataplane/espform_firewall_kernel_linux.go -- espFormKernelReader, openESPFormNFTReader, Generation, espFormGenerationFromMessage, espFormDumpMessage, errESPFormDumpInterrupted, espFormRuleFromMessage, startESPFormNFTWatch, espFormNFTWatch -->
 
+Socket creation and link attachment keep the calling thread pinned while they
+check the captured namespace's device and inode against the current thread's
+namespace. An identity read error fails the operation. A confirmed match avoids
+`setns`, which needs `CAP_SYS_ADMIN` even when the namespace is unchanged.
+A different namespace retains an explicit switch and its permission checks.
+The check validates the captured descriptor before opening another handle, so a
+closed descriptor cannot appear equal after its number is reused. A valid
+namespace at descriptor zero remains explicit: the nftables opener duplicates
+it to a nonzero descriptor when a switch is required, because the socket
+library reserves zero for the current namespace. The duplicate is closed after
+the lasting socket opens, including when opening fails.
+<!-- source: internal/component/ike/dataplane/espform_netns_linux.go -- espFormNetNSCurrent -->
+<!-- source: internal/component/ike/dataplane/espform_firewall_kernel_linux.go -- startESPFormNFTWatch, openESPFormNFTWatchConnection -->
+<!-- source: internal/component/ike/dataplane/espform_fastpath_linux.go -- start, follow -->
+
 The program passes every skb that carries a VLAN tag, out of band
 (`vlan_present`) or in the frame, untouched to the complete path
 (`espFormFastPathInstructions`). `skb_vlan_untag` runs before TCX in
@@ -1938,6 +1953,14 @@ detaches it. The helper is the loader, so the guard exempts it, and the guard
 governs only the helper's namespace.
 
 <!-- source: internal/component/ike/dataplane/unit_capabilities_integration_linux_test.go -- TestESPFormFastPathLoadsUnderTheUnitCapabilities, TestOverrideGuardLoadsUnderTheUnitCapabilities -->
+
+The nftables namespace tests use the same exact capability assertion in a
+non-root subprocess. They open the real reader and watch in the current
+namespace, check valid namespace descriptor zero, and require errors for a
+different namespace and closed descriptors. The reader must observe a table
+created in the helper's private namespace. These checks cover socket creation
+that a successful program load alone does not exercise.
+<!-- source: internal/component/ike/dataplane/espform_netns_integration_linux_test.go -- TestESPFormNFTReaderUnderUnitCapabilities, TestESPFormNFTWatchUnderUnitCapabilities, TestESPFormNFTWatchAcceptsCurrentNamespaceAtDescriptorZero, TestESPFormNFTWatchRefusesDifferentNamespaceUnderUnitCapabilities, TestESPFormNFTWatchRefusesDifferentNamespaceAtDescriptorZero, TestESPFormNFTWatchRefusesClosedNamespace, TestESPFormNFTWatchRefusesClosedLowNamespace -->
 
 ## Policy ownership
 

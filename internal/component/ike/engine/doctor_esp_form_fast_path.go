@@ -703,8 +703,10 @@ func espFormFirewallUnread(cause string) rpc.DoctorCheckDiagnostic {
 	espFormFirewallOffForSafety(&tb, cause)
 	tb.Str(" Nothing reads the ruleset again until ze restarts, or until no Child SA is served " +
 		"in both ESP forms and one is installed again. Restart ze with the command below to " +
-		"read the ruleset and follow its changes again. If the cause is a permission error, ze " +
-		"lacks CAP_NET_ADMIN, and the daemon-capabilities finding names how to grant it. If this " +
+		"read the ruleset and follow its changes again. If the cause is a permission error, " +
+		"check the daemon-capabilities finding for missing declared capabilities such as " +
+		"CAP_NET_ADMIN. The named operation may also be denied by namespace or security policy; " +
+		"a permission error alone does not identify a missing capability. If this " +
 		"finding returns, ").Str(espFormFastPathFixLog).Str(" lists why the ruleset could not be read.")
 	return rpc.DoctorCheckDiagnostic{
 		Code:     diagnostic.CodeDoctorIPsecESPFormFirewall,

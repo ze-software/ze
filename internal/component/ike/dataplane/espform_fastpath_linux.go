@@ -210,6 +210,11 @@ func (f *espFormFastPath) start() {
 		return
 	}
 
+	// Capture the namespace and open both subscriptions on this thread. Passing
+	// Namespace to LinkSubscribeWithOptions would make the library enter even an
+	// identical namespace, which needs a capability the daemon does not hold.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
 	ns, err := netns.Get()
 	if err != nil {
 		coll.Close()
@@ -339,6 +344,10 @@ func (f *espFormFastPath) subscriptionError(done <-chan struct{}) func(error) {
 // naming the namespace rather than trusting the thread's. It serves until the library
 // closes updates after stop closed done.
 //
+// A checked identity match needs no setns: entering even the current namespace
+// would require a capability the daemon does not hold. A different namespace
+// still requires a successful setns before any link is attached.
+//
 // Should the thread fail to enter the namespace, nothing is attached and the gate is
 // never opened: the worker only drains updates until stop.
 func (f *espFormFastPath) follow(updates <-chan netlink.LinkUpdate, done <-chan struct{}, ns netns.NsHandle, events <-chan struct{}, exited chan<- struct{}) {
@@ -348,12 +357,22 @@ func (f *espFormFastPath) follow(updates <-chan netlink.LinkUpdate, done <-chan 
 	// The thread is never unlocked: when this goroutine returns the runtime retires
 	// it, so a thread whose namespace this changed never runs another goroutine.
 	runtime.LockOSThread()
-	if err := netns.Set(ns); err != nil {
-		f.followEnded(fmt.Errorf("enter the network namespace to attach in: %w", err))
+	current, err := espFormNetNSCurrent(ns)
+	if err != nil {
+		f.followEnded(fmt.Errorf("identify the network namespace to attach in: %w", err))
 		for range updates {
 			// Drain until stop, so the library's reader never blocks.
 		}
 		return
+	}
+	if !current {
+		if err := netns.Set(ns); err != nil {
+			f.followEnded(fmt.Errorf("enter the network namespace to attach in: %w", err))
+			for range updates {
+				// Drain until stop, so the library's reader never blocks.
+			}
+			return
+		}
 	}
 	f.serve(updates, events, done, espFormRewatcher{open: espFormRewatchIn(ns), after: time.After, now: time.Now})
 }

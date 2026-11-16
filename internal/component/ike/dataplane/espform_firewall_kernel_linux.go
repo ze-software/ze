@@ -10,6 +10,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"runtime"
 	"sync"
 
 	"github.com/google/nftables"
@@ -647,11 +648,10 @@ type espFormNFTWatch struct {
 // and Close), so a transient socket would leak on every failure the fast path's
 // worker answers by watching again. Close here closes the lasting socket either way.
 func startESPFormNFTWatch(ns netns.NsHandle) (*espFormNFTWatch, <-chan struct{}, error) {
-	opts := []nftables.ConnOption{nftables.AsLasting(), nftables.WithSockOptions(espFormNFTWatchBuffer)}
-	if ns.IsOpen() {
-		opts = append(opts, nftables.WithNetNSFd(int(ns)))
-	}
-	conn, err := nftables.New(opts...)
+	// Keep the checked current namespace through the lasting socket's creation.
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	conn, err := openESPFormNFTWatchConnection(ns)
 	if err != nil {
 		return nil, nil, fmt.Errorf("open an nftables connection to watch the ruleset: %w", err)
 	}
@@ -663,6 +663,40 @@ func startESPFormNFTWatch(ns netns.NsHandle) (*espFormNFTWatch, <-chan struct{},
 	}
 	w := newESPFormNFTWatch(events, func() error { return errors.Join(monitor.Close(), conn.CloseLasting()) })
 	return w, w.signal, nil
+}
+
+// openESPFormNFTWatchConnection opens the lasting socket in ns, or in the current
+// namespace for None. The caller MUST pin its thread through this call.
+// The caller MUST keep ns open through this call when it is not None.
+func openESPFormNFTWatchConnection(ns netns.NsHandle) (*nftables.Conn, error) {
+	opts := []nftables.ConnOption{nftables.AsLasting(), nftables.WithSockOptions(espFormNFTWatchBuffer)}
+	if !ns.IsOpen() {
+		return nftables.New(opts...)
+	}
+	current, err := espFormNetNSCurrent(ns)
+	if err != nil {
+		return nil, err
+	}
+	if current {
+		return nftables.New(opts...)
+	}
+	if ns != 0 {
+		return nftables.New(append(opts, nftables.WithNetNSFd(int(ns)))...)
+	}
+	// The vendor reserves NetNS=0 for the current namespace, but fd 0 is valid.
+	// Keep a positive duplicate until New has opened its AsLasting socket.
+	duplicate, err := unix.FcntlInt(uintptr(ns), unix.F_DUPFD_CLOEXEC, 1)
+	if err != nil {
+		return nil, fmt.Errorf("duplicate network namespace descriptor zero: %w", err)
+	}
+	conn, err := nftables.New(append(opts, nftables.WithNetNSFd(duplicate))...)
+	if closeErr := unix.Close(duplicate); closeErr != nil {
+		if conn != nil {
+			closeErr = errors.Join(closeErr, conn.CloseLasting())
+		}
+		return nil, errors.Join(err, fmt.Errorf("close the duplicated network namespace descriptor: %w", closeErr))
+	}
+	return conn, err
 }
 
 // espFormNFTWatchBuffer is the watch socket's option: it raises the receive buffer to
