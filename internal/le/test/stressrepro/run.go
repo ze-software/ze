@@ -51,6 +51,10 @@ var usageSignatures = []string{
 
 const usageBanner = "\nCommands:\n"
 
+// successfulOutputTailRunes retains a typical selected test's named verdict
+// before trailing warnings without retaining unbounded success transcripts.
+const successfulOutputTailRunes = 64 << 10
+
 // Report records the bounded run and the first reproduction, if one completed.
 type Report struct {
 	Suite       string   `json:"suite"`
@@ -449,7 +453,7 @@ func run(ctx context.Context, root string, opts Options, deps runDependencies) (
 				}
 				cancelBatch()
 			} else {
-				_, _ = io.WriteString(log, outputTail(result.output, 500)+"\n")
+				_, _ = io.WriteString(log, outputTail(result.output, successfulOutputTailRunes)+"\n")
 			}
 		}
 		cancelBatch()

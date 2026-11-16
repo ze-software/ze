@@ -1109,9 +1109,11 @@ stress parallelism does not bypass that test contract.
 <!-- source: internal/le/test/stressrepro/run.go -- harnessArgs -->
 
 By default only a CRASH signature (a panic, a `DATA RACE`, or a runtime error)
-counts as a reproduction, and everything else is discarded down to the last 500
-bytes. An assertion flake exits non-zero with no crash signature, so
-`any-failure` is what keeps its evidence.
+counts as a reproduction. Other invocations retain up to 64 Ki runes of trailing
+output, including any named test verdicts within that bound. An assertion flake
+exits non-zero with no crash signature, so `any-failure` keeps its full failure
+evidence.
+<!-- source: internal/le/test/stressrepro/run.go -- run, successfulOutputTailRunes -->
 
 A no-build reproduction tests the isolated binary set it was given. After
 changing daemon source, run the owning `./le test functional <suite>` action once
