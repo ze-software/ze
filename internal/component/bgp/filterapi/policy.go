@@ -12,7 +12,8 @@ import (
 // Policy is BGP's compiled, immutable policy snapshot: the protocol-neutral
 // chain plus the BGP-only stage binding of each ref. Its zero value is an
 // absent operator policy. Internal filters do not imply presence. The session
-// decides its default (RFC 8212, AcceptsAtEnd).
+// classification decides the import default; the export-specific API also
+// reads the route's engine-derived kind (AcceptsAtEnd, AcceptsExportAtEnd).
 //
 // inProcess runs parallel to the chain's refs: entry i reports that ref i is
 // owned by the engine's loop-detection ingress step. It is nil when no ref is
@@ -257,6 +258,20 @@ func (p Policy) AcceptsAtEnd(external bool) bool {
 		return UnconfiguredAccepts(external) // RFC 8212 Section 3
 	}
 	return p.chain.Final() == policy.FinalAccept
+}
+
+// AcceptsExportAtEnd applies the export final for one engine-classified route.
+// The caller MUST derive kind from authenticated ownership before evaluation
+// and supply the external classification from the same policy snapshot.
+// Unknown provenance fails closed even when an operator final accepts.
+func (p Policy) AcceptsExportAtEnd(external bool, kind ExportKind) bool {
+	if !kind.Known() {
+		return false
+	}
+	if !p.Configured() {
+		return UnconfiguredExportAccepts(external, kind)
+	}
+	return p.AcceptsAtEnd(external)
 }
 
 // UnconfiguredAccepts answers the end disposition of a policy the operator

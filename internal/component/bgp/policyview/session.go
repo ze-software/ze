@@ -48,7 +48,34 @@ func ExportSession(dest, source filterapi.PeerFilterInfo, sourceKnown bool) Sess
 		PeerKnown:   true,
 		Source:      source,
 		SourceKnown: sourceKnown,
+		exporting:   true,
 	}
+}
+
+// WithExportKind supplies the current route's engine-derived authority.
+// The caller MUST derive kind from authenticated ownership before policy runs;
+// sourceKnown alone proves neither a learned route nor a local origin. An
+// import session ignores this export-only context. The receiver is unchanged.
+func (s Session) WithExportKind(kind filterapi.ExportKind) Session {
+	if s.exporting {
+		s.exportKind = kind
+	}
+	return s
+}
+
+// ExportKind answers the authority supplied for this export run, or unknown
+// when none was supplied. It is operational context, never a filter field or
+// metadata a plugin can set.
+func (s Session) ExportKind() filterapi.ExportKind { return s.exportKind }
+
+// UnconfiguredAccepts answers the absent policy default for this route's
+// direction. Import retains its session-only rule; export additionally reads
+// authenticated per-route authority. Compiled chains MUST read this each run.
+func (s Session) UnconfiguredAccepts() bool {
+	if s.exporting {
+		return filterapi.UnconfiguredExportAccepts(s.EBGP, s.exportKind)
+	}
+	return filterapi.UnconfiguredAccepts(s.EBGP)
 }
 
 // sessionFact is one session fact field: how the view answers it from the

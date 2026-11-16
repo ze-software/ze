@@ -71,6 +71,11 @@ type Session struct {
 	// receiving marks a session ImportSession built: the received path fills
 	// every fact of Peer, llgr-advertised included.
 	receiving bool
+	// exporting marks an ExportSession context independently of SourceKnown:
+	// unknown source facts never prove a local origin. exportKind is supplied
+	// separately from authenticated engine ownership for the current route.
+	exporting  bool
+	exportKind filterapi.ExportKind
 }
 
 // View is one route's lazy view during one synchronous chain run.
@@ -135,6 +140,7 @@ func (v *View) Reset(update *wireu.WireUpdate, session Session) {
 // answers ErrNoUpdate instead of reading a buffer the reactor reused.
 func (v *View) Clear() {
 	v.update = nil
+	v.session = Session{}
 	v.run++
 }
 

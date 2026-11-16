@@ -1686,8 +1686,20 @@ allocates nothing), whether the policy therefore requires ingress, and the RFC
 operator policy rejects at exhaustion on EBGP (RFC 8212 Section 3), but
 preserves acceptance on IBGP, including migration-AS sessions. Automatic and
 inactive references do not establish operator policy presence.
+
+The route-aware export API carries the authority separately from source-peer
+facts. `filterapi.ExportKind` distinguishes an ordinary learned winner from
+an admitted local origin or an explicitly owned RS/RR route. Its zero value,
+`ExportUnknown`, grants no authority. `Policy.AcceptsExportAtEnd` rejects
+unknown provenance even under an accepting final; for either known kind a
+configured final governs. `UnconfiguredExportAccepts` keeps the external
+rejection above, and on an internal session accepts only explicit output.
+It reads the session-only default rather than duplicating the external rule.
+The existing `AcceptsAtEnd` entry point retains the session-only behavior;
+import needs no route kind.
 <!-- source: internal/component/policy/chain.go -- Ref, Final, Chain, ExtractChain, ConcatChains, CanonicalName -->
-<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, UnconfiguredAccepts, Policy.InProcess, Policy.WithBoundFilters -->
+<!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd, Policy.AcceptsExportAtEnd, UnconfiguredAccepts, Policy.InProcess, Policy.WithBoundFilters -->
+<!-- source: internal/component/bgp/filterapi/export_kind.go -- ExportKind, ExportKind.Known, UnconfiguredExportAccepts -->
 
 **Auto-inserted members.** A plugin can ask the config loader to insert a
 member into the list of each peer whose config needs it, in a daemon that
@@ -1918,6 +1930,13 @@ an in-process BGP evaluator (`policychain/register.go`).
   on each export rail. A fact the session does not hold answers absent, never
   a zero, and a forked filter receives the facts it declared in `fields`, so
   both transports read one value.
+- **Export authority belongs to one run.** `Session.WithExportKind` supplies
+  engine-derived authority independently of `SourceKnown`; missing source
+  facts cannot stand for a local origin. `Session.UnconfiguredAccepts` reads
+  this context for export and keeps import's session-only default. The kind
+  is operational context rather than a filter field or writable metadata.
+  `View.Reset` replaces it for the next route, and `View.Clear` releases the
+  session context with the UPDATE.
 - **Decoded on first read, borrowed, cached for the run.** A field's value
   points into the received bytes and is valid only during the synchronous
   chain run, because a received UPDATE lives in a reusable read buffer. A run
@@ -1939,6 +1958,7 @@ an in-process BGP evaluator (`policychain/register.go`).
   `originator-id` and `cluster-list` are carried as well.
 
 <!-- source: internal/component/bgp/policyview/view.go -- View, Reset, Clear, Read, Value -->
+<!-- source: internal/component/bgp/policyview/session.go -- ImportSession, ExportSession, Session.WithExportKind, Session.ExportKind, Session.UnconfiguredAccepts -->
 <!-- source: internal/component/bgp/policyview/readers.go -- readPrefix, readOriginAS, requireFourOctet, reconstructedPath -->
 <!-- source: internal/component/bgp/policyview/register.go -- init -->
 <!-- source: internal/component/bgp/config/register.go -- init, the attachment carries and the reader check -->
@@ -3716,6 +3736,18 @@ cannot change a pending candidate's already-prepared identity. This snapshot doe
 not replace the Session's shared settings pointer or freeze live policies.
 <!-- source: internal/component/bgp/reactor/session_negotiate.go -- prepareOpen, openSettingsSnapshot -->
 <!-- source: internal/component/bgp/reactor/session_open_proposal.go -- preparedOpen -->
+
+Reload checks every retained connection's frozen plugin offer, including a
+pending incoming Session and a typed handoff waiting for the next cycle. Those
+identities are captured together under the peer lock and checked after it is
+released. The Session's admitted remote OPEN is visible to this check before
+negotiation advances; a changed capability the remote did not advertise can
+remain. A hidden constructor checks after construction and before takeover,
+and incoming selection checks after any blocking policy callback. A stale
+candidate cannot silently become the selected offer after the reload.
+<!-- source: internal/component/bgp/reactor/incoming_plugin_capabilities.go -- snapshotOpenSessions, reconcilePluginOffers -->
+<!-- source: internal/component/bgp/reactor/session_handlers.go -- validateOpenLocked -->
+<!-- source: internal/component/bgp/reactor/session_open_admission.go -- selectNegotiationEpoch -->
 
 An import-policy change applies to routes received AFTER the swap; it does not
 re-run policy over already-imported routes. An export-final transition also
