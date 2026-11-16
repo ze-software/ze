@@ -76,6 +76,29 @@ is owned by
 <!-- source: internal/component/bgp/plugins/rib/rib_bestchange.go -- publishBestChanges -->
 <!-- source: internal/component/bgp/plugins/rs/server_forward.go -- batchForwardUpdateSkipped -->
 
+### Owner ruling: a learned route needs the recipient's export policy
+
+On 2026-11-16, Thomas chose how a BGP route crosses from one peer to another.
+There is no BGP-to-BGP redistribution mechanism. The explicit decision is the
+recipient's export policy, and it is required on every peer, internal ones
+included: a peer with no configured export policy is sent no route Ze learned
+from another peer.
+
+This narrows the ruling above without reversing it. Best routes pass with no
+route-server plugin, wherever the recipient's export policy accepts them.
+RFC 4271 Section 9.1.3 allows the exclusion, and BIRD has the same default.
+FRR advertises to an internal peer with no policy, so the two disagree and Ze
+takes the explicit side.
+
+This is not implemented yet. Today an unconfigured policy accepts on an
+internal session and rejects on an external one, for every route and every
+writer. Whether the new requirement also binds local announcements and the
+route-server and reflector roles is not ruled: the spec proposes that it binds
+learned routes only, and that proposal is under review.
+<!-- source: internal/component/bgp/filterapi/policy.go -- UnconfiguredAccepts -->
+<!-- source: internal/component/bgp/reactor/rfc8212_warning.go -- RFC8212Absences -->
+<!-- source: plan/release/fixes/spec-bgp-best-route-advertised-to-peers.md -- Q-5 export default -->
+
 ### Owner ruling: local and learned route competition
 
 On 2026-11-16, Thomas answered the choice between configured preferences and
