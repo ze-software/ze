@@ -13,6 +13,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/ze-software/ze/internal/component/command"
 	"github.com/ze-software/ze/internal/component/plugin/conformance"
 	leaction "github.com/ze-software/ze/internal/le/le/action"
 	leroot "github.com/ze-software/ze/internal/le/le/root"
@@ -52,6 +53,17 @@ func TestTheAreaIsRegisteredAtItsPath(t *testing.T) {
 	assert.Equal(t, area, list.Area)
 	require.Len(t, list.Actions, 1)
 	assert.Equal(t, "check", list.Actions[0].Verb)
+}
+
+// TestTheCheckRowsDeclareTheColumnOrderOfTheZeCommand asks whether the area
+// declares, at its own command path, the row order `ze show plugin conformance
+// run` declares, so the two commands print one table.
+func TestTheCheckRowsDeclareTheColumnOrderOfTheZeCommand(t *testing.T) {
+	want := []command.ColumnOrder{{"check", "stage", "verdict", "reason", "fix"}}
+
+	assert.Equal(t, want, command.ColumnsForCommand(leroot.CommandPath(area)))
+	assert.Equal(t, want, command.ColumnsForCommand("show plugin conformance run"),
+		"the ze command declares another order, and the two tables then differ")
 }
 
 // TestTheCheckActionIsHeavyAndTakesRunAndName reads the published action row:

@@ -11,6 +11,9 @@ import (
 	leroot "github.com/ze-software/ze/internal/le/le/root"
 )
 
+// checkColumns is the reading order of one row of the report's checks.
+var checkColumns = command.ColumnOrder{"check", "stage", "verdict", "reason", "fix"}
+
 func init() {
 	leroot.Register(area, leroot.GroupGate, Answer, registry.Meta{
 		Description: "A program started in declare mode behaves as the plugin protocol documents: it writes the Stage 1 declaration line alone, exits 0, and declares what the daemon accepts.",
@@ -29,4 +32,9 @@ func init() {
 	// The answer is one report holding one row set, the checks, so the row
 	// operators act on them rather than being refused.
 	leroot.RegisterShape(area, command.ShapeMap)
+
+	// The rows read in the order `ze show plugin conformance run` declares
+	// (internal/component/plugin/conformance/register.go), so a developer and
+	// an operator read one table.
+	command.RegisterColumns([]string{leroot.CommandPath(area)}, checkColumns)
 }
