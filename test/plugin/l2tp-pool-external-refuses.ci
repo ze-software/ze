@@ -1,0 +1,36 @@
+# Question: can an operator diagnose an external pool and reach its actual
+# runtime refusal over TLS, instead of configuring disconnected child state?
+# A unit cannot prove doctor resolution or the daemon's real child transport.
+# Internal positive control remains test/reload/l2tp-pool-range-reload.ci.
+# Specific refusal output is mandatory; transport/exit failure alone cannot pass.
+
+tmpfs=pool-external.conf:terminator=EOF_CONF
+l2tp {
+    enabled false
+    pool {
+        ipv4 {
+            gateway 10.100.0.1
+            start 10.100.0.10
+            end 10.100.0.10
+        }
+    }
+}
+plugin {
+    external pool-probe {
+        run "ze plugin l2tp-pool --log-level err"
+    }
+}
+EOF_CONF
+
+cmd=foreground:seq=1:exec=ze doctor --json config pool-external.conf:exit=1
+expect=stdout:contains=doctor-plugin-external-unsupported
+expect=stdout:contains=runs l2tp-pool, which works only inside the daemon
+expect=stdout:contains=internal pool-probe { use l2tp-pool; }
+
+cmd=foreground:seq=2:exec=ze start pool-external.conf:timeout=15s
+await=stderr:contains=l2tp-pool cannot run as an external plugin
+expect=stderr:contains=l2tp-pool cannot run as an external plugin
+expect=stderr:contains=daemon's address and prefix handlers
+expect=stderr:contains=doctor-plugin-external-unsupported
+expect=stderr:contains=ze config edit
+reject=stderr:pattern=panic

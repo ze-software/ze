@@ -5,7 +5,9 @@
 package l2tppool
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/netip"
 	"os"
@@ -19,6 +21,7 @@ import (
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
@@ -98,6 +101,7 @@ func init() {
 		YANG:                    yang.ZeL2TPPoolConfYANG,
 		ConfigRoots:             []string{configRootL2TP},
 		InProcessConfigVerifier: verifyPoolConfig,
+		RunsInProcessOnly:       true,
 		RunEngine:               runPlugin,
 		Commands:                commandDecls(),
 		ConfigureEngineLogger: func(loggerName string) {
@@ -383,6 +387,17 @@ func runPlugin(conn net.Conn) int {
 
 	p := sdk.NewWithConn(Name, conn)
 	defer func() { _ = p.Close() }()
+
+	// The daemon calls the handlers registered by init in its own process.
+	// A child can configure only its disconnected copy of poolInstance.
+	if !p.IsInternal() {
+		issue := opererr.New("l2tp-pool cannot run as an external plugin",
+			"A separate process cannot configure the daemon's address and prefix handlers. Replace its external block with plugin { internal l2tp-pool { use l2tp-pool; } }.",
+			"ze config edit")
+		logger().LogAttrs(context.Background(), slog.LevelError, issue.Problem(),
+			issue.LogAttrs(slog.String("code", diagnostic.CodeDoctorPluginExternalUnsupported))...)
+		return 1
+	}
 
 	poolInstance.configTransaction().Register(p)
 	// A plugin the engine removes while the daemon runs withdraws its

@@ -260,6 +260,12 @@ divergence.
 
 ## Pool ownership across reload
 
+The pool handlers and their configured allocator share the daemon's memory.
+Automatic loading and explicit internal placement use that same allocator.
+An external pool process is refused before configuration callbacks or SDK
+declaration, because its separate allocator cannot serve the daemon's handlers.
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- init, runPlugin -->
+
 Verification distinguishes removal from malformed input before it constructs
 pool descriptions. An absent `l2tp` root or `pool` block removes the configured
 pools. Empty root and pool objects also remove the pools; empty named lists

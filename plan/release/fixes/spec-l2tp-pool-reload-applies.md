@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | plugin |
 | Priority | P1 |
 | Release reason | Shipped defect: a reload that edits `l2tp pool` reports success and changes nothing, and a RADIUS-assigned address inside a pool range can be handed to a second subscriber |
@@ -20,43 +20,42 @@ One-off work admission: the owner answered "Go." after being asked to approve
 `ZE_SPEC_WIP_CAP=16` for this spec on 2026-11-15. This authorizes its claim
 above the normal cap of 12; it does not change the standing cap.
 
-## Blocker
+Review continuation authorization: the owner answered "ok run the six" and
+"and seven if you need" on 2026-11-16. Reviews six and seven are authorized
+for this spec if needed; this grants no further rounds. The external-mode
+reproduction and source fix precede the next independent review.
 
-Independent closure round five found a plausible process-boundary defect in
-explicit external pool mode. `pool/register.go` `runPlugin` configures its
+## Closure status
+
+Independent closure round five found a process-boundary defect in explicit
+external pool mode, reproduced through the daemon on 2026-11-16.
+`pool/register.go` `runPlugin` configures its
 process-local allocator, while `subscriber/handler_registry.go` `GetPoolHandler`
 returns the daemon's local callback. `server.go` `hasConfiguredPlugin` suppresses
-the internal autoload for `run ze plugin l2tp-pool`. The provider declares no
-in-process restriction and does not refuse external mode. See the Review Gate
-diagnosis. Main must reproduce this through the daemon, implement the chosen
-source fix, and obtain authorization for the next independent pass. Round six
-has not been authorized. No CLEAN artifact or closure commit is prepared.
+the internal autoload for `run ze plugin l2tp-pool`. The registration and early
+runtime guard are now implemented and their focused proof passed. Main observed
+both daemon mode cases pass, the full pool package pass under the race detector,
+and host/Linux scoped lint report no issues. Both cases also passed all 80 stress
+invocations before promotion. Independent review six and the remaining final
+checks are in progress. The owner authorized round six and, if needed, seven.
+No CLEAN artifact or closure commit is prepared.
 
 ## Publication dependency
 
-The remaining implementation commit depends on the active PPP primitive work.
-`internal/component/l2tp/ppp/start_session.go` (`StartSession`) now transfers
-explicit frame and data-plane owners, and the migrated admission test uses
-that API. `internal/component/l2tp/pppoe/subsystem_access.go`
-(`prepareAccessConfiguration`) refuses interface indices that the PPP routing
-key cannot represent. Those producers and their callers are not yet committed.
-The pool identity change must land with a coherent producer checkpoint and
-the coupled metadata API, callers, tests and RFC records.
+The coupled PPP producer checkpoint landed in
+`59f67661dbe0c82174b54f47a1f291fe615f6010`, including the pool runtime,
+canonical metadata API and callers, tests and RFC proof records. Validation
+already landed in `ea14ad498d`. The publication dependency is cleared; this
+spec was deliberately excluded from the shared producer commit and remains
+open for the external-mode correction and closure.
 
-The pool implementation is written. Its scoped race tests, eight Linux
-lifetime tests on Ze's system, validation counterfactuals and final daemon
-reload regression passed. Validation landed in `ea14ad498d`. The remaining
-source, documentation and proof records stay in the shared checkout; the
-active PPP owners have agreed to assemble the coupled commit. No push is
-authorized.
-
-The exact coupled commit scope is now available and its approval checks are
-complete. The independent closure review can read the stable, tested
-candidate while that commit is published. Closing commits still wait for the
-producer checkpoint: inspect what it carried and commit any remaining owned
-changes before removing this spec. The closure review is round five; no sixth
-round has been authorized. Detailed evidence and scope provenance remain in
-the spec's current session state.
+The earlier scoped race tests, eight Linux lifetime tests on Ze's system,
+validation counterfactuals and daemon reload regression passed. Their scope
+and source provenance remain in the current session state. The external-mode
+fix now has focused unit, daemon, race, lint and stress evidence. The owner
+authorized review six and, if needed, seven. Round six is in progress; the
+post-guard autoload control, affected consumer checks and final RFC check remain
+with the main thread. No push is authorized.
 
 ## Task
 
@@ -118,6 +117,12 @@ Goal: a committed pool edit is installed by the reload that commits it, live
 subscribers keep their addresses across it, no address is held by two
 subscribers at once, an address whose answer reached no session returns to
 its pool, and verify refuses a pool the plugin cannot serve exactly.
+
+The process-mode correction also refuses an explicit external pool before
+configuration or SDK declaration. Its handlers and allocator share the
+daemon's memory, so automatic loading and explicit internal declarations
+remain permitted. The existing doctor check must name an external alias and
+its internal replacement before the operator starts the daemon (AC-22).
 
 The same selected-pool path must serve a named-only IPv4 configuration.
 `handle` currently refuses a missing default pool before reading RADIUS
@@ -192,6 +197,7 @@ sections above already decided.
 | Session-down release | `internal/component/l2tp/plugins/pool/register.go` `onSessionDown`, `sessionAddrs` | Releases the address the session record names when `subevents.SessionDown` arrives | Extends: the carry rewrites the record's pool; an undeliverable answer is released by the same release path |
 | Pool drains | `internal/component/l2tp/drain.go` `startPoolDrain`, `pppoe/drain.go` `startPPPoEPoolDrain` | Hand the handler's answer to `d.IPResponse` and log a failure | Extends: a failed delivery releases the allocation; the lifetime check stays with `spec-l2tp-session-identity-and-publish-stall` |
 | Range parse | `register.go` `parseIPv4Pool` | Refuses an unordered range and a gateway inside it | Extends: the overlap, size, network and broadcast, and DNS-family refusals join it, in verify |
+| Process-mode admission and diagnosis | `sdk.Plugin.IsInternal`, `registry.Registration.RunsInProcessOnly`, `doctor/check_external.go` `checkExternalInProcess` | Distinguishes a bridged internal connection and diagnoses a configured external provider that needs daemon state | Extends: the pool declares its existing daemon-local handler requirement and refuses an external connection before ConfigTx registration |
 | accel-ppp reload reconciliation | accel-ppp PR #318 | Rebuilds pools from live sessions on reload | Followed for the carry (Design Insights) |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
@@ -277,6 +283,8 @@ which this status change does not alter.
 |-------------|---|--------------|------|
 | SIGHUP after widening the default range and adding a named pool | → | `ConfigTx` verify and apply in `l2tp-pool` | `test/reload/l2tp-pool-range-reload.ci` |
 | RADIUS Access-Accept with a Framed-IP-Address inside the range | → | `handle` reserves the bit | `TestPoolRADIUSAddressInRangeIsReserved` |
+| An external alias starts the pool over the daemon's TLS transport | → | `checkExternalInProcess` diagnoses the alias and `runPlugin` refuses before configuration | `test/plugin/l2tp-pool-external-refuses.ci` after draft proof and promotion |
+| An explicit internal pool replaces automatic loading | → | Its configuration and registered allocation handlers share daemon state across reload | `test/plugin/l2tp-pool-internal-reloads.ci` after draft proof and promotion |
 
 ## Acceptance Criteria
 | AC ID | Input / Condition | Expected Behavior |
@@ -302,6 +310,7 @@ which this status change does not alter.
 | AC-19 | Only a named IPv4 pool exists, and RADIUS Framed-Pool selects it | the subscriber receives that pool's address, gateway and DNS; a request selecting no pool remains refused because no default pool exists |
 | AC-20 | L2TP and PPPoE subscribers have equal numeric PPP driver pairs | distinct canonical subscriber IDs retain distinct allocations, tokens, profiles and usernames; reload, rollback and cleanup of either subscriber preserve the other; PPPoE teardown cannot release the equal pair's L2TP-only prefix |
 | AC-21 | A production NAS authorization or pool request lacks its canonical subscriber ID | the handler or transport drain refuses it before provider selection, realm relay or subscriber state changes, names the missing identity and reports the existing internal-defect doctor code; requests with valid opaque identities remain usable |
+| AC-22 | An explicit external block runs the pool, including under an alias | doctor names the unsupported mode and alias-preserving internal replacement under `doctor-plugin-external-unsupported`; runtime refuses before configuration or SDK declaration with the reason and correction command. Automatic loading and explicit internal mode still configure and allocate because the handlers share daemon state |
 
 ## Canonical subscriber identity correction
 
@@ -380,6 +389,8 @@ omission. No compatibility namespace, successor generation or epoch is added.
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
 | `TestPoolConfigTxAppliesReloadedRanges` | `internal/component/l2tp/plugins/pool/config_tx_test.go` | AC-1, AC-2 through verify then apply | |
+| `TestPoolExternalRefusesBeforeDeclaration` | `internal/component/l2tp/plugins/pool/external_mode_test.go` | AC-22: external refusal returns before any SDK declaration write, with the operator reason, doctor code and correction command | Main observed RED before the guard, then named count-run PASS and full pool race PASS; zero SDK writes and complete refusal asserted |
+| `TestPoolInternalReachesDeclaration` | same | AC-22: a real bridged connection passes the mode guard and attempts SDK declaration without the external refusal; daemon controls separately prove usable allocation | Named count-run PASS and full pool race PASS; both guard outcomes measured |
 | `TestPoolReloadCarriesLiveAllocations` | same | AC-3: IPv4 and IPv6 allocations marked in the new pools; allocation after apply skips them | |
 | `TestPoolReloadOrphanKeepsAddress` | same | AC-4 | |
 | `TestPoolReloadCarriedAddressReleasedOnSessionDown` | same | AC-5, R-2 | |
@@ -437,6 +448,8 @@ omission. No compatibility namespace, successor generation or epoch is added.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `l2tp-pool-range-reload` | `test/draft/reload/l2tp-pool-range-reload.ci`, then `test/reload/l2tp-pool-range-reload.ci` after stress proof | AC-1/2/3: allocate the boot address, widen the default pool by real SIGHUP, require the new total and added address, then exact named IPv4/IPv6 map fields and reservations. AC-20: allocate a distinct PPPoE address under the L2TP owner's exact numeric pair, widen the named pool by another SIGHUP, and require either real subscriber-bus teardown to preserve the other owner's address and sole reservation; final release leaves zero named IPv4 reservations. The old apply no-op fails runtime totals, and tuple-keyed caching fails the distinct-address assertion. This portable proof makes no wire/kernel claim | |
+| `l2tp-pool-external-refuses` | `test/plugin/l2tp-pool-external-refuses.ci` | AC-22: doctor resolves an external alias to the pool, names the internal replacement, and actual TLS startup emits the pool-specific refusal before configuration | Declaration-only runtime RED, then named PASS and 80 stress passes; promoted unchanged |
+| `l2tp-pool-internal-reloads` | `test/plugin/l2tp-pool-internal-reloads.ci` | AC-22: explicit internal placement shares the running allocator and preserves the complete existing reload, named-pool and transport-identity sequence. The unchanged range-reload test separately proves automatic loading | Named PASS and 80 stress passes; promoted unchanged |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
@@ -465,6 +478,9 @@ omission. No compatibility namespace, successor generation or epoch is added.
 - `docs/guide/configuration.md`, `docs/guide/plugins.md`, `docs/architecture/l2tp/subscriber-session-model.md`, `docs/architecture/l2tp/bng-1-radius-attributes.md`, `docs/research/l2tpv2-ze-integration.md`, `docs/functional-tests.md` - behavior, identity boundary and portable proof
 
 ## Files to Create
+- `internal/component/l2tp/plugins/pool/external_mode_test.go` - early process-mode refusal regression
+- `test/plugin/l2tp-pool-external-refuses.ci` - real TLS startup and doctor alias regression, drafted and stressed before promotion
+- `test/plugin/l2tp-pool-internal-reloads.ci` - explicit internal-placement survivor through real allocation and reload, drafted and stressed before promotion
 - `internal/component/l2tp/plugins/pool/config_tx_test.go`
 - `test/reload/l2tp-pool-range-reload.ci`
 - `internal/component/l2tp/plugins/pool/config.go` - immutable descriptions and parsing, separate from the existing logger helpers in `l2tppool.go`
@@ -507,7 +523,7 @@ configuration or handler contract.
 1. **Phase 1: config transaction.** Declarative description, builder, `ConfigTx` registration, carry on install, closures and refusal deleted. Tests: AC-1 to AC-8, R-1, R-2, then `l2tp-pool-range-reload.ci` red against today's binary and green after.
 2. **Phase 2: RADIUS ownership and named selection.** Reserve IPv4 and IPv6 assignments against live records and every overlapping configured slot; preserve unique external assignments; release and carry use the reserving pool. Select the named pool before refusing a missing default. Tests: AC-9, AC-10, AC-17, AC-18, AC-19.
 3. **Phase 3: cleanup, validation and canonical identity.** Release only an undelivered answer's matching owner/token; verify rejects malformed present containers, overlaps, excessive size, unusable endpoints and wrong DNS family before building bitmaps. Extend the existing subscriber ID contract from transport admission through central PPP auth/NCP stamps, metadata, pool records, result events and cleanup; both NAS drains refuse missing IDs before side effects. Numeric pairs remain driver/display coordinates; the separate identity/publish-stall spec retains successor-generation and lifetime design. Tests: AC-7, AC-11 to AC-16, AC-20, AC-21 plus the carrier tests.
-4. **Phase 4: docs and daemon proof.** Update every page in the documentation checklist with its behavior; preserve all original default/named assertions and add the real pool-handler/subscriber-bus transport-identity lifecycle proof. Main completes scoped verification, discrimination, stress, promotion, affected-suite run and the Review Gate before closure; authored source or this phase number does not mark those checks complete. Journal rows are marked `fixed:` only through closure.
+4. **Phase 4: docs and daemon proof.** Update every page in the documentation checklist with its behavior; preserve all original default/named assertions and add the real pool-handler/subscriber-bus transport-identity lifecycle proof. AC-22 also requires external-mode doctor diagnosis and runtime refusal, with internal/autoload allocation preserved. Main completes scoped verification, discrimination, stress, promotion, affected-suite run and the Review Gate before closure; authored source or this phase number does not mark those checks complete. Journal rows are marked `fixed:` only through closure.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
@@ -525,6 +541,7 @@ configuration or handler contract.
 | Failed-answer cleanup | Both `TestPoolDrainReleasesUndeliveredAnswer` tests and subscriber event tests |
 | Validation before bitmap construction | `config_validation_test.go` and `parse_shape_test.go` |
 | Canonical identity through admission, requests, metadata and either teardown | Carrier, metadata, pool/drain identity tests and the daemon functional identity sequence |
+| Pool process-mode refusal and diagnosis | `TestPoolExternalRefusesBeforeDeclaration`, `l2tp-pool-external-refuses.ci`, `l2tp-pool-internal-reloads.ci` and the unchanged autoload reload control |
 
 ### Security Review Checklist
 | Check | What to look for |
@@ -672,8 +689,8 @@ The audit tables remain unfinished; no acceptance criterion is reduced.
 
 | What was not done | Why | The spec that now owns it |
 |-------------------|-----|---------------------------|
-| External-mode reproduction, truthful refusal and regression tests | Round-five process-boundary finding; proposed source fix remains unapplied | plan/release/fixes/spec-l2tp-pool-reload-applies.md |
-| Final independent review and closure | Round six requires the owner decision; no CLEAN result exists | plan/release/fixes/spec-l2tp-pool-reload-applies.md |
+| Final scoped follow-through | Focused mode proof and 80 stress invocations passed; published suite, post-guard autoload control, consumer suite and final RFC check remain with main | plan/release/fixes/spec-l2tp-pool-reload-applies.md |
+| Final independent review and closure | Reviews six and seven are authorized if needed; no CLEAN result exists | plan/release/fixes/spec-l2tp-pool-reload-applies.md |
 
 ## Review Gate
 
@@ -681,9 +698,24 @@ The audit tables remain unfinished; no acceptance criterion is reduced.
 |-------|-------|
 | Artifact | None; round five ended blocked |
 | `./le spec review check` | Not run |
-| Rounds | 5 total: four implementation passes and one closure review; no sixth round authorized |
+| Rounds | 5 completed: four implementation passes and one closure review; the owner authorized six and seven if needed, neither run yet |
 | Scope | All owned reviewable files in `scratch/pool-authored-source-paths.txt`, including already-landed validation and code carried by the shared producer; foreign feature hunks are context only. Current source and selected closure blobs must match the final pin. |
 | Reviewer lenses used | Logic and wiring; security and boundaries; concurrency, lifecycle, performance and manual Go style |
+
+### Round 6 scope (declared before review)
+
+Round six examines the round-five process-mode correction in `pool/register.go`
+`init` and `runPlugin`, its SDK/doctor/startup siblings, the two new unit tests,
+the two promoted plugin scenarios, and their five companion documentation
+updates. It also completes the unfinished round-five closure audit, security,
+documentation, goal-validation and retained-proof checks for AC-1 through AC-22.
+The earlier owned change set in the source inventory remains the coverage
+population for the final artifact; unrelated concurrent features are context.
+
+The reviewer runs logic and wiring, security and process boundaries, and
+concurrency, lifecycle, performance and manual Go-style lenses in this context.
+The owner authorized this sixth pass and a seventh if needed on 2026-11-16.
+No verdict or artifact is claimed by this scope declaration.
 
 ### Round 5 findings
 
@@ -694,18 +726,78 @@ The audit tables remain unfinished; no acceptance criterion is reduced.
    configuration transaction installs its own `poolInstance`, not that callback's
    state. `server/startup_autoload.go` `getConfigPathPlugins` omits the internal
    provider when `server.go` `hasConfiguredPlugin` finds an explicit external
-   implementation. Main-thread runtime reproduction is pending. No product fix
-   or CLEAN artifact was written, and no sixth round is authorized.
+   implementation. Main subsequently reproduced the defect through the daemon.
+   The declaration-only stage reproduced the missing runtime refusal. The early
+   guard is implemented, and focused unit/daemon/race/lint/stress proof passed.
+   No CLEAN artifact is written; reviews six and seven are authorized if needed.
+
+Main ran `./le --name session test bgp reload --draft --pattern
+l2tp-pool-external-disconnected`: the named diagnostic failed after the
+configured-child status check, and the real synthetic subscriber reported
+"The pool refused its request: no pool configured". The unchanged internal
+control passed its named case before the guard change. The additive `TestPoolExternalRefusesBeforeDeclaration`
+also failed as intended: the external connection attempted one SDK write
+where the new contract requires zero. These are actual failures, not build,
+authentication or transport-launch refusals. The retained receipts are named
+in the existing session state.
+
+The first declaration-only attempt used an unsupported bare-file startup
+command and never reached runtime. It proves only the doctor assertions and
+is excluded from guard discrimination. After correcting that unpublished
+test input to the current startup command, main ran the same draft again.
+Doctor passed, the actual daemon started, and the named case failed because
+the pool-specific refusal never appeared. This valid declaration-only RED
+precedes the written runtime guard.
+
+The first focused external unit passed after the guard, in 1.390 seconds.
+The native action reused its log key and overwrote the earlier unit RED log.
+The historical RED was a real 0.437-second package failure with one attempted
+SDK write where zero was required; the existing state preserves that exact
+failure separately. The reused log now proves GREEN only. A separate named
+count run passed both boundary tests, and the full pool race package passed.
+The mode condition ran twice, the refusal body once, and the internal
+configuration registration once. Both named daemon scenarios passed and then
+passed all 80 stress invocations, with 160 case passes and 1,360 structured
+step passes. Each invocation used a distinct command-PID triplet. This is
+correctness evidence under bounded load, not a performance measurement.
+The published suite and remaining scoped follow-through are still in progress.
+
+### Process-mode lifecycle scope
+
+The new refusal completes before `ConfigTx.Register`, `SignalContext` and
+`Plugin.Run`. The SDK constructor only establishes the connection wrapper.
+An external instance sends no Stage 1 declaration. An internal instance keeps
+the existing callbacks and startup path. The lifecycle cases below follow
+that boundary; no supervision, restart or stop implementation changes.
+
+| Scenario | Selection and reason |
+|----------|----------------------|
+| External startup before declaration | Selected: the new TLS draft requires the pool-specific refusal, and the unit requires zero declaration writes. Doctor separately resolves the external alias. |
+| Internal startup and reload | Selected: the new explicit-internal draft preserves the complete observer sequence. The unchanged range-reload control separately preserves automatic loading. |
+| Process ends after declaration, for each failure policy | Not reached by the new refusal: the external branch returns before declaration. The internal path's policy and teardown are unchanged. |
+| Startup stage fails after declaration | Not reached by the new refusal: it returns before Stage 1, configuration and capability stages. |
+| Restart count passes a window or lifetime bound | Not reached by the new refusal: no restart policy is declared. Existing `pluginFailurePolicy` treats the unspecified declaration as ignore. |
+| Respawn leaf disagrees with declaration | Not reached by the new refusal: `refuseRespawnDisagreement` runs when Stage 1 accepts a declaration, which the external branch never sends. |
+| Plugin exits during stop drain or teardown | Not reached by the new guard: it runs only at entry, before callbacks or a running pool exist. Existing internal cleanup is unchanged. |
+| Signal arrives during config fence, drain or teardown | Not reached by the new guard: it returns before `SignalContext` or SDK startup. No signal or stop handler changes. |
+| Reload or commit arrives after shutdown starts | Not reached by the new guard: no transaction admission, shutdown fence or running-instance callback changes. |
+| Plugin crashes in verify/apply, misses a deadline or reports broken | Not reached by the external branch: it registers no configuration callbacks. Internal ConfigTx behavior is unchanged and retains its reload control. |
+| Reload context ends during handshake, or sibling fails at a tier barrier | No new wait is introduced: external refusal completes before the SDK handshake or any tier barrier. Existing context and coordinator behavior are unchanged. |
+| Plugin dispatches another plugin's command at startup | Not reached by the new refusal: it makes no dispatch and registers no startup callback. |
+
+The producing boundary is `pool/register.go` `runPlugin`. Policy and respawn
+decisions remain in `server/failure_policy.go` `pluginFailurePolicy` and
+`refuseRespawnDisagreement`; this correction changes neither producer.
 
 ### Diagnosis
 
 | Part | Finding |
 |------|---------|
-| Symptom | An explicit external `l2tp-pool` can acknowledge configuration while the daemon's local allocator remains unconfigured. |
+| Symptom | Reproduced through the daemon: an explicit external pool reports its configured capacity, then the real daemon-side subscriber receives "no pool configured". |
 | Root cause | `pool/register.go` `runPlugin` configures process-local `poolInstance`; the handler registry used by the NAS drain does not cross a process boundary. |
 | Owning layer | Pool provider declaration and process-mode admission. `Registration.RunsInProcessOnly` and `checkExternalInProcess` already declare and diagnose engine-local providers. |
 | [workaround] | Describe external pool mode as unsupported without changing its admission. This still lets an operator start a silent nonfunctional provider. |
-| [source] | Declare the provider's in-process requirement and refuse external mode before configuration, with a regression through the actual mode boundary. Main must reproduce and decide the source fix and next authorized review. |
+| [source] | Declare the provider's in-process requirement and refuse external mode before configuration, with a regression through the actual mode boundary. The reproduced diagnostic and additive unit RED precede the source fix; authorized independent review follows its proof. |
 
 ### Structural-check notes
 

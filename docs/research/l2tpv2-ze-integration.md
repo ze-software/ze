@@ -420,6 +420,9 @@ Responsibilities:
 
 The registration below is an early sketch. The current plugin consumes root
 `l2tp` and binds the shared pool handlers at registration time.
+The pool runs inside the daemon, either automatically or explicitly internal.
+It refuses an external process before configuration, because that process
+cannot configure the daemon's registered handlers.
 <!-- source: internal/component/l2tp/plugins/pool/register.go -- init, runPlugin -->
 
 ```go

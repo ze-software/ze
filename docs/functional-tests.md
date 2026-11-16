@@ -2631,6 +2631,21 @@ to run internally and are absent from production builds.
 <!-- source: internal/test/plugins/fakel2tp/pool.go -- poolAddress, poolPrefix -->
 <!-- source: internal/test/fixture/l2tp_pool_reload.go -- l2tpPoolReload -->
 
+`l2tp-pool-external-refuses.ci` checks an external alias with `ze doctor`, then
+starts the actual pool process over TLS. It requires the pool-specific refusal,
+the handler reason, the doctor code and the correction command. A transport
+failure or nonzero exit alone cannot pass. The companion unit test requires
+refusal before the first SDK declaration write.
+<!-- source: test/plugin/l2tp-pool-external-refuses.ci -- doctor alias and TLS refusal -->
+<!-- source: internal/component/l2tp/plugins/pool/external_mode_test.go -- TestPoolExternalRefusesBeforeDeclaration -->
+
+`l2tp-pool-internal-reloads.ci` runs the same allocation and reload observer
+with explicit internal placement. The unchanged `l2tp-pool-range-reload.ci`
+separately checks automatic loading. These permitted modes share the daemon's
+allocator, so external refusal cannot hide a refusal of every placement.
+<!-- source: test/plugin/l2tp-pool-internal-reloads.ci -- explicit internal pool -->
+<!-- source: test/reload/l2tp-pool-range-reload.ci -- automatically loaded pool -->
+
 ### 4. Reload Tests (`test/reload/`)
 
 Config reload tests - verify SIGHUP-triggered reload behavior end-to-end.

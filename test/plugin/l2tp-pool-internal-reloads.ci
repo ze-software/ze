@@ -1,0 +1,113 @@
+# Question: does an explicitly internal pool share the daemon's allocator and
+# apply reloads while subscribers retain their assignments? A unit test cannot
+# decide daemon placement, config delivery and registered handler wiring.
+# This is the explicit-internal survivor of external-mode refusal. The separate
+# test/reload/l2tp-pool-range-reload.ci keeps the automatic-loading control.
+# Preserve the same real handler, named-pool and transport-identity assertions.
+
+stdin=ze-bgp:terminator=EOF_CONF
+l2tp {
+    enabled false
+    pool {
+        ipv4 {
+            gateway 10.100.0.1
+            start 10.100.0.10
+            end 10.100.0.10
+        }
+    }
+}
+plugin {
+    internal l2tp-pool {
+        use l2tp-pool
+    }
+    internal pool-source {
+        use fakel2tp
+    }
+    external pool-observer {
+        run "le test fixture reload/l2tp-pool-range"
+    }
+}
+EOF_CONF
+
+tmpfs=config2.conf:terminator=EOF_CONF2
+l2tp {
+    enabled false
+    pool {
+        ipv4 {
+            gateway 10.100.0.1
+            start 10.100.0.10
+            end 10.100.0.11
+        }
+        named-pool gold {
+            gateway 10.101.0.1
+            start 10.101.0.10
+            end 10.101.0.11
+        }
+        ipv6-pd {
+            block fd00:100::/56
+            delegation-length 64
+        }
+        named-ipv6-pool gold6 {
+            block fd00:101::/56
+            delegation-length 64
+        }
+    }
+}
+plugin {
+    internal l2tp-pool {
+        use l2tp-pool
+    }
+    internal pool-source {
+        use fakel2tp
+    }
+    external pool-observer {
+        run "le test fixture reload/l2tp-pool-range"
+    }
+}
+EOF_CONF2
+
+tmpfs=config3.conf:terminator=EOF_CONF3
+l2tp {
+    enabled false
+    pool {
+        ipv4 {
+            gateway 10.100.0.1
+            start 10.100.0.10
+            end 10.100.0.11
+        }
+        named-pool gold {
+            gateway 10.101.0.1
+            start 10.101.0.10
+            end 10.101.0.12
+        }
+        ipv6-pd {
+            block fd00:100::/56
+            delegation-length 64
+        }
+        named-ipv6-pool gold6 {
+            block fd00:101::/56
+            delegation-length 64
+        }
+    }
+}
+plugin {
+    internal l2tp-pool {
+        use l2tp-pool
+    }
+    internal pool-source {
+        use fakel2tp
+    }
+    external pool-observer {
+        run "le test fixture reload/l2tp-pool-range"
+    }
+}
+EOF_CONF3
+
+option=env:var=ze.log.l2tp.pool:value=info
+cmd=foreground:seq=1:exec=ze -:stdin=ze-bgp:timeout=30s
+expect=exit:code=0
+expect=stderr:contains=OK: reloaded pool allocated added address 10.100.0.11, named address and IPv6 prefix
+expect=stderr:contains=OK: show l2tp pool reports named IPv4 and IPv6 reservations
+expect=stderr:contains=OK: equal L2TP and PPPoE numeric ids retain distinct addresses through reload and either teardown
+reject=stderr:contains=reload error
+reject=stderr:pattern=panic

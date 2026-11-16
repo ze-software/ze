@@ -4768,6 +4768,13 @@ The default pool can be absent when every subscriber selects a named pool.
 Without either selection or a default pool, the address request is refused.
 <!-- source: internal/component/l2tp/plugins/pool/register.go -- handle -->
 
+The pool loads automatically inside the daemon. An explicit declaration uses
+an internal plugin block. External pool processes are refused before
+configuration, and `ze doctor` names the internal replacement under
+`doctor-plugin-external-unsupported`.
+<!-- source: internal/component/l2tp/plugins/pool/register.go -- init, runPlugin -->
+<!-- source: internal/component/plugin/doctor/check_external.go -- checkExternalInProcess, externalInProcessRow -->
+
 When `Framed-IP-Address` is present in Access-Accept, the RADIUS-assigned address
 is used directly with the selected pool's gateway and DNS. An address inside
 any configured range is reserved in that pool until the session ends. An
