@@ -633,6 +633,18 @@ between owed and written (`adjOutWrite.recoveryOwedFor`). A departure is not sub
 own command owes its keys. A destination with ADD-PATH send keeps every path
 and owes nothing.
 
+A later sibling, unrelated prefix or EOR is not a completion barrier for this
+asynchronous election, including source removals admitted by marked policy
+subsets. [`request quiesce`](api/commands.md#quiesce-barrier-test-synchronization)
+waits for the current session's owed decisions and pending destination-table
+writes as well as its forwarding and replay work. A local takeover that removes
+an owed record still waits for its replacement flush. The recovery worker's
+stop alone does not settle the key. A destination reset clears its old
+table's route-decision debt. Queued forwards still drain separately.
+<!-- source: internal/component/bgp/reactor/session_ownership.go -- owesWithdrawal -->
+<!-- source: internal/component/bgp/reactor/recovery_owed.go -- run, decide -->
+<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- syncOwed, routeDecisionOwed -->
+
 A key keeps one record while it is owed, and every later owe merges into it,
 so a round deciding the key never loses an owe made while it ran. The record
 carries a set of excluded sources, an epoch that moves whenever a source is

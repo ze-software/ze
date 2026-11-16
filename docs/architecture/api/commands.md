@@ -2552,9 +2552,12 @@ per-subsystem switch. The BGP reactor auto-registers TWO quiescers when it
 attaches to the server (`registerReactorQuiescer`): `bgp-forward-pool` (the
 reactor's `FlushForwardPool`, draining post-establishment forwarded routes) and
 `bgp-peer-sync` (`DrainPeerSync`, draining each peer's initial-sync opQueue,
-which goes DIRECT to the session and bypasses the forward pool). Each drain is
-bounded by a per-subsystem timeout, so a wedged subsystem yields an error naming
-it instead of hanging the daemon.
+which goes DIRECT to the session, and outstanding route decisions and writes
+that can outlive the forward pool). Each drain is bounded by a per-subsystem
+timeout, so a wedged subsystem yields an error naming it instead of hanging
+the daemon.
+<!-- source: internal/component/plugin/server/quiesce.go -- registerReactorQuiescer, quiesceAll -->
+<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- syncOwed, routeDecisionOwed -->
 
 Invocation note: `request quiesce` and `request peer <sel> flush` are api-yang
 RPCs reached through **dispatch-command**, not as direct wire methods. A plugin
@@ -2565,16 +2568,33 @@ returns "unknown method" because `dispatchPluginRPC` routes only
 
 Extension point: Layer 2/3 subsystems (a kernel-FIB quiescer, a tc/qdisc
 quiescer) register into the same registry and `request quiesce` drains them with
-no change to the barrier. `wait_for_ack` is now a thin, sleepless wrapper over
-this barrier: the two BGP quiescers together cover the forward pool AND the
-per-peer initial-sync drain, so a route sent during establishment is on the wire
-(past its EOR) before the barrier returns.
+no change to the barrier. `wait_for_ack` is a thin, sleepless wrapper over
+this barrier. The two BGP quiescers together cover the forward pool and the
+per-peer initial-sync and route-decision drain. The wrapper therefore also
+waits for cold recovery and a pending replacement flush.
+<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- syncOwed, routeDecisionOwed -->
 
 **What `bgp-peer-sync` waits for.** A peer is settled only when it owes none
-of these: routes queued before its session came up, its initial sync, its
-End-of-RIB, a peer-up replay that has not reported done, a policy change still
-re-sending its routes, and forwarded items its worker has not written yet. The
-End-of-RIB waits for no route process (owner ruling, 2026-09-18), so a route
+of the following work:
+
+- Routes queued before its session came up.
+- Its initial sync and End-of-RIB.
+- A peer-up replay that has not reported done.
+- A policy change that still re-sends its routes.
+- Forwarded items its worker has not written yet.
+- The current session's owed route decisions or pending destination-table writes.
+<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- syncOwed, routeDecisionOwed -->
+
+The route-decision check waits for cold recovery even when no forward item is
+queued. A local takeover can remove an owed record before it flushes its useful
+replacement, so the pending write keeps the barrier closed too. The recovery
+worker's stop alone does not settle a live session's owed key. A decision or
+destination-table reset settles that key. A reset or rebound table contributes
+no route-decision debt for the captured session. Queued forwards still have
+their separate drain.
+<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- routeDecisionOwed -->
+
+The End-of-RIB waits for no route process (owner ruling, 2026-09-18), so a route
 server's, reflector's or RIB's peer-up replay can still be passing after the
 marker. The replay fence covers that replay: it is up on an Established peer
 until every process that declared it (`FencesLiveForwards`: bgp-rs, bgp-rr,
@@ -2604,7 +2624,7 @@ was absent until 2026-09-19, and until then a caller could quiesce, be told
 
 <!-- source: internal/component/plugin/server/quiesce.go -- Quiescer, QuiescerRegistry, quiesceAll, handleQuiesce, registerReactorQuiescer -->
 <!-- source: internal/component/bgp/reactor/reactor_api.go -- DrainPeerSync, peersSynced; peer.go pendingSync, handshakeInFlight -->
-<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- peerSyncOwed, syncOwed, replayFenceUnreported, peerSyncOwedError -->
+<!-- source: internal/component/bgp/reactor/peer_sync_owed.go -- peerSyncOwed, syncOwed, routeDecisionOwed, replayFenceUnreported, peerSyncOwedError -->
 <!-- source: internal/core/ipc/yang/ze-system-cmd.yang -- request/quiesce -> ze-plugin:system-quiesce -->
 
 ### Peer Selector Parsing

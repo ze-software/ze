@@ -47,6 +47,10 @@ const (
 	// peerSyncOwedHandshake: the session is in OpenSent or OpenConfirm
 	// (handshakeInFlight).
 	peerSyncOwedHandshake
+	// peerSyncOwedRouteDecision: the session still owes a recovery election
+	// or an admitted route update has not reached its flush (adjRIBOut.owed,
+	// adjRIBOut.pending).
+	peerSyncOwedRouteDecision
 )
 
 // String is the plain-words reason the quiesce timeout error prints.
@@ -70,6 +74,8 @@ func (o peerSyncOwed) String() string {
 		return "forwarded routes are still queued for it"
 	case peerSyncOwedHandshake:
 		return "its OPEN handshake is still in progress"
+	case peerSyncOwedRouteDecision:
+		return "its route decisions or updates are not flushed yet"
 	}
 	return "an unknown sync state (a Ze defect)"
 }
@@ -84,19 +90,22 @@ func (o peerSyncOwed) String() string {
 // in every state: an item queued for a peer that is going down is still
 // unwritten until its worker has discarded it, and that never waits on a peer.
 //
-// Lock order: syncOwed holds p.mu for read and, under it, reads the fence, the
-// hold and the forward counts as atomics, so it adds no lock edge. It MUST NOT
-// take a forward-pool lock (fwdPool.mu, fwdWorker.overflowMu) under p.mu, and
-// forwardOrderHold, which reads the same facts under fwdWorker.overflowMu,
-// MUST NOT take p.mu: the peer's own goroutine takes p.mu before
-// fwdWorker.overflowMu (takeOverflowReleased), so the reverse would deadlock.
+// Lock order: syncOwed snapshots the queue and session under p.mu, then releases
+// it before reading the session's atomic facts or the destination table. It
+// never nests p.mu with adjOut.mu or a forward-pool lock (fwdPool.mu,
+// fwdWorker.overflowMu). forwardOrderHold, which reads the same atomic facts
+// under fwdWorker.overflowMu, MUST NOT take p.mu: the peer's own goroutine takes
+// p.mu before fwdWorker.overflowMu (takeOverflowReleased), so the reverse would
+// deadlock.
 func (p *Peer) syncOwed() peerSyncOwed {
 	p.mu.RLock()
-	defer p.mu.RUnlock()
-	if len(p.opQueue) > 0 {
+	queuedRoutes := len(p.opQueue) > 0
+	session := p.session
+	p.mu.RUnlock()
+	if queuedRoutes {
 		return peerSyncOwedQueuedRoutes
 	}
-	if session := p.session; session != nil {
+	if session != nil {
 		if session.sendingInitialRoutes.Load() != 0 {
 			return peerSyncOwedInitialRoutes
 		}
@@ -118,10 +127,35 @@ func (p *Peer) syncOwed() peerSyncOwed {
 	if p.forwardChannelPending() {
 		return peerSyncOwedForwards
 	}
-	if handshakeInFlight(p.session) {
+	if handshakeInFlight(session) {
 		return peerSyncOwedHandshake
 	}
+	if p.routeDecisionOwed(session) {
+		return peerSyncOwedRouteDecision
+	}
 	return peerSyncSettled
+}
+
+// routeDecisionOwed reports only work framed for session, the current session
+// syncOwed captured. A nil session or a table already reset or rebound owes
+// nothing for that capture. The owed set survives the lookup and admission
+// until the decision is flushed. An originated takeover can remove its owe
+// earlier, so the table's pending write still keeps the barrier closed.
+// MUST be called without p.mu, writeMu or a forward-pool lock held.
+func (p *Peer) routeDecisionOwed(session *Session) bool {
+	if session == nil {
+		return false
+	}
+	table := &p.adjOut
+	table.mu.Lock()
+	defer table.mu.Unlock()
+	if table.session != session {
+		return false
+	}
+	if len(table.owed) > 0 {
+		return true
+	}
+	return table.pending
 }
 
 // replayFenceUnreported names the processes holding this peer's replay fence
