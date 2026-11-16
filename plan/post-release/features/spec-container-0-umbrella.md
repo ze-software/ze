@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | design |
 | Scope | plugin |
 | Priority | P3 |
 | Release reason | A new capability: Ze runs OCI container images itself. No shipped behavior is wrong without it, so it is a post-release feature until the owner brings it into the first release. |
@@ -48,18 +48,32 @@ appliance has for its own system.
 | Docker daemon | Not shipped. Ze runs the containers itself. |
 | Number of binaries | One. No runtime binary beside `ze`. |
 | Build | The feature is a compile-time feature of Ze's build: a build without it carries none of its code. |
-| Third-party runtime | Onboarding a Go OCI runtime is permitted. |
+| Third-party runtime | `runc` is a Go module dependency. Ze writes the glue that dependency lacks. This spec reads that ruling with cgo staying off, as every Ze build has it: the glue is what `runc` implements in C. |
+| Operator model | The configuration tree and the commands follow the container model operators already know from an established router operating system: a named container with its image, networks, published ports, volumes, environment, resource limits and restart policy, and image management as operational commands. No Ze page, spec or commit names or quotes that system. |
 | Implementation model | Implementation agents for this work run on the strongest tier. |
 
 ### Open decisions (owner)
 
 | # | Question | Recommendation | What each answer changes |
 |---|----------|----------------|--------------------------|
-| O-1 | Runtime: Ze's own pure-Go runtime, or a build flavor with cgo that embeds a third-party runtime library | Pure Go. Every Ze build forces cgo off today | Pure Go keeps the build as it is and makes Ze own the confinement code. The cgo flavor reuses a hardened runtime and needs a static C cross-toolchain per target architecture |
-| O-2 | Writes to a container's root: discarded at restart, or kept until the next image update | Discarded at restart | Discarding makes every start identical to the image and forces state into declared volumes. Keeping them tolerates images that expect a persistent root and lets a container drift from its image |
+| O-1 | Resolved by the owner: `runc` as a dependency, Ze writes the glue (see Owner decisions). Open inside it, for design: whether Ze uses the `runc` library whole, supplying its three C-only pieces in Go through a build-time diff, or imports only its pure-Go leaf packages and writes the init sequence itself | The library whole, if the study shows the diff is small and stable | Using it whole inherits the init sequence and its vulnerability fixes, and ties Ze to a diff that each `runc` release may break. Leaf packages only makes Ze own the sequence |
+| O-2 | Owner direction, reading to confirm: a container's filesystem persists until its image is updated, and is stored in a folder named by the image's hash. Read here as: images are stored by digest, and each container's writable layer is stored on disk under its name and its image's digest, so it survives restarts and reboots and a new digest starts from a fresh layer | As directed, plus a command that discards the writable layer on request, and a size cap on it | The writable layer moves from memory to the persistent partition, so it needs a disk quota. The previous digest's folders stay for rollback, which returns both the old image and its old writes. If "the binary" meant Ze's own binary, images would be refetched at every Ze update, which this spec does not adopt |
 | O-3 | Release timing: first release, or after | After | Decides the folder this work lives in and its priority |
 | O-4 | Running a container's entrypoint is running a program Ze does not carry. `ai/rules/go-standards.md` forbids that without a row in `ai/allowed-system-commands.md`, which only the owner adds | Add the row, scoped to the container init role | Without the row no code that starts a container may land. The only row of this kind today is the operator's own plugin program |
 | O-5 | Every declared feature gate is on in every daemon build today (distribution and appliance). Is the container gate on by default like the others, or off unless a build asks for it | On by default, like every other gate | Off by default needs a new mechanism: no gate today is declared and left out of the default builds |
+| O-6 | Image store: an unpacked folder per image digest, or an image file per digest | The folder, as the owner's direction reads | See Key Design Decisions. The folder needs no kernel change and no writer; the file gives a single immutable object and needs both |
+| O-7 | Container networks and published ports: nodes of the container config that Ze realises through its interface and firewall mechanisms, or left to the operator as a bridge and firewall terms | Nodes of the container config | The first needs a declared way for the feature to contribute interface and firewall state without the engine naming it. The second needs no new mechanism and departs from the reference model |
+| O-8 | A shell inside a running container is part of the reference model. Ze has no command with an input stream, and every command must work on every surface | Leave it to a child spec of its own, after the rest works | It needs a design for a bidirectional command, and joining a running container's namespaces, which the upstream library does in C |
+
+### Child specs (proposed split, written after the design is approved)
+
+| Child | Holds | Depends on |
+|-------|-------|------------|
+| Runtime | The upstream library as a dependency in a commit of its own, the build-time diff, the init role, the system-call filter, cgroup limits, supervision and restart, the kernel requirements, the feature gate and its absent test | - |
+| Image store | The registry client, the pull command, layer application into a folder per digest, the writable layer, retention, rollback, the disk quota and free-space checks | Runtime |
+| Network | Moving a link into a container's namespace through the interface backend, container networks, published ports | Runtime |
+| Operator surface | The config schema, the commands, the doctor checks, the guide page. Each child above adds its own nodes and commands; this child holds what spans them | The three above |
+| Shell | A command with an input stream on every surface, and entering a running container | Operator surface |
 
 ### Proposed shape (not approved)
 
@@ -109,7 +123,11 @@ commands); the split is decided at design.
   → Decision: the parent can start a child in new namespaces with identity mappings, directly inside a cgroup, with a death signal. It cannot run code between fork and exec, so root setup, capability drop and the filter run in a re-executed init role
 
 **Key insights:** (minimal context to resume after compaction)
-- Embedding the upstream runtime library is impossible with cgo off, and every Ze build forces cgo off. One binary therefore means Ze's own runtime, or a cgo build flavor (O-1).
+- The upstream runtime's main library does not import its C code. With cgo off, only its namespace-entry package and its system-call filter are missing, and the library reaches both through a small startup protocol and one function. Ze uses the library whole and supplies those two pieces in Go.
+- The library fixes the init command to the running binary with the argument `init`, and Ze already has an `init` command. The container init role is therefore selected by the library's own environment key, before command dispatch and before crash logging starts.
+- The library creates a container and leaves it blocked before its entrypoint runs. In that window the network namespace exists and the init process is known, so Ze's interface backend moves and addresses the link there, and the library's own network-device feature is not used.
+- The library performs the final exec itself, inside the init role, where Ze's crash-log pipe was never set up. Ze's execve wrapper does not apply to it.
+- The reference operator model pulls an image only on an explicit command, and a commit naming an absent image succeeds while that container does not run. Operators of that system report this as its main trap, so Ze reports it in doctor with the command that fixes it.
 - The runtime kernel already has namespaces, cgroup v2 (memory, pids, cpuset, devices), overlayfs, the system-call filter, veth and loop devices. It lacks: extended attributes in squashfs, a hard CPU limit, an I/O throttle, verified-read integrity, EROFS and AppArmor.
 - The squashfs writer Ze already vendors writes root-owned regular files, directories and symlinks only. It cannot hold a general image (no owners, device nodes, hard links or extended attributes).
 - The persistent partition is about 950 MB on the default 2 GiB image. Nothing found grows it at install.
@@ -144,7 +162,7 @@ commands); the split is decided at design.
 | Absent and present build-tag tests | `cmd/ze/hub/build_tag_vpp_absent_test.go` and its siblings; `./le arch tier check` | Prove a gated plugin is not registered, its config root is refused as unknown, and no always-on package imports it | Extends: one pair for the new tag |
 | External plugin process supervisor | `internal/component/plugin/sysproc_linux.go` `NewSysProcAttr`, `StartChild`; `internal/component/plugin/process` `startExternal`, `ProcessManager.Respawn` | Forks the operator's plugin in its own process group with a death signal bound to one long-lived forking thread, relays its stderr to the log, stops it with a grace then a group kill that cannot hit a recycled pid, and respawns up to 5 times per 60 s and 20 in total | Extends in part: the forking thread, the pid-safe kill, the stderr relay and the stop grace are what a container needs. The connect-back and the five startup stages do not apply: a container is not a plugin |
 | VPP process supervisor | `internal/component/vpp/vpp.go` `VPPManager.Run`, `runOnce` | Runs VPP with a 1 to 30 s doubling restart backoff and publishes connected and disconnected events. It sets no process attributes and stops by kill | Model only, for the backoff loop and the lifecycle events. Not extended: it has no process group, death signal or graceful stop |
-| Self re-execution by role | `cmd/ze/dispatch.go` `dispatchMain`; `internal/core/seedinit/register.go` `Dispatch`; `internal/core/crashlog/exec_unix.go` `Exec` | `ze` selects a role from its first argument, or from an environment key before startup. Every execve in Ze goes through one wrapper, and a raw one is refused by a lint rule | Extends: the container init is one more early role, and it reaches the image entrypoint through that wrapper. No role today runs inside new namespaces |
+| Self re-execution by role | `cmd/ze/dispatch.go` `dispatchMain`; `internal/core/seedinit/register.go` `Dispatch`; `internal/core/crashlog/exec_unix.go` `Exec` | `ze` selects a role from its first argument, or from an environment key before startup. Every execve in Ze goes through one wrapper, and a raw one is refused by a lint rule | Extends: the container init is one more early role, selected by an environment key before startup as the seed role is. The execve wrapper does not apply: the upstream library performs the final exec inside that role, where the crash-log pipe the wrapper protects was never created. No role today runs inside new namespaces |
 | Locked-thread namespace entry | `internal/component/kernelcap/namespace_linux.go` `InThrowawayNetworkNamespace` | Unshares a network namespace on a thread that is locked and never unlocked, for kernel probes | Extends: the same thread discipline configures the container's end of its link inside the container's network namespace |
 | Interface veth and bridge | `internal/component/iface/yang/ze-iface-conf.yang` `list veth`, `list bridge`; `internal/component/iface/backend.go` `CreateVeth`; `internal/plugins/iface/netlink/manage_linux.go` | Creates a veth pair in the host namespace with both ends up. The managed end takes addresses and units; the peer end takes none. Nothing moves a link into another namespace | Extends: the host end is already an ordinary Ze interface. The interface backend gains moving the peer end into a named namespace and addressing it there, reached through the interface component's boundary and never a direct call |
 | Interface VRF leaf | `internal/component/iface/yang/ze-iface-conf.yang` `leaf vrf`, validator `unimplemented-vrf` | Refuses any config that sets it | Does not apply until VRF support ships (`plan/post-release/features/spec-vrf-0-umbrella.md`) |
@@ -162,26 +180,51 @@ commands); the split is decided at design.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- To be filled during research.
+- Config: a container root in the config file, delivered to the container plugin as its declared root through the config transaction (verify, apply, rollback).
+- Commands: image fetch, update, delete; container restart and writable-layer discard; listings and logs. Each is a registered command with a schema node, reached from every surface.
+- A registry: image manifests and blobs over HTTPS, read by Ze.
 
 ### Transformation Path
-1. To be filled during research.
+1. The config transaction hands the plugin its root. Verify refuses what the kernel or the store cannot honour. Apply computes which containers start, stop or restart.
+2. For a container to start, the plugin resolves its image reference to a digest in the store. An absent image is a state, not an error.
+3. The plugin prepares the root: an overlay of the image folder below the container's writable layer.
+4. The plugin fills the upstream library's container description and asks it to create the container. The library re-executes `ze` in the init role, clones it into new namespaces inside the container's cgroup, runs its init sequence, and blocks before the entrypoint.
+5. In that window the plugin asks the interface backend to move the container's link into the new network namespace and address it, and the firewall state for its published ports is put in place.
+6. The plugin releases the container. The init role installs the system-call filter and executes the entrypoint.
+7. The supervisor waits on the container, records its exit, and applies the restart policy.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| To be filled | | No |
+| Engine to plugin | The config transaction and registered commands. The plugin must also work when run as a separate process | No |
+| Plugin to interface component | A typed request or a command, never a Go call, for creating the link and moving its peer end | No |
+| Plugin to firewall component | A declared contribution of firewall state in tables Ze owns. The firewall's table registry is process-local today, so a plugin that can run forked needs a request, not a direct registration | No |
+| Daemon to container init | The upstream library's startup protocol over inherited descriptors, inside one binary | No |
+| Ze to registry | The registry pull protocol over HTTPS | No |
+| Ze to kernel | Namespaces, cgroup files, mounts, the system-call filter, netlink | No |
 
 ### Changed-Wire Census
 
-**Search evidence:** to be filled during design.
+**Search evidence:** searched every `*-conf.yang` in the tree for a root named `container` and found none; searched the command schema files for a `container` command subject and found none. The positive control is the interface schema's `list veth`, which the same search finds. No existing wire changes: every wire below is new. The registry protocol's writer is outside the repository.
 
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
-| [format] | [role] | [source site] | [search finding] | [disposition] |
+| Container config root | writer | The operator's config file, and the config editor on every surface | No existing root of that name in any config schema | New. Nothing to migrate |
+| Container config root | reader | The container plugin's config callbacks, to be created with the child specs | No existing reader | New |
+| Registry pull protocol | writer | A container registry, outside the repository | Not carried by any code in the tree: `internal/core/fetch/scheme.go` has http, https and tftp to a file only | New reader only. The registry's behaviour is fixed by its published specification |
+| Registry pull protocol | reader | The registry client in the image store child spec | No existing reader | New |
+| Upstream library startup protocol | writer and reader | The upstream library on both sides, inside one binary, as changed by the build-time diff | Read at tag v1.5.3: `libcontainer/process_linux.go` `initProcess.start`, `libcontainer/init_linux.go` `startInitialization` | Both ends are the same build, so no version skew exists. The diff is re-verified at each upstream release |
+| Per-container state keys | writer and reader | The container plugin through the state store | No existing key for containers in `pkg/zefs/keys.go` | New keys. Once shipped, a key is a contract with images in the field |
 
 ### Integration Points
-- To be filled during research.
+- The feature-gate manifest: new lines under one new tag.
+- The plugin process supervisor's forking thread, pid-safe kill and stderr relay: reused for the container's lifecycle.
+- The interface backend: gains moving a link into a namespace.
+- The firewall component: gains a way for a plugin to contribute state for published ports and outbound translation.
+- The kernel capability registry and the two kernel option files: each required option is enrolled.
+- The doctor registry: one check per dependency and problem class.
+- The state store: per-container metadata.
+- The allowed-external-programs register: one row, added by the owner.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
@@ -198,7 +241,7 @@ commands); the split is decided at design.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | The upstream Go container runtime library cannot create a container with cgo off | Read at tag v1.5.3: the namespace-entry package has no file that builds without cgo, and the filter stub refuses any profile | O-1 has a third answer: embed the library with no build change | A build of that tag with cgo off. A hook refused the build outside the repository's output directory, so it was not run | read from source, not built |
+| A-1 | The upstream Go container runtime library cannot create a container with cgo off | Read at tag v1.5.3: the namespace-entry package has no file that builds without cgo, and the filter stub refuses any profile | O-1 has a third answer: embed the library with no build change | A type-check of that tag with cgo off, run 2026-11-16: the namespace-entry package has no buildable file, the spec-conversion package fails on two undefined user-namespace functions, and the main library, the binary sealing, the capabilities and the filter stub type-check | confirmed |
 | A-2 | The runtime kernel can mount a filesystem image file read-only | The resolved config of the current amd64 runtime kernel has the loop device and squashfs built in. Both come from upstream defaults and are not pinned. No arm64 config was read | The image store needs another form, such as an unpacked directory tree | The resolved arm64 config, and a listing of the loop control device on a booted appliance | confirmed on amd64, open on arm64 |
 | A-3 | The Go standard library can start a child in new namespaces, with identity mappings, directly inside a cgroup, without C | Read in the standard library source | The pure-Go runtime is not possible as described | Done | confirmed |
 | A-4 | A root filesystem with no write support prevents a container from overwriting the `ze` binary through its own process image | Inference. The upstream source says only that a read-only bind mount was unsafe because a privileged container could clear the flag | The appliance needs the sealed-copy defence too | A test that attempts the overwrite from inside a container on the appliance. The design seals the binary on every platform regardless, so this assumption carries no weight | unvalidated |
@@ -215,7 +258,13 @@ commands); the split is decided at design.
 | R-5 | A container overwrites the `ze` binary through its own process image | The overwrite attempt succeeds in a test on a writable host root | Run the init role from a sealed copy of the binary on every platform |
 | R-6 | An image layer writes outside its tree, plants a device node or setuid file, or expands without bound while Ze turns it into a root | A crafted layer changes a host file or fills the disk | Build the root image without writing through host paths, cap the expanded size, and refuse entry types the config did not allow |
 | R-7 | The feature's kernel options are present today only by upstream default and disappear on a kernel bump | A kernel build succeeds without one | Request and pin each option, and enrol it as a kernel capability so `ze` refuses at validate, start and reload |
-| R-8 | The squashfs format, as this kernel builds it, drops extended attributes, so file capabilities in an image are lost and programs that rely on them fail | A container program that needs a file capability fails to start | Decide the image format at design: enable the kernel option, or use another format |
+| R-8 | The squashfs format, as this kernel builds it, drops extended attributes, so file capabilities in an image are lost and programs that rely on them fail | A container program that needs a file capability fails to start | Avoided by storing images unpacked on the persistent partition (O-6). It returns if an image file is chosen |
+| R-9 | An upstream release changes the two functions the build-time diff touches, and the diff applies cleanly but is now wrong. Those files had 32 and 25 commits in two years | A container fails to start after an upstream version bump | Pin the upstream version, and gate every bump on the functional tests that start a container. Upstream states that its library API is not covered by its compatibility promise |
+| R-10 | The upstream library links code Ze never runs: the systemd cgroup driver and its bus client, and checkpoint support | Binary growth and new modules in the dependency list | Exclude checkpoint support by its upstream build tag, and decide at the runtime child spec whether the diff also removes the systemd driver. About 13 modules are new to Ze |
+| R-11 | Each container start copies the whole `ze` binary into memory to seal it, when the zero-copy sealing the library tries first is unavailable | Memory use rises by the binary's size at each start | Confirm on the appliance that the zero-copy sealing works on its root filesystem; it needs overlayfs and the new mount interface, which the kernel has |
+| R-12 | The upstream library marks every open descriptor of the calling process close-on-exec before it starts init, and Ze is a long-lived daemon with many descriptors | A child process Ze starts afterwards loses a descriptor it was meant to inherit | Go opens descriptors close-on-exec already and passes inherited ones explicitly. A test starts a plugin process after a container has started |
+| R-13 | A parent death signal on the container init kills it at once under the diff, because init sees no parent from inside its new process namespace | Every container exits immediately when the option is set | The plugin never sets the option, and the diff refuses it |
+| R-14 | The persistent partition fills: images, writable layers and volumes share about 950 MB with the config and crash logs | A fetch or a container write fails for lack of space | A free-space check before a fetch, a quota on each writable layer, the retention rule, and a larger default image size where containers are configured |
 
 ## Blast Radius
 
@@ -235,7 +284,19 @@ commands); the split is decided at design.
 
 | AC ID | Input / Condition | Expected Behavior | Permitted Survivors and Why |
 |-------|-------------------|-------------------|-----------------------------|
-| AC-1 | To be filled at design | | |
+| AC-1 | A config names a container whose image is in the store, and is committed | The container's entrypoint runs. The container listing shows it running with the digest of its image, and its process is in namespaces and a cgroup of its own | A container whose image is absent stays stopped (AC-2); a container marked disabled stays stopped, because the operator asked for that |
+| AC-2 | A config names a container whose image is not in the store | The commit succeeds. The listing shows that container as waiting for its image and names the image, and doctor reports it with the command that fetches it. Fetching the image then starts the container with no further command | Other containers in the same commit start, because one missing image does not hold the rest |
+| AC-3 | The operator runs the image fetch command for a reference | The image is fetched, every blob's hash is checked against its digest, and the image appears in the image listing under its digest, in a folder named by that digest | An image already in the store under the same digest is kept and not fetched again |
+| AC-4 | A container writes a file in its root, then is restarted, then the device reboots | The file is still there after the restart and after the reboot | A path under a memory-backed mount the image or config declares is lost, because that is what such a mount is |
+| AC-5 | The image a container names is updated to a new digest, then rolled back | After the update the container runs the new image from a fresh writable layer. After the rollback it runs the previous image with the writes it had before the update | Images and layers older than the one previous generation are removed, by the retention rule |
+| AC-6 | A container allocates memory past its limit, or forks past its process limit | The kernel kills or refuses inside the container, the container's state records why, and the restart policy applies | The routing daemon and the other containers keep running, which is the point of the limit |
+| AC-7 | A container runs with the default confinement | From inside, it sees only its own processes and mounts, holds only the default capability set, and a system call outside the default profile is refused with an error | A capability or host namespace the config grants explicitly is present, because the operator asked for it |
+| AC-8 | A container is attached to a container network | It reaches the network's gateway address. The host end of its link is listed as a Ze interface, and a firewall term that matches that interface applies to its traffic | Traffic the firewall config permits passes; nothing else creates packet-filter state: every table present is one Ze owns |
+| AC-9 | A container publishes a port | A connection to the published address and port reaches the container, and the translation is visible as state Ze owns and shows | A port no container publishes stays closed |
+| AC-10 | A container's entrypoint exits with a failure | The container is restarted under its restart policy with a growing delay, and the listing shows the restart count and the last exit status | A container whose policy is "no" stays stopped, as configured |
+| AC-11 | The daemon stops or reloads a config that removes a container | The container gets its stop signal, then is killed after its stop timeout, and no process, cgroup, mount or link of it remains | Its image and its writable layer remain on disk, so the next start finds them |
+| AC-12 | A config uses a container on a kernel that lacks a required option | Validate, start and reload refuse, naming the option; doctor reports the same | A config with no container is accepted on that kernel, because nothing needs the option |
+| AC-13 | `ze` is built without the container gate | A config with a container root is refused as unknown, the container commands do not exist, and the binary links no symbol of the feature or of the upstream runtime | Every other feature behaves as in a build with the gate |
 
 ## End-to-End User Stories
 
@@ -291,6 +352,13 @@ commands); the split is decided at design.
 |----------|------------------------|-----------|
 | Ze runs containers itself | Shipping the Docker daemon, as the lab Docker host image does | A second supervisor with its own mutable store and its own packet-filter rules competes with Ze's firewall and with Ze owning process lifecycle. Owner ruling |
 | One binary | A runtime binary shipped beside `ze` | Owner ruling |
+| Use the upstream runtime library whole, with a small build-time diff (proposed) | (a) No diff: a Go trampoline in Ze's init role that speaks the library's startup protocol. (b) Import only its leaf packages and write the parent and the init sequence in Ze | The diff is about 20 to 30 lines in two functions (the parent clones init straight into its namespaces), plus one replaced file for the system-call filter, and it fails loudly when it stops applying. (a) needs three starts of the `ze` binary per container, depends on undocumented protocol details that change with no compile error, and still needs a diff or a descriptor-passing shim for the filter. (b) makes Ze re-derive and track by hand several thousand lines of security-critical code |
+| A pure-Go system-call filter, replacing the library's stub (proposed) | Running containers unfiltered; a cgo build | The stub refuses any profile. The filter is assembled with the BPF package Ze already vendors, from a per-architecture system-call table, and reproduces the upstream behaviour including "not implemented" for system calls newer than the profile |
+| Images stored unpacked, one folder per image digest (proposed, from the owner's direction) | A squashfs or EROFS image file per digest | The persistent partition's filesystem already holds owners, device nodes, hard links and extended attributes. An image file needs a kernel option the runtime kernel lacks, a loop device, and a writer Ze does not have: the vendored squashfs writer holds root-owned regular files only. The cost is that layers are applied through host paths, so extraction resolves every entry under a descriptor for the folder, and that nothing verifies the folder after it is written |
+| The writable layer is on disk, keyed by container name and image digest (owner direction) | A memory-backed layer discarded at restart | Owner direction: a container's filesystem persists until its image is updated. It needs a disk quota and a command that discards it |
+| Operator model after the reference system, expressed in Ze's grammar (owner ruling) | Its command words verbatim | Its words break Ze's command rules (verb first, selector before action, format as a pipe). The operations and the config tree are kept |
+| Container networks and published ports are container config, realised through Ze's interface and firewall mechanisms (proposed, O-7) | Leaving the operator to write a bridge and firewall terms by hand; letting the runtime install its own bridge and packet-filter rules | Operators of the reference system expect the nodes. Realising them through Ze's own mechanisms, in state Ze owns and shows, keeps the rule that nothing is installed beside Ze's firewall |
+| Images are pulled only by an explicit command, and a missing image is a reported state (from the reference model) | Pulling at commit | A commit must not depend on a registry being reachable. Ze adds what the reference lacks: the container's state names the missing image, and doctor gives the command |
 
 ## Known Limitations
 - To be filled at design.
