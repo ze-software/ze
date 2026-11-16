@@ -5,6 +5,7 @@
 package metrics
 
 import (
+	"errors"
 	"net/http"
 	"slices"
 	"sync"
@@ -162,7 +163,7 @@ func (r *PrometheusRegistry) GaugeVec(name, help string, labelNames []string) Ga
 		Help: help,
 	}, labelNames)
 	r.registry.MustRegister(gv)
-	wrapped := &promGaugeVec{gv: gv}
+	wrapped := &promGaugeVec{gv: gv, labelCount: len(labelNames)}
 	r.gaugeVecs[name] = wrapped
 	r.shapes[name] = Shape{Kind: KindGaugeVec, LabelNames: slices.Clone(labelNames)}
 
@@ -224,7 +225,7 @@ func (r *PrometheusRegistry) HistogramVec(name, help string, buckets []float64, 
 		Buckets: buckets,
 	}, labelNames)
 	r.registry.MustRegister(hv)
-	wrapped := &promHistogramVec{hv: hv}
+	wrapped := &promHistogramVec{hv: hv, labelCount: len(labelNames)}
 	r.histogramVecs[name] = wrapped
 	r.shapes[name] = Shape{Kind: KindHistogramVec, LabelNames: slices.Clone(labelNames), Buckets: ResolveBuckets(buckets)}
 
@@ -307,7 +308,9 @@ func (v *promCounterVec) Delete(labelValues ...string) bool {
 
 // promGaugeVec wraps prometheus.GaugeVec to return metrics.Gauge.
 type promGaugeVec struct {
-	gv *prometheus.GaugeVec
+	gv         *prometheus.GaugeVec
+	custody    SeriesCustody
+	labelCount int
 }
 
 func (v *promGaugeVec) With(labelValues ...string) Gauge {
@@ -315,12 +318,23 @@ func (v *promGaugeVec) With(labelValues ...string) Gauge {
 }
 
 func (v *promGaugeVec) Delete(labelValues ...string) bool {
-	return v.gv.DeleteLabelValues(labelValues...)
+	return v.custody.Delete(labelValues, v.gv.DeleteLabelValues)
+}
+
+// RetainSeries owns one interest in this exact registered gauge vector.
+// Callers MUST Release after their final update; Delete respects every holder.
+func (v *promGaugeVec) RetainSeries(labelValues ...string) (SeriesLease, error) {
+	if len(labelValues) != v.labelCount {
+		return SeriesLease{}, errors.New("metric gauge series lease requires the declared label count")
+	}
+	return v.custody.Retain(labelValues, nil, v.gv.DeleteLabelValues)
 }
 
 // promHistogramVec wraps prometheus.HistogramVec to return metrics.Histogram.
 type promHistogramVec struct {
-	hv *prometheus.HistogramVec
+	hv         *prometheus.HistogramVec
+	custody    SeriesCustody
+	labelCount int
 }
 
 func (v *promHistogramVec) With(labelValues ...string) Histogram {
@@ -328,5 +342,14 @@ func (v *promHistogramVec) With(labelValues ...string) Histogram {
 }
 
 func (v *promHistogramVec) Delete(labelValues ...string) bool {
-	return v.hv.DeleteLabelValues(labelValues...)
+	return v.custody.Delete(labelValues, v.hv.DeleteLabelValues)
+}
+
+// RetainSeries owns one interest in this exact registered histogram vector.
+// Callers MUST Release after their final update; Delete respects every holder.
+func (v *promHistogramVec) RetainSeries(labelValues ...string) (SeriesLease, error) {
+	if len(labelValues) != v.labelCount {
+		return SeriesLease{}, errors.New("metric histogram series lease requires the declared label count")
+	}
+	return v.custody.Retain(labelValues, nil, v.hv.DeleteLabelValues)
 }

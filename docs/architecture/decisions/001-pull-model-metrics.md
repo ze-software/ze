@@ -92,10 +92,14 @@ The original motivator, Prometheus leaking into business logic, does not apply s
 <!-- source: internal/core/metrics/metrics.go - Registry interface -->
 <!-- source: internal/core/metrics/prometheus.go - Prometheus backend imports -->
 
-The hard unresolved piece is external-plugin metrics. A pull adapter needs to know where snapshots come from. In-process plugins can expose a Go method, but subprocess plugins need a protocol shape. Ze currently has parent-owned process-health metrics, but no SDK/RPC hook for plugin-authored metric snapshots.
+External-plugin metrics now have a protocol: `sdk.MetricsPublisher` sends
+declarations and updates at the plugin's chosen cadence, and the daemon keeps
+the published values in its registry. A future pull adapter must use that
+existing push cache across the process boundary rather than assume it can
+call a subprocess's Go method or add a separate snapshot protocol.
 
-<!-- source: internal/component/plugin/process/manager.go - pluginMetrics -->
-<!-- source: pkg/plugin/sdk/sdk_callbacks.go - public callback surface -->
+<!-- source: pkg/plugin/sdk/metrics.go - MetricsPublisher -->
+<!-- source: internal/component/plugin/server/dispatch_metrics.go - pluginMetricSet -->
 
 ## External-Plugin Metrics Options
 
@@ -146,3 +150,15 @@ Tests may use a Prometheus registry, `NopRegistry`, or a spy registry depending 
 
 <!-- source: internal/core/metrics/nop.go - NopRegistry -->
 <!-- source: internal/core/metrics/prometheus_test.go - PrometheusRegistry tests -->
+
+## Additive series custody
+
+A metric vector may implement SeriesRetainer when multiple local owners share
+its labelled series. RetainSeries returns a copy-safe lease; the holder must
+Release it after its final update. Delete refuses while a lease remains, and
+the final release removes the original series under the acquisition lock.
+Prometheus vectors own this state, so repeated name registration shares it and
+different registries stay independent. NopRegistry provides a no-effect lease.
+This is series cleanup in the existing push model, not a new collection model.
+Existing Registry, GaugeVec and HistogramVec interfaces remain unchanged.
+<!-- source: internal/core/metrics/series_custody.go -- SeriesRetainer, SeriesCustody, SeriesLease -->

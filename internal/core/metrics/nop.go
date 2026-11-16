@@ -56,3 +56,9 @@ type nopHistogramVec struct{}
 
 func (nopHistogramVec) With(...string) Histogram { return nopHistogram{} }
 func (nopHistogramVec) Delete(...string) bool    { return false }
+
+// RetainSeries explicitly supports disabled metrics without retaining labels.
+func (nopGaugeVec) RetainSeries(...string) (SeriesLease, error) { return SeriesLease{}, nil }
+
+// RetainSeries explicitly supports disabled metrics without retaining labels.
+func (nopHistogramVec) RetainSeries(...string) (SeriesLease, error) { return SeriesLease{}, nil }
