@@ -797,15 +797,21 @@ func applyFactsNextHop(f *peerForwardFacts, mods *filterapi.ModAccumulator, mpFa
 			return
 		}
 		// Choose the bytes before admission and materialization read the
-		// operation. A mapped IPv6 field is not a native IPv4 next hop.
-		// Consult the existing family contract: SR Policy permits native IPv4
-		// under either AFI. Other families use the mapped IPv6 form here;
-		// IPv6 unicast's use of that form is described in RFC 8950 Section 1.
-		if slices.Contains(attribute.ValidNextHopLens(attribute.AFI(mpFamily.AFI), attribute.SAFI(mpFamily.SAFI)), 4) {
+		// operation. An empty length table adds no family restriction, as in
+		// familyAdmitsNextHopOctets and the typed MP writer's wireNextHop.
+		// Preserve native IPv4 in that case instead of inventing a mapped
+		// IPv6 field. Known profiles that exclude four octets retain their
+		// mapped form; IPv6 unicast uses it under RFC 8950 Section 1.
+		lengths := attribute.ValidNextHopLens(attribute.AFI(mpFamily.AFI), attribute.SAFI(mpFamily.SAFI))
+		if len(lengths) == 0 {
 			mods.Op(14, filterapi.AttrModSet, f.nhLegacy[:])
-		} else {
-			mods.Op(14, filterapi.AttrModSet, f.nhMapped[:])
+			return
 		}
+		if slices.Contains(lengths, 4) {
+			mods.Op(14, filterapi.AttrModSet, f.nhLegacy[:])
+			return
+		}
+		mods.Op(14, filterapi.AttrModSet, f.nhMapped[:])
 	case nhModeSelfV6, nhModeExplicitV6:
 		if mpFamily.SAFI == family.SAFIVPN {
 			mods.Op(14, filterapi.AttrModSet, f.vpnIPv6NextHop())

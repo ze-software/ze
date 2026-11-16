@@ -796,13 +796,20 @@ record both legacy and MP operations, but the unused MP operation does not
 impose IPv6 admission rules on a legacy-only route.
 
 For a configured IPv4 self or explicit rewrite, `applyFactsNextHop` selects the
-native four-octet MP form only when the existing next-hop length contract for
-that AFI/SAFI permits it. Admission and the delta writer consume that same
-operation, rather than judging a mapped IPv6 address and emitting something
-else. This includes IPv6 SR Policy, whose next-hop family is independent of its
-NLRI AFI; it does not flatten VPN framing or make a four-octet field valid for
-IPv6-unicast NLRI. Received or policy-written mapped fields are not normalized
-by this producer choice; their existing family profile decides admission.
+native four-octet MP form when that AFI/SAFI's length table permits it or the
+table is empty. An empty table supplies no family-specific width restriction,
+as in the delta writer's `familyAdmitsNextHopOctets`; it does not require a
+mapped IPv6 replacement. This keeps a native IPv4 next hop for BGP-LS under
+Auto, Self and explicit address modes. Known non-VPN profiles that exclude
+four octets retain the mapped IPv6 form, and SAFI 128 retains its separate
+RD-framed forms. Admission and the delta writer consume the selected operation.
+IPv6 SR Policy permits native IPv4 independently of its NLRI AFI;
+IPv6-unicast NLRI retains its IPv6 encoding. Received or policy-written mapped
+fields keep their existing family admission checks.
+<!-- source: internal/component/bgp/reactor/peer_forward_facts.go -- applyFactsNextHop -->
+<!-- source: internal/component/bgp/reactor/filter_delta_handlers.go -- familyAdmitsNextHopOctets -->
+<!-- test: internal/component/bgp/reactor/next_hop_auto_bgpls_test.go TestNextHopAutoBGPLSNativeIPv4 -->
+
 The mixed AIGP socket regression uses a genuine IPv6 self address for MP and an
 export rewrite to a local IPv4 interface for legacy NLRI. Both remain local
 next-hop changes, so initial forwarding and metric replay retain their distinct
