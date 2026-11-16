@@ -438,7 +438,9 @@ RFC populations and counting history, scenario counts by primary protocol,
 the bounded list of 13 test images and the other test layers. These counts
 describe inventory, not current passing runs or individual assertions.
 The four trial choices use Run entries in `audience.json`, including success
-checks, an optional recommendation and an optional secondary link. The Who
+checks, an optional recommendation and an optional secondary link. The build-size
+panel before these choices explains how optional subsystems can be excluded from
+the binary at compile time. The Who
 entries remain as authored inventory but are not rendered on the homepage. The
 former audience grid and bottom trial reminder are removed; the hero retains
 its release state. The feature directory guide keeps a boxed inner card beneath
