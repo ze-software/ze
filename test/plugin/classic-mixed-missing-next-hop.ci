@@ -1,0 +1,137 @@
+# Question: does an actual raw export answer missing code3 retain classic NLRI
+# presence when a configured IPv4 next-hop rewrite inserts the recipient's own
+# address, while the zero-hop FlowSpec sibling and a useful recipient survive?
+# Unit tests cannot prove configured plugin grants, forked raw-filter RPC,
+# actual cache/native forwarding and negotiated recipient socket bytes agree.
+# The observer negotiates IPv4 unicast AND IPv4 FlowSpec on three real sockets.
+# A source sends three valid classic updates with mandatory ORIGIN, AS_PATH,
+# NEXT_HOP and MED. The export filter retains mandatory ORIGIN/AS_PATH, removes
+# code3 and adds a literal zero-hop FlowSpec field. Only the middle generation
+# retains classic NLRI. Both surrounding MP-only fields are useful socket fences.
+# The same raw answer is repaired to the harmful recipient's own address and
+# a third-party address at the useful recipient. A fresh refused classic route
+# has no recipient owner: neither a classic ANN nor an invented withdrawal may
+# leave. Seeded classic withdrawal/recovery is proven by the separate recording
+# writer test; this daemon test does not claim configuration hot-reload recovery.
+# Each phase inspects every recipient UPDATE up to an explicit EOR fence.
+# The native case also binds the engine's reactor-forwarded receipt to the
+# actual received peer/message/epoch; mere rs-fast-path configuration is not proof.
+# This portable loopback fixture proves daemon wiring, not foreign-router
+# acceptance or legal production topology; the owning FRR work proves those.
+# RFC4271 Section5.1.3: "A route originated by a BGP speaker SHALL NOT be
+# advertised to a peer using an address of that peer as NEXT_HOP."
+option=timeout:value=150s
+
+stdin=cached-config:terminator=CACHED_CONFIG
+plugin {
+ external classic-mixed-nh {
+  run "le test fixture plugin/classic-mixed-next-hop cached 127.0.0.1:$PORT";
+  encoder json;
+ }
+}
+bgp {
+ router-id 1.1.1.1;
+ filter { import { final accept; } export { final accept; } }
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session {
+   asn { local 65000; remote 65001; }
+   next-hop unchanged;
+   family { ipv4/unicast { prefix { maximum 100; } } ipv4/flow { prefix { maximum 100; } } }
+   capability { graceful-restart disable; }
+  }
+  behavior { group-updates disable; }
+  attach process classic-mixed-nh { receive [ update state ]; send [ update ]; }
+ }
+ peer harmful {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session {
+   asn { local 65000; remote 65000; }
+   next-hop 127.0.0.3;
+   family { ipv4/unicast { prefix { maximum 100; } } ipv4/flow { prefix { maximum 100; } } }
+   capability { graceful-restart disable; }
+  }
+  behavior { group-updates disable; }
+  filter { export { filters [ classic-mixed-nh:rewrite ]; final accept; } }
+  attach process classic-mixed-nh { send [ update ]; }
+ }
+ peer useful {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.4; connect false; } }
+  session {
+   asn { local 65000; remote 65000; }
+   next-hop 192.0.2.99;
+   family { ipv4/unicast { prefix { maximum 100; } } ipv4/flow { prefix { maximum 100; } } }
+   capability { graceful-restart disable; }
+  }
+  behavior { group-updates disable; }
+  filter { export { filters [ classic-mixed-nh:rewrite ]; final accept; } }
+  attach process classic-mixed-nh { send [ update ]; }
+ }
+}
+CACHED_CONFIG
+
+cmd=foreground:seq=1:exec=ze -:stdin=cached-config:timeout=70s
+expect=exit:code=0
+expect=stderr:contains=OK: classic mixed missing-code3 cached refusal and useful sibling/repair recipients verified
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered
+cmd=foreground:seq=2:exec=le test fixture daemon/await-exit:timeout=20s
+expect=stderr:contains=OK: the first daemon exited
+
+stdin=native-config:terminator=NATIVE_CONFIG
+plugin {
+ internal rs { use bgp-rs; }
+ external classic-mixed-nh {
+  run "le test fixture plugin/classic-mixed-next-hop native 127.0.0.1:$PORT";
+  encoder json;
+ }
+}
+bgp {
+ router-id 1.1.1.1;
+ filter { import { final accept; } export { final accept; } }
+ peer source {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.2; connect false; } }
+  session {
+   asn { local 65000; remote 65001; }
+   next-hop unchanged;
+   family { ipv4/unicast { prefix { maximum 100; } } ipv4/flow { prefix { maximum 100; } } }
+   capability { graceful-restart disable; }
+  }
+  behavior { group-updates disable; rs-fast-path enable; }
+  attach process classic-mixed-nh { receive [ update state ]; send [ update ]; }
+  attach process rs { receive [ update-received state open-received refresh ]; send [ update ]; }
+ }
+ peer harmful {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.3; connect false; } }
+  session {
+   asn { local 65000; remote 65000; }
+   next-hop 127.0.0.3;
+   family { ipv4/unicast { prefix { maximum 100; } } ipv4/flow { prefix { maximum 100; } } }
+   capability { graceful-restart disable; }
+  }
+  behavior { group-updates disable; rs-fast-path enable; }
+  filter { export { filters [ classic-mixed-nh:rewrite ]; final accept; } }
+  attach process classic-mixed-nh { send [ update ]; }
+  attach process rs { receive [ state ]; send [ update ]; }
+ }
+ peer useful {
+  connection { local { ip 127.0.0.1; port $PORT; } remote { ip 127.0.0.4; connect false; } }
+  session {
+   asn { local 65000; remote 65000; }
+   next-hop 192.0.2.99;
+   family { ipv4/unicast { prefix { maximum 100; } } ipv4/flow { prefix { maximum 100; } } }
+   capability { graceful-restart disable; }
+  }
+  behavior { group-updates disable; rs-fast-path enable; }
+  filter { export { filters [ classic-mixed-nh:rewrite ]; final accept; } }
+  attach process classic-mixed-nh { send [ update ]; }
+  attach process rs { receive [ state ]; send [ update ]; }
+ }
+}
+NATIVE_CONFIG
+
+cmd=foreground:seq=3:exec=ze -:stdin=native-config:timeout=70s
+expect=exit:code=0
+expect=stderr:contains=OK: classic mixed missing-code3 native refusal and useful sibling/repair recipients verified
+reject=stderr:contains=ZE-OBSERVER-FAIL
+reject=stderr:contains=panic recovered
