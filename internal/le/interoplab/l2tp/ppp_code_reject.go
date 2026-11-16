@@ -96,6 +96,16 @@ type pppFrame struct {
 // RFC requirement: RFC1661-5.5-1 positive -- over a live xl2tpd and pppd
 // session with IPCP Opened, an IPCP Terminate-Request with Identifier 0x5a
 // draws an IPCP Terminate-Ack from ze carrying Identifier 0x5a.
+// RFC requirement: RFC1661-6.6-1 positive -- every Ze-to-LAC PPP data
+// datagram in a complete capture from startup through Code-Reject, Echo and
+// IPCP termination carries Address 0xff and Control 0x03; the capture includes
+// startup Configure exchange, LCP Code-Rejects, an Echo-Reply and IP traffic.
+// RFC requirement: RFC1661-6.6-2 positive -- Ze's startup LCP Configure
+// exchange, Code-Rejects and Echo-Reply all carry uncompressed ff 03.
+// RFC requirement: RFC1661-6.6-2 negative -- with ACFC not negotiated, one
+// relay-injected LCP Echo-Request lacking ff 03 reaches Linux PPP and Ze;
+// Ze replies with the correlated uncompressed Echo-Reply and the session
+// retains its interfaces and subsequent traffic.
 //
 // Each assertion is numbered, so a red run names which one failed and a
 // discrimination record can cite it.
@@ -106,9 +116,7 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 		name = "ppp-code-reject-xl2tpd"
 	)
 	fail := func(assertion int, cause error) error {
-		var tb textbuf.Buffer
-		tb.Str("scenario ").Str(name).Str(" assertion ").Str(strconv.Itoa(assertion)).Str(": ").Err(cause)
-		return errors.New(tb.String())
+		return pppCodeRejectFailure(name, assertion, cause)
 	}
 
 	// Assertion 1. A PPP session carries traffic before any probe is sent, so
@@ -127,6 +135,19 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 	if err := pingThroughSession(ctx, lab); err != nil {
 		return fail(1, err)
 	}
+	// Assertion 7 starts at the first data datagram, before any injection.
+	// The complete-capture ordinal refuses a truncated Docker log.
+	startup, err := lab.Logs(ctx, peerAVPRelay, pppCaptureLines)
+	if err != nil {
+		return fail(7, err)
+	}
+	startupFrames, err := framingPPPFrames(startup.Text)
+	if err != nil {
+		return fail(7, err)
+	}
+	if _, err := negotiatedPPPFraming(startupFrames); err != nil {
+		return fail(7, err)
+	}
 
 	// Assertion 2. The relay sent the four probes, and Ze answered each of
 	// them with a Code-Reject on its own protocol. The next datagram the LAC
@@ -140,11 +161,17 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 	frames, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: "four probes and two Ze LCP and two IPCP Code-Rejects",
 	}, func(probeCtx context.Context) ([]pppFrame, error) {
-		result, readErr := lab.Logs(probeCtx, peerAVPRelay, 1000)
+		result, readErr := lab.Logs(probeCtx, peerAVPRelay, pppCaptureLines)
 		if readErr != nil {
 			return nil, readErr
 		}
-		return relayPPPFrames(result.Text)
+		frames, parseErr := armedPPPFrames(result.Text)
+		if parseErr != nil {
+			if _, framing := errors.AsType[*pppFramingError](parseErr); framing {
+				return nil, fail(7, parseErr)
+			}
+		}
+		return frames, parseErr
 	}, func(frames []pppFrame) bool {
 		if len(zeCodeRejects(frames, protocolLCP)) < 2 {
 			return false
@@ -196,16 +223,57 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 			return fail(5, changed)
 		}
 	}
-	result, err := lab.Logs(ctx, peerAVPRelay, 1000)
+	result, err := lab.Logs(ctx, peerAVPRelay, pppCaptureLines)
 	if err != nil {
 		return fail(5, err)
 	}
-	after, err := relayPPPFrames(result.Text)
+	after, err := armedPPPFrames(result.Text)
 	if err != nil {
 		return fail(5, err)
 	}
 	if err := sessionKept(after); err != nil {
 		return fail(5, interoplab.WithSearchedOutput(err, result.Text))
+	}
+	// Assertion 8. RFC 1661 Section 6.6 permits silent discard rather than
+	// requiring it. Linux 7.3 pppol2tp_recv passes this compressed input to
+	// PPP, and Ze must answer the uniquely identified valid Echo-Request.
+	if err := armCompressedPPPEcho(ctx, lab); err != nil {
+		return fail(8, err)
+	}
+	if err := pingThroughSession(ctx, lab); err != nil {
+		return fail(8, err)
+	}
+	_, _, err = interoplab.Wait(ctx, interoplab.WaitOptions{
+		Timeout: 30 * time.Second, Interval: time.Second,
+		Description: "one compressed LCP Echo-Request and Ze's correlated uncompressed Echo-Reply",
+	}, func(probeCtx context.Context) (string, error) {
+		logs, readErr := lab.Logs(probeCtx, peerAVPRelay, pppCaptureLines)
+		if readErr != nil {
+			return "", readErr
+		}
+		frames, parseErr := framingPPPFrames(logs.Text)
+		if parseErr != nil {
+			return "", fail(7, parseErr)
+		}
+		return logs.Text, requireCompressedPPPEcho(frames)
+	}, func(string) bool { return true })
+	if err != nil {
+		return fail(8, err)
+	}
+	for _, link := range []struct{ peer, before string }{{peerZe, zeLink}, {peerLAC, lacLink}} {
+		links, linkErr := pppLinks(ctx, lab, link.peer)
+		if linkErr != nil {
+			return fail(8, linkErr)
+		}
+		if len(links) != 1 {
+			return fail(8, errors.New("compressed LCP changed the number of PPP interfaces"))
+		}
+		if links[0] != link.before {
+			return fail(8, errors.New("compressed LCP replaced a PPP interface"))
+		}
+	}
+	if err := pingThroughSession(ctx, lab); err != nil {
+		return fail(8, err)
 	}
 
 	// Assertion 6. RFC 1661 Section 5.5: "Upon reception of a
@@ -221,11 +289,17 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 	terminated, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 30 * time.Second, Interval: time.Second, Description: "an IPCP Terminate-Request and Ze's Terminate-Ack",
 	}, func(probeCtx context.Context) ([]pppFrame, error) {
-		logs, readErr := lab.Logs(probeCtx, peerAVPRelay, 1000)
+		logs, readErr := lab.Logs(probeCtx, peerAVPRelay, pppCaptureLines)
 		if readErr != nil {
 			return nil, readErr
 		}
-		return relayPPPFrames(logs.Text)
+		frames, parseErr := armedPPPFrames(logs.Text)
+		if parseErr != nil {
+			if _, framing := errors.AsType[*pppFramingError](parseErr); framing {
+				return nil, fail(7, parseErr)
+			}
+		}
+		return frames, parseErr
 	}, func(frames []pppFrame) bool {
 		return zeTerminateAck(frames) == nil
 	})
@@ -237,9 +311,12 @@ func checkPPPCodeReject(ctx context.Context, lab labOperations, _ time.Duration)
 	}
 	// Retain the wire evidence in the native job log before Suite removes the
 	// relay container, including on a successful run.
-	final, err := lab.Logs(ctx, peerAVPRelay, 1000)
+	final, err := lab.Logs(ctx, peerAVPRelay, pppCaptureLines)
 	if err != nil {
 		return fail(6, err)
+	}
+	if err := requirePPPFullSessionFraming(final.Text); err != nil {
+		return fail(7, err)
 	}
 	_, err = os.Stdout.WriteString("L2TP-PPP-CODE-REJECT-WIRE four probes, two LCP and two IPCP Code-Rejects, " +
 		"session kept, IPCP Terminate-Ack\n" + final.Text + "\n")
@@ -322,8 +399,17 @@ func relayPPPFrames(text string) ([]pppFrame, error) {
 		if len(datagram) >= 2 && datagram[0]&0x80 != 0 {
 			continue
 		}
+		if event.Direction == relayCompressedPPP {
+			if _, err := compressedPPPInformation(datagram); err != nil {
+				return nil, err
+			}
+			continue
+		}
 		protocol, packet, err := pppInformation(datagram)
 		if err != nil {
+			if event.Direction == relayFromZe {
+				return nil, &pppFramingError{cause: err}
+			}
 			return nil, err
 		}
 		if protocol&0x8000 == 0 {

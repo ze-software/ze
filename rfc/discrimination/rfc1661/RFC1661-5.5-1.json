@@ -14,12 +14,12 @@
     "rid": "RFC1661-5.5-1",
     "polarity": "positive",
     "unit": "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject",
-    "unit-sha": "84c30064d1e10ab4",
+    "unit-sha": "5e0ff9ff7189894b",
     "claim-sha": "052b633491f9a848",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/ncp.go::performNCPAction",
-    "producer-sha": "796307d1cb00262d",
-    "break": "line 798: \"return s.sendNCPTerminateAck(family, current)\" -\u003e \"return true\"",
+    "producer-sha": "046b4d310402f16d",
+    "break": "line 813: \"return s.sendNCPTerminateAck(family, current)\" -\u003e \"return true\"",
     "citation": "6"
   }
 ]

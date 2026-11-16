@@ -1,15 +1,22 @@
 {
-  "note": "Forbidden: not Code-Rejecting an unknown Code. TestRFC1661CodeRejectForUnknownCode goes red on no Code-Reject or a Rejected-Packet not carrying Code 99, Identifier 0x41, Length 6, Data aabb; TestRFC1661NoCodeRejectForKnownCode goes red if a Terminate-Request is Code-Rejected. checkPPPCodeReject, over live xl2tpd and pppd with LCP and IPCP Opened, goes red at assertion 2 unless Ze answers the two injected LCP Code 99 probes with LCP Code-Rejects and the two IPCP Code 12 probes with IPCP Code-Rejects, and assertions 3 and 4 then require exactly two per protocol, each carrying the probe's Code and Identifier 0x42. Its claim now names both halves and states no more than the body checks. The LCP half is the sentence this row quotes; the IPCP half applies RFC 1332 Section 2 ('Other Codes should be treated as unrecognized and should result in Code-Rejects'). Its record breaks wakeUnitReader in afterLCPOpen (red at assertion 2), which proves the IPCP half needs Ze to read its PPP unit descriptor; no interop record breaks the LCP Code-Reject producer, whose discrimination rests on the unit tests.",
+  "code": {
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::injectedProbes": "f996508e0f380fea",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::sessionKept": "20cf7716a71fbbb1",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::zeCodeRejects": "8908a41e7cdfd1c0",
+    "internal/le/interoplab/l2tp/ppp_framing.go::armedPPPFrames": "60132ad705f47c61",
+    "internal/le/interoplab/l2tp/ppp_framing.go::readPPPFramingLog": "4e9fcdd82a3df485"
+  },
+  "note": "The tagged positive TestRFC1661CodeRejectForUnknownCode drives LCP Opened with Code 99, Identifier 0x41 and Data aabb, and requires Code-Reject with the exact rejected header and Data; the negative drives a recognized Terminate-Request in Opened and refuses a Code-Reject. checkPPPCodeReject assertion 2 requires two LCP and two IPCP Code-Rejects for exactly four observed injected probes; assertions 3 and 4 retain exact counts, distinct response Identifiers and the rejected packet identity/prefix. The main native guest baseline passed the current checker. Those proofs isolate reporting an unknown Code in the exercised states, but LCPDoTransition has separate RUC-to-scj edges in Closing and Stopping that the tagged tests do not reach. Existing additional FSM table tests cover other RUC cells and still omit these two. This pre-existing whole-row gap is recorded under spec-ppp-l2tp-aaa-one-off-defects in plan/journal/requirement-proven-in-one-state-of-many.md. Weak corrects the earlier enforced verdict without weakening any assertion or claiming a product defect. AC-3 preserves the original arming boundary and pre-injection controls. Main native paired renewal passed the clean current checker and observed writeCodeReject changed from LCPCodeReject to LCPEchoReply fail the cited assertion 2; native rfc record wrote its renewal.",
   "requirement_sha": "ee40e5c7a7172d2a",
   "tests": {
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CodeRejectForUnknownCode": "a1d8f8274d199376",
-    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode": "a1d8f8274d199376",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "ad383087d2aafe76"
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CodeRejectForUnknownCode": "be08cb3cc076168c",
+    "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode": "be08cb3cc076168c",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "48b0fe7c509d1900"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661CodeRejectForUnknownCode": "609e1d202c32e1e2",
     "internal/component/l2tp/ppp/rfc1661_test.go::TestRFC1661NoCodeRejectForKnownCode": "44d57804605012ad",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "2d797b2c5a8817d7"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "eb1419b18e446fda"
   },
-  "verdict": "enforced"
+  "verdict": "weak"
 }

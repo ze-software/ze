@@ -1,15 +1,21 @@
 {
-  "note": "Every probe pair shares one Identifier, which isolates the defect the row forbids (copying the rejected packet's Identifier). TestRFC1661LCPCodeRejectIdentifierChanges (LCP, Opened, two Code 99 with 0x41) and TestRFC1661NCPCodeRejectIdentifierChanges (IPCP and IPv6CP, Req-Sent, two Code 12 with 0x51) go red unless exactly two Code-Rejects on that protocol carry different Identifiers. checkPPPCodeReject assertion 3 does the same on the wire for LCP and IPCP (two probes with 0x42 each, exactly two Code-Rejects per protocol, Identifiers differ); its record breaks nextNCPCodeRejectID to req.Identifier in sendNCPCodeReject and is red at assertion 3. The {single-polarity: positive} argument holds: sendCodeReject advances lcpCodeRejectID and nextNCPCodeRejectID (ncp.go) advances ipcpCodeRejectID or ipv6cpCodeRejectID per Code-Reject, and no input can ask Ze to keep a Code-Reject Identifier, so no refusing case exists to assert. Two consecutive distinct values is what 'changed for each Code-Reject sent' can be observed as.",
+  "code": {
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::distinctIdentifiers": "8e6ed944cb2146e8",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::zeCodeRejects": "8908a41e7cdfd1c0",
+    "internal/le/interoplab/l2tp/ppp_framing.go::armedPPPFrames": "60132ad705f47c61",
+    "internal/le/interoplab/l2tp/ppp_framing.go::readPPPFramingLog": "4e9fcdd82a3df485"
+  },
+  "note": "The paired probes deliberately share one rejected Identifier, isolating the forbidden copy. TestRFC1661LCPCodeRejectIdentifierChanges drives two LCP Code 99 packets in Opened and requires exactly two Code-Rejects with different Identifiers. TestRFC1661NCPCodeRejectIdentifierChanges does the same for IPCP and IPv6CP Code 12 in Req-Sent. checkPPPCodeReject assertion 3 requires exactly two distinct Identifiers per LCP/IPCP protocol on the live wire, and its normal native guest baseline passed. The single-polarity annotation remains justified: sendCodeReject advances the LCP counter and nextNCPCodeRejectID advances the family counter before each sent Code-Reject; no input asks the sender to retain its previous Identifier. These common producer paths and isolating probes enforce the sent-Identifier requirement. AC-3 keeps the armed trigger and later control population, original four probes and response counts. Main native paired renewal passed the clean current checker and observed sendNCPCodeReject using the rejected req.Identifier fail assertion 3 with both Code-Reject Identifiers equal to 66; native rfc record wrote its renewal.",
   "requirement_sha": "0939592602cb495b",
   "tests": {
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661LCPCodeRejectIdentifierChanges": "abd3fecb016ef0e7",
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661NCPCodeRejectIdentifierChanges": "abd3fecb016ef0e7",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "ad383087d2aafe76"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "48b0fe7c509d1900"
   },
   "units": {
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661LCPCodeRejectIdentifierChanges": "c53b5be2338a9d29",
     "internal/component/l2tp/ppp/rfc1661_code_reject_test.go::TestRFC1661NCPCodeRejectIdentifierChanges": "1e7943f69d5a6fe6",
-    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "2d797b2c5a8817d7"
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "eb1419b18e446fda"
   },
   "verdict": "enforced"
 }

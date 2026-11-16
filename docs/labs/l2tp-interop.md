@@ -347,6 +347,46 @@ Identifier. The full
 account is in `docs/architecture/testing/interop.md`, "L2TP and PPPoE
 lifecycle fault scenarios".
 
+The same scenario checks RFC 1661 Section 6.6 on the real L2TP wire.
+The relay captures every normal PPP datagram from startup, including IP,
+with consecutive `data_ordinal` values starting at one. The checker rejects
+a missing prefix or gap and requires `ff 03` on every Ze-to-LAC frame it
+reads, with startup Configure, Code-Reject, Echo-Reply and IP witnesses.
+Assertion 7 owns this framing proof, including a framing failure encountered
+inside an earlier polling assertion. This is L2TP evidence. It does not
+exercise PPPoE or turn the lower-layer RFC rows into whole-row proof.
+
+Each normal capture row also carries `code_reject_armed`, sampled after
+the relay forwards the packet at the original Code-Reject marker gate. The original stability
+check excludes only explicitly unarmed startup traffic. It retains the
+armed triggering packet and every later control packet, including those
+before the first injection, and refuses missing or retreating phase
+metadata. An LCP or IPCP packet with Code 1 through 6 in that interval
+still fails assertion 5.
+
+With pppd's `noaccomp` and both acknowledged Configure exchanges showing no
+ACFC option, assertion 8 arms one separately labeled compressed LCP
+Echo-Request. It uses the peer's actual acknowledged Magic-Number,
+Identifier `0x6f` and Data `ff03-receive`. The checker requires a following
+uncompressed Echo-Reply with the same Identifier and Data and Ze's
+acknowledged Magic-Number. It then verifies the same PPP interfaces and
+useful traffic. The strict parser for ordinary captured frames remains unchanged.
+Only that exact, explicitly labeled injected request can omit `ff 03`.
+
+Linux 7.3 `pppol2tp_xmit` prepends `ff 03`. The receive path
+`pppol2tp_recv` removes those octets when present. Otherwise it passes the
+Protocol bytes to PPP.
+
+Section 6.6 permits silent discard of an unnegotiated compressed frame.
+This experiment requires the accepting Linux/Ze path and its useful
+response rather than a mandatory discard. No receive rejection is inferred
+from the transmit rule.
+[Pinned Linux source](https://github.com/torvalds/linux/blob/v7.3/net/l2tp/l2tp_ppp.c).
+<!-- source: internal/le/interoplab/l2tp/ppp_code_reject.go -- checkPPPCodeReject, sessionKept -->
+<!-- source: internal/le/interoplab/l2tp/ppp_framing.go -- readPPPFramingLog, negotiatedPPPFraming, requireCompressedPPPEcho, requirePPPFullSessionFraming -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/pppinject.go -- relayData -->
+<!-- source: internal/le/interoplab/l2tp/avprelay/pppframing.go -- observe, injectCompressed -->
+
 ### l2tp-lns-mru-xl2tpd
 
 Ze is the LNS with `mru 1492`, `auth-method chap-md5`, and

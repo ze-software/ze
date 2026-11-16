@@ -1,0 +1,14 @@
+[
+  {
+    "rid": "RFC1661-6.6-1",
+    "polarity": "positive",
+    "unit": "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject",
+    "unit-sha": "5e0ff9ff7189894b",
+    "claim-sha": "f5c0d16604191166",
+    "route": "mutant",
+    "producer": "internal/le/interoplab/l2tp/avprelay/pppframing.go::observe",
+    "producer-sha": "33f85eae6548a610",
+    "break": "line 43: \"hex.EncodeToString(packet)\" -\u003e \"hex.EncodeToString(func() []byte { if direction != \\\"ze\\\" { return packet }; start, err := dataHeaderLength(packet); if err != nil { return packet }; if len(packet) \u003c start+2 { return packet }; stripped := append([]byte(nil), packet[:start]...); return append(stripped, packet[start+2:]...) }())\"",
+    "citation": "7"
+  }
+]

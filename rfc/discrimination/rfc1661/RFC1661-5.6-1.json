@@ -3,12 +3,12 @@
     "rid": "RFC1661-5.6-1",
     "polarity": "positive",
     "unit": "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject",
-    "unit-sha": "84c30064d1e10ab4",
+    "unit-sha": "5e0ff9ff7189894b",
     "claim-sha": "bbf9d5c4acbe2c12",
     "route": "mutant",
     "producer": "internal/component/l2tp/ppp/session_run.go::writeCodeReject",
     "producer-sha": "69b0235df9fbd443",
-    "break": "line 2226: \"WriteLCPPacket(buf, off, LCPCodeReject, id, data[:n])\" -\u003e \"WriteLCPPacket(buf, off, LCPEchoReply, id, data[:n])\"",
+    "break": "line 2417: \"WriteLCPPacket(buf, off, LCPCodeReject, id, data[:n])\" -\u003e \"WriteLCPPacket(buf, off, LCPEchoReply, id, data[:n])\"",
     "citation": "2"
   }
 ]

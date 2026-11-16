@@ -1,0 +1,23 @@
+{
+  "code": {
+    "internal/component/l2tp/ppp/session_run.go::writeFrame": "49a7f5619f2dc693",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::pppInformation": "33d0cb65fe4895e2",
+    "internal/le/interoplab/l2tp/ppp_framing.go::acknowledgedPPPMagic": "5028446b56a88821",
+    "internal/le/interoplab/l2tp/ppp_framing.go::compressedPPPInformation": "5724b9f7f16d8daa",
+    "internal/le/interoplab/l2tp/ppp_framing.go::negotiatedPPPFraming": "7f34bcd6c16e87b3",
+    "internal/le/interoplab/l2tp/ppp_framing.go::readPPPFramingLog": "4e9fcdd82a3df485",
+    "internal/le/interoplab/l2tp/ppp_framing.go::requireCompressedPPPEcho": "654bab97992a1757",
+    "internal/le/interoplab/l2tp/ppp_framing.go::requirePPPFullSessionFraming": "bab14bdf527bb7b8"
+  },
+  "note": "Implemented and observed within the L2TP scenario: assertion 7 checks uncompressed Ze LCP output, including Configure, Code-Reject and Echo-Reply witnesses. Assertion 8 requires both acknowledged Configure exchanges to omit ACFC, injects one specifically identified compressed peer Echo-Request with its acknowledged Magic-Number, and requires a later ff03 Echo-Reply carrying the same Identifier and Data and Ze Magic, unchanged interfaces and useful traffic. Native paired records now verify both polarities of this bounded L2TP checker. The clean runs passed; the relay log-only Address/Control strip failed the cited assertion 7, and suppressing the one compressed probe failed the cited assertion 8 because the capture held zero compressed probes. Native rfc record wrote both current checkPPPCodeReject records, breaking framingCapture.observe and framingCapture.injectCompressed respectively. Section 6.6 permits silent discard; the accepting receive path is the observed implementation behavior, not a mandatory RFC receive obligation. This negative uses a violating peer input and checks Ze output independently; it does not assert that reception must accept or reject it. Negotiated-ACFC LCP transmission and PPPoE are outside this capture, so a defect confined to those paths would not be detected here. The lower-layer attribution remains, and the observed relay capture/probe breaks do not break annotated writeFrame or provide whole-row OS verification. The three new 6.6 polarity records are observed; whole-row OS and omitted-transport proof remain absent. The retained lower-layer explanation is judged here only for the exercised kernel L2TP path; concurrent PPPoE/VPP transport work receives no coverage from this capture.",
+  "requirement_sha": "fef865e8fdfa8efe",
+  "tests": {
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "48b0fe7c509d1900",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject#2": "48b0fe7c509d1900"
+  },
+  "units": {
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject": "eb1419b18e446fda",
+    "internal/le/interoplab/l2tp/ppp_code_reject.go::checkPPPCodeReject#2": "eb1419b18e446fda"
+  },
+  "verdict": "weak"
+}

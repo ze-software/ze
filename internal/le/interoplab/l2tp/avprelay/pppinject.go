@@ -14,8 +14,8 @@ import (
 )
 
 // codeRejectMarker is the file the ppp-code-reject-xl2tpd checker creates once
-// the PPP session carries traffic. Until it exists the relay forwards data
-// datagrams and logs none of them.
+// the PPP session carries traffic. It gates injection only; capture starts
+// at the first data datagram.
 const codeRejectMarker = "/run/code-reject"
 
 // terminateMarker is the file the checker creates once it has read Ze's
@@ -37,6 +37,7 @@ type injection struct {
 	codeReject bool
 	terminate  bool
 	restart    *restartProbe
+	framing    framingCapture
 }
 
 // L2TP data message header flags, RFC 2661 Section 3.1.
@@ -77,8 +78,8 @@ var codeRejectProbes = [...]probe{
 	{protocolLCP, 99}, {protocolLCP, 99}, {protocolIPCP, 12}, {protocolIPCP, 12},
 }
 
-// relayData forwards one data datagram to target. Once the checker's marker
-// exists it also logs every data datagram in both directions, unfiltered, so
+// relayData forwards and logs every normal data datagram in both directions,
+// from the first data datagram, unfiltered, so
 // the checker decides what each one is and refuses one it cannot read. The
 // first datagram the LAC sends after the marker is the trigger: the relay forwards it, then sends Ze the four
 // probes on that datagram's tunnel and session, once per relay. The first LAC
@@ -104,12 +105,13 @@ func relayData(conn *net.UDPConn, encoder *json.Encoder, packet []byte,
 	if err != nil {
 		return err
 	}
+	// Keep HEAD's marker sample point: after forwarding, before logging and
+	// before the LAC trigger can inject. Capture includes unarmed startup too.
+	if err := injected.framing.observe(encoder, packet, direction, armed); err != nil {
+		return err
+	}
 	if !armed {
 		return nil
-	}
-	encoded := hex.EncodeToString(packet)
-	if err := encoder.Encode(wireObservation{direction, encoded, encoded}); err != nil {
-		return err
 	}
 	if direction != directionLAC {
 		return nil
@@ -124,6 +126,9 @@ func relayData(conn *net.UDPConn, encoder *json.Encoder, packet []byte,
 	}
 	if injected.terminate {
 		return nil
+	}
+	if err := injected.framing.injectCompressed(conn, encoder, packet, target); err != nil {
+		return err
 	}
 	armed, err = markerExists(terminateMarker)
 	if err != nil {

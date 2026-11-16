@@ -9,3 +9,4 @@ noipv6
 debug
 nodetach
 mru 128
+noaccomp

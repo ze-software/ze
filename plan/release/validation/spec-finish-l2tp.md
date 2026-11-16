@@ -7,8 +7,8 @@
 | Priority | P2 |
 | Release reason | Required evidence for shipped behavior or truthful release support claims; historical work and proof debts remain distinct. |
 | Depends | AC-2 passing proof: `plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md`; scenario construction and AC-3 can proceed independently |
-| Phase | 1/5 wiring; AC-2 and AC-3 only |
-| Updated | 2026-11-15 |
+| Phase | 5/5 scoped verification; AC-2 and AC-3 only |
+| Updated | 2026-11-16 |
 
 ## Post-Compaction Recovery
 
@@ -473,11 +473,17 @@ Dockerfile is a build consumer, not a JSONL reader.
 
 | Phase | Files and concrete proof |
 |-------|--------------------------|
-| Wiring first | `l2tp.go`, `register_images.go`, new `register_scale.go` and `scale_test.go`: `TestScaleScenarioPlan` proves discovery, all LAC/relay peers, image needs, session count and cleanup inventory. Existing scenario-plan tests preserve the prior catalog |
-| Build inputs | `zebuild.go`, `zebuild_test.go`, `zebuild_labs_test.go`; `l2tp.go` binary declarations; `avprelay/Dockerfile`; `.gitignore`, `.dockerignore`; new `scale_overlay.go`, `scale_overlay_test.go`, `Dockerfile.ze-scale`: `TestLabBinaryPackageAndOverlay`, `TestScaleAllocatorOverlayIsolation` prove arbitrary package staging, ambient recorder overlay inheritance, scale-only substitution, no source mutation and source-drift refusal |
-| AC-2 | New `scale.go`, `scale_test.go`; relay scale capture/ACK-hold and tests; kl2tpd image derived from `Dockerfile.lac`; `test/interop-l2tp/scenarios/l2tp-many-sessions-kl2tpd/` includes FRR and FreeRADIUS inputs: `TestScaleSessionEvidence`, `TestScaleControlWindow`, `TestScaleDisconnectTarget` discriminate missing FRR routes, wrong tuples, wrong teardown, one-way traffic, duplicate/retransmitted Ns, ZLBs, wrap, an unexercised hold and a fifth outstanding packet. Reuse existing image registrations and radclient protocol; do not write a new RADIUS implementation. Real scenario exercises all of AC-2 |
+| Wiring first | `l2tp.go`, new `scenarios.go`, `register_scenarios.go`, `register_scale.go`, `scale_plan.go` and `scale_plan_test.go`: `TestScaleScenarioPlan` proves discovery, all LAC/relay peers, image needs and cleanup inventory. Existing scenario-plan tests preserve the prior catalog |
+| Build inputs | `zebuild.go`, new `zebuild_overlay.go` and `zebuild_input_test.go`; `l2tp.go` and image declarations; `avprelay/Dockerfile`; `.gitignore`, `.dockerignore`; new `scale_overlay.go`, `scale_overlay_test.go`, `Dockerfile.ze-scale`: seven `TestLabBinary` cases plus `TestScaleBuildInputs` and `TestScaleAllocatorOverlayIsolation` prove package staging, inherited recorder overlays, cleanup on success and failure, isolated substitution, source preservation and drift refusal |
+| AC-2 | New `scale.go`, `scale_evidence.go`, `scale_inputs.go`, `scale_kernel.go`, `scale_observe.go`, `scale_window.go` and their tests; `avprelay/scale.go`, `relaymode.go`, `scale_test.go` and the existing socket-loop hook; pinned kl2tpd image and complete 3-by-16 peer inputs. Session/accounting/FRR/kernel/traffic tests and `TestScaleWindowEvidence`, `TestScaleReliableEvidence`, `TestScaleWireSessionsEvidence`, `TestScalePeerCDNEvidence` cover the independent boundaries. Pipelined and queued-before-arm fixtures preserve legal control ordering, with five requests after arming and the live processed-request fence still required. Reuse registered FreeRADIUS and radclient. The real scenario exercises all of AC-2 |
 | AC-3 | `ppp_code_reject.go`, new `ppp_framing.go` and `ppp_framing_test.go`; `avprelay/pppinject.go`, `main.go`, new `avprelay/pppframing.go` and its tests; existing scenario `ppp-options`: `TestPPPFullSessionFraming`, `TestPPPArmedPhasePreservation`, `TestPPPArmedPhaseMetadata`, `TestPPPCompressedEchoEvidence`, `TestPPPFramingAssertionAttribution` plus unchanged existing Code-Reject and restart regressions. Add a replay if the scenario has a committed recording; do not invent one |
 | Proof records and documentation | `rfc/short/rfc1661.md`, recorder-written per-requirement records under `rfc/discrimination/rfc1661/`; `docs/labs/l2tp-interop.md`, L2TP section of `docs/architecture/testing/interop.md`; discovery keywords in `ai/INDEX.md`. Explain instrumented collision scope, full-session framing and receive-side kernel behavior in the phase that changes each |
+
+The reached shared staging package also exposes small existing lint findings
+in `compose.go`, `lab.go` and `runtime_image.go`. Correct their literal reuse,
+iteration and filesystem intent within this tooling work; preserve their
+behavior and use the existing root package tests as regression evidence.
+These corrections enable AC-2 and AC-3 verification and add no separate feature.
 
 New helper tests are separate cases; existing assertions are not retargeted.
 An independent test judge must approve any edit to an RFC-tagged unit before
@@ -592,11 +598,16 @@ test elsewhere.
 | Check | Observed result | Current state |
 |-------|-----------------|---------------|
 | `TestScaleScenarioPlan` | Initial red: scenario has no Go checker. After wiring, exact test and full L2TP harness package both passed | Wiring unit proof passed; no real scale run yet |
-| Scoped L2TP harness lint | Host and Linux each reported new repeated command literals, large range-value copies and missing known-capacity preallocation | Source fixes passed the same host and Linux lint scope with zero issues |
-| New `TestLabBinary` staging behavior | Named reds: package override ignored, overlay cleanup absent, conflicting overlays accepted, failed preparation accepted, cleanup error hidden and incomplete declarations accepted. Default-input preservation passed | All seven staging tests passed; scenario build wiring remains in phase 2 |
-| AC-2 identity collision | No lab run yet; expected dependency failure is specified, not observed | Keep the identity fix dependency open; do not report an infrastructure failure as this proof |
-| AC-3 RFC preservation judgment | First proposal refused because its first-injection cutoff dropped armed pre-injection frames. Revised proposal preserves the exact armed population and was independently approved | Approved patch remains unapplied pending host-staged relay wiring; renew digest-bound approval after application |
+| Wiring L2TP harness lint | Host and Linux each reported new repeated command literals, large range-value copies and missing known-capacity preallocation | Wiring source fixes passed that scope with zero issues; the larger implementation has a separate lint run below |
+| New `TestLabBinary` staging behavior | Named reds: package override ignored, overlay cleanup absent, conflicting overlays accepted, failed preparation accepted, cleanup error hidden and incomplete declarations accepted. Default-input preservation passed | All seven staging tests and registered build-selection/allocator tests passed |
+| AC-2 peer build | Native builder failed with undefined socket helpers because disabled Cgo excluded upstream `pppox.go` | Corrected peer-only Cgo builder passed in the ARM64 guest; version and assertions unchanged |
+| AC-2 FreeRADIUS fixture | All seven runtime images built, then readiness failed on inline CHAP syntax in the new site | Expanded the same blocks to the maintained multiline grammar; parser and strict rerun remain owed |
+| AC-2 identity collision | Session checks have not yet run because the peer build and fixture readiness failed first | Keep the identity dependency open. Neither setup failure is credited as the expected identity red |
+| AC-2 targeted discrimination | Native unit redwalks passed: removing Ze-to-peer traffic failed the actual traffic unit; requiring output from a silent successful action failed the actual session-action unit | Assertions remain strict; both clean units passed before their native overlay breaks |
+| AC-3 RFC preservation judgment | First proposal refused because its first-injection cutoff dropped armed pre-injection frames. Revised proposal preserves the exact armed population and was independently approved | Applied; package regressions passed and independent approval renewed for digest `b0e76cfb47219b6e511a208372a48480afd277802500b3b09a6908dd46a1d74d`. Native guest baseline passed. All three new paired records are written: positive breaks fail assertion 7, compressed-probe suppression fails assertion 8. All four original-tag renewals are also written after clean passes and the exact assertion 2/3/4/6 failures |
 | Documentation checks | Broad check failed with 720 drift findings, including generated OSPF command pages outside this scope | L2TP source anchors corrected; broad documentation health is not claimed |
+| Reached package regressions | Shared staging, L2TP harness and relay packages passed. Directory mounts were corrected to individual files; a new pipelining test went red before its oracle fix and then passed with the queued-before-arm boundary | All scoped package tests pass. Native guest Code-Reject/framing and mandatory-AVP scenarios passed; LCP restart also passed after the unrelated compile refusal was corrected |
+| Implementation scoped lint | Host and Linux each reported 33 findings across the three reached packages, including checked AST assertions, iteration, literals, error style and the relay's implicit no-release result | After corrections, the full three-package lint ran: root staging and relay clean; L2TP had one remaining repeated `show` literal finding. Four uses now reuse the existing constant and L2TP units pass. Final L2TP-only native lint completed exit0 on 2026-11-16: host0 issues and Linux integration0 issues. Root and relay remain unchanged since their earlier clean analysis |
 
 The main thread read the deciding peer functions at FreeRADIUS 3.2.10
 (`radclient.c` request types and response handling) and FRR 10.7.1

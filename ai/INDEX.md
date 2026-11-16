@@ -637,6 +637,7 @@ Aggregates: `plan/learned/DESIGN-HISTORY.md`, `plan/learned/HOOK-FRICTION.md`, `
 | sysctl, kernel tuning, profile | `internal/component/sysctl/` (plugin), `ze-sysctl-conf.yang` |
 | firewall, nftables, NAT, masquerade | `internal/component/firewall/` (component), `ze-firewall-conf.yang` |
 | PPPoE, pppoe-client, access concentrator | `internal/component/l2tp/pppoe/` (AC), `internal/component/iface/` (client), `ze-pppoe-conf.yang` |
+| L2TP interop, kl2tpd, many sessions per tunnel, ff 03, ACFC | `docs/labs/l2tp-interop.md`, `internal/le/interoplab/l2tp/scale.go`, `internal/le/interoplab/l2tp/scale_window.go`, `internal/le/interoplab/l2tp/ppp_framing.go` |
 | PPP MRU, authentication-allow, authentication allow-list, CHAP-only, PAP fallback | `docs/guide/l2tp.md`, `docs/guide/pppoe.md`, `internal/component/l2tp/ppp/auth_policy.go` |
 | wireguard, WireGuard, wg | `internal/component/iface/wireguard.go`, `ze-iface-conf.yang` |
 | VRRP, first-hop redundancy, virtual router, keepalived, gateway redundancy, virtual MAC | `internal/plugins/vrrp/` (plugin), `internal/component/iface/macvlan.go` (per-group virtual-MAC macvlan), `ze-vrrp-conf.yang`, `docs/guide/vrrp.md`, `docs/features/rfc-status.md` (First-hop redundancy) |
