@@ -10,5 +10,6 @@ package all
 
 import (
 	_ "github.com/ze-software/ze/internal/plugins/container"
+	_ "github.com/ze-software/ze/internal/plugins/container/imagestore"
 	_ "github.com/ze-software/ze/internal/plugins/container/yang"
 )

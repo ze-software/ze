@@ -94,3 +94,42 @@ func TestDefaultConfigDir_EnvUnsetFallsBackToBinary(t *testing.T) {
 
 	assert.Equal(t, paths.ConfigDirFromBinary(resolved), paths.DefaultConfigDir())
 }
+
+// TestDataDirFromBinary proves each row of the data directory table: the
+// data directory sits beside the config directory of the same binary, under
+// var/lib/ze, and an unknown layout answers "" so the caller must name one.
+//
+// Method: the table's binary locations, against the directory each answers.
+//
+// Red on the wiring stub, which answers "" for every binary, until the image
+// store's layout phase fills the mapping.
+func TestDataDirFromBinary(t *testing.T) {
+	rows := []struct {
+		binary string
+		want   string
+	}{
+		{"/user/ze", "/perm/var/lib/ze"},
+		{"/usr/bin/ze", "/var/lib/ze"},
+		{"/bin/ze", "/var/lib/ze"},
+		{"/usr/local/sbin/ze", "/var/lib/ze"},
+		{"/opt/myapp/bin/ze", "/opt/myapp/var/lib/ze"},
+		{"bin/ze", "var/lib/ze"},
+		{"./bin/ze", "var/lib/ze"},
+		{"/tmp/ze", ""},
+		{"ze", ""},
+	}
+	for _, row := range rows {
+		t.Run(row.binary, func(t *testing.T) {
+			assert.Equal(t, row.want, paths.DataDirFromBinary(row.binary))
+		})
+	}
+}
+
+// TestDefaultDataDirHonorsOverride proves ze.data.dir wins over the binary's
+// location, as ze.config.dir does for the config directory.
+func TestDefaultDataDirHonorsOverride(t *testing.T) {
+	orig := env.Get("ze.data.dir")
+	t.Cleanup(func() { _ = env.Set("ze.data.dir", orig) })
+	require.NoError(t, env.Set("ze.data.dir", "/custom/data"))
+	assert.Equal(t, "/custom/data", paths.DefaultDataDir())
+}

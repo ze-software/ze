@@ -1,0 +1,54 @@
+# Question: does create container image reference fetch an image into the
+# store, so that show container image list holds its row, present, with the
+# whole reference and its digest (spec-container-2-image-store, the wiring
+# test of AC-1)?
+#
+# A unit test cannot decide it: the answer is what the daemon's command
+# registry, the proxy to the container plugin and the plugin's image store
+# do together, from the CLI the operator types.
+#
+# Method: the daemon runs with no fixture store named, so the image store
+# package answers, with its data directory under /run, never in the test's
+# work directory: in the QEMU guest that directory is on the 9p share of the
+# checkout. The config holds the container root and no container, and the
+# SSH server ze cli reaches. The fetch command must answer exit 0, and the
+# listing must hold the whole reference the short name completed to and the
+# state present.
+#
+# Red in the wiring phase: the store answers that it is not implemented in
+# this build. The fetch phase adds the compiled registry fixture this test
+# fetches from.
+option=needs-linux:caps=sys-admin
+option=exclusive:group=container
+option=timeout:value=60s
+option=env:var=ze.data.dir:value=/run/ze-container-fetch-$PORT
+option=env:var=ze.ssh.username:value=admin
+option=env:var=ze.ssh.password:value=testpass
+option=env:var=ze.ssh.port:value=$PORT
+tmpfs=running.conf:terminator=EOF_CONF
+system {
+	authentication {
+		# bcrypt cost-4 hash of "testpass".
+		user admin {
+			password "$2a$04$UlwuiuH82Unfsq.XEMPGJeDkXwbm3KW.nvVaVXOd/JeFK8VjMjrQO"
+		}
+	}
+}
+environment {
+	ssh {
+		enabled true
+		server main {
+			ip 127.0.0.1;
+			port $PORT;
+		}
+	}
+}
+container {
+}
+EOF_CONF
+
+cmd=background:seq=1:exec=ze start running.conf:name=daemon:ready=Ze running.
+cmd=foreground:seq=2:exec=ze cli -c "create container image reference redis":timeout=45s:exit=0
+cmd=foreground:seq=3:exec=ze cli -c "show container image list | json":exit=0
+expect=stdout:contains=docker.io/library/redis:latest
+expect=stdout:contains="state":"present"

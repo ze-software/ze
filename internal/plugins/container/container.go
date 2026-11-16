@@ -15,7 +15,6 @@ import (
 	"errors"
 	"log/slog"
 	"net"
-	"strings"
 	"sync/atomic"
 
 	"github.com/ze-software/ze/internal/core/diagnostic"
@@ -38,6 +37,14 @@ const (
 	cmdRequestRestart  = "request container restart"
 	wireRequestRestart = "ze-container:request-restart"
 	selectorKeyword    = "name"
+)
+
+// containerPlaceholder is the invocation-form token of a container name in a
+// command's declared arguments, and keyState is the JSON key of a state in
+// an answer.
+const (
+	containerPlaceholder = "<container>"
+	keyState             = "state"
 )
 
 // drainBudgetSeconds is the longest the stop drain may take, declared at
@@ -84,7 +91,7 @@ func runContainerEngine(conn net.Conn) int {
 
 	// The runtime library is nil off Linux, where the supervisor refuses
 	// every start with the reason.
-	sup := newSupervisor(log, newRuntimeLibrary(log), storeFactory, participants)
+	sup := newSupervisor(log, newRuntimeLibrary(log), engineStoreFactory(), participants)
 	sup.tunables = newSysctlClaim(p)
 	defer sup.close()
 	// Deferred after close, so it runs first: once the engine connection
@@ -146,22 +153,27 @@ func engineRegistration() *sdk.Registration {
 	}
 }
 
-// commandDecls are the commands this plugin answers (SDK Stage 1). The
-// registration and the engine entry declare the same list.
+// commandDecls are the commands this plugin answers (SDK Stage 1): the
+// restart, then the image commands (image_cmd.go). The registration and the
+// engine entry declare the same list.
 func commandDecls() []sdk.CommandDecl {
-	return []sdk.CommandDecl{
+	return append([]sdk.CommandDecl{
 		{
 			Name:      cmdRequestRestart,
 			ShortHelp: "Stop the named container, then start it again.",
 			// The selector is mandatory, and both catalogs publish these
 			// tokens as the invocation form.
-			Args: []string{selectorKeyword, "<container>"},
+			Args: []string{selectorKeyword, containerPlaceholder},
 		},
-	}
+	}, imageCommandDecls()...)
 }
 
-// handleCommand answers one command from the engine side.
+// handleCommand answers one command from the engine side. An image command
+// is looked up in its table; the restart is the one command left.
 func handleCommand(ctx context.Context, sup *supervisor, command string, args []string) (string, any, error) {
+	if handler, ok := imageCommandHandlers[command]; ok {
+		return runImageCommand(ctx, sup, command, handler, args)
+	}
 	if command != cmdRequestRestart {
 		// The declared list and this handler drifted apart: a Ze defect the
 		// caller reads as a refusal, never as an answer.
@@ -180,7 +192,7 @@ func handleCommand(ctx context.Context, sup *supervisor, command string, args []
 	if err != nil {
 		return rpc.StatusError, nil, err
 	}
-	return rpc.StatusDone, map[string]any{"name": name, "state": state.String()}, nil
+	return rpc.StatusDone, map[string]any{"name": name, keyState: state.String()}, nil
 }
 
 // selectorValue answers the value after the name keyword, or the one bare
@@ -188,20 +200,5 @@ func handleCommand(ctx context.Context, sup *supervisor, command string, args []
 // empty for a keyword with nothing after it: that is an incomplete command,
 // never a container called "name".
 func selectorValue(args []string) string {
-	for i, arg := range args {
-		if arg != selectorKeyword {
-			continue
-		}
-		if i+1 < len(args) {
-			return args[i+1]
-		}
-		return ""
-	}
-	if len(args) != 1 {
-		return ""
-	}
-	if strings.HasPrefix(args[0], "-") {
-		return ""
-	}
-	return args[0]
+	return singleValue(args, selectorKeyword)
 }

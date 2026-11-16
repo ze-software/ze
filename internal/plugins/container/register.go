@@ -35,11 +35,11 @@ func init() {
 func registerContainer() {
 	registerContainerDiagnosticCodes()
 
-	// The YANG command node binds the wire method, and the proxy forwards it
+	// Each YANG command node binds a wire method, and its proxy forwards it
 	// to this plugin's process, internal or forked.
-	pluginserver.RegisterRPCs(
-		pluginserver.RPCRegistration{WireMethod: wireRequestRestart, Handler: forwardRestart, PluginCommand: cmdRequestRestart},
-	)
+	pluginserver.RegisterRPCs(append([]pluginserver.RPCRegistration{
+		{WireMethod: wireRequestRestart, Handler: forwardRestart, PluginCommand: cmdRequestRestart},
+	}, imageCommandRPCs()...)...)
 
 	reg := registry.Registration{
 		Name:        pluginName,
@@ -77,16 +77,25 @@ func registerContainer() {
 }
 
 // registerContainerDiagnosticCodes publishes the doctor codes this plugin owns
-// (doctor.go), so `ze show diagnostic <code>` explains them. They register
-// from here and never from the always-on code table: a build without the
-// plugin then holds none of them.
+// (doctor.go for the runtime, doctor_store.go for the image store), so `ze
+// show diagnostic <code>` explains them, then declares the store's event
+// codes, which need their explanations first. They register from here and
+// never from the always-on code table: a build without the plugin then holds
+// none of them.
 func registerContainerDiagnosticCodes() {
-	for _, meta := range containerDiagnosticCodes {
-		if err := diagnostic.Register(meta); err != nil {
-			var tb textbuf.Buffer
-			tb.Str("container: diagnostic code ").Str(meta.Code).Str(" registration failed: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // the process exits next; stderr is the only channel left
-			os.Exit(1)
+	for _, table := range [][]diagnostic.CodeMeta{containerDiagnosticCodes, storeDiagnosticCodes} {
+		for _, meta := range table {
+			if err := diagnostic.Register(meta); err != nil {
+				var tb textbuf.Buffer
+				tb.Str("container: diagnostic code ").Str(meta.Code).Str(" registration failed: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // the process exits next; stderr is the only channel left
+				os.Exit(1)
+			}
 		}
+	}
+	if err := registerStoreEventCodes(); err != nil {
+		var tb textbuf.Buffer
+		tb.Str("container: event code registration failed: ").Str(err.Error()).Byte('\n').StdErr() //nolint:errcheck // the process exits next; stderr is the only channel left
+		os.Exit(1)
 	}
 }
 

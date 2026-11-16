@@ -49,8 +49,9 @@ See `ai/rules/config.md` for the YANG vs env-only decision framework.
 | `ze.hide-version` | bool | false | YANG | Hide the `X-Ze-Version` banner on every HTTP response |
 | `ze.ready.file` | string | (unset) | ENV | Test infrastructure: signal file written when hub is ready |
 | `ze.config.dir` | string | (unset) | ENV | Override default config directory; when unset the directory is derived from the binary location |
+| `ze.data.dir` | string | (unset) | ENV | Override default data directory, where container images, layers and volumes are stored; when unset the directory is meant to be derived from the binary location, beside the config directory, which the container image store's layout phase implements: until then an unset override names no directory |
 <!-- source: internal/component/config/environment.go -- env var registrations -->
-<!-- source: internal/core/paths/paths.go -- ze.config.dir registration; DefaultConfigDir override-then-binary resolution -->
+<!-- source: internal/core/paths/paths.go -- ze.config.dir registration; DefaultConfigDir override-then-binary resolution; dataDirKey, DataDirFromBinary, DefaultDataDir -->
 <!-- source: cmd/ze/hub/pidfile.go -- writePIDFile, removePIDFile -->
 
 When `ze.user` is not set, no privilege dropping occurs.

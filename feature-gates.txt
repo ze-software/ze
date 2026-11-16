@@ -133,6 +133,7 @@ ze_copp    internal/plugins/copp
 # leaf internal/core/earlyrole, so no always-on code imports either package.
 # Each sibling package of the container work adds its own line under this tag.
 ze_container  internal/plugins/container
+ze_container  internal/plugins/container/imagestore
 ze_container  internal/plugins/container/seccomp
 
 # ze_mpls -- the MPLS show-forwarding component + `show mpls` command schema.

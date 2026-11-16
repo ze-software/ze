@@ -11,6 +11,12 @@ import (
 
 var _ = env.MustRegister(env.EnvEntry{Key: "ze.config.dir", Type: "string", Description: "Override default config directory"})
 
+// dataDirKey overrides the data directory: where Ze keeps artifacts too large
+// for the state store, such as container images, layers and volumes.
+const dataDirKey = "ze.data.dir"
+
+var _ = env.MustRegister(env.EnvEntry{Key: dataDirKey, Type: "string", Description: "Override default data directory (container images, layers and volumes)"})
+
 // isBinDir returns true if the directory basename is a standard binary directory.
 func isBinDir(name string) bool {
 	return name == "bin" || name == "sbin"
@@ -83,4 +89,45 @@ func DefaultConfigDir() string {
 	}
 
 	return ConfigDirFromBinary(resolved)
+}
+
+// DataDirFromBinary returns the data directory for ze based on the binary
+// path, beside the config directory ConfigDirFromBinary answers, and ignores
+// the ze.data.dir override for the same reason it does:
+//
+//   - /usr/bin/ze, /bin/ze, /sbin/ze, /usr/sbin/ze → /var/lib/ze
+//   - /user/ze (gokrazy) → /perm/var/lib/ze
+//   - /opt/app/bin/ze → /opt/app/var/lib/ze
+//   - ./bin/ze → var/lib/ze (relative)
+//   - unknown layout → "" (caller must provide ze.data.dir)
+//
+// Wiring stub of the container image store's first phase: it answers the
+// unknown-layout answer for every binary, and TestDataDirFromBinary is red
+// until the store's layout phase fills the mapping above. Nothing reads the
+// data directory before that phase.
+func DataDirFromBinary(binaryPath string) string {
+	_ = binaryPath
+	return ""
+}
+
+// DefaultDataDir resolves the data directory, preferring the ze.data.dir
+// override and falling back to the running binary's location. Returns "" if
+// the override is unset and the binary location cannot be determined or
+// doesn't match a known layout.
+func DefaultDataDir() string {
+	if dir := env.Get(dataDirKey); dir != "" {
+		return dir
+	}
+
+	exe, err := os.Executable()
+	if err != nil {
+		return ""
+	}
+
+	resolved, err := filepath.EvalSymlinks(exe)
+	if err != nil {
+		return ""
+	}
+
+	return DataDirFromBinary(resolved)
 }

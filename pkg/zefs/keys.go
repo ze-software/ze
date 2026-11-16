@@ -94,6 +94,19 @@ var (
 	KeyIRRInterest   = MustRegister(KeyEntry{Pattern: "meta/irr-interest/{consumer}", Description: "The AS-SETs and ASNs one IRR consumer enforces (JSON)"})
 )
 
+// The container image store's records (internal/plugins/container/imagestore).
+// The container plugin is their only writer. An image reference holds a slash
+// and a colon, and a key parameter matches one path segment, so a binding is
+// keyed by the SHA-256 of the reference and holds the reference in its value.
+// What an image is, how large it is and when it was fetched is in its folder
+// on the data directory, never in a key, so a lost store loses the bindings
+// and the generations only.
+var (
+	KeyContainerBinding    = MustRegister(KeyEntry{Pattern: "meta/container/binding/{reference-digest}", Description: "The image digest one container image reference is bound to, keyed by the reference's SHA-256 (JSON)"})
+	KeyContainerGeneration = MustRegister(KeyEntry{Pattern: "meta/container/generation/{container}", Description: "One container's current and previous image digests and its last 20 events (JSON)"})
+	KeyContainerProjectID  = MustRegister(KeyEntry{Pattern: "meta/container/project-id", Description: "The counter the next container storage project id comes from (4-byte counter)"})
+)
+
 // A support archive the daemon collected for a caller in another process,
 // which `show data cat <key>` reads back (internal/component/support
 // storeAnswer). The archive redacts secrets, as every archive does, so the

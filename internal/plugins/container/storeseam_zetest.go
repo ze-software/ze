@@ -20,9 +20,9 @@ import (
 
 // The test store exists only in a zetest build, the functional-test daemon
 // (internal/le/test/functional/binaries.go adds the tag), so no shipped ze
-// registers or reads its key. It answers every container with one fixture
-// image: a folder holding the probe program, built beside the ze binary by
-// the functional harness. Nothing is fetched.
+// registers or reads its key. When its key is set it answers every container
+// with one fixture image: a folder holding the probe program, built beside
+// the ze binary by the functional harness. Nothing is fetched.
 const testStoreKey = "ze.test.container.store"
 
 // The fixture image: the probe program at the root, and its arguments.
@@ -44,9 +44,17 @@ var _ = env.MustRegister(env.EnvEntry{
 	Private:     true,
 })
 
-//nolint:gochecknoinits // registration: the test build fills the store seam the image store package fills in a shipped build
-func init() {
-	SetStoreFactory(func(StoreNotices) Store { return testStore{} })
+// engineStoreFactory answers the factory the engine entry builds its store
+// with. The key selects, at the engine entry and never from init(): a zetest
+// daemon links the image store package too, which installs its factory from
+// its own init(), so a second registration from here would panic. A zetest
+// daemon therefore runs the real store unless a test names the fixture
+// store's directory, as every runtime .ci test under test/container/ does.
+func engineStoreFactory() StoreFactory {
+	if env.Get(testStoreKey) == "" {
+		return storeFactory
+	}
+	return func(StoreNotices) Store { return testStore{} }
 }
 
 // testStore answers Ready for every container, from the directory

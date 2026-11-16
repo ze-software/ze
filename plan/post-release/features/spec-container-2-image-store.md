@@ -8,8 +8,8 @@
 | Release reason | A post-release feature by owner ruling (umbrella O-3): Ze fetches and stores OCI images itself. No shipped behavior is wrong without it. |
 | RFC gaps | - |
 | Depends | spec-container-1-runtime, spec-appliance-perm-grows-at-install |
-| Phase | 1/9 wiring, not started: every source edit refused by the edit hook (handoff) |
-| Handoff | `tmp/handoff-image-store.md` |
+| Phase | 1/9 wiring, applied and not yet run: its tests and gates are owed to the main thread (handoff) |
+| Handoff | `tmp/handoff-image-store-2.md`, after `tmp/handoff-image-store.md` |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
 | Updated | 2026-11-16 |
@@ -718,7 +718,11 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 | `TestDataDirFromBinary` | `internal/core/paths/paths_test.go` | Each row of the data directory table | |
 | `TestDefaultDataDirHonorsOverride` | `internal/core/paths/paths_test.go` | The override wins | |
 | `TestFetchCommandAnswersResultAtEnd` | `internal/plugins/container/image_cmd_test.go` | The answer holds the reference, the digest, the size, whether it was new and the containers started | |
-| `TestFetchCommandDeclaresItsBound` | `internal/plugins/container/image_cmd_test.go` | The fetch and update commands register with a one-hour bound | |
+| `TestFetchCommandDeclaresItsBound` | `internal/plugins/container/image_cmd_test.go` | The fetch and update commands register with a one-hour bound | Written in phase 1, red until the Stage 1 bound field lands (Deviations from Plan) |
+| `TestEveryImageCommandIsDeclaredAndHandled` | `internal/plugins/container/image_cmd_test.go` | The declarations, the proxies and the handlers name the same ten commands | Written in phase 1 |
+| `TestImageCommandsReachTheStore` | `internal/plugins/container/image_cmd_test.go` | Each command reaches its store operation with the values of its leaves | Written in phase 1 |
+| `TestImageCommandRefusesWhatItCannotRun` | `internal/plugins/container/image_cmd_test.go` | A missing leaf, and a store with no image command, are refused with an operator error | Written in phase 1 |
+| `TestStoreDiagnosticCodesRegisterFromThePlugin` | `internal/plugins/container/doctor_store_test.go` | The eleven store codes resolve, and the six fetch codes are event codes | Written in phase 1 |
 | `TestListingShowsFetchingWithBytesReceived` | `internal/plugins/container/image_cmd_test.go` | A held fetch reads fetching, with the bytes received | |
 | `TestFetchQueueBound` | `internal/plugins/container/image_cmd_test.go` | Eight fetches wait and the ninth is refused | |
 | `TestStoreUnwritableCheck` | `internal/plugins/container/doctor_store_test.go` | The check reports the folder and the fix for the platform | |
@@ -790,11 +794,14 @@ The tests below that start a container or need a size cap run in Ze's own-system
 - `docs/architecture/testing/qemu-integration.md` - the `container-store` action beside the other appliance proofs, and the store package in "Existing Integration Test Packages"
 - The image seam file the runtime child creates in the plugin folder - the store fills the seam, and the record gains the fields this spec adds once that spec holds them
 - The container plugin's registration and its Stage 1 declaration, created by the runtime child - commands with their bounds, doctor check declarations, event codes, the declared read of `pki`, the state key grant
+- Phase 1 touched, of the runtime child's files: `internal/plugins/container/container.go` (the store chosen at the engine entry, the image commands declared and looked up), `register.go` (the proxies, the store's codes), `storeseam_zetest.go` (the test store chosen by its key, no `init()`), `yang/ze-container-cmd.yang` (the ten command nodes), `internal/component/plugin/all/all_ze_container.go` (the store's blank import), `docs/architecture/container/runtime.md` (the seam rows and the test store), `docs/architecture/config/environment.md` (`ze.data.dir`)
 
 ## Files to Create
 - `internal/plugins/container/registry/` - the pull-only client: reference, authentication, redirect rule, verification, platform selection, mirror, TLS
 - `internal/plugins/container/imagestore/` - layout, staging and publication, layer application, the fetch worker, free space, generations, layers, volumes, the caps (the project-id allocation and the calls into the appliance spec's `projquota` leaf, with no quota code of its own), resolve, state
 - `internal/plugins/container/image_cmd.go` - the handlers of the commands table C-1 marks as this child's
+- `internal/plugins/container/storeseam_operations.go` - `ImageOperations`, the image commands' side of the seam, and its answer types
+- `internal/plugins/container/storeseam_engine.go` - `engineStoreFactory` outside the functional-test build
 - `internal/plugins/container/doctor_store.go` - the doctor checks and the code registrations this child owns
 - `internal/plugins/container/kernelcap_quota_linux.go` - the storage quota enrolment
 - `internal/test/ociregistry/` - the local test registry and its image builder
@@ -985,6 +992,12 @@ The tests below that start a container or need a size cap run in Ze's own-system
 ## Deviations from Plan
 
 - The owner allowed this spec to be claimed above the work-in-progress cap on 2026-11-16.
+- The bound of the fetch and update commands depends on a plugin protocol field not yet agreed. `rpc.CommandDecl` has no bound, and `registerProcessCommands` gives every plugin command the 30-second default. Adding a Stage 1 field (the proposed wire key is `timeout`, whole seconds) changes the public plugin protocol and waits for the owner. The wiring phase declares no bound, and `TestFetchCommandDeclaresItsBound` is written and stays red until that field lands, in a commit of its own in plugin infrastructure before phase 5.
+- The runtime's test store no longer registers from `init()`. A `zetest` daemon links the image store package too, so the engine entry chooses: the fixture store when `ze.test.container.store` is set, which the six runtime tests under `test/container/` set, and the image store package's store otherwise (`engineStoreFactory`).
+- The `Store` seam stays `Resolve` and `Hold`. The image commands ask a separate interface, `ImageOperations`, which a store may also be, so the runtime's test doubles are unchanged.
+- No config node lands in the wiring phase. `image` is mandatory and would refuse the runtime's six test configs before resolve reads it, so `image`, `storage`, `volume`, `registry` and `store largest-image` each land with the phase that implements them. The resolve request therefore carries the instance name alone until then.
+- `feature-gates.txt` gains the `imagestore` line only. The `registry` package's line lands with that package in phase 3: the file must not name a package that does not exist.
+- `DataDirFromBinary` is a stub in the wiring phase that answers no directory for every binary, so `TestDataDirFromBinary` is red until phase 2 fills the table. `ze.data.dir` is registered and honored now.
 
 ## Checklist
 

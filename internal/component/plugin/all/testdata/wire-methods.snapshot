@@ -115,7 +115,17 @@ ze-config:data-key-update
 ze-config:data-repair
 ze-config:data-restore
 ze-config:show-config-running
+ze-container:clear-layer
+ze-container:create-image
+ze-container:delete-image
+ze-container:delete-image-all
+ze-container:delete-volume
 ze-container:request-restart
+ze-container:show-image-list
+ze-container:show-store
+ze-container:show-volume-list
+ze-container:update-image
+ze-container:update-image-rollback
 ze-crashes:show-crashes
 ze-ddos:show-flowspec
 ze-ddos:show-incidents

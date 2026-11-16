@@ -12,7 +12,9 @@ module ze-container-cmd {
          the plugin adds the commands it realizes to this module.";
 
     revision 2026-11-16 {
-        description "Initial revision: request container restart name.";
+        description "Initial revision: request container restart name, and the image
+store's commands: the image, store and volume listings, the fetch, the
+update and its rollback, the image and volume deletes and the layer clear.";
     }
 
     container request {
@@ -46,6 +48,282 @@ its image are refused, with the statement or command that lets it run.";
                         }
                         mandatory true;
                         description "The name of a configured container, as its instance entry spells it.
+The word after the name keyword is the value.";
+                        ze:help "Name of the container.";
+                    }
+                }
+            }
+        }
+    }
+
+    container show {
+        config false;
+
+        container container {
+            config false;
+            description "What the container plugin holds: its images, its store and its volumes.";
+            ze:help "Show the containers' images, store and volumes.";
+
+            container image {
+                config false;
+                description "The images of the store: list.";
+                ze:help "Show the images of the store.";
+
+                container list {
+                    config false;
+                    ze:command "ze-container:show-image-list";
+                    description "One row for each image in the store, each fetch in flight and each fetch
+that failed: the whole reference, the digest, the size and the fetch time, the
+state (present, fetching, failed or previous), the bytes a fetch received so
+far, and the containers that hold the image. A failed row carries the error
+and its doctor code.";
+                    ze:help "Show the images in the store and the fetches in flight.";
+                }
+            }
+
+            container store {
+                config false;
+                ze:command "ze-container:show-store";
+                description "The store's folder, the total and free bytes of its filesystem, the reserve
+a fetch never takes, whether the kernel enforces the size caps, and one row
+for each writable layer with its cap and its use.";
+                ze:help "Show the image store's place, its space and its layers.";
+            }
+
+            container volume {
+                config false;
+                description "The volumes of the store: list.";
+                ze:help "Show the stored volumes.";
+
+                container list {
+                    config false;
+                    ze:command "ze-container:show-volume-list";
+                    description "One row for each stored volume: the container, the volume, its cap, its
+use, and whether the configuration still declares it (in-use) or not (orphan).";
+                    ze:help "Show the stored volumes, their size and their use.";
+                }
+            }
+        }
+    }
+
+    container create {
+        config false;
+
+        container container {
+            config false;
+            description "Bring an image into the container store.";
+            ze:help "Fetch a container image.";
+
+            container image {
+                config false;
+                description "A fetch needs an image reference, after the reference keyword:
+create container image reference <image>.";
+                ze:help "Fetch an image: reference <image>.";
+
+                container reference {
+                    config false;
+                    ze:command "ze-container:create-image";
+                    description "The image is fetched from its registry, each byte checked against its digest
+and size, and stored in one folder named by its digest. A name with no
+registry host is fetched from the default registry, and a name with no tag
+means the tag latest. The command answers once, at the end; the image
+listing shows the fetch meanwhile. Every container that waited for the image
+then starts.";
+                    ze:help "Fetch the named image into the store.";
+
+                    leaf value {
+                        type string {
+                            length "1..255";
+                        }
+                        mandatory true;
+                        description "The image reference: a name, optionally with a registry host first and
+a tag or a digest last. The word after the reference keyword is the value.";
+                        ze:help "Image reference.";
+                    }
+                }
+            }
+        }
+    }
+
+    container update {
+        config false;
+
+        container container {
+            config false;
+            description "Move a container to a new image, or back to its previous one.";
+            ze:help "Update a container's image.";
+
+            container image {
+                config false;
+                description "An update needs the name of one container, after the name keyword:
+update container image name <container>. rollback returns it to its previous
+image.";
+                ze:help "Update a container's image: name <container>, or rollback.";
+
+                container name {
+                    config false;
+                    ze:command "ze-container:update-image";
+                    description "The reference the container's configuration names is fetched again. When it
+resolves to another digest, the container restarts on it with an empty
+writable layer, and the image it ran stays as its previous generation. When
+the digest is the same, nothing changes.";
+                    ze:help "Fetch the named container's image again and move it to a new digest.";
+
+                    leaf value {
+                        type string {
+                            length "1..63";
+                            pattern "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
+                        }
+                        mandatory true;
+                        description "The name of a configured container, as its instance entry spells it.
+The word after the name keyword is the value.";
+                        ze:help "Name of the container.";
+                    }
+                }
+
+                container rollback {
+                    config false;
+                    description "A rollback needs the name of one container, after the name keyword:
+update container image rollback name <container>.";
+                    ze:help "Return a container to its previous image: name <container>.";
+
+                    container name {
+                        config false;
+                        ze:command "ze-container:update-image-rollback";
+                        description "The container's current and previous generations swap, and the container
+restarts on the image it ran before, with the writes it had. Ze never rolls
+back on its own. A container with no previous generation is refused.";
+                        ze:help "Return the named container to its previous image and its writes.";
+
+                        leaf value {
+                            type string {
+                                length "1..63";
+                                pattern "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
+                            }
+                            mandatory true;
+                            description "The name of a configured container, as its instance entry spells it.
+The word after the name keyword is the value.";
+                            ze:help "Name of the container.";
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    container delete {
+        config false;
+
+        container container {
+            config false;
+            description "Remove stored images and volumes.";
+            ze:help "Delete container images or volumes.";
+
+            container image {
+                config false;
+                description "A delete needs a digest, after the digest keyword, or the all keyword:
+delete container image digest <digest>, delete container image all.";
+                ze:help "Delete images: digest <digest>, or all.";
+
+                container digest {
+                    config false;
+                    ze:command "ze-container:delete-image";
+                    description "The one stored image the digest names is removed. An image a configured
+container holds as its current or its previous generation is kept, and the
+refusal names the container and the generation.";
+                    ze:help "Delete the stored image a digest names.";
+
+                    leaf value {
+                        type string {
+                            pattern "(sha256:)?[0-9a-f]{12,64}";
+                        }
+                        mandatory true;
+                        description "A digest, or a prefix of at least 12 hexadecimal digits that names one
+image. The word after the digest keyword is the value.";
+                        ze:help "Digest of the image.";
+                    }
+                }
+
+                container all {
+                    config false;
+                    ze:command "ze-container:delete-image-all";
+                    description "Every stored image no configured container holds is removed, with the
+blobs a stopped fetch left. An image a container holds is kept and listed
+under kept, with the container that holds it.";
+                    ze:help "Delete every stored image no configured container holds.";
+                }
+            }
+
+            container volume {
+                config false;
+                description "A volume delete needs the volume, after the name keyword, and its
+container, after the instance keyword:
+delete container volume name <volume> instance <container>.";
+                ze:help "Delete a stored volume: name <volume> instance <container>.";
+
+                container name {
+                    config false;
+                    ze:command "ze-container:delete-volume";
+                    description "The volume's folder and everything the container wrote in it are removed.
+A volume the configuration still declares is refused, and the refusal names
+the statement to remove.";
+                    ze:help "Delete a stored volume the configuration no longer declares.";
+
+                    leaf value {
+                        type string {
+                            length "1..63";
+                            pattern "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
+                        }
+                        mandatory true;
+                        description "The name of the volume, as the container's volume entry spelled it.
+The word after the name keyword is the value.";
+                        ze:help "Name of the volume.";
+                    }
+
+                    leaf instance {
+                        type string {
+                            length "1..63";
+                            pattern "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
+                        }
+                        mandatory true;
+                        description "The container the volume belongs to: two containers may each hold a
+volume of the same name.";
+                        ze:help "Name of the container.";
+                    }
+                }
+            }
+        }
+    }
+
+    container clear {
+        config false;
+
+        container container {
+            config false;
+            description "Return accumulated container data to empty.";
+            ze:help "Clear a container's writable layer.";
+
+            container layer {
+                config false;
+                description "A clear needs the name of one container, after the name keyword:
+clear container layer name <container>.";
+                ze:help "Clear a writable layer: name <container>.";
+
+                container name {
+                    config false;
+                    ze:command "ze-container:clear-layer";
+                    description "The container's writable layer is emptied. A running container is stopped
+first and started again on the empty layer. The name of a container the
+configuration no longer holds is accepted, and its stored layer is removed.";
+                    ze:help "Empty the named container's writable layer.";
+
+                    leaf value {
+                        type string {
+                            length "1..63";
+                            pattern "[a-z0-9]([a-z0-9-]*[a-z0-9])?";
+                        }
+                        mandatory true;
+                        description "The name of a container, configured or not.
 The word after the name keyword is the value.";
                         ze:help "Name of the container.";
                     }
