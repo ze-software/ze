@@ -10,6 +10,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/diagnostic"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
@@ -473,10 +474,10 @@ func firewallIRRTableTermCommit07(ctx context.Context, p *sdk.Plugin) error {
 
 // firewallIRRRefusedCommit07 observes a test whose reload commits an IRR
 // reference the irr plugin holds nothing for. It signals the reload driver,
-// waits for the reload, and requires table to stay out of the kernel. The
-// refusal text itself is the .ci's stderr expectation, because a daemon start
-// runs no verify: only the reload's OnConfigVerify prints it.
-func firewallIRRRefusedCommit07(table string) ObserverScenario {
+// waits for the server's matching post-reload refusal record, and requires
+// table to stay out of the kernel. reload.done records SIGHUP delivery only;
+// the server reports refusal after the failed transaction has returned.
+func firewallIRRRefusedCommit07(table, expectedRefusal string) ObserverScenario {
 	return func(ctx context.Context, p *sdk.Plugin) error {
 		if err := os.WriteFile("observer.ready", []byte("ok"), 0o600); err != nil {
 			return err
@@ -488,8 +489,39 @@ func firewallIRRRefusedCommit07(table string) ObserverScenario {
 		}) {
 			return errors.New("reload trigger never created reload.done marker")
 		}
-		if result := done07(ctx, p, "show firewall ruleset "+table); result.status == statusDone {
-			return fmt.Errorf("refused config reached kernel: %s", text07(result.data))
+		match := func(entry map[string]any) bool {
+			if entry["source"] != "plugin-server" {
+				return false
+			}
+			if entry["code"] != diagnostic.CodeDoctorConfigReloadRefused {
+				return false
+			}
+			if entry["subject"] != "config-reload" {
+				return false
+			}
+			if entry["severity"] != severityError {
+				return false
+			}
+			message, _ := entry["message"].(string)
+			// opererr.Error ends the problem line at the reference, before
+			// its why and fix. A longer ASN or AS-SET must not satisfy it.
+			for line := range strings.SplitSeq(message, "\n") {
+				if strings.HasSuffix(line, expectedRefusal) {
+					return true
+				}
+			}
+			return false
+		}
+		if _, err := fixture06Errors(ctx, p, 200, match); err != nil {
+			return fmt.Errorf("reload never reported refusal %q before checking firewall table %q: %w", expectedRefusal, table, err)
+		}
+		kernelTable := domainGroupTablePrefix + table
+		absent, err := domainGroupTableAbsent(ctx, kernelTable)
+		if err != nil {
+			return fmt.Errorf("check refused firewall table %q in the kernel: %w", kernelTable, err)
+		}
+		if !absent {
+			return fmt.Errorf("refused config reached kernel: table %q remains present", kernelTable)
 		}
 		return nil
 	}
