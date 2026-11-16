@@ -7,7 +7,7 @@
 | Priority | P3 |
 | Release reason | A post-release feature by owner ruling (umbrella O-3): Ze fetches and stores OCI images itself. No shipped behavior is wrong without it. |
 | RFC gaps | - |
-| Depends | spec-container-1-runtime |
+| Depends | spec-container-1-runtime, spec-appliance-perm-grows-at-install |
 | Phase | - |
 | Handoff | - |
 | Design tier | development tier |
@@ -45,9 +45,21 @@ The goal, in what an operator sees:
 | 7 | Retention, rollback, update end to end | Yes |
 | 8 | Free-space checks, accounting, doctor checks, state keys | Yes |
 | 9 | The seam to the runtime child | Yes, stated in plain words below |
-| 10 | Volumes: where they are stored, their cap, their listing and deletion | Yes. The operator-surface child marks the volume node and its two commands as this child's. The brief for this child did not list them: see the report |
+| 10 | Volumes: where they are stored, their cap, their listing and deletion | Yes, by owner ruling: volumes are stored by Ze and size-capped, with no host path |
 | - | Mounting the overlay and the volumes, starting the process, merging the image's configuration with the operator's | No: `spec-container-1-runtime.md` |
+| - | Growing the persistent partition, formatting it so a project quota can be enforced, and the kernel's quota support | No: `spec-appliance-perm-grows-at-install.md`, by owner ruling. This child states what it needs from it |
 | - | Building an image, pushing an image, image signatures | No: see Known Limitations |
+
+### Needed from the appliance spec (`spec-appliance-perm-grows-at-install.md`)
+
+| Need | In plain words |
+|------|----------------|
+| The quota facility, present | The persistent partition is ext4 with the project quota feature, and the runtime kernel supports it |
+| The quota facility, enforced | Project quota limits are enforced on that partition when Ze starts, with no step by this child. This child only gives a folder a project id and a hard limit |
+| The partition's size | The partition spans the disk after install, so the space the store reports and checks is the disk's, not the built image's |
+| The var folder | The folder the appliance's var link resolves to exists on that partition at boot |
+
+On a host that is not the appliance, the same two quota facts must hold for the filesystem of the data directory. This child probes them and refuses a container config where they do not hold. It changes no filesystem and no kernel file.
 
 ### Umbrella items this child owns
 
@@ -77,7 +89,7 @@ The goal, in what an operator sees:
   → Constraint: the core tier cannot be compiled out and imports nothing upward. Only two small exports land in core: the data directory resolver and the stall reader
 - [ ] `ai/doors/appliance.md` - the device
   → Constraint: an image in the field is the contract for a path under the persistent partition and for a state key. The store path, its folder names and the state key patterns are permanent once shipped
-  → Constraint: `ze appliance build` is build-host tooling. The format of the persistent partition is decided there, in `injectZeFS`, and a device already installed keeps the format it was built with
+  → Constraint: `ze appliance build` is build-host tooling. The format of the persistent partition is decided there, in `injectZeFS`, so the quota feature is the appliance spec's work and this child only reads whether it is there
 - [ ] `ai/doors/config-yang.md` - configuration
   → Constraint: `ze config validate` never calls a live verify. A refusal that must hold offline is an in-process verifier or a kernel capability enrolment, not only a verify callback
   → Constraint: a plugin reads another root only by declaring it. The store reads `pki` to find a registry's trust anchor, as a declared read that never auto-loads it
@@ -100,8 +112,7 @@ The goal, in what an operator sees:
   → Constraint: `fetch.SameOrigin` refuses a redirect that leaves the first host, by design. A registry sends blobs to another host, so the registry client has its own redirect rule and does not weaken that one
   → Decision: the self-update keeps one previous binary and its history in the state store. The same keep-one-previous step and the same history shape carry over per container
 - [ ] `ai/rules/platform-linux.md` - Linux-only code
-  → Constraint: Linux-only code ships with integration tests that run in the QEMU guest on Ze's runtime kernel, and each kernel option the feature needs is in `gokrazy/kernel/runtime.config` and `gokrazy/kernel/runtime.require`
-  → Constraint: a kernel behavior that forces the design is an entry in `docs/architecture/linux-limitations.md`, and a new QEMU action has a caller in the same change
+  → Constraint: Linux-only code ships with integration tests that run in the QEMU guest on Ze's runtime kernel, and a new QEMU action has a caller in the same change
 - [ ] `ai/rules/go-standards.md` - Go rules
   → Constraint: a built artifact is reused only when a completion mark written after a successful run proves it complete. The image folder carries that mark, written last, and a downloaded blob takes its digest as its name only after it was checked
   → Constraint: shipped code runs no external program. The partition's format cannot be changed on the device, because that needs a tool the appliance does not carry
@@ -114,14 +125,13 @@ The goal, in what an operator sees:
 
 ### Sibling spec
 - [ ] `plan/post-release/features/spec-container-4-operator-surface.md`, tables S-1, S-3, C-1 and D-1 - the nodes and commands this child implements
-  → Decision: an image reference is whole: a registry host, a repository, and a tag or a digest. There is no default registry and no implied tag
+  → Decision: by owner ruling an image reference follows the reference operator model: a short name is resolved against a default registry, the public hub, and a missing tag means `latest`. The digest it resolved to is recorded and names the folder
   → Decision: the fetch and update commands answer once, at the end, as the firmware download does. Progress is a row of the image listing
   → Constraint: a registry's transport is HTTPS or HTTP. Unverified TLS does not exist. A registry has at most one mirror
 
 **Key insights:** (minimal context to resume after compaction)
 - No data directory exists today. `ConfigDirFromBinary` (`internal/core/paths/paths.go`) answers the config directory only. This child adds a data directory beside it.
-- The persistent partition is formatted once, on the build host, by `injectZeFS` (`internal/appliance/cmd_build.go`), with no quota feature. The installer writes the image to the disk as it is and never changes partition 4. gokrazy mounts it with no option. Nothing grows it.
-- The kernel has quota support today only by upstream default. It is in neither kernel file.
+- Today the persistent partition is formatted once, on the build host, by `injectZeFS` (`internal/appliance/cmd_build.go`), with no quota feature, the kernel files do not pin quota support, and nothing grows the partition. All three are changed by `spec-appliance-perm-grows-at-install.md`, which this child depends on.
 - The core fetch package gives the digest helpers and the stall reader. Its file fetch has a 30 second total timeout, its stream fetch creates no file and cannot be cancelled, and it sends no credential. The registry client is new code that reuses the helpers.
 - The firmware commands block inside the daemon under the request's context (`internal/plugins/update-cmd/cmd/firmware.go`). A plugin command has a 30 second bound unless it declares one, so the fetch and update commands declare theirs.
 - The zstd decoder is vendored and in `go.mod`. The archive reader and gzip are standard library.
@@ -155,14 +165,11 @@ The goal, in what an operator sees:
 
 **Behavior to preserve:**
 - `fetch.SameOrigin` and every caller of it: the installer, `ze init --from` and the self-update keep refusing a redirect to another host.
-- `ze appliance build` still produces an image whose persistent partition mounts, holds the seed with root ownership and strict modes, and passes `verifyInject`.
-- A device installed before this work keeps booting and keeps its config. Only the container feature is refused on it.
+- The appliance build, the installer and the kernel files are not edited by this child.
 - The config directory, its modes and the live store under it are not touched. No image byte is written under the config directory.
 - A build without the container gate carries no code of this child, apart from the two core exports.
 
 **Behavior to change:**
-- `ze appliance build` formats the persistent partition with the quota and project features.
-- The runtime kernel requests and requires quota support.
 - The core fetch package exports its stall reader.
 - The core paths package gains a data directory.
 
@@ -184,7 +191,7 @@ The goal, in what an operator sees:
 | Doctor checks and codes | `internal/core/diagnostic/doctor_registry.go` `RegisterDoctorCheck`; `internal/core/diagnostic/registry.go` `Register`; `internal/core/diagnostic/event_codes.go` `RegisterEventCode`; `internal/plugins/ldp/register.go` `OnDoctorCheck` | A check registers from its owner. A plugin's live state is answered by its own callback. A transient code is registered as an event code | Extends: the checks and codes in the table under Data Flow |
 | Trust anchors | `internal/component/pki/yang/ze-pki-conf.yang` `list ca` | Named trust anchors other blocks reference | Extends by reference: a registry names one. No new certificate store |
 | Sensitive values | `internal/component/config/yang/modules/ze-extensions.yang` `extension sensitive` | Obfuscates a leaf in display output | Extends by use: the registry password leaf carries it |
-| Persistent partition format | `internal/appliance/cmd_build.go` `injectZeFS`; `internal/appliance/diskverify.go` `verifyInject` | Formats ext4 on the build host and verifies the result | Extends: two more filesystem features. The verification is unchanged and still has to pass |
+| Persistent partition format | `internal/appliance/cmd_build.go` `injectZeFS`; `internal/appliance/diskverify.go` `verifyInject` | Formats ext4 on the build host and verifies the result | Does not apply here: `spec-appliance-perm-grows-at-install.md` adds the quota feature and the growth. This child reads the result through its probe |
 | Exclusive publication by rename | `pkg/zefs/check_tree_linux.go` `RenameNoReplace` | Renames beneath a retained directory and fails when the target exists | Extends by use: a finished image folder is published with it |
 | Appliance trust roots | `vendor/github.com/gokrazy/tools/internal/packer/cacerts.go` `findSystemCertsPEM` | Writes the build host's certificate bundle into the image | Does not change. The standard library reads that bundle. A registry with a private authority names a `pki ca` entry |
 | A server for a package test | `internal/le/interoplab/labtest/labtest.go` `Start`; `docs/architecture/testing/interop.md`, "A package test's own server container (labtest)" | Starts one real server container for a `_test.go` file | Extends by use: the interop test starts a real registry with it |
@@ -199,7 +206,7 @@ The goal, in what an operator sees:
 - The runtime child: a request to resolve a container to its folders.
 
 ### Transformation Path
-1. The operator names an image reference: a registry host, a repository, and a tag or a digest. The store refuses any other form.
+1. The operator names an image reference. The store completes a short name by the table below, and from then on works with the whole form: a registry host, a repository, and a tag or a digest.
 2. The fetch command hands the fetch to the one worker that owns every change to the store, and waits for it under the request's context. Fetches run one at a time, and at most 8 wait.
 3. The client asks the registry for the manifest. On an authentication challenge it gets a token from the realm the challenge names, with the registry's credentials when the config holds them. A mirror, when configured, is asked first and without those credentials.
 4. An index is resolved to the manifest of the running platform. The manifest's digest names the image.
@@ -216,9 +223,12 @@ The goal, in what an operator sees:
 |-----------------|----------|------------|-----|
 | A registry host, a path and a tag | The host | The path | The tag, resolved to a digest at fetch and at update only |
 | A registry host, a path and a digest | The host | The path | The digest, never resolved again |
-| Anything else: no host, no tag and no digest | - | - | Refused by the schema of the operator-surface child, and by the store for a reference a command carries |
+| A name with no registry host | The default registry: the public hub | The name. A name of one component is placed under the hub's library namespace, as the hub itself does | As the row for its tag or digest |
+| A name with no tag and no digest | As the row for its host | As the row for its host | The tag `latest` |
 
-A tag is never resolved at commit, at start or at boot. The binding made by the last fetch or update decides which digest a container runs.
+The first component of a name is a registry host when it holds a dot or a colon, or is the word localhost. Otherwise the whole name is a repository of the default registry. This is the rule operators know from the reference model.
+
+A tag, written or implied, is never resolved at commit, at start or at boot. The digest it resolved to at the last fetch or update is recorded in the binding, names the image folder, and decides which digest a container runs. The binding is keyed by the completed reference, so the short and the whole spelling of one image share one binding.
 
 ### Registry requests
 
@@ -293,7 +303,8 @@ The data directory:
 | Key | Container name and image digest. A new digest starts from an empty layer | Container name and volume name. The digest is not part of it, so it survives an update, a rollback and a cleared layer |
 | Size | The container's storage node. Default 256 MiB, from 1 MiB to 1 TiB | The volume's size node. Default 64 MiB, from 1 MiB to 1 TiB |
 | Created | At the first start on that digest | At the first start of a container that declares it |
-| Removed | By retention, and by the clear command, which leaves an empty one | Only by the volume delete command, refused while a running container holds it |
+| Removed | By retention, and by the clear command, which leaves an empty one | Only by the volume delete command, refused while the config still declares that volume |
+| Host path | None | None, by owner ruling: a volume is a folder Ze stores |
 | A size the config lowers below what is used | The commit is accepted. Further writes fail until the usage is under the cap | The same |
 
 Both use one mechanism:
@@ -301,10 +312,11 @@ Both use one mechanism:
 | Topic | Design |
 |-------|--------|
 | Cap mechanism | ext4 project quota. The store gives each layer and each volume a project id, marks its folder so new files inherit it, and sets a hard block limit equal to the configured size |
-| Enforcement | The store turns project quota enforcement on for the filesystem when it opens, through the quota system call. A write past the cap fails inside the container with "disk quota exceeded" |
+| Enforcement | By the kernel, on a filesystem where project quota is already enforced: the appliance's persistent partition as the appliance spec delivers it, or an ext4 filesystem a root-run host mounted that way. The store does not turn enforcement on. A write past the cap fails inside the container with "disk quota exceeded" |
+| Filesystems | ext4 only, by owner ruling |
 | Project ids | Allocated from a counter in the state store, inside a range the store reserves. An id that already has usage or a limit on that filesystem is skipped. The id of a folder is read back from the folder, never from a second record |
 | Usage | Read from the kernel's quota record, exact |
-| Where the filesystem cannot enforce it | The kernel capability `container-storage-quota` is absent. Validate, start and reload refuse a config with a container, and doctor names the fix. No measured cap is used instead |
+| Where the filesystem cannot enforce it | The kernel capability `container-storage-quota` is absent. Validate, start and reload refuse a config with a container and say why, by owner ruling. No measured cap is used instead |
 | Clearing a layer | Stops the container, moves the layer to staging, creates an empty one, starts the container again when it was running |
 
 ### Generations
@@ -325,17 +337,37 @@ The generation record is written to the state store before the container restart
 
 ### The seam to the runtime child
 
-Both children are packages of one plugin and run in one process, so the seam is a Go boundary inside the plugin.
+Both children are packages of one plugin and run in one process, so the seam is a Go boundary inside the plugin. The runtime child's spec holds the same record under "Seams with the other children", row "Image root". Its fields are the first eight rows below, with its names. The rows after them are what this child adds, and each is in this child's report as a difference to settle in that spec.
 
-| Direction | Question or notice | Answer |
-|-----------|--------------------|--------|
-| Runtime to store | Resolve this container: its name, the image reference, the storage size and the volumes its config holds | Ready: the image digest, the image root folder to mount read-only below, the image's configuration, the writable layer's upper and work folders, and one folder for each declared volume. Or absent: the reference and the reason (never fetched, fetch running, last fetch failed and why). Never an empty value |
-| Runtime to store | I hold this resolution, and later I release it | The store refuses to delete or clear what is held |
-| Store to runtime | This reference is now present | The runtime starts each container that waited for it, and answers their names |
-| Store to runtime | Restart this container on its new generation | The runtime stops and starts it, and answers when it runs or why it does not |
-| Store to runtime | Stop this container, then start it again | Used by the clear command |
+Image root record, the answer to "resolve this container":
 
-The image's configuration is handed as fetched and checked, with its bounds: entrypoint, command, environment, working directory, user as written, exposed ports, declared volumes, stop signal and labels. The store does not merge it with the operator's config, does not resolve a user name, and does not mount anything. A volume the image declares and the operator's config does not is handed as a name only: what the runtime does with it is the runtime child's rule.
+| Field | Type | Description | In the runtime child's record |
+|-------|------|-------------|-------------------------------|
+| digest | text | The image digest the container runs | Yes |
+| image folder | absolute path | The unpacked image, read-only lower layer of the root | Yes |
+| writable layer | absolute path | One directory this container owns, holding the upper and work directories of the overlay | Yes |
+| entrypoint | list of text | The program and arguments the image declares: its entrypoint followed by its command | Yes |
+| environment | list of text | The variables the image declares | Yes |
+| working directory | text | The directory the entrypoint starts in | Yes |
+| user | two numbers | The numeric user and group the entrypoint runs as. The store resolves a user or group the image gives by name, from the account files inside the image folder, read under a descriptor for it. An image with no user gives 0 and 0. A name those files do not hold refuses the image at fetch | Yes |
+| stop signal | text | The signal the image declares for a stop, empty when none | Yes |
+| command split | number | How many leading items of entrypoint are the image's entrypoint proper, so an operator's argument override replaces only the rest | No |
+| volumes | list of name and absolute path | One folder for each volume the operator's config declares, created and capped | No |
+| declared volumes | list of text | The paths the image declares as volumes. No folder is made for them: with no operator volume there, such a path is a directory of the writable layer | No |
+| exposed ports | list of text | The ports the image declares, for display only | No |
+
+The request carries the container's name and image reference, as the runtime child states, and also its storage size and its declared volumes with their sizes, because the store creates and caps those folders.
+
+The answer "absent" carries the completed reference and the reason: never fetched, fetch running, or the last fetch failed and why. It is never an empty value.
+
+| Direction | Notice or request | Answer | In the runtime child's seam table |
+|-----------|-------------------|--------|-----------------------------------|
+| Runtime to store | I hold this record, and later I release it | The store refuses to remove what is held | No |
+| Store to runtime | This reference is now present | The runtime starts each container that waited for it, and answers their names | No. Its states table has the transition from waiting "when the seam answers", with no notice named |
+| Store to runtime | Restart this container on its new generation | The runtime stops and starts it, and answers when it runs or why it does not | No |
+| Store to runtime | Stop this container, then start it again | Used by the clear command | No |
+
+The store does not merge the image's configuration with the operator's config and does not mount anything. With no image store linked, the runtime child's own test store answers this seam: this child replaces nothing of it and adds no second seam.
 
 ### Commands and nodes this child implements
 
@@ -347,22 +379,25 @@ The words, the leaves and the answer shapes are fixed in `spec-container-4-opera
 | List images | One row for each image and each fetch in flight: reference, digest, size, fetch time, state (present, fetching, previous), bytes received, and the containers that hold it |
 | Update a container's image | Resolves the tag again, fetches, swaps, restarts, under the same bound, and answers the old digest, the new digest, whether it changed and whether the container restarted |
 | Roll a container back | Swaps current and previous, restarts |
-| Delete an image by digest | Refused for an image a running container holds, naming the container in the kept rows |
+| Delete an image by digest | An image a configured container holds as its current or previous digest is kept, and the kept rows name the container |
 | Delete every image | Removes every image no configured container holds, and the leftover blobs |
 | Clear a container's writable layer | For a container by name, configured or not |
 | List volumes | Container, volume, size, used, and whether it is in use or an orphan |
-| Delete a volume | Refused while a running container holds it |
+| Delete a volume | Refused while the config still declares that volume, naming the config statement to remove |
 | The registry list | Credentials, transport, mirror |
 | A container's image, storage and volume nodes | The reference, the layer's cap, the volumes and their caps |
 
-Needs the operator-surface child does not carry yet. Each is in this child's report:
+Needs the operator-surface child is adding to its tables. They are stated here exactly, so the two specs can be checked against each other:
 
-| Need | Why |
-|------|-----|
-| A trust anchor leaf on a registry, naming a `pki ca` entry | A registry signed by a private authority cannot be reached otherwise, since unverified TLS does not exist |
-| The largest image size, one leaf for the store. Default 1 GiB, from 1 MiB to 64 GiB | The cap on the expanded bytes of one image has to be raisable by the operator |
-| A failed state in the image listing, with the error and its code | A fetch whose caller went away fails with nobody reading the answer |
-| The store's own figures: path, total and free bytes, the reserve, whether caps are enforced, and the used bytes of each layer | Per-consumer accounting has no command today. The image and volume listings carry sizes, the layers do not |
+| # | Need | Exact content | Why |
+|---|------|---------------|-----|
+| N-1 | A trust anchor leaf on a registry entry | Optional. Its value is the name of one `pki ca` entry. A value that names no entry is refused at commit. A registry that carries it is trusted through that anchor only, not through the system roots | A registry signed by a private authority cannot be reached otherwise, since unverified TLS does not exist |
+| N-2 | The largest image size | One leaf for the whole store, not for each container. The cap on the expanded bytes of one image. Default 1 GiB, from 1 MiB to 64 GiB | The cap has to be raisable by the operator |
+| N-3 | A failed state in the image listing | A row for the last fetch of a reference that failed: the reference, the state failed, the error sentence and its doctor code. The row leaves when a fetch of that reference succeeds or when the image is deleted. At most 16 such rows, the oldest leaving first | A fetch whose caller went away fails with nobody reading the answer |
+| N-4 | The store's totals | One answer: the store path, the filesystem's total and free bytes, the reserve, and whether caps are enforced | Free space and enforcement have no command today |
+| N-5 | The used bytes of each consumer | The image rows carry size, the volume rows carry size and used. The writable layer's used bytes and cap are needed for each container, and for each orphan layer | Per-consumer accounting is in this child's scope |
+| N-6 | The mirror's order | The mirror is asked first, and the registry itself when the mirror fails. The help text of the mirror node says so | A mirror that is down would otherwise stop every fetch |
+| N-7 | Short references | The image node and the fetch command accept a name with no registry host and a name with no tag. The image listing shows the reference as the operator wrote it and the digest it resolved to | Owner ruling |
 
 ### Doctor checks and codes
 
@@ -370,7 +405,7 @@ Needs the operator-surface child does not carry yet. Each is in this child's rep
 |---------------|------|-------------|-----------------------|
 | The store folder is absent, not writable, or open to group or others | `doctor-container-store-unwritable` | Plugin runtime check `container-store` | On a distribution, the ownership and mode change for that folder. On the appliance, the kernel log command, because the partition did not mount read-write |
 | The data filesystem is below the store's reserve | `doctor-container-store-full` | Plugin runtime check `container-store` | The delete-everything command for images |
-| The filesystem cannot enforce a cap | `doctor-container-storage-quota-absent`, `doctor-container-storage-quota-unknown` | Kernel capability `container-storage-quota` | On the appliance, the install of an image built by this version. On a distribution, the export of `ze.data.dir` naming an ext4 filesystem with project quota |
+| The filesystem cannot enforce a cap | `doctor-container-storage-quota-absent`, `doctor-container-storage-quota-unknown` | Kernel capability `container-storage-quota` | The export of `ze.data.dir` naming an ext4 filesystem on which project quota is enforced. On the appliance the persistent partition is one, so the finding there means the partition did not mount as built, and the fix is the kernel log command |
 | A container names an image that is not in the store | `doctor-container-image-absent`, declared in table D-1 of the operator-surface child | That child's check, from the absent answer of this child, with the last fetch failure for that reference when one exists | The fetch command with that reference |
 | A layer or a volume belongs to a container or a volume the config no longer holds | `doctor-container-store-orphan`, declared in table D-1 of the operator-surface child | That child's check, from this child's layer and volume listings | The clear command or the volume delete command |
 | A writable layer or a volume is at its cap | `doctor-container-storage-full` | Plugin runtime check `container-storage-usage` | The clear command for a layer, or the config statement that raises the size |
@@ -410,11 +445,8 @@ What an image is, how large it is and when it was fetched is in its folder's com
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
 | Registry pull protocol | writer | A container registry, outside the repository | No code in the tree speaks it | New reader only. The registry's behavior is fixed by its published specification, and by the source of the registry the interop test runs |
 | Registry pull protocol | reader | The registry client package of the container plugin, new | No existing reader | New |
-| Persistent partition format | writer | `internal/appliance/cmd_build.go` `injectZeFS` | The one formatter. It asks for no quota feature today | Changed: two features added. A device formatted before keeps its format, and the capability probe refuses the container feature there |
-| Persistent partition format | reader | gokrazy init's mount of the persistent partition | Mounts ext4 with no option | Preserved. Needs a kernel with quota support, which this spec pins. Proven by the `container-store` QEMU action |
-| Persistent partition format | reader | `internal/install/disk/system.go` `mountInjectDB` | Mounts partition 4 read-write in the installer | Preserved. Needs the installer's kernel to have quota support. Proven by `./le test qemu installer` |
-| Persistent partition format | reader | `internal/appliance/diskverify.go` `verifyInject`, `verifyE2fsck`, `tryLoopbackVerify` | Reads the image back on the build host | Preserved. Proven by `./le test functional appliance` |
-| Persistent partition format | reader | The store's quota probe, new | No existing reader | New |
+| Persistent partition format | writer | `internal/appliance/cmd_build.go` `injectZeFS` | The one formatter. It asks for no quota feature today | Not changed by this spec. `spec-appliance-perm-grows-at-install.md` changes it and holds the census of its other readers (gokrazy's mount, `mountInjectDB`, `verifyInject`) |
+| Persistent partition format | reader | The store's quota probe, new | No existing reader | New. It reads whether project quota is enforced, and changes nothing |
 | Store layout on the data directory | writer | The image store package of the container plugin, new | No existing writer: no data directory exists | New. Permanent once shipped |
 | Store layout on the data directory | reader | The same package, and the runtime child through the seam | No existing reader | New |
 | Container state keys | writer | The container plugin through `StatePut` | No container key in `pkg/zefs/keys.go` | New. Permanent once shipped |
@@ -430,8 +462,7 @@ What an image is, how large it is and when it was fetched is in its folder's com
 - `pkg/zefs/keys.go` and `statestore.RegisterPluginKeys`: three key patterns, granted to the container plugin.
 - `kernelcap.MustRegister`: the storage quota capability.
 - The plugin's Stage 1 registration, created by the runtime child: this child adds its commands with their bounds, its doctor check declarations, its declared read of `pki`, and its event codes.
-- `internal/appliance/cmd_build.go` `injectZeFS`: the format.
-- `gokrazy/kernel/runtime.config` and `gokrazy/kernel/runtime.require`: quota support.
+- `spec-appliance-perm-grows-at-install.md`: the enforced project quota and the grown partition, which this child reads and does not make.
 - `fileAllowlist`: the new files that write.
 - `integrationPackages` and the QEMU action table: the integration tests and the appliance proof.
 
@@ -450,10 +481,10 @@ What an image is, how large it is and when it was fetched is in its folder's com
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | On an ext4 filesystem formatted with the quota and project features and mounted with no option, Ze can turn project quota enforcement on and set a hard limit through the quota system call | Knowledge of the kernel's quota interface. The kernel source was not read | The store remounts the data filesystem with the project quota option, or the cap needs another design | `TestQuotaRefusesWritePastCap` in the QEMU guest on the runtime kernel, and reading the kernel's ext4 quota code for the linux-limitations entry | unvalidated |
-| A-2 | The runtime kernel on amd64 and arm64, and the kernel the installer boots, have quota support, and ext4 refuses a read-write mount of a quota filesystem on a kernel without it | The amd64 resolved config holds quota support from upstream defaults (research report). No arm64 config was read. The installer's kernel profile was not found | A new image's persistent partition does not mount on that kernel, and the device has no config | The two kernel files request and require the options, so a build without them fails. `./le test qemu installer` and the `container-store` action boot the result | unvalidated |
-| A-3 | The format tool on a Linux and a macOS build host accepts the two features, and the debugfs injection and the structural check still pass | Not run. The seed is written with debugfs, which may leave the quota usage records behind what the files hold, and `verifyE2fsck` fails the build on any inconsistency | The two features are added after the injection, by the e2fsprogs tool that enables them on an unmounted filesystem and computes the usage then. `ze appliance build` then resolves a third e2fsprogs tool | `TestInjectFormatsPermWithProjectQuota` and `./le test functional appliance` | unvalidated |
-| A-4 | Umbrella A-6: the persistent partition is the size the image was built with, about 950 MB on the default 2 GiB image, and nothing grows it | Read: `internal/install/disk/run.go` `runHTTP`, `runISO`; `internal/install/disk/system.go` `mountInjectDB`; gokrazy init's mount; `internal/appliance/config.go`. A search for a resize found none | Nothing in this design depends on growth: every fetch checks the space that exists | The reads above | confirmed |
+| A-1 | On a filesystem where project quota is enforced, a root process gives a folder a project id that new files inherit, sets a hard block limit for that id, and reads its usage, all through system calls | Knowledge of the kernel's quota interface. The kernel source was not read | The cap needs another design, decided with the owner | `TestQuotaRefusesWritePastCap` in the QEMU guest on the runtime kernel | unvalidated |
+| A-2 | `spec-appliance-perm-grows-at-install.md` delivers a persistent partition on which project quota is enforced at boot, with no step by this child | The owner's ruling that names that spec. The spec was not on disk when this row was written | This child would have to turn enforcement on, which the owner placed in that spec | The `container-store` QEMU action on an appliance built with that spec | unvalidated |
+| A-3 | Moved to `spec-appliance-perm-grows-at-install.md`: the build-host format tool and the seed injection with the quota feature. One finding goes with it: the seed is written with debugfs, which may leave quota usage records behind what the files hold, and `verifyE2fsck` fails the build on an inconsistency | This child's reading of `injectZeFS` and `verifyInject` | Not this child's | That spec | confirmed as moved |
+| A-4 | Umbrella A-6: today the persistent partition is the size the image was built with, about 950 MB on the default 2 GiB image, and nothing grows it. The owner ruled that the appliance spec grows it at install | Read: `internal/install/disk/run.go` `runHTTP`, `runISO`; `internal/install/disk/system.go` `mountInjectDB`; gokrazy init's mount; `internal/appliance/config.go`. A search for a resize found none | Nothing in this design depends on a size: every fetch checks the space that exists | The reads above | confirmed |
 | A-5 | The path-safety library the runtime child brings builds with cgo off and gives descriptor-based in-root open and directory creation | The upstream runtime's `go.mod` at v1.5.3 requires it, and its vendored tree holds a descriptor-based package | The store resolves through the standard library's rooted directory handle, with the device, attribute and link calls made by descriptor through the system-call package | A type-check after the runtime child's dependency commit, and `FuzzApplyLayerNeverEscapesRoot` | unvalidated |
 | A-6 | The registry protocol works as this spec describes it: the challenge, the token answer, the four manifest types, the blob redirect | Written from memory of the published specification. No text of it is in the tree | A request or a check is wrong against a real registry | `TestRegistryInteropDistribution` against a real registry whose source is read first, and `TestRegistryLivePublicPull` | unvalidated |
 | A-7 | A plugin command may declare a bound of one hour, and a caller that goes away ends the command in the plugin, internal and forked | `internal/component/plugin/server/command_registry.go` `CommandDef.Timeout` holds a per-command bound. How a caller's departure reaches a plugin command was not read | The fetch keeps running after its caller left, until the bound. The store then needs a way to stop it | Reading the plugin command dispatch, and `image-fetch-caller-leaves` | unvalidated |
@@ -469,11 +500,11 @@ What an image is, how large it is and when it was fetched is in its folder's com
 | R-3 | An unpacked image puts set-user files and device nodes on the host filesystem, where a local user could reach them | A user other than root lists the image folder | The store root gives no access to group or others and is checked at every start. A device node is never created |
 | R-4 | A parser defect in the archive reader or a decompressor is reached by bytes nobody vouched for | A crash in the fetch worker on a registry answer | No blob is parsed before its digest and size were checked |
 | R-5 | The registry's credentials reach another host: a redirect target, a mirror, a log line | A test registry on a second host sees an authorization header | The header goes only to the exact host and port it was obtained for, a mirror gets none, and no error or log formats a credential |
-| R-6 | The new partition format does not mount on a kernel without quota support, and the device loses its config directory | The appliance boots to the unprovisioned state after an install | The options are pinned in both kernel files before the format changes, and the installer and appliance QEMU proofs gate the change |
+| R-6 | This child lands before the appliance spec, and no host can run a container | The capability reads absent everywhere | The dependency is declared in the header. The store's tests that need a quota run in the QEMU guest on an appliance built with that spec |
 | R-7 | The persistent partition fills and Ze can no longer commit its config (umbrella R-14) | The config-partition doctor check warns after a fetch | The reserve, the hard cap on every layer and volume, the retention rule, and the refusal of a fetch before any download |
 | R-8 | File capabilities of an image are lost (umbrella R-8) | A program in a container fails for a missing capability | The folder keeps the attribute. A test reads it back, and the QEMU action reads it from a running container |
-| R-9 | A device installed before this work cannot run containers at all | The capability reads absent on that device | Stated plainly by doctor with the fix. It is a consequence of exact enforcement and is in the report to the owner |
-| R-10 | A distribution's data filesystem is not ext4 with project quota | The capability reads absent | Doctor names the requirement and the override. No other filesystem is supported by this spec |
+| R-9 | The image's user is a name, and the account files that resolve it are content a registry chose | A crafted account file makes the store read outside the image folder, or hands a wrong number | The files are opened under a descriptor for the image folder, are bounded in size, and a name they do not hold refuses the image. An image that needs root says so itself by giving no user |
+| R-10 | A root-run host's data filesystem is not ext4 with project quota enforced | The capability reads absent | The config is refused and doctor says why, by owner ruling. ext4 is the only filesystem supported |
 | R-11 | A layer or a volume left by a container removed from the config holds space for ever | The listings grow | Doctor reports each as an orphan with the command that removes it |
 | R-12 | A project id the store picks is already used by something else on a distribution's filesystem | A limit appears on a folder Ze does not own | An id with existing usage or a limit is skipped at allocation |
 | R-13 | A fetch is in flight when the daemon stops, or its caller leaves | A staging folder remains | The fetch stops with its context, staging is emptied at every start, and only blobs that were checked stay |
@@ -484,26 +515,27 @@ What an image is, how large it is and when it was fetched is in its folder's com
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | A defect in layer application lets a registry change a host file as root. A defect in the cap or the reserve lets a container fill the persistent partition, and Ze then cannot commit its config. A format change without the kernel pin leaves a new device with no mountable persistent partition. Routing is not touched by any of these directly |
-| How is it reverted? | The code reverts by commit. Images, layers and volumes on a device stay as inert files under the data directory. A device built meanwhile keeps the two filesystem features, which are harmless on a kernel with quota support, so the kernel pin is not reverted with it |
-| Who else touches this path? | `spec-container-1-runtime.md` (the same plugin folder and its registration), `spec-container-4-operator-surface.md` (the schema, the command words, two doctor rows), any session editing the appliance builder or the kernel files, and `TestDoctorDependencyInventory` |
+| What breaks if this is wrong? | A defect in layer application lets a registry change a host file as root. A defect in the cap or the reserve lets a container fill the persistent partition, and Ze then cannot commit its config. Routing is not touched by either directly |
+| How is it reverted? | The code reverts by commit. Images, layers and volumes on a device stay as inert files under the data directory |
+| Who else touches this path? | `spec-container-1-runtime.md` (the same plugin folder, its registration and the image seam file), `spec-container-4-operator-surface.md` (the schema, the command words, two doctor rows, the closing test), `spec-appliance-perm-grows-at-install.md` (the filesystem this child probes), and `TestDoctorDependencyInventory` |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| The image fetch command, from the daemon | → | The fetch, the registry client, layer application, publication | `test/container/image-fetch-lists-digest.ci` |
-| The image fetch command, with the plugin in its own process | → | The same, over the plugin connection, with state through the SDK | `test/container/image-fetch-external-plugin.ci` |
+| The image fetch command, from the daemon | → | The fetch, the registry client, layer application, publication | `test/plugin/container-image-fetch-lists-digest.ci` |
+| The image fetch command, with the plugin in its own process | → | The same, over the plugin connection, with state through the SDK | `test/plugin/container-image-fetch-external-plugin.ci` |
 | The image listing during a fetch | → | The in-flight row with the bytes received | `TestListingShowsFetchingWithBytesReceived` |
-| A config with a container whose image is absent | → | The store's resolve answer, the doctor check, the notice to the runtime | `test/container/image-absent-doctor-then-start.ci` |
+| A config with a container whose image is absent | → | The store's resolve answer, the doctor check, the notice to the runtime | `test/plugin/container-image-absent-doctor-then-start.ci` |
 | The runtime's resolve request | → | The store's answer with the folders and the image's configuration | `TestResolveReadyHandsFoldersAndConfiguration` |
-| The update and rollback commands | → | The generation record, the fresh layer, the restart notice | `test/container/image-update-rollback.ci` |
-| The delete command | → | The hold check and the folder removal | `test/container/image-delete-in-use-refused.ci` |
-| The clear command | → | The layer replacement | `test/container/layer-clear.ci` |
-| A config with a volume | → | The volume folder and its cap | `test/container/volume-survives-update.ci` |
-| `ze config validate` on a host that cannot enforce a cap | → | The kernel capability refusal | `test/container/store-quota-absent-refused.ci` |
+| The update and rollback commands | → | The generation record, the fresh layer, the restart notice | `test/plugin/container-image-update-rollback.ci` |
+| The delete command | → | The hold check and the folder removal | `test/plugin/container-image-delete-in-use-refused.ci` |
+| The clear command | → | The layer replacement | `test/plugin/container-layer-clear.ci` |
+| A config with a volume | → | The volume folder and its cap | `test/plugin/container-volume-survives-update.ci` |
+| `ze config validate` on a host that cannot enforce a cap | → | The kernel capability refusal | `test/plugin/container-store-quota-absent-refused.ci` |
 | `ze doctor` with a full layer | → | The plugin's doctor callback | `TestStorageFullCheck` |
-| `ze appliance build` | → | `injectZeFS` with the two features | `TestInjectFormatsPermWithProjectQuota` |
+| The fetch command with a short name | → | The completion of the reference, the binding, the folder named by the resolved digest | `TestFetchShortNameRecordsResolvedDigest` |
+| The fetch command for the published Redis image | → | The index, the anonymous token, the gzip layers, the image's configuration in the record | `TestFetchPublishedRedisImage` |
 | A booted appliance | → | The store on the persistent partition, the quota, the reboot | `./le test qemu container-store` |
 
 ## Acceptance Criteria
@@ -522,31 +554,54 @@ What an image is, how large it is and when it was fetched is in its folder's com
 | AC-10 | A container writes a file in its root. The container is restarted, then the daemon is restarted, then the device reboots | The file is there with its content after each of the three | A file under a memory-backed mount the image or the config declares is lost, because that is what such a mount is |
 | AC-11 | The update command runs for a container whose tag now resolves to a new digest, then the rollback command runs | After the update the container runs the new digest from an empty writable layer, and the image listing shows the old digest as previous. After the rollback it runs the old digest and the file it wrote before the update is there | The image and the layer of a generation older than the previous one are removed, by the retention rule, unless another container or a binding still names the image |
 | AC-12 | The update command runs and the tag resolves to the digest the container already runs | The answer says nothing changed. The container keeps running with no restart, and its generation record is unchanged | A tag that resolves to the retained previous digest also changes nothing and names the rollback command, because that generation already has its own layer |
-| AC-13 | The delete command names an image a running container holds, then an image nothing holds | The first is kept, and the answer names the container as the reason. The second is deleted, and the answer gives its digest and size | Deleting the previous generation of a container is allowed and the answer says rollback is no longer possible, because only the running image is protected |
+| AC-13 | The delete command names an image a configured container holds as its current digest, then one held as a previous digest, then an image nothing holds | The first two are kept, and the answer names the container as the reason. The third is deleted, and the answer gives its digest and size | An image only a container removed from the config held is deleted, because nothing can roll back to it |
 | AC-14 | The clear command runs for a container that wrote a file in its root and a file in a volume | The container runs again on an empty layer, and the file in its root is gone. The file in the volume is there | The image folder is unchanged, because the command touches the layer only |
 | AC-15 | A container writes past its storage size, and another writes past the size of a volume | Each write fails inside the container with "disk quota exceeded". Doctor reports `doctor-container-storage-full` for each, with the fix | Other containers keep writing inside their own caps and Ze commits a config, because each folder has its own limit and the reserve is untouched |
-| AC-16 | A config with a container is validated, started or reloaded where the data filesystem cannot enforce a project quota | Each of the three refuses, naming the filesystem requirement, and doctor reports `doctor-container-storage-quota-absent` with the fix for that platform | A config with no container is accepted there, because nothing needs the cap |
+| AC-16 | A config with a container is validated, started or reloaded where the data filesystem cannot enforce a project quota | Each of the three refuses, saying that the data directory's filesystem cannot enforce a size cap and naming the requirement, and doctor reports `doctor-container-storage-quota-absent` with its fix | A config with no container is accepted there, because nothing needs the cap |
 | AC-17 | A fetch whose layers need more than the free space above the reserve | The command is refused before any blob is downloaded, under `doctor-container-fetch-no-space`, naming the bytes needed, the bytes free and the reserve | A fetch that fits proceeds, and the reserve stays free for Ze's config |
 | AC-18 | A registry is configured with a password, with a trust anchor, or with the HTTP transport | The config shows the password obfuscated. A registry whose certificate chains to the named anchor is fetched from. A registry with the HTTP transport is fetched from over plain HTTP | Without the anchor, a registry signed by a private authority fails under `doctor-container-registry-unreachable` naming the trust anchor statement. With the HTTPS transport, a server that answers plain HTTP is refused. Both because the default is verified TLS |
 | AC-19 | A registry has a mirror | The mirror is asked first and receives no registry credentials. When it fails, the registry itself is asked and the fetch succeeds | Content from a mirror is accepted only when it matches its digest, because the digest, not the mirror, vouches for it |
 | AC-20 | A fetch is running and another session asks for the image listing, twice | Each answer shows the reference as fetching, and the bytes received are larger in the second. When the fetch ends the row reads present | A row for a fetch that failed leaves the listing, and its error reaches the caller and the report bus, because the listing shows what the store holds |
 | AC-21 | Ze starts on an appliance, under a system prefix, under another prefix, and with the override set | The store is under the data directory of that row of the data directory table, with a root folder that gives no access to group or others | A store root that is open to group or others is not used and is reported under `doctor-container-store-unwritable`, because an image holds set-user files |
-| AC-22 | An appliance image is built and booted | The storage quota capability reads present, and a write past a cap is refused by the kernel | A device installed from an image built before this work reads absent and keeps every other function, because its partition was formatted without the features |
+| AC-22 | An appliance built with `spec-appliance-perm-grows-at-install.md` is installed and booted | The storage quota capability reads present, a write past a cap is refused by the kernel, and the store's totals show the size of the disk, not of the built image | A host whose data filesystem does not enforce project quota reads absent and keeps every other function, because only containers need the cap |
 | AC-23 | The image listing and the volume listing run with two images, and two volumes of which one belongs to a container the config no longer holds | Each image row carries its size and the containers that hold it. Each volume row carries its size and its used bytes, and the second reads orphan | A volume's used bytes are the kernel's quota figure and an image's size is the count taken while it was applied, because each is the exact figure Ze holds |
-| AC-24 | A container with a volume writes a file in it. Its image is updated, then rolled back, and the volume delete command runs while it is running, then after it is stopped | The file is there after the update and after the rollback. The first delete is refused, naming the container. The second removes the folder and answers its size | A volume the config no longer declares stays on disk until it is deleted, because only the operator removes stored data |
+| AC-24 | A container with a volume writes a file in it. Its image is updated, then rolled back. The volume delete command runs while the config declares the volume, then after the config dropped it | The file is there after the update and after the rollback. The first delete is refused, naming the config statement to remove. The second removes the folder and answers its size | A volume the config no longer declares stays on disk until it is deleted, because only the operator removes stored data |
+| AC-25 | The operator fetches an image by a short name with no tag, then commits a container whose config names the same short name | The fetch resolves the name against the public hub with the tag `latest`. The answer and the image listing show the name as written and the digest it resolved to, the folder is named by that digest, and the container runs that digest | A later change of what `latest` means at the registry changes nothing here until an update command runs, because the recorded digest decides |
+| AC-26 | The operator fetches the published Redis image, from a registry that holds the real image for amd64 and arm64 | The fetch selects the running architecture from the index, gets an anonymous token, applies the gzip layers, and the record handed to the runtime holds the image's entrypoint and command, its environment, its working directory, its user as two numbers, its declared data volume and its exposed port, each equal to what the image's configuration states | With no operator volume at the declared data path, that path is a directory of the writable layer, so what Redis saves there survives a restart by AC-10 |
+
+### What the owner's closing test rests on
+
+The umbrella's AC-14 fetches the published Redis image and runs it with a published port. The operator-surface child owns that test. From this child it rests on:
+
+| Step of the closing test | This child's rows |
+|--------------------------|-------------------|
+| The image is fetched | AC-1, AC-3, AC-4, AC-5, AC-6, AC-25, AC-26 |
+| The container starts from it | AC-9, and the image root record of the seam |
+| The stored value is there after a restart | AC-10 |
+| A size cap exists for its layer | AC-16, AC-22 |
+
+How a test gets that image with no internet at test time:
+
+| Piece | Design |
+|-------|--------|
+| The image | The published Redis image, pinned by the digest of its index, for amd64 and arm64. The pin is one line in the test tree, so a new release of the image changes nothing until the pin moves |
+| The seed | One `le` action copies the pinned image, both architectures, from the public registry into an OCI layout folder in the developer cache, outside the tracked tree. It checks every digest and is the only step that needs the network. CI runs it before the tests |
+| A real registry in a package test | `labtest.Start` starts the reference registry from `test/interop-container/Dockerfile.registry`, with the seeded layout loaded into its storage. `TestRegistryInteropRedis` fetches from it |
+| A registry for the daemon tests | The local test registry of `internal/test/ociregistry` serves the same seeded layout, with the hub's behavior: a bearer challenge that grants an anonymous token. The compiled fixture starts it on the loopback, also inside the QEMU guest, and the daemon reaches it through a registry entry with a mirror on the loopback, so the config still names the image as an operator would |
+| No seed on the machine | The test fails and names the seed action. It does not skip, because a skip would read as the closing test having passed |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | Fetches an image and sees it listed | Command, fetch worker, registry client, layer application, publication, binding, listing | `test/container/image-fetch-lists-digest.ci` |
-| 2 | Commits a container before its image exists, reads doctor, fetches, and the container starts | Config transaction, resolve answers absent, doctor, fetch, notice to the runtime, start | `test/container/image-absent-doctor-then-start.ci` |
-| 3 | Updates a container, finds the new image wrong, rolls back and has the old files | Update, generation record, restart, rollback, layer of the old digest | `test/container/image-update-rollback.ci` |
-| 4 | Watches a long fetch from a second session, and stops it by leaving | Image listing row, request context, checked blobs kept | `test/container/image-fetch-caller-leaves.ci` |
+| 1 | Fetches an image and sees it listed | Command, fetch worker, registry client, layer application, publication, binding, listing | `test/plugin/container-image-fetch-lists-digest.ci` |
+| 2 | Commits a container before its image exists, reads doctor, fetches, and the container starts | Config transaction, resolve answers absent, doctor, fetch, notice to the runtime, start | `test/plugin/container-image-absent-doctor-then-start.ci` |
+| 3 | Updates a container, finds the new image wrong, rolls back and has the old files | Update, generation record, restart, rollback, layer of the old digest | `test/plugin/container-image-update-rollback.ci` |
+| 4 | Watches a long fetch from a second session, and stops it by leaving | Image listing row, request context, checked blobs kept | `test/plugin/container-image-fetch-caller-leaves.ci` |
 | 5 | Reboots the appliance and finds the container's files | Store on the persistent partition, layer keyed by name and digest | `./le test qemu container-store` |
-| 6 | Frees space | Delete of unused images, clear of a layer, delete of an orphan volume | `test/container/image-delete-in-use-refused.ci`, `test/container/layer-clear.ci`, `test/container/volume-delete.ci` |
+| 6 | Frees space | Delete of unused images, clear of a layer, delete of an orphan volume | `test/plugin/container-image-delete-in-use-refused.ci`, `test/plugin/container-layer-clear.ci`, `test/plugin/container-volume-delete.ci` |
 | 7 | Fetches from a private registry with a private authority | Registry config, credentials, trust anchor, token exchange | `TestTrustAnchorReplacesSystemRoots`, `TestPullBearerTokenExchangeSendsCredentialsToRealmOnly` |
-| 8 | Keeps data across an image update | Volume folder keyed without the digest | `test/container/volume-survives-update.ci` |
+| 8 | Keeps data across an image update | Volume folder keyed without the digest | `test/plugin/container-volume-survives-update.ci` |
 
 ## 🧪 TDD Test Plan
 
@@ -555,8 +610,14 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 ### Unit Tests
 | Test | File | Validates | Status |
 |------|------|-----------|--------|
-| `TestParseReferenceForms` | `internal/plugins/container/registry/reference_test.go` | A host, a path and a tag, and a host, a path and a digest, each give their registry, repository and pin | |
-| `TestParseReferenceRefusesPartial` | `internal/plugins/container/registry/reference_test.go` | A reference with no host, or with neither tag nor digest, is refused, naming what is missing | |
+| `TestParseReferenceForms` | `internal/plugins/container/registry/reference_test.go` | Each row of the reference table gives its registry, repository and pin | |
+| `TestParseReferenceHostRule` | `internal/plugins/container/registry/reference_test.go` | A first component with a dot, with a colon, and the word localhost are hosts, and any other first component is part of the repository | |
+| `TestParseReferenceRefusesMalformed` | `internal/plugins/container/registry/reference_test.go` | An upper-case repository, an empty component and a bad digest are refused, naming the part | |
+| `TestFetchShortNameRecordsResolvedDigest` | `internal/plugins/container/imagestore/fetch_test.go` | A short name with no tag is bound to the digest `latest` resolved to, and the short and whole spellings share one binding | |
+| `TestFetchPublishedRedisImage` | `internal/plugins/container/imagestore/redis_test.go` | From the seeded layout behind an anonymous token challenge, the stored image's record holds each field of the Redis image's configuration | |
+| `TestUserNameResolvedFromImageAccountFiles` | `internal/plugins/container/imagestore/user_test.go` | A user given by name becomes the numbers its account files hold, a numeric user is kept, and no user gives 0 and 0 | |
+| `TestUserNameAbsentFromAccountFilesRefused` | `internal/plugins/container/imagestore/user_test.go` | A name the files do not hold refuses the image | |
+| `TestUserAccountFileLinkNeverLeavesImage` | `internal/plugins/container/imagestore/user_test.go` | An account file that is a symbolic link pointing outside the image folder is read inside it or refused, never followed out | |
 | `TestPullAnonymousManifestAndBlobs` | `internal/plugins/container/registry/pull_test.go` | A registry with no challenge serves a manifest and its blobs | |
 | `TestPullBearerTokenExchangeSendsCredentialsToRealmOnly` | `internal/plugins/container/registry/auth_test.go` | The credentials reach the realm and only the realm | |
 | `TestPullBasicChallenge` | `internal/plugins/container/registry/auth_test.go` | A basic challenge is answered with the credentials to the registry itself | |
@@ -621,7 +682,8 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 | `TestLayerKeyedByNameAndDigest` | `internal/plugins/container/imagestore/layer_test.go` | Two digests of one container have two layers | |
 | `TestClearLayerStartsEmpty` | `internal/plugins/container/imagestore/layer_test.go` | The layer is empty after the clear | |
 | `TestVolumeKeyedWithoutDigest` | `internal/plugins/container/imagestore/volume_test.go` | Two digests of one container resolve to one volume folder | |
-| `TestVolumeDeleteRefusedWhileHeld` | `internal/plugins/container/imagestore/volume_test.go` | A held volume is not deleted and the holder is named | |
+| `TestVolumeDeleteRefusedWhileDeclared` | `internal/plugins/container/imagestore/volume_test.go` | A volume the config declares is not deleted, and the refusal names the config statement | |
+| `TestDeleteKeepsPreviousGeneration` | `internal/plugins/container/imagestore/delete_test.go` | An image a configured container holds as its previous digest is kept | |
 | `TestOrphanLayerAndVolumeListed` | `internal/plugins/container/imagestore/volume_test.go` | A layer and a volume of a container the config no longer holds read orphan | |
 | `TestResolveAbsentNamesReference` | `internal/plugins/container/imagestore/resolve_test.go` | The absent answer holds the reference and the reason | |
 | `TestResolveReadyHandsFoldersAndConfiguration` | `internal/plugins/container/imagestore/resolve_test.go` | The ready answer holds the layer folders, a folder for each volume, and each field of the image's configuration | |
@@ -632,7 +694,6 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 | `TestProjectIDSkipsUsedID` | `internal/plugins/container/imagestore/quota_test.go` | An id with usage is not handed out | |
 | `TestDataDirFromBinary` | `internal/core/paths/paths_test.go` | Each row of the data directory table | |
 | `TestDefaultDataDirHonorsOverride` | `internal/core/paths/paths_test.go` | The override wins | |
-| `TestInjectFormatsPermWithProjectQuota` | `internal/appliance/cmd_build_test.go` | The build asks for the two features | |
 | `TestFetchCommandAnswersResultAtEnd` | `internal/plugins/container/image_cmd_test.go` | The answer holds the reference, the digest, the size, whether it was new and the containers started | |
 | `TestFetchCommandDeclaresItsBound` | `internal/plugins/container/image_cmd_test.go` | The fetch and update commands register with a one-hour bound | |
 | `TestListingShowsFetchingWithBytesReceived` | `internal/plugins/container/image_cmd_test.go` | A held fetch reads fetching, with the bytes received | |
@@ -664,45 +725,43 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `image-fetch-lists-digest` | `test/container/image-fetch-lists-digest.ci` | The operator fetches an image from the local registry and the listing shows its digest | |
-| `image-fetch-external-plugin` | `test/container/image-fetch-external-plugin.ci` | The same fetch with the plugin run as a separate process | |
-| `image-fetch-digest-mismatch` | `test/container/image-fetch-digest-mismatch.ci` | The registry serves a wrong layer, the command fails with the code, and the listing is empty | |
-| `image-fetch-caller-leaves` | `test/container/image-fetch-caller-leaves.ci` | A second session sees the fetch in flight. The first caller leaves, the row goes, and a new fetch succeeds | |
-| `image-fetch-interrupted-then-clean` | `test/container/image-fetch-interrupted-then-clean.ci` | The daemon is stopped during a fetch, started again, and a new fetch succeeds | |
-| `image-absent-doctor-then-start` | `test/container/image-absent-doctor-then-start.ci` | A container waits for its image, doctor names the fetch, and the fetch starts it | |
-| `image-update-rollback` | `test/container/image-update-rollback.ci` | The operator updates, sees an empty layer, rolls back and finds the earlier file | |
-| `image-update-already-current` | `test/container/image-update-already-current.ci` | An update with nothing new answers so and restarts nothing | |
-| `image-delete-in-use-refused` | `test/container/image-delete-in-use-refused.ci` | A delete of a running container's image is refused, and a delete of an unused image removes it | |
-| `layer-persists-restart` | `test/container/layer-persists-restart.ci` | A file written in a container is there after a container restart and after a daemon restart | |
-| `layer-clear` | `test/container/layer-clear.ci` | The clear command leaves the container on an empty layer and its volume untouched | |
-| `volume-survives-update` | `test/container/volume-survives-update.ci` | A file in a volume is there after an image update and after a rollback | |
-| `volume-delete` | `test/container/volume-delete.ci` | A volume delete is refused while its container runs, and removes an orphan | |
-| `store-quota-absent-refused` | `test/container/store-quota-absent-refused.ci` | With the capability forced absent, validate and start refuse a container config and accept one without | |
-| `registry-password-obfuscated` | `test/container/registry-password-obfuscated.ci` | The config display does not show the password as typed | |
+| `image-fetch-lists-digest` | `test/plugin/container-image-fetch-lists-digest.ci` | The operator fetches an image from the local registry and the listing shows its digest | |
+| `image-fetch-external-plugin` | `test/plugin/container-image-fetch-external-plugin.ci` | The same fetch with the plugin run as a separate process | |
+| `image-fetch-digest-mismatch` | `test/plugin/container-image-fetch-digest-mismatch.ci` | The registry serves a wrong layer, the command fails with the code, and the listing is empty | |
+| `image-fetch-caller-leaves` | `test/plugin/container-image-fetch-caller-leaves.ci` | A second session sees the fetch in flight. The first caller leaves, the row goes, and a new fetch succeeds | |
+| `image-fetch-interrupted-then-clean` | `test/plugin/container-image-fetch-interrupted-then-clean.ci` | The daemon is stopped during a fetch, started again, and a new fetch succeeds | |
+| `image-absent-doctor-then-start` | `test/plugin/container-image-absent-doctor-then-start.ci` | A container waits for its image, doctor names the fetch, and the fetch starts it | |
+| `image-update-rollback` | `test/plugin/container-image-update-rollback.ci` | The operator updates, sees an empty layer, rolls back and finds the earlier file | |
+| `image-update-already-current` | `test/plugin/container-image-update-already-current.ci` | An update with nothing new answers so and restarts nothing | |
+| `image-delete-in-use-refused` | `test/plugin/container-image-delete-in-use-refused.ci` | A delete of an image a configured container holds, as current or previous, is refused, and a delete of an unused image removes it | |
+| `layer-persists-restart` | `test/plugin/container-layer-persists-restart.ci` | A file written in a container is there after a container restart and after a daemon restart | |
+| `layer-clear` | `test/plugin/container-layer-clear.ci` | The clear command leaves the container on an empty layer and its volume untouched | |
+| `volume-survives-update` | `test/plugin/container-volume-survives-update.ci` | A file in a volume is there after an image update and after a rollback | |
+| `volume-delete` | `test/plugin/container-volume-delete.ci` | A volume delete is refused while the config declares the volume, and removes an orphan | |
+| `store-quota-absent-refused` | `test/plugin/container-store-quota-absent-refused.ci` | With the capability forced absent, validate and start refuse a container config and accept one without | |
+| `registry-password-obfuscated` | `test/plugin/container-registry-password-obfuscated.ci` | The config display does not show the password as typed | |
 | `container-store` | `./le test qemu container-store` | On a booted appliance: the cap is enforced, a write past it fails, a file capability is read from a running container, and a written file is there after a reboot | |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
 | `TestRegistryInteropDistribution` | `internal/plugins/container/registry/registry_docker_test.go`, with `test/interop-container/Dockerfile.registry` | The reference open-source registry, started with `labtest.Start`, tag `docker` | Ze fetches a gzip image, a zstd image and an index from a real registry, anonymously and with basic credentials, and each stored tree matches the fixture | |
+| `TestRegistryInteropRedis` | `internal/plugins/container/registry/registry_docker_test.go` | The same registry, holding the seeded Redis image for amd64 and arm64 | Ze fetches the published Redis image from a real registry: the index, the running architecture's manifest, its gzip layers and its configuration | |
 | `TestRegistryLivePublicPull` | `internal/plugins/container/registry/registry_live_test.go` | A public registry, tag `live` | The token exchange and a blob redirect to another host work against a production registry | |
 
 ## Files to Modify
 - `internal/core/fetch/fetch.go` - export the stall reader and its constructor. No behavior change
 - `internal/core/paths/paths.go` - the data directory resolver and its `ze.data.dir` override
 - `pkg/zefs/keys.go` - the three container key patterns
-- `internal/appliance/cmd_build.go` - `injectZeFS` formats with the quota and project features
-- `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` - request and require quota support and its on-disk format
 - `internal/le/arch/fspersistence/fspersistence.go` - `fileAllowlist` entries for the new files that write, each with its reason
 - `internal/le/test/qemu/alltests.go` - `integrationPackages` gains the store package
 - `internal/le/test/qemu/actions.go` - the `container-store` action, with a caller in the scheduled QEMU workflow
-- `docs/architecture/appliance/builder.md` - the format of the persistent partition
-- `docs/architecture/appliance/on-device-installer.md` - the exported stall reader, and what the installer's kernel must support to mount the partition
+- `docs/architecture/appliance/on-device-installer.md` - the exported stall reader
 - `docs/architecture/zefs-format.md` - the key namespace table
 - `docs/architecture/doctor-and-health-checks.md` - the store's checks and codes
 - `docs/architecture/testing/interop.md` - the registry test in the labtest section
 - `docs/architecture/testing/qemu-integration.md` - the `container-store` action beside the other appliance proofs, and the store package in "Existing Integration Test Packages"
-- `docs/architecture/linux-limitations.md` - an entry: the project quota feature cannot be added to a mounted filesystem by Ze, so a device formatted before this work cannot cap a layer
+- The image seam file the runtime child creates in the plugin folder - the store fills the seam, and the record gains the fields this spec adds once that spec holds them
 - The container plugin's registration and its Stage 1 declaration, created by the runtime child - commands with their bounds, doctor check declarations, event codes, the declared read of `pki`, the state key grant
 
 ## Files to Create
@@ -714,8 +773,10 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 - `internal/test/ociregistry/` - the local test registry and its image builder
 - `internal/test/fixture/container_registry.go` - the compiled fixture that serves it to a `.ci` test
 - `internal/le/test/qemu/containerstore.go` - the appliance proof
-- `test/container/*.ci` - the functional tests of the table above
-- `test/interop-container/Dockerfile.registry` - the registry image the interop test starts, with its fixture images
+- `test/plugin/container-*.ci` - the functional tests of the table above
+- `test/interop-container/Dockerfile.registry` - the registry image the interop test starts, with its fixture images and the seeded Redis layout
+- `test/interop-container/redis.pin` - the one line that pins the published Redis image by the digest of its index
+- `internal/le/test/containerseed/` - the `le` action that copies the pinned image, both architectures, into the developer cache as an OCI layout
 - `docs/architecture/container/image-store.md` - the design page: the store layout, the reference forms, the registry requests, the application rules, capped storage, the generations, the seam
 
 ### Integration Checklist
@@ -727,7 +788,7 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 | CLI commands/flags | Yes | `internal/plugins/container/image_cmd.go`. No flag: each is a registered command |
 | CLI grammar (keyword before value) | Yes | Judged in `spec-container-4-operator-surface.md`, which owns the words |
 | Editor autocomplete | Yes | The digest of the delete command and the container and volume names complete from live state |
-| Functional test for new RPC/API | Yes | `test/container/*.ci` |
+| Functional test for new RPC/API | Yes | `test/plugin/container-*.ci` |
 | Pipe completeness | Yes | Every listing answers structured data through the shared renderer, so the generic pipes apply |
 | Env var registration | Yes | `ze.data.dir` in `internal/core/paths/paths.go` |
 | Doctor check for runtime dependencies | Yes | `internal/plugins/container/doctor_store.go`: the data directory, the quota. The total `TestDoctorDependencyInventory` holds rises |
@@ -747,7 +808,7 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 | 7 | Wire format changed? | No | The registry protocol is not Ze's format. The store layout is in the design page |
 | 8 | Plugin SDK/protocol changed? | No | The SDK state calls and the doctor callback are used as they are |
 | 9 | RFC behavior implemented, changed, or newly proven? | N-A | The registry protocol is not an RFC |
-| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`: the container suite and its registry fixture. `docs/architecture/testing/interop.md` and `docs/architecture/testing/qemu-integration.md`. The workflow page gains the action's caller |
+| 10 | Test infrastructure changed? | Yes | `docs/functional-tests.md`: the registry fixture and the Redis seed action. The tests are in the plugin suite, as the sibling specs' are. `docs/architecture/testing/interop.md` and `docs/architecture/testing/qemu-integration.md`. The workflow page gains the action's caller |
 | 11 | Affects daemon comparison? | No | The umbrella decides whether the comparison page gains a row |
 | 12 | Internal architecture changed? | Yes | `docs/architecture/container/image-store.md`, new. `docs/architecture/core-design.md`: the data directory beside the config directory |
 | 13 | Route metadata keys added/changed? | N-A | No route is touched |
@@ -759,7 +820,7 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 ## Implementation Steps
 
 1. **Phase: Wiring (MANDATORY FIRST)** -- the entry points exist and reach stubs
-   - Tests: `test/container/image-fetch-lists-digest.ci`, `TestResolveAbsentNamesReference`, `TestFetchCommandDeclaresItsBound`, `TestDataDirFromBinary`
+   - Tests: `test/plugin/container-image-fetch-lists-digest.ci`, `TestResolveAbsentNamesReference`, `TestFetchCommandDeclaresItsBound`, `TestDataDirFromBinary`
    - Files: the plugin's registration and schema, the command and doctor files, the paths resolver, the key file, the seam with the runtime child
    - Verify: each command is listed on every surface and answers that the store is not implemented. The wiring `.ci` fails because no image is fetched
 2. **Phase: Store layout and publication** -- the data directory, modes, staging, the completion mark, the listing
@@ -778,10 +839,10 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
    - Tests: the `TestFetch...` tests, `TestFreeSpaceRefusalBeforeAnyBlob`, `TestListingShowsFetchingWithBytesReceived`, the fetch `.ci` tests
    - Files: the image store package, the command file, the registry fixture
    - Verify: the wiring `.ci` passes. Assumption A-7 is confirmed or broken here
-6. **Phase: Capped storage** -- the kernel options first, then the format, then the probe, the layers and the volumes
-   - Tests: `TestInjectFormatsPermWithProjectQuota`, the quota tests, the layer and volume tests, `store-quota-absent-refused`
-   - Files: the two kernel files, the appliance builder, the capability enrolment, the image store package
-   - Verify: the kernel options land and build before the format changes. Assumptions A-1, A-2 and A-3 are confirmed or broken here
+6. **Phase: Capped storage** -- the probe, the capability, the layers and the volumes, after `spec-appliance-perm-grows-at-install.md` landed
+   - Tests: the quota tests, the layer and volume tests, `store-quota-absent-refused`
+   - Files: the capability enrolment, the image store package
+   - Verify: tests fail, then pass, the integration ones in the QEMU guest on an appliance built with that spec. Assumptions A-1 and A-2 are confirmed or broken here
 7. **Phase: Generations** -- resolve, update, rollback, retention, delete, clear
    - Tests: the generation, delete and resolve tests, and the `.ci` tests for update, rollback, delete, clear, volumes and persistence
    - Files: the image store package, the command file
@@ -791,8 +852,8 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
    - Files: the doctor file
    - Verify: `./le arch doctor-coverage check` admits every new problem site
 9. **Phase: Interop, appliance proof and pages**
-   - Tests: `TestRegistryInteropDistribution`, `TestRegistryLivePublicPull`, `./le test qemu container-store`
-   - Files: the registry Dockerfile, the QEMU action, its registration and its workflow caller, the integration package list, the pages of Files to Modify and Files to Create
+   - Tests: `TestRegistryInteropDistribution`, `TestRegistryInteropRedis`, `TestFetchPublishedRedisImage`, `TestRegistryLivePublicPull`, `./le test qemu container-store`
+   - Files: the seed action, the Redis pin, the registry Dockerfile, the QEMU action, its registration and its workflow caller, the integration package list, the pages of Files to Modify and Files to Create
    - Verify: the registry's source is read at the pinned version before the interop test expects an answer from it, and the function is named in the test
 
 ### Critical Review Checklist
@@ -807,19 +868,19 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 | Operator errors and doctor codes | Every refusal is an operator error with its fix on the last line. Every warning or error line names a code of the doctor table. Each finding carries its fix |
 | Rule: process boundary | The store works with the plugin run as a separate process: state through the SDK, doctor through the callback, no call into a component's Go state. `image-fetch-external-plugin` proves it |
 | Rule: lifecycle regressions (`ai/rules/testing.md`) | The plugin's start, supervision and failure scenarios belong to the runtime child. This child reaches one: a stop with a fetch in flight, proven by `image-fetch-interrupted-then-clean`. The other rows of that table are not reachable from this child's code |
-| Rule: exact or refuse | No measured cap, no skipped free-space check, no corrected path, no guessed layer type, no completed reference |
+| Rule: exact or refuse | No measured cap, no skipped free-space check, no corrected path, no guessed layer type. A short reference is completed by the one rule of the reference table, and the digest it resolved to is recorded |
 | Rule: credentials | The password leaf is sensitive. No credential, token or authorization header appears in a log line, an error, a listing, a state key or the completion mark |
 
 ### Deliverables Checklist
 
 | Deliverable | Verification method |
 |-------------|---------------------|
-| The fetch command stores an image by digest | `./le test functional container` runs `image-fetch-lists-digest` |
+| The fetch command stores an image by digest | `./le test functional plugin` runs `container-image-fetch-lists-digest` |
+| The published Redis image is fetched whole | `TestFetchPublishedRedisImage` and `TestRegistryInteropRedis`, after the seed action |
 | Digest and size are checked on every object | The registry client package tests whose names hold Mismatch or Bound |
 | A hostile layer changes nothing outside the root | The image store package tests whose names start `TestApply`, and the fuzz run |
-| The store works with the plugin in its own process | `image-fetch-external-plugin` in the container suite |
+| The store works with the plugin in its own process | `container-image-fetch-external-plugin` in the plugin suite |
 | The caps are enforced by the kernel on the appliance | `./le test qemu container-store` |
-| The appliance still builds, installs and boots | `./le test functional appliance`, `./le test qemu installer` |
 | Each problem class has a code and a fix | `TestEveryStoreCodeIsDescribed`, `./le arch doctor-coverage check` |
 | No raw write without its allowlist reason | `./le arch fs-persistence check` |
 | The gate still compiles out | The runtime child's absent build-tag test, and `./le arch tier check` |
@@ -855,7 +916,7 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 ## Design Insights
 
 - The firmware download blocks because it runs inside the daemon, where no command bound applies. A plugin command has a bound, 30 seconds by default, so a long plugin command declares its own and shows its progress where every surface can read it.
-- The format of the persistent partition is decided on the build host and cannot be changed on the device. Any feature that needs a filesystem property has to arrive with the image build and refuse on a device that predates it.
+- The format of the persistent partition is decided on the build host and cannot be changed on the device. A feature that needs a filesystem property states it as a need of the appliance build and probes for it, and does not create it.
 - Downloading a blob before applying it costs the size of the compressed layers, and buys three things: no parser sees unverified bytes, a retry does not have to undo a half-applied layer, and a fetch that stopped resumes at the first blob it had not checked.
 
 ## Owned journal rows
@@ -873,20 +934,23 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 | The completion mark carries the image's facts | A state key per image | The folder then describes itself. A lost state store costs bindings and generations, not images |
 | The fetch command answers once at its end, with a declared bound of one hour | A command that answers at once and a separate list of jobs | It is the firmware download's model and the answer shape the operator-surface child fixed. The bound and the caller's departure both stop it safely, because the checked blobs stay |
 | The cap is ext4 project quota, set by Ze through system calls, for layers and volumes alike | (a) A cap Ze measures and enforces by stopping the container. (b) One filesystem image file per layer. (c) A memory-backed layer | (a) is not exact: a container fills the partition between two measurements, and the partition holds Ze's config. (b) needs a filesystem writer Ze does not have and may not run as a tool. (c) contradicts the owner's ruling that the layer is on disk. Project quota is enforced by the kernel at the write, needs no tool on the device, and gives exact usage for accounting |
-| Where the cap cannot be enforced, a container config is refused | Falling back to the measured cap | The shared design refuses what a backend cannot apply exactly. The cost is that a device formatted before this work, and a distribution whose data filesystem has no project quota, cannot run containers until reinstalled or pointed at a suitable filesystem |
+| Where the cap cannot be enforced, a container config is refused | Falling back to the measured cap | Owner ruling, 2026-11-16: exact or refuse. Containers run on the appliance and under a root daemon at first, and a host whose data directory cannot enforce a size cap refuses a container config and says why |
+| The format change, the kernel's quota support and the partition's growth are not in this spec | Carrying them here, as the first draft did | Owner ruling: they are appliance work of their own, `spec-appliance-perm-grows-at-install.md`, which comes first |
+| A short name resolves against the public hub, and a missing tag means `latest` | Requiring a whole reference | Owner ruling: the reference operator model's words. The digest the name resolved to is recorded and names the folder, so the short name never decides what runs after the fetch |
+| The store resolves the image's user to two numbers | Handing the user as the image wrote it | The runtime child's record takes two numbers. The account files are image content, so the store, which already opens the image folder by descriptor, reads them |
 | A new data directory, separate from the config directory | A folder under the config directory | The config directory holds the live store with strict modes and is the tree the raw-write rule protects. Image trees hold arbitrary owners, modes and set-user files and do not belong beside credentials |
 | A volume is keyed by container and volume name, without the digest | A volume per generation | The umbrella says state meant to survive lives in volumes. A volume that changed with the image would not survive an update |
 | A mirror is asked first and the registry after it | The mirror in place of the registry | A mirror that is down would otherwise stop every fetch. Content is checked by digest either way |
 | A device node under the image's device folder is skipped and counted, any other is refused | Creating device nodes, or refusing every image that holds one | Older base images carry nodes there that the runtime's own device folder hides. Creating a node on the host filesystem is never needed and is the risk |
 | An update that resolves to the retained previous digest changes nothing and names rollback | Treating it as an update onto a fresh layer | That generation already has a layer with the operator's writes. Replacing it silently would lose them |
 | Rollback is a command | An automatic rollback when the new image fails to start | The restart policy of the runtime child already handles a failing container. The umbrella's criteria ask for a rollback the operator runs |
-| The default appliance image stays 2 GiB | A larger default | An appliance without containers must not pay for them. The partition does not grow, so the size is the build's `image.size` setting, and every fetch names the space it lacks |
+| Rollback stays a command | - | Confirmed by owner ruling: no automatic rollback |
+| The default appliance image stays 2 GiB | A larger default | An appliance without containers must not pay for them, and the appliance spec grows the partition to the disk at install. Every fetch names the space it lacks |
 
 ## Known Limitations
 - Layers are not shared between images. Two images with one base store it twice. This follows the owner's ruling for one folder per image digest.
-- The persistent partition keeps the size the image was built with. This child settles that fact (assumption A-4) and works at any size. Whether Ze grows the partition at install is the umbrella's question, raised in this child's report, and is not designed here.
-- A device installed from an image built before this work cannot run containers, because its persistent partition has no project quota and Ze cannot add it on the device.
-- On a distribution, the data directory must be on an ext4 filesystem with project quota. No other filesystem is supported.
+- Containers run on the appliance and under a daemon that runs as root, by owner ruling. The data directory must be on an ext4 filesystem on which project quota is enforced. No other filesystem is supported, and a host without it refuses a container config.
+- The persistent partition's growth and format are `plan/post-release/features/spec-appliance-perm-grows-at-install.md`.
 - Images are fetched from a registry only. Building an image on the device, loading one from a file and pushing one are not part of the umbrella's scope.
 - Image signatures are not verified. The digest proves the content is what the registry named, not who built it.
 - A fetch resumes at a whole blob. A blob that was partly downloaded starts again from its first byte.
@@ -910,7 +974,7 @@ A local registry for tests comes from one new package, `internal/test/ociregistr
 - [ ] AC-1..AC-N all demonstrated
 - [ ] Every user story has a working path and a passing test
 - [ ] Wiring Test table complete: every row a concrete test name, none deferred
-- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, the container functional suite, `./le test functional appliance`, and the QEMU actions this spec names. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit
+- [ ] The targeted tests for what changed pass, run in the main checkout by the main thread: the scoped package tests, the container tests of the plugin functional suite, and the QEMU action this spec names. No agent runs any `./le verify` command: GitHub CI verifies the pushed commit
 - [ ] Feature code integrated (`internal/*`, `cmd/*`), not library-only
 - [ ] Integration and Documentation checklists answered Yes/No/N-A with evidence
 - [ ] Architectural Verification table filled, including registration over hardcoding

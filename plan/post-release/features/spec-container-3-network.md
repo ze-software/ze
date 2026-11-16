@@ -33,49 +33,84 @@ gives it a network, in state Ze owns and shows:
   the container feature: the plugin reaches interfaces and the firewall through
   declared requests that also work when it runs as a separate process.
 
-The owner rulings are fixed by the umbrella (O-7 for this child). This spec
-refines umbrella AC-8 and AC-9.
+The owner rulings are fixed by the umbrella: O-7, and the rulings of 2026-11-16
+its "Owner decisions" table records (a bridge per network; outbound translation
+on by default; a published port must also be allowed by the operator's firewall
+policy; no container names over DNS at first). This spec refines umbrella AC-8
+and AC-9, and umbrella AC-14 rests on it (see "The owner's closing test").
 
-### Config nodes this child needs
+### Config words this child implements
 
-The words and the grammar are set by `spec-container-4-operator-surface.md`.
-This table states what must be expressible.
+`spec-container-4-operator-surface.md` holds the one table of config words and
+command words (tables S-1, S-2, C-1, V-1). Its design is settled before any
+sibling's wiring phase, and this child uses its words and designs none. The
+rows below are that child's nodes that land with this child.
 
-| Node (plain words) | On | Value | Rule this child applies |
-|--------------------|----|-------|-------------------------|
-| Network name | network | key | The bridge device is named `zcn-` plus the name, so the name is at most 11 characters and is refused when longer, never truncated |
-| Prefix | network | one IPv4 and/or one IPv6 prefix | IPv4 length 1 to 30, IPv6 length 1 to 126. Two networks must not overlap, and a prefix must not contain an address the interface config sets elsewhere |
-| MTU | network | 68 to 16000, default 1500 | Applied to the bridge and both ends of every link. Refused below 1280 when the network has an IPv6 prefix |
-| Outbound translation | network | on or off | See Key Design Decisions for the default |
-| Name servers | network, container | list of addresses | See "Name resolution" |
-| VRF | network | name | Present so the refusal can say why. Refused by the plugin's verifier until VRF support ships |
-| Network mode | container | attached to networks, host, or none | Host and none refuse every node below |
-| Attachment | container | network name, optional address per family | An address the operator sets, or one assigned from the prefix |
-| Published port | container | protocol (tcp, udp), router port or range, container port or range, optional router addresses | Ranges have equal size. See "Published ports" |
+| Node (that child's word) | Under | Rule this child applies |
+|--------------------------|-------|-------------------------|
+| `network` list key `name` | `container` | The bridge device is named `zcn-` plus the name. The name is 1 to 11 characters, lowercase letters, digits and interior hyphens, and a longer name is refused, never truncated. That child's schema must carry this bound |
+| `prefix` | `container network` | At most one per family. IPv4 length 1 to 30, IPv6 length 1 to 126. Two networks must not overlap, and a prefix must not contain an address the `interface` config sets |
+| `gateway` | `container network` | Default: the network address plus one, per family. A set value is inside the prefix and is not the network or broadcast address |
+| `mtu` | `container network` | 68 to 16000, default 1500. Applied to the bridge and both ends of every link. Refused below 1280 when the network has an IPv6 prefix |
+| `masquerade` | `container network` | Outbound source translation. Default true, by owner ruling |
+| `host-namespace` holding `network` | `container instance` | The container shares the host network namespace. Rule V-1 of that child refuses a `network` entry, a `port` entry and a network `sysctl` beside it |
+| `network` list (key: a configured network), `address`, `mac-address` | `container instance` | An attachment. An absent `address` is assigned, an absent `mac-address` is derived, and neither is written to the config |
+| `port` list: `protocol`, `listen-address`, `listen-port`, `container-port` | `container instance` | A published port. See "Published ports" |
+| `name-server` | `container instance` | See "Name resolution" |
+
+A container network has no VRF node. The keyword is refused as unknown until
+VRF support ships (Known Limitations). An instance with no `network` entry and
+no shared host network has a loopback device only.
+
+An instance name has no length bound from this child: no device name is built
+from it. Inside the container the links are named `eth0`, `eth1`, in the order
+of the instance's `network` entries.
+
+This child lands two commands of that child's table C-1, with its words:
+`show container network list` and `show container interface list`. It also
+gives the operator-surface child one read function for the attachments and
+published ports of an instance, which the container detail shows.
+
+Verifier rules: V-1, V-4, V-5, V-6 and V-9 of that child's table V-1 land with
+this child, inside the plugin's one judging function. This child adds rules
+that table does not list yet: the prefix length bounds, the MTU floor with an
+IPv6 prefix, a prefix with fewer free addresses than attachments, a bridge name
+the `interface` config already declares, two attachments that derive one
+hardware address, and the two backend gates. V-9 is one rule with two owners:
+this child owns the mechanism (the listener conflict contribution), that child
+owns the message.
 
 ### The seam with the runtime child
 
-`spec-container-1-runtime.md` owns the process. This child needs four things from it.
+`spec-container-1-runtime.md` owns the process. Its "Seams with the other
+children" table gives this child two registrations, and this child's package
+registers one participant for both.
 
-| # | The runtime child provides | This child does with it |
-|---|----------------------------|-------------------------|
-| 1 | A call made after the container is created and before its entrypoint runs, carrying the container name and the init process id. The start continues only when the call returns success, and a failure destroys the container and records the reason | Creates each link with its container end inside that process's network namespace, and configures it |
-| 2 | The network mode as an input when it builds the container: a namespace of its own, or the host's | For host mode the runtime creates no network namespace and this child is not called |
-| 3 | A call when a container has exited or is destroyed | Removes the links of that container |
-| 4 | A place in the container root for a resolver file, written before the entrypoint runs | Supplies the resolver addresses |
+| # | What the runtime child states | This child does with it |
+|---|-------------------------------|-------------------------|
+| 1 | Created window: each participant is called between create and release with the container name, the init pid and the network namespace path, under a deadline. An error aborts the start, and the container is cleaned up | Creates each link with its container end inside that namespace and configures it. The whole request finishes inside the deadline. For an instance that shares the host network, or has no `network` entry, the participant returns at once |
+| 2 | Description contribution: before create, a participant may add read-only file mounts and environment entries | Contributes one read-only file mount: the resolver file |
+| 3 | A daemon or plugin that died leaves containers running, and the next start removes every one before it starts anything | The links of those containers go with their namespaces, so no running container outlives its links |
 
-The loopback device is brought up by the runtime's library, before call 1. This
-child never touches it.
+No exit call is needed. The kernel removes a link pair with its namespace, the
+interface component forgets a link record whose device is gone, and before each
+start this child asks for the removal of any link still recorded for that
+instance.
+
+Two points the runtime child does not state yet, each an assumption below: that
+the loopback device is up before the created window (A-3), and where a
+participant keeps the host file it mounts (A-13).
 
 ### Addressing
 
 | Rule | Detail |
 |------|--------|
-| Gateway | The network address plus one, in each family. It is on the bridge, and it is each container's default route |
-| Operator-set address | Inside the prefix, not the network address, not the IPv4 broadcast address, not the gateway, unique in the network |
+| Gateway | The `gateway` value, or the network address plus one, in each family. It is on the bridge, and it is each container's default route |
+| Operator-set address | Inside the prefix, one per family, not the network address, not the IPv4 broadcast address, not the gateway, unique in the network |
 | Assigned address | The lowest free address above the gateway that no container holds or is configured with. The assignment is stored in the plugin's runtime state under the network and container names, so it is the same after a restart, a reload and a reboot. It is released when the container or its attachment leaves the config |
 | Exhaustion | A config with more attachments than free addresses is refused at verify |
-| Hardware address | Each container end gets a locally administered unicast address derived from the network and container names, so neighbours keep a valid entry across a restart. Two attachments that derive the same address are refused at verify |
+| Assignment record | One persistent state key per network, `meta/container/address/{network}`, holding the map from instance name to its addresses and slot, written whole |
+| Hardware address | The `mac-address` value, or a locally administered unicast address derived from the network and instance names, so neighbours keep a valid entry across a restart. Two attachments of one network with the same address are refused at verify |
 | IPv6 | The address is installed with duplicate address detection off, because Ze guarantees uniqueness and an entrypoint may bind at once |
 
 ### Published ports and outbound translation
@@ -87,28 +122,66 @@ container is stopped, and a disabled container has none.
 
 | Chain | Hook | Terms |
 |-------|------|-------|
-| Destination translation | prerouting, and output for connections the router itself opens | One term per published port: the protocol, the router port or range, the destination is an address of this router (and is one of the listed router addresses when the operator set any), then translate to the container address and port |
-| Source translation | postrouting | Per network with outbound translation on: source in the network prefix, jump to that network's chain. The network's chain returns when the output interface is the network's bridge, then masquerades |
+| Destination translation | prerouting, and output for connections the router itself opens | One term per `port` entry: the `protocol`, the `listen-port` value or range, the destination is an address of this router (and is one of the `listen-address` values when any is set), then translate to the instance's address on its first network and the `container-port` |
+| Source translation | postrouting | Per network whose `masquerade` is true: source in the network prefix, jump to that network's chain. The network's chain returns when the output interface is the network's bridge, then masquerades |
 
 The "destination is an address of this router" match does not exist in the
 firewall model today. Without it a published port would capture transit traffic
-to the same port. This child adds it to the firewall model as a general match.
+to the same port. By owner ruling this child adds it to the firewall model as a
+general match, which an operator's own firewall config may use too.
 
-A published port does not open the operator's filter. A drop in any base chain
-is final, so a forward chain with policy drop needs a term that accepts the
-traffic. Doctor reports that case.
+By owner ruling a published port must also be allowed by the operator's
+firewall policy, and this feature never writes into a table the operator owns.
+A drop in any base chain is final, so the translation alone passes nothing
+through a chain that drops. Doctor reports a published port that policy blocks.
+
+| Where the connection comes from | Chains of the operator's policy it crosses after translation | What the policy must accept |
+|---------------------------------|--------------------------------------------------------------|------------------------------|
+| A host beyond the router | Each base chain at the forward hook | The `protocol`, destination the instance's address, destination port the `container-port`, output interface the network's bridge; and the replies, by connection state or by input interface the bridge |
+| The router itself | Each base chain at the output hook, and at the input hook for the replies | The same destination on the output hook, and established connections on the input hook |
+| No firewall chain at those hooks, or policy accept | None | Nothing: the port is reachable once it is published |
+
+The doctor check `doctor-container-port-blocked-by-policy` reads the applied
+ruleset listing. It reports a `port` entry when a base chain at the forward
+hook has policy drop and holds no accepting term whose matches name the
+network's bridge as output interface or the instance's address as destination.
+It judges those two matches only and does not evaluate the rest of a term, so
+it can miss a term that accepts by another match and report it.
+
+### The owner's closing test (umbrella AC-14)
+
+The operator-surface child owns the test. It rests on these rows of this spec.
+
+| Part of the test | Rests on |
+|------------------|----------|
+| The container has a network at its entrypoint | AC-1, AC-2 |
+| A client outside the container, on the published address and port, gets the server's reply | AC-6, and the policy row above for where the client is |
+| A connection to a port the container does not publish is refused | AC-6, its survivor: no translation term matches, so the connection reaches the router's own stack and is refused there when no Ze listener holds that port. A port a Ze listener holds cannot be published (AC-18) |
+| The plugin forked gives the same result | AC-16 |
+
+What the test's config must hold: one `network` with a prefix, the instance's
+`network` entry, and one `port` entry with `protocol tcp`, a `listen-port` and
+the `container-port` 6379. When the test's config has a firewall chain at the
+forward hook with policy drop, it must add the accepting term of the first
+policy row. When the client runs on the router itself, the connection crosses
+the output hook, not the forward hook. A test that wants the unpublished port
+refused, not silently dropped, must not drop it in an input chain.
 
 ### Name resolution
 
 | Order | Source of a container's resolver addresses |
 |-------|--------------------------------------------|
-| 1 | The container's own name servers |
-| 2 | The name servers of its first network |
-| 3 | The router's own resolver list at container start (`system name-server`, then learned resolvers, as `dns-source` orders them), with loopback addresses removed |
+| 1 | The instance's own `name-server` values |
+| 2 | The router's own resolver list at container start (`system name-server`, then learned resolvers, as `dns-source` orders them), with loopback addresses removed |
 
-Ze does not answer container names in this child. An operator who wants one
-stable resolver address runs the LAN resolver on the network's gateway address
-and names it on the network.
+By owner ruling Ze does not answer container names over DNS at first. An
+operator who wants one stable resolver address runs the LAN resolver on the
+network's gateway address and sets it as the instance's `name-server`.
+
+The resolver file is written per instance under the plugin's run-time state
+directory before create, and contributed as a read-only mount at the
+container's resolver path. An instance that shares the host network gets one
+too.
 
 ### Problem classes
 
@@ -117,20 +190,19 @@ own package. A refusal row is also a config-phase check.
 
 | Code (lower-kebab) | Phase | Problem | Fix the message names |
 |--------------------|-------|---------|-----------------------|
-| `container-network-backend` | config, verify | The interface backend cannot create a container link, or the firewall backend cannot carry the translation tables | The backend leaf |
-| `container-kernel-link`, `-bridge`, `-translation`, `-local-match` (absent and unknown each) | kernel capability | The kernel lacks veth, bridge, translation, or the local-address match | The kernel option |
-| `container-network-device-conflict` | runtime | A device Ze does not own holds the bridge name | Rename the network or remove the device |
-| `container-network-device-state` | runtime | The bridge is absent, down, or lacks its gateway address | The listing command, and the commit that re-applies |
-| `container-link-attach-failed` | runtime | A container did not start because its link could not be made | The reason, and the restart command |
-| `container-address-conflict` | config, verify | Duplicate address, address outside the prefix, overlapping prefixes, exhausted prefix | The node to change |
-| `container-address-overlap-learned` | runtime | A network prefix contains an address the kernel holds on another interface | Change the prefix |
-| `container-port-conflict` | config, verify | Two publishers, or a publisher and a Ze listener, on one protocol, address and port | The node to change |
-| `container-translation-not-applied` | runtime | The firewall refused or did not apply the plugin's tables | The firewall error, and the commit that re-applies |
-| `container-forwarding-disabled` | runtime | IP forwarding is off for a family a network uses | The sysctl node |
-| `container-filter-drops-published` | runtime | A forward chain has policy drop and no term names the network's bridge | The term to add |
-| `container-resolver-empty` | runtime | A container has no resolver address | The name server node |
-| `container-host-network-settings` | config, verify | A host or none container sets a port, an attachment or a network setting | Remove the node or change the mode |
-| `container-vrf-unimplemented` | config, verify | A network sets the VRF node | Remove the node |
+| `doctor-container-network-backend` | config, verify | The interface backend cannot create a container link, or the firewall backend cannot carry the translation tables | The backend leaf |
+| `doctor-container-kernel-link`, `-bridge`, `-translation`, `-local-match` (absent and unknown each) | kernel capability | The kernel lacks veth, bridge, translation, or the local-address match | The kernel option |
+| `doctor-container-network-device-conflict` | runtime | A device Ze does not own holds the bridge name | Rename the network or remove the device |
+| `doctor-container-network-device-state` | runtime | The bridge is absent, down, or lacks its gateway address | `show container network list`, and the commit that re-applies |
+| `doctor-container-link-attach-failed` | runtime | A container did not start because its link could not be made | The reason, and `request container restart name` |
+| `doctor-container-address-conflict` | config, verify (V-4, V-5) | Duplicate address, address outside the prefix, overlapping prefixes, exhausted prefix | The node to change |
+| `doctor-container-address-overlap-learned` | runtime | A network prefix contains an address the kernel holds on another interface | Change the prefix |
+| `doctor-container-port-conflict` | config, verify (V-6, V-9) | Two publishers, or a publisher and a Ze listener, on one protocol, address and port | The node to change |
+| `doctor-container-translation-not-applied` | runtime | The firewall refused or did not apply the plugin's tables | The firewall error, and the commit that re-applies |
+| `doctor-container-forwarding-disabled` | runtime | IP forwarding is off for a family a network uses | The sysctl node |
+| `doctor-container-port-blocked-by-policy` | runtime | A published port is blocked by the operator's firewall policy, as defined under "Published ports" | The accepting term to add, as a `set firewall` line |
+| `doctor-container-resolver-empty` | runtime | A container has no resolver address | `set container instance NAME name-server` |
+| `doctor-container-host-network-settings` | config, verify (V-1) | An instance that shares the host network has a `network` entry, a `port` entry or a network `sysctl` | The `delete` line for the statement that conflicts |
 
 ## Required Reading
 
@@ -149,7 +221,7 @@ own package. A refusal row is also a config-phase check.
   → Decision: the network code is a package of the gated container plugin under `internal/plugins/`, and it owns its doctor checks and codes
 - [ ] `ai/doors/config-yang.md` - validation
   → Constraint: `ze config validate` never calls a live `OnConfigVerify`. Every refusal in this spec is in the plugin's in-process verifier too
-  → Constraint: a `ze:validate` under a root runs only when the root is in `validatedSections`, a literal list in config code. The VRF refusal is therefore the plugin's own verifier, which needs no edit there
+  → Constraint: a `ze:validate` under a root runs only when the root is in `validatedSections`, a literal list in config code. Every cross-node rule of this child is therefore in the plugin's own judging function, and the container schema declares no `ze:validate`
   → Constraint: a removed root arrives as an empty section. An empty section withdraws every bridge, link and table
 - [ ] `ai/doors/core.md` - runtime state
   → Constraint: a plugin persists through the SDK state calls, under keys its package grants with `statestore.RegisterPluginKeys`. A shipped key is a contract
@@ -203,7 +275,8 @@ own package. A refusal row is also a config-phase check.
 - [ ] `internal/component/config/backend_gate.go`, `listener.go`, `validate_sections.go` - the backend gate walker, the listener conflict check over `ze:listener` lists, the literal list of validated sections
 - [ ] `internal/component/config/system/yang/ze-system-conf.yang`, `internal/plugins/dnsresolver/yang/ze-dns-resolver-conf.yang`, `internal/plugins/dnsresolver/server.go` - `system name-server`, `dns-source`, the LAN resolver's listeners, `allow-from` and free-bind
 - [ ] `internal/component/iface/yang/ze-iface-conf.yang` - `list veth`, `list bridge` (both `ze:backend "netlink"`), `leaf vrf` with `ze:validate "unimplemented-vrf"`
-- [ ] `internal/component/sysctl/events/events.go`, `internal/plugins/vrrp/register.go`, `internal/core/statestore/permissions.go`, `internal/le/plugin/boundary/pluginboundary.go` - sysctl defaults over the bus; the in-process-only guard; state key grants; the watch list of in-process-only calls
+- [ ] `internal/component/sysctl/events/events.go`, `internal/plugins/vrrp/register.go`, `internal/core/statestore/permissions.go`, `pkg/zefs/keys.go`, `internal/le/plugin/boundary/pluginboundary.go` - sysctl defaults over the bus; the in-process-only guard; state key grants and the registered key templates; the watch list of in-process-only calls
+- [ ] `plan/post-release/features/spec-container-1-runtime.md` (seams, data flow, files), `spec-container-4-operator-surface.md` (tables S-1, S-2, S-4, V-1, C-1, D-1, E-1) - the sibling designs this spec is reconciled with. `spec-container-2-image-store.md` and `spec-container-5-shell.md` were read for what touches the network: the state key family and the namespace join, and neither changes this spec
 
 **Behavior to preserve:**
 - A config-declared veth, bridge and bridge member behave as today. The config apply and prune never touch a device outside the config.
@@ -235,23 +308,25 @@ own package. A refusal row is also a config-phase check.
 | Kernel requirement enrolment | `internal/component/kernelcap/kernelcap.go` `MustRegister`; `gokrazy/kernel/runtime.config`, `runtime.require` | One enrolment refuses at validate, start and reload and reports in doctor | Extends: the plugin enrols veth, bridge, translation and the local-address match, each in use only when the config needs it |
 | Listener conflict check | `internal/component/config/listener.go` `ValidateListenerConflicts`, `DiscoverListenerServices` | Finds two services on one protocol, address and port, from schema lists marked `ze:listener` | Extends: a registration lets a plugin contribute endpoints computed from its own section, and an endpoint gains an upper port. A published port list does not have the `ze:listener` list shape |
 | Plugin runtime state | `internal/core/statestore/permissions.go` `RegisterPluginKeys`; SDK `StatePut`, `StateGet` | A plugin persists under keys its package grants | Extends: one key pattern for address assignments |
-| Interface VRF leaf | `internal/component/iface/yang/ze-iface-conf.yang` `leaf vrf` | Refused by the validator `unimplemented-vrf` | Does not apply as a mechanism: that validator runs only under listed roots. The same refusal is the plugin's verifier |
+| Interface VRF leaf | `internal/component/iface/yang/ze-iface-conf.yang` `leaf vrf` | Refused by the validator `unimplemented-vrf` | Does not apply: a container network has no VRF node, so the keyword is refused as unknown. The VRF work adds the node when it ships |
+| Plugin command as a proxy, and per-command answer declarations | `internal/plugins/vrrp/yang/ze-vrrp-cmd.yang`; `docs/architecture/api/commands.md` "Per-command declarations" (as `spec-container-4-operator-surface.md` reads them) | A YANG command node is bound to a wire method that forwards to the plugin, and declares its answer shape | Extends by use: the two listings of this child are declared that way, with the operator-surface child's words |
 | LAN resolver | `internal/plugins/dnsresolver`; `ze-dns-resolver-conf.yang` `list listener`, `allow-from` | A forwarding resolver on operator-named addresses, bound with free-bind | Extends by configuration only: an operator may listen on a gateway address. No code names it |
 
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
 - Config: the container root, delivered to the plugin as its own root, plus the `interface` and `firewall` roots it reads.
-- The runtime child's two calls: "created, not yet running" and "exited or destroyed".
+- The runtime child's participant registration: the description contribution before create, and the created-window call.
+- Commands: `show container network list` and `show container interface list`.
 
 ### Transformation Path
 1. Verify (offline, start, reload): the plugin computes networks, addresses, links and tables from the candidate config and its stored assignments. It refuses address, name, port and mode faults, runs the backend gate against the interface backend, and runs the firewall parser, validator and backend verifier over the tables it would contribute.
 2. Apply: the plugin stores new assignments, then sends its complete set of bridges (name, MTU, addresses) to the interface component and its complete set of tables to the firewall component. Each is recorded in the apply journal with the previous set as its undo. It emits the forwarding sysctl defaults.
 3. The interface handler checks the caller's grant, registers the bridges and their addresses in the owned registries, runs the reconcile, and answers its outcome. The firewall handler checks the reservation, parses the body, registers the tables under the caller's name, reconciles, and answers.
-4. Container start: at the runtime child's "created" call, the plugin asks the interface component for one link per attachment: the bridge, a slot number, the init process id with the inode number of its network namespace, the container-end name, hardware address, MTU, addresses and gateways.
+4. Container start: before create, the participant writes the resolver file and contributes its mount. In the created window it reads the inode number of the network namespace path it was given, and asks the interface component for one link per attachment: the bridge, a slot number, the init process id with that inode number, the container-end name, hardware address, MTU, addresses and gateways. It first asks for the removal of any link still recorded for the instance.
 5. The interface handler opens the namespace of that process, refuses when the inode differs, and has the backend create the pair: the host end named by `ComposeOwnedDeviceName`, marked with the owned alias, enslaved to the bridge, MTU set, up; the peer end created inside the namespace, then renamed, addressed, routed and set up through a socket bound to that namespace. It records the link and answers the host-end name.
-6. The plugin returns success and the runtime releases the container. On any failure the plugin asks for the links it made to be removed and returns the failure.
-7. Container exit: the kernel removes the pair with the namespace. The plugin asks the interface component to forget the links.
+6. The participant returns success and the runtime releases the container. On any failure it asks for the links it made to be removed and returns the error, which aborts the start.
+7. Container exit: the kernel removes the pair with the namespace, and the interface component forgets a link record whose device is gone. No call from the runtime is needed.
 8. Reload: a removed container, attachment, port or network is absent from the next complete set, so the reconcile removes it.
 9. Stop: an orderly daemon stop removes the firewall tables (existing) and the owned devices (this spec). A plugin process that ends without a stop is handled by the two cleanup registrations.
 
@@ -262,7 +337,8 @@ own package. A refusal row is also a config-phase check.
 | Container plugin to firewall component | One engine operation in the firewall namespace: replace the caller's tables, as a firewall config section | No |
 | Container plugin to sysctl component | The existing default event on the EventBus | No |
 | Container plugin to the listings | The text command dispatcher, read only | No |
-| Runtime child to this child | Two calls inside the plugin, in one process | No |
+| Runtime child to this child | The runtime's participant registration inside the plugin tree: the description contribution and the created-window call, in one process | No |
+| Any surface to this child's listings | The dispatcher, the proxy wire method, then the plugin's command, internal and forked | No |
 | Interface backend to kernel | rtnetlink in the host namespace and through a socket bound to the container's namespace | No |
 
 ### Changed-Wire Census
@@ -312,15 +388,17 @@ own package. A refusal row is also a config-phase check.
 |----|-----------|--------------------------------|----------|--------------|--------|
 | A-1 | The vendored netlink library creates a veth whose peer end is in another namespace, in one request | `vendor/github.com/vishvananda/netlink/link.go` `Veth.PeerNamespace`, and its use in `link_linux.go` | The peer is created in the host namespace and moved, which needs a temporary name | `TestOwnedLinkIsCreatedInsideNamespace` | unvalidated |
 | A-2 | A netlink socket bound to the container's namespace renames, addresses, routes and raises the peer end from the daemon | `vendor/github.com/vishvananda/netlink/handle_linux.go` `NewHandleAt`; `internal/core/routewatch/routewatch_linux.go` uses the same library | A worker thread enters the namespace under the `kernelcap` thread rule | `TestOwnedLinkIsCreatedInsideNamespace` | unvalidated |
-| A-3 | The runtime child gives the four seam items, and the loopback device is up before the "created" call | Umbrella key insights; the runtime research report, section 5 (a report, not read at source by this spec) | The seam is renegotiated in both specs | The runtime child's spec text, and `container-network-reach-gateway.ci` | unvalidated |
+| A-3 | The loopback device is up before the created window. The rest of the seam is stated by `spec-container-1-runtime.md`: the created-window call with the init pid and namespace path, abort on error, the description contribution | That spec's "Seams" table states the calls. It does not state the loopback device: it says only that the library's network-device list stays empty | This child's participant raises the loopback device itself, through the same namespace-bound socket | The runtime child's spec gaining the sentence, and `container-none-network.ci` | unvalidated |
+| A-13 | A participant may keep a host file under the plugin's run-time state directory, per instance, and the runtime removes that directory at cleanup | `spec-container-1-runtime.md` AC-11 says the state directory is gone after a stop. It does not say a participant may write there | This child owns a directory of its own under the run-time tree and removes it, with its own entry in the raw-write allowlist | The runtime child's spec text | unvalidated |
 | A-4 | A configure-safe engine operation can be called from the plugin's configure stage, and a plugin with `Dependencies` on `interface` and `firewall` configures after both | `register_engine_op.go` `EngineOperationConfigureSafe`; `ai/doors/plugin-infra.md` traps | The first declaration moves to the all-plugins-ready callback, and containers start after it | `container-network-wiring-external.ci` | unvalidated |
 | A-5 | The kernel deletes the host end when the namespace holding the peer end is destroyed | Kernel behaviour, not read | The plugin's "forget the links" request must delete the host end, which it does anyway | `TestHostEndVanishesWithNamespace` | unvalidated |
 | A-6 | The generation cleanup runs for an internal plugin and a forked one, after its requests drain | `register_engine_op.go` `ProcessGenerationCleanup` comment | A backstop is missing in one mode, and the next reconcile's orphan scan is the only cleanup | `container-network-plugin-ends.ci` in both modes | unvalidated |
 | A-7 | The nft `fib` expression is available in the ip and ip6 families on the runtime kernel | `gokrazy/kernel/kernel.config` requests `NFT_FIB_IPV4` and `NFT_FIB_IPV6`; neither is in a require file; no arm64 config was read | The match needs another lowering, or the options need a kernel change | The enrolment's probe, and `TestLocalDestinationDNATLeavesTransitAlone` in the QEMU guest | unvalidated |
 | A-8 | Bridged traffic between two containers of one network crosses the forward hook, because bridge netfilter is built in | The kernel research report: `BRIDGE_NETFILTER=y`. The sysctl default was not read | The guide's sentence about same-network traffic changes. No design change | `container-network-same-network-filter.ci` records which it is | unvalidated |
 | A-9 | Two enrolments may name different subsystems for kernel options no one enrolled before, and the enrolled-symbol test accepts a line added to `runtime.require` | `kernelcap.go` `Capability`; `TestEnrolledKernelSymbolsAreInRuntimeRequire` (named in the kernel research, not read) | The options are enrolled by the interface and nft backends instead, with a registered in-use predicate | Reading `MustRegister` and running that test | unvalidated |
-| A-10 | The runtime child has a test route that starts a container from a root folder in the test tree, with no registry | Not stated anywhere yet | The functional tests that need a container wait for the image store child | The runtime child's spec text | unvalidated |
-| A-11 | The node names are fixed by the operator-surface design before this child's Phase 4 | The umbrella child table | Phase 4 blocks | That spec reaching `ready` | unvalidated |
+| A-10 | The runtime child has a test route that starts a container with no registry | `spec-container-1-runtime.md`: a build with the `zetest` tag adds a store that resolves an image name to a folder, and `internal/test/containerprobe` is the fixture program | The functional tests that need a container wait for the image store child | That spec's text, read 2026-11-16 | confirmed by the sibling's design |
+| A-11 | The operator-surface child's design, which holds the one table of config and command words, is settled before this child's wiring phase | The umbrella: "its design is settled before any sibling's wiring phase". This spec keeps `Depends: spec-container-1-runtime`, because that child's implementation comes after this one's | Phase 1 waits | That spec reaching `ready` | unvalidated |
+| A-14 | The operator-surface child changes its `network` name bound to 1 to 11 characters and its `masquerade` default to true | The owner's rulings of 2026-11-16. That draft still says 1 to 63 and false | A name of 12 characters or more passes the schema and is refused by this child's verifier instead, with the same message | That spec's tables S-2 | unvalidated |
 | A-12 | The interface engine's stop path can delete owned devices before it closes its backend | `internal/component/iface/register.go`: the stop path runs after `p.Run` returns and ends in `CloseBackend` | The deletion needs another ordered actor | `container-network-daemon-stop.ci`, and a VRRP stop test | unvalidated |
 
 ### Risks
@@ -334,8 +412,9 @@ own package. A refusal row is also a config-phase check.
 | R-6 | A third-party plugin uses the requests to make devices or tables | A device with an unknown owner | A request is accepted only from a caller whose package made a grant or a reservation at `init()`. A plugin outside the binary has none |
 | R-7 | Every reconcile re-applies all owners' tables, and a container start would pay it | Slow container start under a large ruleset | Tables follow the config, so the firewall is touched at config changes only |
 | R-8 | An entrypoint binds its IPv6 address while duplicate address detection holds it tentative | A bind error in the first second | The address is installed with detection off |
-| R-9 | The operator's forward chain drops the published traffic and the port looks broken | A translation term whose counter rises while no connection completes | The doctor check `container-filter-drops-published`, and the guide |
-| R-10 | After a daemon crash, the first reconcile deletes the links of containers that are still running | Running containers lose their network at restart | Stated in the seam: the runtime child stops or re-adopts such a container, and a re-adopted one is attached again |
+| R-9 | The operator's forward chain drops the published traffic and the port looks broken | A translation term whose counter rises while no connection completes | The doctor check `doctor-container-port-blocked-by-policy`, the policy table under "Published ports", and the guide. The reserved tables name `show container network list` as the command that shows what decides their rules |
+| R-10 | After a daemon crash, the first reconcile deletes the links of containers that are still running | Running containers lose their network at restart | By owner ruling containers are not re-adopted: the runtime child removes every leftover container at the next start, before it starts anything, so no running container keeps a link this child deleted |
+| R-15 | The created-window deadline ends while the interface request is in flight | A start fails with a deadline error under load | The request is bounded below the deadline, and a link made after the abort is removed by the pre-start removal of the next attempt and by the orphan scan |
 | R-11 | A reload rollback leaves the new bridge or tables in place | State of a refused commit in the kernel | Each declaration is a journal step whose undo is the previous complete set |
 | R-12 | An address is released and at once assigned to another container while neighbours hold the old hardware address | Brief loss after a container swap | The derived hardware address changes with the container name, and the kernel refreshes on the first reply. Recorded, no further action |
 | R-13 | A connection made before a port is unpublished keeps flowing | An old session survives the commit | Recorded as a permitted survivor: the kernel keeps a tracked flow |
@@ -360,6 +439,8 @@ own package. A refusal row is also a config-phase check.
 | A config with a network and an attached container is committed | → | The plugin's verify and apply, the runtime seam, the link | `test/plugin/container-network-reach-gateway.ci` |
 | A config publishes a port | → | The plugin's table builder and the firewall contribution | `test/plugin/container-port-published.ci` |
 | `ze config validate` on a config with a host container and a port | → | The plugin's in-process verifier | `test/plugin/container-host-network-refused.ci` |
+| `show container network list` and `show container interface list` | → | This child's two listing handlers, in the plugin's process | `test/plugin/container-network-listings.ci` |
+| The runtime's participant registration | → | This child's participant: the resolver mount and the link | `TestNetworkParticipantIsRegistered` |
 
 ## Acceptance Criteria
 
@@ -375,13 +456,13 @@ own package. A refusal row is also a config-phase check.
 | AC-8 | A reload removes a container that had a link and a published port | The other containers keep their links, addresses and translations and stay running, and the listings show only them: the removed container's link, bridge membership and translation term are gone | A bridge, a veth and an nft table made outside Ze, present before the reload, are unchanged, because they carry no Ze mark. A connection tracked before the removal may finish, because the kernel keeps a tracked flow |
 | AC-9 | The daemon stops in an orderly way | The daemon exits with success, and a kernel readback after it shows every device and table that carries no Ze mark exactly as it was before the start. Every device with the owned alias and both `ze_container` tables have been removed | A device or table without Ze's mark remains, because Ze does not own it. With `flush-on-shutdown false` the tables remain, because the operator asked for that |
 | AC-10 | The daemon is killed, a container is removed from the config, and the daemon starts | The remaining networks are re-asserted and their containers attach again. The removed container's leftover link and translation are removed at start | Unmarked devices and tables remain, because the scan requires the mark |
-| AC-11 | A container is configured with the host network mode | It runs in the host network namespace: it sees the host's interfaces and binds the host's addresses. Ze creates no link and no translation for it | A host container may set its own name servers, because a resolver file is not a setting of the namespace |
-| AC-12 | A host or none container sets a published port, an attachment or a network setting | Validate, start and reload refuse the config with a message that names the node and the two fixes: remove it or change the mode. On a reload the running containers keep running | The same config without that node is accepted, because the mode alone is valid |
-| AC-13 | A container is configured with no network | It holds a loopback device that is up, and that is its only link | No translation exists for it, because it has no address |
-| AC-14 | A network sets the VRF node | Validate, start and reload refuse with a message that says VRF support is not implemented and names the node to remove | A network without the node is accepted |
-| AC-15 | The interface backend is `vpp` and the config has a container network, or the firewall backend is `vpp` and the config needs a translation | Validate, start and reload refuse, naming the container node and the backend leaf | A config with only host or none containers is accepted on those backends, because nothing needs a link or a table |
+| AC-11 | An instance has `host-namespace network` | It runs in the host network namespace: it sees the host's interfaces and binds the host's addresses. Ze creates no link and no translation for it | Such an instance may set its own `name-server`, because a resolver file is not a setting of the namespace |
+| AC-12 | An instance with `host-namespace network` also has a `network` entry, a `port` entry or a network `sysctl` (rule V-1) | Validate, start and reload refuse the config with the operator-surface child's V-1 message, which names the instance and the `delete` line for the statement that conflicts. On a reload the running containers keep running | The same config without that statement is accepted, because sharing the host network alone is valid |
+| AC-13 | An instance has no `network` entry and does not share the host network | It holds a loopback device that is up, and that is its only link | No translation exists for it, because it has no address. A `port` entry on it is refused at verify, because nothing can receive the traffic |
+| AC-14 | Two networks and three attached instances are running | `show container network list` holds one row per network with its `name`, `prefix`, `gateway`, `interface` (the bridge device), `mtu`, `masquerade` and `attached` count. `show container interface list` holds one row per attachment with its `instance`, `network`, `interface` (the host end), `address`, `mac-address` and `state`. Both answer the same with the plugin forked | A stopped instance's attachment row shows its assigned address and no host end, because the link exists only while the container runs |
+| AC-15 | The interface backend is `vpp` and the config has a container network, or the firewall backend is `vpp` and the config needs a translation | Validate, start and reload refuse, naming the container node and the backend leaf | A config whose instances all share the host network or have no `network` entry is accepted on those backends, because nothing needs a link or a table |
 | AC-16 | The container plugin runs as a separate process | AC-1, AC-2, AC-6 and AC-8 hold exactly as when it runs internal | None differ between the two modes, because both use the same requests |
-| AC-17 | A container starts with no name server configured anywhere on it | Its resolver file lists the router's resolver addresses of that moment, without loopback addresses. With name servers on the container, the file lists those; with none on the container and some on its first network, it lists the network's | A container whose list is empty still starts, and doctor reports it, because a missing resolver is not a start failure |
+| AC-17 | An instance starts with no `name-server` | Its resolver file lists the router's resolver addresses of that moment, without loopback addresses. With `name-server` set on the instance, the file lists those values | A container whose list is empty still starts, and doctor reports it, because a missing resolver is not a start failure |
 | AC-18 | Two containers publish the same protocol, address and port, or one publishes a port a Ze listener uses | Validate, start and reload refuse, naming both parties and the node to change | Two publishers on different router addresses are accepted, because they do not overlap |
 | AC-19 | Two attachments set the same address, an address is outside the prefix, two networks overlap, or a network has fewer free addresses than attachments | Validate, start and reload refuse, naming the node and the value | A config where each address is unique and inside its prefix is accepted, including one that fills the prefix exactly |
 | AC-20 | A config uses a container network on a kernel without veth, bridge, translation or the local-address match | Validate, start and reload refuse, naming the option. Doctor reports the same code | A config with no container network is accepted on that kernel, because nothing needs the option |
@@ -415,8 +496,12 @@ creates it; this child's package is `network` under it.
 | `TestVerifyRefusesAddressOutsidePrefix` | same | Outside, network, broadcast and gateway addresses | |
 | `TestVerifyRefusesOverlappingNetworks` | same | Two prefixes that overlap | |
 | `TestVerifyRefusesExhaustedPrefix` | same | More attachments than addresses | |
-| `TestVerifyRefusesHostModeNetworkSettings` | same | Port, attachment or setting on host and none | |
-| `TestVerifyRefusesVRF` | same | The VRF node | |
+| `TestVerifyRefusesHostNetworkWithNetworkSettings` | same | Rule V-1: a `network` entry, a `port` entry or a network `sysctl` beside the shared host network | |
+| `TestVerifyRefusesPortWithNoNetwork` | same | A `port` entry on an instance with no `network` entry | |
+| `TestVerifyRefusesGatewayOutsidePrefix` | same | Rule V-5: a set `gateway` outside its prefix | |
+| `TestNetworkParticipantIsRegistered` | `internal/plugins/container/network/attach_test.go` | The participant is in the runtime's registration and contributes the resolver mount | |
+| `TestParticipantSkipsHostAndUnattachedInstances` | same | No interface request for an instance that shares the host network or has no `network` entry | |
+| `TestListingsCarryTheDeclaredFields` | `internal/plugins/container/network/command_test.go` | The two listings answer the fields of the operator-surface child's table C-1 | |
 | `TestVerifyRefusesIPv6BelowMinimumMTU` | same | MTU under 1280 with an IPv6 prefix | |
 | `TestVerifyRefusesBridgeNameInInterfaceConfig` | same | The derived name is declared in `interface` | |
 | `TestBridgeNameIsRefusedNotTruncated` | `internal/plugins/container/network/name_test.go` | A 12-character network name | |
@@ -425,7 +510,7 @@ creates it; this child's package is `network` under it.
 | `TestTablesForOutboundTranslation` | same | The jump, return and masquerade terms | |
 | `TestTablesFollowConfigNotRunState` | same | A stopped, enabled container has its term; a disabled one has none | |
 | `TestPublishedPortEndpoints` | `internal/plugins/container/network/listeners_test.go` | The endpoints the conflict check receives | |
-| `TestResolverPrecedence` | `internal/plugins/container/network/resolver_test.go` | Container, then network, then router list without loopback | |
+| `TestResolverPrecedence` | `internal/plugins/container/network/resolver_test.go` | The instance's `name-server`, else the router's list without loopback | |
 | `TestOwnedBridgeRequestRefusesCallerWithoutGrant` | `internal/component/iface/device_owner_test.go` | The grant check | |
 | `TestReconcileCreatesOwnedBridgeWithAlias` | `internal/component/iface/config_apply_owned_test.go` | Create and mark, with a scripted backend | |
 | `TestOrphanScanKeepsForeignBridge` | same | An unmarked bridge and a marked non-owned kind survive | |
@@ -481,7 +566,8 @@ drafted under `test/draft/plugin/` and promoted.
 | `container-host-network` | `test/plugin/container-host-network.ci` | AC-11 | |
 | `container-host-network-refused` | `test/plugin/container-host-network-refused.ci` | AC-12, parse only | |
 | `container-none-network` | `test/plugin/container-none-network.ci` | AC-13 | |
-| `container-network-vrf-refused` | `test/plugin/container-network-vrf-refused.ci` | AC-14, parse only | |
+| `container-network-listings` | `test/plugin/container-network-listings.ci` | AC-14: the two listings, internal and forked | |
+| `container-port-blocked-by-policy` | `test/plugin/container-port-blocked-by-policy.ci` | A forward chain with policy drop blocks a published port and doctor reports it; adding the accepting term lets the connection through and clears the finding | |
 | `container-network-vpp-refused` | `test/plugin/container-network-vpp-refused.ci` | AC-15, parse only | |
 | `container-resolver-list` | `test/plugin/container-resolver-list.ci` | AC-17 | |
 | `container-resolver-on-gateway` | `test/plugin/container-resolver-on-gateway.ci` | The LAN resolver listening on a gateway address answers a container | |
@@ -517,7 +603,9 @@ drafted under `test/draft/plugin/` and promoted.
 - `internal/component/config/listener.go` - contributed endpoints and the upper port
 - `internal/le/plugin/boundary/pluginboundary.go` - the in-process owned-device register functions join `dangerousCalls`
 - `gokrazy/kernel/runtime.config`, `gokrazy/kernel/runtime.require` - the options this child enrols that are not pinned
-- `feature-gates.txt` - the `network` package under the runtime child's tag
+- `feature-gates.txt` - the `network` package under the runtime child's `ze_container` tag
+- `pkg/zefs/keys.go` - the key template `meta/container/address/{network}`
+- `docs/architecture/zefs-format.md` - the new key in the key registry section
 - `docs/features/interfaces.md` - owned bridges and links, the stop path
 - `docs/architecture/firewall/table-ownership-and-shutdown-flush.md` - the producer row, and the forked producer route
 - `docs/architecture/core-design.md` sections 14 and 14b - the owned kinds and the contribution request
@@ -534,7 +622,8 @@ drafted under `test/draft/plugin/` and promoted.
 - `internal/component/firewall/yang/ze-firewall-api.yang` - the request
 - `pkg/plugin/rpc/owned_devices.go`, `pkg/plugin/rpc/firewall_tables.go` - the value types and method names
 - `pkg/plugin/sdk/sdk_owned_devices.go`, `pkg/plugin/sdk/sdk_firewall_tables.go` - the SDK methods
-- `internal/plugins/container/network/` - `verify.go`, `address.go`, `name.go`, `tables.go`, `resolver.go`, `listeners.go`, `attach.go`, `register_tables.go`, `register_kernelcap_linux.go`, `kernelcap_linux.go`, `doctor.go`, and the tests named above
+- `internal/plugins/container/network/` - `verify.go`, `address.go`, `name.go`, `tables.go`, `resolver.go`, `listeners.go`, `attach.go` (the participant), `command.go` (the two listings and the read function), `register_tables.go`, `register_kernelcap_linux.go`, `kernelcap_linux.go`, `doctor.go`, and the tests named above
+- `internal/plugins/container/yang/ze-container-conf.yang`, `internal/plugins/container/yang/ze-container-cmd.yang`, `internal/plugins/container/register.go` - created by the first child to land (the runtime child). This child adds its nodes and its two command nodes with the operator-surface child's words, `ze:backend "netlink"` on the `network` list, the declared reads of the `interface` and `firewall` roots, the dependencies on both plugins, the two command declarations and the state key grant
 - `internal/test/plugins/fakeowner/` - a test plugin that declares a bridge, a link into a namespace it holds, and a table
 - The `.ci` files in the Functional Tests table
 - `docs/architecture/container/network.md` - the design page: ownership marks, the two requests, the seam, the tables
@@ -545,11 +634,11 @@ drafted under `test/draft/plugin/` and promoted.
 | YANG schema (new RPCs/config) | Yes | `internal/component/iface/yang/ze-iface-api.yang`, `internal/component/firewall/yang/ze-firewall-api.yang`, `ze-firewall-conf.yang`; the container nodes go in the plugin's schema as `spec-container-4-operator-surface.md` names them |
 | YANG validation constraints | Yes | The ranges in the Boundary Tests table, as native `range` and `length`; addresses and prefixes from `ze-types.yang` |
 | YANG custom validators | No | No `ze:validate` is added: a container root is not in `validatedSections`, so every cross-node rule is the plugin's verifier |
-| CLI commands/flags | N-A | No command is added here. The listings are `spec-container-4-operator-surface.md` |
-| CLI grammar (keyword before value) | N-A | No command is added here |
+| CLI commands/flags | Yes | `show container network list` and `show container interface list`: command nodes in the plugin's command module, handlers in `internal/plugins/container/network/command.go`. The words are table C-1 of `spec-container-4-operator-surface.md` |
+| CLI grammar (keyword before value) | Yes | Fixed by the operator-surface child; `./le cli grammar` judges it |
 | Editor autocomplete | Yes | Automatic for the enumerations; the attachment's network name is a reference to a configured network |
 | Functional test for new RPC/API | Yes | The four wiring `.ci` files |
-| Pipe completeness | N-A | No command is added here |
+| Pipe completeness | Yes | Both listings answer rows with a declared shape and column order, and `show container interface list` declares `address` as an address field |
 | Env var registration | No | No tunable is added |
 | Doctor check for runtime dependencies | Yes | `internal/plugins/container/network/doctor.go`, `kernelcap_linux.go`; netlink and nftables use through the two components |
 | Doctor code per problem class | Yes | The "Problem classes" table: each code, its phase and its fix, registered from the plugin's package |
@@ -561,7 +650,7 @@ drafted under `test/draft/plugin/` and promoted.
 |---|----------|----------|---------------|
 | 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | The container feature file under `features/`, created by the runtime child: add networks and published ports |
 | 2 | Config syntax changed? | Yes | `docs/guide/firewall.md` for the local-address match; the container nodes are documented by `spec-container-4-operator-surface.md` |
-| 3 | CLI command added/changed? | No | No command is added here |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`: the two listings, in the section the operator-surface child writes |
 | 4 | API/RPC added/changed? | Yes | `docs/architecture/api/process-protocol.md`: the interface and firewall engine operations |
 | 5 | Plugin added/changed? | Yes | `docs/guide/plugins.md`: the container plugin's network section, with the runtime child's entry |
 | 6 | Has a user guide page? | Yes | The container guide page, created by `spec-container-4-operator-surface.md`: networks, ports, the filter rule an operator writes, name resolution |
@@ -582,7 +671,7 @@ drafted under `test/draft/plugin/` and promoted.
 1. **Phase: Wiring (MANDATORY FIRST)** -- the two components declare their requests, the SDK gains the methods, and a test plugin calls them
    - Tests: the four `container-*-wiring-*.ci`, `TestOwnedBridgeRequestRefusesCallerWithoutGrant`, `TestContributionRefusesUnreservedTable`
    - Files: `internal/component/iface/cmd/owned_devices.go`, `internal/component/firewall/register_contribution.go`, the two API modules, `pkg/plugin/rpc`, `pkg/plugin/sdk`, `internal/test/plugins/fakeowner/`
-   - Verify: a forked and an internal test plugin reach both handlers. The wiring tests fail because the handlers refuse every request
+   - Verify: a forked and an internal test plugin reach both handlers. The wiring tests fail because the handlers refuse every request. This phase uses no container word, and it still starts only after the operator-surface child's design is settled (A-11)
 2. **Phase: Owned bridge and link** -- the interface side
    - Tests: the `iface` unit tests, the three netlink integration tests, `TestVPPBackendRefusesOwnedLink`, `TestStopPathDeletesOwnedDevices`
    - Files: `backend.go`, `device_owner.go`, `config_apply.go`, `register.go`, the netlink and VPP backends
@@ -594,7 +683,7 @@ drafted under `test/draft/plugin/` and promoted.
 4. **Phase: The plugin's network package** -- verify, addresses, tables, the seam
    - Tests: the `network` unit tests, then `container-network-reach-gateway`, `container-port-published` and the other container `.ci` files
    - Files: `internal/plugins/container/network/`
-   - Verify: needs A-10 and A-11. Tests fail → implement → pass in both plugin modes
+   - Verify: needs the runtime child's participant registration and its test image store. Tests fail → implement → pass in both plugin modes
 5. **Phase: Port conflicts**
    - Tests: the two listener tests, `container-port-listener-conflict`
    - Files: `internal/component/config/listener.go`, `listeners.go`
@@ -667,16 +756,22 @@ drafted under `test/draft/plugin/` and promoted.
 | Contributed tables travel as a firewall config section | A typed copy of the 45 expression types in the public RPC package | The section form already has a schema, a parser, a validator and a verifier, and a plugin in any language can produce it |
 | Translation follows the config | Add and remove the term at each container start and stop | Every reconcile re-applies all owners' tables under one lock. A stopped container's port then answers "unreachable", never a service of the router |
 | The local-address match is added to the firewall model | Require a router address on every published port | A dynamic router address could not be published, and a forgotten address would capture transit traffic |
-| A published port does not open the filter | The plugin adds an accept term | A drop in another base chain is final, and the plugin cannot write the operator's tables |
-| The VRF node is refused by the plugin's verifier | `ze:validate "unimplemented-vrf"` on the node | That validator runs only under roots in a literal list in config code, and adding the container root there has config code name the feature |
+| A published port must also be allowed by the operator's firewall policy (owner ruling) | The plugin adds an accept term | The feature never writes into a table the operator owns, and a drop in another base chain is final. Doctor reports a published port that policy blocks |
+| A container network has no VRF node (owner ruling, with the operator-surface child) | A node the plugin's verifier refuses; `ze:validate "unimplemented-vrf"` on a node | An unknown keyword is the refusal the umbrella states, and it needs no code. The validator runs only under roots in a literal list in config code |
+| A bridge per network (owner ruling) | One routed link per container | Containers of one network share a segment, as operators expect. The cost is the limitation on matching one container by interface |
+| No exit call from the runtime | A participant call at container exit | The kernel removes the pair with the namespace, and the interface component forgets a record whose device is gone |
 | Marked devices are deleted by the interface engine's stop path | Each owner releases at its own stop | Plugins stop together with no order, so an owner's release races the backend close. The firewall solved the same race the same way |
 | Assignments are stored | Assign the lowest free address at each start | A restart in another order would move a container's address |
-| Ze does not answer container names | The plugin contributes names to the LAN resolver through a new registration | The resolver forwards only and has no local data today. Addresses are stable, so a name service is a separate feature |
-| Resolver default is the router's list at start | (a) No default. (b) Always the gateway address | (a) leaves a container without names on a box that learned its resolvers. (b) needs the LAN resolver, which the engine must not configure for the operator |
-| Outbound translation defaults to on | Off unless set | The reference operator model translates by default, and a private prefix is unreachable from outside without it. Put to the owner |
+| Ze does not answer container names, at first (owner ruling) | The plugin contributes names to the LAN resolver through a new registration | The resolver forwards only and has no local data today. Addresses are stable, so a name service is a separate feature |
+| Resolver default is the router's list at start, loopback removed (owner ruling) | (a) No default. (b) Always the gateway address | (a) leaves a container without names on a box that learned its resolvers. (b) needs the LAN resolver, which the engine must not configure for the operator |
+| Outbound translation defaults to on, with `masquerade false` to turn it off (owner ruling) | Off unless set | Operators of the reference model expect it, and a private prefix is unreachable from outside without it |
+| One persistent state key holds the address assignments of a network (owner ruling) | Assign at each start with no key | A stable address needs a record, and one value written whole can grow |
+| Device names: `zcn-` plus the network name, and `zc-`, the bridge's interface index and a slot for a host end (owner ruling) | Names built from the instance name | Fifteen characters cannot hold two names. The network name is bounded at 11 characters, and the listing maps an instance to its host end |
 
 ## Known Limitations
-- A container network cannot be placed in a VRF. The node is refused until `plan/post-release/features/spec-vrf-0-umbrella.md` ships, and that spec owes the container network as one of its consumers.
+- A container network cannot be placed in a VRF: the network has no VRF node, so the keyword is refused as unknown. `plan/post-release/features/spec-vrf-0-umbrella.md` owes the container network as one of its consumers, and adds the node when VRF support ships.
+- A published port is reachable only when the operator's firewall policy also allows it. Ze adds no accepting term to the operator's tables.
+- The doctor check for a published port that policy blocks judges two matches of a forward chain's terms, the output interface and the destination address, and no other.
 - A firewall term cannot match one container by its host end for routed traffic: the input interface of that traffic is the network's bridge. A term matches the network by its bridge, and one container by its address, which is stable.
 - A container cannot reach its own published port through the router's address from inside its network. Containers of one network reach each other by address.
 - Ze answers no container names.
