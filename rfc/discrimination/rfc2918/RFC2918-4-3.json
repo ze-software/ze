@@ -36,22 +36,22 @@
     "rid": "RFC2918-4-3",
     "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy",
-    "unit-sha": "5a7c158ce0d01105",
+    "unit-sha": "bf271d65ea285b00",
     "claim-sha": "e0533dc06e5cb1c2",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/egress_inject_filter.go::Reactor.exportFilterFromFacts",
-    "producer-sha": "6b157c886849cecd",
+    "producer-sha": "b0f608d9f2cb8c26",
     "break": "body of Reactor.exportFilterFromFacts replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2918-4-3",
     "polarity": "negative",
     "unit": "internal/component/bgp/reactor/rfc2918_replay_feedback_test.go::TestRFC2918RefreshRunsCurrentExportPolicy",
-    "unit-sha": "5a7c158ce0d01105",
+    "unit-sha": "bf271d65ea285b00",
     "claim-sha": "9a5292ee3b9e32eb",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/egress_inject_filter.go::Reactor.exportFilterFromFacts",
-    "producer-sha": "6b157c886849cecd",
+    "producer-sha": "b0f608d9f2cb8c26",
     "break": "body of Reactor.exportFilterFromFacts replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {

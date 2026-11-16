@@ -160,9 +160,9 @@
     "unit-sha": "30e014489a97fb8c",
     "claim-sha": "6596988e04880e27",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
-    "producer-sha": "6d38f3058c2e37b0",
-    "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/session_write.go::Session.writeUpdateGated",
+    "producer-sha": "977ad4f0cd4f2a47",
+    "break": "body of Session.writeUpdateGated replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-2",
@@ -171,9 +171,9 @@
     "unit-sha": "30e014489a97fb8c",
     "claim-sha": "fdd9a59176ae2e37",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/session_write.go::writeUpdateGated",
-    "producer-sha": "6d38f3058c2e37b0",
-    "break": "body of writeUpdateGated replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/session_write.go::Session.writeUpdateGated",
+    "producer-sha": "977ad4f0cd4f2a47",
+    "break": "body of Session.writeUpdateGated replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2545-3-2",

@@ -6,8 +6,8 @@
     "unit-sha": "b6e08ccbd4a9f9c5",
     "claim-sha": "fece4d1c3bab23bf",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-    "producer-sha": "9e52d37d8b6f1b02",
-    "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.forwardUpdateSection",
+    "producer-sha": "b60c04ffca61f78b",
+    "break": "body of reactorAPIAdapter.forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

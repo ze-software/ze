@@ -28,9 +28,9 @@
     "unit-sha": "34693ceb2c9c972c",
     "claim-sha": "a5509a13a12390e6",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-    "producer-sha": "49a3b5da879a8337",
-    "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::reactorAPIAdapter.AnnounceNLRIBatch",
+    "producer-sha": "ba490902cd81fbc4",
+    "break": "body of reactorAPIAdapter.AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC5575-4-1",
@@ -39,8 +39,8 @@
     "unit-sha": "34693ceb2c9c972c",
     "claim-sha": "ba426c16483fa801",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::AnnounceNLRIBatch",
-    "producer-sha": "49a3b5da879a8337",
-    "break": "body of AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/reactor_api_batch.go::reactorAPIAdapter.AnnounceNLRIBatch",
+    "producer-sha": "ba490902cd81fbc4",
+    "break": "body of reactorAPIAdapter.AnnounceNLRIBatch replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

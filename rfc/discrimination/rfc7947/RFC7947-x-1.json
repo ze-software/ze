@@ -6,9 +6,9 @@
     "unit-sha": "842dbd96339e057b",
     "claim-sha": "ea166aed1ccb77c4",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-    "producer-sha": "03f697302d2acf83",
-    "break": "line 582: \"!facts.rsClient\" -\u003e \"false\""
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+    "producer-sha": "119ca706c36560a0",
+    "break": "line 625: \"!facts.rsClient\" -\u003e \"false\""
   },
   {
     "rid": "RFC7947-x-1",
@@ -17,28 +17,28 @@
     "unit-sha": "4ea9372b813e31d5",
     "claim-sha": "9b39e1d37eae1219",
     "route": "mutant",
-    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-    "producer-sha": "03f697302d2acf83",
-    "break": "line 582: \"!facts.rsClient\" -\u003e \"true\"",
+    "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+    "producer-sha": "119ca706c36560a0",
+    "break": "line 625: \"!facts.rsClient\" -\u003e \"true\"",
     "paired": [
       {
-        "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-        "producer-sha": "03f697302d2acf83",
-        "break": "line 594: \"facts.rsClient \u0026\u0026 communityPolicy != nil\" -\u003e \"false\""
+        "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+        "producer-sha": "119ca706c36560a0",
+        "break": "line 637: \"facts.rsClient \u0026\u0026 communityPolicy != nil\" -\u003e \"false\""
       }
     ],
     "solo": [
       {
-        "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-        "break": "line 582: \"!facts.rsClient\" -\u003e \"true\"",
-        "seconds": 36,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.061s"
+        "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+        "break": "line 625: \"!facts.rsClient\" -\u003e \"true\"",
+        "seconds": 18,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.824s"
       },
       {
-        "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSection",
-        "break": "line 594: \"facts.rsClient \u0026\u0026 communityPolicy != nil\" -\u003e \"false\"",
-        "seconds": 44,
-        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.049s"
+        "producer": "internal/component/bgp/reactor/forward_rs.go::reactorForwardRSSectionResult",
+        "break": "line 637: \"facts.rsClient \u0026\u0026 communityPolicy != nil\" -\u003e \"false\"",
+        "seconds": 12,
+        "green": "ok  \tgithub.com/ze-software/ze/internal/component/bgp/reactor\t0.884s"
       }
     ]
   }

@@ -7,7 +7,7 @@
     "claim-sha": "7848e429beb6afde",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4",
-    "producer-sha": "278b215192a72cbe",
+    "producer-sha": "6b3dc11ea44379b1",
     "break": "body of Reactor.runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -18,7 +18,7 @@
     "claim-sha": "8852d314d99ba33e",
     "route": "revert",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::Reactor.runEgressPolicyChainASN4",
-    "producer-sha": "278b215192a72cbe",
+    "producer-sha": "6b3dc11ea44379b1",
     "break": "body of Reactor.runEgressPolicyChainASN4 replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -28,9 +28,9 @@
     "unit-sha": "07c4619dbfe52360",
     "claim-sha": "aad3b860673562c0",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-    "producer-sha": "9e52d37d8b6f1b02",
-    "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.forwardUpdateSection",
+    "producer-sha": "b60c04ffca61f78b",
+    "break": "body of reactorAPIAdapter.forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-5.1.2-2",
@@ -50,9 +50,9 @@
     "unit-sha": "b6fa3fad17efe456",
     "claim-sha": "dbeb1b27ab055f3a",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-    "producer-sha": "9e52d37d8b6f1b02",
-    "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.forwardUpdateSection",
+    "producer-sha": "b60c04ffca61f78b",
+    "break": "body of reactorAPIAdapter.forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-5.1.2-2",
@@ -61,9 +61,9 @@
     "unit-sha": "b6fa3fad17efe456",
     "claim-sha": "d4b1767cc7186788",
     "route": "revert",
-    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::forwardUpdateSection",
-    "producer-sha": "9e52d37d8b6f1b02",
-    "break": "body of forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/bgp/reactor/reactor_api_forward.go::reactorAPIAdapter.forwardUpdateSection",
+    "producer-sha": "b60c04ffca61f78b",
+    "break": "body of reactorAPIAdapter.forwardUpdateSection replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC4271-5.1.2-2",
@@ -73,7 +73,7 @@
     "claim-sha": "19fc5cc5eb8c28a9",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/stale_readvertise_chain.go::runStaleChain",
-    "producer-sha": "7f7d02a30118a2c4",
+    "producer-sha": "695f9103cf85f2b3",
     "break": "line 159: \"asPathEditable: !dest.IsIBGP\" -\u003e \"asPathEditable: true\""
   }
 ]

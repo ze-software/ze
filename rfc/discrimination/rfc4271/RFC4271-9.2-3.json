@@ -7,8 +7,8 @@
     "claim-sha": "d5a1e425965d7885",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
-    "producer-sha": "278b215192a72cbe",
-    "break": "line 277: \"res.outcome.Action != policychain.OutcomeAccept\" -\u003e \"res.outcome.Action == policychain.OutcomeAccept\""
+    "producer-sha": "6b3dc11ea44379b1",
+    "break": "line 283: \"res.outcome.Action != policychain.OutcomeAccept\" -\u003e \"res.outcome.Action == policychain.OutcomeAccept\""
   },
   {
     "rid": "RFC4271-9.2-3",
@@ -18,7 +18,7 @@
     "claim-sha": "039bba67398151ea",
     "route": "mutant",
     "producer": "internal/component/bgp/reactor/filter_ordered.go::runEgressPolicyChainASN4",
-    "producer-sha": "278b215192a72cbe",
-    "break": "line 278: \"return egressStepResult{failed: res.outcome.Failed}\" -\u003e \"return egressStepResult{accept: true}\""
+    "producer-sha": "6b3dc11ea44379b1",
+    "break": "line 284: \"return egressStepResult{failed: res.outcome.Failed}\" -\u003e \"return egressStepResult{accept: true}\""
   }
 ]
