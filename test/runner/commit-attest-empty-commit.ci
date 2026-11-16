@@ -1,20 +1,16 @@
-# An owner attestation lands as an empty commit and admits the push.
+# Does the native CLI report review debt and reject piped owner issuance
+# without writing any file? This drives the runner-built binary and its real
+# process streams; a callable unit cannot decide that transport boundary.
 #
-# The fixture commits a closure carrying `Review-owed:` and asserts the REAL
-# `le commit push` is refused naming the trailer. It then runs `le commit create ...
-# attest <commit> "<words>"` with no file, runs the script, and asserts the new
-# commit's tree is its parent's and its message carries `Owner-attested:` with
-# the owner's words. Last, `le commit push` prepares a script that pushes HEAD
-# (D-7, AC-15).
-#
-# Spec: spec-verification-debt-derived (closed; design in docs/architecture/testing/verify-freshness-scope.md).
-# Let the attestation block stage a path and seq=1 fails at
-# empty-attestation-commit-landed.
+# The real debt-status query names Review-owed and attest. Piped push and
+# create-attest both exit 2 with every scratch file, directory, mode and
+# symlink unchanged. Authorized empty attestation, exact patch-id/words and
+# cleared debt remain covered by TestAttestPreparesEmptyCommit.
 
 option=timeout:value=60s
 
 cmd=foreground:seq=1:exec=le test fixture runner/commit-attest-empty-commit
 expect=exit:code=0
-expect=stdout:contains=push-refused-by-review-owed
-expect=stdout:contains=empty-attestation-commit-landed
-expect=stdout:contains=push-admitted-after-attestation
+expect=stdout:contains=review-debt-reported-without-authorization
+expect=stdout:contains=push-issuer-refused-without-artifacts
+expect=stdout:contains=attest-issuer-refused-without-artifacts

@@ -1,19 +1,16 @@
-# A closure admitted without a clean review carries its obligation in a
-# trailer, and the push waits for it.
+# Does a real native closure carry Review-owed without a ledger, with that
+# debt readable under pipes while push issuance refuses without writes?
+# The native CLI dispatch and process streams require this functional route.
 #
-# The fixture runs the REAL `le commit create ... remove <spec>
-# review-override "<reason>"` in a throwaway Ze checkout, runs the script, and
-# asserts the commit message carries `Review-owed: <stem>: <reason>` and the
-# commit holds no file under plan/verification-debt/. `le commit push` is then
-# refused naming the trailer and the attestation that answers it (AC-13).
-#
-# Spec: spec-verification-debt-derived (closed; design in docs/architecture/testing/verify-freshness-scope.md).
-# Drop the Review-owed trailer from Message (internal/le/commit/input.go) and
-# seq=1 fails at review-owed-trailer-written.
+# The fixture closes its synthetic spec with review-override and explicit
+# no-news, then checks the actual commit message and changed paths. A separate
+# nonauthorizing debt query names Review-owed and attest. Piped push issuance
+# exits 2 with the entire scratch checkout unchanged.
 
 option=timeout:value=60s
 
 cmd=foreground:seq=1:exec=le test fixture runner/commit-review-owed-trailer
 expect=exit:code=0
 expect=stdout:contains=review-owed-trailer-written
-expect=stdout:contains=push-held-until-attested
+expect=stdout:contains=review-debt-reported-without-authorization
+expect=stdout:contains=push-issuer-refused-without-artifacts

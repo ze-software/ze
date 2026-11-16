@@ -26,6 +26,8 @@ func init() {
 	Register("runner/exec-quoted-argument", execQuotedArgumentDriver)
 }
 
+const fileRunnerMine = "mine.txt"
+
 // execQuotedArgumentWant is the single argument test/runner/exec-quoted-argument.ci
 // quotes on its exec= line. It carries the two characters that a whitespace
 // split destroys: a space and a pipe.
@@ -202,11 +204,11 @@ func gitFixture(ctx context.Context, root string, files map[string]string) error
 }
 
 // commitNotRefusedForARedIndexes is each failure index the deleted structural
-// red check refused a commit of mine.go for, keyed by the marker the driver
+// red check refused a commit for, keyed by the marker the driver
 // prints once `le commit create` prepares the commit anyway.
 var commitNotRefusedForARedIndexes = []struct{ marker, index string }{
 	{"owned-red-not-refused", `{"stages":[{"stage":"doc wiring","exit-code":1,"groups":[` +
-		`{"group-id":"files:mine","kind":"files","related":["mine.go"],"summary":"a Design reference does not resolve","rerun":"le doc wiring"}]}]}`},
+		`{"group-id":"files:mine","kind":"files","related":["mine.txt"],"summary":"a Design reference does not resolve","rerun":"le doc wiring"}]}]}`},
 	{"blind-red-not-refused", `{"stages":[{"stage":"doc wiring","exit-code":1,"groups":[` +
 		`{"group-id":"subcheck:ci-sleep-ratchet","kind":"subcheck","related":[],"summary":"functional fixtures exceed the wait-call ceiling","rerun":"le doc wiring"}]}]}`},
 	{"unreached-red-not-refused", `{"stopped-at":"rfc check","stages":[` +
@@ -216,9 +218,11 @@ var commitNotRefusedForARedIndexes = []struct{ marker, index string }{
 // commitNotRefusedForARedDriver proves, through the real `le commit create`,
 // that a red prevents a release, never a commit (ai/META-DECISIONS.md, "Ze is
 // pre-release"). In a scratch checkout it records each index in
-// commitNotRefusedForARedIndexes and prepares a commit of mine.go with no
+// commitNotRefusedForARedIndexes and prepares a commit of mine.txt with no
 // admission: each must succeed. It then names each retired admission, which
 // must be refused naming the keyword and its replacement, the body.
+// TestRunnerGoCreateIgnoresRecordedReds preserves the modified-Go carrier;
+// this functional carrier does not invoke full-checkout Go inventory floors.
 func commitNotRefusedForARedDriver(ctx context.Context, args []string) error {
 	if len(args) != 0 {
 		return errors.New("commit-not-refused-for-a-red fixture takes no arguments")
@@ -233,11 +237,11 @@ func commitNotRefusedForARedDriver(ctx context.Context, args []string) error {
 		fileFeatureGates:               contentFeatureGate,
 		fileGitIgnore:                  contentGitIgnoreTmp,
 		"docs/architecture/fixture.md": "# Fixture\n",
-		"mine.go":                      "// Design: docs/architecture/fixture.md -- fixture\npackage mine\n",
+		fileRunnerMine:                 "baseline\n",
 	}); err != nil {
 		return err
 	}
-	if err := os.WriteFile(filepath.Join(repo, "mine.go"), []byte("// Design: docs/architecture/fixture.md -- fixture\npackage mine\n\nfunc Mine() {}\n"), 0o600); err != nil {
+	if err := os.WriteFile(filepath.Join(repo, fileRunnerMine), []byte("fixture change\n"), 0o600); err != nil {
 		return err
 	}
 	if err := os.MkdirAll(filepath.Join(repo, "tmp"), 0o750); err != nil {
@@ -249,9 +253,10 @@ func commitNotRefusedForARedDriver(ctx context.Context, args []string) error {
 	}
 	env := envRootedAt(repo)
 	fmt.Fprintln(os.Stdout, "scratch-repo-ready") //nolint:errcheck // progress output
+	const sessionKeyword = "session"
 	runCreate := func(session string, extra ...string) (string, int, error) {
-		line := append([]string{argCommit, actionCreate, "session", session, "subject", "fixture change", fieldFile, "mine.go",
-			"no-test", "mine.go is a scratch-repo fixture for the commit gate, not product code"}, extra...)
+		line := append([]string{argCommit, actionCreate, sessionKeyword, session, "subject", "fixture change", fieldFile, fileRunnerMine,
+			"no-test", "mine.txt is a scratch-repo fixture for the commit workflow"}, extra...)
 		return rawCommand(ctx, repo, env, leBinary, line...)
 	}
 	for position, recorded := range commitNotRefusedForARedIndexes {

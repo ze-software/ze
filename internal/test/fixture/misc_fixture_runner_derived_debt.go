@@ -40,9 +40,9 @@ const (
 		"| Status | in-progress |\n| Scope | tooling |\n\n## Task\n\nA fixture.\n"
 )
 
-// commitPushNeedsNoVerifyRecordDriver: a commit with no verify record of any
-// kind is admitted by `le commit push`, whose answer names no verify; the
-// push-only script re-derives against P and pushes P to the upstream branch.
+// commitPushNeedsNoVerifyRecordDriver checks the real nonauthorizing debt
+// answer with no verify record, and the piped issuer's write-free refusal.
+// Authorized script shape is covered by TestPushScriptPushesPreparedSHAToUpstream.
 func commitPushNeedsNoVerifyRecordDriver(ctx context.Context, args []string) error {
 	scratch, err := newDerivedDebtScratch(ctx, args)
 	if err != nil {
@@ -54,39 +54,20 @@ func commitPushNeedsNoVerifyRecordDriver(ctx context.Context, args []string) err
 	if err != nil {
 		return err
 	}
-	out, code, err := scratch.le(ctx, argCommit, "push", derivedDebtAuthorisation)
-	if failure := commandAnswered("le commit push with no verify record", out, code, err); failure != nil {
-		return failure
-	}
-	if strings.Contains(out, "le verify") {
-		return fmt.Errorf("le commit push named a verify, which a push does not owe: %s", out)
-	}
-	fmt.Fprintln(os.Stdout, "push-prepared-without-verify-record") //nolint:errcheck // progress output
-
-	scriptPath, err := scriptFrom(scratch.repo, out)
-	if err != nil {
+	if err := scratch.expectDebtStatus(ctx, head, 0, "push debt: nothing owed"); err != nil {
 		return err
 	}
-	content, err := os.ReadFile(scriptPath) //nolint:gosec // the script le printed for this scratch checkout
-	if err != nil {
+	fmt.Fprintln(os.Stdout, "nothing-owed-without-verify-record") //nolint:errcheck // progress output
+	if err := scratch.expectPipedAuthorizationRefusal(ctx, argCommit, "push", derivedDebtAuthorisation); err != nil {
 		return err
 	}
-	script := string(content)
-	for _, want := range []string{"debt-status commit " + head, head + ":" + derivedDebtBranchRef} {
-		if !strings.Contains(script, want) {
-			return fmt.Errorf("the push-only script does not carry %q:\n%s", want, script)
-		}
-	}
-	if strings.Contains(script, "commit-tree") || strings.Contains(script, "le verify") {
-		return fmt.Errorf("the push-only script makes a commit or runs a verify:\n%s", script)
-	}
-	fmt.Fprintln(os.Stdout, "push-script-prepared-for-head") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "push-issuer-refused-without-artifacts") //nolint:errcheck // progress output
 	return nil
 }
 
-// commitPushScriptRechecksDriver: the script pushes the prepared P even when a
-// commit lands after preparation, and refuses, pushing nothing, once the
-// upstream moved to a commit P does not descend from.
+// commitPushScriptRechecksDriver checks debt-status against a fixed P after
+// local HEAD moves and after the upstream diverges. The actual generated
+// script/private-origin publication controls live in runner_ci_contract_test.go.
 func commitPushScriptRechecksDriver(ctx context.Context, args []string) error {
 	scratch, err := newDerivedDebtScratch(ctx, args)
 	if err != nil {
@@ -98,35 +79,28 @@ func commitPushScriptRechecksDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	scriptPath, err := scratch.preparePushPath(ctx)
-	if err != nil {
-		return err
-	}
 	if _, err := scratch.commit(ctx, "a commit after the script was prepared", "b.txt"); err != nil {
 		return err
 	}
-	if err := scratch.expect(ctx, "the push-only script", "bash", scriptPath); err != nil {
+	if err := scratch.expectDebtStatus(ctx, prepared, 0, "push debt: nothing owed", prepared[:7]); err != nil {
 		return err
 	}
-	if err := scratch.upstreamIs(ctx, prepared); err != nil {
+	if err := scratch.expectPipedAuthorizationRefusal(ctx, argCommit, "push", derivedDebtAuthorisation); err != nil {
 		return err
 	}
-	fmt.Fprintln(os.Stdout, "script-pushed-the-prepared-commit") //nolint:errcheck // progress output
-
-	if _, err := scratch.commit(ctx, "a second change", "c.txt"); err != nil {
-		return err
-	}
-	scriptPath, err = scratch.preparePushPath(ctx)
-	if err != nil {
-		return err
-	}
+	fmt.Fprintln(os.Stdout, "named-debt-target-survived-local-head-move") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "push-issuer-refused-without-artifacts")      //nolint:errcheck // progress output
 	// The upstream moves to a commit the prepared P does not descend from, as
 	// a push from the other machine would move it.
-	tree, err := scratch.git(ctx, "rev-parse", prepared+"^{tree}")
+	base, err := scratch.git(ctx, "rev-parse", "@{u}")
 	if err != nil {
 		return err
 	}
-	moved, err := scratch.git(ctx, "-c", "user.email=t@t", "-c", "user.name=t", "commit-tree", tree, "-p", prepared,
+	tree, err := scratch.git(ctx, "rev-parse", base+"^{tree}")
+	if err != nil {
+		return err
+	}
+	moved, err := scratch.git(ctx, "-c", "user.email=t@t", "-c", "user.name=t", "commit-tree", tree, "-p", base,
 		"-m", "the other machine")
 	if err != nil {
 		return err
@@ -137,17 +111,13 @@ func commitPushScriptRechecksDriver(ctx context.Context, args []string) error {
 	if _, err := scratch.git(ctx, "fetch", "-q", gitRemoteOrigin); err != nil {
 		return err
 	}
-	out, code, err := scratch.run(ctx, "bash", scriptPath)
-	if err != nil {
+	if err := scratch.expectDebtStatus(ctx, prepared, 1, "the upstream moved"); err != nil {
 		return err
 	}
-	if code == 0 {
-		return fmt.Errorf("the push-only script ran with the upstream moved: %s", out)
-	}
 	if err := scratch.upstreamIs(ctx, moved); err != nil {
-		return fmt.Errorf("a refused script: %w", err)
+		return fmt.Errorf("a nonauthorizing debt query: %w", err)
 	}
-	fmt.Fprintln(os.Stdout, "script-refused-when-upstream-moved") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "named-debt-target-refused-after-upstream-diverged") //nolint:errcheck // progress output
 	return nil
 }
 
@@ -318,10 +288,9 @@ func verifyWorktreeCutSweepDriver(ctx context.Context, args []string) error {
 	return nil
 }
 
-// commitAttestEmptyCommitDriver: a commit carrying `Review-owed:` holds the
-// push; `le commit create attest <commit> "<words>"` with no file prepares an
-// empty commit carrying `Owner-attested:`; once it lands the push is admitted
-// with P = HEAD.
+// commitAttestEmptyCommitDriver checks the real debt answer over a Review-owed
+// closure and rejects piped push/attest issuance without writes. The authorized
+// empty commit and exact Owner-attested consumer remain in TestAttestPreparesEmptyCommit.
 func commitAttestEmptyCommitDriver(ctx context.Context, args []string) error {
 	scratch, err := newDerivedDebtScratch(ctx, args)
 	if err != nil {
@@ -334,71 +303,26 @@ func commitAttestEmptyCommitDriver(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	out, code, err := scratch.le(ctx, argCommit, "push", derivedDebtAuthorisation)
-	if err != nil {
+	if err := scratch.expectDebtStatus(ctx, owed, 1, "Review-owed", "attest"); err != nil {
 		return err
 	}
-	if code == 0 {
-		return fmt.Errorf("le commit push over an open Review-owed was admitted: %s", out)
-	}
-	if !strings.Contains(out, "Review-owed") {
-		return fmt.Errorf("le commit push refused without naming the open Review-owed: %s", out)
-	}
-	fmt.Fprintln(os.Stdout, "push-refused-by-review-owed") //nolint:errcheck // progress output
-
-	out, code, err = scratch.le(ctx, argCommit, "create", "subject", "owner attests the closure",
-		"attest", owed, "Thomas reviewed it in person")
-	if failure := commandAnswered("create attest with no file", out, code, err); failure != nil {
-		return failure
-	}
-	scriptPath, err := scriptFrom(scratch.repo, out)
-	if err != nil {
+	fmt.Fprintln(os.Stdout, "review-debt-reported-without-authorization") //nolint:errcheck // progress output
+	if err := scratch.expectPipedAuthorizationRefusal(ctx, argCommit, "push", derivedDebtAuthorisation); err != nil {
 		return err
 	}
-	if err := scratch.expect(ctx, "the attestation script", "bash", scriptPath); err != nil {
+	fmt.Fprintln(os.Stdout, "push-issuer-refused-without-artifacts") //nolint:errcheck // progress output
+	if err := scratch.expectPipedAuthorizationRefusal(ctx, argCommit, "create", "subject", "owner attests the closure",
+		"attest", owed, "Thomas reviewed it in person"); err != nil {
 		return err
 	}
-	tree, err := scratch.git(ctx, "rev-parse", "HEAD^{tree}")
-	if err != nil {
-		return err
-	}
-	parentTree, err := scratch.git(ctx, "rev-parse", "HEAD^^{tree}")
-	if err != nil {
-		return err
-	}
-	if tree != parentTree {
-		return fmt.Errorf("the attestation commit changed the tree: %s, parent %s", tree, parentTree)
-	}
-	message, err := scratch.git(ctx, "log", "-1", "--format=%B")
-	if err != nil {
-		return err
-	}
-	if !strings.Contains(message, "Owner-attested: ") {
-		return fmt.Errorf("the attestation commit carries no Owner-attested trailer:\n%s", message)
-	}
-	if !strings.Contains(message, "Thomas reviewed it in person") {
-		return fmt.Errorf("the attestation commit does not carry the owner's words:\n%s", message)
-	}
-	fmt.Fprintln(os.Stdout, "empty-attestation-commit-landed") //nolint:errcheck // progress output
-
-	head, err := scratch.git(ctx, "rev-parse", "HEAD")
-	if err != nil {
-		return err
-	}
-	script, err := scratch.preparePush(ctx)
-	if err != nil {
-		return err
-	}
-	if !strings.Contains(script, head+":"+derivedDebtBranchRef) {
-		return fmt.Errorf("the push after the attestation does not push HEAD %s:\n%s", head, script)
-	}
-	fmt.Fprintln(os.Stdout, "push-admitted-after-attestation") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "attest-issuer-refused-without-artifacts") //nolint:errcheck // progress output
 	return nil
 }
 
 // commitReviewOwedTrailerDriver: `le commit create ... review-override` over a
 // closure with no clean review writes a `Review-owed:` trailer and no ledger
-// file, and `le commit push` is refused naming the trailer and the attestation.
+// file. A nonauthorizing debt query names the trailer and its attestation;
+// piped push issuance independently refuses without changing any artifact.
 func commitReviewOwedTrailerDriver(ctx context.Context, args []string) error {
 	scratch, err := newDerivedDebtScratch(ctx, args)
 	if err != nil {
@@ -407,7 +331,7 @@ func commitReviewOwedTrailerDriver(ctx context.Context, args []string) error {
 	defer scratch.remove()
 
 	out, code, err := scratch.le(ctx, argCommit, "create", "subject", "close the fixture spec",
-		"remove", derivedDebtSpecPath, "review-override", "no reviewer free")
+		"remove", derivedDebtSpecPath, "review-override", "no reviewer free", "no-news", "fixture: no operator-visible change")
 	if failure := commandAnswered("create review-override", out, code, err); failure != nil {
 		return failure
 	}
@@ -434,20 +358,14 @@ func commitReviewOwedTrailerDriver(ctx context.Context, args []string) error {
 	}
 	fmt.Fprintln(os.Stdout, "review-owed-trailer-written") //nolint:errcheck // progress output
 
-	out, code, err = scratch.le(ctx, argCommit, "push", derivedDebtAuthorisation)
-	if err != nil {
+	if err := scratch.expectDebtStatus(ctx, "", 1, "Review-owed", "attest"); err != nil {
 		return err
 	}
-	if code == 0 {
-		return fmt.Errorf("le commit push over a Review-owed closure was admitted: %s", out)
+	fmt.Fprintln(os.Stdout, "review-debt-reported-without-authorization") //nolint:errcheck // progress output
+	if err := scratch.expectPipedAuthorizationRefusal(ctx, argCommit, "push", derivedDebtAuthorisation); err != nil {
+		return err
 	}
-	if !strings.Contains(out, "Review-owed") {
-		return fmt.Errorf("le commit push refused without naming the Review-owed trailer: %s", out)
-	}
-	if !strings.Contains(out, "attest") {
-		return fmt.Errorf("le commit push refused without naming the attestation that answers it: %s", out)
-	}
-	fmt.Fprintln(os.Stdout, "push-held-until-attested") //nolint:errcheck // progress output
+	fmt.Fprintln(os.Stdout, "push-issuer-refused-without-artifacts") //nolint:errcheck // progress output
 	return nil
 }
 
@@ -512,10 +430,6 @@ func (s *derivedDebtScratch) le(ctx context.Context, args ...string) (string, in
 	return rawCommand(ctx, s.repo, s.env, s.leBinary, args...)
 }
 
-func (s *derivedDebtScratch) run(ctx context.Context, name string, args ...string) (string, int, error) {
-	return rawCommand(ctx, s.repo, s.env, name, args...)
-}
-
 // expect runs one command in the scratch checkout and answers nil when it
 // exited zero, naming what ran otherwise.
 func (s *derivedDebtScratch) expect(ctx context.Context, what, name string, args ...string) error {
@@ -559,28 +473,6 @@ func (s *derivedDebtScratch) commitMessage(ctx context.Context, message, write, 
 		return "", err
 	}
 	return s.git(ctx, "rev-parse", "HEAD")
-}
-
-// preparePushPath runs `le commit push` and answers the script path it prints.
-func (s *derivedDebtScratch) preparePushPath(ctx context.Context) (string, error) {
-	out, code, err := s.le(ctx, argCommit, "push", derivedDebtAuthorisation)
-	if failure := commandAnswered("le commit push", out, code, err); failure != nil {
-		return "", failure
-	}
-	return scriptFrom(s.repo, out)
-}
-
-// preparePush runs `le commit push` and answers the script it wrote.
-func (s *derivedDebtScratch) preparePush(ctx context.Context) (string, error) {
-	path, err := s.preparePushPath(ctx)
-	if err != nil {
-		return "", err
-	}
-	content, err := os.ReadFile(path) //nolint:gosec // the script le printed for this scratch checkout
-	if err != nil {
-		return "", err
-	}
-	return string(content), nil
 }
 
 // upstreamIs answers nil when the bare upstream's main holds want.

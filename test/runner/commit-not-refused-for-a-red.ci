@@ -1,10 +1,13 @@
-# A red prevents a release, never a commit, end to end through `le commit create`.
+# Does the native commit CLI ignore recorded reds and reject retired red
+# admissions, end to end? Its real argument parser and composition require
+# the functional route in addition to callable Create tests.
 #
-# The compiled fixture creates an isolated checkout and records three failure
-# indexes the deleted structural red check refused: a red naming the committed
-# file, a red naming no path, and a first-red stage never reached. Each commit
-# is prepared with no admission. The two retired admissions are then refused,
-# naming the keyword and its replacement, the body.
+# A text carrier is prepared over the original three related/no-path/unreached
+# indexes without admission. Both retired keywords must name their body
+# replacement. Modified-Go carrier coverage, including the same three indexes
+# plus malformed and no-path/unreached controls, is preserved separately in
+# TestRunnerGoCreateIgnoresRecordedReds. The real Go composition guard and its
+# full-checkout error-inventory floors are unchanged.
 
 option=timeout:value=90s
 
