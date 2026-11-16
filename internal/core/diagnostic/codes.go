@@ -52,7 +52,7 @@ const (
 	CodeDoctorAS112RedistributeOriginUncoordinated = "doctor-as112-redistribute-origin-uncoordinated"
 	CodeDoctorAS112WatchdogMissingWithdraw         = "doctor-as112-watchdog-missing-withdraw"
 	CodeDoctorArchiveScheduledFailed               = "doctor-archive-scheduled-failed"
-	CodeDoctorDDoSDetectBlind                     = "doctor-ddos-detect-blind"
+	CodeDoctorDDoSDetectBlind                      = "doctor-ddos-detect-blind"
 	CodeDoctorDDoSFlowspecOrphanAnnouncement       = "doctor-ddos-flowspec-orphan-announcement"
 	CodeDoctorDNSResolverPortUnavailable           = "doctor-dns-resolver-port-unavailable"
 	CodeDoctorDNSResolverUpstreamUnreachable       = "doctor-dns-resolver-upstream-unreachable"
@@ -133,6 +133,7 @@ const (
 	CodeDoctorGNMITLSMaterial                      = "doctor-gnmi-tls-material"
 	CodeDoctorTLSExpired                           = "doctor-tls-expired"
 	CodeDoctorTLSInvalid                           = "doctor-tls-invalid"
+	CodeDoctorStorageNotGrown                      = "doctor-storage-not-grown"
 	CodeDoctorStorageUnavailable                   = "doctor-storage-unavailable"
 	CodeDoctorTLSMissing                           = "doctor-tls-missing"
 	CodeDoctorTLSReference                         = "doctor-tls-reference"
@@ -598,6 +599,12 @@ var builtinCodes = append([]CodeMeta{
 		Title:       "Low disk space on config partition",
 		Description: "The partition containing the config directory has less than 5% free space. Managed store writes may fail.",
 		Examples:    []string{exampleDoctorJSON},
+	},
+	{
+		Code:        CodeDoctorStorageNotGrown,
+		Title:       "Persistent storage is smaller than its disk",
+		Description: "On an appliance, the persistent partition or its filesystem does not reach the end of the disk, so the rest of the disk is not used. The installer grows both when it installs a system. A system that was written to its disk another way, or whose growth failed at install, keeps the size of the image. Run request system storage grow to grow the storage with no reboot, and show host storage to read the sizes. The same code is reported as a warning when the sizes cannot be read, because the storage may then be smaller than its disk.",
+		Examples:    []string{exampleDoctorJSON, "ze request system storage grow", "ze show host storage"},
 	},
 	{
 		Code:        CodeDoctorRecentEvents,

@@ -83,6 +83,7 @@ Use `ze show diagnostic <code>` for remediation guidance.
 | `doctor-iface-selector-unmatched` / `doctor-iface-selector-ambiguous` | A `mac { match }` selector names no device, or several |
 | `doctor-iface-mac-override-by-name` | An ethernet overrides its MAC but binds by name, so the address lands on whichever device holds that name |
 | `doctor-disk-space` | Partition free space (<5%) |
+| `doctor-storage-not-grown` | On an appliance, the persistent storage is smaller than its disk: the system was not installed by the installer, or the growth failed at install. A warning naming the device and both sizes, fixed by `ze request system storage grow`. Also a warning when the sizes cannot be read, which is the answer on every appliance today, because the size read is not written yet <!-- source: internal/component/doctor/checks_storage.go -- checkStorageGrown --> |
 | `doctor-dns-resolver` | Name server reachability |
 | `doctor-*-unreachable` | External-service reachability probes that warn (never fail startup) when a configured peer is down: RADIUS admin (`doctor-radius-admin-unreachable`), RPKI cache (`doctor-rpki-unreachable`), BMP collector (`doctor-bmp-unreachable`), NTP (`doctor-ntp-server-unreachable`), management hub (`doctor-hub-unreachable`) <!-- source: internal/component/managed/doctor.go -- checkHubReachable / doctor-hub-unreachable --> |
 | `doctor-clock-skew` | System clock vs NTP (>5 min) |

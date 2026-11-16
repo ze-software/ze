@@ -18,6 +18,7 @@
 package doctor
 
 import (
+	"github.com/ze-software/ze/internal/component/host"
 	"github.com/ze-software/ze/internal/core/diagnostic"
 )
 
@@ -31,6 +32,10 @@ const (
 	// checks read.
 	doctorDependencyFilesystem = "filesystem"
 	doctorDependencyConfig     = "config"
+
+	// doctorDependencyPersistentStorage is the persistent partition of an
+	// appliance, which the storage-grown check measures against its disk.
+	doctorDependencyPersistentStorage = "persistent-storage"
 )
 
 // doctorOwnedChecks are the checks this component owns, in the order the runner
@@ -62,6 +67,22 @@ var doctorOwnedChecks = []diagnostic.DoctorCheck{{
 	Platforms:    []string{diagnostic.DoctorPlatformAny},
 	Codes:        []string{diagnostic.CodeDoctorRandomSeed},
 	Check:        doctorCheckRandomSeed,
+}, {
+	// The persistent storage of an appliance, smaller than its disk. The host
+	// component owns the state and reads it (host.DetectPersistentStorage),
+	// and cannot register the check: internal/core/diagnostic imports that
+	// component for the platform type, so the import back would be a cycle.
+	// This component is the home for a check with no owner that can register
+	// it. It runs on the appliance platform only, before config, because it
+	// reads the disk and no config.
+	Name:         "storage-grown",
+	Phase:        diagnostic.DoctorPhasePreConfig,
+	Order:        140,
+	Component:    doctorOwnComponent,
+	Dependencies: []string{doctorDependencyPersistentStorage},
+	Platforms:    []string{host.PlatformGokrazy.String()},
+	Codes:        []string{diagnostic.CodeDoctorStorageNotGrown},
+	Check:        doctorCheckStorageGrown,
 }, {
 	// The missing-config twin of kernel-modules. The runner called
 	// checkKernelModules(nil) on the path where no config loaded, so the
@@ -232,6 +253,10 @@ func doctorCheckMachineID(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagno
 
 func doctorCheckRandomSeed(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
 	return checkRandomSeed(ctx.Platform)
+}
+
+func doctorCheckStorageGrown(diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {
+	return checkStorageGrown()
 }
 
 func doctorCheckKernelModules(ctx diagnostic.DoctorCheckContext) []diagnostic.Diagnostic {

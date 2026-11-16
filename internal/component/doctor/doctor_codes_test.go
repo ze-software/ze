@@ -25,6 +25,7 @@ func TestDoctorCheckCodesRegistered(t *testing.T) {
 		diagnostic.CodeDoctorStoreIntegrity,
 		diagnostic.CodeDoctorStorePermissions,
 		diagnostic.CodeDoctorDiskSpace,
+		diagnostic.CodeDoctorStorageNotGrown,
 		diagnostic.CodeDoctorWriteDestination,
 		diagnostic.CodeDoctorTLSMissing,
 		diagnostic.CodeDoctorTLSInvalid,

@@ -140,6 +140,7 @@ ze-flowexport:show-flow-export
 ze-flowexport:show-flow-recent
 ze-geodns:show-geodns
 ze-gnmi:show-gnmi
+ze-host:request-system-storage-grow
 ze-host:set-system-file-descriptors
 ze-host:show-all
 ze-host:show-cpu

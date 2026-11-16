@@ -215,6 +215,42 @@ diagnostic remains unchanged.
 <!-- source: internal/component/doctor/checks_storage.go -- checkDiskSpace, checkDiskSpaceBlocks -->
 <!-- source: internal/component/support/disk_unix.go -- collectDiskInfo, diskUsageFromBlocks -->
 
+## Persistent storage smaller than its disk
+
+On an appliance the installer grows the persistent partition and its
+filesystem to the disk. A system written to its disk another way, or whose
+growth failed at install, keeps the size of the image. The `storage-grown`
+check reports that as a warning under `doctor-storage-not-grown`, with the
+device, the size in use and the size of the disk, and `request system storage
+grow` as its fix. The installer logs a failed growth under the same code. It
+links no component, so it spells the code and the fix itself, and
+`TestInstallerSpellsTheStorageDoctorCode` compares both with the check's.
+
+The check has three other answers. Storage that reaches its disk reports
+nothing. A system with nothing mounted on the persistent mount point reports
+nothing, because it has no storage to grow. A state that cannot be read is a
+warning that carries the cause, with `show host storage` as its fix, because
+storage that was not measured may be smaller than its disk.
+
+The host component owns the state and reads it. It cannot register the check:
+`internal/core/diagnostic` imports the host component for the platform type,
+so the import back would be a cycle. The check is therefore registered by
+`internal/component/doctor`, for the appliance platform only, in the
+`pre-config` phase: it reads the disk and no config.
+
+The size read is not written yet. `DetectPersistentStorage` reads the mount
+table and answers that no persistent storage is mounted, or an error that
+names the mounted device. On every appliance the check therefore reports the
+warning for a state that cannot be read.
+<!-- source: internal/component/doctor/checks_storage.go -- checkStorageGrown, readPersistentStorage, binarySize -->
+<!-- source: internal/component/doctor/doctor_checks.go -- doctorOwnedChecks, doctorCheckStorageGrown -->
+<!-- source: internal/component/host/storage_linux.go -- DetectPersistentStorage, persistentDevice -->
+<!-- source: internal/component/host/inventory.go -- PersistentStorage, ErrNoPersistentStorage -->
+<!-- source: internal/install/disk/run.go -- reportStorageNotGrown -->
+<!-- test: internal/component/doctor/checks_storage_grown_test.go TestStorageDoctorReportsStorageSmallerThanDisk -->
+<!-- test: internal/component/doctor/checks_storage_grown_test.go TestInstallerSpellsTheStorageDoctorCode -->
+<!-- test: internal/component/host/storage_persistent_linux_test.go TestDetectPersistentStorageReadsTheMountTable -->
+
 ## Kernel capabilities: one enrolment, three callers
 
 A subsystem needs a kernel feature the host can lack. MPLS forwarding needs an

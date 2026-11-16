@@ -336,6 +336,37 @@ type StorageDevice struct {
 	Smart        *smart.Info `json:"smart,omitempty"`
 }
 
+// PersistentStorage is the persistent storage of an appliance: the partition
+// mounted on the persistent mount point, which holds the configuration and
+// the state across an update.
+//
+// DetectPersistentStorage returns one only with a nil error, and every field
+// is then read from the system. The zero value is no answer.
+type PersistentStorage struct {
+	// Device is the partition node mounted on the persistent mount point.
+	Device string `json:"device"`
+	// DiskBytes is the size of the disk that holds the partition.
+	DiskBytes uint64 `json:"disk-bytes"`
+	// PartitionBytes is the size of the partition.
+	PartitionBytes uint64 `json:"partition-bytes"`
+	// FilesystemBytes is the size of the filesystem in the partition.
+	FilesystemBytes uint64 `json:"filesystem-bytes"`
+	// Grown says the partition reaches the last usable sector of the disk
+	// and the filesystem fills the partition.
+	Grown bool `json:"grown"`
+}
+
+// ErrNoPersistentStorage is what DetectPersistentStorage answers on a system
+// that mounts no persistent partition: a system that is not an appliance. It
+// is an answer about the system, never a failure to read it.
+var ErrNoPersistentStorage = errors.New("host: this system mounts no persistent storage")
+
+// DetectPersistentStorage reads the persistent storage using the default
+// Detector.
+func DetectPersistentStorage() (PersistentStorage, error) {
+	return defaultDetector.DetectPersistentStorage()
+}
+
 // KernelInfo reports /proc/version, /proc/cmdline, and selected CPU
 // security flags.
 type KernelInfo struct {

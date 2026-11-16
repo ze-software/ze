@@ -58,6 +58,31 @@ and never writes to them.
 <!-- source: internal/component/host/kernel_linux.go -- kernel posture -->
 <!-- source: internal/component/host/fsroot_linux.go -- the injectable filesystem root -->
 
+## Persistent storage
+
+An appliance mounts its persistent partition on `/perm`. `DetectPersistentStorage`
+answers its state for the `storage-grown` doctor check
+(`docs/architecture/doctor-and-health-checks.md`, "Persistent storage smaller
+than its disk"). It has three answers, and a caller keeps them apart:
+
+- `ErrNoPersistentStorage` when nothing is mounted on the mount point. That is
+  an answer about the system. Off Linux it is the only answer, because an
+  appliance runs Linux.
+- Any other error when the state could not be read. It is never read as
+  storage that is absent or grown.
+- The device and its disk, partition and filesystem sizes, with whether the
+  storage reaches its disk.
+
+The third answer is not written yet. Today the method reads the mount table
+and, for a mounted persistent partition, answers an error that names the
+device. `request system storage grow`, the host command that grows the
+storage, is registered and answers a refusal for the same reason.
+
+<!-- source: internal/component/host/storage_linux.go -- DetectPersistentStorage, persistentDevice -->
+<!-- source: internal/component/host/storage_other.go -- DetectPersistentStorage -->
+<!-- source: internal/component/host/inventory.go -- PersistentStorage, ErrNoPersistentStorage -->
+<!-- source: internal/plugins/host-cmd/cmd/storage_grow_linux.go -- handleStorageGrow -->
+
 ## Traps
 
 **An ethtool ioctl against a fixture path is meaningless.** The ioctl targets

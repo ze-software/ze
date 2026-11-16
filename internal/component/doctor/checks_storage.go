@@ -2,8 +2,9 @@
 // Related: doctor.go — readiness check runner and output contract
 // Related: checks_platform.go — platformMismatch helper used by checkNTPPersistPath
 
-// Storage checks: blob store integrity, free disk space, and writability of
-// every config-declared file destination (NTP persist-path, BFD persist-dir,
+// Storage checks: blob store integrity, free disk space, persistent storage
+// smaller than its disk on an appliance, and writability of every
+// config-declared file destination (NTP persist-path, BFD persist-dir,
 // resolv.conf parent, file:// archives, self-update binary directory).
 
 package doctor
@@ -175,6 +176,89 @@ func checkDiskSpaceBlocks(configDir string, total, available uint64) []diagnosti
 		}}
 	}
 	return nil
+}
+
+// The commands a persistent-storage finding names as its fix: the one that
+// grows the storage, and the one that reads its sizes.
+const (
+	fixStorageGrow = "request system storage grow"
+	fixStorageShow = "show host storage"
+)
+
+// readPersistentStorage is the seam the storage tests replace. The read is the
+// host component's, which owns that state. The check is registered here and
+// not there because internal/core/diagnostic imports the host component for
+// the platform type, so the host component cannot import the check registry.
+var readPersistentStorage = host.DetectPersistentStorage
+
+// checkStorageGrown reports the persistent storage of an appliance when it is
+// smaller than its disk. The installer grows the partition and its filesystem
+// to the disk; a system written to its disk another way, or whose growth
+// failed at install, keeps the size of the image until an operator grows it.
+//
+// A state that cannot be read is a warning, never the healthy empty answer:
+// storage that was not measured may be smaller than its disk.
+func checkStorageGrown() []diagnostic.Diagnostic {
+	storage, err := readPersistentStorage()
+	if errors.Is(err, host.ErrNoPersistentStorage) {
+		// An answer about the system, not a failed read: nothing is mounted
+		// on the persistent mount point, so there is no storage to grow.
+		return nil
+	}
+	var tb textbuf.Buffer
+	if err != nil {
+		return []diagnostic.Diagnostic{{
+			Code:     diagnostic.CodeDoctorStorageNotGrown,
+			Severity: diagnostic.SeverityWarning,
+			Message:  tb.Str("cannot read the size of the persistent storage, so it may be smaller than its disk: ").Err(err).String(),
+			Fix:      fixStorageShow,
+		}}
+	}
+	if storage.Grown {
+		return nil
+	}
+	return []diagnostic.Diagnostic{{
+		Code:     diagnostic.CodeDoctorStorageNotGrown,
+		Severity: diagnostic.SeverityWarning,
+		Message: tb.Str("persistent storage ").Str(storage.Device).
+			Str(" uses ").Str(binarySize(storage.FilesystemBytes)).
+			Str(" of a ").Str(binarySize(storage.DiskBytes)).
+			Str(" disk, because it was not grown to the disk when this system was installed").String(),
+		Path: storage.Device,
+		Fix:  fixStorageGrow,
+	}}
+}
+
+// binarySizeUnits are the units binarySize writes, largest first.
+var binarySizeUnits = [...]struct {
+	name  string
+	bytes uint64
+}{
+	{"TiB", 1 << 40},
+	{"GiB", 1 << 30},
+	{"MiB", 1 << 20},
+	{"KiB", 1 << 10},
+}
+
+// binarySize writes a byte count in the largest binary unit that holds at
+// least one of it: 989855744 reads "944 MiB". Below ten units it keeps one
+// decimal, rounded down, so 1.9 GiB does not read as 1 GiB.
+func binarySize(byteCount uint64) string {
+	for _, unit := range binarySizeUnits {
+		if byteCount < unit.bytes {
+			continue
+		}
+		whole := byteCount / unit.bytes
+		// The remainder is below 1 TiB, so ten times it cannot overflow.
+		tenths := (byteCount % unit.bytes) * 10 / unit.bytes
+		var tb textbuf.Buffer
+		tb.Uint(whole)
+		if whole < 10 && tenths > 0 {
+			tb.Byte('.').Uint(tenths)
+		}
+		return tb.Byte(' ').Str(unit.name).String()
+	}
+	return textbuf.UintStr(byteCount, " bytes")
 }
 
 // probeWritable is the seam the storage tests replace. The probe itself lives

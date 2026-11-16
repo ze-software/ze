@@ -24,7 +24,8 @@ const (
 // its disk, and fixStorageGrow the command that grows it on the booted
 // system. The installer is PID 1 of the initrd and links no component, so it
 // spells the code that the storage doctor check declares instead of importing
-// it.
+// it. TestInstallerSpellsTheStorageDoctorCode (internal/component/doctor)
+// compares both constants with the ones the check uses.
 const (
 	codeStorageNotGrown = "doctor-storage-not-grown"
 	fixStorageGrow      = "request system storage grow"

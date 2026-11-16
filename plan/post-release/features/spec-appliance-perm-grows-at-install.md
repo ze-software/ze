@@ -8,7 +8,7 @@
 | Release reason | It exists for the container work, which is a post-release feature. Owner ruling of 2026-11-16: "The appliance grows its persistent partition to the disk at install. This is appliance work of its own and comes before the image store." No shipped behavior is wrong without it. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | - |
+| Phase | 1/8 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
@@ -90,6 +90,10 @@ A fourth decision is a ruling of the main thread and has no alternative left ope
 - [ ] `docs/architecture/testing/qemu-integration.md` - QEMU proofs
   → Decision: the host-side `installer`, `installer-iso` and `appliance-ota` actions already boot a real install and read the stopped disk. They gain a target disk larger than the image
   → Constraint: `assertInstallGPT` requires the installed disk's first four entries to equal the image's. Entry 4 now differs by design, so that check changes with the feature
+- [ ] `docs/architecture/doctor-and-health-checks.md` - doctor checks (the design page of the storage check's test, and the page `ai/CODE-TO-DOCS.md` names for `internal/component/doctor/checks_storage.go`)
+  → Constraint: a check registers at the phase whose process holds the state it reads. The storage check reads the mount table and the disk, which read the same from the operator's process and the daemon, so it takes a config phase, before config
+  → Constraint: a finding names the command that clears it in its `Fix` field, and every `Warn` or `Error` line names a code a registered check declares. The installer's growth-failure line needs the check that declares `doctor-storage-not-grown`
+  → Decision: a dependency with no owner that can register its check is registered by `internal/component/doctor`, with a comment that makes the absent owner explicit. The host component owns the state and cannot import the check registry
 - [ ] `ai/rules/platform-linux.md`, `ai/rules/go-standards.md` - Linux-only code
   → Constraint: shipped code runs no external program. The e2fsprogs tools stay on the build host only
   → Constraint: a probe that cannot run answers unknown with its reason. A storage state that cannot be read is never reported as grown
@@ -333,7 +337,10 @@ Doctor, on a device whose storage is smaller than its disk:
 
 | Severity | Code | Message (sample) | Fix |
 |----------|------|------------------|-----|
-| warning | `doctor-storage-not-grown` | persistent storage sda4 uses 944 MiB of a 238 GiB disk, because this system was not installed by the installer | `request system storage grow` |
+| warning | `doctor-storage-not-grown` | persistent storage /dev/sda4 uses 944 MiB of a 238 GiB disk, because it was not grown to the disk when this system was installed | `request system storage grow` |
+| warning | `doctor-storage-not-grown` | cannot read the size of the persistent storage, so it may be smaller than its disk: (the cause) | `show host storage` |
+
+The cause in the first message covers both ways a system keeps the size of its image: it was not installed by the installer, or the growth failed at install (D-3). The size in use is the filesystem's, so a partition that was grown around a filesystem that was not still reads as the small size.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
@@ -501,7 +508,12 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 | `TestRunISOGrowsPersistentPartition` | `internal/install/disk/run_test.go` | The ISO order, with the mount and the poweroff | |
 | `TestGrowthFailureCompletesInstall` | `internal/install/disk/run_test.go` | A failed growth is logged as an error and the install completes (AC-13) | |
 | `TestDetectStoragePersistentObject` | `internal/component/host/storage_linux_test.go` | The object's fields from a fake sysfs and mount table, and its absence with no persistent partition | |
-| `TestStorageDoctorReportsStorageSmallerThanDisk` | `internal/component/host/doctor_storage_test.go` | The finding, its text and its fix; no finding when grown; a warning that says unknown when the state cannot be read | |
+| `TestStorageDoctorReportsStorageSmallerThanDisk` | `internal/component/doctor/checks_storage_grown_test.go` | The finding, its text and its fix; no finding when grown or when no persistent storage is mounted; a warning that says unknown when the state cannot be read | |
+| `TestDoctorStorageGrownCheckFunctional` | `internal/component/doctor/checks_storage_grown_test.go` | `ze doctor --json` prints the code on the appliance platform and not on a plain Linux host, so the registered check is what the runner reaches | |
+| `TestStorageGrownCheckRunsOnTheApplianceOnly` | `internal/component/doctor/checks_storage_grown_test.go` | The check is registered for the appliance platform and for no other | |
+| `TestInstallerSpellsTheStorageDoctorCode` | `internal/component/doctor/checks_storage_grown_test.go` | The code and the fix the installer spells are the ones the check uses | |
+| `TestBinarySize` | `internal/component/doctor/checks_storage_grown_test.go` | The unit boundaries of the sizes the finding prints | |
+| `TestDetectPersistentStorageReadsTheMountTable` | `internal/component/host/storage_persistent_linux_test.go` | Nothing on the persistent mount point answers no persistent storage; a mounted partition names its device; a missing or malformed mount table is an error and never reads as absent | |
 | `TestStorageGrowRefusals` | `internal/plugins/host-cmd/cmd/storage_grow_test.go` | Each refusal of AC-6 with its text | |
 | `TestOnlineResizeGrowsMountedFilesystem` | `internal/core/ext4fs/resize_integration_linux_test.go` | In the guest: the fixture is enlarged, resized while mounted, and its size and files are checked (A-1, A-5) | |
 | `TestProjectQuotaRefusesWritePastLimit` | `internal/core/projquota/quota_integration_linux_test.go` | In the guest: AC-9 with its control folder | |
@@ -547,12 +559,14 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 - `internal/component/host/inventory.go`, `internal/component/host/storage_linux.go`, `internal/component/host/storage_other.go` - the persistent object
 - `internal/plugins/host-cmd/cmd/register.go` - the command's registration
 - `internal/core/diagnostic/codes.go` - `doctor-storage-not-grown`
+- `internal/component/doctor/checks_storage.go`, `internal/component/doctor/doctor_checks.go`, `internal/component/doctor/doctor_codes_test.go` - the doctor check beside the free-space check, its registration for the appliance platform, and its code in the registered-codes test
+- `internal/component/plugin/all/testdata/wire-methods.snapshot` - the wire method of the grow command
 - `internal/le/test/qemu/install_boot.go`, `internal/le/test/qemu/install_iso.go`, `internal/le/test/qemu/install_storage.go`, `internal/le/test/qemu/install_ota.go`, `internal/le/test/qemu/actions.go`, `internal/le/test/qemu/alltests.go` - the larger target disk, the grown checks, the new action, the fixture and the two integration packages
 - `internal/le/setup/docker/host/perm.go` - `formatPerm` over the shared format definition, the quota step and the property check; the skip and `hasExt4` deleted; `permPartition` over the shared parse; `findMkfs` widened to the tools the two steps run
 - `internal/le/setup/docker/host/build.go` - the folder of the shared definition in `digestRoots`
 - `internal/le/setup/docker/host/actions.go` - the `check` action reports `tune2fs` beside `mkfs.ext4`
 - `internal/le/setup/docker/host/perm_test.go`, `internal/le/setup/docker/host/build_digest_test.go` - the lab formatter's tests and the image-key test. The two `hasExt4` assertions of `TestPermPartitionIsReadFromTheGPT` go with the function they call, and `TestFormatPermFormatsAnAlreadyFormattedPartition` proves what replaces it
-- `docs/architecture/appliance/docker-host.md`, `docs/architecture/appliance/on-device-installer.md`, `docs/architecture/appliance/iso-installer.md`, `docs/architecture/appliance/installer-initrd.md`, `docs/architecture/appliance/builder.md`, `docs/architecture/appliance/kernel-profiles.md`, `docs/architecture/appliance/ota-push.md`, `docs/architecture/testing/qemu-integration.md`, `docs/architecture/host/inventory.md`, `docs/guide/appliance.md`, `docs/guide/command-reference.md`, `docs/guide/health-checks.md` - the pages the documentation checklist names
+- `docs/architecture/appliance/docker-host.md`, `docs/architecture/appliance/on-device-installer.md`, `docs/architecture/appliance/iso-installer.md`, `docs/architecture/appliance/installer-initrd.md`, `docs/architecture/appliance/builder.md`, `docs/architecture/appliance/kernel-profiles.md`, `docs/architecture/appliance/ota-push.md`, `docs/architecture/testing/qemu-integration.md`, `docs/architecture/host/inventory.md`, `docs/guide/appliance.md`, `docs/guide/command-reference.md`, `docs/guide/health-checks.md`, `docs/architecture/doctor-and-health-checks.md` - the pages the documentation checklist names
 
 ## Files to Create
 - `internal/core/gptdisk/gptdisk.go`, `internal/core/gptdisk/grow.go`, `internal/core/gptdisk/gptdisk_test.go`, `internal/core/gptdisk/grow_test.go` - parse, validate, grow
@@ -560,7 +574,7 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 - `internal/core/projquota/quota.go`, `internal/core/projquota/quota_linux.go`, `internal/core/projquota/quota_other.go`, `internal/core/projquota/quota_integration_linux_test.go` - state, enable, assign, limit, usage
 - `internal/appliance/permformat/permformat.go`, `internal/appliance/permformat/permformat_test.go` - the one definition of the persistent partition's format: the format step's arguments, the quota step's arguments, the checked property list
 - `internal/install/disk/grow_linux.go` - the installer's call into the leaves
-- `internal/component/host/doctor_storage.go`, `internal/component/host/doctor_storage_test.go` - the doctor check
+- `internal/component/doctor/checks_storage_grown_test.go`, `internal/component/host/storage_persistent_linux_test.go` - the tests of the doctor check and of the host read it calls. The check itself is in `internal/component/doctor/checks_storage.go` (Files to Modify): the host component cannot register it, because `internal/core/diagnostic` imports that component and the import back is a cycle
 - `internal/plugins/host-cmd/cmd/storage_grow_linux.go`, `internal/plugins/host-cmd/cmd/storage_grow_other.go`, `internal/plugins/host-cmd/cmd/storage_grow_test.go`, `internal/plugins/host-cmd/yang/ze-host-request-cmd.yang` - the command
 - `internal/le/test/qemu/install_storage_grow.go` - the `appliance-storage` action
 - `test/appliance/storage-grow-qemu.ci`, `test/plugin/host-storage-grow-refused.ci` - functional tests
@@ -577,7 +591,7 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 | Functional test for new RPC/API | Yes | `test/plugin/host-storage-grow-refused.ci`, `test/appliance/storage-grow-qemu.ci` |
 | Pipe completeness | Yes | The command's answer and the `show host storage` object go through the shared renderer, so the JSON pipe applies |
 | Env var registration | N-A | No setting. The appliance is recognised by the existing `ze.gokrazy.enabled` |
-| Doctor check for runtime dependencies | Yes | `internal/component/host/doctor_storage.go`, code in `internal/core/diagnostic/codes.go`, unit and functional test |
+| Doctor check for runtime dependencies | Yes | `internal/component/doctor/checks_storage.go`, registered in `internal/component/doctor/doctor_checks.go` and reading `host.DetectPersistentStorage`; code in `internal/core/diagnostic/codes.go`, unit and functional test |
 | Doctor code per problem class | Yes | `doctor-storage-not-grown` (warning, in the phase before config: it reads the disk, not the config). The quota-absent class belongs to the image store's capability |
 | Prometheus counters/metrics | No | Sizes are inventory, read on demand; nothing changes at run time |
 | BGP family surface (new SAFI / capability / attribute) | N-A | Not BGP |
@@ -590,7 +604,7 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 | 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`: `request system storage grow`, and the new object of `show host storage` |
 | 4 | API/RPC added/changed? | Yes | `docs/architecture/api/commands.md` where it lists host commands; the command reaches every surface through the registry |
 | 5 | Plugin added/changed? | No | The host command plugin gains a command; no plugin is added |
-| 6 | Has a user guide page? | Yes | `docs/guide/appliance.md`: what the installer does to the disk, the command, the runtime kernel requirement rows; `docs/guide/health-checks.md`: the doctor code |
+| 6 | Has a user guide page? | Yes | `docs/guide/appliance.md`: what the installer does to the disk, the command, the runtime kernel requirement rows; `docs/guide/health-checks.md`: the doctor code; `docs/architecture/doctor-and-health-checks.md`: the storage check, where it is registered and why |
 | 7 | Wire format changed? | No | No protocol wire. The on-disk formats are in the appliance pages |
 | 8 | Plugin SDK/protocol changed? | No | |
 | 9 | RFC behavior implemented, changed, or newly proven? | No | |
@@ -710,6 +724,7 @@ The tests that need the kernel run in the QEMU guest on Ze's runtime kernel. The
 | Project quota type only | User and group types as well | Nothing uses them, and a changed owner in the seed step would then also need its usage recomputed |
 | Not automatic at boot (D-1, recommended) | Grow at every boot when the disk is larger | The owner ruled install. A boot path that never writes a partition table cannot damage one |
 | The docker-host lab image takes the appliance's format, from one shared definition read by two formatters (D-4) | The lab image keeps its plain format and the guest tests use only a fixture; one formatter function for both images | The lab image is the own-system guest the container tests run in, and a guest that cannot enforce a size cap refuses a container config. The two formatters stay separate because the appliance writes a seed between its two steps and works on an in-memory copy of a small partition, and the lab partition is about 63 GiB with no seed. What they share is the format, so that is what is declared once |
+| The storage doctor check is registered by the doctor component and reads the state through `host.DetectPersistentStorage` | Register it from the host component, as the first file list of this spec said; register it from the host command plugin | `internal/core/diagnostic` imports the host component for the platform type (`doctor_registry.go`, the `Platform` field of `DoctorCheckContext`), so the host component cannot import the check registry. The doctor component is the documented home of a check with no owner that can register it, and already holds the free-space check. The host command plugin can run in another process, and a config-phase check must answer in whichever process answers doctor |
 | The lab formatter always formats | Reformat only when the superblock lacks a required property | Its one caller passes a file `gok` has just written, and no packer in the tree formats partition 4, so the skip guards a case that does not occur. One path cannot keep an old format |
 
 ## Known Limitations

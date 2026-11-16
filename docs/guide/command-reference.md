@@ -906,6 +906,16 @@ ze show host kernel                # Kernel release, cmdline, microcode, arch fl
 Online (daemon) and offline (fallback) paths share the same detection library, so
 the JSON shapes are identical either way.
 
+`ze request system storage grow` is the command that grows the persistent
+storage of an appliance to the size of its disk. The daemon serves it on every
+command surface. Its work is not written yet: today it answers a refusal and
+changes no disk. On a system that does not run Linux the refusal says the
+system is not a Ze appliance.
+
+<!-- source: internal/plugins/host-cmd/yang/ze-host-request-cmd.yang -- request system storage grow -->
+<!-- source: internal/plugins/host-cmd/cmd/storage_grow_linux.go -- handleStorageGrow -->
+<!-- source: internal/plugins/host-cmd/cmd/storage_grow_other.go -- handleStorageGrow -->
+
 **Sections:**
 
 | Section | Fields (kebab-case keys) |
