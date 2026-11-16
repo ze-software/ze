@@ -1141,6 +1141,18 @@ changing the active backend to VPP cannot redirect a Linux `pppN` operation.
 <!-- source: internal/component/l2tp/subsystem.go -- Start, Stop, unwindLocked -->
 <!-- source: internal/component/l2tp/reactor_kernel.go -- handleKernelSuccess -->
 
+`SessionCounters` keeps numeric receive/transmit bytes and packets. Its receive/
+transmit error and drop fields each carry a `CounterReading`. Consumers call
+`Value` on each diagnostic.
+
+A measurement includes a valid zero. Unknown
+returns `ErrCounterUnavailable` and must be shown with that reason. Diagnostics
+default to Unknown until a provider supplies a native measurement. These fields
+alone do not establish a backend counter reader.
+<!-- source: internal/component/l2tp/ppp/session_handle.go -- SessionCounters -->
+<!-- source: internal/component/l2tp/ppp/counter_reading.go -- CounterReading.Value -->
+
+
 The reactor constructs a kernel session through its own factory binding, fixed
 before the reactor starts. Production binds `kernel.NewSession`, which consumes
 the transferred descriptors on every outcome. This boundary also lets protocol

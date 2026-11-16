@@ -16,13 +16,18 @@ type SessionIdentity struct {
 	NativeIndex   uint32
 }
 
-// SessionCounters are the data plane's raw cumulative counters. An unavailable
-// reading MUST return an error, never an empty snapshot interpreted as idle.
+// SessionCounters holds raw cumulative traffic totals and individually available
+// diagnostics. An unavailable traffic reading MUST return an error. Diagnostic
+// consumers MUST call CounterReading.Value and preserve Unknown, never guess zero.
 type SessionCounters struct {
 	RxBytes   uint64
 	TxBytes   uint64
 	RxPackets uint64
 	TxPackets uint64
+	RxErrors  CounterReading
+	TxErrors  CounterReading
+	RxDropped CounterReading
+	TxDropped CounterReading
 }
 
 // SessionHandle owns the resources lent by FrameChannel. A successful factory
