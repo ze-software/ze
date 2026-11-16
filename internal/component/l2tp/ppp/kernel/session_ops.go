@@ -9,6 +9,8 @@ import (
 	"net"
 	"os"
 	"reflect"
+
+	"github.com/ze-software/ze/internal/component/l2tp/ppp"
 )
 
 type readInterrupter interface{ InterruptRead() error }
@@ -16,6 +18,8 @@ type readInterrupter interface{ InterruptRead() error }
 type sessionOps struct {
 	wrap           func(int, string) (io.ReadWriteCloser, error)
 	closeFD        func(int) error
+	duplicateFD    func(int) (int, error)
+	stampBirth     func(ppp.SessionIdentity, string) error
 	interfaceIndex func(string) (uint32, error)
 	connect        func(int, int) error
 	disconnect     func(int) error
@@ -25,7 +29,7 @@ type sessionOps struct {
 }
 
 func productionSessionOps() sessionOps {
-	return sessionOps{wrap: newInterruptibleFDFile, closeFD: closeSessionDescriptor, interfaceIndex: sessionInterfaceIndex, connect: realConnect, disconnect: realDisconnect, setMRU: realSetMRU, setIPv4Mode: SetIPv4Mode, setIPv6Mode: SetIPv6Mode}
+	return sessionOps{wrap: newInterruptibleFDFile, closeFD: closeSessionDescriptor, duplicateFD: duplicateSessionDescriptor, stampBirth: stampSessionBirth, interfaceIndex: sessionInterfaceIndex, connect: realConnect, disconnect: realDisconnect, setMRU: realSetMRU, setIPv4Mode: SetIPv4Mode, setIPv6Mode: SetIPv6Mode}
 }
 
 func sessionInterfaceIndex(name string) (uint32, error) {

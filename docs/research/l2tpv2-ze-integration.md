@@ -1487,11 +1487,28 @@ a panic releases each distinct supplied descriptor once. Rollback attempts both
 resources even when one close fails or panics, and preserves the construction
 failure together with cleanup failures. Only successful construction publishes
 a frame channel and its owning handle.
-Final handle cleanup uses the same independent per-resource panic boundaries:
-both descriptors are attempted once, close failures and cleanup panics are
-returned together, and concurrent or repeated closes receive the retained result.
+Final handle cleanup uses independent panic boundaries for each borrowed stream.
+Both are attempted once, and close failures and cleanup panics are returned
+together. Concurrent or repeated closes retain that result after native release
+is confirmed; an unconfirmed native release seal remains retryable.
 Failed final network-resource removal is retained for `show warnings` and the
 runtime `doctor-ppp-cleanup` check; closing the handle does not prove removal.
+
+A kernel transport with remote rate operations requires a native release seal.
+The transport binds its admitted policy through `NativeReleaseHandle` before
+the first remote operation. The policy supplies one full opaque birth tag through
+`NativeBirthTag`; the owner writes it to the native interface alias and confirms
+it by reading the alias back before binding. It does not reconstruct a prefix
+or infer birth from a reused name or index. The successful binding retains that
+receipt through `NativeReleaseBirthTag`, including after release, so cleanup
+can identify only its own warning without calling the policy again.
+
+That policy must reserve a bounded, strong cleanup owner before submission.
+`Close` must wake the borrowed readers while retaining
+the native PPP unit if remote cleanup is unconfirmed. Its cleanup owner retries
+release after the same policy seals future operations and confirms earlier
+cleanup. A returned error or an unreachable Go object does not retain ownership.
+<!-- source: internal/component/l2tp/ppp/session_release.go -- NativeReleaseSeal, NativeReleaseHandle -->
 
 Kernel route programming shares that session's exclusive PPP unit lease and
 mutex. Before invoking a backend add, the handle retains the destination,

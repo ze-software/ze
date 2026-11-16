@@ -26,8 +26,13 @@ func NewSession(cfg SessionConfig) (ppp.FrameChannel, ppp.SessionHandle, error) 
 
 type session struct {
 	mu           sync.Mutex
+	closeMu      sync.Mutex
 	closed       bool
 	closeErr     error
+	releaseSeal  ppp.NativeReleaseSeal
+	birthTag     string
+	retainedUnit int
+	unitRetained bool
 	identity     ppp.SessionIdentity
 	channel      io.ReadWriteCloser
 	unit         io.ReadWriteCloser
@@ -227,20 +232,11 @@ func (s *session) InterruptRead() error {
 // Close wakes blocked readers before releasing their descriptors. The caller
 // MUST join its readers after Close; joining first can wait forever for input.
 // Safe for concurrent use with every operation and with repeated Close calls.
-// Every resource is attempted once; failures and cleanup panics are returned
-// together as an error, and every repeated Close returns that same result.
+// Borrowed streams are attempted once. A bound native release seal can retain
+// the unit while its remote operations remain unconfirmed; a later Close
+// retries that seal. Once native release completes, Close retains its result.
 func (s *session) Close() error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if s.closed {
-		return s.closeErr
-	}
-	s.closed = true
-	s.closeErr = errors.Join(
-		closeSessionStream(s.channel, s.channelFD, s.ops.closeFD),
-		closeSessionStream(s.unit, s.unitFD, s.ops.closeFD),
-	)
-	return s.closeErr
+	return s.closeWithNativeReleaseSeal()
 }
 
 func (s *session) SetMTU(mtu int) error {
