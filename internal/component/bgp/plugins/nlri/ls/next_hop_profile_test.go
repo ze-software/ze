@@ -37,6 +37,7 @@ func TestLSNextHopProfileAdmission(t *testing.T) {
 		}
 		for _, tc := range cases {
 			t.Run(fam.String()+"/"+tc.name, func(t *testing.T) {
+				t.Parallel()
 				first := netip.MustParseAddr(tc.first)
 				var second netip.Addr
 				if tc.second != "" {
@@ -67,6 +68,7 @@ func TestLSNextHopReceivePairFraming(t *testing.T) {
 			continue
 		}
 		t.Run(wireCase.name, func(t *testing.T) {
+			t.Parallel()
 			for _, negotiated := range []bool{false, true} {
 				for _, malformed := range []bool{false, true} {
 					field := append([]byte(nil), wireCase.wantNextHop...)

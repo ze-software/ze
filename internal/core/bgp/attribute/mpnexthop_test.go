@@ -9,6 +9,8 @@ import (
 	"net/netip"
 	"slices"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 // TestMPNextHopProfileRegistration refuses conflicting and inconsistent
@@ -301,9 +303,7 @@ func TestMPNextHopUnknownIPv6ProfileNativeIPv4(t *testing.T) {
 					t.Fatalf("next hops=%v, want native 192.0.2.1", hops.Slice())
 				}
 			} else {
-				if err != ErrInvalidNextHopLen {
-					t.Fatalf("error=%v, want %v", err, ErrInvalidNextHopLen)
-				}
+				require.Same(t, ErrInvalidNextHopLen, err)
 				if hops.Len() != 0 {
 					t.Fatalf("refused field retained next hops: %v", hops.Slice())
 				}
