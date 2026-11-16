@@ -87,6 +87,11 @@ and explicit route-server and reflector roles on today's default.
 
 ### Selected-route investigation, 2026-11-15
 
+Superseded in part. This dated record keeps its evidence. Where it speaks of
+deriving default loading, bindings or feeds, the owner decisions of 2026-11-16
+replace it: nothing is derived, `bgp-rib` is attached explicitly, and a
+learned route needs the recipient's export policy.
+
 This investigation adds learned-BGP defect probes only. The spec remains a
 skeleton; neither the advertiser design nor API/redistribution arbitration is
 approved by these tests. The main-thread run below reproduces the missing
@@ -259,6 +264,11 @@ replay and kernel forwarding remain unproven.
 
 ### Current research, 2026-11-16
 
+Superseded in part, by the owner decisions made later the same day. The source
+facts in its table stand. Its consequences that call for a plugin-owned
+default delivery declaration, default grants or derived feeds do not: see
+"Explicit grants and role changes".
+
 The main-thread baseline in
 `tmp/session/2026-11-14-210034/scratch/job-unit-pkg-3734c8a8.log` ran all seven
 existing probes in 37.813 seconds. All seven failed at their first required
@@ -360,7 +370,7 @@ not approval of either transfer approach.
   → Constraint: the engine holds no policy and no Loc-RIB (`ai/doors/bgp-engine.md`, "Where it sits"); a design that moves best path into the reactor departs from that page and needs a discussion with Thomas first
 - [ ] `docs/architecture/core-design.md` - "Forwarding Path", "BGP RIB Best-Path Tracking", "The Two Deliveries a Redistribution Rule Derives"
   → Constraint: three forwarding paths exist today (the reactor RS fast path, the text `cached` path, the typed `ForwardCached` path), and the last two end in the shared `ForwardUpdate` core
-  → Constraint: autoload and peer grants are separate. Ordinary receipt and send permissions must be derived through a registered declaration, including aliases, rather than requiring a route-server attachment
+  → Constraint: autoload and peer grants are separate. By owner decision no grant is derived for transit: the operator attaches `bgp-rib` explicitly, and a missing or partial grant is refused at commit ("Explicit grants and role changes"). No route-server attachment is needed
 - [ ] `docs/architecture/rib/forward-handle.md` - optional state-tracker bytes; re-election can carry no handle, and RS/RR never use it
   → Constraint: selected advertisement uses one retained route revision, never `ForwardHandle` bytes that may include losing sibling routes
 - [ ] `docs/guide/route-reflection.md` - "Forwarding and Destination Election", "Plugin Bindings", "Without Route Reflection"
@@ -500,7 +510,8 @@ its learned routes and keep its local ones.
 | Disposition input | The absent-export disposition takes a second input beside the session type: the route's export kind, learned-by-ordinary-output or not. External rejects both kinds (RFC 8212 Section 3). Internal rejects the first and accepts the second. Import keeps its one input. A configured policy's final applies to every kind, as today | `UnconfiguredAccepts`, kept as the one statement; no second evaluator |
 | Where the kind comes from | The engine derives it and no caller asserts it. The selected envelope already separates a learned-source receipt from a local-origin receipt, and the destination's effective dissemination owner (Q-2) says whether an explicit role serves it. A route is the first kind only when it carries a learned-source receipt and ordinary selected output owns the destination. The existing originated, RS and RR rails are the second kind by construction | Authenticated selected operation, `fwdItem` ownership (`originated`, received peer), Q-2 role resolution |
 | Per-route readers | The forward rail, the injected rail, the chain end and the final writer ask with the kind of the route in hand. The chain end reads it from the view, which the engine fills. The final writer's recheck judges each owned item by its kind, so a body mixing kinds is never refused or passed as one | `runEgressPolicyChainASN4`, `policychain` `endFinal`, `writeUpdateBody` |
-| Per-session readers | A reader with no route in hand reports both answers where they differ: the status surface shows an internal direction with no policy as "learned routes withheld, local routes sent", and the dry run takes the kind as an input | `policyInfo`, `policy_dryrun.go` |
+| Status surface | `plugin.PolicyInfo` (`internal/component/plugin/types_bgp.go`) answers one final per direction and is empty for an absent policy on a known internal session. For an absent export policy on an internal destination that ordinary output owns, it reports the final for learned routes as reject, with a final source of its own that names the owner's export rule and is never `rfc8212`, and states that local routes are sent. A role-served destination, the import direction and an external session report as today | `reactor_api.go` `policyInfo`, `absentPolicyInfo`; the JSON keys stay kebab-case and every reader of the value is listed in the changed-wire census before the design gate |
+| Dry run | `plugin.PolicyDryRunner.PolicyDryRun` takes a peer, a direction, a filter override and an UPDATE, and no route kind. It gains a simulated kind for the export direction, `learned` or `local`. The kind is display only: it selects which answer the dry run reports and authorizes nothing, since a real route's kind is still derived by the engine. Omitted, it is `learned`, the stricter answer, and the result states which kind it simulated. An unknown value is refused with the two valid ones. Given with the import direction it is refused, since import has one answer. For a role-served destination the result says the role's default applies whatever the kind | `policy_dryrun.go`; the `show policy test` handler in `internal/component/bgp/plugins/cmd/policy/handler.go`, which gains the argument as a keyword its YANG declares; `plugin.PolicyDryRunResult` gains the simulated kind |
 | Reload: policy removed on an internal session | Retire the entries whose recorded owner is a learned route under ordinary output, and only those, after the same writer barrier. Local origins and role-owned entries are not withdrawn and not re-sent | `reconcileExportFinal`; the Adj-RIB-Out entry already records its owner, so retirement selects by that record and never re-derives a kind |
 | Reload: policy configured on an internal session | Restore learned routes from the current selected snapshot through the selected stream, under the existing policy-replay hold. No Adj-RIB-In candidate replay, which could install a loser | Policy-replay hold in `reconcileExportFinal`; the selected snapshot of Q-9 |
 | Rollback and late work | An aborted apply restores the previous disposition and its output through the same two paths. Work queued under the accepting disposition and released after the removal is refused at the final writer, which reads the current disposition for that item's kind | Existing final-writer recheck and apply/abort barriers |
@@ -780,14 +791,31 @@ declaration and refuses a commit that grants less.
 What asks for transit toward a peer is that peer's `attach process` block
 granting the deciding plugin `send`. An export policy alone does not ask for
 it: a peer that only receives API announcements has one too, and attaches no
-RIB. So the refusal judges the blocks the operator wrote for the deciding
-plugin, and infers nothing from a policy. A block that grants it `send` on a
-peer while no peer grants it the receive types election needs, or a block
-that grants only part of what its direction needs (the owner's example,
-`receive [ state ]` alone), is refused at validate, commit and start, with the
-line that completes it (AC-25). A peer that grants the plugin `send` and has
-no export policy is a legal config that withholds learned routes, and it gets
-the absent-policy report of AC-21, not a refusal.
+RIB. A capability that is on by default does not ask for it either: AIGP is
+enabled on every internal session by RFC 7311 Section 3.3
+(`internal/component/bgp/reactor/config_aigp.go` `AIGPEnabled`), and that
+default is no operator request for a RIB. So the refusal judges the blocks
+the operator wrote for the deciding plugin, and infers nothing from a policy
+or a default.
+
+The plugin declares two grant sets, taken from what it subscribes to
+(`internal/component/bgp/plugins/rib/rib.go`: sent updates, received updates,
+`state` and `refresh`):
+
+| Role of the peer | Grants its block needs | Why |
+|------------------|------------------------|-----|
+| Source: its routes are elected over | `receive` of received updates and `state` | candidates, and the session's end, which retires them |
+| Destination: it is sent the elected routes | `send [ update ]`, and `receive` of `state`, `refresh` and sent updates | `send` alone delivers no lifecycle event: session up starts the selected snapshot and the readiness report, session down retires the destination's output, a route refresh is answered from the selected set, and sent updates feed the sent-history projection |
+
+A block that grants only part of a set (the owner's example, `receive [ state ]`
+alone, or `send [ update ]` alone), or a destination block while no peer is a
+complete source, is refused at validate, commit and start, with the line that
+completes it (AC-25). The sets are judged per configured process: grants given
+to two processes that run the same plugin under different names do not
+complete each other, because each is its own instance with its own table. A
+peer that is a complete destination and has no export policy is a legal
+config that withholds learned routes, and it gets the absent-policy report of
+AC-21, not a refusal.
 
 The effective destination role is derived from the complete declared set and
 the existing delivery graph, not whether an RS process happens to autoload.
@@ -1084,7 +1112,8 @@ resource-bound criteria below form one unapproved design for whole review.
 | AC-22 | The AC-20 config plus two role destinations, neither with an export policy: D is an internal reflector client served by an attached `bgp-rr`, E is an external route-server client served by an attached `bgp-rs`. A announces a prefix | D receives the reflected route with its RFC 4456 attributes. E receives nothing, because RFC 8212 Section 3 binds every route on an external session. `ze config validate`, the log and `ze doctor` raise the internal absence for C and not for D, and the RFC 8212 absence for E | D's reflected route survives: an attached role is the explicit decision. C stays without the route, so the exemption is tied to the role and is not unconditional |
 | AC-23 | B is internal with an accepting export policy and holds a learned route and an API announcement. Its export policy is removed, restored, removed in an apply that is then rolled back, and a learned-route write queued before a removal is released after it | Removal withdraws the learned route only. Restoration sends the current selected winner once. The rolled-back removal leaves B holding both routes. The late write installs nothing | The API announcement is never withdrawn and never re-sent across the four steps; other recipients are untouched |
 | AC-24 | A process attached to no peer, and one attached to peer A with `receive [ update ]` only, beside the default transit config | The first receives no route event and every send it attempts is refused. The second receives A's routes and nothing from other peers. Neither changes when ordinary transit starts passing routes | `bgp-rib` is fed by the same rule: only the peers that attach it |
-| AC-25 | B's block grants `bgp-rib` `send [ update ]`; A's block for it grants `receive [ state ]` only, and no other peer grants it routes. Then A's block is completed. Separately, a config where B has an accepting export policy and attaches no `bgp-rib` at all | The first config is refused at validate, commit and start, naming A, the process under its alias, the missing receive types and the completed `attach process` line. Completed, it loads and B receives the elected route. The second config loads and B receives its API announcements | No grant is derived or widened at any step. The second config survives because an export policy alone asks for no transit |
+| AC-25 | Three refused configs, each then completed: A's block for `bgp-rib` grants `receive [ state ]` only while B is a complete destination; B's block grants `send [ update ]` only while A is a complete source; A's source grants name process `rib-one` and B's destination grants name process `rib-two`, both running `bgp-rib` | Each is refused at validate, commit and start, naming the peer, the process under its configured name, the missing grants and the completed `attach process` line. Completed on one process, each loads: B receives the elected route, receives the selected snapshot when its session comes up, and has its route refreshed on request | No grant is derived or widened at any step |
+| AC-26 | Internal peers A and B with AIGP left at its RFC 7311 default (enabled), accepting export policies, an API process attached with `send [ update ]`, and no `bgp-rib` attached to any peer | The config loads at validate, commit and start. A and B receive the API announcements, and neither receives a route learned from the other | The config survives because neither an export policy nor a default-on capability asks for a RIB. The same config with `bgp-rib` attached as a partial set is refused under AC-25 |
 
 ## End-to-End User Stories
 
@@ -1199,7 +1228,7 @@ approval.
 | Missing-grant report and role declarations (no binding is derived; `redistribute_binding.go` is read as the precedent for alias resolution and is not extended) | `internal/component/plugin/registry/registry.go`, declaration transport in `pkg/plugin/rpc/types.go`, `internal/component/bgp/config/redistribute_binding.go`, RIB/RS/RR `register.go` and their SDK declarations | Extend registration and existing claims, not a plugin-name switch; aliases, explicit grants, destination scope and reload transfer |
 | Export default by route kind | `internal/component/bgp/filterapi/policy.go`; `internal/component/bgp/policychain/chain.go`; in `internal/component/bgp/reactor`: `filter_ordered.go`, `egress_inject_filter.go`, `forward_rs.go`, `peer_session_factory.go`, `session_write.go`, `peer_initial_sync.go` | One absent-policy statement over session type and route kind; the kind derived by the engine and read per route by both egress rails, the chain end and the final writer |
 | Selective export reload | In `internal/component/bgp/reactor`: `policy_reload.go`, `peer_settings_apply.go`, `reactor_api_advertised.go` | Retire learned entries only on removal, restore from the selected snapshot, rollback and late-write refusal |
-| Absent-policy diagnostics | `internal/component/bgp/reactor/rfc8212_warning.go`, `policy_dryrun.go` and `reactor_api.go` in the same package, `internal/component/bgp/config/register.go`, and the doctor check declared beside the absence value | Internal export absence that respects the role exemption, on validate, the Established log line, the status surface, the dry run and `ze doctor` |
+| Absent-policy diagnostics | `internal/component/bgp/reactor/rfc8212_warning.go`, `policy_dryrun.go` and `reactor_api.go` in the same package, `internal/component/plugin/types_bgp.go`, `internal/component/bgp/plugins/cmd/policy/handler.go` and its YANG, `internal/component/bgp/config/register.go`, and the doctor check declared beside the absence value | Internal export absence that respects the role exemption, on validate, the Established log line, the status surface, the dry run and `ze doctor` |
 | Proof and user surfaces | Existing seven reactor probes, `test/plugin/bgp-best-route-needs-export-policy.ci`, `test/plugin/bgp-best-route-transit-default.ci`, proposed forked/replay/ownership regressions, FRR/BIRD scenarios and the docs listed above | Useful wire output, surviving unrelated routes, Linux entry-point proof and preserved RS/RR role behavior |
 
 `internal/component/bgp/plugins/rib/rib_next_hop.go` belongs to concurrent
@@ -1267,7 +1296,7 @@ the design gate, including unchanged callers and non-Go clients.
 1. **Phase: Wiring (MANDATORY FIRST)** -- the functional test above, red at HEAD
 2. **Proposed phase: contracts and authority** -- selected envelope, captured source facts/retention receipt, public runtime fence declaration, existing writer admission and completion, selected-only recovery. Preserve legacy relay callers unchanged.
 3. **Proposed phase: RIB dissemination** -- retained capture/revision, per-destination bounded dispatch, snapshot/deltas, policy/retention/stop barriers; include scoped origin admission and configured-preference arbitration described above.
-4. **Proposed phase: default role wiring** -- plugin-owned feed declarations, aliases/explicit precedence, destination claim resolution, conflict verification and session-restart ownership transfer.
+4. **Proposed phase: explicit grants and role wiring** -- the plugin's declared source and destination grant sets, their refusal at commit through the dependency spec's check, destination claim resolution, conflict verification and session-restart ownership transfer. No binding is derived.
 5. **Proposed phase: integration and migration** -- production-wired seven probes plus retained-source, external, isolation and native identity regressions; judge fixture proof changes independently; migrate transit users and run configured-role/interop coverage. Main runs all tests and gates. None of these phases starts before whole-design approval.
 
 ### Critical Review Checklist

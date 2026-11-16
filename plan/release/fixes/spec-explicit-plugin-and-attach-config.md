@@ -37,6 +37,22 @@ feature needs, `ze config validate`, the editor's commit and the daemon's start
 refuse it with one message that names the feature, the peer or plugin, and the
 exact line to add.
 
+What asks for a feature is what the operator wrote, and only that. A
+capability that is on by default asks for nothing. AIGP is the case that
+matters: RFC 7311 Section 3.3 enables it on every internal session
+(`internal/component/bgp/reactor/config_aigp.go` `AIGPEnabled`), so today any
+config with one internal peer derives the Loc-RIB's binding on every peer and
+is then judged by the AIGP completeness check. Under D-2 that would refuse
+every internal peer that attaches no RIB, including a peer that only receives
+API announcements. So a default is never a trigger:
+
+| The config holds | Is a RIB grant needed on that peer? |
+|------------------|-------------------------------------|
+| AIGP at its default, and no `bgp-rib` block on the peer | No. AIGP selection has no RIB to act in, and the config loads |
+| AIGP set explicitly on the peer, and no `bgp-rib` block | Yes: the operator asked for AIGP selection, and the commit is refused with the line |
+| A `bgp-rib` block on the peer that grants less than the plugin's declared set, whatever AIGP is | Yes: a partial block is refused with the line that completes it |
+| A FlowSpec family the operator configured on the peer | Yes: the family is written by the operator, and RFC 8955 Section 6 authorization needs the RIB |
+
 This spec is a skeleton. It records the decisions, the behaviour read at the
 producing code, and the questions the design must answer. No design is
 proposed yet.
@@ -147,6 +163,8 @@ proposed yet.
 |----|------|--------------|----------------------|
 | R-1 | Every config and test that relies on a derived binding or an auto-loaded plugin stops loading | a wave of refusals across `test/` | Convert each in the same work, with a generator that prints the missing lines for a config; D-1 names tooling as the help |
 | R-2 | The refusal holds at commit and not at `ze config validate`, or the reverse | `test/plugin/config-validate-agrees-with-boot.ci` red | Put the check where all three doors run it |
+| R-4 | A default-on capability is read as a request, and every internal peer without a RIB is refused | API-only configs with internal peers stop loading | A default is never a trigger (Task table); AC-7 is the positive case |
+| R-5 | A migrated ExaBGP config that carries a FlowSpec family is refused, since ExaBGP has no RIB to attach | `./le test functional exabgp` reds on FlowSpec cases | `ze exabgp migrate` writes the `bgp-rib` blocks the family needs, in the same work; ExaBGP compatibility lives in the migration (`ai/META-DECISIONS.md`) |
 | R-3 | A config gets stuck: the running daemon holds a config the new rule refuses | a reload after upgrade refuses | No release has shipped, so the repository's configs are converted directly and no migration path is written |
 
 ## Blast Radius
@@ -170,7 +188,8 @@ proposed yet.
 | AC-1 | A redistribution rule importing from BGP; one peer has no `attach process` block for `bgp-rib` | Validate, commit and start each refuse with a message naming the rule, the peer, the process under its alias, and the `attach process` line that grants what is needed. With the line added, the config loads and the peer's routes are redistributed | A config with no such rule needs no block and loads |
 | AC-2 | The same rule; the peer's block grants `receive [ state ]` only | The same refusal, naming the missing types. With them added, the config loads and redistributes | The block is never widened: the operator's `state`-only block stays as written until the operator changes it |
 | AC-3 | A redistribution rule with BGP as destination; a peer's block for the orchestrator lacks `send [ update ]`, or is missing | Refused with the line; with it added, a redistributed route reaches that peer | Peers the rule does not feed need nothing |
-| AC-4 | A FlowSpec family, or AIGP, with a missing or narrow `bgp-rib` block | Refused in the same message shape as AC-1, where today a missing block is derived | The existing refusal of a narrow block keeps refusing |
+| AC-4 | A FlowSpec family the operator configured, or AIGP the operator set explicitly, on a peer whose `bgp-rib` block is missing or narrow | Refused in the same message shape as AC-1, where today a missing block is derived. With the line added, the config loads and the feature works on that peer | The existing refusal of a narrow block keeps refusing |
+| AC-7 | Internal peers with AIGP left at its RFC 7311 default, an API process attached with `send [ update ]`, and no `bgp-rib` block on any peer | The config loads at validate, commit and start, and the peers receive the API announcements | The config survives because a default-on capability asks for nothing. Setting AIGP explicitly on a peer, or adding a partial `bgp-rib` block, moves that peer to AC-4 |
 | AC-5 | A config that needs a plugin its `plugin { }` block does not declare, within the Q-1 boundary | Refused with the `plugin { }` entry to add; with it added, the plugin runs | A plugin loaded by its own config root, if Q-1 keeps that |
 | AC-6 | An interactive editor session commits the AC-1 config and is refused | The refusal lists the missing lines and offers to add them. Accepting adds exactly those lines to the candidate, shows them as the pending change, and commits nothing: the operator's next commit applies them and succeeds. Declining leaves the candidate untouched | A fix that holds a placeholder is printed and never offered, since Ze cannot know the value. `ze config validate`, the daemon's start, and the API surfaces print the same lines, in a form a program can read, and change no configuration |
 
