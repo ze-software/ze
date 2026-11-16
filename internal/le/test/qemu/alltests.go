@@ -393,6 +393,11 @@ var integrationPackages = []string{
 	// format, attached through a loop device (ext4fixture.DirEnv).
 	"./internal/core/ext4fs",
 	"./internal/core/projquota",
+	// Added 2026-11-16 with grow_integration_linux_test.go, which grows
+	// partition 4 of a loop disk while its ext4 is mounted (the reread
+	// refused, BLKPG_RESIZE_PARTITION taken, the filesystem resized into it)
+	// and reads the kernel's partition after every stop of the table rewrite.
+	"./internal/core/gptdisk",
 }
 
 // excludedIntegrationPackages names a package that holds integration tests and

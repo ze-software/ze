@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
+	"github.com/ze-software/ze/internal/test/gptfixture"
 )
 
 // fakeLoopbackMount models what a real `mount -o loop,ro` makes VISIBLE, not just
@@ -354,16 +355,7 @@ func TestInjectZeFSUsesRunExternalFn(t *testing.T) {
 
 	// Image must be large enough for extractPartition (Go ReadAt) to succeed.
 	// Partition at LBA 8..15 → offset 4096, size 4096 → image >= 8192 bytes.
-	img := make([]byte, 8192)
-	for i := range 16 {
-		img[1024+i] = 0xAA
-	}
-	img[1024+32] = 0x08 // Start LBA = 8
-	img[1024+40] = 0x0F // End LBA = 15
-
-	if err := os.WriteFile(imgPath, img, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeInjectTestImage(t, imgPath)
 
 	dbContent := []byte("test-database-zefs-content")
 	dbPath := filepath.Join(imgDir, "database.zefs")
@@ -448,16 +440,7 @@ func TestInjectZeFSFailsWhenWriteSilentlyDropped(t *testing.T) {
 	imgDir := t.TempDir()
 	imgPath := filepath.Join(imgDir, "test.img")
 
-	img := make([]byte, 8192)
-	for i := range 16 {
-		img[1024+i] = 0xAA
-	}
-	img[1024+32] = 0x08
-	img[1024+40] = 0x0F
-
-	if err := os.WriteFile(imgPath, img, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeInjectTestImage(t, imgPath)
 	dbPath := filepath.Join(imgDir, "database.zefs")
 	if err := os.WriteFile(dbPath, []byte("unique-zefs-content"), 0o644); err != nil {
 		t.Fatal(err)
@@ -493,16 +476,7 @@ func TestInjectZeFSMkfsArgsPinned(t *testing.T) {
 	imgDir := t.TempDir()
 	imgPath := filepath.Join(imgDir, "test.img")
 
-	img := make([]byte, 8192)
-	for i := range 16 {
-		img[1024+i] = 0xAA
-	}
-	img[1024+32] = 0x08
-	img[1024+40] = 0x0F
-
-	if err := os.WriteFile(imgPath, img, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeInjectTestImage(t, imgPath)
 	dbContent := []byte("mkfs-test-db")
 	dbPath := filepath.Join(imgDir, "database.zefs")
 	if err := os.WriteFile(dbPath, dbContent, 0o644); err != nil {
@@ -563,27 +537,39 @@ func TestInjectZeFSMkfsArgsPinned(t *testing.T) {
 	}
 }
 
+// writeInjectTestImage writes a small image with a valid GPT whose only
+// partition is sectors 8 to 15: offset 4096, size 4096, so the formatter is
+// asked for one 4096-byte block. The entry array is four entries in sector 2,
+// and the backup copy sits in sectors 18 and 19.
+func writeInjectTestImage(t *testing.T, imgPath string) {
+	t.Helper()
+	layout := gptfixture.Layout{DiskSectors: 20, EntryCount: 4, FirstUsable: 3, Partitions: []gptfixture.Partition{
+		{Type: gptfixture.TypeLinuxFilesystem, First: 8, Last: 15},
+	}}
+	if err := os.WriteFile(imgPath, layout.Image(), 0o644); err != nil {
+		t.Fatal(err)
+	}
+}
+
 func TestFindLastPartitionRejectsCorruptGPT(t *testing.T) {
 	imgDir := t.TempDir()
 	imgPath := filepath.Join(imgDir, "bad.img")
 
-	img := make([]byte, 4096)
-	for i := range 16 {
-		img[1024+i] = 0xAA // non-zero partition type GUID
-	}
-	// startLBA = 4096 (0x1000)
-	img[1024+32] = 0x00
-	img[1024+33] = 0x10
-	// endLBA = 2048 (0x0800), deliberately < startLBA
-	img[1024+40] = 0x00
-	img[1024+41] = 0x08
-
-	if err := os.WriteFile(imgPath, img, 0o644); err != nil {
+	// A table that is valid in every other way, checksums included, whose
+	// last partition ends at sector 2048, before it starts at sector 4096.
+	layout := gptfixture.Layout{DiskSectors: 8192, EntryCount: 4, FirstUsable: 3, Partitions: []gptfixture.Partition{
+		{Type: gptfixture.TypeLinuxFilesystem, First: 4096, Last: 2048},
+	}}
+	if err := os.WriteFile(imgPath, layout.Image(), 0o644); err != nil {
 		t.Fatal(err)
 	}
 
-	if _, _, err := findLastPartition(imgPath); err == nil {
+	_, _, err := findLastPartition(imgPath)
+	if err == nil {
 		t.Fatal("findLastPartition accepted a GPT with endLBA < startLBA; expected error")
+	}
+	if !strings.Contains(err.Error(), "ends at sector 2048, before it starts at sector 4096") {
+		t.Fatalf("findLastPartition refused for another reason than the reversed entry: %v", err)
 	}
 }
 
@@ -604,15 +590,7 @@ func TestInjectZeFSBakesManifest(t *testing.T) {
 	imgDir := t.TempDir()
 	imgPath := filepath.Join(imgDir, "test.img")
 
-	img := make([]byte, 8192)
-	for i := range 16 {
-		img[1024+i] = 0xAA
-	}
-	img[1024+32] = 0x08
-	img[1024+40] = 0x0F
-	if err := os.WriteFile(imgPath, img, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeInjectTestImage(t, imgPath)
 
 	dbContent := []byte("bake-test-db")
 	dbPath := filepath.Join(imgDir, "database.zefs")
@@ -683,15 +661,7 @@ func TestInjectZeFSNoManifest(t *testing.T) {
 	imgDir := t.TempDir()
 	imgPath := filepath.Join(imgDir, "test.img")
 
-	img := make([]byte, 8192)
-	for i := range 16 {
-		img[1024+i] = 0xAA
-	}
-	img[1024+32] = 0x08
-	img[1024+40] = 0x0F
-	if err := os.WriteFile(imgPath, img, 0o644); err != nil {
-		t.Fatal(err)
-	}
+	writeInjectTestImage(t, imgPath)
 
 	dbContent := []byte("no-manifest-db")
 	dbPath := filepath.Join(imgDir, "database.zefs")

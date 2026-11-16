@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"compress/gzip"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"io"
@@ -21,6 +20,7 @@ import (
 	"time"
 
 	zeenv "github.com/ze-software/ze/internal/core/env"
+	"github.com/ze-software/ze/internal/test/gptfixture"
 )
 
 func installTestEnv(t *testing.T, values map[string]string) {
@@ -414,32 +414,47 @@ func TestInstallGPTLayoutUsesCompleteEntries(t *testing.T) {
 		t.Fatal(err)
 	}
 	writeGPTFixture(t, installed, 1)
-	if err := assertInstallGPT(source, installed); err == nil {
-		t.Fatal("changed GPT entry was accepted")
+	if err := assertInstallGPT(source, installed); err == nil || !strings.Contains(err.Error(), "GPT entry 0 does not match source image") {
+		t.Fatalf("changed GPT entry 1 = %v, want the entry mismatch", err)
 	}
+	// A disk with a valid MBR whose primary header is gone: the GPT is missing.
 	bad := filepath.Join(root, "bad.img")
-	if err := os.WriteFile(bad, make([]byte, 4096), 0o600); err != nil {
+	writeGPTFixture(t, bad, 0)
+	file, err := os.OpenFile(bad, os.O_WRONLY, 0)
+	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := installGPTEntries(bad); err == nil {
-		t.Fatal("missing GPT was accepted")
+	if _, err := file.WriteAt(make([]byte, 512), 512); err != nil {
+		t.Fatal(err)
+	}
+	if err := file.Close(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := installGPTEntries(bad); err == nil || !strings.Contains(err.Error(), "sector 1 has no GPT header signature") {
+		t.Fatalf("missing GPT header = %v, want the missing-header refusal", err)
+	}
+	blank := filepath.Join(root, "blank.img")
+	if err := os.WriteFile(blank, make([]byte, 4096), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := installGPTEntries(blank); err == nil || !strings.Contains(err.Error(), "sector 0 has no MBR signature") {
+		t.Fatalf("blank disk = %v, want the missing-MBR refusal", err)
 	}
 }
 
+// writeGPTFixture writes a valid GPT of four partitions of 100 sectors from
+// sector 2048, each partition's first sector moved by delta.
 func writeGPTFixture(t *testing.T, path string, delta uint64) {
 	t.Helper()
-	data := make([]byte, 34*512)
-	copy(data[512:], "EFI PART")
-	binary.LittleEndian.PutUint64(data[512+72:], 2)
-	binary.LittleEndian.PutUint32(data[512+80:], 4)
-	binary.LittleEndian.PutUint32(data[512+84:], 128)
+	layout := gptfixture.Layout{EntryCount: 128, FirstUsable: 34, DiskSectors: 2048 + 4*100 + 34}
 	for index := range 4 {
-		off := 1024 + index*128
-		data[off] = byte(index + 1)
-		binary.LittleEndian.PutUint64(data[off+32:], uint64(2048+index*100)+delta)
-		binary.LittleEndian.PutUint64(data[off+40:], uint64(2147+index*100))
+		var kind [16]byte
+		kind[0] = byte(index + 1)
+		layout.Partitions = append(layout.Partitions, gptfixture.Partition{
+			Type: kind, First: uint64(2048+index*100) + delta, Last: uint64(2147 + index*100),
+		})
 	}
-	if err := os.WriteFile(path, data, 0o600); err != nil {
+	if err := os.WriteFile(path, layout.Image(), 0o600); err != nil {
 		t.Fatal(err)
 	}
 }

@@ -30,6 +30,10 @@ func pushDiskFixture(payload string) (disk, root, boot []byte) {
 		disk[i] = 0xa5
 	}
 	copy(disk[440:446], "diskid")
+	// The packer's hybrid MBR carries a protective 0xEE record from sector
+	// 1; without it the kernel, and the shared parse, read no GPT.
+	disk[462+4] = 0xee
+	binary.LittleEndian.PutUint32(disk[462+8:], 1)
 	disk[510], disk[511] = 0x55, 0xaa
 	header := disk[512:1024]
 	copy(header, "EFI PART")
@@ -188,15 +192,16 @@ func TestPushStreamsPartitions(t *testing.T) {
 func TestPushRejectsMalformedImageBeforeNetwork(t *testing.T) {
 	valid, _, _ := pushDiskFixture("valid")
 	for _, test := range []struct {
-		name string
-		data []byte
+		name   string
+		data   []byte
+		reason string
 	}{
-		{name: "not-a-disk", data: []byte("fake-disk-image-content")},
-		{name: "truncated", data: bytes.Clone(valid[:45*512])},
-		{name: "bad-header-crc", data: func() []byte { b := bytes.Clone(valid); b[512+16] ^= 1; return b }()},
-		{name: "bad-entry-crc", data: func() []byte { b := bytes.Clone(valid); b[1024+32] ^= 1; return b }()},
-		{name: "not-squashfs", data: func() []byte { b := bytes.Clone(valid); b[42*512] = 0; return b }()},
-		{name: "not-fat", data: func() []byte { b := bytes.Clone(valid); b[34*512+510] = 0; return b }()},
+		{name: "not-a-disk", data: []byte("fake-disk-image-content"), reason: "not a whole number of 512-byte sectors"},
+		{name: "truncated", data: bytes.Clone(valid[:45*512]), reason: "larger than this disk"},
+		{name: "bad-header-crc", data: func() []byte { b := bytes.Clone(valid); b[512+16] ^= 1; return b }(), reason: "header checksum does not match"},
+		{name: "bad-entry-crc", data: func() []byte { b := bytes.Clone(valid); b[1024+32] ^= 1; return b }(), reason: "entry array checksum does not match"},
+		{name: "not-squashfs", data: func() []byte { b := bytes.Clone(valid); b[42*512] = 0; return b }(), reason: "root partition is not SquashFS"},
+		{name: "not-fat", data: func() []byte { b := bytes.Clone(valid); b[34*512+510] = 0; return b }(), reason: "boot partition has no FAT signature"},
 	} {
 		t.Run(test.name, func(t *testing.T) {
 			requests := 0
@@ -210,8 +215,11 @@ func TestPushRejectsMalformedImageBeforeNetwork(t *testing.T) {
 				t.Fatal(pushTestTransportError)
 			}
 			config := transport.TLSClientConfig.Clone()
-			if err := doPushUpdater(server.URL+"/", writePushFixture(t, test.data), "secret", config, pushOpts{}); err == nil {
+			err := doPushUpdater(server.URL+"/", writePushFixture(t, test.data), "secret", config, pushOpts{})
+			if err == nil {
 				t.Error("malformed image accepted")
+			} else if !strings.Contains(err.Error(), test.reason) {
+				t.Errorf("malformed image refused for another reason: %v, want %q", err, test.reason)
 			}
 			if requests != 0 {
 				t.Errorf("malformed image contacted device %d times", requests)

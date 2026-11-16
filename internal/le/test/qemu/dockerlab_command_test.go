@@ -5,7 +5,6 @@ package testqemu
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -14,6 +13,7 @@ import (
 	"time"
 
 	"github.com/ze-software/ze/internal/appliance/dockerhost"
+	"github.com/ze-software/ze/internal/test/gptfixture"
 	"github.com/ze-software/ze/internal/thirdparty/fat"
 )
 
@@ -264,19 +264,27 @@ func dockerLabImageFixture(t *testing.T, kernel, cmdline string) string {
 	if err := writer.Flush(); err != nil {
 		t.Fatal(err)
 	}
+	// A valid GPT whose partition 1 is the FAT's size, from sector 2048, and
+	// three partitions of 100 sectors after it.
 	image := filepath.Join(t.TempDir(), "docker-host.img")
-	writeGPTFixture(t, image, 0)
+	layout := gptfixture.Layout{EntryCount: 128, FirstUsable: 34}
+	next := uint64(2048)
+	for index, sectors := range []uint64{uint64((partition.Len() + 511) / 512), 100, 100, 100} {
+		var kind [16]byte
+		kind[0] = byte(index + 1)
+		layout.Partitions = append(layout.Partitions, gptfixture.Partition{Type: kind, First: next, Last: next + sectors - 1})
+		next += sectors
+	}
+	layout.DiskSectors = next + 32 + 1
+	if err := os.WriteFile(image, layout.Image(), 0o600); err != nil {
+		t.Fatal(err)
+	}
 	file, err := os.OpenFile(image, os.O_RDWR, 0o600)
 	if err != nil {
 		t.Fatal(err)
 	}
 	defer file.Close() //nolint:errcheck // test fixture
 	if _, err := file.WriteAt(partition.Bytes(), 2048*512); err != nil {
-		t.Fatal(err)
-	}
-	var last [8]byte
-	binary.LittleEndian.PutUint64(last[:], 2048+uint64((partition.Len()+511)/512)-1)
-	if _, err := file.WriteAt(last[:], 1024+40); err != nil {
 		t.Fatal(err)
 	}
 	return image

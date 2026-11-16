@@ -4,7 +4,6 @@ package appliance
 
 import (
 	"context"
-	"encoding/binary"
 	"errors"
 	"flag"
 	"fmt"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/ze-software/ze/internal/appliance/instance"
 	"github.com/ze-software/ze/internal/core/crashlog"
+	"github.com/ze-software/ze/internal/core/gptdisk"
 	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
@@ -29,10 +29,9 @@ func init() {
 }
 
 const (
-	gptEntryLBA   = 2
-	gptSectorSize = 512
-	gptEntrySize  = 128
-	gptMaxEntries = 128
+	// gptSectorSize is the sector the boot partition's FAT header is checked
+	// against before a push (readPushBoot): the table's sector.
+	gptSectorSize = gptdisk.SectorBytes
 	buildTimeout  = 10 * time.Minute
 )
 
@@ -666,54 +665,38 @@ func InjectDatabase(
 	return nil
 }
 
+// findLastPartition answers the offset and size of the partition that starts
+// highest on the image, the persistent partition, read through the shared
+// parse that the installer and the device read the table with. A table the
+// parse refuses (a checksum, a reversed or overlapping entry, an entry past
+// the disk) stops the build.
 func findLastPartition(imgPath string) (offsetBytes, sizeBytes int64, err error) {
 	f, err := os.Open(imgPath) //nolint:gosec // user-controlled image path
 	if err != nil {
 		return 0, 0, fmt.Errorf("open image: %w", err)
 	}
 	defer f.Close() //nolint:errcheck // read-only
-
-	buf := make([]byte, gptEntrySize)
-	var lastStart, lastEnd uint64
-
-	for i := range gptMaxEntries {
-		off := int64(gptEntryLBA*gptSectorSize) + int64(i)*gptEntrySize
-		n, readErr := f.ReadAt(buf, off)
-		if readErr != nil || n < gptEntrySize {
-			break
-		}
-
-		allZero := true
-		for _, b := range buf[0:16] {
-			if b != 0 {
-				allZero = false
-				break
-			}
-		}
-		if allZero {
-			break
-		}
-
-		startLBA := binary.LittleEndian.Uint64(buf[32:40])
-		endLBA := binary.LittleEndian.Uint64(buf[40:48])
-		if startLBA > lastStart {
-			lastStart = startLBA
-			lastEnd = endLBA
-		}
+	info, err := f.Stat()
+	if err != nil {
+		return 0, 0, fmt.Errorf("stat image: %w", err)
 	}
-
-	if lastStart == 0 {
+	if info.Size() < 0 {
+		return 0, 0, errors.New("image reports a negative size")
+	}
+	table, err := gptdisk.Parse(f, uint64(info.Size()))
+	if err != nil {
+		return 0, 0, fmt.Errorf("image partition table: %w", err)
+	}
+	if len(table.Entries) == 0 {
 		return 0, 0, errNoPartitionsFoundInGpt
 	}
-
-	// Guard against a corrupt/crafted GPT where endLBA < startLBA: the size
-	// computation below subtracts in uint64, so it would underflow to a huge
-	// value and then cast to a negative int64.
-	if lastEnd < lastStart {
-		return 0, 0, fmt.Errorf("GPT corrupt: last partition end LBA %d < start LBA %d", lastEnd, lastStart)
+	last := table.Entries[0]
+	for _, entry := range table.Entries[1:] {
+		if entry.FirstLBA > last.FirstLBA {
+			last = entry
+		}
 	}
-
-	return int64(lastStart) * gptSectorSize, int64(lastEnd-lastStart+1) * gptSectorSize, nil
+	return int64(last.OffsetBytes()), int64(last.SizeBytes()), nil //nolint:gosec // bounded by the image's size, which fits int64
 }
 
 // uniformArch returns the single image architecture shared by every named

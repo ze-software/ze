@@ -5,7 +5,6 @@ package dockerhost
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
 	"io"
@@ -14,16 +13,10 @@ import (
 	"strconv"
 
 	"github.com/ze-software/ze/internal/appliance"
+	"github.com/ze-software/ze/internal/core/gptdisk"
 )
 
 const (
-	// sectorBytes is the logical sector gok writes the GPT with.
-	sectorBytes = 512
-	// permPartitionNumber is /perm's place in gokrazy's partition table:
-	// boot, root A, root B, perm.
-	permPartitionNumber = 4
-	// gptEntriesMax bounds the partition entries read from the header.
-	gptEntriesMax = 128
 	// ext4MagicOffset is the superblock's magic, 1024 bytes into the
 	// partition plus 56 into the superblock.
 	ext4MagicOffset = 1024 + 56
@@ -78,48 +71,34 @@ func findMkfs() (string, error) {
 		"Fix: brew install e2fsprogs (macOS) or install e2fsprogs (Linux)")
 }
 
-// permPartition reads the GPT and answers partition 4, refusing an image
-// whose fourth entry is not a Linux file system partition.
+// permPartition reads the GPT through the shared parse and answers partition
+// 4, refusing an image whose fourth entry is not a Linux file system
+// partition: that rule is the lab image's own.
 func permPartition(image string) (partitionSpan, error) {
 	file, err := os.Open(image) //nolint:gosec // the image this build wrote
 	if err != nil {
 		return partitionSpan{}, fmt.Errorf("open %s: %w", image, err)
 	}
 	defer file.Close() //nolint:errcheck // read-only
-
-	header := make([]byte, 92)
-	if _, err := file.ReadAt(header, sectorBytes); err != nil {
-		return partitionSpan{}, fmt.Errorf("read the GPT header of %s: %w", image, err)
+	info, err := file.Stat()
+	if err != nil {
+		return partitionSpan{}, fmt.Errorf("stat %s: %w", image, err)
 	}
-	if string(header[:8]) != "EFI PART" {
-		return partitionSpan{}, fmt.Errorf("%s has no GPT header at sector 1, so /perm cannot be found", image)
+	if info.Size() < 0 {
+		return partitionSpan{}, fmt.Errorf("%s reports a negative size", image)
 	}
-	entriesLBA := binary.LittleEndian.Uint64(header[72:80])
-	entries := binary.LittleEndian.Uint32(header[80:84])
-	entryBytes := binary.LittleEndian.Uint32(header[84:88])
-	if entries < permPartitionNumber {
-		return partitionSpan{}, fmt.Errorf("%s's GPT holds %d entries, fewer than gokrazy's four", image, entries)
+	table, err := gptdisk.Parse(file, uint64(info.Size()))
+	if err != nil {
+		return partitionSpan{}, fmt.Errorf("%s has no partition table /perm can be found in: %w", image, err)
 	}
-	if entries > gptEntriesMax {
-		return partitionSpan{}, fmt.Errorf("%s's GPT claims %d entries, above %d", image, entries, gptEntriesMax)
+	entry, ok := table.Partition(gptdisk.PersistentPartition)
+	if !ok {
+		return partitionSpan{}, fmt.Errorf("%s's GPT has no partition %d, gokrazy's /perm", image, gptdisk.PersistentPartition)
 	}
-	if entryBytes < 128 {
-		return partitionSpan{}, fmt.Errorf("%s's GPT entries are %d bytes, below the 128 the format fixes", image, entryBytes)
+	if !bytes.Equal(entry.Type[:], linuxDataTypeGUID) {
+		return partitionSpan{}, fmt.Errorf("partition %d of %s is not a Linux file system partition, so it is not gokrazy's /perm", gptdisk.PersistentPartition, image)
 	}
-	entry := make([]byte, 128)
-	at := int64(entriesLBA)*sectorBytes + int64(permPartitionNumber-1)*int64(entryBytes) //nolint:gosec // bounded by the checks above
-	if _, err := file.ReadAt(entry, at); err != nil {
-		return partitionSpan{}, fmt.Errorf("read GPT entry %d of %s: %w", permPartitionNumber, image, err)
-	}
-	if !bytes.Equal(entry[:16], linuxDataTypeGUID) {
-		return partitionSpan{}, fmt.Errorf("partition %d of %s is not a Linux file system partition, so it is not gokrazy's /perm", permPartitionNumber, image)
-	}
-	first := int64(binary.LittleEndian.Uint64(entry[32:40])) //nolint:gosec // an LBA in an image this build wrote
-	last := int64(binary.LittleEndian.Uint64(entry[40:48]))  //nolint:gosec // an LBA in an image this build wrote
-	if last < first {
-		return partitionSpan{}, fmt.Errorf("partition %d of %s ends before it starts", permPartitionNumber, image)
-	}
-	return partitionSpan{offset: first * sectorBytes, size: (last - first + 1) * sectorBytes}, nil
+	return partitionSpan{offset: int64(entry.OffsetBytes()), size: int64(entry.SizeBytes())}, nil //nolint:gosec // bounded by the image's size, which fits int64
 }
 
 // hasExt4 answers whether the partition carries an ext4 superblock.

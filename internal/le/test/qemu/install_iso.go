@@ -7,7 +7,6 @@ package testqemu
 import (
 	"compress/gzip"
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -19,6 +18,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ze-software/ze/internal/core/gptdisk"
 	"github.com/ze-software/ze/internal/core/textbuf"
 )
 
@@ -489,41 +489,26 @@ func installGPTEntries(path string) (entries []installGPTEntry, resultErr error)
 	defer func() {
 		resultErr = joinInstallCleanup(resultErr, file.Close, "close installer GPT image")
 	}()
-	header := make([]byte, 92)
-	if _, err := file.ReadAt(header, 512); err != nil {
+	info, err := file.Stat()
+	if err != nil {
 		return nil, err
+	}
+	if info.Size() < 0 {
+		return nil, fmt.Errorf("%s reports a negative size", path)
+	}
+	// The shared parse is the one the build, the installer and the device
+	// read the table with, so the harness judges the same table they do.
+	table, err := gptdisk.Parse(file, uint64(info.Size()))
+	if err != nil {
+		return nil, fmt.Errorf("%s: %w", path, err)
 	}
 	var tb textbuf.Buffer
-	if string(header[:8]) != "EFI PART" {
-		return nil, errors.New(tb.Str(path).Str(" has no primary GPT header").String())
-	}
-	entryLBA := binary.LittleEndian.Uint64(header[72:80])
-	count := binary.LittleEndian.Uint32(header[80:84])
-	size := binary.LittleEndian.Uint32(header[84:88])
-	if count > 4096 || size < 56 || size > 4096 {
-		return nil, fmt.Errorf("%s has invalid GPT entry geometry count=%d size=%d", path, count, size)
-	}
-	raw := make([]byte, int(count)*int(size))
-	if _, err := file.ReadAt(raw, int64(entryLBA)*512); err != nil {
-		return nil, err
-	}
-	entries = make([]installGPTEntry, 0, count)
-	for index := range int(count) {
-		entry := raw[index*int(size) : (index+1)*int(size)]
-		zero := true
-		for _, value := range entry[:16] {
-			if value != 0 {
-				zero = false
-				break
-			}
-		}
-		if zero {
-			continue
-		}
+	entries = make([]installGPTEntry, 0, len(table.Entries))
+	for _, entry := range table.Entries {
 		entries = append(entries, installGPTEntry{
-			First: binary.LittleEndian.Uint64(entry[32:40]),
-			Last:  binary.LittleEndian.Uint64(entry[40:48]),
-			Type:  tb.Hex(entry[:16]).String(),
+			First: entry.FirstLBA,
+			Last:  entry.LastLBA,
+			Type:  tb.Hex(entry.Type[:]).String(),
 		})
 		tb.Reset()
 	}

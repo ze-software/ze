@@ -1,14 +1,20 @@
 package dockerhost
 
 import (
-	"encoding/binary"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+
+	"github.com/ze-software/ze/internal/test/gptfixture"
 )
 
-// writeGPTImage writes a sparse image whose GPT holds four entries, the
-// fourth a Linux file system partition from firstLBA to lastLBA.
+// sectorBytes is the logical sector gok writes the GPT with.
+const sectorBytes = gptfixture.SectorBytes
+
+// writeGPTImage writes a sparse image with a valid GPT of four partitions,
+// the fourth of type permType from firstLBA to lastLBA, and the backup copy
+// after it, as gok lays the image out.
 func writeGPTImage(t *testing.T, firstLBA, lastLBA uint64, permType []byte) string {
 	t.Helper()
 	path := filepath.Join(t.TempDir(), "image.img")
@@ -17,22 +23,20 @@ func writeGPTImage(t *testing.T, firstLBA, lastLBA uint64, permType []byte) stri
 		t.Fatal(err)
 	}
 	defer file.Close() //nolint:errcheck // read-only test file
-	header := make([]byte, 92)
-	copy(header, "EFI PART")
-	binary.LittleEndian.PutUint64(header[72:], 2)
-	binary.LittleEndian.PutUint32(header[80:], 4)
-	binary.LittleEndian.PutUint32(header[84:], 128)
-	if _, err := file.WriteAt(header, sectorBytes); err != nil {
+	layout := gptfixture.Layout{EntryCount: 128, FirstUsable: 34, Partitions: []gptfixture.Partition{
+		{Type: gptfixture.TypeEFISystem, First: 40, Last: 47},
+		{Type: gptfixture.TypeLinuxRootAMD64, First: 48, Last: 55},
+		{Type: gptfixture.TypeLinuxFilesystem, First: 56, Last: 63},
+		{First: firstLBA, Last: lastLBA},
+	}}
+	copy(layout.Partitions[3].Type[:], permType)
+	// The last usable sector is lastLBA, then 32 sectors of backup entries
+	// and the backup header.
+	layout.DiskSectors = lastLBA + 1 + 32 + 1
+	if err := file.Truncate(int64(layout.DiskSectors * sectorBytes)); err != nil { //nolint:gosec // a small test image
 		t.Fatal(err)
 	}
-	entry := make([]byte, 128)
-	copy(entry, permType)
-	binary.LittleEndian.PutUint64(entry[32:], firstLBA)
-	binary.LittleEndian.PutUint64(entry[40:], lastLBA)
-	if _, err := file.WriteAt(entry, 2*sectorBytes+3*128); err != nil {
-		t.Fatal(err)
-	}
-	if err := file.Truncate(int64(lastLBA+1) * sectorBytes); err != nil {
+	if err := layout.Write(file); err != nil {
 		t.Fatal(err)
 	}
 	return path
@@ -69,8 +73,14 @@ func TestPermPartitionIsReadFromTheGPT(t *testing.T) {
 		t.Fatalf("hasExt4 on an ext4 magic: %v %v", formatted, err)
 	}
 
-	other := writeGPTImage(t, 2048, 4095, make([]byte, 16))
-	if _, err := permPartition(other); err == nil {
-		t.Error("permPartition accepted a fourth partition that is not a Linux file system")
+	// A used fourth entry of another type reaches permPartition's own type
+	// rule; an all-zero type is an unused entry, so partition 4 is absent.
+	other := writeGPTImage(t, 2048, 4095, gptfixture.TypeLinuxRootAMD64[:])
+	if _, err := permPartition(other); err == nil || !strings.Contains(err.Error(), "is not a Linux file system partition") {
+		t.Errorf("permPartition on a fourth partition that is not a Linux file system = %v, want the type refusal", err)
+	}
+	unused := writeGPTImage(t, 2048, 4095, make([]byte, 16))
+	if _, err := permPartition(unused); err == nil || !strings.Contains(err.Error(), "has no partition 4") {
+		t.Errorf("permPartition on an unused fourth entry = %v, want the missing-partition refusal", err)
 	}
 }

@@ -123,9 +123,10 @@ reachable but unprovisioned state, gated on `ze.gokrazy.enabled`.
   to write. A step that fails is logged as an error under the code
   `doctor-storage-not-grown` and the install completes, because the written
   system is whole on its image-sized partition. Neither step does its work
-  yet: the `gptdisk` leaf is not implemented, and the installer does not yet
-  read the partition's size that `ext4fs.Resize` needs, so today every install
-  logs that error and the disk keeps the table of the image.
+  yet: the installer does not yet read the disk's size and sector size that
+  `gptdisk.Grow` needs, nor the partition's size that `ext4fs.Resize` needs,
+  so today every install logs that error and the disk keeps the table of the
+  image.
   <!-- source: internal/install/disk/run.go -- growInstalledTable, growInstalledFS, growISOPerm, reportStorageNotGrown -->
   <!-- source: internal/install/disk/grow_linux.go -- sysGrowPermTable, sysGrowPermFS -->
   <!-- source: internal/core/gptdisk/grow.go -- Grow -->
@@ -148,6 +149,27 @@ reachable but unprovisioned state, gated on `ze.gokrazy.enabled`.
   the QEMU guest on Ze's runtime kernel, over fixtures of this format
   (`docs/architecture/testing/qemu-integration.md`, "The ext4 fixtures").
   <!-- source: internal/appliance/permformat/permformat.go -- FormatArgs, QuotaStepArgs -->
+- `internal/core/gptdisk` is the one reader of a GPT: the build's search for
+  the persistent partition, the push's check of an image, the lab image's
+  formatter and the QEMU harness all parse through it, and it refuses a table
+  the kernel would not read (no protective `0xEE` record, a failed checksum, an
+  entry outside the usable sectors, two entries that overlap). `Grow` extends
+  partition 4 to the disk's last usable sector, lowered to whole 4096-byte
+  blocks, and changes four things: the primary header's backup pointer and
+  last usable sector, entry 4's last sector, and the checksums. It writes the
+  backup copy at the disk's end and syncs, then the primary, then zeroes the
+  backup the image carried, and it writes nothing on a disk the table already
+  describes. The MBR stays byte for byte: the packer's protective record
+  covers only the sectors before partition 1, so it holds no disk size. A stop
+  inside the primary write leaves a primary that fails its checksum and a
+  valid backup at the last sector, which UEFI firmware falls back to; whether
+  the kernel does without the `gpt` boot option is the open question of
+  `TestKernelReadsATableAtEveryStopOfTheRewrite`. `ResizeInKernel` hands the
+  kernel the new size with `BLKPG_RESIZE_PARTITION` when a partition of the
+  disk is mounted, where a full reread is refused.
+  <!-- source: internal/core/gptdisk/gptdisk.go -- Parse, Table, Entry -->
+  <!-- source: internal/core/gptdisk/grow.go -- Grow, planGrowth, clearStaleBackup -->
+  <!-- source: internal/core/gptdisk/kernel_linux.go -- ResizeInKernel -->
   <!-- source: internal/core/ext4fs/superblock.go -- ReadSuperblock -->
   <!-- source: internal/core/projquota/quota_linux.go -- Probe, Enable, AssignProject, SetLimit, ReadUsage -->
 

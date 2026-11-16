@@ -1581,6 +1581,22 @@ fixture missing, or without root, the test fails. `Grow` enlarges the copy and
 tells the loop device (`LOOP_SET_CAPACITY`), which is what a larger disk looks
 like to a filesystem.
 
+The integration tests of `internal/core/gptdisk` need the fixture as the
+persistent partition of a partitioned disk, so the kernel holds it as
+partition 4. Such a test writes the gokrazy packer's table layout into a
+sparse file (`internal/test/gptfixture`), calls `ext4fixture.CopyInto` to copy
+the format fixture into partition 4, and `ext4fixture.AttachDisk`, which
+attaches the file with partition scanning (`LO_FLAGS_PARTSCAN`), so the kernel
+reads the table at once and makes `/dev/loopNp4`. `KernelPartition` reads the
+start and size the kernel holds for a partition from
+`/sys/class/block/loopNpM`. `TestGrowLivePartitionWhileMounted` grows the
+disk while partition 4 is mounted, and requires the full reread to be refused
+(`EBUSY`), the partition resize (`BLKPG_RESIZE_PARTITION`) to be taken, the
+filesystem to grow into it, and the kernel's own scan to read the grown table
+once nothing is mounted. `TestKernelReadsATableAtEveryStopOfTheRewrite` stops
+the table rewrite after each sector it writes and requires the kernel's scan
+to find partition 4 every time.
+
 The tests write as root, and the quota code lets a writer holding
 `CAP_SYS_RESOURCE` past a hard limit, so the quota tests write from a
 goroutine locked to a thread that has dropped that capability.
@@ -1590,9 +1606,12 @@ test binaries on the host and run them as root through the command carrier,
 with `ZE_EXT4_FIXTURES` naming the fixture directory at its absolute host path.
 <!-- source: internal/test/ext4fixture/fixture.go -- Make, DirEnv, SizeBytes -->
 <!-- source: internal/test/ext4fixture/fixture_linux.go -- Mount, Grow, copySparse -->
+<!-- source: internal/test/ext4fixture/disk_linux.go -- CopyInto, AttachDisk, KernelPartition -->
+<!-- source: internal/test/gptfixture/gptfixture.go -- Appliance, Layout -->
 <!-- source: internal/le/test/qemu/guestbin.go -- runGuestBinariesHere, GuestFixturesRel -->
 <!-- source: internal/le/test/qemu/alltests.go -- allTestsRun.environment -->
 <!-- test: internal/core/ext4fs/resize_integration_linux_test.go -- TestOnlineResizeGrowsMountedFilesystem -->
+<!-- test: internal/core/gptdisk/grow_integration_linux_test.go -- TestGrowLivePartitionWhileMounted, TestKernelReadsATableAtEveryStopOfTheRewrite -->
 <!-- test: internal/core/projquota/quota_integration_linux_test.go -- TestProjectQuotaRefusesWritePastLimit, TestProjectQuotaEnableOnMountedFilesystem, TestProjectQuotaStateWithoutFeature, TestProjectQuotaStoredOptionEnforcesAtMount -->
 
 ### Failing ONE Socket Under a Daemon
