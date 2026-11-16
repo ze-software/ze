@@ -141,11 +141,14 @@ func NewClient(cfg ClientConfig) (*Client, error) {
 	return c, nil
 }
 
-// Close releases the UDP socket.
+// Close fences new requests, consumes the UDP socket and joins its answer reader.
+// Every concurrent/idempotent caller joins the same reader before returning.
 func (c *Client) Close() error {
 	c.mu.Lock()
 	if c.closed {
+		done := c.done
 		c.mu.Unlock()
+		<-done
 		return nil
 	}
 	c.closed = true
@@ -171,6 +174,10 @@ func (c *Client) NextID() uint8 {
 // (encodeRequest), and an unsigned answer to it is discarded unless srv's
 // AllowUnsignedResponse is set (dispatchResponse).
 func (c *Client) Exchange(ctx context.Context, pkt *Packet, srv Server) (*Packet, error) {
+	return c.exchange(ctx, pkt, srv, nil)
+}
+
+func (c *Client) exchange(ctx context.Context, pkt *Packet, srv Server, observe func(RequestWrite)) (*Packet, error) {
 	secret, serverAddr := srv.SharedKey, srv.Address
 	// RFC 2865 Section 3: "The secret MUST NOT be empty (length 0) since this
 	// would allow packets to be trivially forged." Every RADIUS packet ze sends
@@ -205,7 +212,7 @@ func (c *Client) Exchange(ctx context.Context, pkt *Packet, srv Server) (*Packet
 		return nil, err
 	}
 
-	addr, err := net.ResolveUDPAddr("udp4", serverAddr)
+	addr, err := resolveRequestAddress(ctx, serverAddr)
 	if err != nil {
 		return nil, fmt.Errorf("radius: resolve %s: %w", serverAddr, err)
 	}
@@ -259,13 +266,7 @@ retryLoop:
 			}
 		}
 
-		c.mu.Lock()
-		if c.closed {
-			c.mu.Unlock()
-			return nil, errors.New("radius: client closed")
-		}
-		_, writeErr := c.conn.WriteToUDP(buf[:n], addr)
-		c.mu.Unlock()
+		writeErr := c.writeRequest(ctx, buf[:n], addr, observe)
 
 		if writeErr != nil {
 			return nil, fmt.Errorf("radius: write to %s: %w", serverAddr, writeErr)
@@ -751,6 +752,10 @@ func prepareWirePacket(pkt *Packet, secret []byte) *Packet {
 // Returns the first successful response, or a serverFailures error naming
 // every server tried and why its answer was not used.
 func (c *Client) SendToServers(ctx context.Context, pkt *Packet) (*Packet, error) {
+	return c.sendToServers(ctx, pkt, nil)
+}
+
+func (c *Client) sendToServers(ctx context.Context, pkt *Packet, observe func(RequestWrite)) (*Packet, error) {
 	var failures serverFailures
 	for _, srv := range c.config.Servers {
 		pkt.Identifier = c.NextID()
@@ -771,7 +776,7 @@ func (c *Client) SendToServers(ctx context.Context, pkt *Packet) (*Packet, error
 		}
 		pkt.Authenticator = auth
 
-		resp, err := c.Exchange(ctx, pkt, srv)
+		resp, err := c.exchange(ctx, pkt, srv, observe)
 		if err != nil {
 			c.logger.Warn("radius: no usable answer from server, trying the next",
 				"server", srv.Address, "error", err)

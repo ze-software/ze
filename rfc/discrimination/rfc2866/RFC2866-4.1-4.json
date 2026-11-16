@@ -7,7 +7,7 @@
     "claim-sha": "1799f99386675344",
     "route": "revert",
     "producer": "internal/component/radius/client.go::SendToServers",
-    "producer-sha": "8a8183b44ee1439b",
+    "producer-sha": "3e0d2aa9fdee259a",
     "break": "body of SendToServers replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
@@ -26,11 +26,11 @@
     "polarity": "positive",
     "unit": "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator",
     "unit-sha": "26d91feb49443923",
-    "claim-sha": "219b339b713ad13e",
+    "claim-sha": "61725dce1c0de50f",
     "route": "revert",
-    "producer": "internal/component/radius/client.go::Exchange",
-    "producer-sha": "92eb442f4a726521",
-    "break": "body of Exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
+    "producer": "internal/component/radius/client.go::exchange",
+    "producer-sha": "ed8ee4b226eef93f",
+    "break": "body of exchange replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   },
   {
     "rid": "RFC2866-4.1-4",
@@ -40,7 +40,7 @@
     "claim-sha": "0d453a428d281ab5",
     "route": "revert",
     "producer": "internal/component/radius/client.go::SendToServers",
-    "producer-sha": "8a8183b44ee1439b",
+    "producer-sha": "3e0d2aa9fdee259a",
     "break": "body of SendToServers replaced by panic(\"BUG: ./le rfc record disabled this producer to observe the red\")"
   }
 ]

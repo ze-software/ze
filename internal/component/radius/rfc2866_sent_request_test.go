@@ -1,5 +1,5 @@
 // RFC: rfc/short/rfc2866.md -- the Request Authenticator and Identifier rules, read off the wire
-// Related: client.go -- Exchange, encodeRequest and the Acct-Delay-Time retransmit
+// Related: client.go -- exchange, encodeRequest and the Acct-Delay-Time retransmit
 // Related: rfc2865_wire_rules_test.go -- datagramCaptureServer
 
 // These tests read the Accounting-Request datagrams ze really sends, rather than
@@ -76,7 +76,7 @@ func acctRecord() *Packet {
 // datagram SendToServers put on the wire equal an independent MD5 over its
 // Code, Identifier and Length, 16 zero octets, its attributes and the shared
 // secret, and differ from the random authenticator SendToServers placed in the
-// packet (client.go Exchange, encodeRequest).
+// packet (client.go exchange, encodeRequest).
 func TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator(t *testing.T) {
 	secret := []byte("acct-secret")
 	srv := newDatagramCaptureServer(t, func(_ int, req []byte) []byte { return acctResponse(req, secret) })
@@ -110,10 +110,10 @@ func TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator(t *testing.
 // the retransmission carries a different Acct-Delay-Time value, a different
 // Identifier and a different Request Authenticator, and each of the two
 // authenticators equals the Section 3 MD5 of its own datagram (client.go
-// Exchange).
+// exchange).
 // RFC requirement: RFC2866-4.1-4 positive -- with no reply received for the
 // first datagram, a change of the Attributes field alone gives the
-// retransmission a new Identifier (client.go Exchange).
+// retransmission a new Identifier (client.go exchange).
 func TestRFC2866AccountingRetransmitTakesANewIdentifierAndRequestAuthenticator(t *testing.T) {
 	secret := []byte("acct-secret")
 	srv := newDatagramCaptureServer(t, func(index int, req []byte) []byte {

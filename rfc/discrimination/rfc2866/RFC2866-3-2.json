@@ -26,7 +26,7 @@
     "polarity": "positive",
     "unit": "internal/component/radius/rfc2866_sent_request_test.go::TestRFC2866SentAccountingRequestCarriesTheSection3Authenticator",
     "unit-sha": "53710834c790d13a",
-    "claim-sha": "87e7e30fc6dac362",
+    "claim-sha": "39ad5a7dac2c8790",
     "route": "revert",
     "producer": "internal/component/radius/client.go::encodeRequest",
     "producer-sha": "ef93b700c6344b6a",
