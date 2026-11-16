@@ -23,12 +23,12 @@ func TestPPPStoppedDispatcherClosesQueuedDescriptors(t *testing.T) {
 		_ = unix.Close(channel)
 		t.Fatal(err)
 	}
-	driver := &Driver{
-		sessionsIn:   make(chan StartSession, 1),
-		stopCh:       make(chan struct{}),
-		dispatchDone: make(chan struct{}),
-		stopped:      true,
-	}
+	driver := NewProductionDriver(discardLogger())
+	// Keep the original stopped-before-dispatch seam and one-item queue,
+	// while the real constructor supplies every ownership prerequisite.
+	driver.sessionsIn = make(chan StartSession, 1)
+	driver.stopCh = make(chan struct{})
+	driver.stopped = true
 	ops, _, _ := newFakeOps()
 	driver.sessionsIn <- testSessionStart(StartSession{LCP: testLCPConfig()}, &fakeBackend{}, ops, channel, unit, 0)
 	close(driver.stopCh)
