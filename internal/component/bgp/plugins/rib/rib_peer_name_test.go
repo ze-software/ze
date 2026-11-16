@@ -26,6 +26,7 @@ import (
 // answered 0 routes for a session holding 1000.
 func TestRIBShowSelectsASessionByItsName(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	attrs := concatBytes(testWireOriginIGP, testWireNextHop, testWireASPath65001)
 	sessions := []struct {
 		address string

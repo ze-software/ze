@@ -46,8 +46,10 @@ func bestFactRowsDecoded(r *RIBManager, terminal bool) ([]map[string]any, error)
 
 // bestFactRIB holds two peers announcing 10.0.0.0/24, each with its own
 // address as the next hop, before any election has run.
-func bestFactRIB() (*RIBManager, family.Family, []byte) {
+func bestFactRIB(t testing.TB) (*RIBManager, family.Family, []byte) {
+	t.Helper()
 	r := newTestRIBManagerWithBus(newTestEventBus())
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("192.0.2.1"), netip.MustParseAddr("192.0.2.2"))
 	fam := family.Family{AFI: 1, SAFI: 1}
 	prefix := ipv4Prefix(24, 10, 0, 0)
 	for _, peer := range []string{"192.0.2.1", "192.0.2.2"} {
@@ -69,7 +71,7 @@ func bestFactRIB() (*RIBManager, family.Family, []byte) {
 // VALIDATES: a received row carries `best`, true on the recorded winner only.
 // PREVENTS: the looking glass reporting `primary: false` on every path.
 func TestShowRIBRowsSayWhichPathWon(t *testing.T) {
-	r, fam, prefix := bestFactRIB()
+	r, fam, prefix := bestFactRIB(t)
 	change, elected := r.checkBestPathChange(fam, prefix, false, nil)
 	require.True(t, elected, "the election must record a winner")
 	winner := change.NextHop.String()
@@ -95,7 +97,7 @@ func TestShowRIBRowsSayWhichPathWon(t *testing.T) {
 // VALIDATES: the best lookup runs with no lock held, after the walk.
 // PREVENTS: a show answer deadlocking elections behind a peer-down writer.
 func TestShowRIBBestFactUnderElectionAndPeerDown(t *testing.T) {
-	r, fam, prefix := bestFactRIB()
+	r, fam, prefix := bestFactRIB(t)
 
 	const rounds = 200
 	var wg sync.WaitGroup

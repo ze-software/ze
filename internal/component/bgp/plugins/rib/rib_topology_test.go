@@ -148,6 +148,7 @@ func TestGraphTerminalViaPipeline(t *testing.T) {
 // structured document from the best-path pipeline.
 func TestGraphTerminalViaBestPipeline(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.1"))
 	insertGraphRoute(r)
 
 	raw, ok := r.bestPipeline("*", []string{"graph"}).(json.RawMessage)

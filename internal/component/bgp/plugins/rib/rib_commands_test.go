@@ -624,6 +624,7 @@ func requireFirstBestPathAttrs(t *testing.T, r *RIBManager) map[string]any {
 // RFC 5549: IPv4 NLRI with an IPv6 next-hop. RFC 8950: encoding.
 func TestBestShowRendersExtendedNextHop(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("2001:db8::1"))
 
 	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "nexthop", "2001:db8::1",
@@ -644,6 +645,7 @@ func TestBestShowRendersExtendedNextHop(t *testing.T) {
 // route in `show bgp rib best` with no next-hop.
 func TestBestShowRendersNativeIPv6NextHop(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("2001:db8::2"))
 
 	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", "ipv6/unicast", "2001:db8:1::/48", "nexthop", "2001:db8::2",
@@ -662,6 +664,7 @@ func TestBestShowRendersNativeIPv6NextHop(t *testing.T) {
 // PREVENTS: the fallback shadowing or replacing the type-3 rendering path.
 func TestBestShowRendersLegacyNextHop(t *testing.T) {
 	r := newTestRIBManager(t)
+	electionFixtureLocRIB(t, r, netip.MustParseAddr("10.0.0.2"))
 
 	status, _, err := r.handleCommand("request bgp rib inject", "", []string{
 		"10.0.0.1", "ipv4/unicast", "10.0.0.0/24", "nexthop", "10.0.0.2",

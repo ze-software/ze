@@ -32,7 +32,11 @@ func electionFixtureLocRIB(t testing.TB, r *RIBManager, hops ...netip.Addr) *loc
 	})
 	connected := redistevents.RegisterProtocol("connected")
 	for _, hop := range hops {
-		loc.Insert(family.IPv4Unicast, netip.PrefixFrom(hop, 32), locrib.Path{
+		fam := family.IPv4Unicast
+		if hop.Is6() {
+			fam = family.IPv6Unicast
+		}
+		loc.Insert(fam, netip.PrefixFrom(hop, hop.BitLen()), locrib.Path{
 			Source: connected, Interface: "election-fixture0",
 		})
 		distance := igpcost.Resolve(loc, hop)
