@@ -73,4 +73,7 @@ RUN apk add --no-cache gmp iproute2 iptables ip6tables libcurl nftables openssl 
 
 COPY --from=build /out/ /
 
+# The lab preflight cross-compiles this peer-local helper on the host.
+COPY ipsec-peerform-linux /usr/bin/ipsec-peerform
+
 ENTRYPOINT ["tini", "--", "/usr/lib/strongswan/charon"]

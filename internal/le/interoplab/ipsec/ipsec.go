@@ -23,7 +23,6 @@ import (
 	"github.com/ze-software/ze/internal/core/textbuf"
 	"github.com/ze-software/ze/internal/le/interoplab"
 	lepath "github.com/ze-software/ze/internal/le/le/path"
-	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 	"github.com/ze-software/ze/internal/test/labconfig"
 )
 
@@ -107,20 +106,19 @@ func (r Report) Text() string {
 	return out.String()
 }
 
-// LabBinaries declares the one binary this lab stages into its Docker build
-// context, which is what test/interop-ipsec/Dockerfile.ze copies in.
-//
-// The base is repofeaturetags.DaemonBase, which is the same pair the deleted local
-// copy of this producer prepended by hand. What that copy did NOT have is the
-// manifest read's refusal: it parsed feature-gates.txt itself and returned the
-// base alone for a manifest declaring no gate, where repofeaturetags.DaemonTags
-// answers ErrNoGateTags. A silent base-only answer builds a daemon with every
-// feature compiled out, which then dies on "unknown top-level keyword" for the
-// protocol the scenario was about to prove.
+// LabBinaries answers the binaries this lab's registered images copy into their
+// build contexts. The same declarations serve suites that reuse these images.
 func LabBinaries() []interoplab.LabBinary {
-	return []interoplab.LabBinary{
-		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop-ipsec/ze-linux"},
+	images := interoplab.SuiteImages(imageOwner, interoplab.ImageContext{})
+	names := make([]string, 0, len(images))
+	for index := range images {
+		names = append(names, images[index].Name)
 	}
+	_, binaries, err := interoplab.ResolveImages(interoplab.ImageContext{}, names)
+	if err != nil {
+		panic("BUG: IPsec build declares an unresolved image: " + err.Error())
+	}
+	return binaries
 }
 
 // Run resolves the checkout and invokes the native gate.

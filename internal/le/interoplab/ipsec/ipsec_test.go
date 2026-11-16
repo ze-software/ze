@@ -1052,51 +1052,37 @@ func TestPingLossBoundaries(t *testing.T) {
 	}
 }
 
-// VALIDATES: esp-form-change asserts Ze outbound, strongSwan inbound and
-// strongSwan outbound, and passes while Ze's inbound KERNEL SA stays still.
-// PREVENTS: forcing the fourth direction on a scenario whose whole subject is Ze
-// receiving that ESP in userspace, and letting strongSwan stop encrypting unseen.
-func TestESPFormChangeClaimsThreeDirections(t *testing.T) {
-	if len(espFormChangeDirections) != 3 {
-		t.Fatalf("esp-form-change claims %d directions", len(espFormChangeDirections))
+// TestESPFormChangeClaimsEveryDirection proves both senders and receivers on
+// one Child SA across bare, UDP and bare wire observations.
+func TestESPFormChangeClaimsEveryDirection(t *testing.T) {
+	wanted := espFormSwitchDirections()
+	if len(espFormChangeDirections) != len(wanted) {
+		t.Fatalf("esp-form-change claims %d directions, want %d", len(espFormChangeDirections), len(wanted))
 	}
-	for _, want := range espFormChangeDirections {
-		if want == zeDecrypts {
-			t.Fatal("esp-form-change claims Ze's inbound kernel SA, which that scenario refuses by design")
+	for _, want := range wanted {
+		found := false
+		for _, got := range espFormChangeDirections {
+			if got == want {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("esp-form-change omits %s", want.summary)
 		}
 	}
 	entry, ok := scenarioCheckers["esp-form-change"]
-	checker := entry.run
 	if !ok {
 		t.Fatal("native integration registry does not execute esp-form-change")
 	}
-	newLab := func(swanBefore, swanAfter string) *scenarioLab {
-		fake := scriptedLab()
-		fake.answer(swanPeer, []string{"swanctl", "--list-sas"}, "ze: ESTABLISHED\nze-child: INSTALLED\n")
-		fake.answer(zePeer, []string{"ip", "xfrm", "state"},
-			"src 172.28.0.3 dst 172.28.0.2\n\tproto esp spi 0x2 encap type espinudp sport 4500 dport 4500\n"+
-				"src 172.28.0.2 dst 172.28.0.3\n\tproto esp spi 0x1\n")
-		fake.answer(zePeer, []string{"cat", "/proc/net/raw"},
-			"  sl  local_address rem_address   st tx_queue rx_queue tr tm->when retrnsmt   uid  timeout inode ref pointer drops\n"+
-				"   1: 00000000:0032 00000000:0000 07 00000000:00000000 00:00000000 00000000     0        0 12345 2 0000000000000000 0\n")
-		fake.answer(zePeer, []string{"cat", "/proc/net/xfrm_stat"}, "XfrmInStateMismatch 5\n", "XfrmInStateMismatch 9\n")
-		// Ze's inbound SA (src swan dst ze, 0x2) stays at 500 in Ze's own dump,
-		// because the kernel refuses the form and userspace receives instead.
-		fake.answer(zePeer, []string{"ip", "-s", "xfrm", "state"}, espDump(10, 500), espDump(20, 500))
-		fake.answer(swanPeer, []string{"ip", "-s", "xfrm", "state"}, swanBefore, swanAfter)
-		fake.answer(zePeer, []string{"ping", "-c", "3", "-W", "2", swanIP}, losslessPing(3))
-		fake.answer(swanPeer, []string{"ping", "-c", "3", "-W", "2", zeIP}, losslessPing(3))
-		fake.peerLogs[swanPeer] = interoplab.LogResult{Available: true, Text: "charon started\n"}
-		return checkerFixture(fake)
+	if entry.run == nil {
+		t.Fatal("native integration registry has no esp-form-change checker")
 	}
-
-	if err := checker(context.Background(), newLab(espDump(10, 500), espDump(20, 600))); err != nil {
-		t.Fatalf("form disagreement rejected while Ze's inbound kernel SA correctly stood still: %v", err)
+	fixture := newESPFormSwitchFixture(t)
+	if err := entry.run(context.Background(), fixture.lab()); err != nil {
+		t.Fatalf("same-SA delivery refused with all four directions advancing: %v", err)
 	}
-	err := checker(context.Background(), newLab(espDump(10, 500), espDump(20, 500)))
-	if err == nil || !strings.Contains(err.Error(), "strongSwan encrypted nothing toward Ze") {
-		t.Fatalf("verdict with strongSwan sending no ESP = %v", err)
-	}
+	fixture.requireSwitches(t)
 }
 
 // VALIDATES: Every prepared scenario that starts a strongSwan peer mounts the

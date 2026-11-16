@@ -2883,19 +2883,54 @@ reached Ze over the SA. A forwarded error is out of scope
 (`LL-XFRM-ICMP-TRANSIT`, `docs/architecture/linux-limitations.md`).
 
 Each scenario owes a red run before it counts as evidence ("Prove a scenario
-discriminates"). Each break below is one line of Ze, and the harness rebuilds
-the Ze image so the break takes effect:
+discriminates"). The harness rebuilds the Ze image with each private fault:
 
 | Scenario | Break | Expected red |
 |----------|-------|--------------|
 | `tunnel-df-treatment` | `xfrmDFFlag` answers false for `DFClear` | the clear phase's DF-set burst arrives with DF set |
 | `tunnel-df-treatment` | `xfrmDFFlag` answers true for `DFCopy` | the copy phase's DF-set burst arrives with DF clear |
-| `icmp-error-payload-check` | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error arrives over the SA and is not delivered |
-| `icmp-error-payload-check` | `xfrmPolicyFromParams` widens the inbound protect policy's source selector to `0.0.0.0/0` | the inconsistent error is delivered |
+| `icmp-error-payload-check` (c) | `xfrmStateFromParams` no longer sets `state.ICMP` | the consistent error is not delivered, with strongSwan generation and Ze's inbound ESP carriage observed |
+| `icmp-error-payload-check` (d) | P widens the inbound IPv4 tunnel protect policy's source in `xfrmPolicyFromParams`; S widens the inbound IPv4 tunnel state selector's source in `xfrmStateFromParams`, each to `0.0.0.0/0` | P alone and S alone pass; together they deliver the inconsistent error and fail its packet assertion |
 
 <!-- source: internal/le/interoplab/ipsec/dftreatment.go -- checkTunnelDFTreatment, installOuterDFCounters, judgeOuterDF, requireDataplaneDF -->
 <!-- source: internal/le/interoplab/ipsec/icmperror.go -- checkICMPErrorPayloadCheck, icmpErrorRoutes, carryErrorSourceOverSA, icmpErrorObservation -->
 <!-- source: test/interop-ipsec/Dockerfile.strongswan -- nftables -->
+
+For (d), run clean, P alone, S alone, P and S together, then clean. The
+single-fault passes show that either selector still rejects the inconsistent
+error. Preserve the negotiated traffic selectors and every other state and
+policy field. Template-free BYPASS and DISCARD entries keep their selectors.
+<!-- source: internal/component/ike/dataplane/xfrm_linux.go -- xfrmStateFromParams, xfrmPolicyFromParams -->
+
+### Live ESP form changes
+
+`esp-form-change` keeps one Child SA while strongSwan sends bare ESP, then
+ESP-in-UDP, then bare ESP again. Each phase requires all four directed ESP
+byte counters to advance. The helper observes the outgoing form, SPI and
+sequence through AF_PACKET and requires the matching marked ICMP echo reply.
+The checker requires increasing wire sequences and unchanged directed SPIs,
+reqids and selectors on both peers. A missing state, unreadable mismatch
+counter, raw-socket drop, rekey or deletion fails the check. A whole bare
+packet can be rewritten before XFRM, so its mismatch counter can stay unchanged.
+<!-- source: internal/le/interoplab/ipsec/checkers.go -- checkESPFormChange -->
+<!-- source: internal/le/interoplab/ipsec/espformchange.go -- runESPFormPhases, readESPFormStates, readESPFormReceipt -->
+
+The development helper `/usr/bin/ipsec-peerform` runs inside strongSwan's
+container. It uses atomic `XFRM_MSG_MIGRATE_STATE` and has no delete/recreate
+fallback. It accepts only an exact IPv4, unmarked software tunnel SA without
+an interface ID or ESN. Extended replay-window metadata for a non-ESN SA is
+supported. Each process has a ten-second bound. This helper is staged into
+the lab image and is not a shipped Ze command.
+<!-- source: internal/le/interoplab/ipsec/peerform/socket_linux.go -- projectState, migrate -->
+<!-- source: internal/le/interoplab/ipsec/peerform/main.go -- run -->
+<!-- source: internal/le/interoplab/ipsec/register_images.go -- init -->
+
+These marked probes use whole packets. The separate kernel test
+`TestRFC4301BareESPOnTemplatedSAIsPolicyChecked` exercises whole and fragmented
+bare ESP through the fast and complete receive paths. It checks delivery,
+state-selector refusals and an explicit inbound SPD DISCARD under the production
+policy set. The form-switch scenario does not replace that fragment proof.
+<!-- source: internal/component/ike/engine/rfc4301_espform_policy_integration_linux_test.go -- TestRFC4301BareESPOnTemplatedSAIsPolicyChecked -->
 
 ### The ESP form fast path under a firewall rule
 
@@ -5014,6 +5049,15 @@ so the RFC recorder's inherited Go overlay reaches the binary Docker copies.
 Docker does not compile a separate relay source tree. The L2TP runner resolves
 staged binaries from the selected images' registrations. Its full
 `LabBinaries` inventory also drives the ignore-file checks.
+
+The IPsec suite also gets its staged binaries from the image registrations.
+Its strongSwan image declares `ipsec-peerform`, built from
+`./internal/le/interoplab/ipsec/peerform` at
+`test/interop-ipsec/ipsec-peerform-linux`. The image copies that staged binary
+to `/usr/bin/ipsec-peerform`.
+<!-- source: internal/le/interoplab/ipsec/ipsec.go -- LabBinaries -->
+<!-- source: internal/le/interoplab/ipsec/register_images.go -- init -->
+<!-- source: test/interop-ipsec/Dockerfile.strongswan -- ipsec-peerform -->
 
 A declaring lab can supply `PrepareOverlay` for one binary. It returns a Go
 overlay path and cleanup function. Staging runs cleanup after the compile,

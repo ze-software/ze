@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 
 	"github.com/ze-software/ze/internal/le/interoplab"
+	repofeaturetags "github.com/ze-software/ze/internal/le/repo/featuretags"
 )
 
 // imageOwner is the owner this suite's registered images name.
@@ -30,7 +31,15 @@ func ipsecImage(tag, dockerfile string, labContext bool) interoplab.RegisteredIm
 // The FRR image is not registered: its reference comes from the run's
 // environment.
 func init() {
-	interoplab.RegisterImage(ipsecImage(zeImage, "Dockerfile.ze", false))
-	interoplab.RegisterImage(ipsecImage(swanImage, "Dockerfile.strongswan", true))
+	ze := ipsecImage(zeImage, "Dockerfile.ze", false)
+	ze.Binaries = []interoplab.LabBinary{
+		{Name: "ze", Base: repofeaturetags.DaemonBase, Output: "test/interop-ipsec/ze-linux"},
+	}
+	interoplab.RegisterImage(ze)
+	swan := ipsecImage(swanImage, "Dockerfile.strongswan", true)
+	swan.Binaries = []interoplab.LabBinary{
+		{Name: "ipsec-peerform", Package: "./internal/le/interoplab/ipsec/peerform", Base: "ze_core", Output: "test/interop-ipsec/ipsec-peerform-linux"},
+	}
+	interoplab.RegisterImage(swan)
 	interoplab.RegisterImage(ipsecImage(natImage, "Dockerfile.nat", true))
 }

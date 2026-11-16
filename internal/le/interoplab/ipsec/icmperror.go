@@ -67,12 +67,16 @@ var reqidPattern = regexp.MustCompile(`\breqid (\d+)\b`)
 //     must drop it: the reversed header meets the catch-all discard, and
 //     Icmp.InTimeExcds does not move.
 //
-// Red proof, consistent half: remove `state.ICMP = true` in xfrmStateFromParams
-// (internal/component/ike/dataplane/xfrm_linux.go) and rebuild the Ze image (the
-// harness does it). icmp_rcv then drops the error at the failed outer policy check,
-// the ESP octets still arrive, and InTimeExcds stays still. Inconsistent half: widen
-// the inbound protect policy's source selector to 0.0.0.0/0 in xfrmPolicyFromParams;
-// the outer check then passes and the error is delivered.
+// MUTATION: proof (c): omit state.ICMP in xfrmStateFromParams and rebuild through the
+// harness. The consistent error must fail delivery while strongSwan generation
+// and Ze's inbound ESP carriage are still observed.
+//
+// MUTATION: proof (d): for inbound IPv4 tunnel entries, P widens the protect policy's
+// source in xfrmPolicyFromParams; S widens the state selector's source in
+// xfrmStateFromParams. Each uses 0.0.0.0/0. Run clean, P alone, S alone, both,
+// then clean. The individual faults must pass because the other selector still
+// rejects the inconsistent error. Together they must fail at its packet-delivery
+// assertion. Keep the negotiated selectors and every other state and policy field.
 //
 // A forwarded error (Ze as a security gateway in front of 10.2.0.0/24) is out of
 // scope: Linux performs no payload check on the forward path (LL-XFRM-ICMP-TRANSIT,

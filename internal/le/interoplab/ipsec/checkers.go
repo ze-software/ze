@@ -1478,14 +1478,9 @@ func checkESNBothOffered(ctx context.Context, lab *scenarioLab) error {
 	return lab.verifyTunnelTraffic(ctx, "no traffic after ze selected non-extended sequence numbers")
 }
 
-// espFormChangeDirections is the claim checkESPFormChange can make, and Ze's
-// inbound KERNEL SA is deliberately absent from it.
-//
-// The scenario exists on the two peers disagreeing about ESP form, so Ze's kernel
-// refuses the inbound state (the XfrmInStateMismatch rise this checker asserts)
-// and Ze receives that ESP in userspace instead. Demanding the fourth direction
-// here would red a scenario that is behaving exactly as designed.
-var espFormChangeDirections = []espDirection{zeEncrypts, swanDecrypts, swanEncrypts}
+// espFormChangeDirections follows the request and reply through both kernels.
+// Ze's fast path rewrites whole bare ESP before XFRM, whose inbound SA decrypts it.
+var espFormChangeDirections = []espDirection{zeEncrypts, swanDecrypts, swanEncrypts, zeDecrypts}
 
 func checkESPFormChange(ctx context.Context, lab *scenarioLab) error {
 	if err := establish(ctx, lab); err != nil {
@@ -1508,71 +1503,41 @@ func checkESPFormChange(ctx context.Context, lab *scenarioLab) error {
 	if strings.Contains(sas, "TUNNEL-in-UDP") {
 		return interoplab.WithSearchedOutput(fmt.Errorf("strongSwan sends UDP-encapsulated ESP; forms agree"), sas)
 	}
-	dropsBefore, err := rawESPDrops(ctx, lab)
+	inbound, err := lab.inboundXFRMState(ctx, zePeer, swanIP, zeIP)
 	if err != nil {
 		return err
 	}
-	spisBefore, err := lab.espSPIs(ctx, zePeer)
+	if !strings.Contains(inbound, "encap type espinudp") {
+		return fmt.Errorf("ze inbound state carries no ESP-in-UDP template; forms do not disagree")
+	}
+	zeStates, err := parseESPFormStates(zeState)
+	if err != nil {
+		return fmt.Errorf("ze ESP identity before form change: %w", err)
+	}
+	swanStates, err := readESPFormStates(ctx, lab, swanPeer)
 	if err != nil {
 		return err
 	}
-	mismatchBefore, err := xfrmStat(ctx, lab, zePeer, "XfrmInStateMismatch")
-	if err != nil {
-		return err
-	}
-	before, err := lab.espCounters(ctx, espFormChangeDirections)
-	if err != nil {
-		return err
-	}
-	for _, probe := range []struct{ peer, target string }{{zePeer, swanIP}, {swanPeer, zeIP}} {
-		if err := lab.requireLosslessPing(ctx, probe.peer, probe.target, 3); err != nil {
-			return err
+	for swanKey := range swanStates {
+		matched := false
+		for zeKey := range zeStates {
+			if zeKey.source != swanKey.source {
+				continue
+			}
+			if zeKey.target != swanKey.target {
+				continue
+			}
+			if zeKey.spi != swanKey.spi {
+				continue
+			}
+			matched = true
+			break
+		}
+		if !matched {
+			return fmt.Errorf("ze and strongSwan do not share the same directed Child SA SPIs")
 		}
 	}
-	mismatchAfter, err := xfrmStat(ctx, lab, zePeer, "XfrmInStateMismatch")
-	if err != nil {
-		return err
-	}
-	if mismatchAfter <= mismatchBefore {
-		return fmt.Errorf("XfrmInStateMismatch did not rise; userspace receive path was not exercised")
-	}
-	after, err := lab.espCounters(ctx, espFormChangeDirections)
-	if err != nil {
-		return err
-	}
-	for _, want := range espFormChangeDirections {
-		if err := assertESPAdvanced(before[want.peer], after[want.peer], want); err != nil {
-			return fmt.Errorf("ESP did not flow across the form disagreement: %w", err)
-		}
-	}
-	dropsAfter, err := rawESPDrops(ctx, lab)
-	if err != nil {
-		return err
-	}
-	if dropsAfter > dropsBefore {
-		return fmt.Errorf("kernel dropped %d packets on Ze raw ESP socket", dropsAfter-dropsBefore)
-	}
-	if err := waitDuration(ctx, 2*time.Second); err != nil {
-		return err
-	}
-	spisAfter, err := lab.espSPIs(ctx, zePeer)
-	if err != nil {
-		return err
-	}
-	if !sameStrings(spisBefore, spisAfter) {
-		return fmt.Errorf("child SA was rekeyed or replaced during form disagreement")
-	}
-	logs, err := lab.logs(ctx, swanPeer)
-	if err != nil {
-		return err
-	}
-	if strings.Contains(logs, "received DELETE for ESP CHILD_SA") {
-		return interoplab.WithSearchedOutput(fmt.Errorf("ze deleted or rekeyed Child SA rather than serving both ESP forms"), logs)
-	}
-	if strings.Contains(logs, "REKEY_SA") {
-		return interoplab.WithSearchedOutput(fmt.Errorf("ze deleted or rekeyed Child SA rather than serving both ESP forms"), logs)
-	}
-	return nil
+	return runESPFormPhases(ctx, lab, zeStates, swanStates)
 }
 
 func xfrmStat(ctx context.Context, lab *scenarioLab, peer, name string) (uint64, error) {
@@ -2373,7 +2338,7 @@ func checkDataplaneMonitoring(ctx context.Context, lab *scenarioLab) error {
 	command := []string{"ip", xfrmCommand, "state", "delete", "src", deleted.source, "dst", deleted.target,
 		"proto", "esp", "spi", strconv.FormatUint(uint64(deleted.spi), 10)}
 	if deleted.ifID != 0 {
-		command = append(command, "if_id", strconv.FormatUint(uint64(deleted.ifID), 10))
+		command = append(command, xfrmWordIfID, strconv.FormatUint(uint64(deleted.ifID), 10))
 	}
 	if _, err := lab.exec(ctx, zePeer, command...); err != nil {
 		return err

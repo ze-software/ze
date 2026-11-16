@@ -36,7 +36,8 @@ const (
 
 	// xfrmCommand is the ip(8) subcommand that reads and writes the kernel's
 	// XFRM state and policy databases.
-	xfrmCommand = "xfrm"
+	xfrmCommand  = "xfrm"
+	xfrmWordIfID = "if_id"
 
 	// iptablesCommand is the IPv4 netfilter tool the checkers drive on a peer, and
 	// netfilterChainInput is the chain, shared with ip6tables, that a peer's
@@ -464,14 +465,8 @@ func pingLoss(output string) (float64, error) {
 	return loss, nil
 }
 
-// requireLosslessPing drives count echo requests from peer to target and refuses
-// any loss, and any output whose summary it cannot read.
-func (l *scenarioLab) requireLosslessPing(ctx context.Context, peer, target string, count int) error {
-	return l.requireLosslessPingFrom(ctx, pingProbe{peer: peer, target: target}, count)
-}
-
-// requireLosslessPingFrom is requireLosslessPing with an optional source address, so a
-// tunnel-mode flow can be stimulated from the inner address its policy selects on.
+// requireLosslessPingFrom drives count echo requests and refuses any loss or
+// unreadable summary. An optional source selects a tunnel-mode flow's inner address.
 func (l *scenarioLab) requireLosslessPingFrom(ctx context.Context, probe pingProbe, count int) error {
 	output := l.execQuiet(ctx, probe.peer, pingCommand(probe, count)...)
 	loss, err := pingLoss(output)
@@ -516,10 +511,10 @@ func (l *scenarioLab) verifyTunnelTraffic(ctx context.Context, message string) e
 // about protection. The directed counters say what was protected, and the ping
 // ties those bytes to a completed round trip.
 //
-// The claimed set is a parameter because checkESPFormChange cannot claim Ze's
-// inbound KERNEL SA. That scenario exists on the two peers disagreeing about ESP
-// form, so Ze receives that ESP in userspace and the kernel state correctly stays
-// still.
+// The claimed set is explicit so each caller names the directions it judges.
+// A complete round trip requires all four. checkESPFormChange also requires
+// all four: its whole bare packets are rewritten before XFRM and then decrypted
+// by Ze's inbound kernel SA.
 func (l *scenarioLab) verifyESPDirections(ctx context.Context, message string, wanted []espDirection) error {
 	return l.verifyESPDirectionsToward(ctx, message, pingProbe{peer: zePeer, target: swanIP}, wanted)
 }
@@ -1373,7 +1368,7 @@ func readbackLifetimes(output string) (map[readbackSAKey]espLifetime, error) {
 		}
 		fields := strings.Fields(line)
 		for i := 0; i+1 < len(fields); i++ {
-			if fields[i] == "if_id" {
+			if fields[i] == xfrmWordIfID {
 				ifID, err := strconv.ParseUint(fields[i+1], 0, 32)
 				if err != nil {
 					return nil, err
@@ -1486,7 +1481,7 @@ func decodeDataplaneGauges(answer string) (dataplaneGauges, error) {
 		label  string
 		values map[string]float64
 	}{
-		{dataplaneCountMetric, "if_id", gauges.count},
+		{dataplaneCountMetric, xfrmWordIfID, gauges.count},
 		{dataplaneDriftMetric, "peer", gauges.drift},
 	} {
 		for _, metric := range families[family.name].GetMetric() {

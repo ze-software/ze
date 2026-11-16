@@ -131,6 +131,7 @@ test/interop/ze-linux
 test/interop/le-linux
 test/interop/ze-le-linux
 test/interop-ipsec/ze-linux
+test/interop-ipsec/ipsec-peerform-linux
 test/interop-l2tp/ze-linux
 test/interop-l2tp/le-linux
 test/interop-l2tp/ze-scale-linux
