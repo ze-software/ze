@@ -1,3 +1,6 @@
+# QUESTION: Does an egress tag reload affect later UPDATEs without resending old routes?
+# A unit test cannot decide the live daemon's reload fences and complete BGP frames.
+#
 # Test: an egress tag edit reaches the next UPDATE sent, and a route sent before
 #       the reload is not re-sent. This states the boundary of a filter reload
 #       on the export side: the reload changes what the plugin answers for
@@ -165,6 +168,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65002; }
+			next-hop unchanged
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -247,6 +251,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65002; }
+			next-hop unchanged
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }

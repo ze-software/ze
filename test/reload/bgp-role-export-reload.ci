@@ -1,3 +1,6 @@
+# QUESTION: Does a role export reload apply its new set and retain B's learned role?
+# A unit test cannot decide the live OPEN capability, committed reloads and BGP wire output.
+#
 # Test: a reload that edits a peer's role export set makes bgp-role apply the
 #       new set to the next UPDATE it forwards, and a reload that removes no
 #       peer keeps the role a role-less peer declared in its OPEN.
@@ -178,6 +181,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65002; }
+			next-hop unchanged
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -262,6 +266,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65002; }
+			next-hop unchanged
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
@@ -347,6 +352,7 @@ bgp {
 		}
 		session {
 			asn { local 65000; remote 65002; }
+			next-hop unchanged
 			router-id 1.2.3.4
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
