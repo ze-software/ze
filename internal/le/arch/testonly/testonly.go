@@ -6,10 +6,14 @@
 // a leaf, so every check that honors the declaration reads this one list.
 package testonly
 
-// Packages are module-relative helper packages that import `testing` and
-// start real containers. A _test.go file imports them, and so may tooling
-// under internal/le; a shipped file elsewhere never does.
-var Packages = [...]string{"internal/le/interoplab/labtest"}
+// Packages are module-relative helpers reserved for tests and development
+// tooling. They may import testing and manage containers or guest fixtures.
+// A _test.go file imports them, and so may tooling under internal/le; a
+// shipped file elsewhere never does.
+var Packages = [...]string{
+	"internal/le/interoplab/labtest",
+	"internal/test/ext4fixture",
+}
 
 // Owner answers the declared test-only package that rel, a module-relative
 // package or file path, names or lies under, and false when it is none.

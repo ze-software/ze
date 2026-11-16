@@ -107,18 +107,21 @@ policy roots rather than maintaining another list.
 ### Test-only helpers
 
 `Packages` in `internal/le/arch/testonly/testonly.go` names the helper
-packages that import `testing` and start real containers:
-`internal/le/interoplab/labtest` today. The `test-only-imports` check refuses a
-shipped file outside `internal/le` that imports one, naming the file and the
-package. A `_test.go` file anywhere may import it, and so may tooling under
-`internal/le`, which is outside production. The check has no baseline.
+packages reserved for tests and development tooling.
+`internal/le/interoplab/labtest` runs container labs;
+`internal/test/ext4fixture` prepares filesystem images on the host and attaches
+them in guest tests. These helpers may import `testing` and manage test
+resources. The `test-only-imports` check refuses a shipped file outside
+`internal/le` that imports one, naming the file and the package. A `_test.go`
+file anywhere may import it, and so may tooling under `internal/le`, which is
+outside production. The check has no baseline.
 <!-- source: internal/le/arch/testonly/testonly.go -- Packages, Owner -->
 <!-- source: internal/le/arch/tier/testonly.go -- testOnlyImportGate -->
 
 The added-symbol wiring check in `./le doc wiring` reads the same list. An
-export of a test-only package can have no non-test reference, because this
-check refuses one, so the wiring check does not ask for one. The list is a
-leaf package, so both checks import it and neither keeps a copy.
+export of a test-only package needs no production caller: the tier check
+confines its importers to tests and development tooling. The list is a leaf
+package, so both checks import it and neither keeps a copy.
 <!-- source: internal/le/doc/wiring/wiring.go -- checkWiring -->
 
 ### The docker route

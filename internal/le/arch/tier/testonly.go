@@ -72,7 +72,7 @@ func testOnlyImportGate(module string, edges Edges) CheckResult {
 	for _, pair := range found {
 		tb.Str("  ").Str(pair.File).Str(" imports ").Str(pair.Package).Byte('\n')
 	}
-	tb.Str("  Rule: a test-only helper imports `testing` and starts real containers, so only a _test.go file,")
+	tb.Str("  Rule: a test-only helper manages resources for tests and development, so only a _test.go file,")
 	tb.Str(" or tooling under internal/le, imports it (docs/architecture/module-tiers.md, \"Test-only helpers\").\n")
 	tb.Str("  Fix: move the importing code into a _test.go file.\n")
 	result.Diagnosis = tb.String()
