@@ -245,7 +245,7 @@ with the reason, instead of being matched or missed by a pattern.
 
 ## Owned journal rows
 
-134 rows. A row belongs here when a development gate, hook or runner judged the wrong population because it chose that population by a text proxy, a hand list, the working tree, a whole file, or one build configuration.
+135 rows. A row belongs here when a development gate, hook or runner judged the wrong population because it chose that population by a text proxy, a hand list, the working tree, a whole file, or one build configuration.
 
 | Class file | Date | Surface (short) |
 |------------|------|-----------------|
@@ -279,6 +279,7 @@ with the reason, instead of being matched or missed by a pattern.
 | gate-fires-outside-its-population | 2026-10-09 | `(*Runner).goList` (`internal/le/go/lint/verifylint.go`) |
 | gate-fires-outside-its-population | 2026-10-26 | `./le verify changed` scope widens to everything on a deleted package (`internal/le/repo/changed/selector.go`) |
 | gate-fires-outside-its-population | 2026-10-26 | `governedShellWrite` (`internal/le/hookruntime/bash.go`) refuses shell writes to Go source `internal/le/ai/rules/*.go` |
+| gate-excludes-part-of-its-population | 2026-11-16 | `le test stress-repro run` cannot stress a `caps=` `.ci`: skipped on the host, no Go toolchain in Ze's guest (`internal/le/test/stressrepro/run.go`) |
 | gate-excludes-part-of-its-population | 2026-10-07 | RSVP-TE and flow-export interop Go tests missing from the interop catalog |
 | gate-excludes-part-of-its-population | 2026-09-21 | the ignored-path check in `./le commit create` (`validateAddPath`, `internal/le/commit/input.go`) |
 | gate-excludes-part-of-its-population | 2026-09-20 | `importName` and `dropOrphanedImports` (`internal/le/rfc/discriminate_action.go`) |
