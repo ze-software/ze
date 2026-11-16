@@ -1,19 +1,19 @@
 {
-  "note": "Re-judged 2026-10-31 by an independent auditor who authored none of the change. RFC text (rfc4271): \"The lower-order four bits of the Attribute Flags octet are unused. They MUST be zero when sent\" The only edit to test/plugin/rfc4271-attr-flags-low-nibble-relay.ci since the last judgement is f8f7628bdf, which adds a bgp-level filter { import { final accept; } export { final accept; } } with no filter refs, because RFC 8212 Section 3 now makes an EBGP direction with no explicit policy reject. No expect, reject, input or requirement-tag line changed. policy.ConcatChains keeps every peer-level ref and takes the final from the most specific configured level, so a peer-level chain still decides where one exists. An accepting final with no refs neither refuses nor rewrites a route: a withheld, stripped or discarded outcome the file asserts can still come only from the producer under test, and a delivered outcome is the eligibility the test was written under before RFC 8212; without the block the positives would fail for the wrong reason. What the unit proves is unchanged. Verdict unchanged: enforced. Earlier judgements are in this file's git history.",
+  "note": "Independently rejudged against RFC 4271 Section 4.3: \"The lower-order four bits of the Attribute Flags octet are unused. They MUST be zero when sent and MUST be ignored when received.\" normalizeTransmittedUpdate clears 0x0F on every complete path-attribute header in the session's private write buffer. The four writer-rail tests assert every flag, attribute code/value and exact NLRI, including unknown optional transitive attributes and Extended Length; the clean-flags control requires byte identity. General and route-server relay tests require zero low bits and retained values/NLRI. The real-daemon CI requires both complete peer frames; explicit next-hop unchanged preserves its literal next-hop subject without changing a flags oracle. The core encoder witness covers selected locally constructed attributes, while the final session writer covers retained/raw bytes. The producer-disabling native breaks are not claimed as selective bit-corruption experiments. This verdict judges the assertions and does not claim a new execution or completion of unrelated attributes/framing requirements.",
   "requirement_sha": "b37ec5ac4690ae20",
   "tests": {
-    "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteClearsLowNibbleEveryAttribute": "6745b0cebcdab9d7",
-    "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteLeavesCleanFlagsUnchanged": "6745b0cebcdab9d7",
+    "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteClearsLowNibbleEveryAttribute": "e8d082e5538b8273",
+    "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteLeavesCleanFlagsUnchanged": "e8d082e5538b8273",
     "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "7fcb9a72da7cbf62",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "4d1e0cbb7558949b",
-    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "7e451caf8dfda1f0"
+    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "d8b3075406decc74"
   },
   "units": {
     "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteClearsLowNibbleEveryAttribute": "69e3fdadc3a4be72",
     "internal/component/bgp/reactor/rfc4271_attr_flags_egress_test.go::TestRFC4271WriteLeavesCleanFlagsUnchanged": "30c37d25913231c0",
     "internal/component/bgp/reactor/rfc4271_attr_flags_relay_test.go::TestRFC4271RelayedLowNibbleClearedOnBothRails": "4cc006b6bba6010d",
     "internal/core/bgp/attribute/rfc4271_test.go::TestRFC4271AttributeFlagsLowNibbleZeroOnSend": "64a11a9539271936",
-    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "7e451caf8dfda1f0"
+    "test/plugin/rfc4271-attr-flags-low-nibble-relay.ci": "d8b3075406decc74"
   },
   "verdict": "enforced"
 }

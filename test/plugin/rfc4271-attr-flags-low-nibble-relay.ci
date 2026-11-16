@@ -2,7 +2,7 @@
 # relayed attribute, from a peer's socket to two other peers' sockets.
 #
 # RFC requirement: RFC4271-4.3-3 positive -- an UPDATE received with bits 0x0F set in the flags of ORIGIN, AS_PATH, NEXT_HOP and an unrecognized optional transitive attribute is relayed to a route-server client and to a plain eBGP peer with those four bits zero in every flags octet and the attribute values unchanged.
-# RFC requirement: RFC4271-4.3-4 positive -- the same UPDATE draws no RFC 7606 action on receipt: the route is installed and relayed to both peers.
+# RFC requirement: RFC4271-4.3-4 positive -- the same UPDATE draws no RFC 7606 action on receipt: the route is relayed to both peers.
 #
 # RFC 4271 Section 4.3: "The lower-order four bits of the Attribute Flags octet are unused.
 # They MUST be zero when sent and MUST be ignored when received." The relay rails copy the
@@ -140,6 +140,7 @@ bgp {
 				remote 65003
 			}
 			router-id 1.2.3.4
+			next-hop unchanged
 			family {
 				ipv4/unicast { prefix { maximum 10000; } }
 			}

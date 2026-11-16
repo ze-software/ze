@@ -240,8 +240,8 @@ func TestRFC4271AttrFlagsLowNibbleIgnoredOnReceive(t *testing.T) {
 		0x4F, 0x02, 0x00, // AS_PATH (empty), low nibble all set
 		0x4F, 0x03, 0x04, 0xc0, 0x00, 0x02, 0x01, // NEXT_HOP, low nibble all set
 	}
-	// 0x4F has the Extended Length bit (0x10) set, which is a real encoding
-	// choice; strip it here so the remaining reserved bits are what is exercised.
+	// 0x4F has the reserved bits set and Extended Length (0x10) clear.
+	// Clearing 0x10 below preserves these one-octet-length attribute headers.
 	pathAttrs[0] = 0x4F &^ 0x10
 	pathAttrs[4] = 0x4F &^ 0x10
 	pathAttrs[7] = 0x4F &^ 0x10
