@@ -106,7 +106,8 @@ The optional `variant missing-frame-metadata` keyword builds a separate proof
 image that omits parsed metadata; the answer records its variant and immutable
 ID. This counterfactual must fail the same runtime oracle the baseline passes.
 This builds a lab dependency; the existing scenarios below still exercise
-the kernel backend. No VPP mechanism proof has been recorded yet.
+the kernel backend. The complete native mechanism proof passed on 2026-11-16,
+including its separate missing-metadata image.
 <!-- source: internal/le/build/vpp/build.go -- buildImage, imageRecipe -->
 <!-- source: internal/le/build/vpp/register.go -- native build action and image registration -->
 
@@ -164,7 +165,7 @@ That separate command submits real graph frames to exercise scalar input,
 both paired input lanes and control dispatch. It checks native drops, counter
 increments, initialized trace metadata and unchanged session allocation. Only
 the complete answer `PPPoE receive bounds: 4 paths passed` permits dialing.
-These new checks still require a passing native run.
+These checks passed in all three native topologies on 2026-11-16.
 
 Discovery diagnostics capture at most 32 packets for at most 60 seconds on
 the VPP peer, after confirming tcpdump has started. Failure evidence includes
@@ -200,8 +201,11 @@ The `lab` branch selects and validates the appliance's own runtime kernel.
 The separate `command`/`harness` branch starts no Docker daemon and is not this
 carrier. Source image compilation on Colima establishes artifact buildability;
 it does not establish these kernel-dependent packet results. This proof is
-manually invoked while the post-release feature is developed. No passing
-mechanism run has been recorded yet.
+manually invoked while the post-release feature is developed. On 2026-11-16,
+plain, named-namespace and VLAN access all passed on baseline image
+`sha256:a0aac6ad351b37311384caa5fab112630d3a733875777faffc5689a61a6085bc`.
+This uses the scratch control helper, not Ze's subscriber authentication and
+session provider.
 
 On failure, the shared suite captures bounded tails of VPP's startup/runtime
 logs, the control helper's launch log and error/state markers, and pppd's log
@@ -242,7 +246,13 @@ that does not provide the optional binding command.
 The isolated parser step has a 90-second bound and each CLI query has a
 30-second bound. The shared suite removes its peer before the image lease is
 released and task scratch is removed; image cleanup remains bounded after
-cancellation. No passing combined proof has been recorded yet.
+cancellation. The combined proof passed on 2026-11-16: three baseline
+topologies, same-image binding/ownership checks, and the exact metadata
+assertion from image
+`sha256:92da1e02c179f5731d3a6fbe9010333f50fe17bafc419252b589ab298f1d04d0`.
+Its Ze-kernel guest reported check, command and lab exits of zero, stopped the
+VM and left nothing behind. Product-provider and ownership-discrimination
+tests remain separate.
 <!-- source: internal/le/test/deployment/vpppppoe/proof.go -- runProof, runMetadataProof, checkMetadataOracle -->
 <!-- source: internal/le/test/deployment/vpppppoe/register.go -- proof action and signal context -->
 

@@ -151,10 +151,11 @@ buffers, including truncated declarations, poisoned padding, valid discovery,
 VLAN, split headers, IPv6 and transport boundaries. Every accepted case also
 checks explicit session ID, PPP protocol, Ethernet offset, inner EtherType and
 code values, including tagged and split discovery, LCP and IPv6 frames. It must
-print `PPPoE frame bounds: 31 cases passed`. A mutant that removes the parser's
-output assignment must fail these metadata assertions; that discrimination
-has not run yet. This runtime proof and malformed-frame
-receive assertions must pass before the image serves as Phase 0 evidence.
+print `PPPoE frame bounds: 31 cases passed`. On 2026-11-16, the complete
+Ze-kernel proof passed the baseline parser and malformed-wire checks in plain,
+namespace and VLAN topologies. The separate missing-output-assignment image
+then produced the exact expected metadata assertion, with no stderr. The
+checker rejects mixed diagnostics and unrelated failures.
 
 The optional `ze/0102` command, `vppctl test pppoe receive-bounds`, separately
 submits exact one-buffer and four-buffer frames to the real input node, then
@@ -164,9 +165,9 @@ references while the normal graph drops the buffers, then checks all six
 BAD_LENGTH errors, exact native drop-counter deltas, initialized formatted
 trace metadata and unchanged session allocation. Success requires
 `PPPoE receive bounds: 4 paths passed`. It runs only in the single-thread lab
-with automatic session discovery and trace filters off. This proof is authored;
-zero-fuzz application, compilation and execution remain owed. The existing 31
-parser cases and their metadata counterfactual remain unchanged.
+with automatic session discovery and trace filters off. Zero-fuzz application,
+compilation and execution passed in that complete Ze-kernel proof. The existing
+31 parser cases and their metadata counterfactual remain unchanged.
 
 The same lab test option enables `vppctl test pppoe cp-binding`. It creates real
 loopback and VLAN software interfaces and calls the actual binding API. Its
