@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"slices"
 	"sync"
+	"unicode/utf8"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/collectors"
@@ -327,6 +328,9 @@ func (v *promGaugeVec) RetainSeries(labelValues ...string) (SeriesLease, error) 
 	if len(labelValues) != v.labelCount {
 		return SeriesLease{}, errors.New("metric gauge series lease requires the declared label count")
 	}
+	if err := validatePrometheusSeriesLabels(labelValues); err != nil {
+		return SeriesLease{}, err
+	}
 	return v.custody.Retain(labelValues, nil, v.gv.DeleteLabelValues)
 }
 
@@ -351,5 +355,19 @@ func (v *promHistogramVec) RetainSeries(labelValues ...string) (SeriesLease, err
 	if len(labelValues) != v.labelCount {
 		return SeriesLease{}, errors.New("metric histogram series lease requires the declared label count")
 	}
+	if err := validatePrometheusSeriesLabels(labelValues); err != nil {
+		return SeriesLease{}, err
+	}
 	return v.custody.Retain(labelValues, nil, v.hv.DeleteLabelValues)
+}
+
+// Validate without creating a native sample: GetMetricWithLabelValues would
+// publish a guessed zero value before the holder's first measurement.
+func validatePrometheusSeriesLabels(labelValues []string) error {
+	for _, value := range labelValues {
+		if !utf8.ValidString(value) {
+			return errors.New("metric series lease requires valid UTF-8 label values")
+		}
+	}
+	return nil
 }

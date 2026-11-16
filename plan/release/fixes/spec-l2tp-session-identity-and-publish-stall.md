@@ -2,21 +2,38 @@
 
 | Field | Value |
 |-------|-------|
-| Status | skeleton |
+| Status | in-progress |
 | Scope | protocol |
 | Priority | P1 |
 | Release reason | Shipped-daemon defects an operator meets on an LNS with more than one tunnel: a subscriber's route is withdrawn or its session is cleared because a session on another tunnel holds the same session id, and every tunnel stops answering while one RADIUS server is slow. |
 | RFC gaps | - |
 | Depends | `spec-single-owner-lifecycle-5-session-end-locals` (closed) (it edits the same L2TP files and adds the per-tunnel order ticket this spec's design must fit; the order of the two is settled in design) |
-| Phase | - |
+| Phase | 2/5: identity values landing; current producer and observer integration in progress |
 | Handoff | - |
 | Design tier | strongest tier |
 | Implementation tier | development tier |
-| Updated | 2026-11-11 |
+| Updated | 2026-11-16 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
 ## Task
+
+Implementation authority, Thomas, 2026-11-16:
+
+> yes please do deliver a working and tested lab supporting the feature
+
+The approved operator interface uses readable numeric session/tunnel selectors,
+with the configured listener name where needed to disambiguate. It resolves
+once to the complete internal subscriber identity and exact captured control.
+The final implementation contract below supersedes the earlier proposal that
+would have required operators to type opaque IDs. The internal immutable birth
+and the complete strict lab proof remain required.
+
+The observer integration also owns admission of shared metric series. Native
+Prometheus retention must refuse invalid UTF-8 and incorrect label counts
+before granting a lease, return the cause without callbacks or logging, and
+publish a series only after an actual measurement. This small prerequisite
+keeps an untrusted subscriber label from reaching a native vector panic.
 
 Four L2TP defects met while `spec-single-owner-lifecycle-5-session-end-locals`
 was written. They are not event-order defects, so they left that spec. Each has
@@ -116,6 +133,8 @@ whether a tunnel id is unique across the reactors of one subsystem.
 | The per-session accounting task | `internal/component/l2tp/plugins/authradius/acct.go` `runAccounting`, `interimLoop` | One goroutine per accounting session sends the Start and the Interim-Updates, and ends when `onSessionDown` cancels it | Extends, or does not apply: third open question. It is the goroutine that already waits on the RADIUS server for this session |
 | RADIUS retransmission and failover | `internal/component/radius/client.go` `Exchange`, `SendToServers` | Retransmits and fails over inside one call, bounded by the caller's context. No queue outlives the call | Does not apply as a queue: there is none to join. RFC 2866 Section 2 recommends retrying with backoff and specifies no algorithm |
 | The per-tunnel order ticket | `internal/component/l2tp/session.go` `issueNoticeTicket`, `drainPendingTeardowns`; `docs/architecture/l2tp/subscriber-session-model.md` (built in `bae3903dbb` by the closed `spec-single-owner-lifecycle-5-session-end-locals`) | Will order the notifications of one tunnel without holding a lock while a reader runs | Extends: whatever moves the Stop wait keeps that order, and a quarantine or an identity check is taken under the same `tunnelsMu` |
+| Canonical subscriber ID already carried in PPP admission and provider requests | `subscriber/id.go` `SessionID`, `ppp/start_session.go` `StartSession.SubscriberID`, `subscriber_bridge.go` `l2tpSessionID` | The canonical string separates access namespaces and full transport identifiers; L2TP still constructs it from TID and SID alone | Extend the existing carrier rather than introduce a parallel identity. Its L2TP producer must distinguish listener ownership and logical session birth before admission; numeric coordinates remain metadata |
+| Full issued accounting-ID matching | `authradius/acct.go` `genSessionID`, `currentSessionIDs`; `authradius/coa.go` `findSessions` | CoA compares the complete boot-tag/counter accounting ID, then loses the match by returning SID alone | Preserve the full match and carry its exact captured target through teardown. This current source supersedes the skeleton's prefix-matching description |
 
 ## Open design questions
 
@@ -134,36 +153,41 @@ accel-ppp source where it applies, and chooses.
 ## Data Flow (MANDATORY - see `ai/rules/architecture.md`)
 
 ### Entry Point
-- [Where data enters: wire bytes, API command, config, plugin message]
-- [Format at entry]
+- L2TP control datagrams admit a logical session; PPP typed events report its negotiated state.
+- Registered CLI/web commands, RADIUS requests and captured timers select an existing admission.
 
 ### Transformation Path
-1. [Stage 1: for example "Wire parsing in internal/component/bgp/message/"]
-2. [Stage 2: ...]
+1. Admission captures one canonical birth and exact attempt/control before asynchronous work.
+2. The reactor validates that owner, then publishes carried identity through existing lifecycle/ticket paths.
+3. Observers and policy/accounting consumers use that full identity; commands resolve numeric coordinates to one captured owner before action.
+4. Terminal route/policy completion and ordered accounting retain the original owner through cleanup, preserving every non-target session. The detailed writer/reader table below governs each boundary.
 
 ### Boundaries Crossed
 | Boundary | How | Verified |
 |----------|-----|----------|
-| Engine ↔ Plugin | [JSON format, command syntax] | No |
+| Engine ↔ Plugin | Typed lifecycle identity, JSON CoS owner transactions and registered session command keywords | Source census complete; scoped and real-path proof owed |
 
 ### Changed-Wire Census
 
-**Search evidence:** [scope, terms, positive control and source findings]
+**Search evidence:** The research continuation and final census below record searches across Go/YANG/templ/JS/shell/Python/ci/et, known producer/consumer controls, every migration and preserved speaker. Independent admission corrected Echo, synthetic prefix and the exact CoS JSON writer/decoder before test authoring.
 
 | Wire | Role (writer / reader) | Carrier (file + producer/consumer symbol or script entry) | Source evidence | Migration or preservation disposition |
 |------|------------------------|-----------------------------------------------------------|-----------------|----------------------------------------|
-| [format] | [role] | [source site] | [search finding and actual encode/write or decode/read path] | [change or preserve, with reason and proof] |
+| Lifecycle/echo identity | writer and reader | Reactor/event payloads → bridge, observer, accounting, shaper, CoS and CoA health | Actual producer/subscription census in the research continuation | Migrate explicit typed canonical birth and preserve exact owner/network fences |
+| CoS prepare JSON | writer and reader | `coa_transaction.go` `confirmCoA`, `callCoAOwner` → CoS `executeSessionTransaction` | Actual JSON marshal and strict decoder read | Migrate canonical ID together; retain authenticated transaction/token and receipt semantics |
+| Command/web selectors | writer and reader | Registered L2TP command owner, real fixture/interop writers and web links/forms | Actual command-string and template census below | Preserve unique numeric callers; qualify collisions; resolve once; web uses exact captured birth |
+| Prefix handler API | writer and reader | `fakel2tp` `poolPrefix` → registered prefix handler/releaser | Actual synthetic writer and bounded no-production-caller census | Migrate the reachable writer/API to carried ID; preserve prefix allocation/release behavior |
 
 ### Integration Points
-- [Existing function/type this connects to] - [how it integrates]
+- Existing canonical admission/control, per-tunnel notice order, typed EventBus, metadata/registry, command dispatcher, observer replay and accounting task; extend these rather than add parallel lifetime or selector managers.
 
 ### Architectural Verification
 | Check | Holds? | Evidence |
 |-------|--------|----------|
-| No bypassed layers (data flows through the intended path) | No | |
-| No unintended coupling (components stay isolated) | No | |
-| No duplicated functionality (extends existing, does not recreate) | No | |
-| Zero-copy preserved where applicable (refs, not copies) | No | |
+| No bypassed layers (data flows through the intended path) | Yes, by design | Commands use registered dispatcher; lifecycle readers use the bus and checked terminal paths |
+| No unintended coupling (components stay isolated) | Yes, by design | Shared identity remains a leaf/value contract; PPP imports no component implementation |
+| No duplicated functionality (extends existing, does not recreate) | Yes, by design | Extend coordinated exact admission, control, terminal receipts and existing accounting owner |
+| Zero-copy preserved where applicable (refs, not copies) | Yes, by design | No packet encoding or buffer-copy change; mint identity once per logical admission |
 | Registration over hardcoding, outbound: new commands, views, families, and handlers register, and the core discovers them. No per-feature field, switch case, or factory is added to a core/shared package (`ai/rules/plugins.md`) | No | |
 | Registration over hardcoding, inbound: no existing switch, seed map, validator, parser, runner, help string, or completion table has to learn this feature's name. Evidence names every list that was searched for the names this feature introduces, and the registry each one now derives from (`ai/rules/principles.md`) | No | |
 
@@ -172,28 +196,40 @@ accel-ppp source where it applies, and chooses.
 ### Assumptions
 | ID | Assumption | Basis (file/doc/user statement) | If wrong | Validated by | Status |
 |----|-----------|--------------------------------|----------|--------------|--------|
-| A-1 | A PPP event queued for an ended session can reach a session that reused its id | Read 2026-11-11: the events carry two ids only, the handlers look up by them, the id is freed before the PPP session ends, and the channel holds 64 events. Not reproduced | Part 1 is not reachable and its row closes with the evidence | A unit test that queues the event, reuses the id and reads the new session | unvalidated |
-| A-2 | A tunnel id is unique across the reactors of one subsystem | Not read | The pair is ambiguous and question 5 decides the identity | Read `allocateLocalTID` and how a subsystem builds its reactors | unvalidated |
-| A-3 | The Accounting-Stop is the only reader work on the publishing goroutine that waits on a remote party | Read 2026-11-11 for `acct.go`. The shaper and CoS call a traffic backend there, which was not read for how long it can wait | Another reader stalls the reactor the same way | Read each reader of the three session events for a call that waits | unvalidated |
+| A-1 | A PPP event queued for an ended session can reach a session that reused its id | Historical tuple-only source admitted this; current live `pppSessionLocked` requires the bound exact attempt/control | A source-level guard is not runtime proof; retain the positive successor regression and do not redo the current mechanism | New queued-event/reuse regression plus current `pppSessionLocked` producer read | broken on current live source; regression owed |
+| A-2 | A tunnel id is unique across the reactors of one subsystem | `newL2TPReactor` seeds from the listener port and `allocateLocalTID` checks that reactor alone | A tuple key remains ambiguous across listeners; approved design uses canonical birth | Constructor, allocator and per-listener `Subsystem.Start` source read | broken; accounted for in approved design |
+| A-3 | The Accounting-Stop is the only reader work on the publishing goroutine that waits on a remote party | Shaper Apply/RestoreOriginal and CoS updateQoS are synchronous too | Do not claim every reader is nonblocking; isolate unanswered RADIUS in the control proof and preserve backend completion | Read the actual shaper, CoS and event-dispatch producers | broken; accounted for in approved design |
 
 ### Risks
 | ID | Risk | Early signal | Mitigation / fallback |
 |----|------|--------------|----------------------|
-| R-1 | [what goes wrong] | [how we notice it] | [what we do about it] |
+| R-1 | A stable logical session ID is mistaken for authority over a later network phase | An old family/down/provider operation affects replacement negotiation on the same transport | Keep the existing attempt/control, pending-event and network-lifetime fences; the public ID alone grants no mutation or cleanup authority |
+
+### Wrong assumptions corrected before implementation
+
+The skeleton's subsystem-unique TID and RADIUS-only slow-reader assumptions
+were wrong. The approved design already incorporates listener/lifetime birth
+and a precisely scoped accounting control proof, so these findings do not
+invalidate it. The later exact PPP attempt/control and timeout work is applied
+locally; audit and test it instead of replacing it or calling it verified.
 
 ## Blast Radius
 
 | Question | Answer |
 |----------|--------|
-| What breaks if this is wrong? | [live sessions dropped / routes mis-encoded / config rejected / nothing user-visible] |
-| How is it reverted? | [single commit revert / needs config migration / not revertible once peers see it] |
+| What breaks if this is wrong? | Another subscriber loses routes/history/policy or is disconnected; a blocked publisher causes healthy tunnels to time out; incorrect terminal ownership corrupts billing |
+| How is it reverted? | Fix forward through coherent producer/consumer commits; retained exact-owner guards and scoped tests protect existing sessions. No destructive git rollback or partial payload migration |
 | Who else touches this path? | `spec-single-owner-lifecycle-5-session-end-locals` (closed) edits `reactor_kernel.go`, `teardown.go`, `reactor.go` and `session.go`. `spec-rfc5176-remaining-defect-classes` edits the CoA path |
 
 ## Wiring Test (MANDATORY -- NOT deferrable)
 
 | Entry Point | → | Feature Code | Test |
 |-------------|---|--------------|------|
-| [config/CLI/event that triggers it] | → | [function that actually runs] | [test name proving the chain] |
+| PPP assigned address and peer/local down | → | Reactor, checked route observer and lifecycle subscribers | `TestRouteObserverKeepsSameSessionIDOnTwoTunnelsApart`, `TestRouteDownKeepsOtherTunnelReplay` |
+| Real typed session/echo EventBus events | → | `wireObserverSubscriptions`, CQM event rings and release | `TestObserverKeepsSameSessionIDOnTwoTunnelsApart`, `TestObserverDownKeepsOtherTunnelHistory` |
+| Session command dispatch with SID/TID/listener | → | Registered schema, common resolver, captured exact owner | `TestSessionCommandTargetsCanonicalAdmission`, `test/l2tp/session-selector-scope.ci` |
+| Unanswered RADIUS Stop and healthy peer HELLO | → | Real accounting event reader and reactor control path | `TestSlowAccountingStopDoesNotBlockOtherTunnelControl`, `test/l2tp/slow-accounting-control.ci` |
+| Real external LAC subscriber population | → | Existing complete scale checker and selected teardown path | `l2tp-many-sessions-kl2tpd` |
 
 ## Acceptance Criteria
 
@@ -208,12 +244,15 @@ AC-20. The design pass confirms or rewrites each one.
 | AC-3 | Two sessions on two tunnels hold the same session id, and the operator clears one, or a Disconnect-Request names one, or one reaches its session timeout or idle timeout | The session that was named ends, with its CDN and its Accounting-Stop, and the other stays established and keeps its route | None: the two are different subscribers. What the operator types is question 4 |
 | AC-4 | A RADIUS accounting server answers nothing, and a session on one tunnel ends | The reactor keeps handling the control packets of every tunnel: a hello on another tunnel is answered inside its retransmission interval, and no healthy tunnel is torn down. The Stop for the ended session is still sent, and retried as the design states | A Stop that no server acknowledged before its bound: the log names it |
 | AC-5 | A tunnel's peer source address changes mid-life (the dispatch path overwrites `peerAddr` with `pkt.from`), then the tunnel is discarded or closed | `discardTunnelLocked` removes the `tunnelsByPeer` entry inserted for that tunnel, by the key stored at insert; the index holds no entry for it afterwards (moved from `spec-typed-identity-keys`, 2026-11-14) | none: every tunnel's index entry is removed with it |
+| AC-6 | A native gauge or histogram series retention request has invalid UTF-8 or the wrong label count, followed by a valid Unicode request | The invalid request returns its cause and a zero lease without publishing a sample; the valid request publishes its measured value, and its final release removes that series | Generic custody keys remain arbitrary strings; disabled metrics keep their no-effect leases |
 
 ## End-to-End User Stories
 
 | # | User does | Path through system | Test proving it works |
 |---|-----------|--------------------|-----------------------|
-| 1 | [for example "receives SR-Policy UPDATE from peer"] | [wire -> mpnlri -> splitter -> Parse -> RIB] | [test name] |
+| 1 | Runs subscribers with equal numeric session IDs on different tunnels/listeners | PPP admission → carried identity → independent routes and event history | Collision regressions, real scoped selector functional test and strict scale lab |
+| 2 | Clears one subscriber using readable qualifiers | Registered CLI/web dispatcher → one captured target → exact terminal completion | Selector functional proof plus selected Disconnect/survivor tail |
+| 3 | Loses the accounting server while other subscribers stay active | Terminal snapshot → ordered accounting owner; reactor continues peer control | Slow-accounting control functional proof |
 
 ## 🧪 TDD Test Plan
 
@@ -230,84 +269,104 @@ The first three names came from
 ### Boundary Tests (numeric inputs)
 | Field | Range | Last Valid | Invalid Below | Invalid Above |
 |-------|-------|------------|---------------|---------------|
-| [field] | [min-max] | [value] | [value or N/A] | [value or N/A] |
+| Numeric session/tunnel selector | 1..65535 | 65535 selects a matching admitted row | 0 refuses | 65536 refuses during parsing |
+| Listener qualifier | Existing configured listener-name domain | Configured exact name resolves | Empty/omitted is allowed only when the remaining selector is unique | Unknown/out-of-domain name refuses |
 
 ### Functional Tests
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
-| `test-xxx` | `test/.../*.ci` | [what the user expects to happen] | |
+| `session-selector-scope` | `test/l2tp/session-selector-scope.ci` | Unique bare SID, qualified collision, ambiguity without effects and stale-target survivor | planned, draft before promotion |
+| `slow-accounting-control` | `test/l2tp/slow-accounting-control.ci` | Healthy tunnel control remains responsive while terminal accounting is unanswered | planned, draft before promotion |
 
 ### Interop Tests (Scope: protocol)
 | Scenario | Directory | Peer Daemon | What It Proves | Status |
 |----------|-----------|-------------|----------------|--------|
-| [named in design] | `test/interop/scenarios/` | [FRR/BIRD/GoBGP/strongSwan] | [protocol behavior validated] | |
+| `l2tp-many-sessions-kl2tpd` | `test/interop-l2tp/scenarios/l2tp-many-sessions-kl2tpd/` | kl2tpd v0.1.8, pppd 2.5.5, FreeRADIUS and FRR | All 48 real subscriber lifetimes/routes/traffic, exact chosen teardown, 47/46 survivors and complete accounting | current retained dependency red; unchanged full green owed |
 
 ## Files to Modify
-- `internal/...` - [feature changes]
+- `internal/component/l2tp/route_observer.go`, `observer.go`, `snapshot.go`, `subsystem_snapshot.go` - complete carried-ID records, releases, reads and exact selector resolution
+- `internal/component/l2tp/cmd/l2tp.go`, `cmd/yang/ze-l2tp-cmd.yang` - readable scoped selectors, completion, refusals and diagnostic display
+- `internal/component/l2tp/events/events.go`, `subscriber_bridge.go` - explicit immutable identity through the lifecycle boundary; coordinate canonical producer owner
+- `internal/component/l2tp/session.go`, `session_fsm.go`, `session_initiator.go`, `reactor_kernel.go`, `reactor.go`, `teardown.go`, `session_timeout.go`, `subsystem.go`, `tunnel.go` - coordinated admission/control/timer/index/tick/notice contracts; no competing actor implementation
+- `internal/component/l2tp/plugins/authradius/acct.go`, `coa.go`, `internal/component/l2tp/plugins/shaper/shaper.go` - coordinated exact accounting, disconnect and rate ownership, integrated here
+- `internal/plugins/cos/handler.go`, `session_state.go`, `session_transaction.go` - carried-ID CoS state, metadata and captured transaction ownership
+- `internal/component/web/handler_l2tp.go`, L2TP page data and list/detail templates - exact-ID web targeting through the shared dispatcher and safe stale-page refusal
+- `internal/le/interoplab/l2tp/`, `internal/le/interoplab/topology/`, `internal/test/fixture/` - revalidate actual command writers; migrate only those requiring scope under colliding sessions, preserving all assertions
+- `docs/guide/l2tp.md`, `docs/guide/command-reference.md`, `docs/architecture/l2tp/subscriber-session-model.md`, `docs/architecture/l2tp/l2tp-9-observer.md`, `docs/architecture/traffic/cos-dynamic.md`, `ai/digests/subscriber.md`, `features/l2tpv2-bng.md` - keep each changed phase's public contract true
+- `docs/architecture/l2tp/bng-1-radius-attributes.md` - preserve accounting attributes and cause mappings; update exact lifetime/terminal ownership where the coordinated accounting phase changes it
+- `docs/architecture/web-workbench-pages.md` - repair stale disconnect grammar and describe exact page target/readable coordinates in the web phase
+- `docs/research/l2tpv2-ze-integration.md` - update affected lifecycle identity and accounting integration notes, pointing to the current subscriber model as authority
+- `docs/research/l2tpv2-implementation-guide.md` - preserve normative packet/SID description: internal canonical birth does not change RFC header labels or protocol format
+- `docs/comparison.md` - preserve current BNG capability comparison; this fix changes existing ownership correctness, not the comparison's supported capabilities or accounting fields
 
 ## Files to Create
-- `internal/...` - [new feature file]
-- `test/.../*.ci` - [functional test for end-user behavior]
+- `internal/component/l2tp/session_identity.go` - coordinated canonical birth producer and getter, owned by the active actor session
+- `internal/component/l2tp/session_selector.go`, `session_selector_test.go` - validated readable selectors and exact target resolution; use the existing capture seam where it already supplies this behavior
+- `internal/component/l2tp/route_identity_test.go`, `observer_identity_test.go` - independent colliding-tunnel/listener records and positive surviving state
+- `internal/component/l2tp/cmd/session_selector_test.go` - real dispatch/grammar selection, ambiguity and stale-target cases
+- `internal/plugins/cos/session_identity_test.go` - independent CoS state and transaction lifetime regression
+- `test/l2tp/session-selector-scope.ci`, `test/l2tp/slow-accounting-control.ci` - real daemon entry-point proof, drafted outside the live suite and promoted only after passing
+
+Final helper-file names may follow the existing owning packages discovered by
+the audit; the behavior, census and proof do not shrink when a helper already
+exists. Record the actual symbol/file in the phase handoff.
 
 ### Integration Checklist
 | Integration Point | Applies? | File / reason |
 |-------------------|----------|---------------|
-| YANG schema (new RPCs/config) | | `internal/component/<name>/yang/` or the owning plugin's `yang/`. Read `ai/rules/config.md` (YANG vs env var) and `ai/rules/config.md` (naming) |
-| YANG validation constraints | | Every leaf takes maximum native validation: `range`, `length`, `pattern`, `enumeration`, `type` from `ze-types.yang`. See `ai/patterns/config-option.md` |
-| YANG custom validators | | Where native constraints are insufficient: `ze:validate` + `ValidateFn` + `CompleteFn` for completion |
-| CLI commands/flags | | `cmd/ze/*/main.go` or subcommand files |
-| CLI grammar (keyword before value) | | `ai/rules/cli.md` |
-| Editor autocomplete | | Automatic for YANG enum/type leaves. Dynamic values need `CompleteFn` |
-| Functional test for new RPC/API | | `test/plugin/*.ci` or `test/decode/*.ci` |
-| Pipe completeness | | Route output through `ApplyPipes`/`ProcessPipes` per `ai/rules/cli.md` |
-| Env var registration | | YANG leaves under `environment/` need a matching `ze.<name>.<leaf>` via `env.MustRegister()` |
-| Doctor check for runtime dependencies | | Any new file path, socket, service, kernel module, listen port, procfs/sysctl, netlink, binary, or certificate: owning-package check + `internal/core/diagnostic/codes.go` + unit and functional test (`ai/rules/repo-maintenance.md`) |
-| Doctor code per problem class | | For each problem class the feature can produce (refusal, `Warn`/`Error` log line, transient report-bus event): the doctor check, its code and its phase (`ai/rules/user-facing-errors.md`, `docs/architecture/doctor-and-health-checks.md`) |
-| Prometheus counters/metrics | | Observable state: define, register, and list the metric names and labels here |
-| BGP family surface (new SAFI / capability / attribute) | | The 12-section checklist in `ai/patterns/bgp-family.md` -- read it and record the answers there, not inline |
+| YANG schema (new RPCs/config) | Yes | Extend the existing session command leaves in `internal/component/l2tp/cmd/yang/ze-l2tp-cmd.yang`; no new config or RPC owner |
+| YANG validation constraints | Yes | Nonzero native uint16 SID/TID constraints; listener uses the existing configured server-name type and bounds |
+| YANG custom validators | Yes | Existing CLI owner resolves listener names and supplies completion from the same current listener inventory; unknown names refuse before lookup/mutation |
+| CLI commands/flags | Yes | `internal/component/l2tp/cmd/l2tp.go`: existing session operations accept tunnel/listener keyword qualifiers, preserving unambiguous numeric callers |
+| CLI grammar (keyword before value) | Yes | `id`, `tunnel`, `listener`, `reason`, `cause`; missing target never means all |
+| Editor autocomplete | Yes | Schema-derived keywords plus registered listener-name completion in the existing command owner |
+| Functional test for new RPC/API | Yes | `test/l2tp/session-selector-scope.ci`, plus existing clear/subscriber fixture; new tests draft and promote |
+| Pipe completeness | Yes | Preserve the existing structured response/pipe path for lists, detail, history and traffic; new identity and listener fields remain data |
+| Env var registration | N-A | No new environment setting or operational knob |
+| Doctor check for runtime dependencies | N-A | No new runtime path, socket, module, binary, certificate or backend dependency; reuse existing admission/cleanup checks |
+| Doctor code per problem class | Yes | Argument resolution produces an owning CLI operator error with the missing qualifier/fix. Stale-event refusal is Debug. Existing cleanup/accounting failures retain their registered owning checks; a new Warn/Error requires its diagnostic code and doctor disposition in that implementing phase, never an unlabelled log |
+| Prometheus counters/metrics | Yes | Preserve current route inject/withdraw and subscriber/accounting counters, with independently owned records; no new per-ID metric labels or cardinality |
+| BGP family surface (new SAFI / capability / attribute) | N-A | Existing IPv4/IPv6 unicast route producer only; no new BGP family or attribute |
 
 ### Documentation Update Checklist (BLOCKING)
 | # | Question | Applies? | File to update |
 |---|----------|----------|---------------|
-| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | | `features/<id>.md` (renders `docs/features.md`); `./le feature report` shows its level and the gap to the next |
-| 2 | Config syntax changed? | | `docs/guide/configuration.md`, `docs/architecture/config/syntax.md` |
-| 3 | CLI command added/changed? | | `docs/guide/command-reference.md` |
-| 4 | API/RPC added/changed? | | `docs/architecture/api/commands.md` |
-| 5 | Plugin added/changed? | | `docs/guide/plugins.md` |
-| 6 | Has a user guide page? | | `docs/guide/<topic>.md` |
-| 7 | Wire format changed? | | `docs/architecture/wire/*.md` |
-| 8 | Plugin SDK/protocol changed? | | `ai/rules/plugins.md`, `docs/architecture/api/process-protocol.md` |
-| 9 | RFC behavior implemented, changed, or newly proven? | | `rfc/short/rfcNNNN.md` and the `docs/features/rfc-status.md` row, with source anchors |
-| 10 | Test infrastructure changed? | | `docs/functional-tests.md` |
-| 11 | Affects daemon comparison? | | `docs/comparison.md` |
-| 12 | Internal architecture changed? | | `docs/architecture/core-design.md` or subsystem doc |
-| 13 | Route metadata keys added/changed? | | `docs/architecture/meta/README.md`, `docs/architecture/meta/<plugin>.md` |
-| 14 | Prometheus counters added/changed? | | `docs/plugin-development/metrics.md` or subsystem telemetry doc |
-| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | | `docs/plugin-overview.md`, `docs/features/plugins.md`, `docs/guide/status.md` |
-| 16 | Any changed source file referenced by existing doc source anchors? | | DERIVED, do not answer from memory: `./le spec citation anchors spec plan/release/fixes/spec-l2tp-session-identity-and-publish-stall.md` lists them |
-| 17 | Existing docs show config/CLI/API examples for this area? | | Verify examples against YANG/parser/handler and update stale syntax |
+| 1 | New user-facing feature, or a feature's scope, evidence or level changed? | Yes | `features/l2tpv2-bng.md`: record actual scale proof only after it passes; preserve its experimental level |
+| 2 | Config syntax changed? | N-A | No persistent configuration change |
+| 3 | CLI command added/changed? | Yes | `docs/guide/command-reference.md`: readable qualifiers and ambiguous-target refusal |
+| 4 | API/RPC added/changed? | Yes | `docs/guide/l2tp.md` command/JSON examples and owning command schema; shared dispatcher transports keep their generic contract |
+| 5 | Plugin added/changed? | Yes | `docs/architecture/traffic/cos-dynamic.md`: canonical CoS state and transaction target; accounting/shaper pages change with their coordinated phases |
+| 6 | Has a user guide page? | Yes | `docs/guide/l2tp.md`: selection, identity, event history, accounting ordering and real scale evidence |
+| 7 | Wire format changed? | Yes | `docs/architecture/l2tp/subscriber-session-model.md`: lifecycle payload identity. L2TP/PPP packet formats remain unchanged |
+| 8 | Plugin SDK/protocol changed? | N-A | Existing generic EventBus/command transport, no SDK or framing change; subsystem payload changes are documented in its model |
+| 9 | RFC behavior implemented, changed, or newly proven? | Yes | Rejudge reached RFC 2661/2866/5176 tagged units and their records when changed; update source summaries only for claims the actual test proves; no derived ledger commit |
+| 10 | Test infrastructure changed? | N-A | Existing native functional and lab runners; scenario proof extends behavior, no new harness rule |
+| 11 | Affects daemon comparison? | N-A | Correct existing capability; no new comparison/support claim |
+| 12 | Internal architecture changed? | Yes | Subscriber model, `l2tp-9-observer.md` and `ai/digests/subscriber.md`: immutable birth, full keys, captured resolution and ordered accounting |
+| 13 | Route metadata keys added/changed? | N-A | Ownership key changes internally; emitted route metadata keys retain their contract |
+| 14 | Prometheus counters added/changed? | N-A | Existing metric names and labels retained; guide keeps their semantics accurate |
+| 15 | Registered plugin, event type, send type, command, capability, or inventory changed? | Yes | Existing command schema and owning L2TP model describe qualifier/SubscriberID additions; names and plugin inventory unchanged |
+| 16 | Any changed source file referenced by existing doc source anchors? | Yes | Run native `spec citation anchors` over this spec; update every affected claim in its implementing phase and retain the derived inventory in session state |
+| 17 | Existing docs show config/CLI/API examples for this area? | Yes | Revalidate L2TP guide/reference, web disconnect and actual fixture/interop command writers; unambiguous numeric forms remain valid |
 
 ## Implementation Steps
 
-1. **Phase: Wiring (MANDATORY FIRST)** -- register entry points, write failing wiring tests
-   - Tests: [wiring test names from the Wiring Test table]
-   - Files: [register.go, handler skeleton, route registration]
-   - Verify: the entry point exists and is reachable. The wiring test fails because the feature is a stub
-2. **Phase: [name]** -- [what to implement]
-   - Tests: [test names from the TDD Plan]
-   - Files: [files from Files to Modify]
-   - Verify: tests fail → implement → tests pass → wiring test progresses
+1. **Phase: Wiring** -- current-tree audit and new additive collision/entry-point tests. Run each meaningful red before feature fixes; do not replace source behavior with a stub where the entry point already exists.
+2. **Phase: Observer identity** -- consume the coordinated typed canonical birth/events, migrate route/CQM ownership and preserve checked terminal/replay semantics. Run the new red tests green and all reached old tests.
+3. **Phase: Readable selection** -- registered numeric SID/TID/listener qualifiers, completion, exact snapshot/control resolution, all single-session read/action surfaces and web targeting; run real command/functional proof.
+4. **Phase: Consumer/terminal integration** -- remaining CoS/prefix/JSON consumers plus coordinated actor/accounting/shaper fixes and owned retry/index/reentry cases. Prove useful output, preserved survivors, actual record ordering and responsive control.
+5. **Phase: Lab and review** -- run the unchanged full external-peer scale scenario through all teardown/survivor/accounting assertions, reached regression suites and independent review, then closure. Record actual commands and outcomes in owning state.
 
 ### Critical Review Checklist
 | Check | What to verify for this spec |
 |-------|------------------------------|
 | Completeness | Every AC-N has an implementation at file and symbol |
 | Feature completeness | Every user story has a working path, no broken links |
-| Correctness | [feature-specific] |
-| Naming | [feature-specific] |
-| Data flow | [feature-specific] |
+| Correctness | Equal numeric coordinates and reused labels never confer another admission's mutation authority; stale targets preserve replacements |
+| Naming | Canonical subscriber identity, numeric coordinates, network lifetime and exact control remain distinct concepts |
+| Data flow | Full writer/reader census, including Echo, prefix fixture and CoS JSON transaction, carries one identity without reconstruction |
 | Operator errors and doctor codes | Every refusal is an `opererr` error with its fix on the last line, every `Warn`/`Error` line and raise names the code the Integration Checklist's doctor row lists, and each doctor check carries `Fix` at the phase that holds its state (`ai/rules/user-facing-errors.md`) |
-| Rule: [relevant rule] | [what to check] |
+| Rule: typed identity and exact owner | Parse wire identity once into the shared comparable numeric/packed value; preserve exact owner and pending completion receipts |
 
 ### Deliverables Checklist
 | Deliverable | Verification method |
@@ -414,3 +473,404 @@ constraints, message ordering, and every MUST/MUST NOT.
 - [ ] Any lesson routed to its governing surface under `ai/rules/planning.md`; no lesson artifact created merely for closure
 - [ ] **Commit A:** code + tests + docs + edited spec + any journal rows owed by the work
 - [ ] **Commit B:** `remove <the spec's path in its bucket>` only, in the same `./le commit create` script (commit A preserves the spec in history)
+
+## Research continuation: 2026-11-16
+
+The preceding skeleton records its earlier investigation. This continuation
+refreshes those claims against current producers; no implementation or runtime
+reproduction was performed during this research phase. Design approval is still
+owed before this spec becomes ready.
+
+### Owner instruction and sequence
+
+Thomas authorised the L2TP identity design, then instructed:
+
+> When you have done the work then continue with AC-33 and D-14
+
+This session completes this identity work and the strict `spec-finish-l2tp`
+AC-2 proof first, then takes AC-33 in
+`plan/release/fixes/spec-network-services-one-off-defects.md`, then D-14 in
+`plan/release/fixes/spec-lifecycle-invariants.md`. Each design needs approval
+before implementation. AC-2 keeps its complete many-session and survivor proof.
+
+### Refreshed required reading and findings
+
+| Reading / producer | Actionable constraint |
+|--------------------|-----------------------|
+| `rfc/full/rfc2661.txt`, Section 3.1 | → Constraint: "Session ID indicates the identifier for a session within a tunnel." The wire number does not identify a subscriber across tunnels, listeners or reused lifetimes |
+| `reactor.go` `newL2TPReactor`, `allocateLocalTID`; `subsystem.go` `Start` | → Constraint: TID allocation is reactor-local, seeded from the listen port; each listener has its own reactor and PPP driver but shares the subsystem's route observer and bus. Equal TID/SID on two listeners is reachable. A two-field observer key is insufficient |
+| `subscriber/id.go` `SessionID`; `subscriber_bridge.go` `l2tpSessionID`, lifecycle handlers | → Constraint: the current L2TP canonical ID is rebuilt from TID/SID. A complete identity must be minted once at logical admission and passed unchanged; consumers must not reconstruct it from display coordinates |
+| `reactor_kernel.go` `handlePPPEvent`; `session.go` `allocateSessionID`, `removeSession` | → Constraint: the event lookup checks the current tuple only, and removal makes SID available before old asynchronous work finishes. An old event must be fenced by its captured original owner/lifetime, including positive acceptance of the successor's own events |
+| `reactor_kernel.go` `handleKernelSuccess` | → Constraint: the initial captured-session pointer comparison is the existing late-result pattern. Preserve it and cover the later interface-name update with the same owner check |
+| `route_observer.go` `OnSessionIPUp`, `OnSessionDown`; `observer.go` `recordEvent`, `ReleaseSession` | → Constraint: both maps are SID-only today. Route state, framed routes, CQM events, releases, history readers and snapshots all need the complete identity; changing only the route map leaves the same defect reachable elsewhere |
+| `teardown.go` `teardownSessionByID`; `authradius/coa.go` `findSessions` | → Constraint: teardown chooses the first matching SID; CoA already matches the complete issued accounting ID and then returns SID. Preserve the stronger match and act on that exact captured lifetime, never a fresh numeric lookup |
+| `authradius/acct.go` `runAccounting`, `onSessionDown`, `interimLoop`, `stopDetached` | → Constraint: cancelling the task does not join its independent Start/Interim exchange. Stop must be ordered after actual preceding operations without joining on the reactor's publication callback |
+| `authradius/acct.go` `counterDelta`, `buildAcctPacket` | → Constraint: terminal records currently read counters from the live interface during packet construction. Capture exact-lifetime counters, cause and accounting ownership before interface cleanup/reuse; deferring that read can bill another lifetime |
+| `plugin/server/engine_event.go` `dispatch`; `subscriber_bridge.go` `onSessionDown` | → Constraint: in-process readers and bridge re-publication are synchronous. Keep assignment acknowledgement and lifecycle ordering; making the entire bus asynchronous would break an existing contract |
+| `plugins/shaper/shaper.go` `onSessionUp`, `onSessionDown`, `applyTC`; `internal/plugins/cos/handler.go` lifecycle handlers | → Constraint: other readers synchronously call traffic backends or QoS operations. A-3's universal assertion is false. The RADIUS proof must isolate unanswered accounting from these other dependencies, not claim every reader is nonblocking |
+| `reactor.go` `handle`, `handleTick`, `discardTunnelLocked` | → Constraint: retain the peer-index insertion key for AC-5; enqueue tick-collected setups instead of discarding consumed work; deliver already-issued session-down tickets before tunnel callbacks that may re-enter teardown |
+
+### Current and coordinated work
+
+| Work | Current state / boundary |
+|------|--------------------------|
+| Observer, CQM, CLI identity and remaining CoS consumer | Owned here; the active PPPoE/VPP session explicitly leaves these collisions for this work. Its rate/shaper packet migrates that consumer; it reports no CoS migration packet |
+| Opaque PPP attempt/control, exact provider requests and L2TP terminal owner | Active `spec-pppoe-vpp-dataplane` work. Proposed contracts are not current runtime proof. Its owner is coordinating immutable listener ownership and logical session birth; this design extends that contract rather than implements another one |
+| Start/Interim completion before Stop, endpoint retirement, exact Disconnect and timeout targets | Active PPPoE/VPP accounting, disconnect and counter work overlaps these goals. Preserve this spec's acceptance obligations and require integrated evidence after those carriers land; do not count private source packets as implemented |
+| `plan/release/fixes/spec-radius-acct-start-after-stop.md` | Existing skeleton explicitly requests coordination or merger at this design pass. Its wire-order requirement is inseparable from moving Stop off the publishing goroutine; no independent competing Stop implementation |
+| AC-2 retained red | All 48 PPP sessions, addresses, bidirectional traffic and Accounting-Starts were observed before the strict FRR prefix census failed. The unchanged scenario's selected-session teardown, remaining subscribers and accounting tail are still owed after the identity fix |
+
+The shared release fixes require their minimal common carriers and integrated
+proof. They do not make completion of the whole post-release
+`plan/post-release/features/spec-pppoe-vpp-dataplane.md` a prerequisite for this
+release fix. Coordinate and land the shared identity/accounting chunks on their
+own merits; neither spec may park its acceptance obligations in the other.
+
+### Source census for the design
+
+Research searched `internal`, `pkg`, `cmd` and `test` across Go, YANG, templ,
+JavaScript, shell, Python, `.ci` and `.et`, using PPP event declarations and
+emitters, lifecycle subscriptions, SID-only service methods and actual command
+strings. Positive controls include the PPP `EventSessionIPAssigned` producer,
+the web disconnect command writer and the literal clear assertion in
+`test/l2tp/session-clear-leaves-no-subscriber.ci`. This is the current population;
+the final changed-wire census must bind the chosen field and command formats
+to each carrier before design admission.
+
+| Carrier | Producers and readers to disposition |
+|---------|-------------------------------------|
+| PPP admission and lifecycle | `ppp/manager.go` admission/rejection; `ppp/session_run.go` LCP/up/down/echo; `ppp/ncp.go` down/IP-assigned; L2TP reactor readers and PPPoE event consumer. Preserve the shared PPP leaf boundary and successor admission |
+| L2TP lifecycle bus | Writers in `reactor_kernel.go` and `teardown.go`; readers in subscriber bridge, CQM observer, accounting, CoA health, shaper and CoS. Preserve event names; carry complete identity across each boundary |
+| Route ownership and replay | Direct calls from `reactor_kernel.go` and `teardown.go`, route observer state and replay. Preserve checked withdrawal/family-down terminal receipts being added by the active owner |
+| Service and CLI | Detail, observer, FSM history, traffic, clear and disconnect audit; `Service` and snapshots. Selection, lookup and mutation must share one complete target |
+| Programmatic command writers | Web `handleL2TPDisconnect`; interop `checkLNSPolicyOutputForMRU`; topology `checkAccessReconnect`, `checkNegotiated`, `checkRenegotiated`; fixtures `clearL2TPSession`, `l2tpSessionDetailShow09`, `l2tpHistoryShow09`, `plugin16TeardownSession`; offline token forwarding |
+| Browser and non-Go fixtures | `l2tp_list.templ` links and `l2tp_detail.templ` form encode SID; generated files follow templates. Login-addressed `l2tp-chart.js` sample streams remain login-addressed. `.ci` literal assertions migrate with their actual Go command producer. No direct shell/Python lifecycle API caller was found in this bounded search |
+| External accounting | Packet builder through RADIUS client/UDP, full-ID CoA match, FreeRADIUS detail reader in `scale_evidence.go`, Disconnect writer in `scale_observe.go` and embedded mock/radclient fixtures. Preserve the existing accounting-ID form, same ID across Start/Stop and terminate cause |
+
+### Risks and assumptions raised by this pass
+
+| ID | Assumption / risk | Basis or early signal | Validation / mitigation |
+|----|-------------------|-----------------------|-------------------------|
+| A-2 refresh | Subsystem-unique TID assumption is false | Constructor and allocator use listener-local state | Regress equal TID/SID across two listener owners as well as across two tunnels |
+| A-3 refresh | RADIUS-only slow-reader assumption is false | Shaper and CoS perform synchronous backend work | Bound the accounting claim precisely; preserve synchronous assignment acknowledgements and backend ownership |
+| A-4 | Old queued PPP events can reach a successor | Tuple-only lookup, immediate SID release and asynchronous PPP event production | Deterministic old-event/remove/reuse/consume regression, with successor's own positive events accepted |
+| A-5 | Coordinated owner contracts will carry immutable listener scope and logical birth | Active owner accepted the scope gap; final API has not landed | Read the final producer and carrier before fixing signatures; no fallback to tuple reconstruction |
+| R-2 | A SID or tuple survives in a sibling consumer | Shared-ID tests pass for routes but history, pool, CoS or disconnect reaches another session | Account for every census writer/reader; assert unaffected subscribers keep state and traffic |
+| R-3 | Asynchronous Stop overtakes Start or reads reused interface counters | Wire order changes or counters come from another lifetime | Serial accounting ownership and terminal snapshot before cleanup, tested at the real send boundary |
+| R-4 | Teardown relookup targets a successor | Target changes between snapshot and action | Capture exact identity/control once and retain it through completion; stale target cannot select its replacement |
+| R-5 | Unpublished sibling work is mistaken for a completed dependency | Only a private source packet or intent is available | Record landed carriers and actual scoped/integration proof; retain this spec open until its own goals are demonstrated |
+
+### Approaches to carry into design
+
+| Approach | Existing mechanism used | Trade-off |
+|----------|-------------------------|-----------|
+| Complete admission identity and exact lifetime checks | Extend canonical SubscriberID, original-owner result checks, per-tunnel notice order and the existing accounting task/terminal owner | Recommended: one carried identity works across listeners and ID reuse. It requires deliberate migration of the whole consumer/CLI census |
+| Subsystem-wide numeric allocation and reuse quarantine | Extend numeric allocation, per-driver duplicate guards and notice ordering, adding a proved producer-drain boundary before reuse | Avoids changing some payload fields, but adds cross-reactor allocation and reuse exhaustion/drain obligations. A tuple-only map change without these guarantees is insufficient |
+
+For accounting, extend the existing task with ordered terminal ownership.
+A shared bounded accounting queue adds head-of-line blocking and a full-queue
+decision; blocking enqueue recreates the stall and dropping records fails the
+goal. A goroutine per Stop is not an alternative: it loses order and ownership.
+
+Research compared accel-ppp's `session.c` `generate_sessionid` and `radius/acct.c`
+`rad_acct_stop` / `rad_acct_stop_defer`: its logical session ID is separate from
+the wire tuple, and deferred terminal requests retain request state. These are
+design comparisons, not evidence about Ze or a claim that its policy is Ze's.
+Sources: https://github.com/accel-ppp/accel-ppp/blob/master/accel-pppd/session.c
+and https://github.com/accel-ppp/accel-ppp/blob/master/accel-pppd/radius/acct.c,
+read 2026-11-16. A final contract decision must use the coordinated Ze mechanism.
+
+## Proposed design direction: approval pending
+
+This proposal extends the canonical admission identity and exact-owner work
+already being developed for PPP. The API spelling must be bound to that
+producer before this spec is ready; it is not permission to invent a second
+attempt/control mechanism or reconstruct an identity at a consumer.
+
+### Identity and operator contract
+
+| Surface | Proposed contract |
+|---------|-------------------|
+| Logical session admission | Mint the canonical subscriber ID once, before PPP admission. It distinguishes listener ownership and logical session birth even when TID/SID are identical or reused. PPP treats it as opaque |
+| Late work | Retain the original admission's attempt/control. The consumer checks that original owner before mutation or publication; authentic events from the current admission still progress normally |
+| Numeric L2TP IDs | Keep local/remote TID/SID as protocol and display coordinates. They are not global or lifetime selectors |
+| Session lists and details | Expose the complete subscriber ID alongside numeric coordinates. Show, event history, FSM history, traffic and disconnect audit select the same exact admission |
+| Single-session CLI | Revised by owner approval: preserve numeric SID and add optional `tunnel <tid>` and `listener <configured-name>` qualifiers. Resolve all matching candidates once; accept exactly one captured admission and refuse zero or multiple matches before side effects. Preserve explicit `all`, reason and cause semantics |
+| Web | Session links, detail lookup and disconnect form carry that same complete ID through the existing command dispatcher and authorization. Login-addressed CQM samples keep their existing login contract |
+| CoA and timers | Carry the exact snapshot/control matched by the selector or captured by the timer through termination completion. Preserve complete issued Acct-Session-Id comparison, multi-match RFC 5176 semantics and existing error-cause distinctions |
+| Observer keys | Route records, framed-route ownership, CQM event rings, release, snapshots and readers use the carried complete ID. A teardown for one admission cannot remove another admission's state |
+| Other lifecycle consumers | Bridge, accounting, shaper, CoS, CoA health and metadata use the same carried identity. Coordinate their migration with their active owner; no missing reader is waived because this session owns only part of the implementation |
+
+### Accounting and notification contract
+
+1. Preserve synchronous local publication and IP-assignment acknowledgement.
+   Before cleanup can remove/reuse the interface, capture terminal counters,
+   identity, terminate cause and the accounting client/endpoint owner.
+2. Transfer terminal accounting work to the existing accounting task/owner and
+   return from the publishing callback without waiting for a remote RADIUS
+   server or joining an in-flight exchange there.
+3. The accounting owner serializes actual Start and Interim operations before
+   Stop, uses the same complete Acct-Session-Id, and produces one terminal
+   record with its bounded retry/failure reporting. Reload retirement and
+   shutdown retain that owner through completion or an explicit unresolved
+   outcome; cancellation alone is not completion.
+4. Preserve per-tunnel notice ordering and checked route withdrawal/family-down
+   completion receipts. Deliver already-owed session downs before tunnel
+   callbacks that can re-enter teardown. No new goroutine per Stop or generic
+   asynchronous EventBus is introduced.
+5. Retain the original peer-index key through deletion and enqueue the kernel
+   setup events collected by a successful tick retry. These owned rows remain
+   acceptance obligations, coordinated with the active actor implementation.
+
+### Proposed acceptance and wiring proof
+
+These rows refine the draft ACs above; none is a current passing claim.
+
+| AC / entry point | Positive observable outcome | Permitted survivors and reason | Proposed test |
+|------------------|-----------------------------|-------------------------------|---------------|
+| AC-1, queued PPP lifecycle event after numeric ID reuse | The replacement negotiates and publishes its own state; the old event cannot alter it or publish as it | Current admission's own LCP, assignment, up, echo and down events remain effective because they name its owner | `TestLatePPPEventIsRefusedOnAReusedSessionID` with current-owner positive control |
+| AC-2, equal SID across tunnels and equal TID/SID across listeners | Both subscribers retain independent assigned/framed route records and event history; ending one withdraws only its records | Every other admission retains its own distinct prefixes and history because its complete ID differs | `TestRouteObserverKeepsSameSessionIDOnTwoTunnelsApart`, `TestRouteObserverKeepsSameTupleOnTwoListenersApart`, `TestObserverKeepsSameTupleOnTwoListenersApart` |
+| AC-3, real command dispatch, CoA or timeout | The captured admission ends with its CDN and terminal accounting; a stale target reports absence/failure rather than ending its replacement | All non-target admissions continue, including those sharing numeric coordinates | `TestSessionCommandTargetsCanonicalAdmission`, `TestDisconnectKeepsMatchedAdmission`, `TestSessionTimersCannotEndReplacement` |
+| AC-4, unanswered Accounting-Stop while another tunnel sends HELLO | The real reactor answers the healthy tunnel before its peer's existing retransmission deadline; terminal accounting still attempts the ended admission's Stop | Healthy tunnels and accounting tasks continue; an unacknowledged record may finish with an explicit bounded failure because the remote server is unavailable | `TestSlowAccountingStopDoesNotBlockOtherTunnelControl`; functional `test/l2tp/slow-accounting-control.ci` |
+| AC-5, changed peer source then discard | Discard removes the index entry inserted for that exact tunnel, allowing a fresh establishment | Other live peer-index entries remain because their owners differ | `TestDiscardTunnelUsesOriginalPeerIndexKey` |
+| Consumed setup retry | After a failed packet-path socket lookup, a successful tick retry reaches kernel setup and PPP handoff | Existing established sessions keep their owners; no duplicate setup is introduced | `TestTickEnqueuesRecoveredKernelSetup` |
+| Tunnel callback re-entry | A tunnel callback can end another session through the real teardown path and return, with each owed down delivered once | Later valid notices continue in ticket order; no skipped publication is accepted as success | `TestTunnelCallbackRunsAfterOwedSessionDowns` |
+| Accounting wire order and exact terminal snapshot | Actual sends order Start/Interim before Stop and use the ended admission's counters, ID and cause, including immediate teardown and shutdown | Other accounting owners remain independent; configured retry/failure bounds remain permitted | `TestAccountingStopFollowsActualStart`, `TestAccountingTerminalSnapshotSurvivesInterfaceReuse`, plus the existing FreeRADIUS evidence path |
+| Whole subscriber goal | The unchanged many-session scenario completes all 48 subscribers, FRR route census, selected Disconnect, 47 survivors, subsequent peer CDN and 46 survivors, matching accounting and traffic assertions | The explicitly surviving subscribers keep routes and traffic; weakening a failed assertion is not permitted | Existing `l2tp-many-sessions-kl2tpd` against pinned kl2tpd v0.1.8 and pppd 2.5.5 |
+
+### Implementation boundary and approval concern
+
+| Phase | Work and dependency |
+|-------|---------------------|
+| Contract binding | Read the final coordinated admission identity, attempt/control, exact teardown and terminal receipt producers. Bind the full writer/reader census and native CLI schema to those carriers. Resolve any uncovered consumer before ready |
+| Wiring first | Add discriminating tests through session commands/events before implementing observer and reader migration; retain all existing assertions and obtain independent judgment for changed old fixtures |
+| Observer and CLI migration | Implement full-ID route/CQM storage and all reader/release paths; migrate actual command writers, YANG, templates and fixtures together. Preserve the active owner's checked withdrawal receipts |
+| Actor/accounting integration | Consume the coordinated exact-owner and ordered terminal changes, including the three additional journal rows; prove this spec's outcomes through its real entry points rather than count another session's source packet as completion |
+| End-to-end and review | Run scoped reached tests, the strict guest scale scenario through its survivor/accounting tail and independent review. Keep the spec open until every goal has evidence |
+
+The strongest concern is a partial identity migration: the primary route map
+can pass while a sibling command, event reader or metadata lookup still rebuilds
+the old tuple and reaches another subscriber. The census and colliding-listener
+tests are therefore admission requirements, not a closing documentation task.
+
+| Challenge | Answer |
+|-----------|--------|
+| Simplicity | Extend the canonical identity and existing accounting owner. Numeric quarantine needs a new global allocator plus a producer-drain proof, while a second terminal worker adds ownership to explain |
+| Uniformity | Carry one opaque admission identity unchanged across existing registries, the EventBus and command dispatcher. Preserve the PPP leaf and the existing per-tunnel order ticket |
+| Performance | Mint/store identity once per admission and use it as a map key; do not format it per packet/event. Retain existing bounded CQM pools and accounting tasks; add no packet-buffer copy or goroutine per event |
+
+### Coordinated producer contract received after the research pass
+
+The active producer owner supplied a frozen source proposal, not an applied or
+tested implementation. It fits the proposed direction without encoding a
+listener's mutable IP address or requiring a global tunnel-ID allocator.
+
+| Contract | Required integration |
+|----------|----------------------|
+| Logical birth | `newL2TPSubscriberID` uses the existing cryptographic-birth pattern; `L2TPSession.SubscriberID` reads the stored immutable value. The ICRQ, OCRQ and shared initiator constructor mint it once before adding the session or starting shared work |
+| Stability | One logical session keeps its ID through LCP restart, family changes and authentication rounds; a replacement with identical numeric labels receives a different ID. Existing network-lifetime/attempt fences remain separate and still reject stale work within that logical session |
+| Event identity | SessionUp, IPAssigned, Down, rate-change and CoS-change payloads carry the same explicit SubscriberID. A missing ID refuses shared mutation; no fallback rebuilds it from TID/SID |
+| Exact authority | Kernel admission captures and rechecks the original row/receipt before passing the same ID into the PPP attempt. The public string is an identifier, not authorization or proof of physical cleanup; pending receipts and captured control still decide those effects |
+| Observer and metadata | Route/CQM records and metadata lookup use the carried ID. Checked withdrawal and partial family-down retain their exact record/terminal receipt semantics |
+| Operator representation | Snapshot JSON `subscriber-id` carries the opaque identity, alongside listener and numeric coordinates. The approved CLI uses readable numeric qualifiers; internal/web exact-ID targeting never requires an operator to type the opaque token |
+
+Source proposal `tmp/session/2026-11-15-125434/scratch/l2tp-session-identity-source.go.txt`
+has SHA256 `0b991cba804ed0a81f527d18e504cbf41919059f0b2cf45c66b26583dd4730e3`;
+its sibling `l2tp-session-identity-contract.md` has SHA256
+`a483f0cdaaa0062f42171d3dbd9ba1bd0de3a56623fb424ac5c5919143173713`.
+Read and matched here; retain under its producer's owning record until reviewed
+implementation consumes it. Final admission still requires the actual applied
+producer and all census reader dispositions, followed by real proof.
+
+## Approved readable selection and implementation admission
+
+Owner approval on 2026-11-16 follows the explanation separating internal unique
+identity from operator syntax. The owner requested a working, tested lab.
+This section and the revised Integration/Documentation tables are the current
+design. Earlier empty skeleton examples and the opaque-ID CLI proposal are
+historical, not implementation instructions.
+
+### Selector rules
+
+| Input | Result |
+|-------|--------|
+| SID identifies exactly one admission | Capture it and serve the read/action through its immutable identity/control |
+| SID occurs in more than one tunnel | Refuse with candidate listener/tunnel coordinates and the exact qualifying command; produce no audit, metadata or teardown effect |
+| SID plus TID is unique | Capture that admission; a listener qualifier remains optional |
+| Equal SID/TID on different listeners | Require the configured listener name; no map-order or first-reactor choice |
+| Unknown or invalid selector | Actionable refusal; no fallback to another listener/tunnel, no all-effect |
+| Captured admission ends or labels are reused | A mutation cannot select the replacement; exact original completion or explicit stale-target failure |
+| Read/history/traffic/audit | The same resolution supplies every reader, not an independent SID lookup after the action target was chosen |
+| Browser list/detail/disconnect | Display readable coordinates, carry full immutable ID and captured page target internally; an old page cannot clear a same-label successor |
+
+Resolution must use a consistent owning snapshot/capture seam. A sequence of
+unrelated first-match lookups is insufficient. Reuse the coordinated captured
+target mechanism; do not add a competing teardown owner or hold observer locks
+while a callback/remote operation runs.
+
+### Completed design data flow
+
+| Boundary | Writer → reader | Change / preservation |
+|----------|-----------------|-----------------------|
+| Logical allocation → PPP | ICRQ/OCRQ/initiator constructors → exact captured kernel admission and PPP attempt | Mint once; full ID and original control/receipt remain attached |
+| PPP → transport | All lifecycle, rejected, auth and address events → owning reactor/PPPoE consumer | Check exact attempt/control, including family/network-lifetime fences; preserve other transport's admitted events |
+| Transport → lifecycle readers | Reactor/teardown → bridge, observer, accounting, shaper, CoS, CoA health | Explicit nonempty SubscriberID, no pair reconstruction; preserve synchronous local completion and notice ordering |
+| Event → routes | IPAssigned/Down/family-down → checked route record and replay | Full-ID map, same metadata key, exact terminal receipt; surviving records retain their prefixes |
+| CLI/web → session | Registered command/schema or dispatcher adapter → common resolver → captured owner | Readable CLI qualifiers, exact internal/web birth, no relookup by reusable coordinates |
+| CoA/timer → termination | Full supplied selectors or original timer owner → captured exact terminal path | Preserve matching semantics, cause, CDN/Stop and non-target survivors |
+| Accounting → RADIUS | Terminal snapshot → existing ordered accounting task → RADIUS client/UDP | Same issued accounting ID, actual Start/Interim before Stop, no remote wait on reactor callback |
+
+### Census additions and dispositions
+
+| Site | Required disposition |
+|------|----------------------|
+| `reactor_kernel.go` `handleEchoRTT` → `events.EchoRTTPayload` → `observer.go` `wireObserverSubscriptions` | Carry the original session's SubscriberID on Echo too. Reject stale original controls before emission; route the current owner's echo into its independent CQM event ring, preserving login sample history |
+| `internal/plugins/cos/enricher.go` `enrichSubscriberDetail`, `enrichSubscriberBrief`, `extractSessionKey` | Use the exact subscriber ID in the response/session; never reselect pair-keyed CoS state |
+| `authradius/coa_transaction.go` `confirmCoA`, `callCoAOwner` → JSON `coaOwnerRequest` → CoS `session_transaction.go` `executeSessionTransaction`, `sessionTransactionRequest`, `prepareSessionChange` | Add the explicit canonical ID to prepare's writer and decoder together; preserve operation/token rules, authenticated source, apply/rollback/commit and completed receipt semantics. Numeric labels do not select state |
+| Pool `PrefixRequest` / releaser and `internal/test/plugins/fakel2tp/pool.go` `poolPrefix` | Migrate the registered handler/releaser and the actual synthetic writer to an explicit canonical subscriber ID, preserving allocation/release/prefix results and the real handler test. The bounded production census found no active non-fixture request or releaser caller; this is not an excuse to omit the reachable synthetic API |
+| Exact timeout teardown already applied locally | Audit `teardownCapturedSession` and prove original timer ownership instead of replacing that mechanism; current applied code is not a passing runtime claim |
+| Actual numeric command writers in existing interop/fixtures | Existing single-session unique cases remain valid. Add qualifiers wherever collisions are intentional; run their reached suites rather than remove old assertions |
+
+### Discovery and verification
+
+| Question | Answer |
+|----------|--------|
+| Where an agent starts | `ai/INDEX.md` subscriber/L2TP rows → subscriber model/digest and L2TP interop lab page |
+| Rule preventing regression | Existing exact-owner/lifetime and test-preservation rules; captured target and explicit canonical-ID regression tests |
+| Single inventory | Existing session/command/event registries, configured listener inventory and one admission identity; no duplicate numeric alias registry |
+| Deciding verification | Focused red/green identity and selector tests, reached package/functional suites, unchanged strict 48-session interop through all survivor/accounting checks |
+
+### Concrete wiring and phase plan
+
+| Phase | Required output | Main-thread verification |
+|-------|-----------------|--------------------------|
+| 1: wiring and audit | Audit current source, add new colliding route/CQM and selector entry-point regressions before fixes; preserve old assertions | Named new tests must show the behavior red on current producer, not only a compile failure |
+| 2: canonical observer integration | Consume coordinated birth/event producer; full-ID route/CQM records, reads, release, metadata and checked withdrawal/family-down | Root L2TP and observer tests, exact event-to-route wiring, replay and old tests |
+| 3: readable command/web selection | Schema/completion/common resolver, scoped reads/clear/history/traffic/audit and exact web target | L2TP command and web package tests, functional `session-selector-scope`, current clear fixture and actual interop command readers |
+| 4: remaining consumer and terminal integration | CoS handlers/enrichers/transaction migration; integrate coordinated accounting/teardown/timer/shaper and tick/index/reentry fixes | CoS and authradius package tests; real slow-accounting control proof plus ownership/counter/ordering cases |
+| 5: strict lab and review | Complete scale scenario with real pinned peers and all disconnect, survivor, route, traffic and accounting assertions; independent review | Native guest lab, scoped lint/docs/RFC records actually reached; evidence per stated goal, then closure |
+
+Use one editing agent per bounded phase, main-thread tests and independent
+review. Shared producer edits stay with their active owner; require their
+minimal release-fix chunks and actual integration, not completion of the whole
+post-release VPP feature. Draft functional tests in the incubator and promote
+only after proof. Lab/VM scratch uses task-owned TMPDIR on the cache disk.
+
+Failure policy: no queue or retry grows without a bound; empty IDs refuse
+mutation; stale work retains its original owner and reports the actual outcome;
+missing/ambiguous selectors cause no side effects. Route observer locks never
+span callbacks. Preserve one accounting terminal owner under reload/shutdown.
+No implementation is complete until the unchanged lab reaches its final tail.
+
+### Admission review corrections
+
+Independent current-tree audit found the Echo, synthetic prefix and exact CoS
+JSON sites omitted from the first final census. The rows above now give each
+an explicit migration disposition. No test or feature was dropped to answer the
+findings. The audit also confirms that timer and PPP control fences are partly
+applied locally while observer and accounting goals remain unverified.
+
+The immutable canonical identity's JSON spelling is a wire-boundary value.
+New internal record keys must use a shared validated comparable numeric/packed
+identity, parsing once at that boundary per `ai/rules/go-standards.md` and
+`docs/contributing/go-conventions.md`. Keep the canonical birth's exact equality;
+do not hash to a narrower key, build a new interning manager or reconstruct a
+tuple. Bind the representation to the coordinated producer before phase 2.
+
+Independent admission re-review accepted phase 1's current-API wiring and
+collision regressions after the three census corrections. Phase 2's production
+migration remains unjudgeable until the shared packed identity representation
+is bound to the producer. This admits test authoring and the observed red run,
+not a production migration or a claim that all design/implementation is done.
+
+### Packed identity binding for phase 2
+
+The coordinated successor contract is `subscriberid.L2TPBirth`, a comparable pair
+of private uint64 words with invalid zero. Its constructor preserves a new
+nonzero 128-bit cryptographic birth. Parse/MarshalText/UnmarshalText define the
+wire DTO `l2tp-` plus 32 lowercase hexadecimal digits; an invalid decode leaves
+the previous value untouched. Text conversion is at a wire/human boundary,
+never an internal key or repeated parse on the event path.
+
+The value lives in the pure `internal/core/subscriberid` leaf. Placing it in
+the existing L2TP subscriber package would introduce the import cycle
+events → subscriber → ppp → events: the subscriber handler registry imports
+PPP, and PPP's event types import the L2TP event package. The invalid placement
+remained private and unapplied. Move the value directly, without an alias or
+parallel implementation, and refresh every proposed producer and consumer
+import before coordinated publication. Its representation and behavior stay
+the same; this corrects dependency direction.
+
+Actor getters supply the stored Birth and cached SubscriberID to the existing
+PPP attempt. Lifecycle Up/IPAssigned/Down/Echo payloads carry typed `Birth`;
+the shared subscriber snapshot carries optional `L2TPBirth`. PPPoE snapshots
+must still serialize successfully with no L2TP birth. Rate/CoS request writers
+and decoders migrate together at their boundary.
+
+| Interface | Frozen contract |
+|-----------|-----------------|
+| Route IP-up | Typed Birth first, then diagnostic TID/SID, username, address and the original actor-captured immutable framed-route slice |
+| Route down | Typed Birth first, then diagnostic TID/SID |
+| Checked family down | Typed Birth first, diagnostic TID/SID and address family; return the actual completion error |
+| Checked terminal withdrawal | Typed Birth first and diagnostic TID/SID; preserve original-record completion receipt and error. Terminal code uses this checked route, with no void fallback |
+| Session capture | Existing subsystem resolves readable SID plus optional TID/listener to one captured original reactor/tunnel/session/Birth; zero/multiple matches refuse without effects |
+
+Source proposal SHA256 `1a0767a59a4cb7e1fc02c46013d0b66a4a5a1303f72fbfdf5cd941444c033a7f`
+and contract `87a71cfb564e71e0c544cc0741bcb2a93fda0afddc30a0cda19a1cdde3d5f5b0`
+were read and matched in the producer's owning scratch. This supersedes only
+the string-key representation, with the approved user behavior unchanged.
+The source is still private/unapplied; actual constructor/callsite wiring and
+cross-listener/lifetime proof remain implementation obligations.
+
+The independent packed-binding review accepts the value/equality/wire
+representation and permits CQM/record-key authoring. One route input must also
+be bound before integration: the actor captures the original framed-route
+metadata using the existing cached ID/metadata owner, then supplies immutable
+framed-route input to the observer. The observer must not format Birth to
+reconstruct a string metadata key per event. Freeze this added input with the
+actor owner and preserve the existing once-per-network framed-route behavior.
+
+The final framed input is explicit: IP-up receives typed Birth, diagnostic
+TID/SID, username, address and the captured framed-route slice. The actor owns
+the cached-ID/metadata lookup before unlock; the observer copies the immutable
+value into its record. A genuine actor capture regression is required before
+the four existing framed-route tests may migrate to this split responsibility.
+
+### Readable CLI publication details
+
+| Surface | Bound behavior |
+|---------|----------------|
+| Qualifier spelling | Numeric `id`, optional `tunnel-id` and `listener` follow the existing command/filter convention. Qualifiers do not change the numeric IDs into global identity |
+| Generated action precondition | Optional `expected-id` validates the complete canonical DTO once and supplies the typed Birth filter. Browser/script requests carry it automatically so a stale page cannot clear a same-label successor; interactive users need not type it |
+| Read-only aggregate views | Preserve existing bare observer/traffic aggregate queries. The explicit-all requirement remains mandatory for mutations; supplied qualifiers must not be silently ignored when SID is absent |
+| Runtime completion | Owning command module registers its operational argument completer beside the handler. The shared completion RPC passes completed arguments after its existing caller authorization check; the owner offers actual listener names only at the listener-value position. Handler resolution still rejects unknown or ambiguous names |
+| Listener inventory | Snapshot listener name and endpoint come from the original reactor's cached configuration/bound endpoint, including retained closing roots; never reconstruct a target from newly reloaded configuration |
+| Session diagnostics | Snapshot carries typed Birth, cached SubscriberID, original Listener endpoint and a hidden immutable observation generation. Candidate messages may use a fresh read-only snapshot, but action admission uses the captured target |
+| CQM JSON | Raw event JSON emits `subscriber-id`; summary JSON also emits `tunnel-id`. Explicit CLI row maps include these fields rather than rely on Go field names |
+| Traffic preservation | Existing eight counters include byte/packet totals and rx/tx errors/drops. The captured producer must preserve all eight via its exact owner, or explicitly report unavailable data. Four counter fields cannot silently stand in for eight, and no current-interface-name relookup or fabricated zeros is allowed |
+
+The CaptureSession boundary returns an interface implemented by the private
+real actor capture, preserving honest cmd/web test doubles without exposing a
+fake-authority constructor. Its Teardown receives a typed termination cause
+and separate free-text reason. Selection must resolve against one consistent
+snapshot across active and retained reactors before any action, never unrelated
+per-reactor first-match observations. The private production implementation
+retains and rechecks the original row, control and Birth on every operation.
+
+### Retained observer ownership across restart
+
+The event bus copies subscribed callbacks before invoking them. Unsubscribing
+does not revoke a callback already copied by an in-flight publication. Old and
+new native generations can also remain present together while cleanup retries.
+Birth separates their sessions, but does not by itself stop both CQM observers
+from processing the same event and changing login quality state twice.
+
+| Boundary | Required behavior |
+|----------|-------------------|
+| Native generation | Mint one immutable, comparable, nonzero observation generation for the original native roots. This process-local observation value is separate from logical subscriber Birth and grants no actor mutation authority |
+| Lifecycle event | Original Up, IP-assigned, Down and Echo payloads retain that generation, including delayed terminal publication. Never substitute the current subsystem generation |
+| Observer delivery | Under the observer's existing mutex, check valid matching generation and admission state before any ring, login or metric effect. A stopped observer rejects already-copied callbacks too |
+| Retained observer | Seal unknown lifecycle admission while keeping its known original rings available for terminal updates and history. Fresh configuration gets fresh bounded pools; no pool-resizing migration or extra registry is needed |
+| History reader | Copy active and retained observer pointers under the subsystem lock, then read the exact Birth outside that lock. A history read never allocates a ring |
+| Disconnect history | Route the captured snapshot's generation and Birth to that original observer. An explicit event for an already-captured negotiating row may allocate its original retained ring; it never falls back to the current observer. Existing optional bounded CQM behavior is preserved, separately from command audit |
+| Proof | Controlled overlapping old/new publications with the same login must affect each original observer once; an old unknown birth cannot enter a retained observer, and a callback paused before Stop cannot mutate a closed observer |

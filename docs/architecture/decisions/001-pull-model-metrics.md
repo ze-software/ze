@@ -154,7 +154,7 @@ Tests may use a Prometheus registry, `NopRegistry`, or a spy registry depending 
 ## Additive series custody
 
 A metric vector may implement SeriesRetainer when multiple local owners share
-its labelled series. RetainSeries returns a copy-safe lease; the holder must
+its labeled series. RetainSeries returns a copy-safe lease; the holder must
 Release it after its final update. Delete refuses while a lease remains, and
 the final release removes the original series under the acquisition lock.
 Prometheus vectors own this state, so repeated name registration shares it and
@@ -162,3 +162,13 @@ different registries stay independent. NopRegistry provides a no-effect lease.
 This is series cleanup in the existing push model, not a new collection model.
 Existing Registry, GaugeVec and HistogramVec interfaces remain unchanged.
 <!-- source: internal/core/metrics/series_custody.go -- SeriesRetainer, SeriesCustody, SeriesLease -->
+
+Prometheus retention refuses an incorrect label count or invalid UTF-8 before
+the caller can update the native vector. A refusal returns a zero lease and
+its actual cause without logging or formatting label values. Validation does
+not create or export a zero-valued series; only a measurement publishes one.
+Generic SeriesCustody keys remain arbitrary strings, and NopRegistry keeps its
+no-effect retention behavior.
+<!-- source: internal/core/metrics/prometheus.go -- promGaugeVec.RetainSeries, promHistogramVec.RetainSeries, validatePrometheusSeriesLabels -->
+<!-- source: internal/core/metrics/series_custody.go -- SeriesCustody.Retain, seriesLabelsKey -->
+<!-- source: internal/core/metrics/nop.go -- nopGaugeVec.RetainSeries, nopHistogramVec.RetainSeries -->
