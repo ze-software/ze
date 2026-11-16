@@ -9,6 +9,7 @@ package sysrib
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/netip"
@@ -398,9 +399,9 @@ func (s *sysRIB) recomputeForwarding(key prefixKey, winner *protocolRoute) *outg
 		// on that invariant, which TestInstalledIsASubsetOfBest asserts.
 		s.best[key] = winner
 		entry, verdict := s.fibEntry(key, winner)
-		// A route whose SRv6 SID does not resolve is not programmed. The
-		// deferred tracking stands, so the prefix is re-evaluated
-		// when the SID becomes reachable.
+		// An unresolved Service SID or an otherwise valid origin-only route
+		// has no programmable output. Keep the selection and tracking so a
+		// later reachable SID or forwarding target can install it.
 		if verdict == fibForbidden {
 			return nil
 		}
@@ -420,8 +421,9 @@ func (s *sysRIB) recomputeForwarding(key prefixKey, winner *protocolRoute) *outg
 	// guard in cascadeRecompute to keep the OS-installed prefix out.
 	//
 	// A route Ze means to program is not always programmed: fibEntry forbids a
-	// prefix whose SRv6 SID does not resolve, and the cascade withdraws one
-	// whose next-hop stopped resolving. The tracking stands through both, so
+	// prefix whose SRv6 SID does not resolve or whose unicast selection has no
+	// forwarding target, and the cascade withdraws one whose next-hop stopped
+	// resolving. The tracking stands through these changes, so
 	// the prefix is re-evaluated when the resolution comes back. The tracking
 	// says the prefix is Ze's to program. installed says whether it is
 	// programmed now.
@@ -441,9 +443,9 @@ func (s *sysRIB) recomputeForwarding(key prefixKey, winner *protocolRoute) *outg
 		delete(s.installed, key)
 		// Nothing is programmed for the prefix now, so no group is
 		// outstanding either. The Withdraw is owed only where Ze had an
-		// install to remove: the previous winner's SID may have been
-		// unresolvable too, and a Withdraw for a prefix Ze never programmed
-		// is a FIB sync failure at the writer.
+		// install to remove: the previous winner may have had no forwarding
+		// target or an unresolvable SID, and a Withdraw for a prefix Ze never
+		// programmed is a FIB sync failure at the writer.
 		if !programmed {
 			return nil
 		}
@@ -594,9 +596,10 @@ func labelsEqual(a, b []uint32) bool {
 // (plan/journal/guard-added-to-one-half-of-a-pair.md).
 //
 // The count starts at one, so the Go zero value names no verdict. No
-// fibVerdict can hold it, and the guarantee is at the PRODUCER: fibEntry is
-// the only one, and every return it makes names a constant. It MUST stay
-// there, because no reader supplies it: every caller tests for fibForbidden,
+// fibVerdict can hold it, and the guarantee is at the PRODUCER: fibEntry's
+// resolution helper returns named constants, and its classifier preserves that
+// verdict or returns fibForbidden. It MUST stay there, because no reader
+// supplies it: every caller tests for fibForbidden,
 // so a zero reaching one is PROGRAMMED. A second producer owes the same named
 // returns.
 type fibVerdict uint8
@@ -614,7 +617,8 @@ const (
 	// (test/ospf/ospf-route-install.ci).
 	fibUnproved
 	// fibForbidden says nothing may be programmed for the prefix at all.
-	// RFC 9252 Section 5 is the one rule that says so today.
+	// An unresolved Service SID or a valid unicast selection without any
+	// forwarding target leaves no entry to program.
 	fibForbidden
 )
 
@@ -639,6 +643,26 @@ const (
 // the current routing-view consumer processes it outside authority locks, which
 // would deadlock against the LPM lookup below.
 func (s *sysRIB) fibEntry(key prefixKey, best *protocolRoute) (outgoingChange, fibVerdict) {
+	entry, verdict := s.resolvedFibEntry(key, best)
+	if verdict == fibForbidden {
+		return entry, verdict
+	}
+	if !routeViewUnicastMissingTarget(&entry) {
+		return entry, verdict
+	}
+	// Only a wholly targetless unicast takes this preflight. In particular,
+	// malformed families, labels, metadata or repair members must still reach the
+	// mandatory publication refusal rather than disappear as origin-only.
+	batch := outgoingBatch{Family: key.family, Changes: []outgoingChange{entry}}
+	if _, missing := errors.AsType[*routeViewMissingTargetError](routeViewValidateOutput(&batch)); missing {
+		return outgoingChange{}, fibForbidden
+	}
+	return entry, verdict
+}
+
+// resolvedFibEntry renders the selected forwarding path before classifying
+// targetless origin-only output. The caller holds s.mu as for fibEntry.
+func (s *sysRIB) resolvedFibEntry(key prefixKey, best *protocolRoute) (outgoingChange, fibVerdict) {
 	// A resolvability check, and NOT the one RFC 9252 Section 5 requires. That
 	// section binds the ingress PE to check the SRv6 Service SID BEFORE the
 	// received prefix is considered for the BGP best path computation. Both
@@ -793,11 +817,10 @@ func (s *sysRIB) fibInstall(key prefixKey, entry outgoingChange, verdict fibVerd
 	// members are all gone.
 	programmed := s.programmedByZe(key)
 
-	// RFC 9252 Section 5 is the one rule that forbids the write outright, and
-	// fibEntry is where the SID is read. A prefix Ze holds an install for is
-	// withdrawn, as recomputeForwarding withdraws it: the kernel entry encapsulates
-	// to a SID no route reaches. One Ze never programmed is left alone, because
-	// a Withdraw for it asks a FIB writer to delete an entry it never made.
+	// fibEntry forbids an unresolved Service SID or an otherwise valid unicast
+	// selection without a target. Withdraw an outstanding install in either
+	// case, as recomputeForwarding does. One Ze never programmed is left alone,
+	// because a Withdraw asks a FIB writer to delete an entry it never made.
 	if verdict == fibForbidden {
 		delete(s.installed, key)
 		delete(s.lastECMP, key)

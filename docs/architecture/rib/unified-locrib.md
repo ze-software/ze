@@ -572,6 +572,17 @@ complete request frame without serializing route values to JSON.
 <!-- source: internal/component/sysrib/route_view_output.go -- publish, routeViewValidateOutput -->
 <!-- source: internal/component/sysrib/route_view_output_size.go -- routeViewPublicationBytes -->
 
+A selected unicast route can remain available for BGP origination without a
+gateway, device, Service SID or ECMP target. Sysrib retains that selection but
+does not publish a forwarding entry for it. Losing the last target withdraws
+any previous install once; gaining a target installs the current entry again.
+Replay excludes the targetless selection. The producer recognizes this case
+only after validating all other metadata and primary and backup members;
+malformed output still fails publication. A direct publication with no target
+is still refused, and discard routes and withdrawals need no target.
+<!-- source: internal/component/sysrib/sysrib.go -- fibEntry, recomputeForwarding, fibInstall, replayChanges -->
+<!-- source: internal/component/sysrib/route_view_output.go -- routeViewUnicastMissingTarget, routeViewValidateOutputEntry -->
+
 The active generation and completed reader cursor authorize publication.
 Positive operation identities order batches. An identical retry returns its
 original acknowledgment without another emission, even after a newer completed

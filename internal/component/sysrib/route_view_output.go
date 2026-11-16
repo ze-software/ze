@@ -310,6 +310,43 @@ func routeViewValidateOutput(batch *sysribevents.BestChangeBatch) error {
 	return nil
 }
 
+// routeViewMissingTargetError distinguishes otherwise valid unicast output
+// from malformed output. Publication still refuses it; the producer uses this
+// outcome to retain an origin-only selection without claiming a FIB install.
+type routeViewMissingTargetError struct {
+	cause error
+}
+
+func (e *routeViewMissingTargetError) Error() string { return e.cause.Error() }
+
+func (e *routeViewMissingTargetError) Unwrap() error { return e.cause }
+
+// routeViewUnicastMissingTarget checks only target presence. All metadata and
+// group members must pass validation before this condition becomes a typed
+// refusal. Withdrawals and discard routes do not require a forwarding target.
+func routeViewUnicastMissingTarget(entry *sysribevents.BestChangeEntry) bool {
+	if entry.Action == routeaction.Withdraw {
+		return false
+	}
+	switch entry.RouteType {
+	case 0, routetype.Unicast:
+	case routetype.Blackhole, routetype.Unreachable, routetype.Prohibit:
+		return false
+	default: // Unknown types must reach the strict publication validator.
+		return false
+	}
+	if entry.NextHop.IsValid() {
+		return false
+	}
+	if entry.Interface != "" {
+		return false
+	}
+	if entry.SRv6SID.IsValid() {
+		return false
+	}
+	return len(entry.ECMPPaths) == 0
+}
+
 func routeViewValidateOutputEntry(fam family.Family, entry *sysribevents.BestChangeEntry) error {
 	if !entry.Prefix.IsValid() {
 		return routeViewRefusal("Routing publication prefix is invalid", "Every forwarding change needs a prefix", routeViewOutputFix)
@@ -372,17 +409,6 @@ func routeViewValidateOutputEntry(fam family.Family, entry *sysribevents.BestCha
 	}
 	switch entry.RouteType {
 	case 0, routetype.Unicast:
-		if entry.Action != routeaction.Withdraw {
-			if !entry.NextHop.IsValid() {
-				if entry.Interface == "" {
-					if !entry.SRv6SID.IsValid() {
-						if len(entry.ECMPPaths) == 0 {
-							return routeViewRefusal("Routing publication has no forwarding target", "Unicast output needs a gateway, device, Service SID or complete ECMP group", routeViewOutputFix)
-						}
-					}
-				}
-			}
-		}
 	case routetype.Blackhole, routetype.Unreachable, routetype.Prohibit:
 	default: // Route type is open at the plugin boundary.
 		return routeViewRefusal("Routing publication route type is unknown", "An unknown forwarding action cannot be installed", routeViewOutputFix)
@@ -401,6 +427,9 @@ func routeViewValidateOutputEntry(fam family.Family, entry *sysribevents.BestCha
 				return err
 			}
 		}
+	}
+	if routeViewUnicastMissingTarget(entry) {
+		return &routeViewMissingTargetError{cause: routeViewRefusal("Routing publication has no forwarding target", "Unicast output needs a gateway, device, Service SID or complete ECMP group", routeViewOutputFix)}
 	}
 	return nil
 }
