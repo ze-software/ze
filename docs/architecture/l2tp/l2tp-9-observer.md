@@ -45,6 +45,20 @@ iterations at the ring capacity plus one.
 
 <!-- source: internal/component/l2tp/observer.go -- maybeCloseBucket -->
 
+## Observation scope value
+
+`events.ObservationGeneration` identifies one native generation within the
+daemon process. Its constructor allocates a nonzero monotonically increasing
+value under a cold-path mutex. Exhaustion returns an error without wrapping
+or recycling a value. Copies compare directly without formatting or parsing.
+
+The value is separate from a subscriber's identity and grants no authority to
+change a session or a native resource. Its event JSON representation is a
+canonical positive decimal string. Zero, malformed input and overflow are
+refused; failed decoding preserves the receiver's previous value.
+
+<!-- source: internal/component/l2tp/events/observation_generation.go -- ObservationGeneration, NewObservationGeneration, IsValid, MarshalText, UnmarshalText -->
+
 ## Patterns worth reusing
 
 - A free-list pool for ring buffers: pre-allocate N, hand one out on session up,
