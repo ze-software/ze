@@ -2,7 +2,7 @@
 
 | Field | Value |
 |-------|-------|
-| Status | blocked |
+| Status | in-progress |
 | Scope | tooling, docs |
 | Priority | P2 |
 | Release reason | Owner-requested development integration; this adds no first-release prerequisite or product-support claim. |
@@ -26,6 +26,8 @@ Scope authorization, Thomas, 2026-11-15: "ok you can do all improvement but 5 - 
 
 Continuation, Thomas, 2026-11-15: "Okay, complete the work."
 
+Closure authorization, 2026-11-16: Thomas accepts publication responsibility and authorizes closure now. The exact publication instruction and its remaining obligation are retained in `plan/post-release/engineering/spec-publish-the-regenerated-command-catalog.md`, under "Owner publication handoff from GitHub integration". Credential rotation is preserved as an open owned operational follow-up in `plan/post-release/engineering/spec-github-notifier-credential-rotation.md`; the publication instruction is not an attestation that Thomas promised credential rotation. This supersedes the earlier publication-dependent closure hold, without authorizing a push, publication, credential read or server change by this closer.
+
 The latest AI-contribution paragraph reviewed in this chat is approved for application. Continue the integration work within the existing scope. Item 5 remains excluded. Public news retains its exact-text approval requirement, and Discord activation requires an identified destination. Publication must not silently include unrelated changes on the shared branch.
 
 Continuation, Thomas: "Show me one. Finish two. Perform Four. Then I will consider three." This resumes alert activation and independent operational review while source and website publication remain withheld. Thomas subsequently approved both exact alert templates and selected the Linux development server `claude`, authorizing installation of the result-only notifier and schedule there. He also requires instructions for installing it elsewhere. Contribution/form wording remains available for review; the approved alert text is no longer a blocker. The notifier reads result metadata, never runs reported commits or tests, and retains durable private delivery state across restarts.
@@ -40,35 +42,55 @@ Machine integration adds identity and readiness reporting around the existing ma
 
 Existing-owner search: CI coverage and peer-harness specs concern different test mechanisms; `spec-site-rfc-recorded-data` owns RFC snapshot production, not deployment. `spec-publish-the-regenerated-command-catalog` retains its website/wiki drift and publication-responsibility obligation. This spec neither duplicates that obligation nor closes it. The browser-lab umbrella and release-distribution spec retain their separate product and release contracts.
 
-## Blocker
+## Closure Disposition
 
 The exact AI contribution paragraph, both maintainer alert templates and the existing GitHub activity feed are approved. Installation was recorded on `claude` at revision `66f29c9c16d53a850182f6145081c55ecdb3394d`. Failure run `43756347664`, attempt 1, has confirmed message `1571668976444903494`, and all six private receipts are ready and preserved. This installation evidence was not rechecked during laptop rate-fix validation. Earlier statements that no notifier was installed are superseded by this evidence.
 
-The deployed unauthenticated poll exhausted the public source-IP quota. Its fifteen-minute schedule, active-run details/jobs, snapshot rechecks, initialization and manual checks all consumed requests. On 2026-11-15, the owner selected: "Keep unauthenticated access; reduce requests and poll less often." He also required: "Fix must be done on my laptop, not here." The selected fix retains unauthenticated reads, reduces requests and uses an hourly timer. It was implemented and validated only in the laptop primary checkout. No installed service, remote source, private authority or receipt is changed by this work. Server update requires a later owner instruction.
+The deployed unauthenticated poll exhausted the public source-IP quota. Its fifteen-minute schedule, active-run details/jobs, snapshot rechecks, initialization and manual checks all consumed requests. On 2026-11-15, the owner selected: "Keep unauthenticated access; reduce requests and poll less often." He also required: "Fix must be done on my laptop, not here." Commit `2a500e0bfc5cc7ec4c1b2c3d3406a47bded4e78c` implements hourly polling and bounded reads. The parent subsequently installed that fix on the server and supplied the operational record below. The laptop closer did not repeat or perform that installation.
 
-The selected destination remains `existing-github-activity-feed`, channel `1488613715006984342`, webhook identity `1488619854981238966`, binding `c9f08a1bed9cc3cedd3b85143f89f4913ac79dbb82fcaca6d5594cbd940d76e0`. No token belongs in this record. An earlier credential exposure was disclosed. Rotation remains open and was not performed during the laptop rate fix. Preserve the approved destination, templates and all six receipts through any later rotation or deployment.
+The selected destination remains `existing-github-activity-feed`, channel `1488613715006984342`, webhook identity `1488619854981238966`, binding `c9f08a1bed9cc3cedd3b85143f89f4913ac79dbb82fcaca6d5594cbd940d76e0`. No token belongs in this record. The earlier credential exposure remains an open owner task in `plan/post-release/engineering/spec-github-notifier-credential-rotation.md`; closure does not claim rotation. Preserve the approved destination, templates and all six receipts.
 
-The earlier private bundle at `/home/thomas/tmp/ze-github-notifier-01a1a3ac/notifier-install.bundle` is a historical handoff artifact. This task does not access it or establish its current contents. Its existing owning session record retains its purpose and removal condition. Do not treat that bundle or the installed binary as carrying this laptop rate fix.
+The earlier private bundle at `/home/thomas/tmp/ze-github-notifier-01a1a3ac/notifier-install.bundle` is a historical handoff artifact. This task does not access it or establish its current contents. Its existing owning session record retains its purpose and removal condition. The old bundle recorded for the original installation and the original `66f29c9c16d53a850182f6145081c55ecdb3394d` release lack the laptop rate fix. The newly installed current release `0a992d411555e06568aeb7a3e6027a0fc616d29b` carries the fix, according to the parent-supplied operational record below.
 
-Canonical contribution HTML and Markdown have been regenerated through the native docs producer and checked. No site artifact was committed or deployed. Publication must preserve the requested source/artifact identities and obtain an explicit owner push instruction for the exact shared-branch ancestry; unrelated README changes remain excluded from this task's authorization.
+Canonical contribution HTML and Markdown were regenerated through the native docs producer and checked. This task observed no site artifact commit or deployment. Publication is now an OWNER HANDOFF to the existing publication spec. Preserve exact source/artifact identities and the separate push authority; unrelated README changes remain excluded.
 
-The native session state owns the complete wording review, paired-identity preview, scoped test logs and publication ancestry snapshot. Laptop scoped validation, formatting and independent review of the rate delta are complete. The evidence covers the shared working tree, including concurrent CLI grammar edits, and is not a clean-commit certificate. Deployment of the rate fix and installed operational proof remain pending. Source and website publication remain withheld for Thomas's later step 3 decision. AC-6 deployment confirmation and final closure remain owned here.
+The native session state owns the wording review, paired-identity preview, scoped logs and publication ancestry snapshot. Laptop validation covers the shared working tree, including concurrent CLI grammar edits; it is not a clean-commit certificate. Installed proof below is supplied by the parent. AC-6's remaining real publication and confirmation are an explicitly accepted OWNER HANDOFF, not observed deployment. The independent laptop closure retains its claim through the parent's two commits.
+
+### Parent-supplied installed operational record, 2026-11-16
+
+This is the supervising session's supplied operational record, not a laptop re-test. Parent session `e2e400c3-0ff3-4523-a5de-001f70c11b62` owns the observations and server evidence-only commit `12d29af93a`.
+
+| Observation | Supplied evidence and limits |
+|-------------|------------------------------|
+| Source transport | Laptop rate fix `2a500e0bfc5cc7ec4c1b2c3d3406a47bded4e78c`, carried through `79f11edaef810814652d4425b3a291126fb7fb64` by private Git bundle; normal rebase pull preserved server-only commits. No push |
+| Native installation | Clean native main build on `claude`, before and after; three free slots and 23.4 GiB available at admission. Installed revision `0a992d411555e06568aeb7a3e6027a0fc616d29b`, SHA-256 `d47697d64e23de4d3af2443491fcdb76226af3f02e4a368abd8e9381d73c1408`; Go 1.27.4 Linux/amd64, CGO 0, trimpath, ze_le, vcs.modified=false |
+| Actual production leaf guards | `PASS: executable control and five unsafe leaves`; `PASS: build-record control, five unsafe leaves, unchanged alias target`. Both systemd units passed `systemd-analyze verify`, exit 0 |
+| State preservation | Eight authority files and six ready receipts byte-identical across installation and the new poll; all six locks snapshotted. Approved templates/destination preserved; UID 994, private files 0600 and directories 0700. No initialization, reset or credential change |
+| Installed poll | systemd invocation `e2dd4ec3cec54cd2a3aa7106b021663c`, 2026-11-16T01:39:21Z through 01:39:33Z, exited 1 solely for active verify run `43766021591`, attempt 1. No API rate-limit error and no repeated delivery; not a claim that catch-up completed |
+| Retained identities | Confirmed failure message `1571668976444903494` retained; CodeQL cursor was already `43774639826` before upgrade |
+| Timer | Enabled, active/waiting, hourly, Persistent=true and 20-second jitter. Next trigger observed then was 2026-11-16T02:00:16Z; this is historical, not the next trigger now |
+| Forward repair | Prior installed revision `66f29c9c16d53a850182f6145081c55ecdb3394d`, SHA-256 `248e0eaa8863cf1a41ba5d067ff74c25418a3caf20b4b825a6830dd41d0e6d2c`, retained by parent for forward repair |
+| Cleanup | Parent reports transfer artifacts, its named build copy and task laptop shells cleaned; audit logs retained. No server access or service change by this closer |
+
+### Risks & observations
+
+R-1 through R-5 remain bounded by input qualification, complete pagination, final-byte checks, durable receipt states and trusted default-branch code. Public clients still share one unauthenticated quota. An active run or a discovery budget exhausted before processing remains visibly incomplete. Credential rotation is open. Actual website publication is owner work and is unobserved here.
 
 ## Implementation Evidence
 
 | Scope | Current evidence | Qualification |
 |-------|------------------|---------------|
 | GitHub revision/run and local readiness reports | Registered-action, pagination, identity, state, bounds and machine-input tests pass; live CodeQL run 43726804487 report and preview succeed | API observations do not certify native test or release results. No remote machine execution was added. |
-| Publication receipt and confirmation mechanics | Registered positive/negative tests cover source races, changed bytes, raw committed blobs, index/filter/replacement tricks, live mismatches and zero-network refusal | Actual deployment confirmation waits for an approved artifact commit and publication. |
+| Publication receipt and confirmation mechanics | Registered positive/negative tests cover source races, changed bytes, raw committed blobs, index/filter/replacement tricks, live mismatches and zero-network refusal | Actual deployment and live confirmation are an OWNER HANDOFF, not observed by this closure. |
 | Notification activation and polling | Earlier local evidence: 41 named notification bodies and six terminal-state subcases passed, with scoped GitHub lint on host and Linux. The installed revision, confirmed failure message and six ready receipts are recorded above | Earlier checks and installation evidence are distinct from the laptop rate-fix results below. No installation changes were made during rate-fix validation. |
-| Unauthenticated rate fix | Laptop changes select hourly polling, a 30-GET per-poll cap, validated active barriers before details/jobs and snapshot rechecks only for reachable completed candidates. Formatting is complete | Scoped tests, vet, lint and independent review passed as qualified below. Deployment, publication and credential rotation remain pending. |
+| Unauthenticated rate fix | Laptop changes select hourly polling, a 30-GET per-poll cap, validated active barriers before details/jobs and snapshot rechecks only for reachable completed candidates. Formatting is complete | Scoped tests, vet, lint and independent review passed as qualified below. Installed proof is parent-supplied above; publication and credential rotation remain owner tasks. |
 | Full GitHub package race tests | Native `test unit pkg path ./internal/le/github/` exited 0 with the race detector. Supplemental log: `job-unit-pkg-545f962c.log` | Laptop shared-working-tree evidence, including concurrent CLI edits. Not a clean-commit or installed-fix certificate. |
 | Final polling regressions | After the test-helper lint corrections, all 27 named `TestNotificationPoll` tests in `internal/le/github/notification_poll_test.go` and `notification_poll_rate_test.go` passed with `-race -tags ze_core`, including all 12 new regressions | This final run excludes the BGP reactor. It proves the selected polling tests, not a new minimal full-`le` personality or whole-tree build. |
 | Scoped static validation | Registered native `exec go vet -tags ze_core ./internal/le/github` exited 0. `go lint run scope ./internal/le/github/...` reported zero issues on both host and Linux/integration passes | Three unreachable nil/nil returns and one redundant transport type declaration in the new fixture were corrected. Fatal assertions and test assertions were unchanged. |
 | Independent rate-fix review | Review found a concurrent scan advance that could bypass the discovered active barrier, and a missing test for budget refusal during a snapshot GET. Both were fixed and the reviewer reported clean | `notificationPollScope.process` now retains the discovered barrier before its scanned shortcut. The controlled race and request-31 snapshot tests passed in the final polling run. No spec closure is claimed. |
 | Descriptor refusal discrimination | Native FIFO test passed clean, then failed in 10 seconds under the overlay removing only `O_NONBLOCK`, with its own blocked-reader diagnostic; no source was changed | Proves the receipt acquisition regression; not a whole-tree or installed-host certificate. |
 | Approved destination preview | Real paired-identity preview succeeded with approval binding `c9f08a1bed9cc3cedd3b85143f89f4913ac79dbb82fcaca6d5594cbd940d76e0` | Preview-only, no send and no credential read. |
-| Portable installation documentation | Versioned installer, shared leaf guards, isolated refusal proof and systemd units were committed. The rate delta updates the runbook and shipped timer for hourly polling. `TestNotificationPollHourlyTimerKeepsPersistence` passed | The test checks the shipped calendar, persistence and jitter. The installed schedule was not changed or revalidated. |
+| Portable installation documentation | Versioned installer, shared leaf guards, isolated refusal proof and systemd units were committed. The rate delta updates the runbook and shipped timer for hourly polling. `TestNotificationPollHourlyTimerKeepsPersistence` passed | The test checks the shipped calendar, persistence and jitter; installed schedule proof is parent-supplied above. |
 | Full documentation check | The rate-fix `doc check all` run exited 1 with 389 published wiki/gh-pages command-catalog drift findings. No notifier-guide path was mentioned. An earlier integration run recorded 720 findings | Not an all-documentation pass. `plan/post-release/engineering/spec-publish-the-regenerated-command-catalog.md` owns the separate pending publication debt. No website/wiki render or publication is authorized here. |
 | Contribution policy and intake | Exact approved AI policy guard and canonical-link render guards pass; issue/PR sources prepared | Non-AI messaging and online publication remain subject to owner review. |
 | Installed command paths | Both new UI carriers passed 80 actual named invocations under load and passed again in the live suite | The full UI suite also found 15 other failures and 20 skips; it is not a broad green certificate. |
@@ -183,10 +205,10 @@ The new report area registers through the existing development action tables. Ma
 
 | ID | Assumption | Basis | If wrong | Validation | Status |
 |----|------------|-------|----------|------------|--------|
-| A-1 | The two documented machine routes remain usable | `ai/owner/machines.md` | Coordination stops | Check connection only as part of an authorized feature test | Not probed; no remote service changes authorized by this design. |
+| A-1 | The two documented machine routes remain usable | `ai/owner/machines.md` | Coordination stops | Check connection only as part of an authorized feature test | broken as a general availability claim: parent proved the selected private Git transfer, not both routes; machine reporting starts no remote work or readiness certificate |
 | A-2 | Pages continues serving `gh-pages` | Live read-only Pages settings during review | Confirmation needs a different deployment identity | Read settings before publication | Confirmed for review; recheck at use. |
-| A-3 | A maintainer channel and template can be approved | Current owner request reserves messaging review | Alert delivery remains preview-only | Thomas approves exact template and destination | Existing GitHub activity feed selected and identity verified; exact template review remains pending. |
-| A-4 | Public Actions reads suffice initially | Repository is public | Rate-limited results become unknown | API failure fixtures and actual read-only report | Confirmed: native report and preview read run 43726804487 without credentials; bounded failure fixtures pass. |
+| A-3 | A maintainer channel and template can be approved | Current owner request reserves messaging review | Alert delivery remains preview-only | Thomas approves exact template and destination | confirmed: exact templates and selected feed approved; confirmed failure delivery retained |
+| A-4 | Public Actions reads suffice initially | Repository is public | Rate-limited results become unknown | API failure fixtures and actual read-only report | broken for the original schedule: installed quota exhaustion required hourly polling and the bounded rate fix; no public-quota guarantee |
 
 | ID | Risk | Early signal | Mitigation |
 |----|------|--------------|------------|
@@ -331,13 +353,13 @@ Boundary inputs: require a full 40-character commit ID and positive run/attempt 
 | Requested local site artifact | CI site generation | Preserves the explicit owner rule and canonical review path. |
 | Preview-first maintainer alerts | Activate messages while preparing templates | Thomas reserved messaging approval; unchanged failures must stay quiet. |
 
-## Known Limitations and Review Gate
+## Known Limitations
 
 Earlier implementation and portable documentation were committed; the existing feed, exact alert templates and installation host are approved. Independent review covered that earlier source and its receipt/installer corrections. Installation and confirmed failure delivery were recorded, followed by public-quota exhaustion. The laptop rate delta now has passing scoped race tests, vet, zero-issue host/Linux lint, completed formatting and clean independent review after the race and snapshot-test corrections. The whole documentation check still fails on the separately owned published catalog drift. These are shared-working-tree results, including foreign CLI edits, not a clean-commit or installed-fix certificate.
 
-The spec stays open. Concurrent CLI grammar work must be preserved independently of the rate-fix scope. No server update is authorized by this laptop work. After a later owner instruction, deploy the reviewed revision and hourly unit while preserving all existing activation files, approved destination/templates and six receipts. Do not initialize those receipts again. Confirm actual API costs, preserved confirmed delivery and the installed schedule. Credential rotation, installed operational proof, publication and spec closure remain open.
+Concurrent CLI grammar work remains separate and untouched. Parent-supplied installed proof is recorded above. Exact production request savings have not been measured; the six-GET quiet/active count is fixture evidence and the hourly reduction remains nominal. Credential rotation and publication are explicitly homed owner tasks below.
 
-AC-6 remains deliberately pending Thomas's separate step 3 decision. No source/site push or live Pages confirmation is authorized by this hand-back. There are no delegated journal rows or transferred obligations. Item 5 remains excluded, and public news retains its separate exact-text approval process.
+AC-6 has an owner-authorized change of completion boundary: OWNER HANDOFF, with no observed Pages confirmation. No source/site push is authorized to this closer. Item 5 remains excluded. No public news or announcement is required for this maintainer tooling closure; public news retains its separate exact-text approval process.
 
 ## Critical Review Checklist
 
@@ -360,3 +382,215 @@ AC-6 remains deliberately pending Thomas's separate step 3 decision. No source/s
 - [ ] Functional `.ci` entry-point proof passes from the main checkout.
 - [ ] Integration and documentation applicability rows checked against the implemented change.
 - [ ] Independent review and closure evidence complete before the two-commit closure.
+
+## Implementation Summary
+
+### Deliverables Checklist
+
+| Deliverable | Verification method | Evidence |
+|-------------|---------------------|----------|
+| Exact GitHub result reporting | Registered actions and paginated fixture tests | `report.go` `reportRevision`, `reportRun`, `reach.jobs`; named PASS results in the retained three-package run |
+| Qualified machine observation | Positive action and dirty/mismatched/unavailable negatives | `machine.go` `observeMachine`; `TestGitHubMachineReportReachesLocalObservation` and `TestGitHubMachineHandoffRefusesUnboundInputs` PASS |
+| Exact-byte publication machinery | Registered receipt/deployment action fixtures and raw-blob negatives | `publication_actions.go` `recordPublication`, `publicationCommit`; `TestSitePublicationChecksReviewedBytesAndDeployment` PASS; real publication is OWNER HANDOFF |
+| Approved persistent notifications | Registered activation/polling tests, durable restart/refusal fixtures and parent operational record | `notification_delivery.go` `deliverNotification`; `notification_poll.go` `run`; 27 polling tests PASS; confirmed installed failure retained |
+| Contribution and intake sources | Exact policy/render guard and source inventory | `contribution_policy_test.go` named guards PASS; three forms, blank-issue/security routing and PR template inspected |
+| Portable installation | Real sourced Linux leaf-guard proof, native identity and unit validation | Both named PASS lines and `systemd-analyze verify` exit 0 supplied by parent |
+
+### Security Review Checklist
+
+| Concern | Producer reviewed | Result |
+|---------|-------------------|--------|
+| Candidate code execution or credential acquisition | `client.go` `reach.get`; preview workflow; `notificationTrust` | Fixed-origin bounded GETs; trusted default-branch preview code; selected run is quoted data, never executable |
+| Injection, oversized input and resource exhaustion | `fullRevision`, `nameProblem`, `newNotificationDestination`, `newNotificationTemplate`, `reach.get` | Validated selectors and text; bounded pages, requests, bytes and deadlines; no input-built shell command |
+| Path aliases, FIFO and descriptor replacement | `notificationRootFile`, `readNotificationPrivateFile`, `publicationOpenFile` | No-follow/nonblocking descriptor acquisition and actual regular-file checks; deterministic negative regressions retained |
+| Authorization, replay and ambiguous delivery | `checkNotificationApproval`, `deliverNotification`, `notificationPersistedAttempt.resolve` | Exact private authority; durable intent before one POST; locked history; ambiguous receipt blocks another send |
+| Races and ordering | `notificationPollScope.process`, `notificationPoll.discover`, `publicationCommit`, `confirmPublication` | Active barrier retained across concurrent scan; required snapshots precede processing; raw artifact identity bracketed around probes |
+| Leakage and destination confusion | `newDiscordNotificationSender`, `Send`, `notificationDiscordResponse` | Fixed origin, approved channel/webhook check, no mentions or redirects, bounded confirmation, generic secret-free errors |
+| Cryptography and privilege | SHA-256 identity binding; installer and service | Digest is comparison, not human authentication; dedicated nonroot service, root-owned binary, private state. Earlier credential exposure remains open in its owner spec |
+
+### What Was Implemented
+
+Registered GitHub report/machine/preview/activation/polling paths, exact-byte website receipt and confirmation, approved contribution policy and structured intake, and the portable persistent notifier. Source landed in `fe7bd9d72c`, `27023312ae`, `0320acf1ed` and `2a500e0bfc`; this closure adds only the final record and the two owned handoffs. Parent prepares and runs commits A and B.
+
+### Bugs Found/Fixed
+
+Descriptor acquisition now rejects substituted FIFOs and aliases. Workflow-specific feeds prevent quiet-workflow starvation. The rate fix retains the discovered active barrier across concurrent scan advances and refuses request 31 even when it is a snapshot read. The named regressions in Implementation Evidence cover each correction. This closure changes no executable behavior.
+
+### Documentation Updates
+
+The committed `github-integration.md`, `github-notifier.md` and `gh-pages.md` claims were compared with their producers above. Contribution policy and intake changes are in `fe7bd9d72c`; activation/runbook changes are in `0320acf1ed`; hourly behavior is in `2a500e0bfc`. Source headers already point to those durable pages. Full tracked-tree literal search found no citation of this spec's actual path. No Design header requires a new repoint.
+
+The existing full documentation result is exit 1 with 389 separately owned published catalog-drift findings, not an all-doc green result. The closer edited no documentation source or executable source, so it reuses that result. Publication ownership is amended in `plan/post-release/engineering/spec-publish-the-regenerated-command-catalog.md`.
+
+### Deviations from Plan
+
+AC-6/G-3 real publication and confirmation are an owner-authorized OWNER HANDOFF, as recorded in Closure Disposition and the surviving publication owner. No live deployment is inferred. The machine design became pure local observation, not remote execution; A-1's general two-route availability assumption is broken. A-4's original unauthenticated schedule proved insufficient; the bounded hourly fix retains visible quota failures. Planned test names were resolved to the actual carriers below. No RFC-level protocol behavior or proof stem changed; protocol interop and global RFC verification do not apply.
+
+## Mistake Log
+
+| Kind | What happened | What was true instead | How discovered | Action |
+|------|---------------|----------------------|----------------|--------|
+| approach | Frequent unauthenticated polling exhausted the shared source-IP quota | Discovery and active work also consume the quota | Installed poll failure and laptop request-count tests | Hourly polling, a 30-request bound and validated active barriers; keep quota risk explicit |
+| assumption | A-1 treated both documented transports as currently available | Only the selected private Git transfer is evidenced; reporting grants no transport authority | Source `observeMachine` and supplied installation record | Keep readiness local and require actual transfer evidence when used |
+| assumption | A-4 treated public reads as sufficient under the original schedule | Public clients share source-IP quota and active reads add cost | Installed quota refusal and request-count fixtures | Preserve unauthenticated mode, reduce frequency and bound the poll; no quota guarantee |
+| approach | Design-time deliverables/security and closure tables were absent | Existing execution evidence covered implementation but needed a complete closure map | Independent closure review | Fill the checklists and every closure table; no source behavior changed |
+
+## Implementation Audit
+
+### Requirements from Task
+
+| Requirement | Status | Location | Notes |
+|-------------|--------|----------|-------|
+| G-1: exact GitHub results | Done | `report.go` `reportRevision`, `reportRun`, `reach.jobs` | All requested pages and identities, explicit incomplete results |
+| G-2: committed machine handoff | Changed | `machine.go` `observeMachine`; supplied private Git transfer | Local evidence report plus existing main-thread transport; no remote executor |
+| G-3: reviewed website publication | Changed: OWNER HANDOFF | Existing publication owner, AC-3 | Owner authorizes closure without deployment proof; machinery is tested |
+| G-4: approved deduplicated alerts | Done | `deliverNotification`, `notificationPoll.run`; installed record | Exact approved feed/templates; active run remains incomplete |
+| Contribution policy and intake | Done | `CONTRIBUTING.md`, issue forms, PR template and policy render tests | Source changes prepared; no online acceptance or publishing inferred |
+| Portable installation | Done | Installer, shared leaf guards and units | Native server/guard evidence supplied by parent |
+| Preserve credential rotation | Done as ownership transfer | New narrow credential-rotation spec | Rotation itself remains open owner work |
+
+### Acceptance Criteria
+
+| AC ID | Status | Demonstrated By | Notes |
+|-------|--------|-----------------|-------|
+| AC-1 | Done | `TestGitHubRevisionReadsEveryRunAndAttemptJobPage` | Failed shard and active state remain separate |
+| AC-2 | Done | `TestGitHubRunIdentityAndStateFailures`, `TestGitHubAPIUnavailabilityAndBounds` | Wrong identity and unavailable API remain incomplete |
+| AC-3 | Done | `TestGitHubMachineReportReachesLocalObservation` | Ready is local observation, not prior test proof |
+| AC-4 | Done | `TestGitHubMachineHandoffRefusesUnboundInputs` | No test, destructive Git action or remote command starts |
+| AC-5 | Done | `TestSitePublicationRecordAndPreflightReachRegisteredActions`; recorded canonical render/check | Receipt mechanics tested; no publication authority inferred |
+| AC-6 | Changed: OWNER HANDOFF | Owner instruction in the surviving publication spec | Actual artifact deployment/live confirmation unobserved |
+| AC-7 | Done | `TestSitePublicationRefusesChangedBytes`, `TestSitePublicationChecksReviewedBytesAndDeployment`, raw-blob tests | Same entry point refuses near misses before live probes when possible |
+| AC-8 | Done | `TestNotificationPreviewNeverSends`, workflow policy test | Positive rendered candidate; no credential or delivery |
+| AC-9 | Done | `TestNotificationTransitionsAndAmbiguousDelivery`, registered reopen/catch-up tests | One failure and one same-scope recovery; confirmed installed failure retained |
+| AC-10 | Done | `TestNotificationApprovalAndDurabilityFailClosed`, Discord ambiguity tests | Changed binding and uncertain result cannot authorize retry |
+| AC-11 | Done | `TestContributionAIPolicyPreservesOwnerApproval`, `TestContributionPagesPointToCanonicalAIPolicy` | Exact approved optional model recommendation |
+| AC-12 | Done | Source inspection of three issue forms, config and PR template | Blank issues and private security route retained |
+| AC-13 | Done | All 27 named polling tests, including 12 rate regressions | Six-GET quiet/active count, budget boundary, barrier race, history preservation |
+
+### Tests from TDD Plan
+
+| Test | Status | Location | Notes |
+|------|--------|----------|-------|
+| Planned report revision/run entry tests | Done | `actions_test.go`, `run_action_test.go` | Actual names retained; named PASS results read |
+| Planned identity/incomplete API test | Changed | `report_test.go` identity, pagination and bounds tests | Split into focused tests rather than the proposed single name |
+| Planned machine handoff test | Changed | `machine_test.go` action and unbound-input tests | Reports local readiness; does not execute a handoff |
+| Publication identity test | Done | `publication_test.go` | Positive registered action plus near-miss negatives |
+| Preview and delivery tests | Done | `notification_test.go` and activation tests | Positive preview, confirmed transitions and durable ambiguity |
+| Trusted preview workflow | Done | `github_notification_test.go` | Parsed real YAML, quoted input, default branch, no secret |
+| Six feeds and active barrier | Done | `notification_poll_rate_test.go` | Six quiet/active feeds, unreachable completion and concurrent scan |
+| Failure, trust and completion race | Done | Same rate test file | Reachable failure/recovery, malformed active and raced detail |
+| Request boundary and snapshot refusal | Done | Same rate test file | Exact request 30; refusal in detail, jobs, discovery and request-31 snapshot |
+| Independent report budget and timer | Done | Same rate test file | Report bound 200, poll bound 30; hourly persistence/jitter |
+| Functional carriers | Done | `test/ui/le-github-report.ci`, `test/ui/le-site-publication.ci` | Earlier 80 invocations each and named live-suite PASS; broad suite had 15 failures and 20 skips |
+
+### Files from Plan
+
+| File | Status | Notes |
+|------|--------|-------|
+| `internal/le/register.go` | Done | One committed GitHub discovery import |
+| GitHub report/actions/client/model files and tests | Done | Planned files exist, plus focused API state and run carriers |
+| Machine source/tests | Done | Local observation boundary, no executor |
+| Notification source/tests | Done | Preview, activation, private files, receipt lifecycle, Discord and polling |
+| Site actions/producer/build and publication source/tests | Done | Existing artifact checks retained; full and partial provenance separated |
+| Preview workflow and workflowcheck test | Done | Trusted preview-only workflow and parsed policy guard |
+| Two UI carriers and contribution/intake sources | Done | Actual entry-point carriers plus canonical policy |
+| Contributor pages and discovery maps | Done | Durable contributing pages and generated maps already hold the owner |
+| Portable installer, guards and units | Done | Actual Linux refusal proof supplied; hourly unit installed by parent |
+
+### Audit Summary
+
+40 grouped audit rows: 35 Done, 5 Changed, 0 Partial and 0 Skipped. Changes are the local-only machine workflow, owner publication handoff, and explicit planned-to-actual test mappings. No executable fix was added during closure.
+
+## Goal Validation (BLOCKING)
+
+| Goal (from Task) | Evidence Type | Concrete Evidence |
+|------------------|---------------|-------------------|
+| G-1: exact GitHub evidence | Registered action and paginated fixtures | `TestGitHubReportRunReachesAPI`, `TestGitHubRevisionReadsEveryRunAndAttemptJobPage` PASS in the retained three-package run; actual read-only CodeQL run 43726804487 recorded |
+| G-2: committed machine handoff | Qualified local action and supplied operational transfer | `TestGitHubMachineReportReachesLocalObservation`, unbound-input negatives PASS; parent records private Git transfer and native server installation without public push |
+| G-3: exact reviewed publication | Registered publication fixtures; OWNER HANDOFF for real deployment | `TestSitePublicationChecksReviewedBytesAndDeployment` PASS with fixture origins; source/raw-blob/live-byte negatives PASS. Thomas owns actual publication/confirmation; no live deployment claimed |
+| G-4: approved quiet/recovery transitions | Registered persisted-delivery fixtures and supplied installed observation | `TestNotificationTransitionsAndAmbiguousDelivery`, reopen/catch-up and all 27 polling tests PASS; parent reports retained confirmed failure message and no repeat across upgrade |
+
+## Work Not Done
+
+| What was not done | Why | The spec that now owns it |
+|-------------------|-----|---------------------------|
+| Website publication and live confirmation, including AC-6 | OWNER HANDOFF accepted explicitly; no push/publication by closer and no deployment proof inferred | `plan/post-release/engineering/spec-publish-the-regenerated-command-catalog.md`, inherited Task and AC-3 |
+| Earlier exposed webhook credential rotation | Owner responsibility remains open; no credential read, rotation or revocation observed | `plan/post-release/engineering/spec-github-notifier-credential-rotation.md` |
+
+## Review Gate
+
+| Field | Value |
+|-------|-------|
+| Artifact | `tmp/review/github-development-integration-e2e400c3-0ff3-4523-a5de-001f70c11b62.md`: CLEAN, 72 committed paths, 54 reviewable code paths |
+| `./le spec review check` | OK: 48 unchanged working-tree code files. Native `./le commit check` with the actual HEAD tree and originating artifact: clean true over all 54 code files, including the six foreign-dirty files pinned by committed blob |
+| Rounds | 1, complete: 0 BLOCKER, 0 ISSUE; record-only NOTEs corrected |
+| Reviewer lenses used | Logic and wiring; security and edge cases; completeness, tests and style |
+
+### Round 1 scope
+
+Read the complete original implementation in fe7bd9d72c, descriptor hardening in 27023312ae, persistent activation/installation in 0320acf1ed, and rate correction in 2a500e0bfc, including their source, tests, workflow, installer and documentation. Pin the actual reviewable population, including earlier `Spec-work:` commits; do not substitute the final rate delta. Foreign uncommitted command renames are excluded from the closure commit.
+
+### Findings fixed
+
+| # | Severity | Finding | Location | Fixed by |
+|---|----------|---------|----------|----------|
+| none | None | No new product BLOCKER or ISSUE | Full reviewed implementation population | No executable change |
+
+Round 1 ran all three lenses inline without children: logic/wiring and removed-behavior audit; security, bounds and concurrency; completeness, test strength, documentation and Go style. All changed Go files received the style pass. Internal enum panics are reached only through private constructed states, not raw socket/file values. Collections and network work are bounded; receipt lifecycles separate DTOs from ready/in-flight/blocked states. Existing test assertion changes preserve their old proofs. No new test weakening or RFC-tagged unit is carried by closure.
+
+NOTE: old pending-deployment and template-review prose was stale. The record now distinguishes supplied installation proof, owner publication handoff and open credential rotation. Automated broad prechecks report 109 repository issues and 92 unexplained foreign test changes; these do not establish a clean shared tree. The attempted `base origin/main` weakening range was empty because upstream equaled HEAD, so the applicable worktree audit was used. No guard was bypassed and no unrelated file was changed.
+
+The complete selected-commit inventory is `tmp/session/2026-11-16-004933/scratch/github-close-files.txt`; immutable modes and blob IDs are in `github-close-head.tsv` beside it. The population includes every original `Spec-work:` source commit and the later rate commit, which has no trailer. The six foreign-dirty code paths are the five GitHub grammar files and `internal/le/register.go`; the artifact pins their committed content. Neither those hunks nor the foreign documentation noun renames ride in closure. No source-header edit is required because all headers already name surviving docs.
+
+The native citation action exits 1 on 14 dangling references in unrelated specs, plus historical line-token warnings. Full tracked-tree search with a known Design-header positive control found no citation of this spec's actual path. Closure creates no dangling target; the unrelated citation red remains reported rather than hidden in a baseline refresh.
+
+## Pre-Commit Verification
+
+### Files Exist (ls)
+
+| File | Exists | Evidence |
+|------|--------|----------|
+| Planned GitHub and site sources/tests | Yes | Tracked inventory contains all planned paths; notification implementation expanded into focused activation, store, receipt, Discord and poll files |
+| Workflow and carriers | Yes | `ls -l` observed notification-preview.yml (1682 bytes), le-github-report.ci (2498 bytes) and le-site-publication.ci (1702 bytes) |
+| Runtime producers | Yes | `ls -l` observed report.go, machine.go, notification.go and publication.go; tracked installer/units read directly |
+
+### AC Verified (grep/test)
+
+| AC ID | Claim | Fresh Evidence |
+|-------|-------|----------------|
+| AC-1, AC-2 | Identified complete API observations or explicit incomplete result | Producer `reportRevision`, `reportRun`, `reach.jobs` read; named pagination, identity, state and bounds PASS lines read in job-unit-pkg-4b5ce529.log |
+| AC-3, AC-4 | Local readiness without execution | `observeMachine` read; both actual machine test bodies and named PASS lines read |
+| AC-5, AC-7 | Exact-byte receipt and refusal behavior | `recordPublication`, `publicationCommit`, `confirmPublication` read; named registered-action, raw-blob and deployment-near-miss PASS lines read |
+| AC-6 | Closure handoff authorized, deployment unobserved | Exact owner words retained by surviving publication owner; no live probe |
+| AC-8 through AC-10 | Preview, approval and durable transition boundaries | `buildNotificationPreview`, `deliverNotification`, `Send` read; actual preview/transition/ambiguity test bodies and retained named PASS results read |
+| AC-11, AC-12 | Approved policy and evidence-focused intake | Policy guard PASS lines read; current committed forms retain security route and blank issues |
+| AC-13 | Bounded public polling and preserved history | `reach.get`, `discover`, `process` read; all 27 named PASS bodies in rate-validation log, ending PASS and github package ok |
+
+### Wiring Verified (end-to-end)
+
+| Entry Point | .ci File | Verified |
+|-------------|----------|----------|
+| GitHub report and preview | `test/ui/le-github-report.ci` | Read all nine commands: actual le help/selector refusals; positive API behavior is in registered-action fixture tests |
+| Site publication grammar | `test/ui/le-site-publication.ci` | Read all six commands: actual binary registration and early parser refusal; positive receipt/deployment fixtures drive the same action factory |
+| Approved initialization, delivery and polling | Registered-action Go fixtures; no daemon protocol | `notificationActivationActions` and `notificationPollActions` are included by `Actions` and `leroot.RegisterActions`; actual private-files/reopen tests reach the shared durable sender path |
+| Trusted notification preview workflow | `.github/workflows/notification-preview.yml` | Default-branch checkout and quoted run/destination reach registered preview; parsed workflow guard PASS |
+
+### Assumptions Resolved
+
+| ID | Final Status | Evidence |
+|----|--------------|----------|
+| A-3 | confirmed | Templates and destination approved; installed failure delivery recorded |
+| A-1 | broken | Selected private Git transfer evidenced; no general two-route availability claim. Mistake Log and Deviations record the local-observation boundary |
+| A-2 | confirmed, at review | Earlier Pages setting inspection recorded gh-pages; owner publication must recheck at use. Not a current deployment claim |
+| A-4 | broken | Original schedule exhausted public quota; bounded hourly correction tested and installed, but shared-quota risk survives |
+
+### Documentation Verified
+
+| Documentation claim or category | Source evidence | Verified |
+|---------------------------------|-----------------|----------|
+| CLI and contributor guide | `github-integration.md` compared with `Actions`, `observeMachine`, `notificationActivationActions`, `deliverNotification` | Yes; foreign receipt/delivery noun renames remain outside this closure commit |
+| Installation and hourly polling | `github-notifier.md` compared with `loadNotificationPoll`, `discover`, `process`, installer/guards and timer | Yes; rate delta documented in 2a500e0bfc |
+| Publication architecture and existing source anchors | `gh-pages.md` publication section compared with snapshot, raw-blob, receipt and live-probe producers | Yes; source headers and code/doc maps point to durable pages |
+| Test infrastructure and discovery | Parsed workflow guard, UI carriers, GitHub blank import and INDEX row | Yes; original source commits carry the owner/discovery changes |
+| Product feature, config, daemon CLI/API/RPC, plugin SDK, wire/RFC, comparison and metrics | The complete changed source set is developer tooling, site identity and contribution intake; no runtime component, schema, protocol proof stem or feature declaration changed | No update applies; source-anchor search resolves only contributing/site owners |
+| Full doc gate | Existing rate-fix run: exit 1, 389 sibling catalog-drift findings; no notifier-guide finding | Red retained and owned by publication spec; no unchanged gate rerun |

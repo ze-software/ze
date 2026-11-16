@@ -9,7 +9,7 @@
 | Depends | - |
 | Phase | - |
 | Handoff | - |
-| Updated | 2026-09-08 |
+| Updated | 2026-11-16 |
 
 Recovery after compaction: `.claude/rules/post-compaction.md`.
 
@@ -47,6 +47,12 @@ schedules the regeneration. Either the publish becomes part of a command-surface
 spec's closure, or the two checks state plainly that they measure a sibling
 checkout rather than this tree. Deciding which is the work; running the two
 generators is the smaller half.
+
+### Owner publication handoff from GitHub integration
+
+On 2026-11-16 Thomas accepted responsibility for the reviewed contribution-page publication and live confirmation left by `spec-github-development-integration`: "It's okay, I will do it. You can take my word for it and close." This supersedes the earlier conditional closure hold. It is an OWNER HANDOFF, not an observed Pages deployment or a command to an agent to push.
+
+This spec now owns that remaining publication alongside the existing catalog work. Preserve the exact reviewed artifact and source identities. Use the source/final-byte receipt and deployment-confirmation contract in `docs/contributing/gh-pages.md`, section "Record and confirm reviewed publication bytes". If the artifact changed, obtain review of its current bytes before recording and publication. The earlier canonical render and site check covered 1118 routes; those historical results do not identify a later deployment. Record actual artifact commit, newest Pages status and changed live-route/asset checks when the owner performs publication. Keep the GitHub front-door/README proposal outside this inherited scope.
 
 ## Required Reading
 
@@ -95,6 +101,7 @@ generators is the smaller half.
 |-------|-------------------|-------------------|
 | AC-1 | `./le doc check all` runs over a checkout whose command surface just changed | it names neither `../gh-pages/data/cli-commands.json` nor `../wiki/command-catalog.md` |
 | AC-2 | Design is approved | Record the recurring publication responsibility: either publication belongs to command-surface closure, or the checks explicitly identify sibling-checkout drift and a separate publication owner and trigger are named. The decision preserves AC-1 and the requirement that both published artifacts match the live catalog |
+| AC-3 | Owner performs the inherited reviewed contribution-page publication | Record the exact approved artifact/source identity and observed Pages/live-byte confirmation, or the specific refusal requiring a fresh build/review. The 2026-11-16 owner handoff alone is never labeled deployment evidence |
 
 ## 🧪 TDD Test Plan
 
