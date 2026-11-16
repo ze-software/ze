@@ -20,6 +20,7 @@ import (
 	"github.com/ze-software/ze/internal/component/plugin/registry"
 	"github.com/ze-software/ze/internal/core/bgp/attribute"
 	"github.com/ze-software/ze/internal/core/bgp/capability"
+	"github.com/ze-software/ze/internal/core/bgp/ribevents"
 )
 
 // lowLivePeer owns one remote connection and its bounded wire capture. Cleanup
@@ -57,6 +58,9 @@ func lowLiveSettings(address string, local, remote uint32) *PeerSettings {
 // daemon. Routes enter only over the remote socket, never through a RIB setter.
 func lowLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 	t.Helper()
+	if ribevents.ValidationEnabled() {
+		t.Fatal("live router fixture requires an absent validation owner")
+	}
 	r := New(&Config{ListenAddr: "127.0.0.1:0"})
 	for _, s := range settings {
 		if err := EnsureProcessBinding(s, "bgp-rib", "update state refresh", "update"); err != nil {
@@ -73,11 +77,37 @@ func lowLiveRouter(t *testing.T, settings ...*PeerSettings) []*lowLivePeer {
 		}
 	}
 	srv := newBorrowedPluginServer(t, r, "bgp-rib", "bgp-adj-rib-in", "bgp-rs")
+	// Stop clears the manager's process map. Keep the actual engine handles so
+	// a fatal shutdown during the test cannot hide an unfinished owner release.
+	processes := srv.ProcessManager().AllProcesses()
 	r.SetPluginServer(srv)
 	if err := r.StartWithContext(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { stopAndWait(t, r) })
+	t.Cleanup(func() {
+		stopAndWait(t, r)
+		srv.Stop()
+		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		for _, proc := range processes {
+			if err := proc.WaitEngine(ctx); err != nil {
+				t.Errorf("live router plugin engine did not finish cleanup: %v", err)
+				return
+			}
+			if err := proc.Wait(ctx); err != nil {
+				t.Errorf("live router plugin workers did not finish cleanup: %v", err)
+				return
+			}
+		}
+		if err := srv.Wait(ctx); err != nil {
+			t.Errorf("live router server handlers did not finish cleanup: %v", err)
+			return
+		}
+		// A production daemon retains a refusing gate through shutdown. This
+		// serial fixture owns the absent baseline of the next fictional daemon;
+		// restore it only after every owner that could publish has returned.
+		ribevents.RegisterValidationLookup(nil, nil)
+	})
 	startBorrowedPeers(t, r, srv)
 	out := make([]*lowLivePeer, 0, len(settings))
 	for _, s := range settings {

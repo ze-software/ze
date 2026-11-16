@@ -22,6 +22,10 @@ owner put DelayOpen and Event 3 IN and split the work: "Split into three". This
 spec owns the two RFC 4271 FSM rows. The defects stay in the immediate spec; the
 EPE rows are `plan/post-release/features/spec-bgp-epe-peer-segments-and-srv6-peernode.md`.
 
+Verification also repairs the live-router test fixture's teardown: after its
+reactor, plugin engines, workers and server handlers join, it restores the
+initially absent validation provider for the next test's fictional daemon.
+
 Row numbers are the numbers the rows had in the parent spec.
 
 | # | Row id | Document, section | Class | What Ze does today |
@@ -231,6 +235,7 @@ spec; AC-3 is the parent's ledger AC-11 for the `rfc4271` stem.
 | AC-7h (row 6s, HoldTimer bound, round-2 I3) | In either DelayOpen sub-state with a non-zero negotiated hold time, BFD stays Down and no KEEPALIVE is sent | The HoldTimer runs while the state is still Connect or Active (AC-4 resets it to the negotiated value on entering the sub-state); on expiry, HoldTimer_Expires (Event 10) takes the Connect or Active catch-all arm: the ConnectRetryTimer is zeroed, resources released, the connection dropped, the ConnectRetryCounter incremented by one, the sub-state cleared, and the state is Idle. The session never stays in the sub-state past the negotiated hold time |
 | AC-8 (row 6s, strict-mode path refusal) | `EnterBfdUpPending` or its Connect/Active sibling is called in a state the draft does not allow | It returns the error it returns today for an OpenSent sub-state outside OpenSent; the Connect/Active sub-states are accepted only in Connect and Active with the DelayOpenTimer just cleared by Event 20 |
 | AC-9 (row 6s, ledger and comments) | Row 6s landed | `rfc/short/draft-ietf-idr-bgp-bfd-strict-mode.md` lines 14 and 20 no longer call the sub-states unreachable and name the producing functions; no requirement row is added because §8 carries no RFC 2119 keyword (its Notes); every comment and page listed in Current Behavior and the Documentation checklist that calls the sub-states unreachable is rewritten in the same commit; `./le rfc check` exits clean for the draft stem |
+| AC-12 (live fixture isolation) | A `lowLiveRouter` fixture enables validation, then finishes | Validation remains enabled while its daemon is alive. After all reactor, plugin and server owners join, the fixture restores its initially absent provider. A failed join keeps the refusing gate. `TestLowLiveRouterReleasesValidationAfterCleanup` and the existing RFC 7705 live callers prove the lifecycle without changing production shutdown policy. |
 
 ## End-to-End User Stories
 
