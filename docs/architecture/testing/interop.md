@@ -4965,23 +4965,26 @@ begins `test` (`le test interop-bgp speaker ...`). The image holds no program
 under a retired harness name, so a scenario `ze.conf` that still runs one fails
 to start it.
 
-Each `LabBinary` defaults to compiling `./cmd/ze`; its optional `Package` names
-a standalone Go package instead. The L2TP relay uses that declaration, so the
-RFC recorder's inherited Go overlay reaches the binary Docker copies. Docker
-does not compile a separate relay source tree. The L2TP runner resolves staged
-binaries from the selected images' registrations; its full `LabBinaries`
-inventory also drives the ignore-file checks.
+Each `LabBinary` defaults to compiling `./cmd/ze`. Its optional `Package`
+names a standalone Go package instead. The L2TP relay uses that declaration,
+so the RFC recorder's inherited Go overlay reaches the binary Docker copies.
+Docker does not compile a separate relay source tree. The L2TP runner resolves
+staged binaries from the selected images' registrations. Its full
+`LabBinaries` inventory also drives the ignore-file checks.
 
-A declaring lab may supply `PrepareOverlay` for one binary. It returns a Go
-overlay path and cleanup; staging runs cleanup after the compile, including a
-failed compile. Preparation and cleanup failures stop the run. Staging composes
-the replacement map with any inherited `GOFLAGS` overlay, normalizing paths
-against the compiler's checkout directory. Different replacements for the same
-source are refused, including relative and absolute aliases. The combined
-overlay is a command-local build flag: inherited flags and process-global
-`GOFLAGS` stay unchanged. A binary without this callback retains its inherited
-build inputs. The L2TP scale daemon alone declares the allocator callback; its
-replacement files and combined map are removed after staging.
+A declaring lab can supply `PrepareOverlay` for one binary. It returns a Go
+overlay path and cleanup function. Staging runs cleanup after the compile,
+including a failed compile. Preparation and cleanup failures stop the run.
+Staging composes the replacement map with any inherited `GOFLAGS` overlay and
+normalizes paths against the compiler's checkout directory. Different
+replacements for the same source are refused, including relative and absolute
+aliases.
+
+The combined overlay is a command-local build flag. Inherited flags and
+process-global `GOFLAGS` stay unchanged. A binary without this callback retains
+its inherited build inputs. The L2TP scale daemon alone declares the allocator
+callback. Staging removes its replacement files and combined map after the
+compile.
 <!-- source: internal/le/interoplab/zebuild.go -- LabBinary, stageBinary -->
 <!-- source: internal/le/interoplab/zebuild_overlay.go -- prepareLabBinaryOverlay, readLabOverlay, writeMergedLabOverlay -->
 <!-- source: internal/le/interoplab/l2tp/l2tp.go -- runAt, LabBinaries, binariesForImages -->
