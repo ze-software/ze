@@ -8,7 +8,7 @@
 | Release reason | Security defect in shipped IPsec: on a Child SA moved to UDP 4500 without a NAT, bare ESP from an authenticated peer is decrypted and delivered with no inbound SPD check, so the peer can inject traffic with any inner source and destination. |
 | RFC gaps | RFC4301-5.2-2 |
 | Depends | - |
-| Phase | Repair current-namespace nft/link handling and permission diagnostics, then firewall and FRR interop; unchanged AC-4 scope/kernel implementation and 79 RFC renewals |
+| Phase | Remaining FRR and post-namespace-fix ESP-form/ICMP clean interop; unchanged AC-4 scope/kernel implementation and 79 RFC renewals |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | development tier |
@@ -664,7 +664,7 @@ coordinator's addition to the owner's choice, not a choice the owner made.
 
 ### AC-24 and AC-25 current-namespace repair
 
-The clean firewall baseline failed after 1m35s while waiting for the doctor's
+The pre-repair clean firewall baseline failed after 1m35s while waiting for the doctor's
 table/term finding (`job-ipsec-firewall-clean-current-c729df7b.log`). Both the
 nft watch and link follower unnecessarily call `setns` for the already-current
 namespace. Independent source/fixture investigation confirmed that the actual
@@ -697,7 +697,9 @@ ignored generated files only. Source checks are complete with these bounded
 known reds; no overall doc/lint-green claim. Lifecycle review still requires
 post-fix clean `esp-form-change` and `icmp-error-payload-check` runs;
 the unchanged seven-run ICMP discrimination sequence keeps its existing credit.
-Live firewall clean/fault/clean and FRR remain owed.
+The namespace/permission source phase landed in `927f93fafe`. Rebuilt-current-source
+firewall clean/fault/clean is now observed and independently CLEAR, as recorded
+below. FRR and the two post-fix lifecycle clean runs remain owed.
 
 `TestDoctorESPFormFirewallPermissionCauseRetainsUncertainty` produced its own
 RED in `job-ipsec-doctor-permission-cause-red-1535be55.log`, native
@@ -706,7 +708,8 @@ RED in `job-ipsec-doctor-permission-cause-red-1535be55.log`, native
 `TestDoctorESPFormFirewallReading` and `TestDoctorESPFormFastPath` passed in
 `job-ipsec-doctor-permission-green-a5623ea2.log`, native
 `job-unit-pkg-f8eb268c.log` (engine 1.496s). These are repairs within this spec,
-with AC-4 and the 79 renewals unchanged; live firewall success is still owed.
+with AC-4 and the 79 renewals unchanged. The repaired-source live firewall
+sequence below is now observed.
 
 Known scoped lint reds outside this repair: dataplane
 `kernel_scope_params_linux_test.go` import grouping,
@@ -719,6 +722,26 @@ modernize; engine `fragment_boundary_integration_linux_test.go` gocritic/noctx,
 `rfc4301_espform_policy_integration_linux_test.go` unused. No current repair-file
 finding or overall lint-green result is claimed. These unrelated files stay
 with their existing owners.
+
+### AC-13 repaired-source firewall receipt
+
+The normal rebuilt-source clean passed in 17s
+(`job-ipsec-firewall-namespace-clean-c729df7b.log`), the private gate-open fault
+failed in 14s (`job-ipsec-firewall-gate-open-cut-c729df7b.log`), and recovery
+clean passed in 17s (`job-ipsec-firewall-clean-after-gate-cut-c729df7b.log`).
+Final independent lifecycle review is CLEAR for this IPv4 single-tunnel sequence.
+Both cleans advanced the positive-control counters by 252 bytes, lost all three
+judged probes, advanced strongSwan 328→580 bytes/4→7 packets and the drop counter
+4→7, while Ze inbound and mismatch stayed at zero. The fault retained the SA
+and required firewall finding but delivered all three probes, failing the
+checker's own loss assertion. That assertion stops before post-probe drop and
+mismatch reads, so no post-fault drop/mismatch delta is claimed.
+
+All VMs stopped without interruption or leftover resources on native image
+`45cb736f9a13fd62`. Cleans had all zero exits; the fault had check/command exits
+zero and lab exit one. Keep the private cut until the accepted receipt commits
+and process/reference checks permit removal. Remaining live runs are FRR and
+post-fix clean ESP-form/ICMP, with no repetition of unchanged ICMP cuts.
 
 ### AC-1 native ICMP proof receipt
 
@@ -1024,7 +1047,7 @@ Files under `internal/component/ike/dataplane/` unless a path is given.
 |----------|-----------|-------------|----------------|--------|
 | `icmp-error-payload-check` | `test/interop-ipsec/scenarios/` | strongSwan | AC-1 | current IPv4 single-pair clean and proofs (c)/(d) observed in all seven native runs, independently reviewed CLEAR |
 | `esp-form-change` | `test/interop-ipsec/scenarios/` | strongSwan | AC-2 | |
-| `esp-form-firewall-drop` | `test/interop-ipsec/scenarios/esp-form-firewall-drop/` (`ze.conf`, `swanctl.conf`), checker `checkESPFormFirewallDrop` (`internal/le/interoplab/ipsec/espformfirewall.go`) | strongSwan | AC-13: strongSwan sends bare ESP on a 4500-without-NAT SA, Ze's `drop-esp` term drops it and counts it, the doctor names the blocking table and term; red when `writeGateLocked` writes the open value whatever it is given (`docs/architecture/testing/interop.md`) | |
+| `esp-form-firewall-drop` | `test/interop-ipsec/scenarios/esp-form-firewall-drop/` (`ze.conf`, `swanctl.conf`), checker `checkESPFormFirewallDrop` (`internal/le/interoplab/ipsec/espformfirewall.go`) | strongSwan | AC-13: strongSwan sends bare ESP on a 4500-without-NAT SA, Ze's `drop-esp` term drops it and counts it, the doctor names the blocking table and term; red when `writeGateLocked` writes the open value whatever it is given (`docs/architecture/testing/interop.md`) | clean PASS 17s → finding-preserving gate-open packet FAIL 14s → clean PASS 17s, independently CLEAR for current IPv4 single tunnel; no post-fault drop/mismatch delta claimed |
 
 ## Files to Modify
 - `internal/component/ike/dataplane/espform_firewall_kernel_linux.go`, `espform_fastpath_linux.go` - use the shared current-namespace socket helper for the real nft reader/watch and link follower, with pinned capture/creation and unchanged worker ownership (AC-24).
@@ -1350,7 +1373,7 @@ not claim that their final-code tests or mutation proofs have run.
 | Initial final-code main-thread `./le test unit pkg path ./internal/component/ike/dataplane/ path ./internal/component/ike/engine/ path ./internal/core/diagnostic/` | engine and diagnostic packages passed; three dataplane fixture/expectation failures were subsequently corrected and committed in `bd8e21b487`. The targeted package run `job-unit-pkg-58fce57a.log` and narrow race/count-20 scheduling run `job-ipsec-reopen-schedule-e00a01c8.log` passed. Final guest verification remains owed |
 | Receiver doctor and binding fixture units | the named tests passed under race/verbose execution in `job-ipsec-binding-doctor-units-419db7fc.log`; this includes the offload and complete-path doctor findings |
 | Host mutation walks 27, 31–33, 37, 39–49 | all sixteen returned the native red verdict, with clean own-test passes and broken own-test failures, in `job-ipsec-dualform-host-redwalks-aa95f75a.log`; guest mutant 20 remains owed |
-| Remaining closure evidence | Final Linux populations, doctor qualification/promotion, repaired helper/checker, AC-2's as-used clean → binding-cut → clean proof and AC-1's seven-run local IPv4 single-pair ICMP sequence are observed. Installed-endpoint MTU also passed its named scenario in 4s. Remaining interop is firewall clean/cut/clean and FRR; AC-4's scope/kernel implementation and broader RFC obligations stay open. All four fresh clause records and the four older same-row transport/tunnel dependency renewals are observed. Tunnel positive `job-ipsec-sad-tunnel-positive-record-8cbbeb8e.log` and negative `job-ipsec-sad-tunnel-negative-record-3ca64234.log` each passed clean in 3.80s and failed with producer halt in 0.01s. Independent canonical-RFC review cleared the partial audit after all nine covers across six functions, and main natively stamped `rfc/audit/rfc4301/RFC4301-5.2-2.json`. The current check `job-ipsec-rfc4301-partial-refresh-check-4fea72ad.log` reports 451 corpus findings but no audit/discrimination freshness finding for this exact ID, which appears only in the normal partial report. The 83-entry old-record manifest now records four observed renewals and 79 unobserved renewals, including separate claims on the same units. General per-SA scope/isolation, bits 0–3 admission and K3's unenrolled status are unchanged; AC-4 stays partial. These records do not reconstruct historical guest mutant 20 |
+| Remaining closure evidence | Final Linux populations, doctor qualification/promotion, repaired helper/checker, AC-2's as-used clean → binding-cut → clean proof and AC-1's seven-run local IPv4 single-pair ICMP sequence are observed. Installed-endpoint MTU also passed its named scenario in 4s. Repaired-source firewall clean 17s → intended gate-open packet failure 14s → recovery clean 17s is observed and independently CLEAR. Remaining interop is FRR and post-fix ESP-form/ICMP clean validation; AC-4's scope/kernel implementation and broader RFC obligations stay open. All four fresh clause records and the four older same-row transport/tunnel dependency renewals are observed. Tunnel positive `job-ipsec-sad-tunnel-positive-record-8cbbeb8e.log` and negative `job-ipsec-sad-tunnel-negative-record-3ca64234.log` each passed clean in 3.80s and failed with producer halt in 0.01s. Independent canonical-RFC review cleared the partial audit after all nine covers across six functions, and main natively stamped `rfc/audit/rfc4301/RFC4301-5.2-2.json`. The current check `job-ipsec-rfc4301-partial-refresh-check-4fea72ad.log` reports 451 corpus findings but no audit/discrimination freshness finding for this exact ID, which appears only in the normal partial report. The 83-entry old-record manifest now records four observed renewals and 79 unobserved renewals, including separate claims on the same units. General per-SA scope/isolation, bits 0–3 admission and K3's unenrolled status are unchanged; AC-4 stays partial. These records do not reconstruct historical guest mutant 20 |
 
 ## Key Design Decisions
 | Decision | Alternatives Considered | Rationale |

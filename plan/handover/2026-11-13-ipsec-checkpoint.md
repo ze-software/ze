@@ -31,6 +31,7 @@ must lose `{partial}` only when the broader obligation is actually proven.
 | `671c5926e2` | Correct only the capability-rejection test request's encoding, with independent judgment. No kernel or vendor code changed |
 | `cb5e4a6044` | Reject empty and whitespace-only Ze XFRM snapshots in the form-change checker, with focused and full checker-package passes before helper wiring |
 | `7d49a5e3f9` | Land the 30-file peer-local helper, image staging, same-SA form-switch checker and tests, with scoped repair validation. Proof metadata is prepared separately; parent-package lint remains red |
+| `927f93fafe` | Land nine reviewed namespace/permission repair files after eight exact-capability namespace tests, affected guest population and both packages passed. Rebuilt-source firewall clean/fault/clean subsequently passed its intended discrimination sequence; lint retains bounded outside-repair findings |
 
 Go caller checkpoint `466ab09fd8` landed 55 files, including the callers,
 selector repairs, diagnostics, regression probes and companion documentation.
@@ -280,14 +281,23 @@ remain through closure review.
    `0af0356d5c7ca16099e2a750c856d9f88cd94d678d93a098f3aebcf8c89ca937`,
    is unexecuted. The as-used trial validates the AC-2 goal. Its missing marker
    was procedural and is corrected for future inputs, with no freshness rerun.
-   Run the remaining scenarios
-   and their deliberate breaks:
-   `esp-form-firewall-drop` with its redwalk,
-   and `ipsec-bgp-redistribute-frr`, each with
+   Namespace and permission-diagnostic repairs then landed in `927f93fafe`.
+   The rebuilt-source firewall clean/fault/clean sequence is observed:
+   `job-ipsec-firewall-namespace-clean-c729df7b.log` PASS 17s,
+   `job-ipsec-firewall-gate-open-cut-c729df7b.log` intended packet FAIL 14s,
+   `job-ipsec-firewall-clean-after-gate-cut-c729df7b.log` PASS 17s.
+   Final independent lifecycle review CLEAR, bounded to the IPv4 single tunnel.
+   Each clean loses all three judged probes, moves the drop counter 4→7 and
+   strongSwan 328→580 bytes/4→7 packets, and keeps Ze inbound/mismatch zero.
+   The established-SA/finding-preserving cut delivers all three probes and
+   fails the loss assertion before post-probe drop/mismatch reads, so those
+   post-fault deltas are not claimed. All VMs stopped without interruption or
+   leftover resources. Retain the private cut until receipt commit and checked cleanup.
+   Run `ipsec-bgp-redistribute-frr` and post-fix clean `esp-form-change` and
+   `icmp-error-payload-check` lifecycle validation, each with
    `IPSEC_INTEROP_SCENARIO=<name> ./le test integration interop-ipsec`, one at
-   a time. The `esp-form-firewall-drop` red: make `publishFirewall` ignore a
-   blocked verdict so the gate is forced open, expect the scenario's ESP-drop
-   check to go red, then restore. Earlier success is not final-code evidence.
+   a time. FRR is running under `ipsec-frr-redistribute-current`, with no result
+   yet. The post-fix clean runs do not repeat the unchanged seven-run ICMP cuts.
    AC-1 is now observed for the current IPv4 single-pair tunnel: clean PASS 10s,
    flag-cut consistent-error FAIL 8s, recovery clean PASS 10s, policy-only PASS 10s,
    state-only PASS 10s, combined-source inconsistent-error FAIL 8s, final clean
