@@ -468,6 +468,59 @@ questions. Their recommendation is not implementation authorization.
 | Q-8 | Trigger and selection | Publish only changes of the global selected route; duplicate/lower-candidate changes do not enqueue an advertisement | Forwarding every UPDATE and relying on recipient recovery can advertise losers; RFC 4271 Section 9.1.3 requires selected-route dissemination |
 | Q-9 | Late-peer/reconnect replay | Selected snapshot plus ordered deltas before the existing initial-ready fence opens; reconcile admitted local origins in the same scope before replay; preserve unrelated role-owned sent history | Sent-history-only replay cannot seed a first recipient; replaying every received candidate violates ordinary single-best output |
 
+### Export default by route kind (reach decided, mechanism proposed)
+
+The owner decided what the default is. How the code tells the two kinds apart
+on one peer is proposed here. Source facts first.
+
+`internal/component/bgp/filterapi/policy.go` `UnconfiguredAccepts` takes one
+input, whether the session is external, and `Policy.AcceptsAtEnd` passes it
+through. Every reader asks per session, never per route:
+
+| Reader | What it decides today |
+|--------|-----------------------|
+| `internal/component/bgp/reactor/filter_ordered.go` `runEgressPolicyChain`, `runEgressPolicyChainASN4` | The forward rail's end disposition for a destination with no active export filter |
+| `internal/component/bgp/reactor/egress_inject_filter.go` | The same for an originated, injected or redistributed body, which has no source peer |
+| `internal/component/bgp/reactor/forward_rs.go` | Whether the route-server fast path serves a destination |
+| `internal/component/bgp/policychain/chain.go` `endFinal` | The end of a chain compiled for an unconfigured policy, read from the view's session |
+| `internal/component/bgp/reactor/peer_session_factory.go` `egressFinalAccepts`, read by `session_write.go` `writeUpdateBody` | The final writer's recheck: one answer for the whole body, so a forward that outlived its policy generation becomes withdrawals |
+| `internal/component/bgp/reactor/peer_settings_apply.go`, `policy_reload.go` `reconcileExportFinal` | Whether a reload changed the session's final, and what to do about it |
+| `internal/component/bgp/reactor/policy_dryrun.go`, `reactor_api.go` `policyInfo` | What the dry run and the status surface report as the direction's final |
+| `internal/component/bgp/reactor/peer_initial_sync.go` `defaultOriginateChain` | The end of the default-originate condition chain |
+
+`reconcileExportFinal` shows the cost of one answer per session. When the
+final rejects it calls `reactor_api_advertised.go` `withdrawPeerAdvertised`,
+which withdraws the destination's whole Adj-RIB-Out. When the final accepts
+again it restores static, default-originate and plugin routes and asks for a
+replay. An internal session whose export policy is removed must instead lose
+its learned routes and keep its local ones.
+
+| Boundary | Proposed behavior | Existing mechanism extended |
+|----------|-------------------|-----------------------------|
+| Disposition input | The absent-export disposition takes a second input beside the session type: the route's export kind, learned-by-ordinary-output or not. External rejects both kinds (RFC 8212 Section 3). Internal rejects the first and accepts the second. Import keeps its one input. A configured policy's final applies to every kind, as today | `UnconfiguredAccepts`, kept as the one statement; no second evaluator |
+| Where the kind comes from | The engine derives it and no caller asserts it. The selected envelope already separates a learned-source receipt from a local-origin receipt, and the destination's effective dissemination owner (Q-2) says whether an explicit role serves it. A route is the first kind only when it carries a learned-source receipt and ordinary selected output owns the destination. The existing originated, RS and RR rails are the second kind by construction | Authenticated selected operation, `fwdItem` ownership (`originated`, received peer), Q-2 role resolution |
+| Per-route readers | The forward rail, the injected rail, the chain end and the final writer ask with the kind of the route in hand. The chain end reads it from the view, which the engine fills. The final writer's recheck judges each owned item by its kind, so a body mixing kinds is never refused or passed as one | `runEgressPolicyChainASN4`, `policychain` `endFinal`, `writeUpdateBody` |
+| Per-session readers | A reader with no route in hand reports both answers where they differ: the status surface shows an internal direction with no policy as "learned routes withheld, local routes sent", and the dry run takes the kind as an input | `policyInfo`, `policy_dryrun.go` |
+| Reload: policy removed on an internal session | Retire the entries whose recorded owner is a learned route under ordinary output, and only those, after the same writer barrier. Local origins and role-owned entries are not withdrawn and not re-sent | `reconcileExportFinal`; the Adj-RIB-Out entry already records its owner, so retirement selects by that record and never re-derives a kind |
+| Reload: policy configured on an internal session | Restore learned routes from the current selected snapshot through the selected stream, under the existing policy-replay hold. No Adj-RIB-In candidate replay, which could install a loser | Policy-replay hold in `reconcileExportFinal`; the selected snapshot of Q-9 |
+| Rollback and late work | An aborted apply restores the previous disposition and its output through the same two paths. Work queued under the accepting disposition and released after the removal is refused at the final writer, which reads the current disposition for that item's kind | Existing final-writer recheck and apply/abort barriers |
+| Absent-policy report | An internal session raises the export absence only where ordinary selected output owns the destination. A reflector client or route-server client served by its explicit role raises nothing for it. External sessions keep the RFC 8212 absences unchanged | `RFC8212Absences`, read by `internal/component/bgp/config/register.go` `policyAbsencesFromTree` for `ze config validate` and by the Established log line |
+
+### Route delivery to a process stays explicit
+
+The owner's remark of 2026-11-16: delivering routes to an API process should
+be explicit too. It already is, and this spec keeps it.
+`docs/architecture/api/architecture.md`, "Attaching a Process to a Peer",
+states the model: "A peer that attaches no block for a program is fed to it
+never, and refuses every message the program aims at that peer. Silence is the
+default, and the config is what breaks it."
+
+| Subject | What this spec does |
+|---------|---------------------|
+| An operator's process, in any language, and the ExaBGP bridge | Nothing changes. It receives a peer's routes only where that peer's `attach process` block grants `receive`, and sends only where it grants `send`. Ordinary selected output never widens a grant, and no default feed is derived for such a process |
+| The deciding plugin, `bgp-rib` | The one derived binding. That page says the silence "holds for ze's own plugins as it holds for an operator's program", and a redistribution rule already departs from it by deriving the Loc-RIB's binding (`core-design.md`, "The Two Deliveries a Redistribution Rule Derives"). The default-feed declaration of "Default grants and role changes" below extends that one precedent, because the first ruling asks for transit with no plugin attached. The page is corrected in the same work to name both derivations |
+| A peer's own narrower grant | Wins, as it does for the redistribution binding. A grant too narrow for the mandatory default job is refused at verification, never widened |
+
 ### Concrete selected-output mechanism (proposed)
 
 The resolved Q-3 policy applies only to admitted origins: eligible learned BGP,
@@ -1008,8 +1061,11 @@ resource-bound criteria below form one unapproved design for whole review.
 | AC-17 | Configured redistribution admits a source route beside learned BGP, while another system route lacks admission | Existing Ze distance/override determines useful selected output; rule removal retires only that source and exposes the admitted replacement; no unadmitted system route is exported | Learned replacement and unrelated admitted routes survive; a system route without redistribution remains forwarding-only |
 | AC-18 | Preference apply/rollback or recipient reconnect overlaps scoped origin replacement | Replay and final completion reflect one admitted scope/preference generation; delayed old local history cannot overwrite the selected winner | Other scoped candidates and healthy recipients retain their authorized useful output |
 | AC-19 | An API/redistribution origin is admitted but loses to a useful selected route on both typed and external transports; later remove the winner, and separately inject a true failure | Initial receipt explicitly says retained/suppressed with Announced zero and no false failure/no-peer warning; winner removal advertises the retained origin. True admission/transport failure still reports its cause; completed withheld withdrawal retains its legacy count | Current winner survives loser admission; the retained loser survives until genuine re-election; unrelated origins remain unchanged |
-| AC-20 | Default config, no route-server plugin; A is eBGP under an accepting import policy, B is iBGP with an accepting export policy, C is iBGP with no export policy. A announces a prefix; an API announcement is also sent toward C. Then B's export policy is removed | B receives A's route and C never does. C still receives the API announcement. Removing B's export policy withdraws A's route from B | The API announcement toward C and any reflector or route-server output survive: the requirement binds learned routes carried by ordinary selected output (Q-5). A's route stays selected in the Loc-RIB |
+| AC-20 | Default config, no route-server plugin; A is eBGP under an accepting import policy, B is iBGP with an accepting export policy, C is iBGP with no export policy. A announces a prefix; an API announcement is also sent toward C. Then B's export policy is removed | B receives A's route and C never does. C still receives the API announcement. Removing B's export policy withdraws A's route from B | The API announcement toward C survives: the requirement binds learned routes carried by ordinary selected output (Q-5). A's route stays selected in the Loc-RIB. Role-served destinations are AC-22 |
 | AC-21 | The same config, with C Established | `ze config validate`, the Established log line and `ze doctor` each name C, say that it has no export policy so Ze passes it no route learned from other peers, and give the editor command that configures one. The report clears once C has an export policy | An external peer keeps its RFC 8212 wording; a peer with a configured export policy raises nothing, whatever that policy rejects |
+| AC-22 | The AC-20 config plus two role destinations, neither with an export policy: D is an internal reflector client served by an attached `bgp-rr`, E is an external route-server client served by an attached `bgp-rs`. A announces a prefix | D receives the reflected route with its RFC 4456 attributes. E receives nothing, because RFC 8212 Section 3 binds every route on an external session. `ze config validate`, the log and `ze doctor` raise the internal absence for C and not for D, and the RFC 8212 absence for E | D's reflected route survives: an attached role is the explicit decision. C stays without the route, so the exemption is tied to the role and is not unconditional |
+| AC-23 | B is internal with an accepting export policy and holds a learned route and an API announcement. Its export policy is removed, restored, removed in an apply that is then rolled back, and a learned-route write queued before a removal is released after it | Removal withdraws the learned route only. Restoration sends the current selected winner once. The rolled-back removal leaves B holding both routes. The late write installs nothing | The API announcement is never withdrawn and never re-sent across the four steps; other recipients are untouched |
+| AC-24 | A process attached to no peer, and one attached to peer A with `receive [ update ]` only, beside the default transit config | The first receives no route event and every send it attempts is refused. The second receives A's routes and nothing from other peers. Neither changes when ordinary transit starts passing routes | `bgp-rib`'s derived binding survives: it is the one binding this spec derives, and a peer's narrower explicit grant for it still wins |
 
 ## End-to-End User Stories
 
@@ -1058,7 +1114,10 @@ negative observation follows useful output and joins the work it observes.
 | `TestOrdinarySelectedRedistributionAdmission` | Admit static/OSPF through configured redistribution, compare using default and overridden distances, remove rule; include unadmitted system-route control | Admitted learned replacement survives; no system/FIB-only export |
 | `TestOrdinarySelectedOriginReplayRollback` | Hold old local replay during preference apply/rollback and reconnect; observe current scoped winner on both internal and forked rails | Healthy scope output survives and stale history cannot replace current winner |
 | `TestOrdinarySelectedInternalAbsentExportPolicyWithholdsLearnedRoute` | An internal recipient with an accepting export policy gets the learned winner and a later marker; an internal recipient with none gets neither, after the dispatcher is joined. Remove the first recipient's policy and observe the withdrawal. A local origin toward the policy-less recipient still arrives | The local origin and the selected Loc-RIB path survive; no loser is promoted at either recipient |
-| `TestAbsentExportPolicyReportInternalSession` | The absent-policy value for an internal session with no export policy names the direction, what is withheld and the editor fix; it is empty once the policy is configured, and an external session keeps its RFC 8212 wording | A configured policy that rejects everything raises nothing |
+| `TestAbsentExportDispositionByRouteKind` | The one absent-policy statement over session type and route kind: external rejects both kinds, internal rejects a learned route under ordinary output and accepts a local origin and a role-served route; import is unchanged; a configured final ignores the kind | The existing RFC 8212 answers for external sessions |
+| `TestExportPolicyReloadRetiresLearnedOnly` | An internal recipient holding a learned route and a local origin: remove its export policy, restore it, roll a removal back, and release a learned write queued before a removal. Observe the wire at each step, after joining the writer | The local origin is never withdrawn or re-sent; the restored learned route is the current selected winner, sent once |
+| `TestOrdinarySelectedRoleDestinationsKeepDefault` | A reflector client with no export policy receives the reflected route beside an ordinary internal recipient that receives none; an external route-server client with no export policy receives none | The ordinary recipient's refusal proves the exemption is the role's, and the external refusal proves RFC 8212 still binds |
+| `TestAbsentExportPolicyReportInternalSession` | The absent-policy value for an internal session with no export policy names the direction, what is withheld and the editor fix; it is empty once the policy is configured, empty for a destination an explicit role serves, and an external session keeps its RFC 8212 wording | A configured policy that rejects everything raises nothing |
 | `TestOrdinarySelectedSourceDownRetiresOutput` | Advertise A, end its source, observe B replacement or final withdrawal | B survives only when it is the new globally selected eligible candidate |
 | `TestOrdinarySelectedStaleDispatchCannotReplaceWinner` | Advertise A then B; release delayed A dispatch after B is committed | B remains, because older selection cannot replace newer output |
 | `TestOrdinarySelectedPolicyApplyAbortDrains` | Advertise useful paths, apply captured source-policy denial and abort under held dispatch | Unaffected sources/local origins survive; restored paths follow the acknowledged abort policy and exact captured ownership |
@@ -1089,7 +1148,7 @@ negative observation follows useful output and joins the work it observes.
 | Test | Location | End-User Scenario | Status |
 |------|----------|-------------------|--------|
 | `bgp-best-route-transit-default` (planned) | `test/plugin/` | a node between two peers passes the elected route on with no route-server plugin | |
-| `bgp-best-route-needs-export-policy` (planned) | `test/plugin/` | an internal peer with no export policy receives no learned route and still receives an API announcement; `ze config validate` and `ze doctor` name the peer and the fix; configuring the policy delivers the route | |
+| `bgp-best-route-needs-export-policy` (planned) | `test/plugin/` | an internal peer with no export policy receives no learned route and still receives an API announcement; `ze config validate` and `ze doctor` name the peer and the fix; configuring the policy delivers the route; a reflector client with no export policy still receives its reflected route and raises no report (AC-20 to AC-22) | |
 
 ### Interop Tests (Scope: protocol)
 Owed against both FRR and BIRD. Before a check expects either to accept or
@@ -1119,7 +1178,10 @@ approval.
 | Origin admission and arbitration | Proposed `rib/rib_origins.go`; `reactor/reactor_api_batch.go`, existing cmd update text/wire handlers, SDK/bridge and plugin dispatch; `bgp/config/bgp_routes.go`; `bgp/redistribute/consumer.go`, `config/redistribute/consumer.go`, `plugins/redistribute/redistribute.go` | Registered typed/external origin intake, source-owned withdrawal, scoped membership, preference generation and actual local/received output kind; preserve API/ExaBGP syntax and role-specific paths |
 | Selection dispatch and replay | `internal/component/bgp/plugins/rib/rib_bestchange.go`, `rib_recovery.go`, `rib.go`, `rib_replay.go`, `source_policy.go` in that package; proposed focused `rib_advertise.go` | Snapshot the retained winner, ordered dispatch outside election locks, first-peer replay, policy apply/abort and shutdown drain |
 | Default bindings and role declarations | `internal/component/plugin/registry/registry.go`, declaration transport in `pkg/plugin/rpc/types.go`, `internal/component/bgp/config/redistribute_binding.go`, RIB/RS/RR `register.go` and their SDK declarations | Extend registration and existing claims, not a plugin-name switch; aliases, explicit grants, destination scope and reload transfer |
-| Proof and user surfaces | Existing seven reactor probes, `test/plugin/bgp-best-route-transit-default.ci`, proposed forked/replay/ownership regressions, FRR/BIRD scenarios and the docs listed above | Useful wire output, surviving unrelated routes, Linux entry-point proof and preserved RS/RR role behavior |
+| Export default by route kind | `internal/component/bgp/filterapi/policy.go`; `internal/component/bgp/policychain/chain.go`; in `internal/component/bgp/reactor`: `filter_ordered.go`, `egress_inject_filter.go`, `forward_rs.go`, `peer_session_factory.go`, `session_write.go`, `peer_initial_sync.go` | One absent-policy statement over session type and route kind; the kind derived by the engine and read per route by both egress rails, the chain end and the final writer |
+| Selective export reload | In `internal/component/bgp/reactor`: `policy_reload.go`, `peer_settings_apply.go`, `reactor_api_advertised.go` | Retire learned entries only on removal, restore from the selected snapshot, rollback and late-write refusal |
+| Absent-policy diagnostics | `internal/component/bgp/reactor/rfc8212_warning.go`, `policy_dryrun.go` and `reactor_api.go` in the same package, `internal/component/bgp/config/register.go`, and the doctor check declared beside the absence value | Internal export absence that respects the role exemption, on validate, the Established log line, the status surface, the dry run and `ze doctor` |
+| Proof and user surfaces | Existing seven reactor probes, `test/plugin/bgp-best-route-needs-export-policy.ci`, `test/plugin/bgp-best-route-transit-default.ci`, proposed forked/replay/ownership regressions, FRR/BIRD scenarios and the docs listed above | Useful wire output, surviving unrelated routes, Linux entry-point proof and preserved RS/RR role behavior |
 
 `internal/component/bgp/plugins/rib/rib_next_hop.go` belongs to concurrent
 next-hop work and is not assigned to this proposal. Coordinate with that owner
@@ -1130,6 +1192,7 @@ the design gate, including unchanged callers and non-Go clients.
 
 ## Files to Create
 - `test/plugin/bgp-best-route-transit-default.ci` - functional test
+- `test/plugin/bgp-best-route-needs-export-policy.ci` - functional test of AC-20 to AC-22
 - the two interop scenarios above
 
 ### Integration Checklist
@@ -1208,7 +1271,7 @@ the design gate, including unchanged callers and non-Go clients.
 
 | Check | What to look for |
 |-------|-----------------|
-| Route leak | No learned route reaches any peer, internal or external, without a configured export policy, and no route of any origin reaches an eBGP peer without one (RFC 8212 Section 3); no system route enters advertisement without existing origination/redistribution admission |
+| Route leak | Ordinary selected output sends no learned route to a peer without a configured export policy, internal or external. No route of any origin or role reaches an eBGP peer without one (RFC 8212 Section 3). The two exemptions on an internal session are exactly a local origin and a destination served by an explicit RS/RR role, and no caller can claim either: the engine derives the route's kind; no system route enters advertisement without existing origination/redistribution admission |
 
 ### Failure Routing
 
