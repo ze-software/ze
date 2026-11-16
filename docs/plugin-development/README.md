@@ -161,20 +161,20 @@ negotiated, and the octets do not announce it. `docs/plugin-development/handlers
 ```
 Ze Engine                          Plugin
     |                                |
-    |--- Stage 1: declare-registration -->|  Plugin declares families, commands, schema
-    |<-- ok -----------------------------|
+    |<-- Stage 1: declare-registration ---|  Plugin declares families, commands, schema
+    |--- ok ---------------------------->|
     |                                |
     |--- Stage 2: configure ------------>|  Engine sends config sections
     |<-- ok -----------------------------|
     |                                |
-    |--- Stage 3: declare-capabilities ->|  Plugin declares BGP capabilities
-    |<-- ok -----------------------------|
+    |<-- Stage 3: declare-capabilities ---|  Plugin declares BGP capabilities
+    |--- ok ---------------------------->|
     |                                |
     |--- Stage 4: share-registry ------->|  Engine shares command registry
     |<-- ok -----------------------------|
     |                                |
-    |--- Stage 5: ready ---------------->|  Plugin enters event loop
-    |<-- ok -----------------------------|
+    |<-- Stage 5: ready ------------------|  Plugin completes the startup handshake
+    |--- ok ---------------------------->|
     |                                |
     |--- deliver-batch --------------->|  Runtime: BGP events
     |<-- ok ----------------------------|
@@ -191,6 +191,8 @@ Ze Engine                          Plugin
 
 A daemon stop sends no `bye`: the engine closes the connection and `Run`
 returns nil.
+After Stage 5, the SDK calls the optional `OnStarted` handler before entering
+the event loop. A handler error makes `Run` return an error.
 <!-- source: pkg/plugin/sdk/sdk.go -- Run (stages 1-5) -->
 <!-- source: pkg/plugin/rpc/types.go -- DeclareRegistrationInput, ConfigureInput, DeclareCapabilitiesInput, ShareRegistryInput, ReadyInput, ExecuteCommandInput, UpdateRouteInput, ByeInput -->
 
