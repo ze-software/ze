@@ -110,6 +110,7 @@ func resolveProcessSet() (*Resolved, error) {
 		return nil, err
 	}
 	published := defaultSchema.external
+	// refuse-by-default: guards moduleSetLocked -- before any external publication the compiled module set is the complete process schema
 	if published == nil {
 		return compiled, nil
 	}

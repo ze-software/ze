@@ -184,6 +184,7 @@ func finalizeConfigLoad(tree *Tree, configPath string, cliPlugins []string) (*Lo
 // The full load and the first pass both ask here, so a plugin the first pass
 // forks runs where the full load says it runs.
 func configDirOf(configPath string) (string, error) {
+	// refuse-by-default: guards finalizeConfigLoad -- a file path needs no working-directory lookup; filepath.Dir below is its complete answer
 	switch configPath {
 	case "", "-":
 		cwd, err := os.Getwd()
