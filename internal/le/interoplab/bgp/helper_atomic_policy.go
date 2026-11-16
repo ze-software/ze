@@ -21,6 +21,8 @@ import (
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
 
+const atomicPolicyExportDirection = "export"
+
 // runAtomicPolicy declares without opening a transport in query mode. Its
 // runtime lasts until the owning daemon closes the SDK connection.
 func runAtomicPolicy(name string) error {
@@ -130,7 +132,7 @@ func releaseAtomicPolicySource(plugin *sdk.Plugin, args []string) (string, any, 
 // rather than this fixture, must refuse them. UPDATE body layout (Section4.3):
 // [0:2] withdrawn length | withdrawals | attribute length(2) | attributes | NLRI.
 func atomicPolicyAnswer(input *sdk.FilterUpdateInput) (*sdk.FilterUpdateOutput, error) {
-	if input.Direction != "export" {
+	if input.Direction != atomicPolicyExportDirection {
 		return nil, errors.New("atomic policy callback is not export")
 	}
 	if input.Filter != "rewrite" {

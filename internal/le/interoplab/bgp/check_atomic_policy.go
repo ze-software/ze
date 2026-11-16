@@ -77,7 +77,7 @@ func checkAtomicPolicyFRR(ctx context.Context, check *interoplab.CheckContext) (
 	last, _, err := interoplab.Wait(ctx, interoplab.WaitOptions{
 		Timeout: 45 * time.Second, Interval: time.Second, Description: "FRR's fenced atomic policy result",
 	}, func(probe context.Context) (string, error) {
-		return check.Lab.Query(probe, peerFRR, []string{cmdVtysh, "-c", "show bgp ipv4 unicast json"}, nil)
+		return check.Lab.Query(probe, peerFRR, []string{cmdVtysh, "-c", showTableJSON}, nil)
 	}, func(output string) bool {
 		// refuse-by-default: guards Wait -- false retries the native state; the bounded wait returns a failure.
 		return requireAtomicPolicyFinal(output) == nil
@@ -303,14 +303,14 @@ func requireAtomicPolicySource(output string, source netip.Addr) error {
 		return err
 	}
 	if stored.Peers == nil {
-		return errors.New("Ze source-retention query has no Adj-RIB-In table")
+		return errors.New("source-retention query from Ze has no Adj-RIB-In table")
 	}
 	routes, found := stored.Peers[source.String()]
 	if !found {
-		return errors.New("Ze source-retention query omits the actual source peer")
+		return errors.New("source-retention query from Ze omits the actual source peer")
 	}
 	if len(routes) != 7 {
-		return fmt.Errorf("Ze retains %d source routes, want seven original keys", len(routes))
+		return fmt.Errorf("source table in Ze has %d routes, want seven original keys", len(routes))
 	}
 	wanted := make(map[netip.Prefix]struct{}, 7)
 	for _, ordinal := range []uint8{1, 2, 3, 4, 5, 254, 255} {
@@ -319,19 +319,19 @@ func requireAtomicPolicySource(output string, source netip.Addr) error {
 	for _, route := range routes {
 		separator := strings.LastIndexByte(route.Key, ':')
 		if separator < 0 {
-			return errors.New("Ze retained source key has no family separator")
+			return errors.New("retained source key in Ze has no family separator")
 		}
 		prefix, err := netip.ParsePrefix(route.Key[separator+1:])
 		if err != nil {
 			return err
 		}
 		if _, found := wanted[prefix]; !found {
-			return fmt.Errorf("Ze retained an unexpected or duplicate source key %q", route.Key)
+			return fmt.Errorf("source table in Ze contains an unexpected or duplicate key %q", route.Key)
 		}
 		delete(wanted, prefix)
 	}
 	if len(wanted) != 0 {
-		return errors.New("Ze source-retention query is missing an original route")
+		return errors.New("source-retention query from Ze is missing an original route")
 	}
 	return nil
 }
