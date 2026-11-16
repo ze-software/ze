@@ -1595,6 +1595,25 @@ body:has(.site-home) .footer-bottom { border-top: 0; }
 
 /* Homepage trial choices and testing evidence. */
 .site-home { padding-top: clamp(1.5rem,3vw,2rem); }
+.site-home .build-size {
+    margin: 0 0 1.2rem;
+    padding: 1.05rem 1.2rem;
+    border: 1px solid var(--line);
+    border-radius: 0.85rem;
+    background: var(--panel);
+}
+.site-home .build-size h3 {
+    margin: 0 0 0.4rem;
+    color: var(--blue);
+    font-size: 1.12rem;
+    line-height: 1.35;
+}
+.site-home .build-size p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+    line-height: 1.7;
+}
 /* Reader-oriented trial paths; keep this section blue in both themes. */
 .index4-try .index4-choice-grid { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 1rem; }
 /* Share all five content rows, so wrapping text never offsets a neighbour's

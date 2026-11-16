@@ -479,6 +479,10 @@ Keep the logs if a check fails.</pre>
                         follow the path that matches your setup.
                     </p>
                 </div>
+                <aside class="build-size" aria-labelledby="build-size-title">
+                    <h3 id="build-size-title">Build Ze to fit your needs.</h3>
+                    <p>Choose which optional subsystems to include at compile time, from a focused service to a full network OS. Subsystems you leave out are excluded from the binary.</p>
+                </aside>
                 <div class="index4-choice-grid reveal">
 {run_cards}
                 </div>
