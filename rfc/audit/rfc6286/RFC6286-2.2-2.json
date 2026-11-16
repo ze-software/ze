@@ -1,17 +1,17 @@
 {
-  "note": "(a) accepting the local identifier from an internal peer, or rejecting it from an external one; (b) TestOpenValidateBGPIdentifier rows 'local identifier from internal peer' wantErr 2/3 and 'from external peer' no error, plus localID+-1 accepted; zero rows cover the first clause. TestHandleOpenRejectsBadBGPIdentifier repeats both polarities on the FSM rail.",
+  "note": "Section 2.2's self-identifier condition is isolated by TestOpenValidateBGPIdentifier: an internal peer presenting the local nonzero identifier requires exact error 2/3, an external peer presenting that identifier is accepted, and internal peers with localID-1 or localID+1 are accepted. Current clause-break records remove internal-self refusal or remove the internal-peer guard and expose the corresponding wrong outcomes. TestHandleOpenRejectsBadBGPIdentifier repeats both sides through handleOpen; its strengthened valid arm additionally closes/drains the captured connection and asserts no NOTIFICATION. validateOpenIdentifier judges the peer AS through the prepared proposal and isIBGPWith; the selected ASN4 reader tests cover the AS_TRANS/capability distinction. Zero-input cases separately cover the sentence's first condition and do not substitute for the nonzero self-identifier cases.",
   "requirement_sha": "096d9b6b65628ff0",
   "tests": {
     "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "9a2a4c8f9ca41e49",
     "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "9a2a4c8f9ca41e49",
-    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "5792605e48ba6d19",
-    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "5792605e48ba6d19"
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "407c5a8dbcd7ea26",
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "407c5a8dbcd7ea26"
   },
   "units": {
     "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "8b0aae630fe94931",
     "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "8b0aae630fe94931",
-    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "d591fe02f97c155a",
-    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "d591fe02f97c155a"
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "d5517ab907d83e1c",
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier#2": "d5517ab907d83e1c"
   },
   "verdict": "enforced"
 }

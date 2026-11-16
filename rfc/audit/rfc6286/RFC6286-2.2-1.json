@@ -1,16 +1,16 @@
 {
-  "note": "(a) accepting an OPEN whose BGP Identifier is zero; (b) TestOpenValidateBGPIdentifier: zero from internal and from external wantErr with NotifyOpenMessage / NotifyOpenBadBGPID; negative: 1 and 0xFFFFFFFF accepted. The same unit also proves the sentence's second clause (local id from internal rejected, from external accepted). handleOpen and processOpen rails tagged positive too.",
+  "note": "Section 2.2's zero-identifier condition is isolated by TestOpenValidateBGPIdentifier: zero from internal and external peers requires OPEN Message Error / Bad BGP Identifier with empty data, while valid boundary identifiers 1 and 0xffffffff are accepted. The current recorded clause breaks disable only zero rejection or reject every nonzero identifier and demonstrate the corresponding exact assertions. TestHandleOpenRejectsBadBGPIdentifier repeats refusal through handleOpen and asserts the error, exact transmitted NOTIFICATION and lack of OpenConfirm; its valid cases retain nil error and OpenConfirm and now close/drain the recorded connection to assert no NOTIFICATION. TestProcessOpenRejectsBadBGPIdentifier verifies exact zero refusal through the collision-winner rail. The two OPEN rails call validateOpenIdentifier and cannot bypass this condition.",
   "requirement_sha": "096d9b6b65628ff0",
   "tests": {
     "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "9a2a4c8f9ca41e49",
     "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "9a2a4c8f9ca41e49",
-    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "5792605e48ba6d19",
-    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "5792605e48ba6d19"
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "407c5a8dbcd7ea26",
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "407c5a8dbcd7ea26"
   },
   "units": {
     "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier": "8b0aae630fe94931",
     "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier#2": "8b0aae630fe94931",
-    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "d591fe02f97c155a",
+    "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier": "d5517ab907d83e1c",
     "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestProcessOpenRejectsBadBGPIdentifier": "7f9fc7a89465a4eb"
   },
   "verdict": "enforced"

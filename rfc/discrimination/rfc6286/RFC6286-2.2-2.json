@@ -1,0 +1,46 @@
+[
+  {
+    "rid": "RFC6286-2.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier",
+    "unit-sha": "2c2e9fba51b937ae",
+    "claim-sha": "5b383b5a7da22200",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/open.go::ValidateBGPIdentifier",
+    "producer-sha": "516a675ad55b89c5",
+    "break": "line 334: \"selfFromInternal := internal \u0026\u0026 o.BGPIdentifier == localID\" -\u003e \"selfFromInternal := false // MUTATION-APPLIED: accept own identifier from an internal peer\""
+  },
+  {
+    "rid": "RFC6286-2.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/message/open_test.go::TestOpenValidateBGPIdentifier",
+    "unit-sha": "2c2e9fba51b937ae",
+    "claim-sha": "014fc06631a3290a",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/open.go::ValidateBGPIdentifier",
+    "producer-sha": "516a675ad55b89c5",
+    "break": "line 334: \"selfFromInternal := internal \u0026\u0026 o.BGPIdentifier == localID\" -\u003e \"selfFromInternal := o.BGPIdentifier == localID // MUTATION-APPLIED: reject own identifier from external peers too\""
+  },
+  {
+    "rid": "RFC6286-2.2-2",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier",
+    "unit-sha": "1ec85279aa650960",
+    "claim-sha": "c5c711eb82317884",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/open.go::ValidateBGPIdentifier",
+    "producer-sha": "516a675ad55b89c5",
+    "break": "line 334: \"selfFromInternal := internal \u0026\u0026 o.BGPIdentifier == localID\" -\u003e \"selfFromInternal := false // MUTATION-APPLIED: accept own identifier from an internal peer\""
+  },
+  {
+    "rid": "RFC6286-2.2-2",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/rfc6286_session_open_validation_test.go::TestHandleOpenRejectsBadBGPIdentifier",
+    "unit-sha": "1ec85279aa650960",
+    "claim-sha": "97776bb4d0345ce4",
+    "route": "mutant",
+    "producer": "internal/component/bgp/message/open.go::ValidateBGPIdentifier",
+    "producer-sha": "516a675ad55b89c5",
+    "break": "line 334: \"selfFromInternal := internal \u0026\u0026 o.BGPIdentifier == localID\" -\u003e \"selfFromInternal := o.BGPIdentifier == localID // MUTATION-APPLIED: reject own identifier from external peers too\""
+  }
+]

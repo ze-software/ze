@@ -1,23 +1,29 @@
 {
   "code": {
     "internal/component/bgp/reactor/config.go::GlobalsFromTree": "cdda6a47a330c020",
-    "internal/component/bgp/reactor/config.go::parsePeerSettings": "c67237a2c1c6c459",
+    "internal/component/bgp/reactor/config.go::parsePeerSettings": "ba3a72e72bedd58b",
     "internal/component/bgp/reactor/config.go::parseRouterID": "725c2d1de404f605",
-    "internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled": "40dbe0c4d2f50194"
+    "internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled": "40dbe0c4d2f50194",
+    "internal/component/bgp/reactor/session_negotiate.go::buildOpenFromSnapshot": "cc08ea7c9a65ad0f"
   },
-  "note": "RFC 6286 Section 2.1 says: The BGP Identifier is a 4-octet, unsigned, non-zero integer that should be unique within an AS. The value of the BGP Identifier for a BGP speaker is determined on startup and is the same for every local interface and every BGP peer. Tested is \"non-zero integer\"; Gap is \"is determined on startup and is the same for every local interface and every BGP peer\"; Producer is internal/component/bgp/reactor/config.go::parsePeerSettings. All four tagged covers are unchanged. The zero_router_id_rejected case requires the exact RFC 6286 error for an explicit peer-level 0.0.0.0. TestRFC6286GlobalZeroRouterIDRejected requires the same error for an explicit global zero, then accepts global 0.0.0.1 and requires identifier 1 on its inheriting peer. TestRFC6286NonZeroRouterIDAccepted independently requires peer override 0.0.0.1 to become identifier 1. Both leaves still use parseRouterID, whose id == 0 check refuses zero alone; all four stored discrimination records name this unchanged producer. The only working-tree change to parsePeerSettings adds delay-open to its timer-container comment, after identifier parsing; it changes no branch, input or assertion. The gap remains: parsePeerSettings permits each peer or resolved group to override the global identifier, and internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled applies changed globals at runtime through setGlobals. The existing owner-approved override deviation is retained and not counted conformant. This metadata refresh credits neither startup constancy nor one identifier across every peer, and gives zero whole-requirement credit.",
-  "requirement_sha": "78dd297992379dc7",
+  "note": "RFC 6286 Section 2.1 defines a 4-octet, unsigned, non-zero identifier determined at startup and shared across interfaces and peers. This judgment covers the default configuration stated in Conformance Configuration: one nonzero global bgp/router-id, no session override, and no operator-requested identifier change. TestRFC6286DefaultIdentifierSharedOnWire drives ReadConfig, group resolution, PeersFromTree and Session.Accept, then decodes the actual OPEN for three peers across configured IPv4 and IPv6 local addresses, repeated session construction, and identifiers 1, 0x80000000 and 0xffffffff. Its recorded wrong-identifier break changes each expected wire value and fails this unit. TestRFC6286DefaultIdentifierSurvivesUnchangedReload asserts startup identity after initial apply, identity and both Peer objects after unchanged reload, and the OPEN identifier both peer settings emit. Its recorded unsolicited +1 change in the unchanged-global branch fails the initial identity assertion. Existing config tests reject explicit global and peer zero, accept identifier 1 and require the exact inherited value. These separate assertions cover the whole default-path definition. Explicit peer/group/peer-only identifiers and operator-requested reload changes remain supported controls, separately tested and outside this default-path claim.",
+  "requirement_sha": "922fb6533dd43d00",
   "tests": {
     "internal/component/bgp/reactor/config_test.go::TestParsePeerFromTreeInvalid": "78b7b7581ae45d1c",
+    "internal/component/bgp/reactor/rfc6286_default_identifier_test.go::TestRFC6286DefaultIdentifierSharedOnWire": "8ca21d7e602ee3da",
+    "internal/component/bgp/reactor/rfc6286_default_reload_test.go::TestRFC6286DefaultIdentifierSurvivesUnchangedReload": "3fc2a1511fa4de89",
     "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected": "c50ce7d9ac200072",
     "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected#2": "c50ce7d9ac200072",
     "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286NonZeroRouterIDAccepted": "c50ce7d9ac200072"
   },
   "units": {
     "internal/component/bgp/reactor/config_test.go::TestParsePeerFromTreeInvalid": "61ffe75fea998ee2",
+    "internal/component/bgp/reactor/rfc6286_default_identifier_test.go::TestRFC6286DefaultIdentifierSharedOnWire": "f39eb556e7c371d0",
+    "internal/component/bgp/reactor/rfc6286_default_reload_test.go::TestRFC6286DefaultIdentifierSurvivesUnchangedReload": "a1f7df6ab0fe3412",
     "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected": "6f110489a22c15e9",
     "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected#2": "6f110489a22c15e9",
     "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286NonZeroRouterIDAccepted": "f3fa0f9f57e38220"
   },
-  "verdict": "partial"
+  "upgrade_reason": "The prior partial verdict credited only nonzero validation and treated optional overrides and explicit reload changes as gaps in the default behavior. Two new tagged tests now prove default shared wire identity and unchanged-reload startup identity, with observed clause-specific reds. The owner clarified that conformance is assessed on the default path and that explicit operator controls remain supported; the summary now states that configuration scope without deleting or weakening the RFC quotation.",
+  "verdict": "enforced"
 }

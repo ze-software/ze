@@ -172,12 +172,12 @@ establish. The internal peer needs no policy to preserve its existing behavior.
 <!-- source: internal/component/bgp/filterapi/policy.go -- Policy.AcceptsAtEnd -->
 <!-- source: internal/component/policy/chain.go -- ConcatChains -->
 
-The global `router-id` is the BGP Identifier every peer sends by default. A peer
-or group can override it with `session { router-id ... }`, and that peer's OPEN
-then carries the override. This departs from RFC 6286
-Section 2.1, which says the identifier "is the same for every local interface and
-every BGP peer". Ze keeps the override on purpose, as an owner decision, and does
-not count that sentence as met. The override must still be non-zero.
+By default, every peer sends the global `router-id` as its BGP Identifier.
+A peer or group can set `session { router-id ... }` to select another non-zero
+identifier. Only the affected peers send that override in their OPEN messages.
+This option differs from RFC 6286 Section 2.1, which defines one identifier for
+every local interface and peer. RFC conformance is assessed separately on the
+default path, with no overrides or requested identifier changes.
 
 <!-- source: internal/component/bgp/reactor/config.go — parsePeerSettings, parseRouterID; internal/component/bgp/yang/ze-bgp-conf.yang — session router-id -->
 

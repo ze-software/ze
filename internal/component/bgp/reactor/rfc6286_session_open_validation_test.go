@@ -141,6 +141,9 @@ func TestHandleOpenRejectsBadBGPIdentifier(t *testing.T) {
 			if !tt.wantReject {
 				require.NoError(t, err, "a valid identifier must not be rejected")
 				assert.Equal(t, fsm.StateOpenConfirm, session.State(), "session advances")
+				session.closeConn()
+				_, _, found := notificationFrom(t, written)
+				assert.False(t, found, "a valid identifier must not produce a NOTIFICATION")
 				return
 			}
 

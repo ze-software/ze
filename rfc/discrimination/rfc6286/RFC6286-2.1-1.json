@@ -13,6 +13,28 @@
   {
     "rid": "RFC6286-2.1-1",
     "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc6286_default_identifier_test.go::TestRFC6286DefaultIdentifierSharedOnWire",
+    "unit-sha": "634797ed67cea19e",
+    "claim-sha": "02e746ef2cdeaeaa",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session_negotiate.go::buildOpenFromSnapshot",
+    "producer-sha": "1b2458f60ca7e90f",
+    "break": "line 336: \"BGPIdentifier:  settings.RouterID,\" -\u003e \"BGPIdentifier:  settings.RouterID + 1, // MUTATION-APPLIED: change the startup identifier on transmission\""
+  },
+  {
+    "rid": "RFC6286-2.1-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/rfc6286_default_reload_test.go::TestRFC6286DefaultIdentifierSurvivesUnchangedReload",
+    "unit-sha": "fc69de4303b64e74",
+    "claim-sha": "8c1e4197c467b7dc",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/reload_globals.go::applyGlobalsJournaled",
+    "producer-sha": "8666312ae95d879a",
+    "break": "line 25: \"if previous == globals {\" -\u003e \"if previous == globals { r.setGlobals(Globals{RouterID: globals.RouterID + 1, LocalAS: globals.LocalAS}); // MUTATION-APPLIED: change global identifier despite unchanged configuration\""
+  },
+  {
+    "rid": "RFC6286-2.1-1",
+    "polarity": "positive",
     "unit": "internal/component/bgp/reactor/rfc6286_router_id_test.go::TestRFC6286GlobalZeroRouterIDRejected",
     "unit-sha": "ba8846d1ad8b2666",
     "claim-sha": "886ef084f5d83fb2",

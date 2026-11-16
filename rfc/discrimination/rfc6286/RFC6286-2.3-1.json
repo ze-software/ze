@@ -1,0 +1,24 @@
+[
+  {
+    "rid": "RFC6286-2.3-1",
+    "polarity": "positive",
+    "unit": "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS",
+    "unit-sha": "7fa1c421d8cfa657",
+    "claim-sha": "ed7b09f164b4ae2c",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session.go::detectCollision",
+    "producer-sha": "4133c391d0244790",
+    "break": "line 1218: \"proposal.judgedPeerAS(peerOpen) \u003e proposal.settings.LocalAS\" -\u003e \"proposal.judgedPeerAS(peerOpen) \u003c proposal.settings.LocalAS // MUTATION-APPLIED: preserve the smaller-AS initiator\""
+  },
+  {
+    "rid": "RFC6286-2.3-1",
+    "polarity": "negative",
+    "unit": "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS",
+    "unit-sha": "7fa1c421d8cfa657",
+    "claim-sha": "d771be417104efff",
+    "route": "mutant",
+    "producer": "internal/component/bgp/reactor/session.go::detectCollision",
+    "producer-sha": "4133c391d0244790",
+    "break": "line 1202: \"if localID == remoteBGPID {\" -\u003e \"if localID \u003e= remoteBGPID { // MUTATION-APPLIED: apply AS tie-break to unequal identifiers too\""
+  }
+]

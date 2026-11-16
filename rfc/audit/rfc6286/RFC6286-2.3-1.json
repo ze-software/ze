@@ -1,5 +1,5 @@
 {
-  "note": "(a) with identical identifiers, preserving the connection of the smaller AS; (b) TestDetectCollisionEqualIdentifierPrefersLargerAS asserts accept/close for peer AS > local AS and peer AS < local AS with equal identifiers; negative rows show unequal identifiers ignore the AS.",
+  "note": "Section 2.3 preserves the connection initiated by the larger-AS speaker when identifiers are identical. TestDetectCollisionEqualIdentifierPrefersLargerAS requires accept-and-close-existing when the remote AS is larger and reject-and-keep-existing when the local AS is larger, both with equal identifiers. Its negative rows use the same AS ordering but unequal identifiers and require the RFC 4271 identifier comparison in both directions. Thus blanket local or remote preference and applying the AS rule to unequal identifiers fail exact assertions. Session.detectCollision reads the frozen local proposal and judged peer AS. TestASN4DisabledSessionReadersJudgeMyAS additionally drives this consumer with AS_TRANS below the local AS and the four-octet capability ASN above it, requiring opposite collision winners, so four-octet AS support is not inferred solely from a uint32 field.",
   "requirement_sha": "c8f7ef370693f7ea",
   "tests": {
     "internal/component/bgp/reactor/collision_test.go::TestDetectCollisionEqualIdentifierPrefersLargerAS": "9d7bb76c2a674fc7",
