@@ -15,7 +15,7 @@ import (
 
 // The YANG paths of the two subscriber lists, named in their publications
 // and in every address a selection drops. A refusal names the instance path
-// instead, the named pool's key filled in (parseNamedPools).
+// instead, the named pool's key filled in (parsePoolDescription).
 const (
 	poolDNSSourcePath      = "l2tp pool ipv4 dns-source"
 	namedPoolDNSSourcePath = "l2tp pool named-pool dns-source"

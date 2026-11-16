@@ -1238,6 +1238,19 @@ RADIUS primary followed by the pool's primary.
 
 Session-down events release allocated addresses back to the pool.
 
+Each IPv4 range can hold 1 through 1,048,576 addresses. The range must exclude
+`0.0.0.0` and `255.255.255.255`. Both `dns-primary` and `dns-secondary` must
+be IPv4 when set; either can be absent. Ze checks these limits before building
+an allocation bitmap, at startup and during reload verification.
+<!-- source: internal/component/l2tp/plugins/pool/config_validation.go -- ipv4PoolSizeMax, validateIPv4Description -->
+
+The default and named IPv4 ranges must be disjoint. The default and named
+IPv6 blocks must also be disjoint, even when their delegation lengths differ.
+A refusal names both pools and their overlap, so the operator can correct the
+conflicting range or remove the extra pool. A refused reload keeps the running
+pools and subscriber assignments.
+<!-- source: internal/component/l2tp/plugins/pool/config_validation.go -- validatePoolConfiguration, validatePoolIPv4Ranges, validatePoolIPv6Blocks -->
+
 <!-- source: internal/component/l2tp/plugins/pool/ -->
 <!-- source: internal/component/l2tp/plugins/authradius/extract_dns.go -- extractMSDNSServers -->
 

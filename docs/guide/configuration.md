@@ -4783,7 +4783,14 @@ offers it as the primary. A loopback address is never offered, and each one
 dropped is logged.
 The gateway must not overlap the pool range.
 
-<!-- source: internal/component/l2tp/plugins/pool/register.go -- parseIPv4Pool, parseNamedPools -->
+Each IPv4 range is limited to 1,048,576 addresses and excludes `0.0.0.0` and
+`255.255.255.255`. IPv4 ranges cannot overlap another pool's range, and IPv6
+pool blocks cannot overlap another pool's block. Startup and reload verification
+refuse these configurations before building allocation bitmaps. A DNS leaf set
+on an IPv4 pool must contain an IPv4 address.
+<!-- source: internal/component/l2tp/plugins/pool/config_validation.go -- validateIPv4Description, validatePoolConfiguration -->
+
+<!-- source: internal/component/l2tp/plugins/pool/config.go -- parsePoolDescription, parseIPv4Description -->
 <!-- source: internal/component/l2tp/plugins/pool/dns_source.go -- poolDNSDefault, selectSubscriberDNS -->
 <!-- source: internal/component/l2tp/plugins/pool/yang/ze-l2tp-pool-conf.yang -- YANG schema -->
 

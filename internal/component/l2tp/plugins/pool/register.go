@@ -5,7 +5,6 @@
 package l2tppool
 
 import (
-	"encoding/json"
 	"fmt"
 	"net"
 	"net/netip"
@@ -19,7 +18,6 @@ import (
 	subevents "github.com/ze-software/ze/internal/component/l2tp/subscriber/events"
 	"github.com/ze-software/ze/internal/component/plugin/cli"
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/configvalue"
 	"github.com/ze-software/ze/internal/core/dnssource"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/internal/core/textbuf"
@@ -108,15 +106,8 @@ func init() {
 }
 
 func verifyPoolConfig(sections []sdk.ConfigSection) error {
-	for _, sec := range sections {
-		if sec.Root != configRootL2TP {
-			continue
-		}
-		if _, _, err := parsePoolConfig(sec.Data); err != nil {
-			return err
-		}
-	}
-	return nil
+	_, _, err := parsePoolSections(sections)
+	return err
 }
 
 func (p *poolPlugin) setEventBus(eb ze.EventBus) {
@@ -604,213 +595,12 @@ type poolConfigResult struct {
 	found         bool
 }
 
-func parsePoolConfig(data string) (pool *ipv4Pool, found bool, err error) {
-	result, err := parseFullPoolConfig(data)
-	if err != nil {
-		return nil, false, err
-	}
-	return result.defaultPool, result.found, nil
-}
-
 func parseFullPoolConfig(data string) (poolConfigResult, error) {
-	if data == "" {
-		return poolConfigResult{}, nil
-	}
-	var tree map[string]any
-	if err := json.Unmarshal([]byte(data), &tree); err != nil {
-		return poolConfigResult{}, fmt.Errorf("%s: invalid config JSON: %w", Name, err)
-	}
-
-	l2tpBlock, ok := tree[configRootL2TP].(map[string]any)
-	if !ok {
-		return poolConfigResult{}, nil
-	}
-	poolBlock, ok := l2tpBlock["pool"].(map[string]any)
-	if !ok {
-		return poolConfigResult{}, nil
-	}
-
-	var result poolConfigResult
-
-	if ipv4Block, ok := poolBlock["ipv4"].(map[string]any); ok {
-		p, err := parseIPv4Pool(ipv4Block, poolDNSSourcePath, poolDNSDefault)
-		if err != nil {
-			return poolConfigResult{}, err
-		}
-		result.defaultPool = p
-		result.found = true
-	}
-
-	// configvalue.ListEntries, not a []any assertion: Tree.ToMap renders a YANG
-	// list as a map of list key to entry at every count, so the assertion found
-	// nothing whatever the operator wrote and every named pool was lost.
-	if entries := configvalue.ListEntries(poolBlock["named-pool"]); len(entries) > 0 {
-		named, err := parseNamedPools(entries)
-		if err != nil {
-			return poolConfigResult{}, err
-		}
-		if len(named) > 0 {
-			result.namedPools = named
-			result.found = true
-		}
-	}
-
-	if v6Block, ok := poolBlock["ipv6-pd"].(map[string]any); ok {
-		p, err := parseIPv6PDPool(v6Block)
-		if err != nil {
-			return poolConfigResult{}, err
-		}
-		result.defaultV6Pool = p
-		result.found = true
-	}
-
-	if entries := configvalue.ListEntries(poolBlock["named-ipv6-pool"]); len(entries) > 0 {
-		named, err := parseNamedIPv6Pools(entries)
-		if err != nil {
-			return poolConfigResult{}, err
-		}
-		if len(named) > 0 {
-			result.namedV6Pools = named
-			result.found = true
-		}
-	}
-
-	return result, nil
-}
-
-// parseIPv4Pool reads one IPv4 pool block. sourcesAt is the instance path of
-// the block's dns-source container, named in its refusals, and builtin is
-// that list's built-in default.
-func parseIPv4Pool(ipv4Block map[string]any, sourcesAt string, builtin dnssource.List) (*ipv4Pool, error) {
-	gwStr, _ := ipv4Block["gateway"].(string)
-	if gwStr == "" {
-		return nil, fmt.Errorf("%s: pool ipv4 requires gateway (NAS-side IP)", Name)
-	}
-	gateway, err := netip.ParseAddr(gwStr)
+	cfg, err := parsePoolDescription(data)
 	if err != nil {
-		return nil, fmt.Errorf("%s: invalid gateway address %q: %w", Name, gwStr, err)
+		return poolConfigResult{}, err
 	}
-	if !gateway.Is4() {
-		return nil, fmt.Errorf("%s: gateway must be IPv4", Name)
-	}
-
-	startStr, _ := ipv4Block["start"].(string)
-	endStr, _ := ipv4Block["end"].(string)
-	if startStr == "" || endStr == "" {
-		return nil, fmt.Errorf("%s: pool ipv4 requires both start and end", Name)
-	}
-
-	start, err := netip.ParseAddr(startStr)
-	if err != nil {
-		return nil, fmt.Errorf("%s: invalid start address %q: %w", Name, startStr, err)
-	}
-	end, err := netip.ParseAddr(endStr)
-	if err != nil {
-		return nil, fmt.Errorf("%s: invalid end address %q: %w", Name, endStr, err)
-	}
-	if !start.Is4() || !end.Is4() {
-		return nil, fmt.Errorf("%s: pool addresses must be IPv4", Name)
-	}
-	if addrToUint32(end) < addrToUint32(start) {
-		return nil, fmt.Errorf("%s: end %s is before start %s", Name, end, start)
-	}
-	if gateway == start || (addrToUint32(gateway) >= addrToUint32(start) && addrToUint32(gateway) <= addrToUint32(end)) {
-		return nil, fmt.Errorf("%s: gateway %s must not overlap pool range %s-%s", Name, gateway, start, end)
-	}
-
-	var dnsPrimary, dnsSecondary netip.Addr
-	if s, ok := ipv4Block["dns-primary"].(string); ok && s != "" {
-		dnsPrimary, err = netip.ParseAddr(s)
-		if err != nil {
-			return nil, fmt.Errorf("%s: invalid dns-primary %q: %w", Name, s, err)
-		}
-	}
-	if s, ok := ipv4Block["dns-secondary"].(string); ok && s != "" {
-		dnsSecondary, err = netip.ParseAddr(s)
-		if err != nil {
-			return nil, fmt.Errorf("%s: invalid dns-secondary %q: %w", Name, s, err)
-		}
-	}
-
-	sources, err := parsePoolSources(ipv4Block, sourcesAt, builtin)
-	if err != nil {
-		return nil, err
-	}
-	pool := newIPv4Pool(gateway, start, end, dnsPrimary, dnsSecondary)
-	pool.sources = sources
-	return pool, nil
-}
-
-// parseNamedPools builds the Framed-Pool table. The pool name is the list KEY,
-// because Tree.ToMap uses it as the map key and does not repeat it as a field
-// inside the entry, so reading a "name" leaf out of the entry finds nothing.
-func parseNamedPools(entries []configvalue.ListEntry) (map[string]*ipv4Pool, error) {
-	pools := make(map[string]*ipv4Pool, len(entries))
-	for _, entry := range entries {
-		if entry.Key == "" {
-			return nil, fmt.Errorf("%s: named-pool requires a name", Name)
-		}
-		pool, err := parseIPv4Pool(entry.Fields, "l2tp pool named-pool "+entry.Key+" dns-source", namedPoolDNSDefault)
-		if err != nil {
-			return nil, fmt.Errorf("%s: named-pool %q: %w", Name, entry.Key, err)
-		}
-		pools[entry.Key] = pool
-	}
-	return pools, nil
-}
-
-func parseIPv6PDPool(block map[string]any) (*ipv6PrefixPool, error) {
-	blockStr, _ := block["block"].(string)
-	if blockStr == "" {
-		return nil, fmt.Errorf("%s: ipv6-pd requires block", Name)
-	}
-	prefix, err := netip.ParsePrefix(blockStr)
-	if err != nil {
-		return nil, fmt.Errorf("%s: invalid ipv6-pd block %q: %w", Name, blockStr, err)
-	}
-	if !prefix.Addr().Is6() || prefix.Addr().Is4In6() {
-		return nil, fmt.Errorf("%s: ipv6-pd block must be native IPv6", Name)
-	}
-
-	// The delivered map carries the leaf as the string the operator wrote, so
-	// the .(float64) assertion this replaces never succeeded: every subscriber
-	// was delegated a /56 whatever the config said, and named-ipv6-pool marks
-	// the leaf mandatory, which forced the operator to supply a value the code
-	// then discarded.
-	//
-	// An ABSENT leaf and an UNREADABLE one are separated here, because keeping
-	// the /56 default for the second is the same silent discard. Absence is a
-	// warning and the default stands; a value that does not read is refused,
-	// so the operator learns which of their pools is wrong.
-	delegLen := 56
-	if raw, present := block["delegation-length"]; present {
-		v, ok := configvalue.Int(raw)
-		if !ok {
-			return nil, fmt.Errorf("%s: ipv6-pd delegation-length is %q, want a prefix length", Name, raw)
-		}
-		delegLen = int(v)
-	} else {
-		logger().Warn("l2tp-pool: ipv6-pd delegation-length not set, defaulting to /56")
-	}
-
-	return newIPv6PrefixPool(prefix, delegLen)
-}
-
-// parseNamedIPv6Pools builds the Framed-Pool prefix-delegation table. As with
-// parseNamedPools, the pool name is the list KEY rather than a field.
-func parseNamedIPv6Pools(entries []configvalue.ListEntry) (map[string]*ipv6PrefixPool, error) {
-	pools := make(map[string]*ipv6PrefixPool, len(entries))
-	for _, entry := range entries {
-		if entry.Key == "" {
-			return nil, fmt.Errorf("%s: named-ipv6-pool requires a name", Name)
-		}
-		pool, err := parseIPv6PDPool(entry.Fields)
-		if err != nil {
-			return nil, fmt.Errorf("%s: named-ipv6-pool %q: %w", Name, entry.Key, err)
-		}
-		pools[entry.Key] = pool
-	}
-	return pools, nil
+	return cfg.build(), nil
 }
 
 // commandDecls names the commands this plugin serves and states what each
