@@ -77,11 +77,13 @@ func InterfacePrefixes() ([]netip.Prefix, error) {
 //
 // An invalid addr and an empty prefix list both report false, so a caller that
 // could not read the interface table denies rather than permits.
+// Comparison ignores a transport zone because prefixes contain only address
+// bits; the caller's address retains its zone for socket use.
 func SharesSubnet(prefixes []netip.Prefix, addr netip.Addr) bool {
 	if !addr.IsValid() {
 		return false
 	}
-	addr = addr.Unmap()
+	addr = addr.Unmap().WithZone("")
 	for _, p := range prefixes {
 		if p.Contains(addr) {
 			return true

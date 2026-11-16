@@ -64,7 +64,8 @@ type linkScope struct {
 	// neighbors is the neighbor table read with connected. It names the
 	// Link-Local of another router whose global is the next hop.
 	neighbors neighborView
-	// peer is the recipient address captured with this interface snapshot.
+	// peer is the recipient's zone-free comparison address captured with this
+	// interface snapshot. Settings and transport keep the scoped address.
 	peer netip.Addr
 	// peerOnLink reports whether the speaker shares a common subnet with the
 	// peer the route is being advertised to.
@@ -98,7 +99,7 @@ func newLinkScopeWith(connected []netip.Prefix, neighbors neighborView, peerAddr
 	return &linkScope{
 		connected:    connected,
 		neighbors:    neighbors,
-		peer:         peerAddr.Unmap(),
+		peer:         peerAddr.Unmap().WithZone(""),
 		peerOnLink:   network.SharesSubnet(connected, peerAddr),
 		clock:        clock.RealClock{},
 		unreadWarned: new(atomic.Bool),

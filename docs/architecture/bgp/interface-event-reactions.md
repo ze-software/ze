@@ -63,6 +63,29 @@ physical aliases; building the declarations never drops a prospective socket.
 address can be read as `::ffff:10.0.0.1`. Without `Unmap`, the match against a
 peer `LocalAddress` of `10.0.0.1` fails in silence.
 
+**Subnet membership compares addresses without transport zones.**
+`network.SharesSubnet` and the peer address captured by `newLinkScopeWith`
+use `addr.Unmap().WithZone("")` for prefix comparisons. A scoped peer such as
+`fe80::2%if0` therefore belongs to a connected `fe80::/64`; its zone does not
+make `netip.Prefix.Contains` reject the address. The peer's settings, session
+settings and TCP endpoint retain their zone. Address removal and restoration
+replace only the comparison snapshot, so a missing prefix still denies
+membership and separate connected prefixes do not prove a joint subnet.
+
+<!-- source: internal/core/network/connected.go -- SharesSubnet -->
+<!-- source: internal/component/bgp/reactor/link_scope.go -- newLinkScopeWith, sharesNextHopSubnet -->
+<!-- test: internal/core/network/connected_scoped_test.go TestSharesSubnetScopedAddress -->
+<!-- test: internal/component/bgp/reactor/link_scope_scoped_test.go TestLinkScopeScopedPeerMembership, TestLinkScopeScopedPeerRefresh -->
+
+`scoped-peer-prefix-refresh.ci` removes and restores the connected prefix while
+the receiver keeps its original TCP connection. Each phase sends a new subject
+and a useful control after the address watcher applies the change. The receiver
+checks exact permitted bytes and rejects advertisements or unowned withdrawals
+of the forbidden subject throughout the connection. These assertions cover
+newly received routes.
+<!-- source: internal/test/fixture/plugin_fixture_scoped_peer_prefix_process_linux.go -- scopedPrefixRun -->
+<!-- test: test/plugin/scoped-peer-prefix-refresh.ci -->
+
 **An added address opens what the start opens, by the same rule.**
 `listenerSpecs` names the (address, port) pairs the configuration accepts
 connections on: the local address of each passive peer and dynamic group, at

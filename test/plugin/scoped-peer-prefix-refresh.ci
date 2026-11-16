@@ -1,0 +1,154 @@
+# Question: does the real address watcher update scoped-peer forwarding scope
+# after a connected prefix is removed/restored, on the original TCP connection?
+# Units cannot establish the netlink watch, kernel prefix/route state, real
+# scoped TCP endpoints or causal refresh-to-wire ordering across processes.
+# The bound fe80::1/128 and explicit fe80::2/128 route remain throughout.
+# Only secondary fe80::100/64 is removed/restored. Automatic LL generation is
+# disabled on every veth, so no unrelated /64 can conceal the negative state.
+# Each phase sends one distinct subject and a useful global control afterwards.
+# Phase2's subject was never advertised by its source: ownership suppresses
+# both its forbidden announcement and an unowned withdrawal. Its next global
+# control proves processing; lifetime rejection guards require exact zero of both.
+# Fresh passive-listener sentinel logs occur after addressSync's scope refresh;
+# the source for a changed phase starts only after that causal daemon barrier.
+# The receiver and all earlier sources linger until all wire/status fences pass.
+# No automatic re-advertisement of previously sent routes is expected.
+option=needs-linux:caps=net-admin
+option=timeout:value=110s
+option=env:var=ze_test_bgp_port:value=$PORT
+option=env:var=ze.log.bgp.reactor:value=info
+
+tmpfs=phase-marker:terminator=END_MARKER
+ready
+END_MARKER
+
+tmpfs=receive.peer:terminator=END_RECEIVE
+option=asn:value=65003
+option=bind:value=fe80::2%p0
+option=linger:value=true
+option=timeout:value=90s
+option=established-file:path=receive.ready
+expect=bgp:conn=1:seq=1:contains=800E1C00020110FE800000000000000000000000000009003020010DB85731
+expect=bgp:conn=1:seq=2:contains=800E1C0002011020010DB8573000000000000000000009003020010DB85741
+action=rewrite:conn=1:seq=3:source=phase-marker:dest=scope-wire-1
+expect=bgp:conn=1:seq=4:contains=800E1C0002011020010DB857300000000000000000000A003020010DB85742
+action=rewrite:conn=1:seq=5:source=phase-marker:dest=scope-wire-2
+expect=bgp:conn=1:seq=6:contains=800E1C00020110FE800000000000000000000000000009003020010DB85733
+expect=bgp:conn=1:seq=7:contains=800E1C0002011020010DB857300000000000000000000B003020010DB85743
+action=rewrite:conn=1:seq=8:source=phase-marker:dest=scope-wire-3
+reject=bgp:conn=1:scope=announced:pattern=3020010DB85732
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85732
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85731
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85733
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85741
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85742
+reject=bgp:conn=1:scope=withdrawn:pattern=3020010DB85743
+END_RECEIVE
+
+tmpfs=source1.peer:terminator=END_SOURCE_1
+option=asn:value=65004
+option=bind:value=2001:db8:5730::9
+option=linger:value=true
+option=timeout:value=90s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020602010000FDEC800E1C00020110FE800000000000000000000000000009003020010DB85731
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020602010000FDEC800E1C0002011020010DB8573000000000000000000009003020010DB85741
+END_SOURCE_1
+
+tmpfs=source2.peer:terminator=END_SOURCE_2
+option=asn:value=65005
+option=bind:value=2001:db8:5730::a
+option=linger:value=true
+option=timeout:value=90s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020602010000FDED800E1C00020110FE800000000000000000000000000009003020010DB85732
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020602010000FDED800E1C0002011020010DB857300000000000000000000A003020010DB85742
+END_SOURCE_2
+
+tmpfs=source3.peer:terminator=END_SOURCE_3
+option=asn:value=65006
+option=bind:value=2001:db8:5730::b
+option=linger:value=true
+option=timeout:value=90s
+expect=bgp:conn=1:seq=1:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF001304
+action=send:conn=1:seq=2:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020602010000FDEE800E1C00020110FE800000000000000000000000000009003020010DB85733
+action=send:conn=1:seq=3:hex=FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF0043020000002C4001010040020602010000FDEE800E1C0002011020010DB857300000000000000000000B003020010DB85743
+END_SOURCE_3
+
+tmpfs=ze.conf:terminator=END_CONFIG
+plugin {
+ internal rs { use bgp-rs; }
+ external scoped-status { run "le test fixture plugin/scoped-peer-prefix-status"; encoder json; }
+}
+bgp {
+ router-id 10.57.30.1;
+ filter { import { final accept; } export { final accept; } }
+ peer receive {
+  connection { remote { ip fe80::2%sp; port $PORT; } local { ip fe80::1%sp; accept false; } }
+  session {
+   asn { local 65001; remote 65003; }
+   next-hop unchanged;
+   link-local fe80::1;
+   family { ipv6/unicast { prefix { maximum 100; } } }
+   capability { graceful-restart disable; link-local-nexthop enable; }
+  }
+  behavior { rs-fast-path enable; group-updates disable; }
+  attach process rs { receive [ update-received ]; send [ update ]; }
+  timer { connect-retry 1; }
+ }
+ peer source1 {
+  connection { remote { ip 2001:db8:5730::9; port $PORT; } local { ip 2001:db8:5730::1; accept false; } }
+  session {
+   asn { local 65001; remote 65004; }
+   next-hop unchanged;
+   link-local fe80::1;
+   family { ipv6/unicast { prefix { maximum 100; } } }
+   capability { graceful-restart disable; link-local-nexthop enable; }
+  }
+  behavior { rs-fast-path enable; group-updates disable; }
+  attach process rs { receive [ update-received ]; send [ update ]; }
+  timer { connect-retry 1; }
+ }
+ peer source2 {
+  connection { remote { ip 2001:db8:5730::a; port $PORT; } local { ip 2001:db8:5730::1; accept false; } }
+  session {
+   asn { local 65001; remote 65005; }
+   next-hop unchanged;
+   link-local fe80::1;
+   family { ipv6/unicast { prefix { maximum 100; } } }
+   capability { graceful-restart disable; link-local-nexthop enable; }
+  }
+  behavior { rs-fast-path enable; group-updates disable; }
+  attach process rs { receive [ update-received ]; send [ update ]; }
+  timer { connect-retry 1; }
+ }
+ peer source3 {
+  connection { remote { ip 2001:db8:5730::b; port $PORT; } local { ip 2001:db8:5730::1; accept false; } }
+  session {
+   asn { local 65001; remote 65006; }
+   next-hop unchanged;
+   link-local fe80::1;
+   family { ipv6/unicast { prefix { maximum 100; } } }
+   capability { graceful-restart disable; link-local-nexthop enable; }
+  }
+  behavior { rs-fast-path enable; group-updates disable; }
+  attach process rs { receive [ update-received ]; send [ update ]; }
+  timer { connect-retry 1; }
+ }
+ peer sentinel1 {
+  connection { remote { ip 2001:db8:5731::2; connect false; } local { ip 2001:db8:5731::1; port $PORT2; } }
+  session { asn { local 65001; remote 65101; } family { ipv6/unicast { prefix { maximum 100; } } } }
+ }
+ peer sentinel2 {
+  connection { remote { ip 2001:db8:5732::2; connect false; } local { ip 2001:db8:5732::1; port $PORT2; } }
+  session { asn { local 65001; remote 65101; } family { ipv6/unicast { prefix { maximum 100; } } } }
+ }
+}
+END_CONFIG
+
+cmd=foreground:seq=1:exec=le test fixture plugin/scoped-peer-prefix-refresh netns scoped-$PORT peer router receive.peer peer-after receive.ready far source1.peer peer-after scope-status-1 far source2.peer peer-after scope-status-2 far source3.peer run ze start ze.conf:timeout=100s
+expect=exit:code=0
+expect=stderr:pattern=REFRESH-FENCED: 2001:db8:5731::1
+expect=stderr:pattern=REFRESH-FENCED: 2001:db8:5732::1
+expect=stderr:pattern=WIRE-PASSED: scoped recipient prefix present/removed/restored on one TCP connection
+reject=stderr:pattern=ZE-OBSERVER-FAIL
