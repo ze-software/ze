@@ -74,6 +74,17 @@ func (a *allTestsRun) shim() error {
 	if err := shimOptional(upgrade, filepath.Join(a.BinDir, runner.UpgradeBinary)); err != nil {
 		return err
 	}
+	// ze-containerprobe, the container test store's fixture program, comes from
+	// beside ZE_BIN the same way: PrepareGuest builds it there. It must sit
+	// beside the ze copied here for two readers: the test daemon copies it into
+	// the fixture image from beside its own executable, and
+	// test/container/container-start.ci runs its reset and verify modes off the
+	// step's PATH. Only the container suite needs it, so a set built without it
+	// fails those tests naming the path rather than refusing the whole run.
+	probe := a.workspacePath(filepath.Join(filepath.Dir(a.ZeBin), runner.ContainerProbeBinary))
+	if err := shimOptional(probe, filepath.Join(a.BinDir, runner.ContainerProbeBinary)); err != nil {
+		return err
+	}
 	// The harness is this run's own le. A suite runs as `le test <suite>`
 	// through this link, and the runner under it links `le` into its children's
 	// PATH the same way.

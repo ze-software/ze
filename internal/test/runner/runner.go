@@ -307,6 +307,51 @@ func (r *Runner) childPathEnv() string {
 	return tb.Str("PATH=").Join(parts, string(os.PathListSeparator)).String()
 }
 
+// childLookPath answers the absolute path of the program a step names bare,
+// looked up on the PATH childPathEnv gives the step, in its order: the shims,
+// the directory beside ze, then the inherited PATH.
+//
+// exec.Command resolves a bare name on the RUNNER's own PATH, never on the
+// PATH in Cmd.Env, so a program the harness builds beside ze (the container
+// probe) was "not found in $PATH" although the child's PATH held it. A name
+// with a separator is a path and is answered unchanged. On a miss it answers
+// name unchanged with an error naming the directories it searched, which the
+// caller hands to Cmd.Err so the step fails at Start with that reason.
+func (r *Runner) childLookPath(name string) (string, error) {
+	if strings.ContainsRune(name, filepath.Separator) {
+		return name, nil
+	}
+	searched := strings.TrimPrefix(r.childPathEnv(), "PATH=")
+	for _, dir := range filepath.SplitList(searched) {
+		// An empty entry names no directory.
+		if dir == "" {
+			continue
+		}
+		// Absolute, because the step runs in its own working directory and a
+		// relative program path would resolve against that one.
+		candidate, err := filepath.Abs(filepath.Join(dir, name))
+		if err != nil {
+			continue
+		}
+		// A directory the program is not in, or cannot be read, is passed
+		// over, as a shell's lookup passes over it.
+		info, err := os.Stat(candidate)
+		if err != nil {
+			continue
+		}
+		if !info.Mode().IsRegular() {
+			continue
+		}
+		if info.Mode().Perm()&0o111 == 0 {
+			continue
+		}
+		return candidate, nil
+	}
+	var tb textbuf.Buffer
+	return name, errors.New(tb.Str("exec: \"").Str(name).
+		Str("\": no executable of that name in the test's PATH ").Str(searched).String())
+}
+
 // workDirPrefix names every per-test working directory under the session
 // scratch root, so a directory left behind by a killed run says what made it.
 const workDirPrefix = "ze-work-"
@@ -405,6 +450,16 @@ func (r *Runner) Build(ctx context.Context) error {
 		return fmt.Errorf("build %s: %w", FakeFilterBinary, err)
 	}
 
+	// The container probe goes beside ze too: the test daemon copies it into
+	// its fixture image from there, and a .ci runs its verify mode off PATH.
+	probe := exec.CommandContext(ctx, "go", "build", "-o", filepath.Join(filepath.Dir(r.zePath), ContainerProbeBinary), ContainerProbePackage) //nolint:gosec // paths from internal runner
+	probe.Dir = r.baseDir
+	probe.Env = childEnv("CGO_ENABLED=0")
+	if output, err := probe.CombinedOutput(); err != nil {
+		r.display.buildStatus(false, fmt.Errorf("%w: %s", err, output))
+		return fmt.Errorf("build %s: %w", ContainerProbeBinary, err)
+	}
+
 	if err := r.setupBinShims(); err != nil {
 		r.display.buildStatus(false, err)
 		return err
@@ -422,6 +477,18 @@ const FakeFilterBinary = "ze-fakefilter"
 
 // FakeFilterPackage is the main package of FakeFilterBinary.
 const FakeFilterPackage = "./internal/test/plugins/fakefilter/cmd/ze-fakefilter"
+
+// ContainerProbeBinary is the program of the container test store's fixture
+// image (internal/plugins/container/storeseam_zetest.go), which the test
+// daemon copies from beside itself into the image, and which a .ci of the
+// container suite runs as `ze-containerprobe verify` to judge what the
+// container saw. Build puts it beside ze, and every binary set the functional
+// harness prepares carries it. It is static: it links no ze package and is
+// built with cgo off.
+const ContainerProbeBinary = "ze-containerprobe"
+
+// ContainerProbePackage is the main package of ContainerProbeBinary.
+const ContainerProbePackage = "./internal/test/containerprobe"
 
 // verifyPrebuilt is the LE_TEST_NO_BUILD path: it checks that the ze the
 // runner would otherwise build already exists, rather than building it. Every

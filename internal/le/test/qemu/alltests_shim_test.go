@@ -62,6 +62,22 @@ func TestTheShimCopiesTheUpgradeBuildWhenItExists(t *testing.T) {
 		filepath.Join(run.Workspace, "bin", runner.UpgradeBinary))
 }
 
+// VALIDATES: ze-containerprobe, the container test store's fixture program
+// PrepareGuest writes beside ZE_BIN, is copied into the shim beside ze.
+// PREVENTS: test/container/container-start.ci failing in the guest with
+// "no executable of that name in the test's PATH" for the probe, and the test
+// daemon finding no probe beside its own executable to put in the image,
+// although the host built it.
+func TestTheShimCopiesTheContainerProbeWhenItExists(t *testing.T) {
+	run := vmFixture(t)
+	writeExecutable(t, run.Workspace, filepath.Join("bin", runner.ContainerProbeBinary))
+	if err := run.shim(); err != nil {
+		t.Fatalf("shim: %v", err)
+	}
+	requireShimCopy(t, filepath.Join(run.BinDir, runner.ContainerProbeBinary),
+		filepath.Join(run.Workspace, "bin", runner.ContainerProbeBinary))
+}
+
 // VALIDATES: a later shim in the same guest holds the source's CURRENT bytes,
 // even when the rebuilt source kept the old one's size and modification time.
 // PREVENTS: a guest running a stale daemon after the host replaced it through

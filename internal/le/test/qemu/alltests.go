@@ -282,6 +282,12 @@ var vmSuites = []vmSuite{
 		Name: "vpp", Args: []string{"vpp", allTests}, Concurrency: takeNoP, Namespace: guestRoot,
 		Why: "the VPP stub. It carries no -p because its serial default lives in the command itself",
 	},
+	{
+		Name: "container", Args: []string{"container", allTests}, Concurrency: serial, Namespace: guestRoot,
+		Why: "every test creates control groups under /sys/fs/cgroup/ze-container and mounts under" +
+			" /run/ze-container, which the tests share, and needs root with CAP_SYS_ADMIN, which the" +
+			" guest root namespace holds",
+	},
 }
 
 // excludedSuites names any declared suite the VM must NOT run, and why.
@@ -290,14 +296,9 @@ var vmSuites = []vmSuite{
 // omission. `web` is not here. It is listed above and held by the default skip
 // list. An operator who empties that list gets it.
 //
-// `container` is the one entry. The suite is declared and test/container holds
-// no test yet, and the runner refuses a suite with no test, so a row in
-// vmSuites would fail every whole run. Its row joins vmSuites with the suite's
-// first test, and TestEveryDeclaredSuiteIsEitherRunOrExcluded then refuses
-// this entry until it is deleted.
-var excludedSuites = map[string]string{
-	"container": "the suite holds no test yet, and the runner refuses a suite with no test",
-}
+// No suite is excluded today. TestEveryDeclaredSuiteIsEitherRunOrExcluded
+// refuses an entry for a suite vmSuites runs.
+var excludedSuites = map[string]string{}
 
 // integrationPackages are the linux-only test packages, the same set
 // `./le test qemu all` names.

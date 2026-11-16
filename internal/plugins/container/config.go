@@ -165,33 +165,8 @@ func refuseInstanceName(name, defect string) error {
 
 // checkConfigRules judges a parsed config against every rule that needs code.
 // Each package of the plugin adds the rules of its own nodes here, so one
-// call judges the whole root.
-func checkConfigRules(cfg containerConfig) error {
-	return refuseUnbuiltRuntime(cfg)
-}
-
-// refuseUnbuiltRuntime refuses a config that holds a container to run. The
-// plugin is wired and the start sequence is not built, so a container the
-// config enables would be accepted and never started. A disabled container
-// is accepted: nothing starts it.
-//
-// The rule is removed by the work that makes a container start.
-func refuseUnbuiltRuntime(cfg containerConfig) error {
-	for _, instance := range cfg.instances {
-		if instance.enabled {
-			return runtimeNotBuilt(instance.name)
-		}
-	}
+// call judges the whole root. The nodes the schema holds today (the name and
+// enabled) need no rule beyond what parsing checks.
+func checkConfigRules(containerConfig) error {
 	return nil
-}
-
-// runtimeNotBuilt is the one refusal of a container this build cannot start:
-// the rule set gives it for a config, and the supervisor for a start it is
-// asked to make.
-func runtimeNotBuilt(name string) error {
-	return opererr.New(
-		"container "+name+" cannot run: this build of ze does not start containers yet",
-		"the container runtime is not complete, so ze refuses the container rather than accept one it would never start",
-		"set container instance "+name+" enabled false",
-	)
 }

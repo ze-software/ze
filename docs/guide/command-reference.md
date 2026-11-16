@@ -812,19 +812,23 @@ ze request container restart name <name>     # <name> is the container's configu
 There is no start command and no stop command: the `enabled` statement of a
 container says whether it runs.
 
-The container runtime is not complete, so no build starts a container today
-and the command answers one of these refusals:
+For an enabled container the command stops it when it runs, then starts it
+again, and answers the container's name and the state it holds after the
+start. No shipped build holds an image store yet, so a start there is
+refused. The command answers one of these refusals:
 
 | Refusal | When | Fix the refusal names |
 |---------|------|-----------------------|
 | `request container restart needs the name of a container` | the command reached the plugin with no name. The command's schema makes the name mandatory, so the daemon can refuse the line before the plugin runs | `ze request container restart name NAME` |
 | `no container named <name> is configured` | the configuration holds no container of that name | `ze show config running` |
 | `container <name> is disabled in the configuration` | its `enabled` statement is false: a restart would start what the configuration keeps stopped | `set container instance <name> enabled true` |
-| `container <name> cannot run: this build of ze does not start containers yet` | the container is enabled | `set container instance <name> enabled false` |
+| `container <name> cannot start: this build of ze holds no image store` | the container is enabled, and the build has no store to take its image from | `set container instance <name> enabled false` |
+| `container <name> cannot start: containers run on Linux only` | the daemon runs on another platform | `set container instance <name> enabled false` |
+| `container <name> was not created: <step>`, or another start step that failed | a step of the start failed; the container was removed | `ze request container restart name <name>` once the cause is fixed |
 
 <!-- source: internal/plugins/container/container.go -- handleCommand, commandDecls -->
-<!-- source: internal/plugins/container/supervise.go -- supervisor.restart, unknownInstance -->
-<!-- source: internal/plugins/container/config.go -- runtimeNotBuilt -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.restart, supervisor.stopThenStart, unknownInstance, noImageStore, noRuntime -->
+<!-- source: internal/plugins/container/library_linux.go -- createFailed -->
 <!-- source: internal/plugins/container/yang/ze-container-cmd.yang -- YANG schema -->
 
 ### request plugin restart

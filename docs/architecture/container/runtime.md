@@ -5,13 +5,17 @@ How Ze runs an OCI container itself: the upstream `runc` library
 module, behind a series of six patches, with the container's init role inside
 the one `ze` binary.
 
-**Status: wiring.** The patch series and its guard test, the init role, the
-`container` plugin with its config root, its static verifier and its restart
-command, the seams toward the image store, the participants and the filter,
-its doctor codes, its runtime doctor checks, one kernel requirement and the
-build gate exist. The start sequence is not built: no `ze` build
-starts a container today, and a config that enables one is refused. This page
-states what exists and grows with the work.
+**Status: first start.** The patch series and its guard test, the init role,
+the `container` plugin with its config root, its static verifier and its
+restart command, the seams toward the image store, the participants and the
+filter, its doctor codes, its runtime doctor checks, one kernel requirement and
+the build gate exist, and so does the start sequence: a configured container is
+described, its root mounted, created through the library, released and
+watched. What is not built yet: the stop signal and its timeout before the
+kill, the leftover sweep, the system-call filter, the device filter, the limit
+and grant nodes, the restart policy, output capture and the state view. No
+shipped build holds an image store yet, so only the test build's store
+(below) answers a start. This page states what exists and grows with the work.
 
 ## Why the library needs a diff
 
@@ -121,20 +125,111 @@ The plugin is `container`, in `internal/plugins/container`, gated by
 | Config root | `container instance NAME` with `enabled`. Every other node of the container work lands with the package that realizes it |
 | One rule set | `parseContainerSections` parses and judges a delivery. The registration's static verifier, the reload's verify and the boot configure all call it, so `ze config validate` accepts exactly what starts |
 | A removed root | Arrives as an empty body and parses to a config with no container. Installing that config stops every container. Only a delivery with no container section means "unchanged" |
-| Apply | The supervisor records the desired set and returns. It never waits for a start |
+| Apply | The supervisor records the desired set, wakes the worker of each container concerned and returns. It never waits for a start. The boot configure arrives before the startup handshake ends, when the engine refuses a worker's calls, so it only records: the plugin's `OnStarted` callback (`supervisor.begin`) wakes the workers |
+| Dependency | The `sysctl` plugin, which writes the kernel tunable a container's network namespace needs (below) |
 | `request container restart name NAME` | A YANG command node bound to a wire method the plugin's package proxies to the plugin's process. A disabled container is refused with the statement that enables it |
 | Daemon stop | The plugin declares a drain budget of 37 seconds and stops every running container in its drain handler, the one call of a daemon stop that waits for a plugin |
 | Failure policy | `restart` |
 
-Until the start sequence exists, the rule set refuses a config that enables a
-container, with the statement that disables it, and the supervisor gives the
-same refusal for a start it is asked to make. A disabled container is
-accepted and held in the `disabled` state.
+A disabled container is accepted and held in the `disabled` state; an enabled
+one is started by its worker.
 
 <!-- source: internal/plugins/container/register.go -- registerContainer, verifyContainerSections, forwardRestart -->
-<!-- source: internal/plugins/container/config.go -- parseContainerSections, checkConfigRules, refuseUnbuiltRuntime -->
+<!-- source: internal/plugins/container/config.go -- parseContainerSections, checkConfigRules -->
 <!-- source: internal/plugins/container/container.go -- runContainerEngine, handleCommand -->
-<!-- source: internal/plugins/container/supervise.go -- supervisor.install, supervisor.restart, supervisor.drain -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.install, supervisor.apply, supervisor.restart, supervisor.drain -->
+
+## The start sequence
+
+Each configured container has one worker, a goroutine that lives while the
+container is in the config. Apply wakes it, and it converges the container to
+its config: a start when the container is enabled and neither runs nor waits
+for its image, a stop when it runs and the config removed or disabled it. The
+sequences of one container are serialized by its lifecycle lock, so the
+worker, the restart command and the store's notices never interleave.
+
+| Step | What it does |
+|------|--------------|
+| Resolve | The store answers `Ready` or `Absent`. Absent is the `waiting-image` state, and the store's present notice starts the container later |
+| Hold | The store keeps the image and the folders until the cleanup ended |
+| Contribute | Each participant may add read-only file mounts |
+| Root | `mountRoot` mounts an overlay: the image folder is the read-only lower layer, and the upper and work directories are in the writable folder, so what the container writes lands on disk and the image never changes. The mount point is `/run/ze-container/root/NAME` |
+| Describe | `describeContainer` fills the library's description: its own pid, mount, network, ipc, uts and cgroup namespaces, the library's default mounts, masked and read-only paths and device nodes, thirteen capabilities (the fourteen published images expect, less `CAP_MKNOD`, which is withheld until the control group's device allowlist exists: without the allowlist, root in the container could make a node for any host device and open it; the library's init makes the default nodes before it drops to this set, and `/dev/ptmx` is a symlink into the container's own devpts), no-new-privileges, the instance name as host name, the loopback device, and the control group `/ze-container/NAME` with the default limits, 512 MiB of memory with no swap beyond it and 256 processes. `describeEntrypoint` runs the image's entrypoint followed by its command, with its variables, working directory and numeric user |
+| Claim | The kernel tunable `net.core.fb_tunnels_only_for_init_net` is claimed at 1 (below), under the lock that keeps a release from falling between the claim and the create |
+| Create | `libcontainer.Create`, then `Container.Start`: the patched parent clones `ze` into the namespaces and the control group, and init blocks before the entrypoint |
+| Created call | Each participant gets the init process id and the network namespace path |
+| Release | `Container.Exec` lets init execute the entrypoint. The state is `running` |
+| Watch | One goroutine per running container waits for init to exit, then cleans up: destroy (the control group and the library's state directory), unmount the root, the ended calls, release the hold |
+
+A failed step after the create destroys the container, makes the ended calls
+and releases the hold. A failed `Container.Start` is destroyed by the library
+wrapper itself: the patched parent made the control group before init started,
+and the library's own cleanup is not in place yet at that point. A stop kills
+every process of the container at once through its control group
+(`cgroup.kill`) and waits for the watcher's cleanup. A destroy that fails is
+recorded as `doctor-container-cleanup-incomplete`.
+
+The device filter of the control group is not set: the cgroups module's filter
+package links the systemd driver, and the filter arrives with the devices
+work. Until then the device nodes are made and no device access is denied. An
+image user given by name is refused until the image's account files are read.
+
+<!-- source: internal/plugins/container/supervise.go -- supervisor.work, supervisor.converge, supervisor.startLocked, supervisor.run, supervisor.watch, supervisor.cleanup, supervisor.stopLocked -->
+<!-- source: internal/plugins/container/library_linux.go -- patchedLibrary.create, libraryContainer.kill, libraryContainer.destroy -->
+<!-- source: internal/plugins/container/describe_linux.go -- describeContainer, describeEntrypoint -->
+<!-- source: internal/plugins/container/rootfs_linux.go -- mountRoot, unmountRoot -->
+<!-- test: internal/plugins/container/describe_linux_test.go TestDescriptionHasTheDefaultConfinement -->
+
+### The kernel's fallback tunnel devices
+
+Ze's kernel builds the tunnel drivers in, and the kernel gives every new
+network namespace one fallback device of each tunnel kind (`gre0`, `gretap0`,
+`erspan0`, `ip6gre0`, `ip6tnl0`, `sit0`, `tunl0`) unless the host-wide tunable
+`net.core.fb_tunnels_only_for_init_net` says otherwise: 0 creates them in every
+namespace, 1 in the initial namespace only, 2 in none. The kernel reads the
+value when it creates a namespace. A container sees only the links Ze gives
+it, its loopback device and its network attachments, so before every create
+the plugin claims the value 1 through the `sysctl` plugin's default event,
+under its own name as the source (`sysctlClaim`, `tunables.go`). 1 keeps the
+devices in the initial namespace, where the host's own configuration may use
+them. The emit reaches the `sysctl` plugin's handler before it returns, so the
+claim reads the kernel's value back: a value other than 1 or 2 refuses the
+start. The configuration outranks a plugin's default, so an operator who sets
+the key to 0 sees each enabled container in the `failed` state, and `ze show
+doctor` reports `doctor-container-failed` with the statement that sets it back
+to 1. Once the configuration holds no enabled container, a worker clears the
+claim and the `sysctl` plugin restores the kernel's original value, as it does
+when the daemon stops. No other shipped code relies on the fallback devices in
+a namespace it creates: the only namespaces Ze creates outside a container are
+the throwaway namespaces of the kernel capability probes
+(`kernelcap.InThrowawayNetworkNamespace`: the MPLS label space and the xfrm
+interface kind), which ask for neither.
+
+<!-- source: internal/plugins/container/tunables.go -- sysctlClaim, fallbackTunnelsKey -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.createWithTunables, supervisor.releaseTunablesWhenIdle, supervisor.begin -->
+<!-- test: internal/plugins/container/supervise_test.go TestTunablesAreClaimedBeforeEveryCreate, TestBootConfigureStartsNothingBeforeBegin -->
+
+### The test store and its fixture image
+
+A functional test needs an image and no network. A `zetest` build, the
+functional-test daemon, fills the store seam with a test store
+(`storeseam_zetest.go`): every container resolves to one fixture image, a
+folder holding `ze-containerprobe`, which the harness builds beside `ze` and
+the store copies into the image. The private key `ze.test.container.store`
+names the store's directory: the image is `image/` and each container's
+writable layer `layer/NAME`. The probe's `run` mode is the entrypoint and
+writes what it sees to `/report`; its `verify` mode runs on the host and
+judges that report.
+
+A test puts its store at `/run/ze-container-test-$PORT`, never in its work
+directory. In the QEMU guest the work directory is on the 9p share of the
+checkout, and an overlay cannot take a 9p directory as its upper layer; `/run`
+is tmpfs there and on the appliance. The probe's `reset` mode runs before the
+daemon starts and removes the store, so a report an earlier run left behind
+cannot pass the test. It refuses any path outside `/run/ze-container-test-*`.
+
+<!-- source: internal/plugins/container/storeseam_zetest.go -- testStore.Resolve, installProbe -->
+<!-- source: internal/test/containerprobe/main.go -- observe, verify, reset, storePrefix -->
 
 ## Doctor codes, runtime checks and the kernel requirement
 
@@ -152,6 +247,7 @@ explains each one.
 | `doctor-container-process-limit` | A container reached its process limit | Runtime check `container-process-limit` |
 | `doctor-container-stop-killed` | A container ignored its stop signal and was killed | Runtime check `container-stop-killed` |
 | `doctor-container-cleanup-incomplete` | A container left processes, a control group or a mount behind | Runtime check `container-cleanup-incomplete` |
+| `doctor-container-failed` | A container the configuration enables does not run: its last start failed | Runtime check `container-failed`, as an error |
 | `doctor-container-kernel-cpu-limit-unavailable`, `doctor-container-kernel-cpu-limit-unknown` | The kernel has no hard CPU limit, or Ze could not tell | The kernel enrolment `container-cpu-limit` |
 
 The first three codes are registered and explained. No doctor check reports
@@ -159,7 +255,7 @@ them today: their checks arrive with the code that reads the host.
 
 ### Runtime checks
 
-The four runtime checks are declared in the plugin's Stage 1 registration
+The five runtime checks are declared in the plugin's Stage 1 registration
 (`engineRegistration`) at the `runtime` phase and answered by its doctor
 callback (`supervisor.answerDoctorCheck`), because the records they read live
 in the plugin's process, internal and forked alike
@@ -171,23 +267,32 @@ plugin did not declare is refused, never answered as healthy.
 Each finding names the container and carries the command that fixes it: the
 `set container instance NAME` statement of the limit or the stop timeout to
 raise, or `ze request container restart name NAME` for a cleanup that did not
-finish.
+finish. A container that runs, or ran, is reported as a warning; a container
+the configuration enables and that does not run is an error.
 
 The supervisor holds the records: one entry for each container and kind of
-problem (`supervisor.recordProblem`, `supervisor.namesWith`). A record is
+problem (`supervisor.recordProblem`, `supervisor.problemsOf`). A record is
 refused for a container the configuration does not hold, and a container that
-leaves the configuration takes its records with it. Nothing writes a record
-today: the code that ends a container, reads its control group's events and
-sweeps leftovers does not exist yet, so every runtime check answers no
-finding. The statements the fixes name (`memory`, `process-limit`,
+leaves the configuration takes its records with it. The cleanup writes the
+`container-cleanup-incomplete` record when a destroy fails or a stop does not
+end. Where a start fails, `supervisor.setFailed` sets the `failed` state,
+logs the failure at `Warn` under `doctor-container-failed` and writes the
+`container-failed` record with its detail: the step that failed, why, the
+underlying error, and the fix the refusal names (`failureDetail`). The record
+lasts exactly as long as the state: a later start that runs or waits for its
+image clears it, and so does a configuration that disables or removes the
+container. Ze starts a failed container again at the next configuration commit
+and at the restart command. The other three records need the code that reads the control group's
+events and the stop timeout, which does not exist yet, so those checks answer
+no finding. The statements the fixes name (`memory`, `process-limit`,
 `stop-timeout`) are not in the schema yet either; each arrives with the code
 that writes its record.
 
 <!-- source: internal/plugins/container/doctor.go -- containerDiagnosticCodes, runtimeDoctorChecks, runtimeDoctorCheckDecls, supervisor.answerDoctorCheck -->
 <!-- source: internal/plugins/container/register.go -- registerContainerDiagnosticCodes -->
 <!-- source: internal/plugins/container/container.go -- engineRegistration -->
-<!-- source: internal/plugins/container/supervise.go -- supervisor.recordProblem, supervisor.namesWith -->
-<!-- test: internal/plugins/container/doctor_test.go TestContainerDoctorChecksAnswerThroughTheCallback, TestContainerDiagnosticCodesRegisterFromThePlugin -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.recordProblem, supervisor.problemsOf, supervisor.setFailed, failureDetail -->
+<!-- test: internal/plugins/container/doctor_test.go TestContainerDoctorChecksAnswerThroughTheCallback, TestContainerDiagnosticCodesRegisterFromThePlugin, TestFailedStartIsReportedWhileTheContainerIsFailed -->
 
 ### The kernel requirement
 
@@ -227,7 +332,7 @@ the runtime package imports none of them.
 |------|-------------|-----------|
 | Image store | `storeseam.go`: `Store`, `StoreNotices`, `SetStoreFactory` | The runtime asks the store to resolve and hold a container (`Ready` or `Absent`, never an empty answer). The store tells the runtime that an image is present, or to restart a container |
 | Participants | `participant.go`: `Participant`, `RegisterParticipant` | Before create, a participant contributes read-only file mounts. After create and before the entrypoint runs it gets the created call, with the container's name, its init process id and its network namespace path. After the container's processes are gone it gets the ended call |
-| Runtime library | `supervise.go`: `runtimeLibrary`, `createdContainer` | The supervisor orders create, release and destroy through an interface, so the order of a start is proven with a library that creates nothing |
+| Runtime library | `supervise.go`: `runtimeLibrary`, `createdContainer` | The supervisor orders create, release, wait, kill and destroy through an interface, so the order of a start is proven with a library that creates nothing. `library_linux.go` implements it over the patched library; off Linux there is none and a start is refused |
 | Filter | `seccomp/register_linux.go`: `initFilter` | The library's `InitSeccomp` calls the function the filter package registered. A profile is refused until the filter builder exists |
 
 <!-- source: internal/plugins/container/storeseam.go -- Store, StoreNotices, SetStoreFactory -->

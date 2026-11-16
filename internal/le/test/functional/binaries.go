@@ -2,7 +2,8 @@
 // Detail: suites.go -- what each of those binaries is asked to run
 //
 // Each invocation builds an isolated throwaway binary set by default.
-// The set contains ze, ze-test, ze-stripped, ze-stripped-flow and ze-upgrade under <scratch>/testbin-<suffix>/bin/.
+// The set contains ze, ze-test, ze-stripped, ze-stripped-flow, ze-upgrade and
+// ze-containerprobe (the container test store's fixture program) under <scratch>/testbin-<suffix>/bin/.
 // A suite runs against this frozen set while the developer continues other builds and edits.
 //
 // The binaries use canonical names because .ci tests execute `ze`, `ze-stripped`,
@@ -212,7 +213,17 @@ func buildCommands(tc gotoolchain.Toolchain, binaries string) [][]string {
 	// the fakefilter binary, a third party's plugin a test forks.
 	return append(daemonBuildCommands(tc, binaries, cover),
 		build(nil, tagString(tc, append([]string{repofeaturetags.LEBase}, tc.Features...)...), LE),
-		fakeFilterBuildCommand(binaries))
+		fakeFilterBuildCommand(binaries),
+		containerProbeBuildCommand(binaries))
+}
+
+// containerProbeBuildCommand answers the build of the container test store's
+// fixture program (runner.ContainerProbeBinary, runner.ContainerProbePackage),
+// which the test daemon copies from beside itself into its fixture image. It
+// takes no feature tag, because it links no ze package. Every binary set
+// carries it, as fakeFilterBuildCommand's does.
+func containerProbeBuildCommand(binaries string) []string {
+	return []string{"go", goBuild, "-o", filepath.Join(binaries, runner.ContainerProbeBinary), runner.ContainerProbePackage}
 }
 
 // fakeFilterBuildCommand answers the build of the SDK-only test plugin a .ci
@@ -259,13 +270,14 @@ func daemonBuildCommands(tc gotoolchain.Toolchain, binaries string, extra []stri
 }
 
 // guestBuildCommands answers the builds of the set a QEMU guest runs a test
-// against: the four daemons and the ze-fakefilter test plugin, which a guest
-// run finds beside ze (the runner puts ze's directory on every child's PATH).
+// against: the four daemons, the ze-fakefilter test plugin and the
+// ze-containerprobe fixture program, which a guest run finds beside ze (the
+// runner puts ze's directory on every child's PATH).
 func guestBuildCommands(tc gotoolchain.Toolchain, binaries string) [][]string {
-	return append(daemonBuildCommands(tc, binaries, nil), fakeFilterBuildCommand(binaries))
+	return append(daemonBuildCommands(tc, binaries, nil), fakeFilterBuildCommand(binaries), containerProbeBuildCommand(binaries))
 }
 
-// PrepareGuest builds ze, ze-stripped, ze-stripped-flow, ze-upgrade and ze-fakefilter for
+// PrepareGuest builds ze, ze-stripped, ze-stripped-flow, ze-upgrade, ze-fakefilter and ze-containerprobe for
 // linux/goarch into binaries, the set a QEMU guest runs a test against; `le
 // test qemu run` builds the guest le itself. The toolchain's environment turns
 // CGO off, so the binaries carry no dynamic loader the musl guest lacks.

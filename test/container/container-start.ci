@@ -1,0 +1,50 @@
+# Question: does a container a committed config enables run its entrypoint
+# alone in pid, mount, network, ipc, uts and cgroup namespaces of its own and
+# in a control group of its own, with its loopback device up
+# (spec-container-1-runtime AC-1, the container-start test)?
+#
+# A unit test cannot decide it: the answer is what the patched runtime library
+# does on a real kernel, run as root, with init cloned out of the ze binary
+# straight into its control group, and what the kernel then shows the
+# entrypoint.
+#
+# Method: the test daemon's container store answers one fixture image holding
+# ze-containerprobe, whose run mode writes what it sees from inside to /report
+# in its root, so the file lands in the container's writable layer. The verify
+# mode, run on the host, waits for that file and compares each fact with what
+# a container of its own must see: pid 1, its own cgroup at the root, the
+# instance name as host name, lo as the only device and up, and each
+# namespace link different from the host's. It prints one line per check and
+# exits 1 when one fails. Its reset mode runs first and removes the store, so
+# a report an earlier run left behind cannot pass this one.
+#
+# The store lives under /run, not in the test's work directory: in the QEMU
+# guest that directory is on the 9p share of the checkout, and an overlay
+# cannot take a 9p directory as its upper layer. $PORT keeps two runs apart.
+option=needs-linux:caps=sys-admin
+option=exclusive:group=container
+option=timeout:value=60s
+option=env:var=ze.test.container.store:value=/run/ze-container-test-$PORT
+
+stdin=config:terminator=EOF_CONFIG
+container {
+	instance probe {
+	}
+}
+EOF_CONFIG
+
+cmd=foreground:seq=1:exec=ze-containerprobe reset /run/ze-container-test-$PORT:exit=0
+cmd=background:seq=2:exec=ze -:stdin=config
+cmd=foreground:seq=3:exec=ze-containerprobe verify /run/ze-container-test-$PORT probe:timeout=45s:exit=0
+expect=stdout:contains=probe: pid 1 in its own pid namespace
+expect=stdout:contains=probe: its own cgroup reads as the root
+expect=stdout:contains=probe: host name is the instance name
+expect=stdout:contains=probe: the loopback device is the only device
+expect=stdout:contains=probe: the loopback device is up
+expect=stdout:contains=probe: a pid namespace other than the host's
+expect=stdout:contains=probe: a mnt namespace other than the host's
+expect=stdout:contains=probe: a net namespace other than the host's
+expect=stdout:contains=probe: a ipc namespace other than the host's
+expect=stdout:contains=probe: a uts namespace other than the host's
+expect=stdout:contains=probe: a cgroup namespace other than the host's
+reject=stdout:contains=probe: FAIL

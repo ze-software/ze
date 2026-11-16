@@ -27,6 +27,7 @@ const (
 	capNetBindService = 10 // CAP_NET_BIND_SERVICE: bind a port below 1024 (the DNS stub on 53)
 	capNetAdmin       = 12 // CAP_NET_ADMIN: interfaces, netlink, nftables
 	capNetRaw         = 13 // CAP_NET_RAW: raw and packet sockets (ICMP ping, traceroute)
+	capSysAdmin       = 21 // CAP_SYS_ADMIN: namespaces, mounts, control groups (containers)
 	capSysResource    = 24 // CAP_SYS_RESOURCE: raise rlimits (RLIMIT_MEMLOCK for eBPF)
 	capSysTime        = 25 // CAP_SYS_TIME: set the system clock (NTP restore)
 	capBPF            = 39 // CAP_BPF: load eBPF programs and create maps (>= 5.8)
@@ -80,12 +81,23 @@ const (
 //     declares it changes the clock of the host it runs on, so the gate skips
 //     every unprivileged developer host and runs only where the process can
 //     set time: the disposable QEMU guest and a privileged CI runner.
+//
+//   - sys-admin: creating namespaces, mounts and control groups. A container
+//     the daemon starts (internal/plugins/container/library_linux.go
+//     patchedLibrary.create) clones its init into new mount, pid, ipc, uts,
+//     network and cgroup namespaces, mounts its root overlay and creates its
+//     control group under /sys/fs/cgroup, each of which the kernel refuses
+//     without CAP_SYS_ADMIN. A test that declares it creates control groups
+//     and mounts on the host it runs on, so it alters that host and runs only
+//     where the process may: the disposable QEMU guest and a privileged CI
+//     runner.
 const (
 	capsNetAdmin = "net-admin"
 	capsNetBind  = "net-bind"
 	capsNetRaw   = "net-raw"
 	capsBPF      = "bpf"
 	capsSysTime  = "sys-time"
+	capsSysAdmin = "sys-admin"
 )
 
 // capsRequired maps each accepted token to the capability bits a host must hold
@@ -100,6 +112,7 @@ var capsRequired = map[string][]int{
 	capsNetRaw:   {capNetRaw},
 	capsBPF:      {capBPF},
 	capsSysTime:  {capSysTime},
+	capsSysAdmin: {capSysAdmin},
 }
 
 // capDockerName is the name `docker run --cap-add` takes for each capability
@@ -115,6 +128,7 @@ var capDockerName = map[int]string{
 	capNetAdmin:       "NET_ADMIN",
 	capNetRaw:         "NET_RAW",
 	capSysTime:        "SYS_TIME",
+	capSysAdmin:       "SYS_ADMIN",
 	capBPF:            "BPF",
 }
 
@@ -125,7 +139,8 @@ var capDockerName = map[int]string{
 // tests skip in a container through their own caps gate, which is what the
 // gate exists for: it keeps them off any host that must keep its time.
 var capsAltersHost = map[string]bool{
-	capsSysTime: true,
+	capsSysTime:  true,
+	capsSysAdmin: true,
 }
 
 // ContainerCapsDockerNames answers, sorted and once each, the `docker run

@@ -3,12 +3,10 @@
 package container
 
 import (
-	"errors"
 	"strings"
 	"testing"
 
 	"github.com/ze-software/ze/internal/component/plugin/registry"
-	"github.com/ze-software/ze/internal/core/opererr"
 	"github.com/ze-software/ze/internal/core/slogutil"
 	"github.com/ze-software/ze/pkg/plugin/sdk"
 )
@@ -164,28 +162,46 @@ func TestDisabledContainerTakesTheDisabledState(t *testing.T) {
 	}
 }
 
-// TestRuntimeNotBuiltRefusesAnEnabledContainer pins the refusal of the wiring
-// stage: until a container can start, a config that enables one is refused
-// with the statement that disables it, whether enabled is written or left to
-// its default of true. This test goes with refuseUnbuiltRuntime, when the
-// start sequence is built.
-func TestRuntimeNotBuiltRefusesAnEnabledContainer(t *testing.T) {
+// TestEnabledContainerIsAccepted proves the rule set accepts a container to
+// run, whether enabled is written or left to its default of true, and that
+// the parsed container is enabled: a container the config enables is one the
+// supervisor starts.
+//
+// Method: the three callers of the one rule set (the static verifier, the
+// reload verify and the boot configure) over both deliveries, then the
+// installed value itself. The boot configure applies through sup.apply, the
+// production path, which also wakes the container's worker: with no runtime
+// library that worker's start is refused, which changes neither verdict nor
+// the installed value, and close ends it.
+func TestEnabledContainerIsAccepted(t *testing.T) {
+	reg := registry.Lookup(pluginName)
+	if reg == nil {
+		t.Fatal("the container plugin is not registered")
+	}
 	for name, data := range map[string]string{
 		"enabled true":     sectionEnabledWeb,
 		"enabled defaults": sectionDefaultWeb,
 	} {
 		t.Run(name, func(t *testing.T) {
-			_, _, err := parseContainerSections(containerSections(data))
+			sections := containerSections(data)
+			sup := newSupervisor(slogutil.DiscardLogger(), nil, nil, nil)
+			t.Cleanup(sup.close)
 
-			var refusal *opererr.Error
-			if !errors.As(err, &refusal) {
-				t.Fatalf("an enabled container answered %v, want an operator refusal", err)
+			if err := reg.InProcessConfigVerifier(sections); err != nil {
+				t.Fatalf("the static verifier refused an enabled container: %v", err)
 			}
-			if !strings.Contains(refusal.Problem(), "container web cannot run") {
-				t.Errorf("the refusal's problem is %q, want it to name the container", refusal.Problem())
+			if err := sdk.NewConfigTx(containerConfig{}, parseContainerSections, sup.install).Verify(sections); err != nil {
+				t.Fatalf("the reload verify refused an enabled container: %v", err)
 			}
-			if refusal.Fix() != "set container instance web enabled false" {
-				t.Errorf("the refusal's fix is %q, want the statement that disables the container", refusal.Fix())
+			if err := sdk.NewConfigTx(containerConfig{}, parseContainerSections, sup.apply).Configure(sections); err != nil {
+				t.Fatalf("the boot configure refused an enabled container: %v", err)
+			}
+			instance, configured := sup.instance("web")
+			if !configured {
+				t.Fatal("the boot configure did not install the enabled container")
+			}
+			if !instance.enabled {
+				t.Fatal("the installed container is not enabled")
 			}
 		})
 	}

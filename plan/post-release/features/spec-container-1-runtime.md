@@ -8,7 +8,7 @@
 | Release reason | A post-release feature by owner ruling (O-3 of `spec-container-0-umbrella.md`): Ze runs OCI container images itself. No shipped behavior is wrong without it. |
 | RFC gaps | - |
 | Depends | - |
-| Phase | 0/9 |
+| Phase | 2/9 |
 | Handoff | - |
 | Design tier | development tier |
 | Implementation tier | strongest tier |
@@ -232,6 +232,8 @@ The operator-surface child owns that test: the published Redis image runs as a c
   → Constraint: the commit gate reads `go.mod` from HEAD, so the module lands before any commit that imports it
 - [ ] `docs/architecture/plugin/feature-gates.md` - the gate
   → Decision: plugin compile-out. Manifest lines under `ze_container`, no source tag on the plugin's files, a present and an absent build-tag test
+- [ ] `docs/features/ai-first.md` "Structured Diagnostics" - the design page of `internal/core/diagnostic/codes.go`, which phase 1 changed
+  → Constraint: a doctor code is registered by the package that owns the dependency it judges, and `ze show diagnostic <code>` explains it, so the container codes register from the plugin and the always-on table only gains the shared example command
 - [ ] `docs/architecture/doctor-and-health-checks.md` - doctor and kernel enrolment
   → Constraint: a check over the plugin's live state is declared at Stage 1 and answered by the doctor callback. A registry check function carries a config phase only
   → Constraint: a kernel enrolment that cannot be determined never refuses a start
@@ -489,7 +491,7 @@ Test files are listed with their paths under Files to Create. The File column na
 |------|------|-----------|--------|
 | `TestEarlyRoleRunsBeforeCommandDispatch` | `cmd/ze`, early role test | With a registered key set, the role runs and no command dispatches | |
 | `TestEarlyRoleKeyWithNoOwnerRefuses` | early-role leaf test | A key no role registered answers "not handled" | |
-| `TestDescriptionHasTheDefaultConfinement` | plugin, describe test | The filled description holds the default namespaces, mounts, masked paths, read-only paths, devices, the fourteen capabilities and the loopback device | |
+| `TestDescriptionHasTheDefaultConfinement` | plugin, describe test | The filled description holds the default namespaces, mounts, masked paths, read-only paths, devices, the default capabilities (thirteen, with `CAP_MKNOD` asserted absent from every set, until the device allowlist returns it: Key Design Decisions) and the loopback device | |
 | `TestDescriptionNeverSetsAParentDeathSignal` | plugin, describe test | No config produces a description with a parent death signal | |
 | `TestDescriptionNeverFillsTheLibraryNetworkDevices` | plugin, describe test | The library's network-device list stays empty | |
 | `TestDescriptionSharesOnlyTheNamedHostNamespaces` | plugin, describe test | Each `host-namespace` value removes exactly its namespace | |
@@ -606,7 +608,15 @@ Not applicable: Scope is plugin and no wire protocol changes.
 - `ai/allowed-system-commands.md` - the entrypoint row, citing the ruling of 2026-11-16
 - The functional suite table of `le` (`internal/le/test/functional/suites.go`), the blank import of the suite's command package in `internal/le/register.go`, and the guest's suite list (`internal/le/test/qemu/alltests.go`) - the `container` suite. Until the suite holds its first test, the guest list names it in `excludedSuites` with that reason, because a declared suite the guest neither runs nor excuses refuses every whole guest run
 - The integration package list and the action table of the QEMU test area of `le` - the plugin's package and the `container-boot` action
-- The two hand-kept plugin name lists `ai/doors/hub-engine.md` names (`TestAvailablePlugins`, `TestAllPluginsRegistered`) and their snapshots - the new plugin name
+- The three registry snapshots under `internal/component/plugin/all/testdata/` (`TestRegisteredPluginNames`, `TestRegisteredWireMethods`, `TestYANGSchemaProviders`), regenerated with `-update` - the new plugin name and wire method. No hand-kept plugin list remains: `TestAvailablePlugins` compares with `registry.Names()`, and phase 1 corrected the trap in `ai/doors/hub-engine.md` that still named the old lists
+- `cmd/ze/hub/build_tag_gate12_absent_test.go` - the needles of the bare build, which carry the "no plugin or runtime symbol" assertion
+- `internal/core/diagnostic/codes.go`, `internal/core/diagnostic/codes_plugin_infra.go` - `exampleShowWarnings`, the one spelling of the command three codes name
+- `internal/test/runner/runner.go` - builds `ze-containerprobe` beside `ze` (`ContainerProbeBinary`, `ContainerProbePackage`), with cgo off; `childLookPath` resolves a step's bare program on the step's own `PATH`, so `exec=ze-containerprobe` finds the probe beside `ze`
+- `internal/test/runner/runner_exec.go`, `internal/test/runner/child_lookpath_test.go` (new) - the call of `childLookPath` for every step whose head is not `ze` or `le`, and its tests
+- `internal/test/runner/caps.go`, `internal/test/runner/caps_option_test.go` - the `sys-admin` token of `caps=`, which a container test declares, and its row in the independent table
+- `internal/le/test/functional/binaries.go`, `internal/le/test/functional/functional_test.go` - the probe in the host and guest build lists, and the tests that count them
+- `docs/architecture/testing/ci-format.md` - the `sys-admin` token
+- `docs/guide/configuration.md`, `docs/guide/command-reference.md`, `docs/DESIGN.md` - the container section, the restart command and its refusals, and the runtime's place in the design
 - `docs/contributing/patching-the-standard-library.md` - the new named guard test
 - `docs/architecture/doctor-and-health-checks.md` - the runtime checks table
 - `docs/architecture/system-architecture.md` - the early role in the dispatch order
@@ -627,7 +637,8 @@ Not applicable: Scope is plugin and no wire protocol changes.
 - `internal/plugins/container/initrole_linux.go`, `internal/plugins/container/register_initrole_linux.go` - the call into the library's init, and the registration of the early role
 - `internal/plugins/container/container.go` - the engine entry, the logger, the config callbacks, the drain handler, the restart command
 - `internal/plugins/container/config.go`, `internal/plugins/container/config_test.go` - the parser and the one rule set, which the siblings add rules to
-- `internal/plugins/container/describe_linux.go`, `internal/plugins/container/describe_test.go` - the library description and the merge with the image's configuration
+- `internal/plugins/container/describe_linux.go`, `internal/plugins/container/describe_linux_test.go` - the library description and the merge with the image's configuration
+- `internal/plugins/container/library_linux.go`, `internal/plugins/container/library_other.go` - the runtime library over the patched libcontainer (create, release, wait, kill, destroy), and the nil library off Linux that keeps the plugin compiling there
 - `internal/plugins/container/rootfs_linux.go` - the overlay mount and unmount
 - `internal/plugins/container/supervise.go`, `internal/plugins/container/supervise_test.go` - the worker, the states, the restart delay, the container object kept for the shell child
 - `internal/plugins/container/sweep_linux.go` - the leftover removal
@@ -811,6 +822,7 @@ Not applicable: Scope is plugin and no wire protocol changes.
 | A start that fails five times in a row gives `failed`; an entrypoint that keeps exiting is restarted without a bound | A bound on both; no bound on either | A start that fails needs an operator: the image or the config is wrong. An entrypoint that exits is the workload's behavior, and the policy the operator chose says to start it again. The delay is capped, and doctor reports the loop |
 | A user name is resolved by this child, inside the image root | The store resolving it | The store hands the image's configuration as fetched and resolves nothing. The lookup reads files a container controls, so it opens them under a descriptor for the root |
 | A volume the image declares and the config does not stays in the writable layer | An automatic volume | The owner's direction keeps a container's filesystem until its image is updated, and a volume is something the operator declares |
+| `CAP_MKNOD` is withheld from the default set until phase 6 lands the control group's device allowlist, so phases 2 to 5 run thirteen capabilities; it returns together with the allowlist (PENDING THE OWNER: it departs from his ruling of fourteen in "Rules this child takes from the owner", which is unchanged here) | Granting all fourteen now, as ruled; a no-device mount flag on `/dev` | A security review found that with no allowlist, root in the container can make a node for any host device and open it. The default nodes need no grant: the library's init makes them in `prepareRootfs` before `finalizeNamespace` drops to the set, and `/dev/ptmx` is a symlink into the container's own devpts. A no-device flag on `/dev` would disable those default nodes. The rows that say fourteen (the owner's rule, the `capability` words, AC-7, the confinement test, the review checklist) describe the set once the allowlist exists |
 
 ## Known Limitations
 - Running containers are never re-adopted. When Ze restarts, including for its own update, every container is stopped and started again; after a crash, the next start removes what was left and starts each container anew. Re-adoption is not part of this work, by owner ruling.

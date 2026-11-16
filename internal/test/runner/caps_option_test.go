@@ -286,16 +286,18 @@ func TestCapsNetBindGateBothPolarities(t *testing.T) {
 // each under the kernel's CAP_ name with the prefix dropped, and
 // ContainerCapsDockerNames answers exactly BPF, NET_ADMIN, NET_BIND_SERVICE
 // and NET_RAW: every token's grant except sys-time, whose test sets the clock
-// of the host the container shares.
+// of the host the container shares, and sys-admin, whose test makes control
+// groups and mounts on that host.
 // PREVENTS: a wrong spelling or a stray grant (SYS_RESOURCE, which no token
 // requires) reaching the release-candidate evidence container
-// (internal/le/verify/evidence), and SYS_TIME reaching it, which would let a
-// verify run set the Docker host's clock.
+// (internal/le/verify/evidence), and SYS_TIME or SYS_ADMIN reaching it, which
+// would let a verify run set the Docker host's clock or escape to its mounts.
 func TestEveryCapsBitHasADockerName(t *testing.T) {
 	spelled := map[int]string{
 		10: "NET_BIND_SERVICE",
 		12: "NET_ADMIN",
 		13: "NET_RAW",
+		21: "SYS_ADMIN",
 		25: "SYS_TIME",
 		39: "BPF",
 	}

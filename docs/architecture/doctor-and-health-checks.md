@@ -95,7 +95,7 @@ sweep behind `doctor-fib-vpp-stale-route` is in
 <!-- source: internal/plugins/fib/vpp/doctor_label.go -- labelEntriesCheckDecl -->
 <!-- source: internal/plugins/fib/vpp/doctor_route.go -- staleRoutesCheckDecl -->
 
-The `container` plugin, in a build with `ze_container`, declares four runtime
+The `container` plugin, in a build with `ze_container`, declares five runtime
 checks the same way. Each reads the problems its supervisor recorded for a
 container, and its finding names the container and the command that fixes it:
 
@@ -105,6 +105,7 @@ container, and its finding names the container and the command that fixes it:
 | `container-process-limit` | a container that reached its process limit | `doctor-container-process-limit` |
 | `container-stop-killed` | a container that outlived its stop timeout and was killed | `doctor-container-stop-killed` |
 | `container-cleanup-incomplete` | a container that left processes, a control group or a mount behind | `doctor-container-cleanup-incomplete` |
+| `container-failed` | an enabled container whose last start failed, as an error, with the step, its cause and the fix that refusal names | `doctor-container-failed` |
 
 No code writes such a record yet, so the four answer no finding today
 (`docs/architecture/container/runtime.md`, "Runtime checks").

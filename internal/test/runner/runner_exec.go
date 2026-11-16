@@ -753,13 +753,16 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 		// peer's stdin route and port read it.
 		binName := stepRole(cmdParts)
 		var binPath string
+		// lookErr is the miss of a bare name on the step's own PATH; it is
+		// handed to Cmd.Err so Start fails with it.
+		var lookErr error
 		switch binName {
 		case binNameLE, binNamePeer:
 			binPath = r.lePath
 		case binNameZe:
 			binPath = r.zePath
 		default:
-			binPath = binName // a PATH lookup
+			binPath, lookErr = r.childLookPath(binName)
 		}
 
 		args := cmdParts[1:]
@@ -895,6 +898,9 @@ func (r *Runner) runOrchestrated(ctx context.Context, rec *Record, opts *RunOpti
 
 		// Create command
 		proc := exec.CommandContext(testCtx, binPath, args...) //nolint:gosec // test runner
+		if lookErr != nil {
+			proc.Err = lookErr
+		}
 
 		// Set up environment
 		// Put the bare-name shim dir on PATH so child processes resolve THIS

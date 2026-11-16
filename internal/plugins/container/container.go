@@ -82,13 +82,25 @@ func runContainerEngine(conn net.Conn) int {
 	ctx, cancel := sdk.SignalContext()
 	defer cancel()
 
-	// No runtime library is handed over: the start sequence that drives one
-	// is not built, and the supervisor refuses every start.
-	sup := newSupervisor(log, nil, storeFactory, participants)
+	// The runtime library is nil off Linux, where the supervisor refuses
+	// every start with the reason.
+	sup := newSupervisor(log, newRuntimeLibrary(log), storeFactory, participants)
+	sup.tunables = newSysctlClaim(p)
+	defer sup.close()
+
+	// A worker's tunable claim is a call to the engine, which the engine
+	// answers only once the startup handshake ended, so the containers of the
+	// boot configure start from here.
+	p.OnStarted(func(context.Context) error {
+		sup.begin()
+		return nil
+	})
 
 	// One parser serves the boot configure, the reload's verify and the
 	// static verifier of the registration, so the three give one verdict.
-	tx := sdk.NewConfigTx(containerConfig{}, parseContainerSections, sup.install)
+	// Apply installs the desired set and wakes each container's worker; it
+	// never waits for a start.
+	tx := sdk.NewConfigTx(containerConfig{}, parseContainerSections, sup.apply)
 	tx.Register(p)
 
 	// A whole-daemon stop closes the connection with no notice, so the drain

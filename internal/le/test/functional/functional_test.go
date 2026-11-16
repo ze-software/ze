@@ -443,8 +443,17 @@ func TestBuildCommandsCarryTheTagsTheRunnerBuildsWith(t *testing.T) {
 		t.Fatalf("load the toolchain: %v", err)
 	}
 	commands := buildCommands(tc, filepath.Join("out", "bin"))
-	if len(commands) != 6 {
-		t.Fatalf("a set builds ze, ze-stripped, ze-stripped-flow, ze-upgrade, le and ze-fakefilter, got %d commands", len(commands))
+	if len(commands) != 7 {
+		t.Fatalf("a set builds ze, ze-stripped, ze-stripped-flow, ze-upgrade, le, ze-fakefilter and ze-containerprobe, got %d commands", len(commands))
+	}
+	// The container test store's fixture program is built from its own main
+	// package, with no ze tag and no coverage: it links no ze package.
+	probe := strings.Join(commands[6], " ")
+	if !strings.HasSuffix(probe, filepath.Join("out", "bin", runner.ContainerProbeBinary)+" "+runner.ContainerProbePackage) {
+		t.Errorf("the container probe build is not %s from %s: %s", runner.ContainerProbeBinary, runner.ContainerProbePackage, probe)
+	}
+	if strings.Contains(probe, "-tags") || strings.Contains(probe, "-cover") {
+		t.Errorf("the container probe build carries ze tags or coverage: %s", probe)
 	}
 
 	dut := strings.Join(commands[0], " ")
@@ -512,6 +521,29 @@ func TestTheGuestSetCarriesTheFakeFilterPlugin(t *testing.T) {
 	if !found {
 		t.Errorf("the guest set does not build %s: %v", runner.FakeFilterBinary, guestBuildCommands(tc, binaries))
 	}
+}
+
+// TestTheGuestSetCarriesTheContainerProbe holds the QEMU guest set to the
+// container probe a host run builds: a guest run is LE_TEST_NO_BUILD, so
+// without it the container test store finds no fixture program and every
+// test of the container suite fails to start its container.
+func TestTheGuestSetCarriesTheContainerProbe(t *testing.T) {
+	env.ResetCache()
+	tc, err := gotoolchain.New(repoRootForTest(t))
+	if err != nil {
+		t.Fatalf("load the toolchain: %v", err)
+	}
+	binaries := filepath.Join("out", "guest")
+	want := strings.Join(containerProbeBuildCommand(binaries), " ")
+	if !strings.HasSuffix(want, filepath.Join(binaries, runner.ContainerProbeBinary)+" "+runner.ContainerProbePackage) {
+		t.Fatalf("the container probe build is not %s from %s: %s", runner.ContainerProbeBinary, runner.ContainerProbePackage, want)
+	}
+	for _, argv := range guestBuildCommands(tc, binaries) {
+		if strings.Join(argv, " ") == want {
+			return
+		}
+	}
+	t.Errorf("the guest set does not build %s: %v", runner.ContainerProbeBinary, guestBuildCommands(tc, binaries))
 }
 
 // TestTheUpgradeBuildIsTheDUTUnderItsOwnRelease holds ze-upgrade to what

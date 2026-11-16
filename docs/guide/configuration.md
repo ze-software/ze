@@ -5062,19 +5062,20 @@ container {
 | `instance <name>` | One container. The name is 1 to 63 lowercase letters, digits and hyphens, and it neither starts nor ends with a hyphen |
 | `enabled` | Whether the container runs. The default is `true`. `false` keeps the container's statements and keeps it stopped |
 
-The container runtime is not complete: no build starts a container today. A
-configuration that holds an enabled container is refused by `ze config
-validate`, at start and at reload, and the refusal names the statement that
-disables it, `set container instance <name> enabled false`. A disabled
-container is accepted. The image, the limits, the networks and every other
-statement of a container are not in the schema yet.
+An enabled container is accepted, and the daemon tries to start it once the
+configuration is applied: the commit never waits for the start. The container
+runtime is not complete. No shipped build holds an image store yet, so the
+start is refused there and the container takes the `failed` state. The image,
+the limits, the networks and every other statement of a container are not in
+the schema yet.
 
 When the configuration holds a container to run, the kernel must be built with
 `CONFIG_CFS_BANDWIDTH`, which a container's hard CPU limit needs. On a kernel
 without it the configuration is refused the same way, and `ze doctor` reports
 `doctor-container-kernel-cpu-limit-unavailable`.
 <!-- source: internal/plugins/container/yang/ze-container-conf.yang -- YANG schema -->
-<!-- source: internal/plugins/container/config.go -- parseContainerSections, refuseUnbuiltRuntime, checkInstanceName -->
+<!-- source: internal/plugins/container/config.go -- parseContainerSections, checkInstanceName -->
+<!-- source: internal/plugins/container/supervise.go -- supervisor.apply, noImageStore -->
 <!-- source: internal/plugins/container/kernelcap_linux.go -- containerKernelCapabilities, containerInUse -->
 
 ## Healthcheck

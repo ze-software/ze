@@ -148,7 +148,9 @@ func TestTheShimReplacesTheLinksAPreviousRunLeft(t *testing.T) {
 // The shim links ze-fakefilter from beside ZE_BIN. A guest run is
 // LE_TEST_NO_BUILD and the runner finds the forked test plugin only on the
 // child PATH, which is the shim directory, so a missing link leaves
-// test/plugin/filter-wire-thirdparty-compiled-in.ci with "not found".
+// test/plugin/filter-wire-thirdparty-compiled-in.ci with "not found". The
+// container probe is linked the same way when absent, so
+// test/container/container-start.ci names the path it should have been built at.
 func TestTheShimLinksTheFakeFilterPluginBesideZe(t *testing.T) {
 	run := vmFixture(t)
 	run.ZeBin = filepath.Join("tmp", "guest", "ze")
@@ -159,12 +161,15 @@ func TestTheShimLinksTheFakeFilterPluginBesideZe(t *testing.T) {
 	if err := run.shim(); err != nil {
 		t.Fatalf("shim: %v", err)
 	}
-	target, err := os.Readlink(filepath.Join(run.BinDir, runner.FakeFilterBinary))
-	if err != nil {
-		t.Fatalf("the shim holds no %s: %v", runner.FakeFilterBinary, err)
-	}
-	if want := filepath.Join(run.Workspace, "tmp", "guest", runner.FakeFilterBinary); target != want {
-		t.Errorf("%s links %q, want %q beside ZE_BIN", runner.FakeFilterBinary, target, want)
+	for _, name := range []string{runner.FakeFilterBinary, runner.ContainerProbeBinary} {
+		target, err := os.Readlink(filepath.Join(run.BinDir, name))
+		if err != nil {
+			t.Errorf("the shim holds no %s: %v", name, err)
+			continue
+		}
+		if want := filepath.Join(run.Workspace, "tmp", "guest", name); target != want {
+			t.Errorf("%s links %q, want %q beside ZE_BIN", name, target, want)
+		}
 	}
 }
 

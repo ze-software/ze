@@ -49,8 +49,11 @@ func registerContainer() {
 		// The plugin owns the container root, so a config that holds it loads
 		// the plugin and a config without it does not.
 		ConfigRoots: []string{configRoot},
-		RunEngine:   runContainerEngine,
-		Commands:    commandDecls(),
+		// The sysctl plugin writes the kernel tunable a container's network
+		// namespace needs (tunables.go), so it is running before a start.
+		Dependencies: []string{"sysctl"},
+		RunEngine:    runContainerEngine,
+		Commands:     commandDecls(),
 		// `ze config validate` never calls a live verify callback. The static
 		// verifier is the same rule set the reload's verify and the boot
 		// configure run, so what validate accepts is what starts.
